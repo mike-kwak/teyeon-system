@@ -26,26 +26,41 @@ export default function Home() {
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mt-0 mb-2 w-full pt-1 pb-0">
+      <header className="flex flex-col items-center mt-2 mb-4 w-full pt-2 pb-2">
         <div className="relative group w-full flex flex-col items-center">
-          <div className="relative flex flex-col items-center">
-            {/* Logo with Ultra-Focused Glow */}
-            <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-            <img 
-              src="/logo.png" 
-              className="w-44 h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
-              alt="TEYEON Logo" 
-            />
-            
-            {/* SINCE 2025 - Official Accent Line Design (Zero-Gap Version) */}
-            <div className="flex items-center gap-3 w-full max-w-[260px] mt-[-8px] relative z-20">
-                <div className="flex-1 h-[1.2px] bg-gradient-to-r from-transparent via-white/5 to-white/30"></div>
-                <div className="flex items-center gap-1.5 px-1 whitespace-nowrap">
-                    <span className="text-white text-[10px] font-black tracking-[0.2em] uppercase">SINCE</span>
-                    <span className="text-[#D4AF37] text-[10px] font-black tracking-[0.15em] uppercase">2025</span>
+          <div className="relative flex items-center gap-4 group">
+            {/* Logo Icon Layer (Lines & Ball) */}
+            <div className="relative w-14 h-14 flex items-center justify-center">
+                {/* Diagonal Red Lines */}
+                <div className="absolute w-[42px] h-[7px] bg-[#E33529] rounded-full rotate-[-45deg] -translate-x-[6px] -translate-y-[8px] opacity-100 shadow-sm"></div>
+                <div className="absolute w-[42px] h-[7px] bg-[#E33529] rounded-full rotate-[-45deg] -translate-x-[12px] translate-y-[0px] opacity-100 shadow-sm"></div>
+                <div className="absolute w-[42px] h-[7px] bg-[#E33529] rounded-full rotate-[-45deg] -translate-x-[18px] translate-y-[8px] opacity-100 shadow-sm"></div>
+                {/* Tennis Ball */}
+                <div className="absolute w-7 h-7 bg-[#E8E137] rounded-full border-[1.5px] border-black translate-x-[10px] -translate-y-[10px] shadow-[2px_2px_8px_rgba(0,0,0,0.4)] z-10 flex items-center justify-center overflow-hidden">
+                    <div className="absolute w-full h-[1px] bg-black/20 rotate-[15deg] translate-y-[4px]"></div>
+                    <div className="absolute w-full h-[1px] bg-black/20 rotate-[15deg] -translate-y-[4px]"></div>
                 </div>
-                <div className="flex-1 h-[1.2px] bg-gradient-to-l from-transparent via-white/5 to-white/30"></div>
             </div>
+
+            {/* Typography Stack Layer */}
+            <div className="flex flex-col items-start leading-none relative">
+                {/* Row 1: Since 2025 */}
+                <div className="flex items-center gap-2 mb-[2px]">
+                    <span className="text-[10px] font-black text-white/90 tracking-[0.2em] uppercase">SINCE</span>
+                    <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic">2025</span>
+                </div>
+                {/* Row 2: TEYEON */}
+                <h1 className="text-white text-[38px] font-[1000] tracking-[-0.04em] leading-[0.9] drop-shadow-lg">
+                    TEYEON
+                </h1>
+                {/* Row 3: TENNIS */}
+                <div className="flex items-center justify-between w-full mt-1.5 px-0.5">
+                    <span className="text-white text-[11px] font-black tracking-[0.55em] uppercase opacity-90 italic">TENNIS</span>
+                </div>
+            </div>
+            
+            {/* Ambient Brand Glow */}
+            <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
           </div>
         </div>
       </header>
