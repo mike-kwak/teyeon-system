@@ -24,39 +24,42 @@ export default function Home() {
   ];
 
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#1E1E2E] text-white font-sans max-w-md mx-auto pb-10">
+    <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
       <header className="flex flex-col items-center mt-8 mb-10">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-xl">
-            <span className="text-2xl">🎾</span>
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-4xl font-black tracking-tighter leading-none">TEYEON</h1>
-            <span className="text-xs font-black text-[#D4AF37] tracking-[0.4em] mt-1 ml-1 uppercase">Tennis Club</span>
-          </div>
+        <div className="relative group">
+          {/* Logo with Glow Effect */}
+          <div className="absolute -inset-4 bg-[#D4AF37]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+          <img 
+            src="/logo.png" 
+            className="w-48 h-auto relative z-10 transition-transform duration-500 group-hover:scale-[1.02]" 
+            alt="TEYEON Logo" 
+          />
         </div>
-        <div className="bg-[#D4AF37]/5 border border-[#D4AF37]/20 px-4 py-1 rounded-full mt-4">
-          <span className="text-[#D4AF37] text-[10px] font-black tracking-widest">EST. 2025</span>
+        <div className="flex items-center gap-2 mt-4 bg-white/[0.03] border border-white/5 px-4 py-1.5 rounded-full backdrop-blur-sm">
+          <span className="text-white/20 text-[9px] font-black tracking-[0.3em] uppercase">Est.</span>
+          <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic tracking-tighter">2025</span>
         </div>
       </header>
 
       {/* Profile Card */}
       <Link href="/profile" className="block mb-6">
-        <section className="bg-gradient-to-br from-[#1A253D] to-[#1E1E2E] rounded-[24px] py-4 px-6 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-all shadow-xl">
+        <section className="bg-gradient-to-br from-[#1A253D] to-[#14141F] rounded-[24px] py-4 px-6 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-all shadow-xl group">
           <div className="flex items-center gap-5 relative z-10">
-            <div className="w-12 h-12 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-2xl">
+            <div className="w-12 h-12 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform">
               👤
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[#D4AF37] text-[8px] font-black tracking-widest uppercase bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">Premium CEO</span>
+                <span className="w-1 h-1 bg-[#FF4500] rounded-full animate-pulse"></span>
               </div>
               <h2 className="text-lg font-bold tracking-tight text-white/90">윤정수 <span className="text-white/30 font-normal text-sm">님, 반갑습니다!</span></h2>
-              <p className="text-white/40 text-[10px] font-medium tracking-wide mt-0.5">오늘도 즐거운 테니스 되세요 🎾</p>
+              <p className="text-white/40 text-[10px] font-medium tracking-wide mt-0.5">매 순간이 <span className="text-[#A3E635] font-black italic">CHAMPION SHOT</span> 입니다 🎾</p>
             </div>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#D4AF37]/5 rounded-bl-[80px] -mr-8 -mt-8"></div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#D4AF37]/5 rounded-bl-[80px] -mr-8 -mt-8 group-hover:scale-110 transition-transform"></div>
+          <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-[#FF4500]/5 blur-xl"></div>
         </section>
       </Link>
 

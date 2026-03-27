@@ -833,13 +833,16 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-lg mx-auto pb-40 relative">
+        <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-lg mx-auto pb-40 relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between mb-2">
-                <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Live Tournament</span>
-                    <div className="flex items-center gap-1 opacity-20">
-                        <div className="w-1 h-1 rounded-full bg-[#D4AF37] animate-pulse" />
-                        <span className="text-[8px] font-bold uppercase tracking-widest">Active Session</span>
+                <div className="flex items-center gap-3">
+                    <img src="/logo.png" className="w-10 h-auto" alt="TEYEON Logo" />
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Live Tournament</span>
+                        <div className="flex items-center gap-1 opacity-20">
+                            <div className="w-1 h-1 rounded-full bg-[#D4AF37] animate-pulse" />
+                            <span className="text-[8px] font-bold uppercase tracking-widest">Active Session</span>
+                        </div>
                     </div>
                 </div>
                 <div className="flex gap-2">
