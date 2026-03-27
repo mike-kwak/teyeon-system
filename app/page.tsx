@@ -26,25 +26,25 @@ export default function Home() {
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mt-0 mb-4 w-full pt-2 pb-2">
+      <header className="flex flex-col items-center mt-0 mb-2 w-full pt-1 pb-1">
         <div className="relative group w-full flex flex-col items-center">
           <div className="relative flex flex-col items-center">
             {/* Logo with Ultra-Focused Glow */}
             <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
             <img 
               src="/logo.png" 
-              className="w-56 h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
+              className="w-44 h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
               alt="TEYEON Logo" 
             />
             
-            {/* SINCE 2025 - Official Accent Line Design */}
-            <div className="flex items-center gap-3 w-full max-w-[300px] mt-4 relative z-20">
-                <div className="flex-1 h-[1.5px] bg-gradient-to-r from-transparent via-white/10 to-white/40"></div>
-                <div className="flex items-center gap-1.5 px-1">
-                    <span className="text-white text-[12px] font-black tracking-[0.2em] uppercase">SINCE</span>
-                    <span className="text-[#D4AF37] text-[12px] font-black tracking-[0.15em] uppercase">2025</span>
+            {/* SINCE 2025 - Official Accent Line Design (Compact Version) */}
+            <div className="flex items-center gap-3 w-full max-w-[260px] mt-2 relative z-20">
+                <div className="flex-1 h-[1.2px] bg-gradient-to-r from-transparent via-white/5 to-white/30"></div>
+                <div className="flex items-center gap-1.5 px-1 whitespace-nowrap">
+                    <span className="text-white text-[10px] font-black tracking-[0.2em] uppercase">SINCE</span>
+                    <span className="text-[#D4AF37] text-[10px] font-black tracking-[0.15em] uppercase">2025</span>
                 </div>
-                <div className="flex-1 h-[1.5px] bg-gradient-to-l from-transparent via-white/10 to-white/40"></div>
+                <div className="flex-1 h-[1.2px] bg-gradient-to-l from-transparent via-white/5 to-white/30"></div>
             </div>
           </div>
         </div>
