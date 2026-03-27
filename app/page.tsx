@@ -43,18 +43,18 @@ export default function Home() {
             </div>
 
             {/* Typography Stack Layer */}
-            <div className="flex flex-col items-start leading-none relative">
-                {/* Row 1: Since 2025 */}
-                <div className="flex items-center gap-2 mb-[2px]">
-                    <span className="text-[10px] font-black text-white/90 tracking-[0.2em] uppercase">SINCE</span>
-                    <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic">2025</span>
+            <div className="flex flex-col items-center leading-none relative">
+                {/* Row 1: Since 25 */}
+                <div className="flex items-center gap-2 mb-[4px]">
+                    <span className="text-[10px] font-black text-white/90 tracking-[0.25em] uppercase">SINCE</span>
+                    <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic">25</span>
                 </div>
                 {/* Row 2: TEYEON */}
-                <h1 className="text-white text-[38px] font-[1000] tracking-[-0.04em] leading-[0.9] drop-shadow-lg">
+                <h1 className="text-white text-[38px] font-[1000] tracking-[-0.04em] leading-[0.9] drop-shadow-lg pr-1">
                     TEYEON
                 </h1>
                 {/* Row 3: TENNIS */}
-                <div className="flex items-center justify-between w-full mt-1.5 px-0.5">
+                <div className="flex items-center justify-center w-full mt-1.5 px-0.5 ml-1">
                     <span className="text-white text-[11px] font-black tracking-[0.55em] uppercase opacity-90 italic">TENNIS</span>
                 </div>
             </div>
