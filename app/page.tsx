@@ -26,20 +26,22 @@ export default function Home() {
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mt-6 mb-8 w-full">
-        <div className="relative group w-full flex flex-col items-center">
-          <div className="relative inline-block">
-            {/* Logo with Glow Effect */}
-            <div className="absolute -inset-4 bg-[#D4AF37]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+      <header className="flex flex-col items-center mt-0 mb-2 w-full">
+        <div className="relative group w-full flex flex-col items-center pt-2">
+          <div className="relative flex flex-col items-center">
+            {/* Logo with Subtle Glow */}
+            <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
             <img 
               src="/logo.png" 
-              className="w-40 h-auto relative z-10 transition-transform duration-500 group-hover:scale-[1.02] mix-blend-lighten" 
+              className="w-64 h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
               alt="TEYEON Logo" 
             />
-            {/* Since 2025 - Right Aligned below logo text */}
-            <div className="absolute bottom-0 right-1 translate-y-full flex items-center gap-1.5 opacity-60">
-                <span className="text-[7px] font-black text-white/40 tracking-[0.2em] uppercase">Est.</span>
-                <span className="text-[#D4AF37] text-[9px] font-black tracking-widest italic leading-none">2025</span>
+            {/* Since 2025 - Centered & High Clarity */}
+            <div className="flex flex-col items-center mt-[-12px] relative z-20">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase">Since</span>
+                    <span className="text-[#D4AF37] text-[18px] font-black tracking-[0.05em] italic leading-none drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">2025</span>
+                </div>
             </div>
           </div>
         </div>
