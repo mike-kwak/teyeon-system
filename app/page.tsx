@@ -4,16 +4,23 @@ import React from 'react';
 import Link from 'next/link';
 
 export default function Home() {
+  const isAdmin = true; // Simulated Admin role
+
   const menuItems = [
-    { id: "members", icon: "👥", label: "멤버 명단", locked: false, comingSoon: false },
-    { id: "kdk", icon: "⚙️", label: "대진 생성", locked: false, comingSoon: false },
-    { id: "results", icon: "📋", label: "대진표 확인", locked: false, comingSoon: false },
-    { id: "ranking", icon: "🏆", label: "실시간 랭킹", locked: false, comingSoon: false },
-    { id: "finance", icon: "💰", label: "클럽 정산", locked: false, comingSoon: false },
-    { id: "notice", icon: "📢", label: "공지사항", locked: false, comingSoon: false },
-    { id: "tournament", icon: "🏆", label: "대회 모드", locked: false, comingSoon: false },
-    { id: "prediction", icon: "🤖", label: "시드 예측", locked: false, comingSoon: false },
-    { id: "community", icon: "💬", label: "커뮤니티", locked: false, comingSoon: true },
+    // Row 1
+    { id: "notice", icon: "📢", label: "클럽 공지", path: "/notice" },
+    { id: "profile", icon: "👤", label: "멤버 프로필", path: "/profile" },
+    { id: "special", icon: "🔥", label: "스페셜 매치", path: "/tournament" },
+    
+    // Row 2
+    { id: "kdk", icon: "⚙️", label: "대진 생성", path: "/kdk" },
+    { id: "live_court", icon: "🎾", label: "라이브 코트", path: "/ranking" },
+    { id: "archive", icon: "📂", label: "경기 아카이브", path: "/results" },
+    
+    // Row 3
+    { id: "finance", icon: "💰", label: "클럽 재무", path: "/finance" },
+    { id: "prediction", icon: "🤖", label: "AI 시드 예측", path: "/prediction" },
+    { id: "admin", icon: "🛠️", label: "관리자 설정", path: "/admin", adminOnly: true },
   ];
 
   return (
@@ -56,41 +63,37 @@ export default function Home() {
       {/* Action Tower Grid */}
       <section className="grid grid-cols-3 gap-3">
         {menuItems.map((item) => {
+          const isRestricted = item.adminOnly && !isAdmin;
+          
           const content = (
             <div 
               className={`
-                aspect-square rounded-[32px] flex flex-col items-center justify-center gap-3 transition-all duration-300 border
-                ${item.comingSoon 
-                  ? 'bg-white/5 border-transparent opacity-30 grayscale cursor-not-allowed' 
-                  : 'bg-[#1A253D] border-white/5 hover:border-[#D4AF37]/30 active:scale-90'}
+                aspect-square rounded-[32px] flex flex-col items-center justify-center gap-3 transition-all duration-500 border relative overflow-hidden group
+                ${isRestricted 
+                  ? 'bg-white/5 border-transparent opacity-20 grayscale cursor-not-allowed' 
+                  : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/5 hover:border-[#D4AF37]/40 hover:scale-105 hover:shadow-2xl hover:shadow-[#D4AF37]/10 active:scale-95'}
               `}
             >
-              <div className="text-3xl relative">
+              <div className="text-3xl relative z-10">
                 {item.icon}
-                {item.comingSoon && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-white/40 rounded-full"></div>
+                {isRestricted && (
+                  <div className="absolute -top-1 -right-1 text-[10px]">🔒</div>
                 )}
               </div>
-              <span className={`text-[12px] font-black tracking-tighter ${item.comingSoon ? 'text-white/40' : 'text-white/90'}`}>
+              <span className={`text-[11px] font-black tracking-tight z-10 ${isRestricted ? 'text-white/40' : 'text-white'}`}>
                 {item.label}
               </span>
+              
+              {!isRestricted && (
+                <div className="absolute inset-0 bg-gradient-to-t from-[#D4AF37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              )}
             </div>
           );
 
-          if (item.comingSoon) return <div key={item.id}>{content}</div>;
-
-          let path = '/';
-          if (item.id === 'members') path = '/members';
-          if (item.id === 'kdk') path = '/kdk';
-          if (item.id === 'results') path = '/results';
-          if (item.id === 'ranking') path = '/ranking';
-          if (item.id === 'finance') path = '/finance';
-          if (item.id === 'notice') path = '/notice';
-          if (item.id === 'tournament') path = '/tournament';
-          if (item.id === 'prediction') path = '/prediction';
+          if (isRestricted) return <div key={item.id}>{content}</div>;
 
           return (
-            <Link key={item.id} href={path} className="block w-full h-full">
+            <Link key={item.id} href={item.path || '/'} className="block w-full h-full">
               {content}
             </Link>
           );

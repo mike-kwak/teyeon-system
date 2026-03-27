@@ -20,6 +20,9 @@ type AttendeeConfig = {
     group: 'A' | 'B';
     startTime: string;
     endTime: string;
+    isLate?: boolean;
+    age?: number;
+    isWinner?: boolean;
 };
 
 interface Match {
@@ -34,7 +37,7 @@ interface Match {
     teams?: [string[], string[]];
 }
 
-type KDKConcept = 'RANDOM' | 'LEVEL' | 'MBTI' | 'WINNER';
+type KDKConcept = 'RANDOM' | 'LEVEL' | 'MBTI' | 'WINNER' | 'AGE';
 
 // --- Role Support ---
 type UserRole = 'CEO' | 'Staff' | 'Member' | 'Guest';
@@ -48,25 +51,30 @@ export default function KDKPage() {
     const [newGuestName, setNewGuestName] = useState("");
 
     const [sessionId, setSessionId] = useState<string | null>(null);
-    const [sessionTitle, setSessionTitle] = useState(`${new Date().toLocaleDateString()} KDK`);
+    const [sessionTitle, setSessionTitle] = useState(() => {
+        const d = new Date();
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yy}${mm}${dd}_KDK_01`;
+    });
     const [matches, setMatches] = useState<Match[]>([]);
     const [activeMatchIds, setActiveMatchIds] = useState<string[]>([]);
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
     const [genMode, setGenMode] = useState<KDKConcept>('RANDOM');
     const [totalCourts, setTotalCourts] = useState(2);
-    const [matchTime, setMatchTime] = useState(20);
+    const [matchTime, setMatchTime] = useState(30);
     const [fixedPartners, setFixedPartners] = useState<[string, string][]>([]);
     const [fixedTeamMode, setFixedTeamMode] = useState(false);
     const [partnerSelectSource, setPartnerSelectSource] = useState<string | null>(null);
     const [targetGames, setTargetGames] = useState(4);
-    const [matchRules, setMatchRules] = useState("• 20분 경기 (18분 알람, 2분 정리)\n• 노애드(No-Ad) 포인트 적용\n• 5:5 상황시 타이브레이크\n• 코트당 한 명의 리더가 경기구 관리");
+    const [matchRules, setMatchRules] = useState("1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승");
 
     const [firstPrize, setFirstPrize] = useState(10000);
-    const [bottom25Late, setBottom25Late] = useState(2000);
-    const [bottom25Penalty, setBottom25Penalty] = useState(3000);
+    const [bottom25Late, setBottom25Late] = useState(3000);
+    const [bottom25Penalty, setBottom25Penalty] = useState(5000);
     const [accountInfo, setAccountInfo] = useState("카카오뱅크 3333-01-5235337 (곽민섭)");
-
     const [currentTime, setCurrentTime] = useState("");
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
@@ -74,6 +82,57 @@ export default function KDKPage() {
     const [userRole, setUserRole] = useState<UserRole>('CEO');
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
+    const [showWarning, setShowWarning] = useState(false);
+    const [warningMsg, setWarningMsg] = useState("");
+
+    const [showGuestDataModal, setShowGuestDataModal] = useState(false);
+    const [hasSkippedGuestInfo, setHasSkippedGuestInfo] = useState(false);
+
+    const handleGuestDataSave = (id: string, age: number, isWinner: boolean) => {
+        setAttendeeConfigs(prev => ({
+            ...prev,
+            [id]: {
+                ...(prev[id] || { id, name: "Unknown", group: 'A', startTime: '18:00', endTime: '22:00' } as any),
+                age,
+                isWinner
+            }
+        }));
+    };
+
+    const validateGroups = (): { ok: boolean; msg: string } => {
+        const attendees = Array.from(selectedIds).map(id => {
+            const config = attendeeConfigs[id];
+            // If no config found (rare, but possible if newly selected), default to A
+            return config?.group || 'A';
+        });
+
+        const countA = attendees.filter(g => g === 'A').length;
+        const countB = attendees.filter(g => g === 'B').length;
+
+        if (countA > 0 && countA < 4) {
+            return { ok: false, msg: "A조 인원이 부족합니다 (최소 4명 필요)" };
+        }
+        if (countB > 0 && countB < 4) {
+            return { ok: false, msg: "B조 인원이 부족합니다 (최소 4명 필요)" };
+        }
+        if (countA === 0 && countB === 0) {
+            return { ok: false, msg: "최소 1명 이상의 참석자가 필요합니다" };
+        }
+
+        return { ok: true, msg: "" };
+    };
+
+    const handleStep1Confirm = () => {
+        const result = validateGroups();
+        if (!result.ok) {
+            setWarningMsg(result.msg);
+            setShowWarning(true);
+            return;
+        }
+        setStep(2);
+    };
+
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     useEffect(() => {
         fetchMembers();
@@ -81,20 +140,11 @@ export default function KDKPage() {
             setCurrentTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' }));
         }, 1000);
 
-        // Load from LocalStorage
+        // Silently check for existing session instead of prompt
         const saved = localStorage.getItem('kdk_live_session');
         if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                if (confirm("이전 진행 중인 세션이 있습니다. 복구하시겠습니까?")) {
-                    setMatches(data.matches || []);
-                    setAttendeeConfigs(data.attendeeConfigs || {});
-                    setSelectedIds(new Set(data.selectedIds || []));
-                    setTempGuests(data.tempGuests || []);
-                    setStep(data.step || 1);
-                    setSessionTitle(data.sessionTitle || "");
-                }
-            } catch(e) { console.error("LS Load Error", e); }
+             // We don't auto-load anymore to keep it clean, but we could store it for manual recovery
+             console.log("Existing session found in LS");
         }
 
         return () => clearInterval(timer);
@@ -143,17 +193,21 @@ export default function KDKPage() {
     };
 
     const resetSession = () => {
-        if (confirm("모든 데이터를 초기화하시겠습니까?")) {
-            setSelectedIds(new Set());
-            setTempGuests([]);
-            setMatches([]);
-            setActiveMatchIds([]);
-            setAttendeeConfigs({});
-            setSessionId(null);
-            setStep(1);
-            setFixedPartners([]);
-            setFixedTeamMode(false);
-        }
+        setShowResetConfirm(true);
+    };
+
+    const confirmReset = () => {
+        setSelectedIds(new Set());
+        setTempGuests([]);
+        setMatches([]);
+        setActiveMatchIds([]);
+        setAttendeeConfigs({});
+        setSessionId(null);
+        setStep(1);
+        setFixedPartners([]);
+        setFixedTeamMode(false);
+        setShowResetConfirm(false);
+        localStorage.removeItem('kdk_live_session');
     };
 
     const getPlayerName = (id: string) => {
@@ -164,7 +218,35 @@ export default function KDKPage() {
     };
 
     const generateKDK = async () => {
-        if (selectedIds.size < 4) return alert("최소 4명의 참가자가 필요합니다.");
+        const result = validateGroups();
+        if (!result.ok) {
+            setWarningMsg(result.msg);
+            setShowWarning(true);
+            return;
+        }
+
+        const selectedAttendees = Array.from(selectedIds).map(id => {
+            const m = allMembers.find(x => x.id === id) || tempGuests.find(x => x.id === id);
+            const conf = attendeeConfigs[id] || { group: m?.position || 'A' };
+            const group = (conf.group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+            return { id, group };
+        });
+
+        const countA = selectedAttendees.filter(a => a.group === 'A').length;
+        const countB = selectedAttendees.filter(a => a.group === 'B').length;
+
+        if (countA < 4) {
+            setWarningMsg("A조 인원이 부족합니다 (최소 4명 필요)");
+            setShowWarning(true);
+            return;
+        }
+
+        if (countB > 0 && countB < 4) {
+            setWarningMsg("B조 인원이 부족합니다 (최소 4명 필요)");
+            setShowWarning(true);
+            return;
+        }
+
         setIsGenerating(true);
         try {
             const attendees = Array.from(selectedIds).map(id => {
@@ -176,12 +258,14 @@ export default function KDKPage() {
                     group: conf.group,
                     times: [conf.startTime, conf.endTime] as [string, string],
                     isGuest: m?.is_guest,
-                    achievements: !!m?.is_guest, // Simplified for now, assuming guests have no prior achievements
+                    achievements: !!conf.isWinner, // Use actual isWinner flag
+                    birthdate: conf.age ? String(new Date().getFullYear() - conf.age) : undefined, // Encode age as birth year for engine
                 } as KdkPlayer;
             });
 
             const groupCourtMap: Record<string, number[]> = {
-                'A': Array.from({ length: totalCourts }, (_, i) => i + 1),
+                'A': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                'B': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
             };
 
             const kdkMatches = generateKdkMatches(attendees, groupCourtMap, targetGames, genMode, fixedPartners, fixedTeamMode);
@@ -211,21 +295,22 @@ export default function KDKPage() {
     };
 
     const startMatch = async (matchId: string) => {
+        // Find lowest available court number
+        const inUseCourts = matches.filter(m => m.status === 'playing').map(m => m.court || 0);
+        let nextCourt = 1;
+        while (inUseCourts.includes(nextCourt)) nextCourt++;
+
         const nextActive = [...activeMatchIds, matchId];
-        const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const } : m);
+        const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
         setActiveMatchIds(nextActive);
         setMatches(nextMatches);
-        /*
-        if (sessionId) {
-            const { data: existing } = await supabase.from('matches_archive').select('data').eq('id', sessionId).single();
-            const nextData = {
-                ...(existing?.data || {}),
-                matches: nextMatches,
-                attendee_configs: attendeeConfigs,
-            };
-            await supabase.from('matches_archive').update({ data: nextData }).eq('id', sessionId);
-        }
-        */
+    };
+
+    const updateMatchCourt = (matchId: string) => {
+        const courtStr = prompt("변경할 코트 번호를 입력하세요", "1");
+        if (courtStr === null) return;
+        const courtNum = parseInt(courtStr) || 1;
+        setMatches(prev => prev.map(m => m.id === matchId ? { ...m, court: courtNum } : m));
     };
     
     const finishMatch = async (matchId: string, s1: number, s2: number) => {
@@ -281,14 +366,17 @@ export default function KDKPage() {
                 name: m?.nickname || id, 
                 is_guest: m?.is_guest || conf.is_guest,
                 group: conf.group || 'A',
+                age: conf.age || 0,
                 ...playerStats[id] || { wins: 0, losses: 0, diff: 0, games: 0 }
             };
         }).sort((a, b) => b.wins - a.wins || b.diff - a.diff);
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
     const copyMatchTable = () => {
-        const date = new Date().toLocaleDateString();
-        let text = `🎾 [대진안내] 테연 정기전 (${date})\n━━━━━━━━━━━━━━\n`;
+        let text = `📌 오늘의 대진표: ${sessionTitle}\n`;
+        text += `⚖️ 규칙: ${matchRules}\n`;
+        text += `💰 상벌금: 1등 ${firstPrize.toLocaleString()}원 / 하위 ${bottom25Late.toLocaleString()}~${bottom25Penalty.toLocaleString()}원\n`;
+        text += `━━━━━━━━━━━━━━\n`;
         
         const matchesByRound: Record<number, Match[]> = {};
         matches.forEach(m => {
@@ -298,8 +386,7 @@ export default function KDKPage() {
         });
 
         Object.entries(matchesByRound).sort(([a], [b]) => Number(a) - Number(b)).forEach(([round, roundMatches]) => {
-            const time = round === '1' ? '18:30' : addMinutesToTime('18:30', (Number(round) - 1) * 25);
-            text += `📍 ${round}라운드 (${time})\n`;
+            text += `📍 ${round}라운드\n`;
             roundMatches.forEach((m, idx) => {
                 text += `${idx + 1}코트: ${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])} vs ${getPlayerName(m.playerIds[2])}/${getPlayerName(m.playerIds[3])}\n`;
             });
@@ -307,27 +394,50 @@ export default function KDKPage() {
         });
 
         text += `━━━━━━━━━━━━━━\n`;
-        text += `※ 상세 결과 확인: ${window.location.origin}/kdk\n`;
-        text += `정산 계좌: ${accountInfo}`;
+        text += `※ 상세 결과 확인: ${window.location.origin}/kdk`;
         
         navigator.clipboard.writeText(text);
         alert("📋 대진표 텍스트가 복사되었습니다!");
     };
 
     const copyFinalResults = () => {
-        const date = new Date().toLocaleDateString();
-        let text = `🏆 [최종결과] 테연 정기전 (${date})\n━━━━━━━━━━━━━━\n`;
+        let text = `📌 오늘의 대진표: ${sessionTitle}\n`;
+        text += `실시간 및 확정 랭킹 및 벌금 현황\n`;
+        text += `🏦 계좌: ${accountInfo}\n`;
+        text += `━━━━━━━━━━━━━━\n\n`;
         
-        text += `🥇 🏆 최종 순위 (TOP 5)\n`;
-        allPlayersInRanking.slice(0, 5).forEach((p: any, i: number) => {
-            text += `${i+1}위: ${p.name}${p.is_guest?'(G)':''} (${p.wins}승 ${p.losses}패 / 득실 ${p.diff})\n`;
+        const sortedPlayers = [...allPlayersInRanking];
+        const totalCount = sortedPlayers.length;
+        // Bottom 25% get penalties
+        const penaltyThreshold = Math.ceil(totalCount * 0.25);
+        const penaltyStartIndex = totalCount - penaltyThreshold;
+
+        sortedPlayers.forEach((p, i) => {
+            let rankPrefix = '';
+            if (i === 0) rankPrefix = '🥇 ';
+            else if (i === 1) rankPrefix = '🥈 ';
+            else if (i === 2) rankPrefix = '🥉 ';
+            else rankPrefix = `${i + 1}위 `;
+
+            let prizePenalty = '';
+            if (i === 0) {
+                prizePenalty = ` [💰 +${firstPrize.toLocaleString()}원]`;
+            } else if (i >= penaltyStartIndex) {
+                const isLate = attendeeConfigs[p.id]?.isLate;
+                const amt = isLate ? bottom25Late : bottom25Penalty;
+                prizePenalty = ` [💸 -${amt.toLocaleString()}원]`;
+            } else {
+                prizePenalty = ` [0원]`;
+            }
+
+            text += `${rankPrefix}${p.name}${p.is_guest?'(G)':''}: ${p.wins}승 ${p.losses}패${prizePenalty}\n`;
         });
-        text += `━━━━━━━━━━━━━━\n`;
-        text += `※ 전체 결과 확인: ${window.location.origin}/kdk\n`;
-        text += `정산 계좌: ${accountInfo}`;
+
+        text += `\n━━━━━━━━━━━━━━\n`;
+        text += `※ 전체 결과 확인: ${window.location.origin}/kdk`;
         
         navigator.clipboard.writeText(text);
-        alert("📊 최종 결과 보고서가 복사되었습니다!");
+        alert("📊 최종 결과 및 벌금 현황이 복사되었습니다!");
     };
 
     function addMinutesToTime(time: string, mins: number) {
@@ -338,47 +448,64 @@ export default function KDKPage() {
         return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
     }
 
-    const activeIds = new Set(activeMatchIds.flatMap(id => matches.find(m => m.id === id)?.playerIds || []));
+    const busyPlayerIds = new Set(matches.filter(m => m.status === 'playing').flatMap(m => m.playerIds || []));
 
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
             <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans max-w-lg mx-auto relative overflow-hidden">
-                <header className="flex flex-col items-center p-6 pt-[calc(1.5rem+var(--safe-top))]">
-                    <div className="w-full flex justify-between items-start mb-2">
-                        <button onClick={resetSession} className="text-[10px] font-black text-red-500/60 uppercase tracking-widest active:scale-90 transition-all">RESET</button>
-                        <button onClick={() => setShowRankingModal(true)} className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest active:scale-90 transition-all">RANKING</button>
+                <header className="flex items-start justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
+                    <div className="flex-1">
+                        <button 
+                            onClick={() => setShowResetConfirm(true)}
+                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/30 hover:text-red-500/60 transition-all active:scale-95 group"
+                            title="Reset Tournament"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        </button>
                     </div>
-                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">STEP 01</span>
-                    <h1 className="text-3xl font-black italic tracking-tighter mb-2">참석자 확정</h1>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{selectedIds.size} / {allMembers.length + tempGuests.length} 명 READY</p>
+
+                    <div className="flex-[2] text-center flex flex-col items-center">
+                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase px-3 py-1 bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/20 mb-2 inline-block">Step 01</span>
+                        <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap">참석자 확정</h1>
+                        <div className="mt-3 flex items-center justify-center gap-2">
+                             <div className="h-px w-4 bg-[#D4AF37]/30" />
+                             <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{selectedIds.size} PLAYERS READY</span>
+                             <div className="h-px w-4 bg-[#D4AF37]/30" />
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex justify-end">
+                        <ManualRecoveryButton 
+                            onRestore={(data) => {
+                                 setMatches(data.matches || []);
+                                 setAttendeeConfigs(data.attendeeConfigs || {});
+                                 setSelectedIds(new Set(data.selectedIds || []));
+                                 setTempGuests(data.tempGuests || []);
+                                 setStep(data.step || 1);
+                                 setSessionTitle(data.sessionTitle || "");
+                                 if (data.settings?.finance) {
+                                     setFirstPrize(data.settings.finance.firstPrize);
+                                     setBottom25Late(data.settings.finance.bottom25Late);
+                                     setBottom25Penalty(data.settings.finance.bottom25Penalty);
+                                     setAccountInfo(data.settings.finance.accountInfo);
+                                 }
+                            }} 
+                        />
+                    </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto px-4 pb-48">
-                    <div className="px-6 mb-12">
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-4 block">Archive Title</span>
-                        <input 
-                            type="text" 
-                            value={sessionTitle} 
-                            onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-[#D4AF37]/50 transition-all outline-none mb-4"
-                            placeholder="Ex: 2026-03-27 테연 정기전"
-                        />
-                        
-                        {(userRole === 'CEO' || userRole === 'Staff') ? (
+                <div className="flex-1 px-6 space-y-6 overflow-y-auto no-scrollbar pb-32">
+                    <section className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                            <h3 className="text-[10px] font-black text-white/40 tracking-[0.3em] uppercase">Members List</h3>
                             <button 
-                                onClick={generateKDK}
-                                disabled={isGenerating}
-                                className={`w-full py-6 rounded-[32px] font-black uppercase text-xs tracking-[0.2em] transition-all shadow-2xl relative overflow-hidden group ${isGenerating ? 'bg-white/10 text-white/20' : 'bg-[#D4AF37] text-black hover:scale-[1.02] active:scale-95'}`}
+                                onClick={() => setSelectedIds(new Set())}
+                                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-white/30 uppercase tracking-[0.2em] active:scale-95 transition-all hover:text-[#4ADE80] hover:border-[#4ADE80]/30 hover:bg-[#4ADE80]/5"
                             >
-                                {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
+                                전체 해제
                             </button>
-                        ) : (
-                            <div className="py-4 px-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
-                                <p className="text-[10px] font-bold text-red-500/80 uppercase tracking-widest">⚠️ 관리자(CEO/Staff)만 대진 생성이 가능합니다.</p>
-                            </div>
-                        )}
-                    </div>
+                        </div>
                     <div className="grid grid-cols-4 gap-2 mb-10">
                         {[...allMembers, ...tempGuests].map(m => {
                             const isSelected = selectedIds.has(m.id);
@@ -418,38 +545,31 @@ export default function KDKPage() {
                         )}
                     </div>
 
-                    <div className="mt-12 border-t border-white/5 pt-6">
-                        <ArchiveSection onLoad={(session: any) => {
-                            setSessionId(session.id);
-                            setSessionTitle(session.title);
-                            setMatches(session.matches);
-                            setActiveMatchIds(session.active_match_ids || []);
-                            setAttendeeConfigs(session.attendee_configs);
-                            if (session.settings) {
-                                setGenMode(session.settings.concept);
-                                setTotalCourts(session.settings.totalCourts || 2);
-                                setMatchTime(session.settings.matchTime);
-                                setTargetGames(session.settings.targetGames);
-                                setMatchRules(session.settings.matchRules);
-                                setFixedPartners(session.settings.fixedPartners || []);
-                                setFixedTeamMode(session.settings.fixedTeamMode || false);
-                                if (session.settings.finance) {
-                                    setFirstPrize(session.settings.finance.firstPrize);
-                                    setBottom25Late(session.settings.finance.bottom25Late);
-                                    setBottom25Penalty(session.settings.finance.bottom25Penalty);
-                                    setAccountInfo(session.settings.finance.accountInfo);
-                                }
-                            }
-                            setStep(3);
-                        }} />
-                    </div>
+                    </section>
+
+                    {/* Removed ArchiveSection per user request for clean Step 1 */}
                 </div>
 
                 <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0A0A0F] to-transparent z-20">
-                    <button onClick={() => setStep(2)} className="w-full max-w-md mx-auto py-5 bg-[#D4AF37] text-black font-black text-lg rounded-[28px] shadow-2xl active:scale-95 flex items-center justify-center gap-2">
+                    <button onClick={handleStep1Confirm} className="w-full max-w-md mx-auto py-5 bg-[#D4AF37] text-black font-black text-lg rounded-[28px] shadow-2xl active:scale-95 flex items-center justify-center gap-2">
                         참석자 확정 및 설정 ➡️
                     </button>
                 </div>
+
+                {showResetConfirm && (
+                    <CustomConfirmModal 
+                        title="초기화 확인" 
+                        message="모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다." 
+                        onConfirm={confirmReset} 
+                        onCancel={() => setShowResetConfirm(false)} 
+                    />
+                )}
+                {showWarning && (
+                    <WarningModal 
+                        message={warningMsg} 
+                        onClose={() => setShowWarning(false)} 
+                    />
+                )}
             </main>
         );
     }
@@ -466,6 +586,33 @@ export default function KDKPage() {
 
         return (
             <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans max-w-4xl mx-auto p-4 pb-48">
+                {((genMode === 'WINNER' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
+                    <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+                        <div className="bg-[#1C1C28] border border-[#D4AF37]/30 rounded-[32px] p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95">
+                            <div className="text-center space-y-2">
+                                <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase">Data Required</span>
+                                <h3 className="text-xl font-black italic text-white tracking-tighter uppercase">게스트 상세 정보 필요</h3>
+                                <p className="text-[10px] font-bold text-white/40 leading-relaxed uppercase tracking-widest">이 모드는 게스트의 나이와 입상 여부가 필요합니다.</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowGuestDataModal(true)}
+                                className="w-full py-4 bg-[#D4AF37] text-black font-black rounded-2xl shadow-xl active:scale-95 transition-all text-xs uppercase tracking-widest"
+                            >
+                                정보 입력하기 ➡️
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {showGuestDataModal && (
+                    <GuestDataModal 
+                        guests={attendees.filter(m => m.is_guest)} 
+                        configs={attendeeConfigs} 
+                        onSave={handleGuestDataSave} 
+                        onClose={() => { setShowGuestDataModal(false); setHasSkippedGuestInfo(true); }} 
+                    />
+                )}
+
                 <header className="flex flex-col items-center mb-10 pt-[calc(1rem+var(--safe-top))]">
                     <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase px-3 py-1 bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/20 mb-2">Step 02</span>
                     <h1 className="text-3xl font-black italic tracking-tighter text-center uppercase">Tournament Dashboard</h1>
@@ -496,6 +643,13 @@ export default function KDKPage() {
                                                 <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">{m.is_guest ? 'Guest' : 'Member'}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 flex-1 justify-end">
+                                                <button 
+                                                    onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
+                                                    className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/20 hover:text-white/40'}`}
+                                                    title="지각 처리"
+                                                >
+                                                    🕒
+                                                </button>
                                                 <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-[10px] font-bold text-white/60 outline-none">
                                                     {timeOptions.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
                                                 </select>
@@ -520,9 +674,11 @@ export default function KDKPage() {
                         <section className="bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-[32px] p-8 space-y-6">
                             <div>
                                 <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em] mb-4">Core Strategy</h4>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(['RANDOM', 'LEVEL', 'MBTI', 'WINNER'] as const).map(mode => (
-                                        <button key={mode} onClick={() => setGenMode(mode)} className={`py-4 rounded-2xl border text-[10px] font-black transition-all ${genMode === mode ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-xl' : 'bg-white/5 border-white/10 text-white/40'}`}>{mode}</button>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['RANDOM', 'LEVEL', 'MBTI', 'WINNER', 'AGE'] as const).map(mode => (
+                                        <button key={mode} onClick={() => setGenMode(mode)} className={`py-4 rounded-2xl border text-[10px] font-black transition-all ${genMode === mode ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-xl' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                                            {mode === 'LEVEL' ? '실력(ABC)' : mode === 'WINNER' ? '입상자' : mode === 'AGE' ? '연령(OB/YB)' : mode}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -569,9 +725,9 @@ export default function KDKPage() {
                                     <div className="flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5">
                                         <span className="text-[10px] font-black text-white/40 uppercase">Match Time (mins)</span>
                                         <div className="flex items-center gap-4">
-                                            <button onClick={() => setMatchTime(Math.max(5, matchTime - 5))} className="text-white/20 font-black">-</button>
+                                            <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="text-white/20 font-black">-</button>
                                             <span className="text-sm font-black text-[#D4AF37] w-4 text-center">{matchTime}</span>
-                                            <button onClick={() => setMatchTime(matchTime + 5)} className="text-white/20 font-black">+</button>
+                                            <button onClick={() => setMatchTime(matchTime + 30)} className="text-white/20 font-black">+</button>
                                         </div>
                                     </div>
                                     <div className="h-px bg-white/5 my-2" />
@@ -662,6 +818,13 @@ export default function KDKPage() {
                 <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/95 to-transparent z-40 flex flex-col items-center gap-4 text-center">
                     <button onClick={() => setStep(1)} className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em] hover:text-[#D4AF37]">Back to Attendance</button>
                 </div>
+
+                {showWarning && (
+                    <WarningModal 
+                        message={warningMsg} 
+                        onClose={() => setShowWarning(false)} 
+                    />
+                )}
             </main>
         );
     }
@@ -671,10 +834,13 @@ export default function KDKPage() {
 
     return (
         <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-lg mx-auto pb-40 relative">
-            <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between">
-                <div>
-                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1 block">Live Tournament</span>
-                    <h1 className="text-2xl font-black italic tracking-tighter text-white">{sessionTitle || 'UNTITLED KDK'}</h1>
+            <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between mb-2">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Live Tournament</span>
+                    <div className="flex items-center gap-1 opacity-20">
+                        <div className="w-1 h-1 rounded-full bg-[#D4AF37] animate-pulse" />
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Active Session</span>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={copyMatchTable} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all" title="대진표 공유">📋</button>
@@ -682,6 +848,42 @@ export default function KDKPage() {
                     <button onClick={resetSession} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/40 text-sm active:scale-90 transition-all">×</button>
                 </div>
             </header>
+
+            <div className="px-6 mb-8">
+                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#D4AF37]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative overflow-hidden">
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Tournament Info</span>
+                            <span className="text-white/20 text-[10px]">✏️</span>
+                        </div>
+                        <input 
+                            value={sessionTitle} 
+                            onChange={(e) => setSessionTitle(e.target.value)}
+                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#D4AF37]/20 transition-all"
+                            placeholder="Session Title"
+                        />
+                    </div>
+                    <div className="h-px bg-white/5" />
+                    <div className="grid grid-cols-[1.5fr_1fr] gap-4">
+                        <div className="space-y-1 overflow-hidden">
+                            <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Match Rules</span>
+                            <input 
+                                value={matchRules} 
+                                onChange={(e) => setMatchRules(e.target.value)}
+                                className="w-full bg-black/20 border border-white/5 rounded-xl px-3 h-10 text-[9px] font-bold text-white/60 outline-none focus:border-[#D4AF37]/20 truncate"
+                                placeholder="Rules..."
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
+                            <div className="bg-black/20 border border-white/5 rounded-xl p-3 space-y-1">
+                                <p className="text-[9px] font-bold text-[#D4AF37]">🥇 {firstPrize.toLocaleString()}원</p>
+                                <p className="text-[9px] font-bold text-red-400/80">📉 {bottom25Late.toLocaleString()}~{bottom25Penalty.toLocaleString()}원</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="flex-1 p-6 space-y-8 overflow-y-auto">
                 {activeTab === 'MATCHES' ? (
@@ -694,33 +896,40 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-20 text-center opacity-20 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">Waiting for next round...</div>
                             ) : (
-                                <div className="grid grid-cols-1 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
+                                        const p0 = m.playerIds[0];
+                                        const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                        const isGroupB = (p0Group || 'A').toUpperCase().includes('B');
+
                                         return (
-                                            <div key={mId} onClick={() => { setTempScores({ s1: m.score1 || 0, s2: m.score2 || 0 }); setShowScoreModal(mId); }} className="group relative bg-[#1E1E2E] border border-white/10 rounded-[40px] p-8 shadow-2xl active:scale-95 transition-all">
-                                                <div className="absolute top-0 right-0 p-6 opacity-5">
-                                                    <span className="text-3xl font-black italic">#{m.court}</span>
+                                            <div key={mId} className="group relative bg-[#1E1E2E] border border-white/10 rounded-[32px] p-4 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[140px]">
+                                                <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                                                    <span className={`text-[8px] font-black italic ${isGroupB ? 'text-blue-400' : 'text-[#D4AF37]'}`}>{isGroupB ? 'B' : 'A'}조</span>
                                                 </div>
-                                                <div className="flex items-center justify-between gap-6 mb-4">
-                                                    <div className="flex-1 text-center space-y-1">
-                                                        <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[0])}</p>
-                                                        <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[1])}</p>
-                                                    </div>
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/20">
-                                                            <span className="text-black text-[10px] font-black italic">VS</span>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); updateMatchCourt(mId); }}
+                                                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black italic text-[#D4AF37] border border-white/10"
+                                                >
+                                                    #{m.court}
+                                                </button>
+                                                <div onClick={() => { setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }} className="space-y-3">
+                                                    <div className="flex justify-between items-start px-1 pt-4">
+                                                        <div className="flex flex-col gap-0.5 max-w-[45%]">
+                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[0])}</p>
+                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[1])}</p>
                                                         </div>
-                                                        <span className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest">Court {m.court}</span>
+                                                        <span className="text-[8px] font-black text-[#D4AF37]/40 italic pt-1 text-center flex-1">VS</span>
+                                                        <div className="flex flex-col gap-0.5 max-w-[45%] text-right">
+                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[2])}</p>
+                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[3])}</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 text-center space-y-1">
-                                                        <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[2])}</p>
-                                                        <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[3])}</p>
+                                                    <div className="w-full py-2 bg-white/[0.03] rounded-xl text-center">
+                                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest group-hover:text-[#D4AF37] transition-colors">Score Input</span>
                                                     </div>
-                                                </div>
-                                                <div className="text-center pt-2">
-                                                    <span className="px-4 py-2 bg-white/5 rounded-full text-[9px] font-black text-white/20 uppercase tracking-widest group-hover:text-[#D4AF37] transition-colors">Tap to input score</span>
                                                 </div>
                                             </div>
                                         );
@@ -728,22 +937,64 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </div>
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black text-white/30 tracking-[0.3em] uppercase px-2">Match Queue</h3>
-                            <div className="grid grid-cols-1 gap-2">
-                                {matches.filter(m => m.status === 'waiting').map(m => {
-                                    const hasConflict = m.playerIds.some(pid => activeIds.has(pid));
+                        <div className="space-y-8">
+                            {(() => {
+                                const waitingMatches = matches.filter(m => m.status === 'waiting');
+                                if (waitingMatches.length === 0) return (
+                                    <div className="py-10 text-center opacity-10 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">No Matches in Queue</div>
+                                );
+
+                                return [ 'A', 'B' ].map(group => {
+                                    const groupMatches = waitingMatches.filter(m => {
+                                        const p0 = m.playerIds[0];
+                                        const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                        
+                                        const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                        return normalizedGroup === group;
+                                    });
+
+                                    if (groupMatches.length === 0) return null;
+
                                     return (
-                                        <div key={m.id} className={`bg-white/[0.03] border border-white/5 p-5 rounded-[24px] flex items-center justify-between ${hasConflict ? 'opacity-20' : ''}`}>
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] font-bold text-white/20 uppercase mb-1">Round {m.round}</span>
-                                                <span className="text-xs font-bold text-white/60">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])} vs {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                        <div key={group} className="space-y-4">
+                                            <h3 className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase px-2 flex items-center gap-2">
+                                                <span className={`w-4 h-4 rounded flex items-center justify-center text-[8px] text-black font-black ${group === 'A' ? 'bg-[#D4AF37]' : 'bg-blue-500'}`}>{group}</span>
+                                                {group}조 대기 경기
+                                            </h3>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {groupMatches.map(m => {
+                                                    const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
+                                                    const hasConflict = busyPlayers.length > 0;
+                                                    return (
+                                                        <div key={m.id} className={`bg-white/[0.03] border border-white/5 p-5 rounded-[24px] flex items-center justify-between transition-all ${hasConflict ? 'opacity-30' : ''}`}>
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[8px] font-bold text-white/20 uppercase">Round {m.round}</span>
+                                                                    {hasConflict && (
+                                                                        <span className="text-[7px] font-black text-red-500/60 uppercase tracking-tighter">
+                                                                            Conflict: {busyPlayers.map(pid => getPlayerName(pid)).join(', ')}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <span className={`text-xs font-bold transition-colors ${hasConflict ? 'text-white/20' : 'text-white/60'}`}>
+                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])} vs {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
+                                                                </span>
+                                                            </div>
+                                                            <button 
+                                                                disabled={hasConflict}
+                                                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
+                                                                className={`text-[10px] font-black uppercase px-3 py-1 rounded-lg ${hasConflict ? 'bg-white/5 text-white/5 cursor-not-allowed' : 'bg-[#D4AF37] text-black active:scale-95'}`}
+                                                            >
+                                                                {hasConflict ? 'BUSY' : '투입 🚀'}
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                            {!hasConflict && <button onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} className="text-[10px] font-black text-[#D4AF37] uppercase bg-[#D4AF37]/10 px-3 py-1 rounded-lg">투입 🚀</button>}
                                         </div>
                                     );
-                                })}
-                            </div>
+                                });
+                            })()}
                         </div>
 
                         {matches.some(m => m.status === 'complete') && (
@@ -846,11 +1097,130 @@ export default function KDKPage() {
                     </div>
                 </div>
             )}
+            {showResetConfirm && (
+                <CustomConfirmModal 
+                    title="초기화 확인" 
+                    message="모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다." 
+                    onConfirm={confirmReset} 
+                    onCancel={() => setShowResetConfirm(false)} 
+                />
+            )}
+            {showWarning && (
+                <WarningModal 
+                    message={warningMsg} 
+                    onClose={() => setShowWarning(false)} 
+                />
+            )}
         </main>
     );
 }
 
-// --- Sub-components ---
+function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void }) {
+    const [hasSession, setHasSession] = useState(false);
+    useEffect(() => {
+        const saved = localStorage.getItem('kdk_live_session');
+        if (saved) setHasSession(true);
+    }, []);
+
+    if (!hasSession) return null;
+
+    return (
+        <button 
+            onClick={() => {
+                const saved = localStorage.getItem('kdk_live_session');
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        onRestore(data);
+                    } catch (e) { console.error(e); }
+                }
+            }} 
+            className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/40 uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all active:scale-95 group whitespace-nowrap"
+        >
+            <span className="text-[12px] group-hover:scale-110 transition-transform grayscale group-hover:grayscale-0">📂</span>
+            <span>이전 데이터 불러오기</span>
+        </button>
+    );
+}
+
+function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], configs: Record<string, AttendeeConfig>, onSave: (id: string, age: number, isWinner: boolean) => void, onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-[#1C1C28] border border-white/10 rounded-[40px] p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-8">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Guest Registry</span>
+                        <h3 className="text-xl font-black italic text-white tracking-tighter uppercase">게스트 상세 정보</h3>
+                    </div>
+                    <button onClick={onClose} className="text-white/20 text-3xl">×</button>
+                </div>
+                
+                <div className="space-y-4">
+                    {guests.map(g => {
+                        const conf = configs[g.id] || {};
+                        return (
+                            <div key={g.id} className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-black text-white">{g.name}</span>
+                                    <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em] bg-[#D4AF37]/10 px-2 py-1 rounded">Guest</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Age (나이)</label>
+                                        <input 
+                                            type="number" 
+                                            placeholder="나이"
+                                            value={conf.age || ''}
+                                            onChange={(e) => onSave(g.id, parseInt(e.target.value) || 0, !!conf.isWinner)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#D4AF37]/50"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Winner? (입상여부)</label>
+                                        <button 
+                                            onClick={() => onSave(g.id, conf.age || 0, !conf.isWinner)}
+                                            className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all ${conf.isWinner ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
+                                        >
+                                            {conf.isWinner ? '🏆 YES (OB)' : 'NO (YB)'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="pt-4">
+                    <button 
+                        onClick={onClose}
+                        className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
+                    >
+                        Save & Continue ➡️
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onCancel}></div>
+            <div className="relative w-full max-w-sm bg-[#1C1C28] border border-white/10 rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                <h3 className="text-lg font-black italic text-white mb-2 uppercase tracking-tighter">{title}</h3>
+                <p className="text-xs font-bold text-white/40 mb-8 leading-relaxed">{message}</p>
+                <div className="flex gap-3">
+                    <button onClick={onCancel} className="flex-1 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl">Cancel</button>
+                    <button onClick={onConfirm} className="flex-1 py-4 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-red-500/20">Confirm</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
 function ArchiveSection({ onLoad }: { onLoad: (session: any) => void }) {
     const [archives, setArchives] = useState<any[]>([]);
     useEffect(() => {
@@ -884,6 +1254,18 @@ function ArchiveSection({ onLoad }: { onLoad: (session: any) => void }) {
 }
 
 function RankingView({ sessionMatches, configs, prizes, allPlayers: players, copyMatchTable, copyFinalResults }: any) {
+    const [sortKey, setSortKey] = useState<string>('rk');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+    const toggleSort = (key: string) => {
+        if (sortKey === key) {
+            setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir(key === 'age' ? 'asc' : 'desc'); // Default to youngest first for age, desc for others
+        }
+    };
+
     const calculateSettlement = (p: any, idx: number, total: number) => {
         let amount = 0;
         let note = "";
@@ -902,20 +1284,25 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
         const isPenaltyTier = idx >= (total - penaltyCount); // Very bottom
         const isFineTier = !isPenaltyTier && idx >= (total - bottomHalfCount); // Next bottom
         
+        let performancePenalty = 0;
+        if (isWinner) {
+            performancePenalty = prizes.first || 10000;
+            note = `👑 우승 상물 (+${(performancePenalty/1000).toFixed(0)}k)`;
+        } else if (isPenaltyTier) {
+            performancePenalty = -(prizes.l2 || 5000);
+            note = `📉 패널티 (-${(Math.abs(performancePenalty)/1000).toFixed(0)}k)`;
+        } else if (isFineTier) {
+            performancePenalty = -(prizes.l1 || 3000);
+            note = `📉 하위권 벌금 (-${(Math.abs(performancePenalty)/1000).toFixed(0)}k)`;
+        }
+
         if (p.is_guest) {
-            amount -= 5000;
-            note = "❗ 게스트 (-5,000)";
+            amount = -5000 + performancePenalty;
+            note = performancePenalty !== 0 
+                ? `❗ 게스트(-5k) + ${note.split(' ')[1]}`
+                : "❗ 게스트 (-5,000)";
         } else {
-            if (isWinner) {
-                amount += prizes.first || 10000;
-                note = `👑 우승 상물 (+${(prizes.first/1000).toFixed(0)}k)`;
-            } else if (isPenaltyTier) {
-                amount -= (prizes.l2 || 5000); // Tier 2 Penalty
-                note = `📉 패널티 (-${(prizes.l2/1000).toFixed(0)}k)`;
-            } else if (isFineTier) {
-                amount -= (prizes.l1 || 3000); // Tier 1 Fine
-                note = `📉 하위권 벌금 (-${(prizes.l1/1000).toFixed(0)}k)`;
-            }
+            amount = performancePenalty;
         }
         
         return { amount, note, isWinner, isPenaltyTier, isFineTier };
@@ -926,7 +1313,22 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
             .filter((p: any) => !filterGroup || p.group === filterGroup);
     };
 
-    const allPlayersInView = generatePlayerList();
+    const getSortedPlayers = (pList: any[]) => {
+        const sorted = [...pList].map((p, i) => ({ ...p, rk: i + 1 }));
+        return sorted.sort((a, b) => {
+            let valA = a[sortKey];
+            let valB = b[sortKey];
+
+            if (sortKey === 'rk') {
+                valA = a.rk;
+                valB = b.rk;
+            }
+
+            if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    };
 
     const hasGroups = Object.values(configs).some((c: any) => c.group === 'B');
 
@@ -945,24 +1347,26 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
                 <table className="min-w-[600px] w-full text-[10px] border-collapse">
                     <thead>
                         <tr className="bg-white/5 text-white/40 font-black uppercase tracking-tighter text-[11px]">
-                            <th className="py-5 px-4 text-center w-10">Rk</th>
-                            <th className="py-5 px-2 text-left">Player</th>
-                            <th className="py-5 px-1 text-center">W</th>
-                            <th className="py-5 px-1 text-center">L</th>
-                            <th className="py-5 px-1 text-center">Diff</th>
+                            <th onClick={() => toggleSort('rk')} className="py-5 px-4 text-center w-10 cursor-pointer hover:text-white transition-colors">Rk {sortKey === 'rk' && (sortDir === 'asc' ? '▴' : '▾')}</th>
+                            <th onClick={() => toggleSort('name')} className="py-5 px-2 text-left cursor-pointer hover:text-white transition-colors">Player {sortKey === 'name' && (sortDir === 'asc' ? '▴' : '▾')}</th>
+                            <th className="py-5 px-1 text-center">Fine</th>
+                            <th onClick={() => toggleSort('diff')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">Diff {sortKey === 'diff' && (sortDir === 'asc' ? '▴' : '▾')}</th>
+                            <th onClick={() => toggleSort('age')} className="py-5 px-1 text-center cursor-pointer hover:text-[#D4AF37] transition-colors text-[#D4AF37]/60">Age {sortKey === 'age' && (sortDir === 'asc' ? '▴' : '▾')}</th>
+                            <th onClick={() => toggleSort('wins')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">W {sortKey === 'wins' && (sortDir === 'asc' ? '▴' : '▾')}</th>
+                            <th onClick={() => toggleSort('losses')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">L {sortKey === 'losses' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th className="py-5 px-1 text-center">Gm</th>
-                            <th className="py-5 px-2 text-right">Settlement</th>
                             <th className="py-5 px-4 text-right">Note</th>
                         </tr>
                     </thead>
                     <tbody className="text-[13px]">
-                        {players.map((p, idx) => {
-                            const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, idx, players.length);
+                        {getSortedPlayers(players).map((p) => {
+                            const originalIdx = players.findIndex((x: any) => x.id === p.id);
+                            const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
                             const isBottom = isPenaltyTier || isFineTier;
                             return (
                                 <tr key={p.id} className={`border-t border-white/5 last:border-0 hover:bg-white/[0.04] transition-all ${isWinner ? 'bg-[#D4AF37]/5' : isBottom ? 'bg-red-500/[0.02]' : ''}`}>
                                     <td className={`py-5 px-4 text-center font-black italic ${isWinner ? 'text-[#D4AF37] text-lg' : isBottom ? 'text-red-500/40' : 'text-white/20'}`}>
-                                        {isWinner ? '👑' : idx + 1}
+                                        {isWinner ? '👑' : players.findIndex((x: any) => x.id === p.id) + 1}
                                     </td>
                                     <td className="py-5 px-2">
                                         <div className="flex flex-col">
@@ -970,15 +1374,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
                                             {isWinner && <span className="text-[9px] font-black text-[#D4AF37]/60 uppercase tracking-widest">Tournament MVP</span>}
                                         </div>
                                     </td>
-                                    <td className="py-5 px-1 text-center font-bold text-[#4ADE80]">{p.wins}</td>
-                                    <td className="py-5 px-1 text-center font-bold text-red-500/60">{p.losses}</td>
+                                    <td className={`py-5 px-1 text-center font-black text-xs ${amount > 0 ? 'text-[#4ADE80]' : amount < 0 ? 'text-red-500' : 'text-white/20'}`}>
+                                        {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '-'}
+                                    </td>
                                     <td className={`py-5 px-1 text-center font-black ${p.diff > 0 ? 'text-white' : 'text-white/40'}`}>
                                         {p.diff > 0 ? `+${p.diff}` : p.diff}
                                     </td>
+                                    <td className="py-5 px-1 text-center font-bold text-white/40">{p.age || '-'}</td>
+                                    <td className="py-5 px-1 text-center font-bold text-[#4ADE80]">{p.wins}</td>
+                                    <td className="py-5 px-1 text-center font-bold text-red-500/60">{p.losses}</td>
                                     <td className="py-5 px-1 text-center font-bold text-white/20">{p.games}</td>
-                                    <td className={`py-5 px-2 text-right font-black text-sm ${amount > 0 ? 'text-[#4ADE80]' : amount < 0 ? 'text-red-500' : 'text-white/20'}`}>
-                                        {amount > 0 ? '+' : ''}{amount.toLocaleString()}원
-                                    </td>
                                     <td className="py-5 px-4 text-right font-black text-[10px] whitespace-nowrap">
                                         <span className={`px-2 py-1 rounded-lg ${amount > 0 ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : amount < 0 ? 'bg-red-500/10 text-red-500' : 'text-white/20'}`}>
                                             {note || '-'}
@@ -1064,6 +1469,28 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
                    <span>Stats Archive</span>
                    <span>member_stats table</span>
                </div>
+            </div>
+        </div>
+    );
+}
+
+function WarningModal({ message, onClose }: { message: string, onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="w-full max-w-xs bg-[#1E1E2E] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase underline decoration-[#D4AF37]/30 underline-offset-4">Warning</h3>
+                    <p className="text-sm font-bold text-white/60 leading-relaxed whitespace-pre-wrap">{message}</p>
+                </div>
+                <button 
+                    onClick={onClose}
+                    className="w-full py-4 bg-[#D4AF37] text-black font-black rounded-[20px] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
+                >
+                    확인했습니다
+                </button>
             </div>
         </div>
     );
