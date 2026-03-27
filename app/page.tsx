@@ -26,21 +26,21 @@ export default function Home() {
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mt-0 mb-2 w-full">
-        <div className="relative group w-full flex flex-col items-center pt-2">
+      <header className="flex flex-col items-center mt-0 mb-0 w-full pt-1 pb-1">
+        <div className="relative group w-full flex flex-col items-center">
           <div className="relative flex flex-col items-center">
-            {/* Logo with Subtle Glow */}
-            <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+            {/* Logo with Ultra-Focused Glow */}
+            <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
             <img 
               src="/logo.png" 
-              className="w-64 h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
+              className="w-[280px] h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
               alt="TEYEON Logo" 
             />
-            {/* Since 2025 - Centered & High Clarity */}
-            <div className="flex flex-col items-center mt-[-12px] relative z-20">
+            {/* Since 2025 - Ultra Clarity & Proportional */}
+            <div className="flex flex-col items-center mt-[-18px] relative z-20">
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase">Since</span>
-                    <span className="text-[#D4AF37] text-[18px] font-black tracking-[0.05em] italic leading-none drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">2025</span>
+                    <span className="text-[11px] font-black text-white/80 tracking-[0.45em] uppercase drop-shadow-md">Since</span>
+                    <span className="text-[#D4AF37] text-[22px] font-black tracking-[-0.02em] italic leading-none drop-shadow-[0_0_12px_rgba(212,175,55,0.4)]">2025</span>
                 </div>
             </div>
           </div>
