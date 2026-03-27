@@ -9,7 +9,7 @@ export default function Home() {
   const menuItems = [
     // Row 1
     { id: "notice", icon: "📢", label: "클럽 공지", path: "/notice" },
-    { id: "profile", icon: "👤", label: "멤버 프로필", path: "/profile" },
+    { id: "profile", icon: "👤", label: "멤버 프로필", path: "/members" },
     { id: "special", icon: "🔥", label: "스페셜 매치", path: "/tournament" },
     
     // Row 2
@@ -26,19 +26,22 @@ export default function Home() {
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mt-8 mb-10">
-        <div className="relative group">
-          {/* Logo with Glow Effect */}
-          <div className="absolute -inset-4 bg-[#D4AF37]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-          <img 
-            src="/logo.png" 
-            className="w-48 h-auto relative z-10 transition-transform duration-500 group-hover:scale-[1.02]" 
-            alt="TEYEON Logo" 
-          />
-        </div>
-        <div className="flex items-center gap-2 mt-4 bg-white/[0.03] border border-white/5 px-4 py-1.5 rounded-full backdrop-blur-sm">
-          <span className="text-white/20 text-[9px] font-black tracking-[0.3em] uppercase">Est.</span>
-          <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic tracking-tighter">2025</span>
+      <header className="flex flex-col items-center mt-6 mb-8 w-full">
+        <div className="relative group w-full flex flex-col items-center">
+          <div className="relative inline-block">
+            {/* Logo with Glow Effect */}
+            <div className="absolute -inset-4 bg-[#D4AF37]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <img 
+              src="/logo.png" 
+              className="w-40 h-auto relative z-10 transition-transform duration-500 group-hover:scale-[1.02] mix-blend-lighten" 
+              alt="TEYEON Logo" 
+            />
+            {/* Since 2025 - Right Aligned below logo text */}
+            <div className="absolute bottom-0 right-1 translate-y-full flex items-center gap-1.5 opacity-60">
+                <span className="text-[7px] font-black text-white/40 tracking-[0.2em] uppercase">Est.</span>
+                <span className="text-[#D4AF37] text-[9px] font-black tracking-widest italic leading-none">2025</span>
+            </div>
+          </div>
         </div>
       </header>
 

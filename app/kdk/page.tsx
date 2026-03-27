@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 
@@ -453,9 +454,12 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans max-w-lg mx-auto relative overflow-hidden">
-                <header className="flex items-start justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
-                    <div className="flex-1">
+            <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-lg mx-auto relative overflow-hidden">
+                <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
+                    <div className="flex items-center gap-3">
+                        <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
+                            <span className="text-xl">←</span>
+                        </Link>
                         <button 
                             onClick={() => setShowResetConfirm(true)}
                             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/30 hover:text-red-500/60 transition-all active:scale-95 group"
@@ -836,6 +840,9 @@ export default function KDKPage() {
         <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-lg mx-auto pb-40 relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
+                    <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform mr-1">
+                        <span className="text-xl">←</span>
+                    </Link>
                     <img src="/logo.png" className="w-10 h-auto" alt="TEYEON Logo" />
                     <div className="flex flex-col">
                         <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Live Tournament</span>
