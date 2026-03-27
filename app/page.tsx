@@ -26,7 +26,7 @@ export default function Home() {
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mt-0 mb-2 w-full pt-1 pb-1">
+      <header className="flex flex-col items-center mt-0 mb-2 w-full pt-1 pb-0">
         <div className="relative group w-full flex flex-col items-center">
           <div className="relative flex flex-col items-center">
             {/* Logo with Ultra-Focused Glow */}
@@ -37,8 +37,8 @@ export default function Home() {
               alt="TEYEON Logo" 
             />
             
-            {/* SINCE 2025 - Official Accent Line Design (Compact Version) */}
-            <div className="flex items-center gap-3 w-full max-w-[260px] mt-2 relative z-20">
+            {/* SINCE 2025 - Official Accent Line Design (Zero-Gap Version) */}
+            <div className="flex items-center gap-3 w-full max-w-[260px] mt-[-8px] relative z-20">
                 <div className="flex-1 h-[1.2px] bg-gradient-to-r from-transparent via-white/5 to-white/30"></div>
                 <div className="flex items-center gap-1.5 px-1 whitespace-nowrap">
                     <span className="text-white text-[10px] font-black tracking-[0.2em] uppercase">SINCE</span>
