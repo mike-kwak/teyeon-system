@@ -44,10 +44,10 @@ export default function Home() {
 
             {/* Typography Stack Layer */}
             <div className="flex flex-col items-center leading-none relative">
-                {/* Row 1: Since 25 */}
+                {/* Row 1: Since 2025 */}
                 <div className="flex items-center gap-2 mb-[4px]">
                     <span className="text-[10px] font-black text-white/90 tracking-[0.25em] uppercase">SINCE</span>
-                    <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic">25</span>
+                    <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic">2025</span>
                 </div>
                 {/* Row 2: TEYEON */}
                 <h1 className="text-white text-[38px] font-[1000] tracking-[-0.04em] leading-[0.9] drop-shadow-lg pr-1">
