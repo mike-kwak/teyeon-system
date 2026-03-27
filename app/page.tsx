@@ -33,14 +33,14 @@ export default function Home() {
             <div className="absolute -inset-10 bg-[#D4AF37]/5 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
             <img 
               src="/logo.png" 
-              className="w-[280px] h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
+              className="w-52 h-auto relative z-10 transition-transform duration-700 group-hover:scale-[1.01]" 
               alt="TEYEON Logo" 
             />
             {/* Since 2025 - Ultra Clarity & Proportional */}
-            <div className="flex flex-col items-center mt-[-18px] relative z-20">
+            <div className="flex flex-col items-center mt-[-14px] relative z-20">
                 <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-white/80 tracking-[0.45em] uppercase drop-shadow-md">Since</span>
-                    <span className="text-[#D4AF37] text-[22px] font-black tracking-[-0.02em] italic leading-none drop-shadow-[0_0_12px_rgba(212,175,55,0.4)]">2025</span>
+                    <span className="text-[10px] font-black text-white/80 tracking-[0.4em] uppercase drop-shadow-md">Since</span>
+                    <span className="text-[#D4AF37] text-[18px] font-black tracking-[-0.01em] italic leading-none drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]">2025</span>
                 </div>
             </div>
           </div>
