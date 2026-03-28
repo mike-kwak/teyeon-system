@@ -5,6 +5,7 @@ export interface Player {
   times: [string, string]; // [start, end] e.g., ["19:00", "22:00"]
   isGuest?: boolean;
   birthdate?: string;
+  age?: number;
   mbti?: string;
   achievements?: boolean;
 }
@@ -19,6 +20,7 @@ export interface Match {
   score1: number;
   score2: number;
   status: 'pending' | 'complete';
+  playerIds: string[];
 }
 
 export function generateKdkMatches(
@@ -26,42 +28,70 @@ export function generateKdkMatches(
   groupCourtMap: Record<string, number[]>,
   targetMatches: number = 4,
   concept: string = "랜덤 KDK",
-  fixedPartners: [string, string][] = [], // [PlayerId, PlayerId][]
-  fixedTeamMode: boolean = false
+  fixedPartners: [string, string][] = [], 
+  fixedTeamMode: boolean = false,
+  existingMatches: Match[] = [] // History for fair rest/redistribution
 ): Match[] {
-  const allMatches: Match[] = [];
-  const groups: Record<string, Player[]> = {};
+  const allMatches: Match[] = [...existingMatches];
+  
+  // Calculate historical stats from existing matches
+  const matchCounts: Record<string, number> = {};
+  const restCounts: Record<string, number> = {};
+  const partnerHistory: Record<string, Set<string>> = {};
 
+  players.forEach((p) => {
+    matchCounts[p.id] = 0;
+    restCounts[p.id] = 0;
+    partnerHistory[p.id] = new Set();
+  });
+
+  existingMatches.forEach(m => {
+    (m.playerIds || []).forEach((pid: string, idx: number) => {
+      if (matchCounts[pid] !== undefined) matchCounts[pid]++;
+      // Partner history
+      const teamIdx = idx < 2 ? 0 : 1;
+      const partnerIdx = teamIdx === 0 ? (idx === 0 ? 1 : 0) : (idx === 2 ? 3 : 2);
+      const partnerId = m.playerIds[partnerIdx];
+      if (partnerHistory[pid] && partnerId) partnerHistory[pid].add(partnerId);
+    });
+  });
+
+  const groups: Record<string, Player[]> = {};
   players.forEach((p) => {
     if (!groups[p.group]) groups[p.group] = [];
     groups[p.group].push(p);
   });
 
+  // PRE-CALCULATE CONCEPT METRICS (e.g. Median Age for OB/YB)
+  const calculateMedianAge = (pool: Player[]) => {
+      const ages = pool.map(p => Number(p.age || p.birthdate || 0)).filter(a => a > 0).sort((a, b) => a - b);
+      if (ages.length === 0) return 35; // Default fallback
+      const mid = Math.floor(ages.length / 2);
+      return ages.length % 2 !== 0 ? ages[mid] : (ages[mid - 1] + ages[mid]) / 2;
+  };
+
+  const isOB = (p: Player, median: number) => {
+      const pAge = Number(p.age || p.birthdate || 0);
+      return pAge >= median;
+  };
+
   Object.entries(groups).forEach(([groupName, groupPlayers]) => {
     const courts = groupCourtMap[groupName] || [];
     if (courts.length === 0 || groupPlayers.length < 4) return;
 
-    const matchCounts: Record<string, number> = {};
-    const restCounts: Record<string, number> = {};
-    const partnerHistory: Record<string, Set<string>> = {};
-    const opponentHistory: Record<string, Set<string>> = {};
+    // Concept flags
+    const isAgeMatch = concept === 'AGE';
+    const isAwardMatch = concept === 'AWARD';
+    const isMBTIMatch = concept === 'MBTI';
+    
+    // Dynamic Median for this group
+    const groupMedianAge = calculateMedianAge(groupPlayers);
 
-    groupPlayers.forEach((p) => {
-      matchCounts[p.id] = 0;
-      restCounts[p.id] = 0;
-      partnerHistory[p.id] = new Set();
-      opponentHistory[p.id] = new Set();
-    });
-
+    const lastRound = existingMatches.reduce((max, m) => Math.max(max, m.round || 0), 0);
     const startTime = "18:00";
     const durationArr = 25; 
-    
-    // Concept groups
-    const isOBYB = concept.includes("OB vs YB");
-    const isWinners = concept.includes("입상자");
-    const isMBTI = concept.includes("MBTI");
 
-    for (let r = 1; r <= 20; r++) {
+    for (let r = lastRound + 1; r <= 30; r++) {
       const minutes = (r - 1) * durationArr;
       const roundTime = addMinutesToTime(startTime, minutes);
 
@@ -118,11 +148,16 @@ export function generateKdkMatches(
             p1 = currentPool[0];
             const partnerPool = currentPool.filter(p => p.id !== p1.id);
             // Concept filter for partner
-            if (isWinners) {
-                p2 = partnerPool.find(p => p.achievements !== p1.achievements && !partnerHistory[p1.id].has(p.id)) || partnerPool[0];
-            } else if (isMBTI && p1.mbti) {
+            if (isAwardMatch) {
+                // Partner Balancing: Winner + Non-Winner
+                p2 = partnerPool.find(p => p.achievements !== p1.achievements && !partnerHistory[p1.id].has(p.id)) || 
+                     partnerPool.find(p => !partnerHistory[p1.id].has(p.id)) || 
+                     partnerPool[0];
+            } else if (isMBTIMatch && p1.mbti) {
                 const p1Type = p1.mbti[0]; // E or I
-                p2 = partnerPool.find(p => p.mbti && p.mbti[0] !== p1Type && !partnerHistory[p1.id].has(p.id)) || partnerPool[0];
+                p2 = partnerPool.find(p => p.mbti && p.mbti[0] !== p1Type && !partnerHistory[p1.id].has(p.id)) || 
+                     partnerPool.find(p => !partnerHistory[p1.id].has(p.id)) || 
+                     partnerPool[0];
             } else {
                 p2 = partnerPool.find(p => !partnerHistory[p1.id].has(p.id)) || partnerPool[0];
             }
@@ -136,9 +171,10 @@ export function generateKdkMatches(
         if (fixedOppPair) {
             [p3, p4] = fixedOppPair;
         } else {
-            if (isOBYB) {
-                const p1p2OB = isOB(p1) || isOB(p2!);
-                const oppositePool = remaining.filter(p => isOB(p) !== p1p2OB);
+            if (isAgeMatch) {
+                // Opponent Balancing: OB vs YB (Older Team vs Younger Team)
+                const p1p2OB = isOB(p1, groupMedianAge) || isOB(p2!, groupMedianAge);
+                const oppositePool = remaining.filter(p => isOB(p, groupMedianAge) !== p1p2OB);
                 if (oppositePool.length >= 2) {
                     p3 = oppositePool[0];
                     p4 = oppositePool[1];

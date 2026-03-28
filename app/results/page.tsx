@@ -4,57 +4,44 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-export default function ResultsPage() {
+export default function LiveCourtPage() {
   const [matches, setMatches] = useState<any[]>([]);
-  const [sessionTitle, setSessionTitle] = useState("");
-  const [attendeeConfigs, setAttendeeConfigs] = useState<any>({});
-  const [activeTab, setActiveTab] = useState<'matches' | 'ranking'>('matches');
   const [loading, setLoading] = useState(true);
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchActiveSession();
-    const interval = setInterval(fetchActiveSession, 10000); // 10s auto-refresh
+    fetchLiveMatches();
+    const interval = setInterval(fetchLiveMatches, 5000); // 5s auto-refresh for live
     return () => clearInterval(interval);
   }, []);
 
-  async function fetchActiveSession() {
+  async function fetchLiveMatches() {
     try {
-        const { data: sessions } = await supabase
-            .from('kdk_sessions')
+        const { data: liveMatches, error } = await supabase
+            .from('matches')
             .select('*')
-            .order('created_at', { ascending: false })
-            .limit(1);
+            .eq('status', 'playing')
+            .order('court', { ascending: true });
 
-        if (sessions && sessions[0]) {
-            const s = sessions[0];
-            setSessionId(s.id);
-            setSessionTitle(s.title);
-            setAttendeeConfigs(s.attendee_configs || {});
-            setMatches(s.matches || []);
-        }
+        if (error) throw error;
+        setMatches(liveMatches || []);
     } catch (err) {
-        console.error("Fetch Error:", err);
+        console.error("Live Fetch Error:", err);
     } finally {
         setLoading(false);
     }
   }
 
-  const formatName = (pid: string) => {
-    const config = attendeeConfigs[pid];
-    if (!config) return pid.startsWith('g-') ? 'GUEST' : '???';
-    return `${config.nickname || config.name}${config.is_guest ? ' (G)' : ''}`;
-  };
-
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#14141F] text-white font-sans max-w-md mx-auto pb-10">
+    <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
           <span className="text-xl">←</span>
         </Link>
-        <h1 className="text-xl font-black tracking-tight">실시간 대진표 확인</h1>
-        <div className="w-10"></div>
+        <h1 className="text-xl font-[1000] italic tracking-tighter uppercase">
+            LIVE <span className="text-[#D4AF37]">COURT</span>
+        </h1>
+        <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse border-2 border-red-500/20"></div>
       </header>
 
       {/* Match Rules */}
@@ -69,101 +56,81 @@ export default function ResultsPage() {
         </ul>
       </section>
 
-      {/* Navigation Tabs */}
-      <div className="flex bg-white/5 p-1 rounded-2xl mb-8 border border-white/5">
-        <button 
-          onClick={() => setActiveTab('matches')}
-          className={`flex-1 py-3 text-[12px] font-black rounded-xl transition-all ${activeTab === 'matches' ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40'}`}
-        >
-          현재 대진 현황
-        </button>
-        <button 
-          onClick={() => setActiveTab('ranking')}
-          className={`flex-1 py-3 text-[12px] font-black rounded-xl transition-all ${activeTab === 'ranking' ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40'}`}
-        >
-          실시간 랭킹
-        </button>
-      </div>
-
-      {activeTab === 'matches' ? (
-        <section className="space-y-4 animate-in fade-in duration-300 pb-20">
-          {loading ? (
-            <div className="py-20 text-center text-[#D4AF37] font-black italic animate-pulse">CONNECTING TO COURT...</div>
-          ) : matches.length === 0 ? (
-            <div className="text-center py-20 opacity-30">
-              <span className="text-4xl mb-4 block">🏟️</span>
-              <p className="text-sm font-bold">진행 중인 대진이 없습니다.<br/>운영진의 승인을 기다려주세요.</p>
+      {/* Match Results */}
+      <section className="space-y-4 animate-in fade-in duration-300 pb-20">
+        {loading ? (
+          <div className="py-20 text-center text-[#D4AF37] font-black italic animate-pulse tracking-widest">
+            CONNECTING TO LIVE COURT...
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="text-center py-24 opacity-30 flex flex-col items-center">
+            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                <span className="text-3xl">🏟️</span>
             </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="text-center mb-2">
-                 <span className="text-[10px] font-black text-[#D4AF37]/60 uppercase tracking-[0.3em]">{sessionTitle}</span>
-              </div>
-              
-              {/* Active Matches First */}
-              {matches.filter(m => m.status === 'playing').length > 0 ? (
-                <div className="space-y-3">
-                   <h2 className="text-[9px] font-black text-[#2563EB] tracking-widest pl-2 uppercase">Now Playing</h2>
-                   {matches.filter(m => m.status === 'playing').map((m, idx) => (
-                      <div key={m.id} className="bg-gradient-to-br from-[#1A253D] to-[#2563EB]/20 border border-[#2563EB]/30 rounded-[32px] p-6 shadow-xl relative overflow-hidden">
-                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-[9px] font-extrabold text-[#D4AF37] tracking-widest">COURT {idx+1}</span>
-                            <span className="text-[8px] font-black bg-[#2563EB] text-white px-2 py-0.5 rounded tracking-widest">LIVE</span>
-                         </div>
-                         <div className="flex items-center justify-between">
-                            <div className="flex-1 text-center font-black text-xs text-white/90">{formatName(m.playerIds[0])}<br/>{formatName(m.playerIds[1])}</div>
-                            <div className="px-4 text-white/20 font-black italic">VS</div>
-                            <div className="flex-1 text-center font-black text-xs text-white/90">{formatName(m.playerIds[2])}<br/>{formatName(m.playerIds[3])}</div>
-                         </div>
-                      </div>
-                   ))}
-                </div>
-              ) : (
-                <div className="bg-white/[0.02] border border-dashed border-white/5 rounded-3xl p-10 text-center opacity-20">
-                   <span className="text-xs font-black uppercase tracking-widest">Waiting for Next Deploy</span>
-                </div>
-              )}
+            <p className="text-sm font-bold uppercase tracking-widest text-white/60">
+                진행 중인 경기가 없습니다.<br/>
+                <span className="text-[10px] opacity-40">NEXT MATCH COMING SOON</span>
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between px-2">
+                <h2 className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase">Active Matches</h2>
+                <span className="text-[9px] font-black bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-1 rounded border border-[#D4AF37]/20">
+                    {matches.length} ON COURT
+                </span>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+                {matches.map((m, idx) => {
+                  const pNames = m.player_names || m.playerNames || []; // Fallback handling
+                  // If player_names is not in DB, it might be in players JSON or similar
+                  // For now, assume player_names exists or use a fallback
+                  const t1 = pNames.slice(0, 2).join(' / ') || 'PLAYER 1 / 2';
+                  const t2 = pNames.slice(2, 4).join(' / ') || 'PLAYER 3 / 4';
 
-              {/* Waiting Summary */}
-              {matches.filter(m => m.status === 'waiting').length > 0 && (
-                <div className="bg-white/5 border border-white/5 rounded-3xl p-6">
-                   <h2 className="text-[9px] font-black text-white/30 tracking-widest mb-4 uppercase">Upcoming Sessions</h2>
-                   <div className="grid grid-cols-1 gap-2">
-                      {matches.filter(m => m.status === 'waiting').slice(0, 5).map((m, idx) => (
-                        <div key={m.id} className="flex items-center justify-between text-[11px] font-bold text-white/50 border-b border-white/5 pb-2">
-                           <span className="text-[8px] opacity-30">#{idx+1}</span>
-                           <span>{formatName(m.playerIds[0])}/{formatName(m.playerIds[1])} vs {formatName(m.playerIds[2])}/{formatName(m.playerIds[3])}</span>
+                  return (
+                    <div key={m.id} className="bg-gradient-to-br from-[#1A253D] to-[#14141F] border border-white/10 rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                                <span className="text-[10px] font-[1000] text-[#D4AF37] italic tracking-widest">COURT {m.court || idx + 1}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                                <span className="text-[9px] font-black text-red-500 tracking-widest uppercase">Live Now</span>
+                            </div>
                         </div>
-                      ))}
-                   </div>
-                </div>
-              )}
+                        
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-full text-center">
+                                <p className="text-lg font-black text-white/90 tracking-tight leading-tight">{t1}</p>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 w-full">
+                                <div className="h-px flex-1 bg-white/5"></div>
+                                <span className="text-[10px] font-black italic text-white/20 tracking-[0.3em]">VS</span>
+                                <div className="h-px flex-1 bg-white/5"></div>
+                            </div>
+                            
+                            <div className="w-full text-center">
+                                <p className="text-lg font-black text-white/90 tracking-tight leading-tight">{t2}</p>
+                            </div>
+                        </div>
+
+                        {/* Visual Court Decoration */}
+                        <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-2xl group-hover:bg-[#D4AF37]/10 transition-all"></div>
+                    </div>
+                  );
+                })}
             </div>
-          )}
-        </section>
-      ) : (
-        <section className="animate-in slide-in-from-right duration-300 h-[65vh] overflow-hidden rounded-3xl border border-white/5 shadow-2xl">
-           {sessionId ? (
-             <iframe 
-                src={`/kdk/ranking?session=${sessionId}&embed=true`}
-                className="w-full h-full border-none"
-             />
-           ) : (
-             <div className="flex items-center justify-center h-full opacity-20">No Active Leaderboard</div>
-           )}
-        </section>
-      )}
+          </div>
+        )}
+      </section>
 
-      {/* Footer Button */}
-      {activeTab === 'ranking' && sessionId && (
-        <Link href={`/kdk/ranking?session=${sessionId}`} className="block w-full text-center py-5 bg-[#D4AF37] text-black font-black text-[13px] uppercase tracking-[0.2em] rounded-[24px] shadow-lg active:scale-95 transition-all mt-4">
-          전체 실시간 순위 보기 →
-        </Link>
-      )}
-
-      {/* Footer */}
-      <footer className="mt-10 py-6 opacity-30 flex justify-center">
-        <p className="text-[10px] font-bold tracking-[0.3em] uppercase">Teyeon v2.0 • Pro Statistics</p>
+      {/* Footer Info */}
+      <footer className="mt-auto py-8 border-t border-white/5 flex flex-col items-center opacity-20">
+        <p className="text-[10px] font-black tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
+        <p className="text-[8px] font-bold tracking-widest text-[#D4AF37]">REAL-TIME COURT FEED</p>
       </footer>
     </main>
   );

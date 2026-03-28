@@ -1,68 +1,147 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import Link from 'next/link';
 
-export default function NoticePage() {
-  const notices = [
-    { id: 1, title: '📢 [필독] 2025년 3월 정기 모임 일정 안내', date: '2025.03.24', views: 124, pinned: true },
-    { id: 2, title: '🎾 제1회 테연 클럽 자체 대회 규정 (KDK 방식)', date: '2025.03.22', views: 89, pinned: true },
-    { id: 3, title: '🏸 신규 코트 예약 시스템 도입 안내', date: '2025.03.20', views: 56, pinned: false },
-    { id: 4, title: '📸 지난 주말 정기 모임 사진 업데이트', date: '2025.03.18', views: 245, pinned: false },
-    { id: 5, title: '👕 클럽 공식 유니폼 공동구매 신청 (마감임박)', date: '2025.03.15', views: 312, pinned: false },
-  ];
+interface Notice {
+  id: string;
+  title: string;
+  is_pinned: boolean;
+  view_count: number;
+  created_at: string;
+  comment_count?: number; 
+}
+
+export default function NoticeListPage() {
+  const { role } = useAuth();
+  const router = useRouter();
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [isFetching, setIsFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchNotices = useCallback(async () => {
+    console.log('[Notice] Starting fetch...');
+    setIsFetching(true);
+    setFetchError(null);
+
+    // Safety Timeout: Force stop loading after 8 seconds
+    const timeout = setTimeout(() => {
+      if (isFetching) {
+        console.warn('[Notice] Fetch timed out');
+        setIsFetching(false);
+        setFetchError('Request timed out. Please check your connection.');
+      }
+    }, 8000);
+
+    try {
+      const { data, error } = await supabase
+        .from('notices')
+        .select('*')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      clearTimeout(timeout);
+      
+      if (error) {
+        console.error('[Notice] Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('[Notice] Data received:', data?.length || 0);
+      setNotices(data || []);
+      setIsFetching(false);
+
+    } catch (err: any) {
+      console.error('[Notice] Fetch error catch:', err);
+      setFetchError(err?.message || String(err));
+      setIsFetching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotices();
+  }, [fetchNotices]);
+
+  const isStaff = role === 'CEO' || role === 'ADMIN';
 
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#1E1E2E] text-white font-sans max-w-md mx-auto pb-10">
+    <main className="min-h-screen bg-[#000000] text-white font-sans max-w-md mx-auto pb-24">
       {/* Header */}
-      <header className="flex items-center justify-between mb-8">
-        <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
-          <span className="text-xl">←</span>
-        </Link>
-        <h1 className="text-xl font-black tracking-tight">공지사항</h1>
-        <button className="bg-[#D4AF37]/10 text-[#D4AF37] w-10 h-10 rounded-full flex items-center justify-center border border-[#D4AF37]/20 active:scale-90">
-          <span>🔍</span>
-        </button>
+      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-lg border-b border-white/5 px-6 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.push('/')} className="text-[#D4AF37] text-2xl hover:bg-white/5 w-10 h-10 flex items-center justify-center rounded-full transition-all">←</button>
+          <h1 className="text-xl font-black tracking-tight uppercase">클럽 공지사항</h1>
+        </div>
+        {isStaff && (
+          <button 
+            onClick={() => router.push('/notice/create')}
+            className="bg-[#D4AF37] text-black text-[10px] font-bold px-3 py-1.5 rounded-full shadow-[0_4px_15px_rgba(212,175,55,0.3)] active:scale-90 transition-all uppercase tracking-widest"
+          >
+            NEW
+          </button>
+        )}
       </header>
 
       {/* Notice List */}
-      <div className="space-y-3">
-        {notices.map((notice) => (
-          <div 
-            key={notice.id}
-            className={`
-              p-5 rounded-2xl border transition-all active:scale-[0.98]
-              ${notice.pinned 
-                ? 'bg-gradient-to-br from-[#1A253D] to-[#0A0E1A] border-[#D4AF37]/50' 
-                : 'bg-white/5 border-white/5'}
-            `}
-          >
-            <div className="flex items-start gap-3">
-              {notice.pinned && <span className="text-lg mt-0.5">📌</span>}
-              <div className="flex-1">
-                <h3 className={`font-black text-[15px] leading-snug mb-3 ${notice.pinned ? 'text-[#D4AF37]' : 'text-white/90'}`}>
-                  {notice.title}
-                </h3>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                  <span>{notice.date}</span>
-                  <div className="w-1 h-1 bg-white/10 rounded-full"></div>
-                  <span>Views {notice.views}</span>
+      <div className="px-5 mt-6 space-y-3">
+        {fetchError && (
+          <div className="bg-red-500/10 border border-red-500/30 p-5 rounded-[28px] text-[11px] text-red-500 font-bold mb-4">
+            ⚠️ DB Sync Error: {fetchError}
+            <button onClick={() => fetchNotices()} className="block mt-1 underline opacity-60">Try Again</button>
+          </div>
+        )}
+        
+        {isFetching ? (
+          <div className="py-20 flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-3 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] text-white/20 uppercase tracking-widest font-black animate-pulse">Syncing Announcements...</p>
+          </div>
+        ) : notices.length > 0 ? (
+          notices.map((notice) => (
+            <Link 
+              key={notice.id} 
+              href={`/notice/${notice.id}`}
+              className={`
+                block p-5 rounded-[28px] border transition-all active:scale-95 group relative overflow-hidden
+                ${notice.is_pinned 
+                  ? 'bg-gradient-to-br from-[#D4AF37]/10 to-[#1A1A1A] border-[#D4AF37]/30 shadow-lg' 
+                  : 'bg-white/[0.03] border-white/5 hover:border-white/20'}
+              `}
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex items-start gap-2.5">
+                  <span className={`text-lg pt-0.5 ${notice.is_pinned ? 'grayscale-0' : 'opacity-30'}`}>
+                    {notice.is_pinned ? '📌' : '📢'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-[15px] font-black tracking-tight leading-snug group-hover:text-[#D4AF37] transition-colors truncate">
+                      {notice.title}
+                    </h2>
+                    <div className="flex items-center gap-3 mt-1.5 opacity-30">
+                      <span className="text-[10px] font-bold">
+                        {format(new Date(notice.created_at), 'yyyy. MM. dd', { locale: ko })}
+                      </span>
+                      <span className="text-[10px]">👁️ {notice.view_count}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </Link>
+          ))
+        ) : (
+          <div className="py-20 text-center space-y-4 bg-white/5 rounded-[40px] border border-white/5 mx-2">
+            <p className="text-sm font-bold text-white/20 uppercase tracking-widest italic">등록된 공지가 없습니다.</p>
+            {isStaff && (
+                <button onClick={() => router.push('/notice/create')} className="text-[11px] text-[#D4AF37] font-black underline underline-offset-4">첫 공지 작성하러 가기</button>
+            )}
           </div>
-        ))}
+        )}
       </div>
-
-      {/* Write Button (Admin Placeholder) */}
-      <button className="fixed bottom-8 right-8 w-14 h-14 bg-[#D4AF37] text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform z-20">
-        <span className="text-2xl font-black">+</span>
-      </button>
-
-      {/* Footer Info */}
-      <footer className="mt-10 py-6 flex justify-center opacity-30">
-        <p className="text-[10px] font-bold tracking-widest uppercase">Teyeon v2.0 • Notice Board</p>
-      </footer>
     </main>
   );
 }

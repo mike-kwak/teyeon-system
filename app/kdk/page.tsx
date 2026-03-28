@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 
 // --- Types & Interfaces ---
@@ -12,6 +14,10 @@ interface Member {
     role?: string;
     position?: string;
     is_guest?: boolean;
+    avatar_url?: string;
+    age?: number;
+    mbti?: string;
+    achievements?: string;
 }
 
 type AttendeeConfig = {
@@ -38,12 +44,36 @@ interface Match {
     teams?: [string[], string[]];
 }
 
-type KDKConcept = 'RANDOM' | 'LEVEL' | 'MBTI' | 'WINNER' | 'AGE';
+type KDKConcept = 'RANDOM' | 'MBTI' | 'AWARD' | 'AGE';
 
 // --- Role Support ---
 type UserRole = 'CEO' | 'Staff' | 'Member' | 'Guest';
 
 export default function KDKPage() {
+    const router = useRouter();
+    const { role, hasPermission, getRestrictionMessage } = useAuth();
+
+    // --- RBAC Protection: KDK is for Staff+ ---
+    useEffect(() => {
+        if (role === 'GUEST') {
+            alert("정회원 이상만 이용 가능한 메뉴입니다. 대시보드로 이동합니다.");
+            router.push('/');
+        }
+    }, [role, router]);
+
+    if (role === 'GUEST') {
+        return (
+            <div className="fixed inset-0 bg-black/98 flex flex-col items-center justify-center p-8 z-[1000]">
+                 <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                    <span className="text-4xl">🔒</span>
+                 </div>
+                 <h2 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">Access Restricted</h2>
+                 <p className="text-sm text-white/40 text-center leading-relaxed max-w-xs">{getRestrictionMessage('kdk')}</p>
+                 <button onClick={() => router.push('/')} className="mt-8 px-8 py-4 bg-white/10 text-white font-black rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-widest">Back to Dashboard</button>
+            </div>
+        );
+    }
+
     const [step, setStep] = useState(1);
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -51,7 +81,11 @@ export default function KDKPage() {
     const [showGuestInput, setShowGuestInput] = useState(false);
     const [newGuestName, setNewGuestName] = useState("");
 
-    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionId, setSessionId] = useState<string>(() => {
+        const d = new Date();
+        const dateStr = d.toISOString().split('T')[0].replace(/-/g, '');
+        return `KDK-${dateStr}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    });
     const [sessionTitle, setSessionTitle] = useState(() => {
         const d = new Date();
         const yy = String(d.getFullYear()).slice(-2);
@@ -87,7 +121,75 @@ export default function KDKPage() {
     const [warningMsg, setWarningMsg] = useState("");
 
     const [showGuestDataModal, setShowGuestDataModal] = useState(false);
+    const [showMemberEditModal, setShowMemberEditModal] = useState(false);
     const [hasSkippedGuestInfo, setHasSkippedGuestInfo] = useState(false);
+    const [isMembersLoading, setIsMembersLoading] = useState(true);
+    const [showCeremony, setShowCeremony] = useState(false);
+
+    const allMatchesScored = useMemo(() => {
+        return matches.length > 0 && matches.every(m => m.status === 'complete');
+    }, [matches]);
+
+    // Stage 1: Reveal & Ceremony
+    const handleStartCeremony = () => {
+        if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+        setActiveTab('RANKING');
+        setShowCeremony(true);
+        // Auto-scroll to top for the banner
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Stage 2: Official Archive & Shutdown (Admin Only)
+    const handleFinalArchive = async () => {
+        if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
+        
+        try {
+            setIsGenerating(true);
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+
+            // 1. Snapshot Ranking Data
+            const rankingSnapshot = allPlayersInRanking.map(p => {
+                const member = (allMembers || []).find(x => x?.id === p.id) || (tempGuests || []).find(x => x?.id === p.id);
+                return {
+                    id: p.id,
+                    name: p.name,
+                    wins: p.wins || 0,
+                    losses: p.losses || 0,
+                    diff: p.diff || 0,
+                    avatar: member?.avatar_url || ''
+                };
+            });
+
+            const sessionRecord = {
+                id: sessionId,
+                title: sessionTitle || `Tournament ${dateStr}`,
+                date: dateStr,
+                ranking_data: rankingSnapshot,
+                player_metadata: attendeeConfigs,
+                total_matches: matches.length,
+                total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
+            };
+
+            const { error: sessError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
+            if (sessError) throw sessError;
+
+            // 2. Cleanup Live Data from Supabase
+            const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
+            if (delError) console.error("Cleanup Error (Non-Fatal):", delError);
+
+            // 3. Clear Local State
+            actualReset();
+
+            // 4. Redirect to Archive Portal
+            router.push(`/archive?session=${sessionId}`);
+            
+        } catch (err: any) {
+            alert("공식 종료 실패: " + err.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const handleGuestDataSave = (id: string, age: number, isWinner: boolean) => {
         setAttendeeConfigs(prev => ({
@@ -135,50 +237,173 @@ export default function KDKPage() {
 
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+    const resetSession = () => {
+        // Tournament-specific state to clear
+        setMatches([]);
+        setActiveMatchIds([]);
+        setAttendeeConfigs({});
+        setStep(1); // Return to Step 1 (Member Selection)
+        setFixedPartners([]);
+        setFixedTeamMode(false);
+        setShowResetConfirm(false);
+        setSelectedIds(new Set()); // Clear selections for a fresh start
+
+        // Generate a fresh session ID for the next tournament run
+        const d = new Date();
+        const dateStr = d.toISOString().split('T')[0].replace(/-/g, '');
+        setSessionId(`KDK-${dateStr}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
+        
+        // Ensure UI stays interactive and member-aware
+        setIsMembersLoading(false); 
+        
+        // Critical: We do NOT clear allMembers or tempGuests here.
+        // This ensures the member cards remain in Step 1.
+        
+        // Sync to LocalStorage: Clear active session record
+        localStorage.removeItem('kdk_live_session');
+    };
+
+    const confirmReset = () => {
+        setShowResetConfirm(true); 
+    };
+
+    const actualReset = () => {
+        resetSession();
+    };
+
+
+    const restoreSession = () => {
+        try {
+            const saved = localStorage.getItem('kdk_live_session');
+            if (!saved) return;
+            
+            const data = JSON.parse(saved);
+            if (data.matches) setMatches(data.matches || []);
+            if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs || {});
+            if (data.selectedIds) setSelectedIds(new Set(data.selectedIds || []));
+            if (data.tempGuests) setTempGuests(data.tempGuests || []);
+            if (data.step) setStep(data.step || 1);
+            if (data.sessionTitle) setSessionTitle(data.sessionTitle);
+            if (data.sessionId) setSessionId(data.sessionId);
+            
+            console.log("Session restored from LocalStorage");
+        } catch (e) {
+            console.error("Session Restoration Error:", e);
+        }
+    };
+
     useEffect(() => {
         fetchMembers();
+        restoreSession();
+
         const timer = setInterval(() => {
             setCurrentTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' }));
         }, 1000);
 
-        // Silently check for existing session instead of prompt
-        const saved = localStorage.getItem('kdk_live_session');
-        if (saved) {
-             // We don't auto-load anymore to keep it clean, but we could store it for manual recovery
-             console.log("Existing session found in LS");
-        }
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (selectedIds.size > 0 || step > 1) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
 
-        return () => clearInterval(timer);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
     }, []);
 
     // Save to LocalStorage
     useEffect(() => {
-        const data = {
-            matches,
-            attendeeConfigs,
-            selectedIds: Array.from(selectedIds),
-            tempGuests,
-            step,
-            sessionTitle
-        };
-        localStorage.setItem('kdk_live_session', JSON.stringify(data));
-    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, sessionTitle]);
+        if (step > 1 || selectedIds.size > 0) {
+            const data = {
+                matches,
+                attendeeConfigs,
+                selectedIds: Array.from(selectedIds),
+                tempGuests,
+                step,
+                sessionTitle,
+                sessionId
+            };
+            localStorage.setItem('kdk_live_session', JSON.stringify(data));
+        }
+    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, sessionTitle, sessionId]);
+
+    // Independent Score Buffer for Active Modal
+    useEffect(() => {
+        if (showScoreModal && (tempScores.s1 > 0 || tempScores.s2 > 0)) {
+            localStorage.setItem(`kdk_score_buffer_${showScoreModal}`, JSON.stringify(tempScores));
+        }
+    }, [tempScores, showScoreModal]);
+
+    // Restore Score Buffer on Open
+    useEffect(() => {
+        if (showScoreModal) {
+            const saved = localStorage.getItem(`kdk_score_buffer_${showScoreModal}`);
+            if (saved) {
+                try {
+                    setTempScores(JSON.parse(saved));
+                } catch (e) { console.error(e); }
+            }
+        }
+    }, [showScoreModal]);
 
     const fetchMembers = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            const { data: profile } = await supabase.from('profiles').select('club_role').eq('id', user.id).single();
-            if (profile) setUserRole(profile.club_role as UserRole);
-        }
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase.from('profiles').select('club_role').eq('id', user.id).single();
+                if (profile) setUserRole(profile.club_role as UserRole);
+            }
 
-        const { data } = await supabase.from('members').select('*').order('nickname');
-        if (data) setAllMembers(data);
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID;
+            console.log("Fetching members for club:", clubId);
+
+            let query = supabase.from('members').select('*');
+            if (clubId) {
+                query = query.eq('club_id', clubId);
+            }
+            
+            const { data, error } = await query.order('nickname');
+            
+            if (error) throw error;
+            setAllMembers(data || []);
+        } catch (err) {
+            console.error("Fetch Members Error:", err);
+        } finally {
+            setIsMembersLoading(false);
+        }
     };
 
     const toggleMember = (id: string) => {
         const next = new Set(selectedIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+            // Auto-populate attendee config if member has data
+            const member = allMembers.find(m => m.id === id);
+            if (member && !attendeeConfigs[id]) {
+                const isAwardWinner = (member.achievements || '').includes('우승') || 
+                                     (member.achievements || '').includes('준우승') || 
+                                     (member.achievements || '').includes('입상');
+                
+                setAttendeeConfigs(prev => ({
+                    ...prev,
+                    [id]: {
+                        id,
+                        name: member.nickname,
+                        group: (member.position || '').toUpperCase().includes('B') ? 'B' : 'A',
+                        startTime: '18:00',
+                        endTime: '22:00',
+                        age: member.age,
+                        isWinner: isAwardWinner
+                    }
+                }));
+            }
+        }
         setSelectedIds(next);
     };
 
@@ -193,32 +418,22 @@ export default function KDKPage() {
         setShowGuestInput(false);
     };
 
-    const resetSession = () => {
-        setShowResetConfirm(true);
-    };
-
-    const confirmReset = () => {
-        setSelectedIds(new Set());
-        setTempGuests([]);
-        setMatches([]);
-        setActiveMatchIds([]);
-        setAttendeeConfigs({});
-        setSessionId(null);
-        setStep(1);
-        setFixedPartners([]);
-        setFixedTeamMode(false);
-        setShowResetConfirm(false);
-        localStorage.removeItem('kdk_live_session');
-    };
 
     const getPlayerName = (id: string) => {
-        const m = [...allMembers, ...tempGuests].find(x => x.id === id);
-        const name = attendeeConfigs[id]?.name || m?.nickname || "???";
-        const isGuest = m?.is_guest || attendeeConfigs[id]?.is_guest;
+        const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
+        if (!m) return "???";
+        const name = attendeeConfigs?.[id]?.name || m?.nickname || "???";
+        const isGuest = m?.is_guest || attendeeConfigs?.[id]?.is_guest;
         return isGuest ? `${name}(G)` : name;
     };
 
     const generateKDK = async () => {
+        // Late Gaming: Permission Check at Final Button
+        if (hasPermission('kdk') !== 'WRITE') {
+            alert(getRestrictionMessage('kdk'));
+            return;
+        }
+
         const result = validateGroups();
         if (!result.ok) {
             setWarningMsg(result.msg);
@@ -260,8 +475,10 @@ export default function KDKPage() {
                     times: [conf.startTime, conf.endTime] as [string, string],
                     isGuest: m?.is_guest,
                     achievements: !!conf.isWinner, // Use actual isWinner flag
+                    age: conf.age,
+                    mbti: m?.mbti,
                     birthdate: conf.age ? String(new Date().getFullYear() - conf.age) : undefined, // Encode age as birth year for engine
-                } as KdkPlayer;
+                } as any;
             });
 
             const groupCourtMap: Record<string, number[]> = {
@@ -282,7 +499,19 @@ export default function KDKPage() {
                 teams: [km.team1, km.team2]
             })) as any;
 
-            // DB SAVE DISABLED (EMERGENCY LOCAL-ONLY MODE)
+            // ENABLE DB SAVE (Sync Live Matches)
+            try {
+                const dbMatches = formattedMatches.map(m => ({
+                    ...m,
+                    club_id: process.env.NEXT_PUBLIC_CLUB_ID,
+                    session_title: sessionTitle || 'Tournament',
+                    player_names: m.playerIds.map(pid => getPlayerName(pid))
+                }));
+                const { error: matchError } = await supabase.from('matches').insert(dbMatches);
+                if (matchError) console.warn("Live Match Sync Error:", matchError);
+            } catch (err) {
+                console.error("Critical Sync Failure:", err);
+            }
 
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // 딩-동!
             setMatches(formattedMatches);
@@ -313,35 +542,170 @@ export default function KDKPage() {
         const courtNum = parseInt(courtStr) || 1;
         setMatches(prev => prev.map(m => m.id === matchId ? { ...m, court: courtNum } : m));
     };
+
+    const handleMemberEditConfirm = async () => {
+        const result = validateGroups();
+        if (!result.ok) {
+            setWarningMsg(result.msg);
+            setShowWarning(true);
+            return;
+        }
+
+        // Mid-tournament re-generate logic
+        const completedMatches = matches.filter(m => m.status === 'complete');
+        const activeMatches = matches.filter(m => m.status === 'playing');
+        
+        setIsGenerating(true);
+        try {
+            // Re-map players
+            const attendees = Array.from(selectedIds).map(id => {
+                const m = allMembers.find(x => x.id === id) || tempGuests.find(x => x.id === id);
+                const conf = attendeeConfigs[id] || { group: 'A', startTime: '18:00', endTime: '22:00' };
+                return {
+                    id,
+                    name: m?.nickname || "Unknown",
+                    group: conf.group,
+                    times: [conf.startTime, conf.endTime] as [string, string],
+                    isGuest: m?.is_guest,
+                    achievements: !!conf.isWinner,
+                    age: conf.age,
+                    mbti: m?.mbti,
+                    birthdate: conf.age ? String(new Date().getFullYear() - conf.age) : undefined,
+                } as any;
+            });
+
+            const groupCourtMap: Record<string, number[]> = { 'A': [1,2,3,4,5,6], 'B': [1,2,3,4,5,6] };
+            
+            // DECISION: We keep COMPLETED and PLAYING matches as is.
+            // We re-generate only the FUTURE matches.
+            const newMatches = generateKdkMatches(
+                attendees, 
+                groupCourtMap, 
+                targetGames, 
+                genMode, 
+                fixedPartners, 
+                fixedTeamMode,
+                [...completedMatches, ...activeMatches] as any
+            );
+
+            // Convert to internal format
+            const formattedMatches: Match[] = newMatches.map(km => {
+                const existing = matches.find(em => em.id === km.id);
+                if (existing) return existing; // Keep existing status/score
+
+                return {
+                    id: km.id,
+                    playerIds: km.playerIds || [],
+                    court: km.court,
+                    status: 'waiting',
+                    mode: 'KDK',
+                    round: km.round,
+                    score1: 0,
+                    score2: 0
+                };
+            }) as any;
+
+            setMatches(formattedMatches);
+            setShowMemberEditModal(false);
+        } catch (err: any) {
+            alert("대진 재구성 실패: " + err.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
     
     const finishMatch = async (matchId: string, s1: number, s2: number) => {
-        const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'complete' as const, score1: s1, score2: s2 } : m);
-        const nextActive = activeMatchIds.filter(id => id !== matchId);
-        setMatches(nextMatches);
-        if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // 완료 진동
-        setActiveMatchIds(nextActive);
-        setShowScoreModal(null);
-        /*
-        if (sessionId) {
-            const { data: existing } = await supabase.from('matches_archive').select('data').eq('id', sessionId).single();
-            const nextData = {
-                ...(existing?.data || {}),
-                matches: nextMatches,
-                attendee_configs: attendeeConfigs,
+        try {
+            // 1. Prepare match data for archiving
+            const matchToFinish = matches.find(m => m.id === matchId);
+            if (!matchToFinish) return;
+
+            // Type Safety: Ensure scores are numbers
+            const numS1 = Number(s1);
+            const numS2 = Number(s2);
+
+            // Data Sanitization: Exclude internal UI fields like 'teams' (array of arrays) that may fail DB serialization
+            const { teams, ...safeMatchData } = matchToFinish as any;
+
+            const pNames = matchToFinish.playerIds?.map(pid => getPlayerName(pid)) || [];
+            const finishedMatchData: any = {
+                ...safeMatchData,
+                score1: numS1,
+                score2: numS2,
+                status: 'complete',
+                player_names: pNames,
+                session_title: sessionTitle,
+                match_date: new Date().toISOString()
             };
-            await supabase.from('matches_archive').update({ data: nextData }).eq('id', sessionId);
+
+            // 2. Local state update for immediate feedback (MUST HAVE playerIds for UI)
+            const nextMatches = matches.map(m => m.id === matchId ? finishedMatchData : m);
+            const nextActive = activeMatchIds.filter(id => id !== matchId);
+            setMatches(nextMatches);
+            setActiveMatchIds(nextActive);
+            setShowScoreModal(null);
+            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+
+            // 3. Automated Server Archiving: Sanitized for DB
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const matchDateStr = `${yyyy}-${mm}-${dd}`;
+            
+            // Deterministic Unique ID for Upsert (Session + Round + Court)
+            const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
+
+            const archiveRecord = {
+                id: deterministicId, // Use deterministic ID for upsert
+                score1: numS1,
+                score2: numS2,
+                player_names: pNames,
+                session_title: sessionTitle || 'Live Match',
+                session_id: sessionId,
+                match_date: matchDateStr,
+                round: matchToFinish.round,
+                court: matchToFinish.court,
+                player_ids: matchToFinish.playerIds
+            };
+            
+            // Critical check to see if match exists in live table to move it
+            const { data: liveRow } = await supabase.from('matches').select('id').eq('id', matchId).single();
+
+            // UPSERT into Archive (prevents duplicates from concurrent submissions)
+            const { error: insError } = await supabase.from('matches_archive').upsert([archiveRecord], { onConflict: 'id' });
+            
+            if (insError) {
+                console.error("Archive Insert Error:", insError);
+                // Enhanced Alert for debugging
+                alert(`아카이브 저장 실패: ${insError.message}\n상세: ${JSON.stringify(insError)}`);
+                throw insError;
+            }
+
+            // Delete from Live if it was there
+            if (liveRow) {
+                const { error: delError } = await supabase.from('matches').delete().eq('id', matchId);
+                if (delError) console.warn("Live Delete Sync Error (Match archived but not deleted from live):", delError);
+            }
+
+            // Clear Score Buffer
+            localStorage.removeItem(`kdk_score_buffer_${matchId}`);
+        } catch (err: any) {
+            console.error("Critical Finish Match Failure:", err);
+            alert("경기 결과 저장에 실패했습니다: " + (err.message || "Unknown error"));
+            // We do NOT revert local state here to avoid confusion, 
+            // the user can retry or check the archive later.
         }
-        */
     };
 
     const playerStats = useMemo(() => {
         const res: Record<string, { wins: number, losses: number, diff: number, games: number }> = {};
-        matches.filter(m => m.status === 'complete').forEach(m => {
-            m.playerIds.forEach((pid, idx) => {
+        matches?.filter(m => m?.status === 'complete')?.forEach(m => {
+            m?.playerIds?.forEach((pid, idx) => {
                 if (!res[pid]) res[pid] = { wins: 0, losses: 0, diff: 0, games: 0 };
                 const isTeam1 = idx < 2;
-                const score1 = Number(m.score1 || 0);
-                const score2 = Number(m.score2 || 0);
+                const score1 = Number(m?.score1 || 0);
+                const score2 = Number(m?.score2 || 0);
                 const win = isTeam1 ? (score1 > score2) : (score2 > score1);
                 const d = isTeam1 ? (score1 - score2) : (score2 - score1);
                 
@@ -355,22 +719,22 @@ export default function KDKPage() {
     }, [matches]);
 
     const allPlayersInRanking = useMemo(() => {
-        const participantIds = selectedIds.size > 0 
+        const participantIds = (selectedIds?.size > 0) 
             ? Array.from(selectedIds) 
-            : Array.from(new Set(matches.flatMap(m => m.playerIds)));
+            : Array.from(new Set((matches || []).flatMap(m => m?.playerIds || [])));
 
         return participantIds.map(id => {
-            const m = allMembers.find(x => x.id === id) || tempGuests.find(x => x.id === id);
-            const conf = attendeeConfigs[id] || { name: m?.nickname || id, group: 'A', is_guest: m?.is_guest };
+            const m = (allMembers || []).find(x => x?.id === id) || (tempGuests || []).find(x => x?.id === id);
+            const conf = attendeeConfigs?.[id] || { name: m?.nickname || id, group: 'A', is_guest: m?.is_guest };
             return {
                 id, 
                 name: m?.nickname || id, 
-                is_guest: m?.is_guest || conf.is_guest,
-                group: conf.group || 'A',
-                age: conf.age || 0,
-                ...playerStats[id] || { wins: 0, losses: 0, diff: 0, games: 0 }
+                is_guest: m?.is_guest || conf?.is_guest,
+                group: conf?.group || 'A',
+                age: conf?.age || 0,
+                ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0 })
             };
-        }).sort((a, b) => b.wins - a.wins || b.diff - a.diff);
+        }).sort((a, b) => (b?.wins || 0) - (a?.wins || 0) || (b?.diff || 0) - (a?.diff || 0));
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
     const copyMatchTable = () => {
@@ -454,7 +818,7 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-lg mx-auto relative overflow-hidden">
+            <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-lg mx-auto relative overflow-hidden">
                 <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
                     <div className="flex items-center gap-3">
                         <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
@@ -510,25 +874,43 @@ export default function KDKPage() {
                                 전체 해제
                             </button>
                         </div>
-                    <div className="grid grid-cols-4 gap-2 mb-10">
-                        {[...allMembers, ...tempGuests].map(m => {
-                            const isSelected = selectedIds.has(m.id);
-                            return (
-                                <div
-                                    key={m.id}
-                                    onClick={() => toggleMember(m.id)}
-                                    className={`h-14 rounded-2xl border transition-all flex items-center justify-center cursor-pointer text-center px-1
-                                    ${isSelected ? 'bg-[#D4AF37]/20 border-[#D4AF37] shadow-[0_5px_15px_rgba(212,175,55,0.1)]' : 'bg-white/[0.02] border-white/5 opacity-40 hover:opacity-100'}`}
-                                >
-                                    <span className={`text-[11px] font-black break-keep ${isSelected ? 'text-[#D4AF37]' : 'text-white/50'}`}>
-                                        {m.nickname}{m.is_guest ? ' (G)' : ''}
-                                    </span>
+                        <div className="grid grid-cols-4 gap-3 py-2">
+                            {isMembersLoading ? (
+                                // Skeleton loading items
+                                Array.from({ length: 12 }).map((_, i) => (
+                                    <div key={i} className="h-16 rounded-2xl bg-white/5 border border-white/10 animate-pulse flex flex-col items-center justify-center">
+                                       <div className="w-8 h-2 bg-white/10 rounded mb-1"></div>
+                                       <div className="w-10 h-1 bg-white/5 rounded"></div>
+                                    </div>
+                                ))
+                            ) : ([...allMembers, ...tempGuests].length === 0) ? (
+                                <div className="col-span-4 py-10 text-center space-y-2 border border-dashed border-white/5 rounded-3xl">
+                                    <span className="text-4xl block opacity-20">📂</span>
+                                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">No members found</span>
                                 </div>
-                            );
-                        })}
+                            ) : (
+                                [...allMembers, ...tempGuests].map(m => {
+                                    const isSelected = selectedIds.has(m.id);
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            onClick={() => toggleMember(m.id)}
+                                            className={`h-16 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
+                                            ${isSelected 
+                                                ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_8px_30px_rgba(212,175,55,0.3)] scale-105 z-10' 
+                                                : 'bg-white/[0.05] border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20'}`}
+                                        >
+                                            <span className="text-[11px] font-[1000] break-keep leading-tight px-1">
+                                                {m.nickname}
+                                            </span>
+                                            {m.is_guest && <span className={`text-[7px] font-black uppercase mt-0.5 ${isSelected ? 'text-black/60' : 'text-[#D4AF37]'}`}>Guest</span>}
+                                        </div>
+                                    );
+                                })
+                            )}
 
                         {showGuestInput ? (
-                            <div className="h-14 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
+                            <div className="h-16 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
                                 <input
                                     autoFocus
                                     value={newGuestName}
@@ -538,13 +920,14 @@ export default function KDKPage() {
                                         if (e.key === 'Escape') setShowGuestInput(false);
                                     }}
                                     placeholder="이름"
-                                    className="w-full bg-transparent text-[11px] font-black text-[#D4AF37] outline-none text-center"
+                                    className="w-full bg-transparent text-sm font-black text-[#D4AF37] outline-none text-center"
                                 />
-                                <button onClick={() => addQuickGuest()} className="text-[#D4AF37] text-xs pr-1">↵</button>
+                                <button onClick={() => addQuickGuest()} className="text-[#D4AF37] font-black px-1">↵</button>
                             </div>
                         ) : (
-                            <button onClick={() => setShowGuestInput(true)} className="h-14 rounded-2xl border border-dashed border-white/10 text-white/10 flex items-center justify-center active:scale-95 hover:bg-white/5 transition-all">
-                                <span className="text-xl font-light">+</span>
+                            <button onClick={() => setShowGuestInput(true)} className="h-16 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
+                                <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
+                                <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
                             </button>
                         )}
                     </div>
@@ -590,7 +973,7 @@ export default function KDKPage() {
 
         return (
             <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans max-w-4xl mx-auto p-4 pb-48">
-                {((genMode === 'WINNER' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
+                {((genMode === 'AWARD' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
                     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
                         <div className="bg-[#1C1C28] border border-[#D4AF37]/30 rounded-[32px] p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95">
                             <div className="text-center space-y-2">
@@ -678,10 +1061,10 @@ export default function KDKPage() {
                         <section className="bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-[32px] p-8 space-y-6">
                             <div>
                                 <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em] mb-4">Core Strategy</h4>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {(['RANDOM', 'LEVEL', 'MBTI', 'WINNER', 'AGE'] as const).map(mode => (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
                                         <button key={mode} onClick={() => setGenMode(mode)} className={`py-4 rounded-2xl border text-[10px] font-black transition-all ${genMode === mode ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-xl' : 'bg-white/5 border-white/10 text-white/40'}`}>
-                                            {mode === 'LEVEL' ? '실력(ABC)' : mode === 'WINNER' ? '입상자' : mode === 'AGE' ? '연령(OB/YB)' : mode}
+                                            {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? '연령(OB vs YB)' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
                                         </button>
                                     ))}
                                 </div>
@@ -855,7 +1238,9 @@ export default function KDKPage() {
                 <div className="flex gap-2">
                     <button onClick={copyMatchTable} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all" title="대진표 공유">📋</button>
                     <button onClick={copyFinalResults} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all" title="결과 보고">🏆</button>
-                    <button onClick={resetSession} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/40 text-sm active:scale-90 transition-all">×</button>
+                    <button onClick={confirmReset} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/40 text-sm active:scale-90 transition-all hover:text-red-400 group" title="새 대진표 짜기 (초기화)">
+                        <span className="group-hover:rotate-90 transition-transform">×</span>
+                    </button>
                 </div>
             </header>
 
@@ -864,7 +1249,7 @@ export default function KDKPage() {
                     <div className="space-y-1">
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Tournament Info</span>
-                            <span className="text-white/20 text-[10px]">✏️</span>
+                            <button onClick={() => setShowMemberEditModal(true)} className="text-[#D4AF37] text-[9px] font-black underline underline-offset-4 decoration-[#D4AF37]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
                         </div>
                         <input 
                             value={sessionTitle} 
@@ -1033,9 +1418,18 @@ export default function KDKPage() {
                             sessionMatches={matches} 
                             configs={attendeeConfigs} 
                             allPlayers={allPlayersInRanking}
+                            allMembers={allMembers}
+                            tempGuests={tempGuests}
+                            sessionId={sessionId}
+                            sessionTitle={sessionTitle}
+                            actualReset={actualReset}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }} 
                             copyMatchTable={copyMatchTable}
                             copyFinalResults={copyFinalResults}
+                            ceremonyMode={showCeremony}
+                            onFinalize={handleFinalArchive}
+                            isGenerating={isGenerating}
+                            isAdmin={role === 'CEO'}
                         />
                     </div>
                 )}
@@ -1049,6 +1443,18 @@ export default function KDKPage() {
                 </div>
             </nav>
 
+            {/* Floating Ceremony Trigger Button (Visible when all matches scored) */}
+            {allMatchesScored && step === 3 && activeTab === 'MATCHES' && (
+                <div className="fixed bottom-24 left-0 right-0 px-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
+                    <button 
+                        onClick={handleStartCeremony}
+                        className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-[1000] rounded-[28px] shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
+                    >
+                        <span>🏆 즉시 순위 및 축하 화면 보러가기</span>
+                    </button>
+                </div>
+            )}
+
             {showRankingModal && (
                 <div className="fixed inset-0 z-[100] flex flex-col bg-black/98 backdrop-blur-2xl">
                     <header className="p-6 border-b border-white/5 flex items-center justify-between bg-[#14141F]">
@@ -1060,9 +1466,17 @@ export default function KDKPage() {
                             sessionMatches={matches} 
                             configs={attendeeConfigs} 
                             allPlayers={allPlayersInRanking}
+                            allMembers={allMembers}
+                            tempGuests={tempGuests}
+                            sessionId={sessionId}
+                            sessionTitle={sessionTitle}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }} 
                             copyMatchTable={copyMatchTable}
                             copyFinalResults={copyFinalResults}
+                            ceremonyMode={showCeremony}
+                            onFinalize={handleFinalArchive}
+                            isGenerating={isGenerating}
+                            isAdmin={role === 'CEO'}
                         />
                     </div>
                 </div>
@@ -1089,7 +1503,8 @@ export default function KDKPage() {
                                                 key={n} 
                                                 onClick={() => {
                                                     if (window.navigator?.vibrate) window.navigator.vibrate(50); // 탁!
-                                                    setTempScores(p => side === 0 ? ({ ...p, s1: n }) : ({ ...p, s2: n }));
+                                                    const val = Math.min(6, Math.max(0, n));
+                                                    setTempScores(p => side === 0 ? ({ ...p, s1: val }) : ({ ...p, s2: val }));
                                                 }} 
                                                 className={`h-12 rounded-xl text-lg font-black transition-all ${ (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#D4AF37] text-black scale-105' : 'bg-white/5 text-white/30'}`}
                                             >
@@ -1107,11 +1522,64 @@ export default function KDKPage() {
                     </div>
                 </div>
             )}
+            
+            {showMemberEditModal && (
+                <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col p-6 overflow-hidden">
+                    <header className="flex items-center justify-between mb-8">
+                        <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">참석자 수시 수정</h2>
+                        <button onClick={() => setShowMemberEditModal(false)} className="text-white/20 text-3xl">×</button>
+                    </header>
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
+                        <section className="space-y-4">
+                            <h3 className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase">Toggle Active Players</h3>
+                            <div className="grid grid-cols-4 gap-3">
+                                {[...allMembers, ...tempGuests].map(m => {
+                                    const isSelected = selectedIds.has(m.id);
+                                    const isBusy = busyPlayerIds.has(m.id);
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            onClick={() => {
+                                                if (isBusy) {
+                                                     alert("현재 경기 중인 선수는 기권 처리할 수 없습니다. 경기가 끝난 후 조정해 주세요.");
+                                                     return;
+                                                }
+                                                toggleMember(m.id);
+                                            }}
+                                            className={`h-16 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
+                                            ${isSelected 
+                                                ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg scale-105' 
+                                                : 'bg-white/[0.05] border-white/10 text-white/40'}
+                                            ${isBusy ? 'opacity-30 border-dashed cursor-not-allowed' : ''}`}
+                                        >
+                                            <span className="text-[10px] font-black truncate w-full px-1">{m.nickname}</span>
+                                            {isBusy && <span className="text-[6px] font-bold text-red-500 uppercase">Busy</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                        <p className="text-[10px] font-bold text-white/30 leading-relaxed uppercase tracking-widest text-center italic">
+                            💡 선수를 추가하거나 제거하면, <br/>아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
+                        </p>
+                    </div>
+                    <div className="mt-8">
+                        <button 
+                            disabled={isGenerating}
+                            onClick={handleMemberEditConfirm}
+                            className={`w-full py-5 rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#D4AF37] text-black'}`}
+                        >
+                            {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {showResetConfirm && (
                 <CustomConfirmModal 
-                    title="초기화 확인" 
-                    message="모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다." 
-                    onConfirm={confirmReset} 
+                    title="대진표 초기화" 
+                    message="현재 진행 중인 모든 대진과 선택된 멤버 정보를 삭제하고 처음부터 다시 시작하시겠습니까?" 
+                    onConfirm={actualReset} 
                     onCancel={() => setShowResetConfirm(false)} 
                 />
             )}
@@ -1214,22 +1682,6 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
     );
 }
 
-function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
-    return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onCancel}></div>
-            <div className="relative w-full max-w-sm bg-[#1C1C28] border border-white/10 rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                <h3 className="text-lg font-black italic text-white mb-2 uppercase tracking-tighter">{title}</h3>
-                <p className="text-xs font-bold text-white/40 mb-8 leading-relaxed">{message}</p>
-                <div className="flex gap-3">
-                    <button onClick={onCancel} className="flex-1 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl">Cancel</button>
-                    <button onClick={onConfirm} className="flex-1 py-4 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-red-500/20">Confirm</button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 
 function ArchiveSection({ onLoad }: { onLoad: (session: any) => void }) {
     const [archives, setArchives] = useState<any[]>([]);
@@ -1263,9 +1715,19 @@ function ArchiveSection({ onLoad }: { onLoad: (session: any) => void }) {
     );
 }
 
-function RankingView({ sessionMatches, configs, prizes, allPlayers: players, copyMatchTable, copyFinalResults }: any) {
+function RankingView({ sessionMatches, configs, prizes, allPlayers: players, allMembers, tempGuests, sessionId, sessionTitle, actualReset, copyMatchTable, copyFinalResults, ceremonyMode, onFinalize, isGenerating, isAdmin }: any) {
     const [sortKey, setSortKey] = useState<string>('rk');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+    // Confetti / Particle State (Simple CSS-based)
+    const [showConfetti, setShowConfetti] = useState(false);
+    useEffect(() => {
+        if (ceremonyMode) {
+            setShowConfetti(true);
+            const timer = setTimeout(() => setShowConfetti(false), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [ceremonyMode]);
 
     const toggleSort = (key: string) => {
         if (sortKey === key) {
@@ -1324,7 +1786,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
     };
 
     const getSortedPlayers = (pList: any[]) => {
-        const sorted = [...pList].map((p, i) => ({ ...p, rk: i + 1 }));
+        const sorted = [...(pList || [])].map((p, i) => ({ ...p, rk: i + 1 }));
         return sorted.sort((a, b) => {
             let valA = a[sortKey];
             let valB = b[sortKey];
@@ -1342,9 +1804,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
 
     const hasGroups = Object.values(configs).some((c: any) => c.group === 'B');
 
-    const getPlayerName = (id: string) => {
-        const p = players.find((x: any) => x.id === id);
-        return p?.name || "Unknown";
+    const getPlayerNameLocal = (id: string) => {
+        const p = (players || []).find((x: any) => x?.id === id);
+        if (!p) return "???";
+        return p?.is_guest ? `${p.name}(G)` : p.name;
     };
 
     const RankingTable = ({ players, title }: { players: any[], title: string }) => (
@@ -1408,34 +1871,83 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
         </section>
     );
 
-    const exportToMemberStats = async () => {
-        if (!confirm("전체 경기를 종료하고 멤버별 통계 DB로 데이터를 전송하시겠습니까?")) return;
+    const finalizeTournament = async () => {
+        if (!confirm("모든 경기를 정산하고 이번 대진표를 아카이브에 최종 저장하시겠습니까?\n(랭킹과 상세 기록이 심층 기록소로 안전하게 이관됩니다.)")) return;
         
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
             
-            const statsToInsert = players.map((p: any) => ({
-                member_name: p.name,
-                wins: p.wins,
-                losses: p.losses,
-                score_diff: p.diff,
-                total_games: p.games,
-                tournament_date: new Date().toISOString(),
-                is_guest: p.is_guest
-            }));
+            // 1. Archival Snapshot (Ranking, Metadata, etc.)
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
 
-            const { error } = await supabase.from('member_stats').insert(statsToInsert);
-            if (error) throw error;
+            const rankingSnapshot = players.map((p: any) => {
+                const member = (allMembers || []).find((x: any) => x?.id === p.id) || (tempGuests || []).find((x: any) => x?.id === p.id);
+                return {
+                    id: p.id,
+                    name: p.name,
+                    wins: p.wins || 0,
+                    losses: p.losses || 0,
+                    diff: p.diff || 0,
+                    avatar: member?.avatar_url || ''
+                };
+            });
+
+            const sessionRecord = {
+                id: sessionId,
+                title: sessionTitle || `Tournament ${dateStr}`,
+                date: dateStr,
+                ranking_data: rankingSnapshot,
+                player_metadata: configs,
+                total_matches: sessionMatches.length,
+                total_rounds: (sessionMatches.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1
+            };
+
+            const { error: archiveError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
+            if (archiveError) throw archiveError;
+
+            // 2. Celebration/Confirmation
+            alert("🏆 토너먼트가 성공적으로 정산되었습니다!\n전체 경기와 최종 순위가 '심층 기록소'에 안전하게 보존됩니다.");
             
-            alert("✅ 테연 데이터베이스로 성공적으로 저장되었습니다!");
+            // 3. Final local cleanup
+            actualReset();
         } catch (e: any) {
-            console.error(e);
-            alert("저장 실패: " + e.message);
+            console.error("Finalize Error:", e);
+            alert("정산 및 아카이브 저장 중 오류가 발생했습니다: " + (e.message || "다시 시도해 주세요"));
         }
     };
 
     return (
-        <div className="space-y-6 pb-40">
+        <div className="space-y-6 pb-40 relative overflow-hidden">
+            {/* Celebration Ceremony Header */}
+            {ceremonyMode && (
+                <div className="py-8 px-4 bg-gradient-to-b from-[#D4AF37]/20 to-transparent border-t-2 border-[#D4AF37]/40 animate-in fade-in slide-in-from-top-4 duration-1000">
+                    <div className="flex flex-col items-center text-center space-y-3">
+                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase animate-pulse">Official Results Announced</span>
+                        <h2 className="text-3xl font-[1000] italic text-white tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                            🏆 오늘 대회의 최종 순위입니다!
+                        </h2>
+                        <div className="h-0.5 w-12 bg-[#D4AF37] rounded-full mx-auto" />
+                    </div>
+                </div>
+            )}
+
+            {showConfetti && (
+                <div className="absolute inset-0 pointer-events-none z-[100] flex justify-center overflow-hidden">
+                    {[...Array(20)].map((_, i) => (
+                        <div 
+                            key={i} 
+                            className="absolute top-[-10px] w-2 h-2 bg-[#D4AF37] rounded-full animate-confetti-fall"
+                            style={{ 
+                                left: `${Math.random() * 100}%`, 
+                                animationDelay: `${Math.random() * 2}s`,
+                                opacity: Math.random()
+                            }} 
+                        />
+                    ))}
+                </div>
+            )}
+
             <RankingTable players={players} title="🏆 실시간 통합 랭킹" />
             
             {hasGroups && (
@@ -1461,24 +1973,37 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, cop
                 </button>
             </div>
 
-            <div className="bg-[#1E1E2E] border border-[#D4AF37]/20 rounded-[32px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                   <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-               </div>
-               <div className="text-center space-y-2">
-                   <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] block">Data Finalization</span>
-                   <h4 className="text-xl font-black italic text-white tracking-tighter">TOURNAMENT STATS SYNC</h4>
-               </div>
-               <button 
-                  onClick={exportToMemberStats}
-                  className="w-full py-5 bg-[#D4AF37] text-black text-[13px] font-black rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-               >
-                  테연 데이터로 저장 🚀
-               </button>
-               <div className="flex items-center justify-between px-2 pt-2 text-[10px] font-bold text-white/20 uppercase">
-                   <span>Stats Archive</span>
-                   <span>member_stats table</span>
-               </div>
+            {/* Stage 3: Official Staff Closure (Final archival button) */}
+            <div className="mt-12 bg-[#1E1E2E] border border-[#D4AF37]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                    <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                </div>
+                <div className="text-center space-y-2">
+                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase block">Tournament Official Closure</span>
+                    <h4 className="text-xl font-black italic text-white tracking-tighter uppercase underline decoration-[#D4AF37]/30 underline-offset-4">대회 결과 최종 확정 및 저장</h4>
+                    <p className="text-[10px] text-white/30 font-medium max-w-[200px] mx-auto leading-relaxed">이 버튼을 누르면 오늘의 경기 기록이 아카이브로 전송되며, 라이브 대진표가 종료됩니다.</p>
+                </div>
+
+                {isAdmin ? (
+                    <button 
+                        onClick={onFinalize}
+                        disabled={isGenerating}
+                        className="w-full py-5 bg-[#D4AF37] text-black text-[13px] font-[1000] rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-none outline-none"
+                    >
+                        <span>📅 공식 종료 및 데이터 보존 🚀</span>
+                        {isGenerating && <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>}
+                    </button>
+                ) : (
+                    <div className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 opacity-60">
+                         <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">운영진 전용</span>
+                         <span className="text-[8px] text-white/20 font-bold uppercase">Staff will finalize the tournament soon</span>
+                    </div>
+                )}
+                
+                <div className="flex items-center justify-between px-2 pt-2 text-[10px] font-bold text-white/20 uppercase tracking-tighter">
+                    <span>Immutable History</span>
+                    <span>Admin Controls</span>
+                </div>
             </div>
         </div>
     );
@@ -1501,6 +2026,45 @@ function WarningModal({ message, onClose }: { message: string, onClose: () => vo
                 >
                     확인했습니다
                 </button>
+            </div>
+        </div>
+    );
+}
+
+function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+            <style jsx global>{`
+                @keyframes confetti-fall {
+                    0% { transform: translateY(-10vh) rotate(0deg); }
+                    100% { transform: translateY(110vh) rotate(720deg); }
+                }
+                .animate-confetti-fall {
+                    animation: confetti-fall 4s linear forwards;
+                }
+            `}</style>
+            <div className="w-full max-w-xs bg-[#1E1E2E] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
+                <div className="w-20 h-20 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center">
+                    <span className="text-4xl">⚠️</span>
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xl font-black text-[#D4AF37] italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
+                    <p className="text-sm font-bold text-white/60 leading-relaxed">{message}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 w-full">
+                    <button 
+                        onClick={onCancel}
+                        className="py-4 bg-white/5 text-white/40 font-black rounded-2xl active:scale-95 transition-all text-[10px] uppercase tracking-widest"
+                    >
+                        취소
+                    </button>
+                    <button 
+                        onClick={onConfirm}
+                        className="py-4 bg-[#D4AF37] text-black font-black rounded-2xl shadow-xl active:scale-95 transition-all text-[10px] uppercase tracking-widest"
+                    >
+                        데이터 초기화
+                    </button>
+                </div>
             </div>
         </div>
     );

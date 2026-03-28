@@ -7,9 +7,5 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key is missing in environment variables.');
 }
 
-// Force fresh client to bypass schema cache if necessary
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  global: {
-    headers: { 'x-schema-cache-refresh': Date.now().toString() }
-  }
-});
+// Standard client for public access
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

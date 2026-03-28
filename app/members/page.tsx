@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import ProfileAvatar from '@/components/ProfileAvatar';
 
 interface Member {
   id: string;
@@ -11,10 +13,12 @@ interface Member {
   is_admin?: boolean;
   is_guest?: boolean;
   phone?: string;
+  email?: string; // Newly added
   mbti?: string;
   affiliation?: string;
   position?: string;
   achievements?: string;
+  avatar_url?: string;
 }
 
 const EXE_PRIORITY: Record<string, number> = {
@@ -45,6 +49,135 @@ const FALLBACK_MEMBERS: Member[] = [
   { id: '10', nickname: '김재형', role: '준회원' },
 ];
 
+const getMemberPriority = (m: Member): number => {
+  const role = (m.role || '').trim();
+  const pos = (m.position || '').trim();
+  if (EXE_PRIORITY[role]) return EXE_PRIORITY[role];
+  if (EXE_PRIORITY[pos]) return EXE_PRIORITY[pos];
+  if (m.is_admin) return 0;
+  if (MEMBER_PRIORITY[role]) return MEMBER_PRIORITY[role];
+  if (MEMBER_PRIORITY[pos]) return MEMBER_PRIORITY[pos];
+  if (m.is_guest) return 30;
+  return 99;
+};
+
+// Separate, Memoized Member Card Component
+const MemberCard = React.memo(({ member }: { member: Member }) => {
+  const { user } = useAuth();
+  
+  const getRoleBadgeColor = (role: string) => {
+    const r = role.trim();
+    if (r === '회장' || r === '부회장' || r === 'CEO') return 'bg-[#DC2626] text-white shadow-[0_0_15px_rgba(220,38,38,0.3)] font-black'; 
+    if (EXE_PRIORITY[r]) return 'bg-[#2563EB] text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] font-black'; 
+    if (r === '정회원' || r === 'MEMBER') return 'bg-[#1A8D4D] text-white/90 font-bold';
+    if (r === '준회원') return 'bg-[#10B981] text-white/90 font-bold';
+    return 'bg-white/5 text-white/30 border border-white/10 font-medium';
+  };
+
+  const roleLabels = useMemo(() => {
+    const role = (member.role || '').trim();
+    const pos = (member.position || '').trim();
+    
+    let primary = '';
+    let secondary = '';
+
+    const isRoleExe = EXE_PRIORITY[role] || role === 'CEO';
+    const isPosExe = EXE_PRIORITY[pos] || pos === 'CEO';
+
+    if (isRoleExe && isPosExe) {
+      if (EXE_PRIORITY[role] < EXE_PRIORITY[pos] || !EXE_PRIORITY[pos]) {
+        primary = role;
+        secondary = (pos !== role) ? pos : '';
+      } else {
+        primary = pos;
+        secondary = (role !== pos) ? role : '';
+      }
+    } else if (isRoleExe) {
+      primary = role;
+      secondary = (pos !== role) ? pos : '';
+    } else if (isPosExe) {
+      primary = pos;
+      secondary = (role !== pos) ? role : '';
+    } else {
+      primary = role || pos || '게스트';
+      if (primary === role && pos && pos !== role) {
+        secondary = pos;
+      } else if (primary === pos && role && role !== pos) {
+        secondary = role;
+      }
+    }
+    return { primary: primary || '게스트', secondary };
+  }, [member.role, member.position]);
+
+  // Real-time Photo Priority Logic
+  const finalAvatar = useMemo(() => {
+    if (user?.email && member.email && user.email === member.email) {
+      return (
+        user.user_metadata?.avatar_url || 
+        user.user_metadata?.picture || 
+        user.user_metadata?.profile_image_url ||
+        user.user_metadata?.profile_image ||
+        member.avatar_url
+      );
+    }
+    return member.avatar_url;
+  }, [user?.email, user?.user_metadata, member.email, member.avatar_url]);
+
+  return (
+    <div className="bg-gradient-to-br from-[#1A253D] to-[#0A0E1A] border border-white/5 rounded-[32px] p-6 flex flex-col shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 group">
+      <div className="flex justify-between items-start mb-5">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-2xl font-black tracking-tight group-hover:text-[#D4AF37] transition-colors mb-2">{member.nickname}</h3>
+          <div className="flex flex-wrap gap-2">
+            <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.primary)}`}>
+              {roleLabels.primary}
+            </span>
+            {roleLabels.secondary && (
+              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.secondary)}`}>
+                {roleLabels.secondary}
+              </span>
+            )}
+          </div>
+        </div>
+        <ProfileAvatar 
+          src={finalAvatar} 
+          alt={member.nickname} 
+          size={56}
+          className="rounded-full shrink-0 border-2 border-[#D4AF37]/20"
+          fallbackIcon="🎾"
+        />
+      </div>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Contact</span>
+            <span className="text-xs font-bold text-white/50">{member.phone || '비공개'}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">MBTI</span>
+            <span className="text-xs font-bold text-[#D4AF37]">{member.mbti || '-'}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1 border-t border-white/5 pt-3">
+          <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Affiliation</span>
+          <span className="text-xs font-bold text-white/40">{member.affiliation || 'Teyeon Club'}</span>
+        </div>
+        {member.achievements && (
+          <div className="flex flex-col gap-1 border-t border-white/5 pt-3 bg-white/[0.01] -mx-6 px-6 py-3">
+            <span className="text-[9px] text-[#D4AF37]/60 font-black uppercase tracking-widest">Awards</span>
+            <p className="text-[11px] font-medium text-white/30 leading-relaxed italic line-clamp-2">
+              {member.achievements}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+MemberCard.displayName = 'MemberCard';
+
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,74 +187,62 @@ export default function MembersPage() {
     fetchMembers();
   }, []);
 
-  // Helper to get member priority (lower is higher priority)
-  const getMemberPriority = (m: Member): number => {
-    const role = (m.role || '').trim();
-    const pos = (m.position || '').trim();
-    
-    // 1. Check for Executives first (either in role or position)
-    if (EXE_PRIORITY[role]) return EXE_PRIORITY[role];
-    if (EXE_PRIORITY[pos]) return EXE_PRIORITY[pos];
-    
-    // 2. Check for Admin flag (usually mapped to CEO/회장)
-    if (m.is_admin) return 0; // Highest
-    
-    // 3. Check for standard member types
-    if (MEMBER_PRIORITY[role]) return MEMBER_PRIORITY[role];
-    if (MEMBER_PRIORITY[pos]) return MEMBER_PRIORITY[pos];
-    
-    // 4. Guest flag
-    if (m.is_guest) return 30;
-    
-    return 99; // Unknown
-  };
-
   async function fetchMembers() {
+    console.log('[Members] Fetching members starting...');
+    
+    // Safety flag to prevent infinite loading
+    let fetchCompleted = false;
+    const safetyTimeout = setTimeout(() => {
+      if (!fetchCompleted) {
+        console.warn('[Members] Fetch safety timeout triggered.');
+        setLoading(false);
+        if (members.length === 0) setMembers(FALLBACK_MEMBERS);
+      }
+    }, 6000);
+
     try {
       setLoading(true);
       setErrorMsg(null);
+      
+      const clubId = process.env.NEXT_PUBLIC_CLUB_ID;
+      if (!clubId) {
+        throw new Error("Club ID not found (NEXT_PUBLIC_CLUB_ID)");
+      }
+
       const { data, error } = await supabase
         .from('members')
-        .select('*');
+        .select('*')
+        .eq('club_id', clubId);
+
+      fetchCompleted = true;
+      clearTimeout(safetyTimeout);
 
       if (error) throw error;
       
+      console.log('[Members] Data received:', data?.length || 0);
+
       if (data && data.length > 0) {
-        // High-precision sorting for Executive-First policy
         const sortedData = [...data].sort((a, b) => {
           const aP = getMemberPriority(a);
           const bP = getMemberPriority(b);
-          
           if (aP !== bP) return aP - bP;
-          
-          // Secondary sort: alphabetical by nickname
           return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
         });
         setMembers(sortedData);
       } else {
-        // Fallback to perfect UI data if DB is empty
+        console.log('[Members] No data found, using fallback');
         setMembers(FALLBACK_MEMBERS);
       }
     } catch (err: any) {
-      console.error('Error fetching members:', err.message || err);
+      fetchCompleted = true;
+      clearTimeout(safetyTimeout);
+      console.error('[Members] Fetch Error:', err.message || err);
       setErrorMsg(err.message || String(err));
+      if (!members.length) setMembers(FALLBACK_MEMBERS);
     } finally {
       setLoading(false);
     }
   }
-
-  const getRoleBadgeColor = (role: string) => {
-    const r = role.trim();
-    // Executive: Deep Blue or Red
-    if (r === '회장' || r === '부회장' || r === 'CEO') return 'bg-[#DC2626] text-white shadow-[0_0_15px_rgba(220,38,38,0.3)] font-black'; // Accent Red
-    if (EXE_PRIORITY[r]) return 'bg-[#2563EB] text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] font-black'; // Primary Blue
-    
-    // Regular & Associate Members
-    if (r === '정회원' || r === 'MEMBER') return 'bg-[#1A8D4D] text-white/90 font-bold';
-    if (r === '준회원') return 'bg-[#10B981] text-white/90 font-bold'; // Bold Emerald
-    
-    return 'bg-white/5 text-white/30 border border-white/10 font-medium';
-  };
 
   return (
     <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-4xl mx-auto pb-10">
@@ -147,108 +268,9 @@ export default function MembersPage() {
           <div className="w-12 h-12 border-2 border-white/5 border-t-[#D4AF37] rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 overflow-y-auto">
           {members.map((member) => (
-            <div 
-              key={member.id}
-              className="bg-gradient-to-br from-[#1A253D] to-[#0A0E1A] border border-white/5 rounded-[32px] p-6 flex flex-col shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 group"
-            >
-              {/* Header: Name & Role */}
-              <div className="flex justify-between items-start mb-5">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-2xl font-black tracking-tight group-hover:text-[#D4AF37] transition-colors">{member.nickname}</h3>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    {/* Primary Badge (Most Important) */}
-                    {(() => {
-                      const p1 = getMemberPriority(member);
-                      const role = (member.role || '').trim();
-                      const pos = (member.position || '').trim();
-                      
-                      // Determine which label is primary based on executive priority or existence
-                      let primaryLabel = '';
-                      let secondaryLabel = '';
-
-                      const isRoleExe = EXE_PRIORITY[role] || role === 'CEO';
-                      const isPosExe = EXE_PRIORITY[pos] || pos === 'CEO';
-
-                      if (isRoleExe && isPosExe) {
-                        // Both are executive, prioritize based on EXE_PRIORITY or default to role
-                        if (EXE_PRIORITY[role] < EXE_PRIORITY[pos] || !EXE_PRIORITY[pos]) {
-                          primaryLabel = role;
-                          secondaryLabel = (pos !== role) ? pos : '';
-                        } else {
-                          primaryLabel = pos;
-                          secondaryLabel = (role !== pos) ? role : '';
-                        }
-                      } else if (isRoleExe) {
-                        primaryLabel = role;
-                        secondaryLabel = (pos !== role) ? pos : '';
-                      } else if (isPosExe) {
-                        primaryLabel = pos;
-                        secondaryLabel = (role !== pos) ? role : '';
-                      } else {
-                        // Neither is executive, prioritize role then position
-                        primaryLabel = role || pos || '게스트';
-                        if (primaryLabel === role && pos && pos !== role) {
-                          secondaryLabel = pos;
-                        } else if (primaryLabel === pos && role && role !== pos) {
-                          secondaryLabel = role;
-                        }
-                      }
-
-                      // Fallback for empty primary label
-                      if (!primaryLabel) primaryLabel = '게스트';
-
-                      return (
-                        <>
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getRoleBadgeColor(primaryLabel)}`}>
-                            {primaryLabel}
-                          </span>
-                          {secondaryLabel && (
-                            <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getRoleBadgeColor(secondaryLabel)}`}>
-                              {secondaryLabel}
-                            </span>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 group-hover:bg-[#D4AF37]/10 group-hover:border-[#D4AF37]/20 transition-all">
-                  🎾
-                </div>
-              </div>
-
-              {/* Body: Details */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Contact</span>
-                    <span className="text-xs font-bold text-white/80">{member.phone || '비공개'}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">MBTI</span>
-                    <span className="text-xs font-bold text-[#D4AF37]">{member.mbti || '-'}</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1 border-t border-white/5 pt-3">
-                  <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Affiliation</span>
-                  <span className="text-xs font-bold text-white/60">{member.affiliation || 'Teyeon Club'}</span>
-                </div>
-
-                {member.achievements && (
-                  <div className="flex flex-col gap-1 border-t border-white/5 pt-3 bg-white/[0.02] -mx-6 px-6 py-3">
-                    <span className="text-[9px] text-[#D4AF37]/60 font-black uppercase tracking-widest">Awards</span>
-                    <p className="text-[11px] font-medium text-white/50 leading-relaxed italic">
-                      {member.achievements}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <MemberCard key={member.id} member={member} />
           ))}
         </div>
       )}
@@ -263,7 +285,7 @@ export default function MembersPage() {
       {/* Footer Info */}
       <footer className="mt-16 py-8 border-t border-white/5 flex flex-col items-center opacity-20">
         <p className="text-[10px] font-black tracking-widest uppercase mb-2">Teyeon Club Management System</p>
-        <p className="text-[8px] font-bold">PREMIUM CHAMPAGNE GOLD Ed. v2.0</p>
+        <p className="text-[8px] font-bold">PREMIUM CHAMPAGNE GOLD Ed. v2.1 • Optimized Performance</p>
       </footer>
     </main>
   );
