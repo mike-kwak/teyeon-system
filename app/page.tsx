@@ -2,9 +2,19 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
-  const isAdmin = true; // Simulated Admin role
+  const { user, role, signInWithKakao, signOut, isLoading } = useAuth();
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const menuItems = [
     // Row 1
@@ -20,7 +30,7 @@ export default function Home() {
     // Row 3
     { id: "finance", icon: "💰", label: "클럽 재무", path: "/finance" },
     { id: "prediction", icon: "🤖", label: "AI 시드 예측", path: "/prediction" },
-    { id: "admin", icon: "🛠️", label: "관리자 설정", path: "/admin", adminOnly: true },
+    { id: "admin", icon: "🛠️", label: "관리자 설정", path: "/admin", ceoOnly: true },
   ];
 
   return (
@@ -65,45 +75,76 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Profile Card */}
-      <Link href="/profile" className="block mb-6">
-        <section className="bg-gradient-to-br from-[#1A253D] to-[#14141F] rounded-[24px] py-4 px-6 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-all shadow-xl group">
-          <div className="flex items-center gap-5 relative z-10">
-            <div className="w-12 h-12 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform">
-              👤
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[#D4AF37] text-[8px] font-black tracking-widest uppercase bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">Premium CEO</span>
-                <span className="w-1 h-1 bg-[#FF4500] rounded-full animate-pulse"></span>
-              </div>
-              <h2 className="text-lg font-bold tracking-tight text-white/90">윤정수 <span className="text-white/30 font-normal text-sm">님, 반갑습니다!</span></h2>
-              <p className="text-white/40 text-[10px] font-medium tracking-wide mt-0.5">매 순간이 <span className="text-[#A3E635] font-black italic">CHAMPION SHOT</span> 입니다 🎾</p>
-            </div>
+      {/* Profile Card / Auth Section */}
+      <section className="mb-6">
+        {!user ? (
+          <button 
+            onClick={() => signInWithKakao()}
+            className="w-full bg-[#FEE500] text-[#3c1e1e] font-black py-4 rounded-[24px] flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all"
+          >
+            <span className="text-xl">💬</span>
+            카카오로 3초만에 로그인
+          </button>
+        ) : (
+          <div className="relative group">
+            <Link href="/profile" className="block">
+              <section className="bg-gradient-to-br from-[#1A253D] to-[#14141F] rounded-[24px] py-4 px-6 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-all shadow-xl">
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="w-12 h-12 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform">
+                    {role === 'CEO' ? '👑' : role === 'ADMIN' ? '👨‍💼' : '👤'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[#D4AF37] text-[8px] font-black tracking-widest uppercase bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">
+                        {role === 'CEO' ? 'Premium CEO' : role === 'ADMIN' ? 'Admin Staff' : 'Club Member'}
+                      </span>
+                      <span className="w-1 h-1 bg-[#4CAF50] rounded-full animate-pulse"></span>
+                    </div>
+                    <h2 className="text-lg font-bold tracking-tight text-white/90">
+                      {user.user_metadata?.full_name || user.email?.split('@')[0]} 
+                      <span className="text-white/30 font-normal text-sm ml-1">님, 반갑습니다!</span>
+                    </h2>
+                    <p className="text-white/40 text-[10px] font-medium tracking-wide mt-0.5">매 순간이 <span className="text-[#A3E635] font-black italic">CHAMPION SHOT</span> 입니다 🎾</p>
+                  </div>
+                </div>
+                <div className="absolute top-0 right-0 w-24 h-24 bg-[#D4AF37]/5 rounded-bl-[80px] -mr-8 -mt-8 group-hover:scale-110 transition-transform"></div>
+              </section>
+            </Link>
+            <button 
+              onClick={() => signOut()}
+              className="absolute top-2 right-2 text-[10px] text-white/20 hover:text-white/60 px-2 py-1 rounded-full z-20"
+            >
+              로그아웃
+            </button>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#D4AF37]/5 rounded-bl-[80px] -mr-8 -mt-8 group-hover:scale-110 transition-transform"></div>
-          <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-[#FF4500]/5 blur-xl"></div>
-        </section>
-      </Link>
+        )}
+      </section>
 
       {/* Action Tower Grid */}
-      <section className="grid grid-cols-3 gap-3">
+      <section className="grid grid-cols-3 gap-3 relative">
         {menuItems.map((item) => {
-          const isRestricted = item.adminOnly && !isAdmin;
+          const isRestricted = item.ceoOnly && role !== 'CEO';
           
           const content = (
             <div 
+              onClick={() => {
+                if (isRestricted) {
+                   setToast("CEO 전용 메뉴입니다");
+                }
+              }}
               className={`
                 aspect-square rounded-[32px] flex flex-col items-center justify-center gap-3 transition-all duration-500 border relative overflow-hidden group
                 ${isRestricted 
-                  ? 'bg-white/5 border-transparent opacity-20 grayscale cursor-not-allowed' 
-                  : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/5 hover:border-[#D4AF37]/40 hover:scale-105 hover:shadow-2xl hover:shadow-[#D4AF37]/10 active:scale-95'}
+                  ? 'bg-white/5 border-transparent opacity-40 cursor-pointer' 
+                  : !user && item.path !== '/notice'
+                  ? 'bg-white/5 border-transparent opacity-20 grayscale cursor-not-allowed'
+                  : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/5 hover:border-[#D4AF37]/40 hover:scale-105 hover:shadow-2xl hover:shadow-[#D4AF37]/10 active:scale-95 cursor-pointer'}
               `}
             >
-              <div className="text-3xl relative z-10">
+              <div className="text-3xl relative z-10 transition-transform group-hover:scale-110">
                 {item.icon}
                 {isRestricted && (
-                  <div className="absolute -top-1 -right-1 text-[10px]">🔒</div>
+                  <div className="absolute -top-2 -right-2 text-[14px] bg-black/60 rounded-full w-6 h-6 flex items-center justify-center border border-white/10">🔒</div>
                 )}
               </div>
               <span className={`text-[11px] font-black tracking-tight z-10 ${isRestricted ? 'text-white/40' : 'text-white'}`}>
@@ -116,7 +157,7 @@ export default function Home() {
             </div>
           );
 
-          if (isRestricted) return <div key={item.id}>{content}</div>;
+          if (isRestricted || !user) return <div key={item.id}>{content}</div>;
 
           return (
             <Link key={item.id} href={item.path || '/'} className="block w-full h-full">
@@ -124,6 +165,13 @@ export default function Home() {
             </Link>
           );
         })}
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#FF4500] text-white px-6 py-3 rounded-2xl font-black shadow-2xl animate-bounce whitespace-nowrap border-2 border-white/20">
+             🚨 {toast}
+          </div>
+        )}
       </section>
 
       {/* Footer Info */}
