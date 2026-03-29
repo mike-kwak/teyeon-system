@@ -19,10 +19,6 @@ export default function Home() {
     }
   }, [toast]);
 
-  useEffect(() => {
-    alert("🚀 테연 액션타워 최종 간격 수정(v2.9.1)이 로드되었습니다! 🚀");
-    console.log("HOME_COMPACT_v2.9.1_ACTIVE");
-  }, []);
 
   const menuItems = [
     { id: "notice", icon: "📢", label: "클럽 공지", path: "/notice", feature: 'notice' },
