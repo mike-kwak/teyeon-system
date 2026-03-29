@@ -230,9 +230,9 @@ export default function MembersPage() {
   }
 
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-4xl mx-auto pb-10">
+    <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans max-w-screen-xl mx-auto pb-10">
       {/* Header */}
-      <header className="flex items-center justify-between mb-10 max-w-md mx-auto w-full md:max-w-none">
+      <header className="flex items-center justify-between mb-10 w-full lg:max-w-none">
         <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
           <span className="text-xl">←</span>
         </Link>
@@ -243,7 +243,7 @@ export default function MembersPage() {
       </header>
 
       {errorMsg && (
-        <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl mb-6 text-red-200 text-xs font-bold max-w-md mx-auto w-full md:max-w-none">
+        <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl mb-6 text-red-200 text-xs font-bold w-full lg:max-w-none">
           ⚠️ 오류 발생: {errorMsg}
         </div>
       )}

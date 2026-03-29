@@ -165,7 +165,7 @@ export default function RankingPage() {
   const mvp = integratedSortedMembers[0];
 
   return (
-    <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-2xl mx-auto pb-20">
+    <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-screen-xl mx-auto pb-20">
       <header className="sticky top-0 z-30 bg-[#14141F]/80 backdrop-blur-xl p-6 flex items-center justify-between border-b border-white/5">
         <button onClick={() => router.back()} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-95">
           <span className="text-xl">←</span>

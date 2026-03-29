@@ -169,7 +169,7 @@ export default function AdminPage() {
   const globalIsSyncing = isSyncing || fetchingMembers || fetchingHistory || updatingId !== null;
 
   return (
-    <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-md mx-auto pb-10">
+    <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-screen-xl mx-auto pb-10">
       <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => router.push('/')} className="text-[#D4AF37] text-xl font-bold w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full">←</button>

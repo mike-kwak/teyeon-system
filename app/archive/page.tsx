@@ -267,7 +267,7 @@ export default function ArchivePage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans max-w-md mx-auto relative overflow-x-hidden">
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans max-w-screen-xl mx-auto relative overflow-x-hidden">
       {/* Top Header */}
       <header className="p-6 flex items-center justify-between bg-black/50 backdrop-blur-xl sticky top-0 z-40">
         {selectedSessionId ? (

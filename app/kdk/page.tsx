@@ -818,7 +818,7 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-lg mx-auto relative overflow-hidden">
+            <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans max-w-screen-xl mx-auto relative overflow-hidden">
                 <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
                     <div className="flex items-center gap-3">
                         <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
@@ -972,7 +972,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans max-w-4xl mx-auto p-4 pb-48">
+            <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans max-w-screen-xl mx-auto p-4 pb-48">
                 {((genMode === 'AWARD' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
                     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
                         <div className="bg-[#1C1C28] border border-[#D4AF37]/30 rounded-[32px] p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95">
@@ -1220,7 +1220,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-lg mx-auto pb-40 relative">
+        <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans max-w-screen-xl mx-auto pb-40 relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                     <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform mr-1">

@@ -171,7 +171,7 @@ export default function NoticeDetailPage({ params }: { params: Promise<{ id: str
   if (!notice) return <div className="min-h-screen bg-black text-white p-20 text-center">공지를 찾을 수 없습니다.</div>;
 
   return (
-    <main className="min-h-screen bg-[#06060A] text-white font-sans max-w-md mx-auto pb-32">
+    <main className="min-h-screen bg-[#06060A] text-white font-sans max-w-screen-xl mx-auto pb-32">
       <header className="sticky top-0 z-40 bg-black/60 backdrop-blur-xl border-b border-white/5 px-6 py-5 flex items-center">
         <button onClick={() => router.push('/notice')} className="text-[#D4AF37] text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 mr-2">←</button>
         <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">Notice Details</span>
