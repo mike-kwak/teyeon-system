@@ -58,9 +58,12 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col min-h-screen px-4 pt-10 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-md mx-auto w-full overflow-hidden">
-      {/* Top Section: Logo (same) */}
-      <header className="flex flex-col items-center mt-2 mb-4 w-full pt-2 pb-2">
+    <main className="flex flex-col h-screen max-h-screen px-4 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-md mx-auto w-full overflow-hidden">
+      {/* Universal Spacer - TOP (Balance) */}
+      <div className="flex-grow-[0.4] min-h-[10px]" />
+
+      {/* Top Section: Logo */}
+      <header className="flex flex-col items-center mb-6 w-full py-2">
         <div className="relative group w-full flex flex-col items-center">
           <div className="relative flex items-center gap-4 group">
             <div className="relative w-14 h-14 flex items-center justify-center">
@@ -87,7 +90,7 @@ export default function Home() {
       </header>
 
       {/* Profile Card */}
-      <section className="mb-4">
+      <section className="mb-10">
         {!user ? (
           <button 
             onClick={() => signInWithKakao()}
@@ -143,8 +146,8 @@ export default function Home() {
       </section>
 
 
-      {/* Action Tower Grid - DYNAMIC RESPONSIVE GRID (Fold/Tablet Support) */}
-      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-8 sm:gap-10 lg:gap-12 relative w-full px-1 mb-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      {/* Action Tower Grid - DYNAMIC RESPONSIVE GRID (Expanded Gaps) */}
+      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-10 sm:gap-x-10 sm:gap-y-12 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -209,9 +212,12 @@ export default function Home() {
         )}
       </section>
 
-      <footer className="mt-12 py-10 flex flex-col items-center opacity-30 pb-16">
+      {/* Universal Spacer - BOTTOM (Balance) */}
+      <div className="flex-grow-[1] min-h-[20px]" />
+
+      <footer className="py-6 flex flex-col items-center opacity-30 pb-10">
         <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.6</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.7</p>
       </footer>
     </main>
   );
