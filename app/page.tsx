@@ -122,7 +122,21 @@ export default function Home() {
                 </div>
               </section>
             </Link>
-            <button onClick={() => signOut()} className="absolute top-2 right-2 text-[10px] text-white/20 hover:text-white/60 px-2 py-1 rounded-full z-20">로그아웃</button>
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+              <button 
+                onClick={() => window.location.reload()} 
+                className="text-[10px] text-white/20 hover:text-[#D4AF37] p-1.5 transition-colors"
+                title="앱 새로고침"
+              >
+                🔄
+              </button>
+              <button 
+                onClick={() => signOut()} 
+                className="text-[10px] text-white/20 hover:text-white/60 px-2 py-1 rounded-full"
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
         )}
       </section>

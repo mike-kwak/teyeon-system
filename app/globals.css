@@ -26,6 +26,8 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100dvh; /* Dynamic viewport height */
+  overscroll-behavior-y: contain; /* Enable native Pull-to-Refresh */
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
