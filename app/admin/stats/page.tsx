@@ -61,7 +61,7 @@ export default function AdminStatsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#000000] text-white p-6 font-sans max-w-screen-xl mx-auto">
+    <main className="min-h-screen bg-[#000000] text-white p-6 font-sans w-full">
       <header className="mb-8">
         <button onClick={() => router.back()} className="text-[#D4AF37] mb-4 flex items-center gap-2 text-sm font-bold">
           ← 뒤로가기

@@ -36,7 +36,7 @@ export default function RankingPage() {
   };
 
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#1E1E2E] text-white font-sans max-w-screen-xl mx-auto pb-10">
+    <main className="flex flex-col min-h-screen p-6 bg-[#1E1E2E] text-white font-sans w-full pb-10">
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
