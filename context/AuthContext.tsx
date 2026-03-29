@@ -184,7 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 4. Sync to members table
       if (currentUser.email) {
-        const clubId = process.env.NEXT_PUBLIC_CLUB_ID;
+        const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
         const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
 
         const { data: matchedEmail } = await supabase
