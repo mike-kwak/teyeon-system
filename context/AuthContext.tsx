@@ -229,11 +229,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithKakao = async () => {
+    console.log('[Auth] Initiating Kakao login with origin:', window.location.origin);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: { redirectTo: window.location.origin },
     });
-    if (error) console.error('Kakao login error:', error.message);
+    
+    if (error) {
+      console.error('Kakao login error:', error.message);
+      alert('로그인 오류 발생: ' + error.message);
+    }
   };
 
   const signOut = async () => {
