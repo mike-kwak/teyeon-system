@@ -59,8 +59,8 @@ export default function Home() {
 
   return (
     <main className="flex flex-col h-screen max-h-screen px-4 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-md mx-auto w-full overflow-hidden">
-      {/* Universal Spacer - TOP (Pushing content down slightly) */}
-      <div className="flex-grow-[0.6] min-h-[20px]" />
+      {/* Universal Spacer - TOP (Balance) */}
+      <div className="flex-grow-[0.8] min-h-[20px]" />
 
       {/* Top Section: Logo */}
       <header className="flex flex-col items-center mb-6 w-full py-2">
@@ -89,8 +89,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Profile Card - GREATER MARGIN TO MENU */}
-      <section className="mb-20">
+      {/* Profile Card - COMPACT MARGIN TO MENU */}
+      <section className="mb-8">
         {!user ? (
           <button 
             onClick={() => signInWithKakao()}
@@ -213,11 +213,11 @@ export default function Home() {
       </section>
 
       {/* Universal Spacer - BOTTOM (Balance) */}
-      <div className="flex-grow-[1.2] min-h-[30px]" />
+      <div className="flex-grow-[1.4] min-h-[30px]" />
 
       <footer className="py-6 flex flex-col items-center opacity-30 pb-10">
         <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.8</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.9</p>
       </footer>
     </main>
   );
