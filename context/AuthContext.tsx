@@ -234,6 +234,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ? 'https://teyeon-system.vercel.app' 
       : window.location.origin;
 
+    // IMMEDIATE ALERT TO DEBUG
+    window.alert('DEBUG 1 (Redirect Target): ' + redirectTarget + '\nHost: ' + window.location.hostname);
+
     console.log('[Auth] Initiating Kakao login');
     console.log('[Auth] Current Origin:', window.location.origin);
     console.log('[Auth] Redirect Target:', redirectTarget);
