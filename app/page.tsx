@@ -19,6 +19,11 @@ export default function Home() {
     }
   }, [toast]);
 
+  useEffect(() => {
+    alert("🚀 테연 액션타워 최종 간격 수정(v2.9.1)이 로드되었습니다! 🚀");
+    console.log("HOME_COMPACT_v2.9.1_ACTIVE");
+  }, []);
+
   const menuItems = [
     { id: "notice", icon: "📢", label: "클럽 공지", path: "/notice", feature: 'notice' },
     { id: "profile", icon: "👤", label: "멤버 프로필", path: "/members", feature: 'profiles' },
@@ -89,8 +94,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Profile Card - COMPACT MARGIN TO MENU */}
-      <section className="mb-8">
+      {/* Profile Card - NUCLEAR COMPACT MARGIN */}
+      <section className="mb-[8px]">
         {!user ? (
           <button 
             onClick={() => signInWithKakao()}
@@ -146,8 +151,8 @@ export default function Home() {
       </section>
 
 
-      {/* Action Tower Grid - MAX IMPACT (Enlarged Icons & Gaps) */}
-      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-14 sm:gap-x-12 sm:gap-y-16 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      {/* Action Tower Grid - NUCLEAR COMPACT IMPACT (Enlarged Icons & Tight Gaps) */}
+      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-[12px] sm:gap-x-12 sm:gap-y-[16px] relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -217,7 +222,7 @@ export default function Home() {
 
       <footer className="py-6 flex flex-col items-center opacity-30 pb-10">
         <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.9</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.9.1 Compact</p>
       </footer>
     </main>
   );
