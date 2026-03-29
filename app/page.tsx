@@ -58,7 +58,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col min-h-screen px-4 pt-10 bg-[#000000] text-white font-sans max-w-md mx-auto w-full overflow-hidden">
+    <main className="flex flex-col min-h-screen px-4 pt-10 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-md mx-auto w-full overflow-hidden">
       {/* Top Section: Logo (same) */}
       <header className="flex flex-col items-center mt-2 mb-4 w-full pt-2 pb-2">
         <div className="relative group w-full flex flex-col items-center">
@@ -86,8 +86,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Profile Card (same) */}
-      <section className="mb-6">
+      {/* Profile Card */}
+      <section className="mb-4">
         {!user ? (
           <button 
             onClick={() => signInWithKakao()}
@@ -143,8 +143,8 @@ export default function Home() {
       </section>
 
 
-      {/* Action Tower Grid - RESTRICTED ACCESS UI */}
-      <section className="grid grid-cols-3 sm:grid-cols-5 gap-6 sm:gap-12 relative w-full px-0 mb-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      {/* Action Tower Grid - DYNAMIC RESPONSIVE GRID (Fold/Tablet Support) */}
+      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-8 sm:gap-10 lg:gap-12 relative w-full px-1 mb-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -167,7 +167,7 @@ export default function Home() {
                       ? 'bg-black/40 border-white/5 opacity-40 grayscale-[0.8] cursor-not-allowed' 
                       : isReadOnly
                         ? 'bg-white/5 border-white/10 opacity-90'
-                        : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/5 hover:border-[#D4AF37]/40 hover:scale-105 hover:shadow-2xl active:scale-95'}
+                        : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/10 shadow-[0_8px_25px_rgba(0,0,0,0.5)] shadow-inner group-hover:border-[#D4AF37]/50 hover:scale-105 hover:shadow-[#D4AF37]/10 active:scale-95'}
                 `}
               >
                 {isComingSoon && (
@@ -211,7 +211,7 @@ export default function Home() {
 
       <footer className="mt-12 py-10 flex flex-col items-center opacity-30 pb-16">
         <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.5</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.6</p>
       </footer>
     </main>
   );
