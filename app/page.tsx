@@ -57,7 +57,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col min-h-dvh p-6 bg-[#000000] text-white font-sans max-w-screen-xl mx-auto pb-10 w-full overflow-x-hidden">
+    <main className="flex flex-col min-h-dvh px-4 pt-10 pb-20 bg-[#000000] text-white font-sans max-w-screen-xl mx-auto w-full overflow-x-hidden">
       {/* Top Section: Logo (same) */}
       <header className="flex flex-col items-center mt-2 mb-4 w-full pt-2 pb-2">
         <div className="relative group w-full flex flex-col items-center">
@@ -142,7 +142,8 @@ export default function Home() {
       </section>
 
       {/* Action Tower Grid - RESTRICTED ACCESS UI */}
-      <section className="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 relative w-full px-2">
+      <div className="flex-grow min-h-[40px] sm:min-h-[80px]"></div>
+      <section className="grid grid-cols-3 sm:grid-cols-5 gap-4 sm:gap-8 relative w-full px-1 mb-10">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -206,9 +207,9 @@ export default function Home() {
         )}
       </section>
 
-      <footer className="mt-auto py-6 flex flex-col items-center opacity-30">
-        <p className="text-[9px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[8px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.5</p>
+      <footer className="mt-12 py-10 flex flex-col items-center opacity-30 pb-16">
+        <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.5</p>
       </footer>
     </main>
   );
