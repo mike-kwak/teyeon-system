@@ -59,8 +59,8 @@ export default function Home() {
 
   return (
     <main className="flex flex-col h-screen max-h-screen px-4 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-md mx-auto w-full overflow-hidden">
-      {/* Universal Spacer - TOP (Balance) */}
-      <div className="flex-grow-[0.4] min-h-[10px]" />
+      {/* Universal Spacer - TOP (Pushing content down slightly) */}
+      <div className="flex-grow-[0.6] min-h-[20px]" />
 
       {/* Top Section: Logo */}
       <header className="flex flex-col items-center mb-6 w-full py-2">
@@ -89,8 +89,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Profile Card */}
-      <section className="mb-10">
+      {/* Profile Card - GREATER MARGIN TO MENU */}
+      <section className="mb-20">
         {!user ? (
           <button 
             onClick={() => signInWithKakao()}
@@ -146,8 +146,8 @@ export default function Home() {
       </section>
 
 
-      {/* Action Tower Grid - DYNAMIC RESPONSIVE GRID (Expanded Gaps) */}
-      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-10 sm:gap-x-10 sm:gap-y-12 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      {/* Action Tower Grid - MAX IMPACT (Enlarged Icons & Gaps) */}
+      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-14 sm:gap-x-12 sm:gap-y-16 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -178,13 +178,13 @@ export default function Home() {
                     <span className="bg-[#D4AF37] text-black text-[6px] font-[1000] px-1.5 py-0.5 rounded-full tracking-tighter shadow-lg animate-bounce">COMING SOON</span>
                   </div>
                 )}
-                <div className="text-3xl relative z-10 transition-transform group-hover:scale-110">
+                <div className="text-[44px] relative z-10 transition-transform group-hover:scale-110 mb-2">
                   {item.icon}
                   {(isRestricted && !isComingSoon) && (
                     <div className="absolute -bottom-1 -right-1 text-[10px] bg-black/80 rounded-full w-4 h-4 flex items-center justify-center border border-[#D4AF37]/50 shadow-lg">🔒</div>
                   )}
                 </div>
-                <span className={`text-[10px] font-black tracking-tighter uppercase z-10 text-center px-1 ${isComingSoon ? 'text-white/70' : isRestricted ? 'text-white/30' : 'text-white'}`}>
+                <span className={`text-[12px] font-black tracking-tighter uppercase z-10 text-center px-1 ${isComingSoon ? 'text-white/70' : isRestricted ? 'text-white/30' : 'text-white'}`}>
                   {item.label}
                 </span>
                 
@@ -213,11 +213,11 @@ export default function Home() {
       </section>
 
       {/* Universal Spacer - BOTTOM (Balance) */}
-      <div className="flex-grow-[1] min-h-[20px]" />
+      <div className="flex-grow-[1.2] min-h-[30px]" />
 
       <footer className="py-6 flex flex-col items-center opacity-30 pb-10">
         <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.7</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.8</p>
       </footer>
     </main>
   );
