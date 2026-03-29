@@ -69,6 +69,11 @@ export default function NoticeListPage() {
 
   const isStaff = role === 'CEO' || role === 'ADMIN';
 
+  useEffect(() => {
+    alert("📢 공지사항 와이드 레이아웃(v2.5.2)이 로드되었습니다! 📢");
+    console.log("NOTICE_WIDE_FIX_v2.5.2_ACTIVE");
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-24 relative">
       {/* Diagnostic Marker (v2.5.2) */}
