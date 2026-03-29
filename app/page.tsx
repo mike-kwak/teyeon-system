@@ -14,7 +14,7 @@ export default function Home() {
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
+      const timer = setTimeout(() => setToast(null), 2000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
@@ -200,10 +200,11 @@ export default function Home() {
             </div>
         )}
 
-        {/* Toast Notification */}
+        {/* Toast Notification - Premium Floating UI */}
         {toast && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#FF4500] text-white px-6 py-3 rounded-2xl font-black shadow-2xl animate-bounce whitespace-nowrap border-2 border-white/20">
-             🚨 {toast}
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[85vw] max-w-sm bg-gradient-to-r from-[#FF4500] to-[#FF6347] text-white px-6 py-4 rounded-[28px] font-black shadow-[0_20px_50px_rgba(255,69,0,0.4)] animate-in zoom-in-95 fade-in slide-in-from-bottom-5 duration-300 border-2 border-white/30 text-center flex items-center justify-center gap-3">
+             <span className="text-xl">🚨</span>
+             <span className="leading-tight text-xs tracking-tight">{toast}</span>
           </div>
         )}
       </section>
