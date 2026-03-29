@@ -11,10 +11,6 @@ export default function Home() {
   const { user, role, appConfig, signInWithKakao, signOut, isLoading, hasPermission, getRestrictionMessage } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => {
-    alert("🚨 테연 레이아웃 수정(v2.4.7)이 정상적으로 로드되었습니다! 🚨\n\n이 메시지가 뜨지 않는다면, 브라우저가 옛날 버전(캐시)을 계속 보여주고 있는 것입니다.");
-    console.log("LAYOUT_FIX_v2.4.7_ACTIVE");
-  }, []);
 
   useEffect(() => {
     if (toast) {
@@ -146,8 +142,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* Build Version Marker for Cache Verification */}
-      <div className="absolute top-[calc(var(--safe-top)+4px)] left-1/2 -translate-x-1/2 text-[8px] font-black text-[#D4AF37]/40 uppercase tracking-[0.4em] z-50">v2.4.7 Fixed Balance</div>
 
       {/* Action Tower Grid - RESTRICTED ACCESS UI */}
       <section className="grid grid-cols-3 sm:grid-cols-5 gap-6 sm:gap-12 relative w-full px-0 mb-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
