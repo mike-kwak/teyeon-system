@@ -204,10 +204,7 @@ export default function MembersPage() {
       setLoading(true);
       setErrorMsg(null);
       
-      const clubId = process.env.NEXT_PUBLIC_CLUB_ID;
-      if (!clubId) {
-        throw new Error("Club ID not found (NEXT_PUBLIC_CLUB_ID)");
-      }
+      const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
       const { data, error } = await supabase
         .from('members')

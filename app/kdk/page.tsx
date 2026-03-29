@@ -358,7 +358,7 @@ export default function KDKPage() {
                 if (profile) setUserRole(profile.club_role as UserRole);
             }
 
-            const clubId = process.env.NEXT_PUBLIC_CLUB_ID;
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             console.log("Fetching members for club:", clubId);
 
             let query = supabase.from('members').select('*');
@@ -503,7 +503,7 @@ export default function KDKPage() {
             try {
                 const dbMatches = formattedMatches.map(m => ({
                     ...m,
-                    club_id: process.env.NEXT_PUBLIC_CLUB_ID,
+                    club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
                     session_title: sessionTitle || 'Tournament',
                     player_names: m.playerIds.map(pid => getPlayerName(pid))
                 }));
