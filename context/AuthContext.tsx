@@ -92,16 +92,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Initial data fetch
     const init = async () => {
-      await fetchConfig();
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await syncProfile(session.user);
-      } else {
+      // Safety timeout: Ensure loading finishes after 8s regardless
+      const timeoutId = setTimeout(() => {
         setIsLoading(false);
+        console.warn('[Auth] Initialization timeout reached');
+      }, 8000);
+
+      try {
+        console.log('[Auth] Initializing...');
+        await fetchConfig();
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await syncProfile(session.user);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('[Auth] Initialization error:', err);
+        setIsLoading(false);
+      } finally {
+        clearTimeout(timeoutId);
       }
     };
 
