@@ -142,8 +142,8 @@ export default function Home() {
       </section>
 
       {/* Action Tower Grid - RESTRICTED ACCESS UI */}
-      <div className="flex-grow min-h-[40px] sm:min-h-[80px]"></div>
-      <section className="grid grid-cols-3 sm:grid-cols-5 gap-4 sm:gap-8 relative w-full px-1 mb-10">
+      <div className="flex-grow min-h-[100px] sm:min-h-[140px]"></div>
+      <section className="grid grid-cols-3 sm:grid-cols-5 gap-6 sm:gap-12 relative w-full px-0 mb-20 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;

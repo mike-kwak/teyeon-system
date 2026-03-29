@@ -124,50 +124,38 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
   }, [user?.email, user?.user_metadata, member.email, member.avatar_url]);
 
   return (
-    <div className="bg-gradient-to-br from-[#1A253D] to-[#0A0E1A] border border-white/5 rounded-[32px] p-6 flex flex-col shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 group">
-      <div className="flex justify-between items-start mb-5">
+    <div className="bg-gradient-to-br from-[#1A253D] to-[#0A0E1A] border border-white/5 rounded-[24px] p-4 flex flex-col shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 group relative overflow-hidden">
+      <div className="flex justify-between items-start mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-2xl font-black tracking-tight group-hover:text-[#D4AF37] transition-colors mb-2">{member.nickname}</h3>
-          <div className="flex flex-wrap gap-2">
-            <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.primary)}`}>
+          <h3 className="text-base font-black tracking-tight group-hover:text-[#D4AF37] transition-colors mb-1 truncate">{member.nickname}</h3>
+          <div className="flex flex-wrap gap-1">
+            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.primary)}`}>
               {roleLabels.primary}
             </span>
-            {roleLabels.secondary && (
-              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.secondary)}`}>
-                {roleLabels.secondary}
-              </span>
-            )}
           </div>
         </div>
         <ProfileAvatar 
           src={finalAvatar} 
           alt={member.nickname} 
-          size={56}
+          size={44}
           className="rounded-full shrink-0 border-2 border-[#D4AF37]/20"
           fallbackIcon="🎾"
         />
       </div>
 
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Contact</span>
-            <span className="text-xs font-bold text-white/50">{member.phone || '비공개'}</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">MBTI</span>
-            <span className="text-xs font-bold text-[#D4AF37]">{member.mbti || '-'}</span>
-          </div>
+      <div className="space-y-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[7px] text-white/20 font-black uppercase tracking-widest">Contact</span>
+          <span className="text-[9px] font-bold text-white/50 truncate">{member.phone || '비공개'}</span>
         </div>
-        <div className="flex flex-col gap-1 border-t border-white/5 pt-3">
-          <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Affiliation</span>
-          <span className="text-xs font-bold text-white/40">{member.affiliation || 'Teyeon Club'}</span>
+        <div className="flex flex-col gap-0.5 border-t border-white/5 pt-2">
+          <span className="text-[7px] text-white/20 font-black uppercase tracking-widest">Affiliation</span>
+          <span className="text-[9px] font-bold text-white/40 truncate">{member.affiliation || 'Teyeon Club'}</span>
         </div>
         {member.achievements && (
-          <div className="flex flex-col gap-1 border-t border-white/5 pt-3 bg-white/[0.01] -mx-6 px-6 py-3">
-            <span className="text-[9px] text-[#D4AF37]/60 font-black uppercase tracking-widest">Awards</span>
-            <p className="text-[11px] font-medium text-white/30 leading-relaxed italic line-clamp-2">
-              {member.achievements}
+          <div className="mt-1">
+            <p className="text-[8px] font-medium text-[#D4AF37]/60 italic line-clamp-1">
+              🏆 {member.achievements}
             </p>
           </div>
         )}
@@ -265,7 +253,7 @@ export default function MembersPage() {
           <div className="w-12 h-12 border-2 border-white/5 border-t-[#D4AF37] rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 overflow-y-auto">
+        <div className="grid grid-cols-2 gap-3 overflow-y-auto">
           {members.map((member) => (
             <MemberCard key={member.id} member={member} />
           ))}
