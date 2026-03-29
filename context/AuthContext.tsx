@@ -229,15 +229,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithKakao = async () => {
-    console.log('[Auth] Initiating Kakao login with origin:', window.location.origin);
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+    const redirectTarget = isProduction 
+      ? 'https://teyeon-system.vercel.app' 
+      : window.location.origin;
+
+    console.log('[Auth] Initiating Kakao login');
+    console.log('[Auth] Current Origin:', window.location.origin);
+    console.log('[Auth] Redirect Target:', redirectTarget);
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: window.location.origin },
+      options: { 
+        redirectTo: redirectTarget,
+        skipBrowserRedirect: false
+      },
     });
     
     if (error) {
       console.error('Kakao login error:', error.message);
-      alert('로그인 오류 발생: ' + error.message);
+      alert('로그인 오류 발생: ' + error.message + '\nTarget: ' + redirectTarget);
     }
   };
 
