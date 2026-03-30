@@ -266,20 +266,28 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const handlePhoneMatch = async () => {
         if (!phoneNumber || phoneNumber.length < 4) return;
         setMatchingStatus('searching');
+        setMatchedMember(null);
+        
         try {
+            // Fetch ALL members to ensure we don't miss anyone due to complex filter logic
+            // We'll filter for unlinked ones locally
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, role, phone')
-                .is('email', null);
+                .select('id, nickname, role, phone, email');
             
             if (error) throw error;
 
+            const inputDigits = phoneNumber.replace(/[^0-9]/g, '');
+
             const found = data?.find(m => {
-                if (!m.phone) return false;
-                // Leave only digits for comparison
-                const dbDigits = m.phone.replace(/[^0-9]/g, '');
-                const inputDigits = phoneNumber.replace(/[^0-9]/g, '');
+                // 1. Must NOT be linked to an email yet
+                if (m.email) return false;
                 
+                // 2. Must have a phone number
+                if (!m.phone) return false;
+                
+                // 3. Digit-to-digit match (Tail match)
+                const dbDigits = m.phone.replace(/[^0-9]/g, '');
                 return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
             });
 
@@ -290,6 +298,7 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 setMatchingStatus('error');
             }
         } catch (err) {
+            console.error('[Auth] Phone match error:', err);
             setMatchingStatus('error');
         }
     };
