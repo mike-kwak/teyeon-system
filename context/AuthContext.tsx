@@ -93,11 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return "권한이 필요한 메뉴입니다.";
   };
 
-  // Profile Sync Logic - Critical for 3-Column Identity Match
   const syncProfile = async (currentUser: User) => {
-    // Prevent double-loading if already in progress
     try {
-      // 1. Email-Based Promotion (Bypass Roster for CEO/Admin)
       let initialRole: UserRole = 'GUEST';
       if (currentUser.email === CEO_EMAIL) {
         initialRole = 'CEO';
@@ -105,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initialRole = 'ADMIN';
       }
 
-      // 2. Exact Email Link Check
       const { data: linkedMember } = await supabase
         .from('members')
         .select('id, role, email')
@@ -113,7 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (linkedMember) {
-        // Already linked, update avatar & role
         const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
         await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
         
@@ -130,7 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // 3. Fuzzy Nickname Autolink (Optional, but let's be strict with pending matching)
       const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name;
       if (nickname) {
         const { data: matchedNick } = await supabase
@@ -141,18 +135,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
         
         if (matchedNick) {
-          console.log('[Auth] Found nickname match, linking automatically...');
           await supabase.from('members')
             .update({ email: currentUser.email, avatar_url: currentUser.user_metadata?.avatar_url })
             .eq('id', matchedNick.id);
           
-          // Re-sync to confirm
           setTimeout(() => syncProfile(currentUser), 500);
           return;
         }
       }
 
-      // 4. No Match Found -> Show Phone Auth
       setRole('GUEST');
       setIsPendingMatching(true);
       setIsLoading(false);
@@ -165,10 +156,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const init = async (retryCount = 0) => {
       try {
-        console.log(`[Auth] Initializing (Attempt ${retryCount + 1})...`);
         const timeoutId = setTimeout(() => {
           setIsLoading(false);
-        }, 10000);
+        }, 12000);
 
         await fetchConfig();
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -184,7 +174,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         clearTimeout(timeoutId);
       } catch (err) {
-        console.error(`[Auth] Initialization error:`, err);
         if (retryCount < 2) {
           setTimeout(() => init(retryCount + 1), 2000);
         } else {
@@ -260,6 +249,8 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const [phoneNumber, setPhoneNumber] = useState('');
     const [matchingStatus, setMatchingStatus] = useState<'idle' | 'searching' | 'error'>('idle');
     const [matchedMember, setMatchedMember] = useState<any>(null);
+    const [showFullList, setShowFullList] = useState(false);
+    const [unlinkedMembers, setUnlinkedMembers] = useState<any[]>([]);
 
     const isWhiteTheme = pathname === '/sample-white';
 
@@ -269,8 +260,6 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setMatchedMember(null);
         
         try {
-            // Fetch ALL members to ensure we don't miss anyone due to complex filter logic
-            // We'll filter for unlinked ones locally
             const { data, error } = await supabase
                 .from('members')
                 .select('id, nickname, role, phone, email');
@@ -280,13 +269,8 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
             const inputDigits = phoneNumber.replace(/[^0-9]/g, '');
 
             const found = data?.find(m => {
-                // 1. Must NOT be linked to an email yet
                 if (m.email) return false;
-                
-                // 2. Must have a phone number
                 if (!m.phone) return false;
-                
-                // 3. Digit-to-digit match (Tail match)
                 const dbDigits = m.phone.replace(/[^0-9]/g, '');
                 return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
             });
@@ -296,9 +280,11 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 setMatchingStatus('idle');
             } else {
                 setMatchingStatus('error');
+                // Auto-fetch list for fallback
+                const unlinked = data?.filter(m => !m.email) || [];
+                setUnlinkedMembers(unlinked);
             }
         } catch (err) {
-            console.error('[Auth] Phone match error:', err);
             setMatchingStatus('error');
         }
     };
@@ -322,52 +308,87 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </div>
             
             <div className="space-y-4 mb-8">
-                <input 
-                    type="tel" 
-                    placeholder="번호 뒤 4자리 입력..."
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                    className={`w-full bg-transparent border-b-2 py-3 text-center text-2xl font-black transition-all outline-none ${isWhiteTheme ? 'border-[#E2E8F0] focus:border-[#B45309]' : 'border-white/10 focus:border-[#D4AF37]'}`}
-                    onKeyDown={(e) => e.key === 'Enter' && handlePhoneMatch()}
-                />
+                {!showFullList ? (
+                <>
+                  <input 
+                      type="tel" 
+                      placeholder="번호 뒤 4자리 입력..."
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                      className={`w-full bg-transparent border-b-2 py-3 text-center text-2xl font-black transition-all outline-none ${isWhiteTheme ? 'border-[#E2E8F0] focus:border-[#B45309]' : 'border-white/10 focus:border-[#D4AF37]'}`}
+                      onKeyDown={(e) => e.key === 'Enter' && handlePhoneMatch()}
+                  />
 
-                {!matchedMember ? (
-                  <button
-                    onClick={handlePhoneMatch}
-                    disabled={matchingStatus === 'searching'}
-                    className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${isWhiteTheme ? 'bg-[#B45309] text-white shadow-[#B45309]/20' : 'bg-[#D4AF37] text-black shadow-[#D4AF37]/20'} ${matchingStatus === 'searching' ? 'opacity-50 animate-pulse' : 'shadow-lg'}`}
-                  >
-                    {matchingStatus === 'searching' ? '명단 조회 중...' : '매칭하기'}
-                  </button>
-                ) : (
-                  <div className={`p-4 rounded-2xl border animate-in slide-in-from-top-2 ${isWhiteTheme ? 'bg-slate-50 border-emerald-500/20' : 'bg-white/5 border-emerald-500/20'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-black opacity-40 uppercase">확인된 멤버</span>
-                        <span className="text-[#10B981] text-[10px] font-black">MATCHED</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-lg font-black">{matchedMember.nickname}</span>
-                        <button 
-                            onClick={() => confirmIdentity(matchedMember.id)}
-                            className="bg-[#10B981] text-white px-4 py-2 rounded-xl text-[10px] font-black hover:scale-105 transition-transform"
+                  {!matchedMember ? (
+                    <div className="flex flex-col gap-2">
+                        <button
+                        onClick={handlePhoneMatch}
+                        disabled={matchingStatus === 'searching'}
+                        className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${isWhiteTheme ? 'bg-[#B45309] text-white' : 'bg-[#D4AF37] text-black'} ${matchingStatus === 'searching' ? 'opacity-50 animate-pulse' : 'shadow-lg'}`}
                         >
-                            로그인 시작
+                        {matchingStatus === 'searching' ? '조회 중...' : '매칭하기'}
                         </button>
+                        {matchingStatus === 'error' && (
+                            <button 
+                                onClick={() => setShowFullList(true)}
+                                className={`text-[10px] font-black underline mt-2 ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}
+                            >
+                                번호를 모르겠나요? 직접 이름 선택하기
+                            </button>
+                        )}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className={`p-4 rounded-2xl border animate-in slide-in-from-top-2 ${isWhiteTheme ? 'bg-slate-50 border-emerald-500/20' : 'bg-white/5 border-emerald-500/20'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black opacity-40 uppercase">멤버 확인됨</span>
+                          <span className="text-[#10B981] text-[10px] font-black">MATCHED</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                          <span className="text-lg font-black">{matchedMember.nickname}</span>
+                          <button 
+                              onClick={() => confirmIdentity(matchedMember.id)}
+                              className="bg-[#10B981] text-white px-4 py-2 rounded-xl text-[10px] font-black"
+                          >
+                              로그인
+                          </button>
+                      </div>
+                    </div>
+                  )}
 
-                {matchingStatus === 'error' && (
-                    <p className="text-center text-red-500 text-[10px] font-bold animate-shake">등록된 번호를 찾을 수 없습니다. 다시 시도해 주세요.</p>
+                  {matchingStatus === 'error' && (
+                      <p className="text-center text-red-500 text-[9px] font-bold">등록된 번호를 찾을 수 없습니다.</p>
+                  )}
+                </>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">
+                     <p className={`text-[9px] font-black mb-3 uppercase tracking-widest opacity-40`}>미연결 멤버 리스트</p>
+                    {unlinkedMembers.map(m => (
+                      <button 
+                        key={m.id} 
+                        onClick={() => confirmIdentity(m.id)}
+                        className={`w-full text-left py-3 px-4 rounded-xl border transition-all active:scale-95 flex justify-between items-center ${isWhiteTheme ? 'bg-slate-50 border-slate-100 hover:border-[#B45309]' : 'bg-white/5 border-white/5 hover:border-[#D4AF37]'}`}
+                      >
+                        <span className="font-bold text-sm">{m.nickname}</span>
+                        <span className="text-[8px] opacity-30">{m.phone ? `*${m.phone.slice(-4)}` : '번호미등록'}</span>
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => setShowFullList(false)}
+                      className="w-full py-2 text-[9px] font-black text-[#D4AF37] mt-4"
+                    >
+                      ← 돌아가기
+                    </button>
+                  </div>
                 )}
             </div>
 
             <button 
               onClick={() => signOut()}
-              className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isWhiteTheme ? 'text-[#94A3B8] hover:text-[#0F172A]' : 'text-white/40 hover:text-white'}`}
+              className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isWhiteTheme ? 'text-[#94A3B8]' : 'text-white/40'}`}
             >
               로그아웃
             </button>
+            <div className="text-center mt-2 opacity-15 text-[8px] font-bold">STABILITY v3.7 • PLATINUM ED.</div>
           </div>
         </div>
       );
