@@ -1,5 +1,8 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -70,14 +73,13 @@ export default function NoticeListPage() {
   const isStaff = role === 'CEO' || role === 'ADMIN';
 
   useEffect(() => {
-    alert("📢 공지사항 와이드 레이아웃(v2.5.2)이 로드되었습니다! 📢");
-    console.log("NOTICE_WIDE_FIX_v2.5.2_ACTIVE");
+    console.log("NOTICE_STABILITY_v3.9_ACTIVE");
   }, []);
 
   return (
     <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-24 relative">
-      {/* Diagnostic Marker (v2.5.2) */}
-      <div className="absolute top-2 right-4 text-[8px] font-black text-[#D4AF37]/20 uppercase tracking-widest z-[60]">v2.5.2 Wide</div>
+      {/* Diagnostic Marker (v3.9) */}
+      <div className="absolute top-2 right-4 text-[8px] font-black text-[#D4AF37]/20 uppercase tracking-widest z-[60]">v3.9 Stability</div>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-lg border-b border-white/5 px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
