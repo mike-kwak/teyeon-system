@@ -1,5 +1,8 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -218,7 +221,7 @@ export default function Home() {
 
       <footer className="py-6 flex flex-col items-center opacity-30 pb-10">
         <p className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v2.9 Final</p>
+        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v3.9 Stability Ed.</p>
       </footer>
     </main>
   );

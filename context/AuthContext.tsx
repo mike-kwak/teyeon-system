@@ -11,11 +11,11 @@ export type AccessLevel = 'WRITE' | 'READ' | 'HIDE';
 export type FeatureKey = 
   | 'admin_settings' 
   | 'stats' 
-  | 'finance' // 통합 재무
-  | 'notice'  // 클럽 공지
-  | 'kdk'     // 대진 생성/운영
-  | 'scores'  // 스코어/라이브
-  | 'profiles'; // 멤버 프로필
+  | 'finance'
+  | 'notice'
+  | 'kdk'
+  | 'scores'
+  | 'profiles';
 
 export interface AppConfig {
   permissions: {
@@ -79,7 +79,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = (feature: string): AccessLevel => {
     if (role === 'CEO') return 'WRITE';
     if (!appConfig?.permissions?.[role]) {
-      // Fallback defaults if config is missing
       if (feature === 'admin_settings' || feature === 'stats') return 'HIDE';
       return (role === 'ADMIN') ? 'WRITE' : 'READ';
     }
@@ -156,10 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const init = async (retryCount = 0) => {
       try {
-        const timeoutId = setTimeout(() => {
-          setIsLoading(false);
-        }, 12000);
-
         await fetchConfig();
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
@@ -172,7 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setIsLoading(false);
         }
-        clearTimeout(timeoutId);
       } catch (err) {
         if (retryCount < 2) {
           setTimeout(() => init(retryCount + 1), 2000);
@@ -184,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -198,7 +192,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription?.subscription) subscription.subscription.unsubscribe();
+    };
   }, []);
 
   const confirmIdentity = async (memberId: string) => {
@@ -246,48 +242,71 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const { user, isLoading, isPendingMatching, confirmIdentity, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
-    const [phoneNumber, setPhoneNumber] = useState('');
+    const [inputValue, setInputValue] = useState('');
     const [matchingStatus, setMatchingStatus] = useState<'idle' | 'searching' | 'error'>('idle');
     const [matchedMember, setMatchedMember] = useState<any>(null);
-    const [showFullList, setShowFullList] = useState(false);
-    const [unlinkedMembers, setUnlinkedMembers] = useState<any[]>([]);
+    const [searchResult, setSearchResult] = useState<any[]>([]);
+    
+    // Load state debugging & timeout (v3.9 Stability)
+    const [isLoadTimeout, setIsLoadTimeout] = useState(false);
 
     const isWhiteTheme = pathname === '/sample-white';
 
-    const handlePhoneMatch = async () => {
-        if (!phoneNumber || phoneNumber.length < 4) return;
+    const handleSearch = async () => {
+        if (!inputValue || inputValue.length < 2) return;
         setMatchingStatus('searching');
         setMatchedMember(null);
+        setSearchResult([]);
         
         try {
-            const { data, error } = await supabase
-                .from('members')
-                .select('id, nickname, role, phone, email');
+            const isDigitSearch = /^\d+$/.test(inputValue);
+            let query = supabase.from('members').select('id, nickname, role, phone, email');
             
-            if (error) throw error;
-
-            const inputDigits = phoneNumber.replace(/[^0-9]/g, '');
-
-            const found = data?.find(m => {
-                if (m.email) return false;
-                if (!m.phone) return false;
-                const dbDigits = m.phone.replace(/[^0-9]/g, '');
-                return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
-            });
-
-            if (found) {
-                setMatchedMember(found);
-                setMatchingStatus('idle');
+            if (isDigitSearch) {
+                const { data } = await query;
+                const inputDigits = inputValue.replace(/[^0-9]/g, '');
+                const found = data?.find(m => {
+                    if (m.email) return false;
+                    if (!m.phone) return false;
+                    const dbDigits = m.phone.replace(/[^0-9]/g, '');
+                    return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
+                });
+                if (found) {
+                    setMatchedMember(found);
+                    setMatchingStatus('idle');
+                } else {
+                    setMatchingStatus('error');
+                }
             } else {
-                setMatchingStatus('error');
-                // Auto-fetch list for fallback
-                const unlinked = data?.filter(m => !m.email) || [];
-                setUnlinkedMembers(unlinked);
+                const { data } = await query.ilike('nickname', `%${inputValue}%`).is('email', null);
+                if (data && data.length > 0) {
+                    if (data.length === 1) {
+                        setMatchedMember(data[0]);
+                    } else {
+                        setSearchResult(data);
+                    }
+                    setMatchingStatus('idle');
+                } else {
+                    setMatchingStatus('error');
+                }
             }
         } catch (err) {
             setMatchingStatus('error');
         }
     };
+
+    useEffect(() => {
+        // Timeout for loading (Stability v3.9)
+        let timeoutId: any;
+        if (isLoading) {
+            timeoutId = setTimeout(() => {
+                setIsLoadTimeout(true);
+            }, 10000); // 10 second timeout for network issues
+        } else {
+            setIsLoadTimeout(false);
+        }
+        return () => clearTimeout(timeoutId);
+    }, [isLoading]);
 
     useEffect(() => {
         if (!isLoading && !user && pathname !== '/') {
@@ -302,93 +321,86 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <div className="text-center mb-8">
               <span className="text-4xl mb-4 block">🛡️</span>
               <h2 className="text-xl font-black mb-2 tracking-tight">본인 확인이 필요합니다</h2>
-              <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${isWhiteTheme ? 'text-[#64748B]' : 'text-white/40'}`}>
-                클럽 명단에 등록된<br/><span className={isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}>전화번호 뒤 4자리</span>를 입력해주세요.
+              <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed opacity-60`}>
+                테연 클럽 명단에 등록된<br/><span className={isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}>이름 또는 전화번호 뒷자리</span>를 입력하세요.
               </p>
             </div>
             
             <div className="space-y-4 mb-8">
-                {!showFullList ? (
-                <>
-                  <input 
-                      type="tel" 
-                      placeholder="번호 뒤 4자리 입력..."
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                      className={`w-full bg-transparent border-b-2 py-3 text-center text-2xl font-black transition-all outline-none ${isWhiteTheme ? 'border-[#E2E8F0] focus:border-[#B45309]' : 'border-white/10 focus:border-[#D4AF37]'}`}
-                      onKeyDown={(e) => e.key === 'Enter' && handlePhoneMatch()}
-                  />
+                <input 
+                    type="text" 
+                    placeholder="이름 또는 번호 4자리..."
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    className={`w-full bg-transparent border-b-2 py-3 text-center text-xl font-black transition-all outline-none ${isWhiteTheme ? 'border-[#E2E8F0] focus:border-[#B45309]' : 'border-white/10 focus:border-[#D4AF37]'}`}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
 
-                  {!matchedMember ? (
-                    <div className="flex flex-col gap-2">
+                {!matchedMember ? (
+                  <div className="flex flex-col gap-2">
+                    {searchResult.length > 0 ? (
+                        <div className="space-y-2 pt-2">
+                           <p className="text-[9px] font-bold opacity-40 uppercase mb-2">검색 결과입니다:</p>
+                           {searchResult.map(m => (
+                               <button 
+                                key={m.id} 
+                                onClick={() => setMatchedMember(m)}
+                                className={`w-full text-left py-3 px-4 rounded-xl border transition-all active:scale-95 flex justify-between items-center ${isWhiteTheme ? 'bg-slate-50 border-slate-100' : 'bg-white/5 border-white/5'}`}
+                               >
+                                   <span className="font-bold text-sm">{m.nickname}</span>
+                                   <span className="text-[10px] opacity-40">{m.phone ? `*${m.phone.slice(-4)}` : 'N/A'}</span>
+                               </button>
+                           ))}
+                           <button onClick={() => setSearchResult([])} className="w-full text-[10px] opacity-30 py-2">다시 검색</button>
+                        </div>
+                    ) : (
                         <button
-                        onClick={handlePhoneMatch}
+                        onClick={handleSearch}
                         disabled={matchingStatus === 'searching'}
-                        className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${isWhiteTheme ? 'bg-[#B45309] text-white' : 'bg-[#D4AF37] text-black'} ${matchingStatus === 'searching' ? 'opacity-50 animate-pulse' : 'shadow-lg'}`}
+                        className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${isWhiteTheme ? 'bg-[#B45309] text-white shadow-xl shadow-[#B45309]/20' : 'bg-[#D4AF37] text-black shadow-xl shadow-[#D4AF37]/20'} ${matchingStatus === 'searching' ? 'opacity-50 animate-pulse' : ''}`}
                         >
-                        {matchingStatus === 'searching' ? '조회 중...' : '매칭하기'}
+                        {matchingStatus === 'searching' ? '찾는 중...' : '매칭하기'}
                         </button>
-                        {matchingStatus === 'error' && (
-                            <button 
-                                onClick={() => setShowFullList(true)}
-                                className={`text-[10px] font-black underline mt-2 ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}
-                            >
-                                번호를 모르겠나요? 직접 이름 선택하기
-                            </button>
-                        )}
-                    </div>
-                  ) : (
-                    <div className={`p-4 rounded-2xl border animate-in slide-in-from-top-2 ${isWhiteTheme ? 'bg-slate-50 border-emerald-500/20' : 'bg-white/5 border-emerald-500/20'}`}>
-                      <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-black opacity-40 uppercase">멤버 확인됨</span>
-                          <span className="text-[#10B981] text-[10px] font-black">MATCHED</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                          <span className="text-lg font-black">{matchedMember.nickname}</span>
-                          <button 
-                              onClick={() => confirmIdentity(matchedMember.id)}
-                              className="bg-[#10B981] text-white px-4 py-2 rounded-xl text-[10px] font-black"
-                          >
-                              로그인
-                          </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {matchingStatus === 'error' && (
-                      <p className="text-center text-red-500 text-[9px] font-bold">등록된 번호를 찾을 수 없습니다.</p>
-                  )}
-                </>
-                ) : (
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">
-                     <p className={`text-[9px] font-black mb-3 uppercase tracking-widest opacity-40`}>미연결 멤버 리스트</p>
-                    {unlinkedMembers.map(m => (
-                      <button 
-                        key={m.id} 
-                        onClick={() => confirmIdentity(m.id)}
-                        className={`w-full text-left py-3 px-4 rounded-xl border transition-all active:scale-95 flex justify-between items-center ${isWhiteTheme ? 'bg-slate-50 border-slate-100 hover:border-[#B45309]' : 'bg-white/5 border-white/5 hover:border-[#D4AF37]'}`}
-                      >
-                        <span className="font-bold text-sm">{m.nickname}</span>
-                        <span className="text-[8px] opacity-30">{m.phone ? `*${m.phone.slice(-4)}` : '번호미등록'}</span>
-                      </button>
-                    ))}
-                    <button 
-                      onClick={() => setShowFullList(false)}
-                      className="w-full py-2 text-[9px] font-black text-[#D4AF37] mt-4"
-                    >
-                      ← 돌아가기
-                    </button>
+                    )}
                   </div>
+                ) : (
+                  <div className={`p-5 rounded-[24px] border animate-in slide-in-from-top-2 ${isWhiteTheme ? 'bg-[#FEFCE8] border-[#FEF08A]' : 'bg-[#D4AF37]/10 border-[#D4AF37]/30'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-black opacity-40 uppercase tracking-tighter">확인된 멤버 명단</span>
+                        <span className="text-[#10B981] text-[10px] font-[1000] tracking-tighter">AUTHENTICATED</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-xl font-[1000]">{matchedMember.nickname}</span>
+                        <button 
+                            onClick={() => confirmIdentity(matchedMember.id)}
+                            className="bg-[#10B981] text-white px-5 py-2.5 rounded-xl text-[11px] font-black shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-transform"
+                        >
+                            로그인 시작
+                        </button>
+                    </div>
+                  </div>
+                )}
+
+                {matchingStatus === 'error' && (
+                    <div className="text-center space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                        <p className="text-red-500 text-[10px] font-bold">등록된 정보를 찾을 수 없습니다.</p>
+                        <p className="text-[9px] opacity-40 leading-relaxed font-bold">운영진에게 등록된 정확한 성명 <br/>또는 번호를 입력해주세요.</p>
+                    </div>
                 )}
             </div>
 
-            <button 
-              onClick={() => signOut()}
-              className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isWhiteTheme ? 'text-[#94A3B8]' : 'text-white/40'}`}
-            >
-              로그아웃
-            </button>
-            <div className="text-center mt-2 opacity-15 text-[8px] font-bold">STABILITY v3.7 • PLATINUM ED.</div>
+            <div className="flex flex-col items-center gap-4 mt-4">
+                <button 
+                    onClick={() => signOut()}
+                    className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-opacity`}
+                >
+                로그아웃 후 다시 시도
+                </button>
+                <div className="flex flex-col items-center opacity-20">
+                    <span className="text-[10px] font-black tracking-[0.4em] mb-1">TEYEON SECURITY</span>
+                    <span className="text-[8px] font-black">ULTIMATE REAL-TIME v3.9 • PLATINUM</span>
+                </div>
+            </div>
           </div>
         </div>
       );
@@ -398,8 +410,26 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
         return (
             <div className={`fixed inset-0 flex items-center justify-center z-[1000] ${isWhiteTheme ? 'bg-[#FFFFFF]' : 'bg-[#0F0F1A]'}`}>
                 <div className="flex flex-col items-center gap-4">
-                    <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isWhiteTheme ? 'border-slate-200 border-t-[#B45309]' : 'border-white/5 border-t-[#D4AF37]'}`}></div>
-                    <span className={`text-[10px] font-black uppercase tracking-[0.4em] animate-pulse ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}>Establishing Identity</span>
+                    {!isLoadTimeout ? (
+                        <>
+                            <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isWhiteTheme ? 'border-slate-200 border-t-[#B45309]' : 'border-white/5 border-t-[#D4AF37]'}`}></div>
+                            <span className={`text-[10px] font-black uppercase tracking-[0.4em] animate-pulse ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}>Establishing Identity</span>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center gap-6 p-8 animate-in fade-in duration-500">
+                             <span className="text-5xl">📡</span>
+                             <div className="text-center">
+                                <h3 className={`text-sm font-black mb-1 ${isWhiteTheme ? 'text-[#0F172A]' : 'text-white'}`}>네트워크 지연 발생</h3>
+                                <p className="text-[10px] opacity-50 font-bold">응답이 평소보다 늦어지고 있습니다.</p>
+                             </div>
+                             <button 
+                                onClick={() => window.location.reload()}
+                                className={`px-8 py-4 rounded-full text-[10px] font-black tracking-widest uppercase shadow-xl ${isWhiteTheme ? 'bg-[#B45309] text-white' : 'bg-[#D4AF37] text-black'}`}
+                             >
+                                다시 시도 (Retry)
+                             </button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
