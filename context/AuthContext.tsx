@@ -93,10 +93,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return "권한이 필요한 메뉴입니다.";
   };
 
-  // Profile Sync Logic
+  // Profile Sync Logic - Critical for 3-Column Identity Match
   const syncProfile = async (currentUser: User) => {
+    // Prevent double-loading if already in progress
     try {
-      // 1. Email-Based Promotion 
+      // 1. Email-Based Promotion (Bypass Roster for CEO/Admin)
       let initialRole: UserRole = 'GUEST';
       if (currentUser.email === CEO_EMAIL) {
         initialRole = 'CEO';
@@ -104,79 +105,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initialRole = 'ADMIN';
       }
 
-      // 2. Fetch the current member row
-      const { data: memberRecord } = await supabase
+      // 2. Exact Email Link Check
+      const { data: linkedMember } = await supabase
         .from('members')
-        .select('role')
+        .select('id, role, email')
         .eq('email', currentUser.email)
         .single();
       
-      let finalRole: UserRole = initialRole;
-      if (memberRecord?.role) {
-        const kRole = memberRecord.role.trim();
-        if (kRole === 'CEO') finalRole = 'CEO';
-        else if (STAFF_ROLES.includes(kRole)) finalRole = 'ADMIN';
-        else if (MEMBER_ROLES.includes(kRole)) finalRole = 'MEMBER';
-        else if (kRole === '게스트' || kRole === 'GUEST') finalRole = 'GUEST';
+      if (linkedMember) {
+        // Already linked, update avatar & role
+        const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
+        await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
+        
+        let finalRole: UserRole = initialRole;
+        if (linkedMember.role) {
+            const kRole = linkedMember.role.trim();
+            if (kRole === 'CEO') finalRole = 'CEO';
+            else if (STAFF_ROLES.includes(kRole)) finalRole = 'ADMIN';
+            else if (MEMBER_ROLES.includes(kRole)) finalRole = 'MEMBER';
+        }
+        setRole(finalRole);
+        setIsPendingMatching(false);
+        setIsLoading(false);
+        return;
       }
 
-      const avatarUrl = 
-        currentUser.user_metadata?.avatar_url || 
-        currentUser.user_metadata?.picture || 
-        currentUser.user_metadata?.profile_image_url ||
-        currentUser.user_metadata?.profile_image;
-
-      // 3. Upsert to public.profiles
-      const { data: profile } = await supabase
-        .from('profiles')
-        .upsert({
-          id: currentUser.id,
-          email: currentUser.email,
-          role: finalRole,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' })
-        .select('role')
-        .single();
-
-      setRole((profile?.role as UserRole) || finalRole);
-
-      // 4. Sync to members table
-      if (currentUser.email) {
-        const { data: existingLinkedMember } = await supabase
+      // 3. Fuzzy Nickname Autolink (Optional, but let's be strict with pending matching)
+      const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name;
+      if (nickname) {
+        const { data: matchedNick } = await supabase
           .from('members')
-          .select('id, role')
-          .eq('email', currentUser.email)
+          .select('id')
+          .eq('nickname', nickname)
+          .is('email', null)
           .single();
-
-        if (existingLinkedMember) {
-          await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', existingLinkedMember.id);
-        } else {
-          const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name;
-          const cleanNick = nickname?.replace(/\s+/g, '').toLowerCase();
-
-          const { data: unlinkedMembers } = await supabase
-            .from('members')
-            .select('id, nickname')
-            .is('email', null);
-
-          const matchedMember = unlinkedMembers?.find(m => 
-            m.nickname.replace(/\s+/g, '').toLowerCase() === cleanNick
-          );
-
-          if (matchedMember) {
-            await supabase.from('members')
-              .update({ email: currentUser.email, avatar_url: avatarUrl })
-              .eq('id', matchedMember.id);
-          } else {
-            setRole('GUEST');
-            setIsPendingMatching(true);
-          }
+        
+        if (matchedNick) {
+          console.log('[Auth] Found nickname match, linking automatically...');
+          await supabase.from('members')
+            .update({ email: currentUser.email, avatar_url: currentUser.user_metadata?.avatar_url })
+            .eq('id', matchedNick.id);
+          
+          // Re-sync to confirm
+          setTimeout(() => syncProfile(currentUser), 500);
+          return;
         }
       }
+
+      // 4. No Match Found -> Show Phone Auth
+      setRole('GUEST');
+      setIsPendingMatching(true);
+      setIsLoading(false);
     } catch (err) {
       console.error('[Auth] Sync error:', err);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -187,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`[Auth] Initializing (Attempt ${retryCount + 1})...`);
         const timeoutId = setTimeout(() => {
           setIsLoading(false);
-        }, 8000);
+        }, 10000);
 
         await fetchConfig();
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -276,14 +257,39 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const { user, isLoading, isPendingMatching, confirmIdentity, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
-    const [matchingMembers, setMatchingMembers] = useState<any[]>([]);
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [matchingStatus, setMatchingStatus] = useState<'idle' | 'searching' | 'error'>('idle');
+    const [matchedMember, setMatchedMember] = useState<any>(null);
 
-    useEffect(() => {
-        if (isPendingMatching) {
-          supabase.from('members').select('id, nickname, role').is('email', null)
-            .then(({ data }) => setMatchingMembers(data || []));
+    const isWhiteTheme = pathname === '/sample-white';
+
+    const handlePhoneMatch = async () => {
+        if (!phoneNumber || phoneNumber.length < 4) return;
+        setMatchingStatus('searching');
+        try {
+            // Fuzzy match by last 4 digits or exact
+            const { data, error } = await supabase
+                .from('members')
+                .select('id, nickname, role, phone')
+                .is('email', null);
+            
+            if (error) throw error;
+
+            const found = data?.find(m => {
+                const cleanPhone = m.phone?.replace(/[^0-9]/g, '');
+                return cleanPhone?.endsWith(phoneNumber) || cleanPhone === phoneNumber;
+            });
+
+            if (found) {
+                setMatchedMember(found);
+                setMatchingStatus('idle');
+            } else {
+                setMatchingStatus('error');
+            }
+        } catch (err) {
+            setMatchingStatus('error');
         }
-    }, [isPendingMatching]);
+    };
 
     useEffect(() => {
         if (!isLoading && !user && pathname !== '/') {
@@ -293,26 +299,63 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     if (isPendingMatching && user) {
       return (
-        <div className="fixed inset-0 bg-[#0F0F1A]/95 backdrop-blur-xl flex items-center justify-center z-[2000] p-6">
-          <div className="w-full max-w-sm bg-[#1A1A2E] border border-white/10 rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className={`fixed inset-0 flex items-center justify-center z-[2000] p-6 transition-colors duration-500 ${isWhiteTheme ? 'bg-[#F8FAFC]/95 backdrop-blur-xl' : 'bg-[#0F0F1A]/95 backdrop-blur-xl'}`}>
+          <div className={`w-full max-w-sm border rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-300 ${isWhiteTheme ? 'bg-white border-white text-[#0F172A]' : 'bg-[#1A1A2E] border-white/10 text-white'}`}>
             <div className="text-center mb-8">
-              <span className="text-4xl mb-4 block">🔍</span>
-              <h2 className="text-xl font-black text-white mb-2 tracking-tight">본인 확인이 필요합니다</h2>
-              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                클럽 명단에서 본인의 이름을 선택해주세요.
+              <span className="text-4xl mb-4 block">🛡️</span>
+              <h2 className="text-xl font-black mb-2 tracking-tight">본인 확인이 필요합니다</h2>
+              <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${isWhiteTheme ? 'text-[#64748B]' : 'text-white/40'}`}>
+                클럽 명단에 등록된<br/><span className={isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}>전화번호 뒤 4자리</span>를 입력해주세요.
               </p>
             </div>
-            <div className="max-h-[300px] overflow-y-auto space-y-2 mb-8 pr-2 custom-scrollbar">
-              {matchingMembers.map(m => (
-                <button key={m.id} onClick={() => confirmIdentity(m.id)} className="w-full bg-white/5 hover:bg-[#D4AF37]/20 border border-white/5 hover:border-[#D4AF37]/50 py-4 px-6 rounded-2xl text-left transition-all active:scale-95 group">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-white group-hover:text-[#D4AF37]">{m.nickname}</span>
-                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{m.role || '멤버'}</span>
+            
+            <div className="space-y-4 mb-8">
+                <input 
+                    type="tel" 
+                    placeholder="번호 뒤 4자리 입력..."
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                    className={`w-full bg-transparent border-b-2 py-3 text-center text-2xl font-black transition-all outline-none ${isWhiteTheme ? 'border-[#E2E8F0] focus:border-[#B45309]' : 'border-white/10 focus:border-[#D4AF37]'}`}
+                    onKeyDown={(e) => e.key === 'Enter' && handlePhoneMatch()}
+                />
+
+                {!matchedMember ? (
+                  <button
+                    onClick={handlePhoneMatch}
+                    disabled={matchingStatus === 'searching'}
+                    className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${isWhiteTheme ? 'bg-[#B45309] text-white shadow-[#B45309]/20' : 'bg-[#D4AF37] text-black shadow-[#D4AF37]/20'} ${matchingStatus === 'searching' ? 'opacity-50 animate-pulse' : 'shadow-lg'}`}
+                  >
+                    {matchingStatus === 'searching' ? '명단 조회 중...' : '매칭하기'}
+                  </button>
+                ) : (
+                  <div className={`p-4 rounded-2xl border animate-in slide-in-from-top-2 ${isWhiteTheme ? 'bg-slate-50 border-emerald-500/20' : 'bg-white/5 border-emerald-500/20'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black opacity-40 uppercase">확인된 멤버</span>
+                        <span className="text-[#10B981] text-[10px] font-black">MATCHED</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-lg font-black">{matchedMember.nickname}</span>
+                        <button 
+                            onClick={() => confirmIdentity(matchedMember.id)}
+                            className="bg-[#10B981] text-white px-4 py-2 rounded-xl text-[10px] font-black hover:scale-105 transition-transform"
+                        >
+                            로그인 시작
+                        </button>
+                    </div>
                   </div>
-                </button>
-              ))}
+                )}
+
+                {matchingStatus === 'error' && (
+                    <p className="text-center text-red-500 text-[10px] font-bold animate-shake">등록된 번호를 찾을 수 없습니다. 다시 시도해 주세요.</p>
+                )}
             </div>
-            <button onClick={() => signOut()} className="w-full py-4 text-white/40 text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors">로그아웃</button>
+
+            <button 
+              onClick={() => signOut()}
+              className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isWhiteTheme ? 'text-[#94A3B8] hover:text-[#0F172A]' : 'text-white/40 hover:text-white'}`}
+            >
+              로그아웃
+            </button>
           </div>
         </div>
       );
@@ -320,10 +363,10 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     if (isLoading && pathname !== '/') {
         return (
-            <div className="fixed inset-0 bg-[#0F0F1A] flex items-center justify-center z-[1000]">
+            <div className={`fixed inset-0 flex items-center justify-center z-[1000] ${isWhiteTheme ? 'bg-[#FFFFFF]' : 'bg-[#0F0F1A]'}`}>
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] animate-pulse">Establishing Identity</span>
+                    <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isWhiteTheme ? 'border-slate-200 border-t-[#B45309]' : 'border-white/5 border-t-[#D4AF37]'}`}></div>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.4em] animate-pulse ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}>Establishing Identity</span>
                 </div>
             </div>
         );
