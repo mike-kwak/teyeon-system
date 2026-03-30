@@ -267,7 +267,6 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (!phoneNumber || phoneNumber.length < 4) return;
         setMatchingStatus('searching');
         try {
-            // Fuzzy match by last 4 digits or exact
             const { data, error } = await supabase
                 .from('members')
                 .select('id, nickname, role, phone')
@@ -276,8 +275,12 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
             if (error) throw error;
 
             const found = data?.find(m => {
-                const cleanPhone = m.phone?.replace(/[^0-9]/g, '');
-                return cleanPhone?.endsWith(phoneNumber) || cleanPhone === phoneNumber;
+                if (!m.phone) return false;
+                // Leave only digits for comparison
+                const dbDigits = m.phone.replace(/[^0-9]/g, '');
+                const inputDigits = phoneNumber.replace(/[^0-9]/g, '');
+                
+                return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
             });
 
             if (found) {
