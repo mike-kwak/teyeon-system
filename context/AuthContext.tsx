@@ -39,6 +39,9 @@ interface AuthContextType {
   hasPermission: (feature: FeatureKey) => AccessLevel;
   getRestrictionMessage: (feature: FeatureKey) => string;
   refreshConfig: () => Promise<void>;
+  isPendingMatching: boolean;
+  setPendingMatching: (val: boolean) => void;
+  confirmIdentity: (memberId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole>('GUEST');
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPendingMatching, setIsPendingMatching] = useState(false);
 
   const fetchConfig = async () => {
     try {
@@ -89,52 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return "권한이 필요한 메뉴입니다.";
   };
 
-  useEffect(() => {
-    // Initial data fetch
-    const init = async () => {
-      // Safety timeout: Ensure loading finishes after 8s regardless
-      const timeoutId = setTimeout(() => {
-        setIsLoading(false);
-        console.warn('[Auth] Initialization timeout reached');
-      }, 8000);
-
-      try {
-        console.log('[Auth] Initializing...');
-        await fetchConfig();
-        
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await syncProfile(session.user);
-        } else {
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error('[Auth] Initialization error:', err);
-        setIsLoading(false);
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    };
-
-    init();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await syncProfile(session.user);
-      } else {
-        setRole('GUEST');
-        setIsLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
+  // Profile Sync Logic
   const syncProfile = async (currentUser: User) => {
     try {
       // 1. Email-Based Promotion 
@@ -184,40 +143,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 4. Sync to members table
       if (currentUser.email) {
-        const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-        const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
-
-        const { data: matchedEmail } = await supabase
+        const { data: existingLinkedMember } = await supabase
           .from('members')
-          .update({ 
-            avatar_url: avatarUrl,
-            email: currentUser.email 
-          })
+          .select('id, role')
           .eq('email', currentUser.email)
-          .select('id');
-        
-        if (!matchedEmail || matchedEmail.length === 0) {
-          const { data: matchedNick } = await supabase
+          .single();
+
+        if (existingLinkedMember) {
+          await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', existingLinkedMember.id);
+        } else {
+          const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name;
+          const cleanNick = nickname?.replace(/\s+/g, '').toLowerCase();
+
+          const { data: unlinkedMembers } = await supabase
             .from('members')
-            .update({ 
-              avatar_url: avatarUrl,
-              email: currentUser.email 
-            })
-            .eq('nickname', nickname)
-            .is('email', null) 
-            .select('id');
-          
-          if (!matchedNick || matchedNick.length === 0) {
-            await supabase
-              .from('members')
-              .insert({
-                nickname: nickname,
-                email: currentUser.email,
-                avatar_url: avatarUrl,
-                role: finalRole === 'CEO' ? 'CEO' : '게스트', // Standard label for DB readability
-                club_id: clubId,
-                등록일: new Date().toISOString().split('T')[0]
-              });
+            .select('id, nickname')
+            .is('email', null);
+
+          const matchedMember = unlinkedMembers?.find(m => 
+            m.nickname.replace(/\s+/g, '').toLowerCase() === cleanNick
+          );
+
+          if (matchedMember) {
+            await supabase.from('members')
+              .update({ email: currentUser.email, avatar_url: avatarUrl })
+              .eq('id', matchedMember.id);
+          } else {
+            setRole('GUEST');
+            setIsPendingMatching(true);
           }
         }
       }
@@ -228,40 +181,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithKakao = async () => {
-    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-    const redirectTarget = isProduction 
-      ? 'https://teyeon-system.vercel.app' 
-      : window.location.origin;
+  useEffect(() => {
+    const init = async (retryCount = 0) => {
+      try {
+        console.log(`[Auth] Initializing (Attempt ${retryCount + 1})...`);
+        const timeoutId = setTimeout(() => {
+          setIsLoading(false);
+        }, 8000);
 
-    console.log('[Auth] Initiating Kakao login');
-    console.log('[Auth] Current Origin:', window.location.origin);
-    console.log('[Auth] Redirect Target:', redirectTarget);
+        await fetchConfig();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: { 
-        redirectTo: redirectTarget,
-        skipBrowserRedirect: false
-      },
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await syncProfile(session.user);
+        } else {
+          setIsLoading(false);
+        }
+        clearTimeout(timeoutId);
+      } catch (err) {
+        console.error(`[Auth] Initialization error:`, err);
+        if (retryCount < 2) {
+          setTimeout(() => init(retryCount + 1), 2000);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          await syncProfile(session.user);
+        }
+      } else {
+        setRole('GUEST');
+        setIsPendingMatching(false);
+        setIsLoading(false);
+      }
     });
-    
-    if (error) {
-      console.error('Kakao login error:', error.message);
-      alert('로그인 오류 발생: ' + error.message + '\nTarget: ' + redirectTarget);
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const confirmIdentity = async (memberId: string) => {
+    if (!user?.email) return;
+    try {
+      setIsLoading(true);
+      const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      await supabase.from('members').update({ email: user.email, avatar_url: avatarUrl }).eq('id', memberId);
+      await syncProfile(user);
+      setIsPendingMatching(false);
+    } catch (err) {
+      console.error('[Auth] Match error:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const signInWithKakao = async () => {
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+    const redirectTarget = isProduction ? 'https://teyeon-system.vercel.app' : window.location.origin;
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: redirectTarget, skipBrowserRedirect: false },
+    });
+  };
+
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error('Logout error:', error.message);
+    await supabase.auth.signOut();
   };
 
   return (
     <AuthContext.Provider value={{ 
       user, session, role, appConfig, isLoading, 
       signInWithKakao, signOut, hasPermission, getRestrictionMessage,
-      refreshConfig: fetchConfig 
+      refreshConfig: fetchConfig, isPendingMatching, setPendingMatching: setIsPendingMatching, confirmIdentity
     }}>
       <NavigationGuard>
         {children}
@@ -270,22 +272,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-// --- Helper: Guarding Navigation ---
 const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, isPendingMatching, confirmIdentity, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const [matchingMembers, setMatchingMembers] = useState<any[]>([]);
 
     useEffect(() => {
-        // Only redirect if we ARE NOT already on the login page (root)
-        // and if loading has finished and no user exists.
+        if (isPendingMatching) {
+          supabase.from('members').select('id, nickname, role').is('email', null)
+            .then(({ data }) => setMatchingMembers(data || []));
+        }
+    }, [isPendingMatching]);
+
+    useEffect(() => {
         if (!isLoading && !user && pathname !== '/') {
-            console.log('[AuthGuard] Redirecting to login...');
             router.push('/');
         }
     }, [user, isLoading, pathname, router]);
 
-    // Don't show content for guarded internal pages if still checking auth
+    if (isPendingMatching && user) {
+      return (
+        <div className="fixed inset-0 bg-[#0F0F1A]/95 backdrop-blur-xl flex items-center justify-center z-[2000] p-6">
+          <div className="w-full max-w-sm bg-[#1A1A2E] border border-white/10 rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="text-center mb-8">
+              <span className="text-4xl mb-4 block">🔍</span>
+              <h2 className="text-xl font-black text-white mb-2 tracking-tight">본인 확인이 필요합니다</h2>
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                클럽 명단에서 본인의 이름을 선택해주세요.
+              </p>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto space-y-2 mb-8 pr-2 custom-scrollbar">
+              {matchingMembers.map(m => (
+                <button key={m.id} onClick={() => confirmIdentity(m.id)} className="w-full bg-white/5 hover:bg-[#D4AF37]/20 border border-white/5 hover:border-[#D4AF37]/50 py-4 px-6 rounded-2xl text-left transition-all active:scale-95 group">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white group-hover:text-[#D4AF37]">{m.nickname}</span>
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{m.role || '멤버'}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => signOut()} className="w-full py-4 text-white/40 text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors">로그아웃</button>
+          </div>
+        </div>
+      );
+    }
+
     if (isLoading && pathname !== '/') {
         return (
             <div className="fixed inset-0 bg-[#0F0F1A] flex items-center justify-center z-[1000]">
