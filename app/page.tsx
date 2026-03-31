@@ -161,11 +161,11 @@ export default function Home() {
                 key={item.id} 
                 href={item.path || '/'} 
                 onClick={(e) => handleMenuClick(e, item)}
-                className="block w-full"
+                className="block w-full no-underline"
             >
               <div 
                 className={`
-                  flex flex-col items-center justify-center py-5 transition-all duration-500 border rounded-[28px] relative group min-h-[110px]
+                  flex flex-col items-center justify-center py-6 transition-all duration-500 border rounded-[28px] relative group min-h-[120px] overflow-visible
                   ${isComingSoon 
                     ? 'bg-black/20 border-white/5 opacity-60 grayscale-[0.5] cursor-not-allowed' 
                     : isRestricted 
@@ -175,18 +175,10 @@ export default function Home() {
                         : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/10 shadow-[0_8px_25px_rgba(0,0,0,0.5)] group-hover:border-[#D4AF37]/50 hover:scale-105 hover:shadow-[#D4AF37]/10 active:scale-95'}
                 `}
               >
-                {isComingSoon && (
-                  <div className="absolute -top-1.5 -right-1.5 z-20">
-                    <span className="bg-[#D4AF37] text-black text-[7px] font-[1000] px-2 py-0.5 rounded-full tracking-tighter shadow-lg">COMING</span>
-                  </div>
-                )}
-                <div className="text-[44px] relative z-10 transition-transform group-hover:scale-110 mb-2">
+                <div className="text-4xl relative z-10 transition-transform group-hover:scale-110 mb-3 flex items-center justify-center h-12 w-12 overflow-visible">
                   {item.icon}
-                  {(isRestricted && !isComingSoon) && (
-                    <div className="absolute -bottom-1 -right-1 text-[10px] bg-black/80 rounded-full w-4 h-4 flex items-center justify-center border border-[#D4AF37]/50 shadow-lg">🔒</div>
-                  )}
                 </div>
-                <span className={`text-[12px] font-black tracking-tighter uppercase z-10 text-center px-1 ${isComingSoon ? 'text-white/70' : isRestricted ? 'text-white/30' : 'text-white'}`}>
+                <span className={`text-[11px] font-black tracking-tight uppercase z-10 text-center px-1 leading-none ${isComingSoon ? 'text-white/70' : isRestricted ? 'text-white/30' : 'text-white/90'}`}>
                   {item.label}
                 </span>
                 

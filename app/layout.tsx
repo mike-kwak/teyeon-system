@@ -15,9 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "테연 테니스",
-  description: "테연 테니스 클럽 매치 관리 시스템",
+  title: "테연 테니스 | KDK 4.0",
+  description: "테연 테니스 클럽 매치 관리 시스템 (v4.0.0 Final Stable)",
   manifest: "/manifest.json",
+  other: {
+    "version": "4.0.0-" + Date.now(),
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

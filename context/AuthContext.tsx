@@ -74,6 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('[Auth] Config fetch error:', err);
+    } finally {
+      // Don't setIsLoading(false) here yet, wait for init() to decide.
     }
   };
 
