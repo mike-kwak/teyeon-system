@@ -149,7 +149,7 @@ export default function Home() {
 
 
       {/* Action Tower Grid - MAX IMPACT (Enlarged Icons & Spaced Gaps) */}
-      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-14 sm:gap-x-12 sm:gap-y-16 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-10 sm:gap-x-12 sm:gap-y-16 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;

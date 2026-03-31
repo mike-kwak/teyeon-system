@@ -20,6 +20,9 @@ const GlobalHeader = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { role } = useAuth();
+  const isHome = pathname === '/';
+
+  if (isHome) return null;
 
   // Hide on certain paths if needed, or simplify the title
   const getTitle = () => {
@@ -27,8 +30,6 @@ const GlobalHeader = () => {
     if (pathname.startsWith('/kdk/')) return '대진표 상세';
     return PATH_MAP[pathname] || '테연 테니스';
   };
-
-  const isHome = pathname === '/';
 
   return (
     <header className="sticky top-0 z-[100] w-full bg-black/60 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between safe-top">
