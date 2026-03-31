@@ -50,9 +50,9 @@ const GlobalHeader = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className={`px-3 py-1 rounded-full border text-[8px] font-black tracking-widest uppercase transition-all ${
-          role === 'CEO' ? 'bg-[#DC2626]/10 border-[#DC2626]/30 text-[#DC2626]' :
-          role === 'ADMIN' ? 'bg-[#2563EB]/10 border-[#2563EB]/30 text-[#2563EB]' :
+        <div className={`px-3 py-1 rounded-full border text-[9px] font-[1000] tracking-widest uppercase transition-all ${
+          role === 'CEO' ? 'bg-[#DC2626] border-[#DC2626] text-white shadow-[0_0_10px_rgba(220,38,38,0.4)]' :
+          role === 'ADMIN' ? 'bg-[#2563EB]/20 border-[#2563EB]/40 text-[#2563EB]' :
           'bg-white/5 border-white/10 text-white/40'
         }`}>
           {role}
