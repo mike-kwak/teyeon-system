@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, use } from 'react';
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
