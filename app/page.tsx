@@ -60,7 +60,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col min-h-[100dvh] px-4 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-md mx-auto w-full relative">
+    <main className="flex flex-col min-h-[100dvh] px-4 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-[500px] mx-auto w-full relative">
       {/* Universal Spacer - TOP (Balance) */}
       <div className="h-8" />
 
@@ -149,7 +149,7 @@ export default function Home() {
 
 
       {/* Action Tower Grid - MAX IMPACT (Enlarged Icons & Spaced Gaps) */}
-      <section className="grid grid-cols-3 gap-6 sm:grid-cols-4 lg:grid-cols-5 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      <section className="grid grid-cols-3 gap-5 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -165,7 +165,7 @@ export default function Home() {
             >
               <div 
                 className={`
-                  flex flex-col items-center justify-center py-6 transition-all duration-500 border rounded-[28px] relative group min-h-[120px] overflow-visible
+                  aspect-square rounded-[28px] flex flex-col items-center justify-center transition-all duration-500 border relative group overflow-hidden
                   ${isComingSoon 
                     ? 'bg-black/20 border-white/5 opacity-60 grayscale-[0.5] cursor-not-allowed' 
                     : isRestricted 
