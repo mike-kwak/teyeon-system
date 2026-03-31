@@ -73,22 +73,17 @@ export default function NoticeListPage() {
 
 
   return (
-    <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-24 relative">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-lg border-b border-white/5 px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/')} className="text-[#D4AF37] text-2xl hover:bg-white/5 w-10 h-10 flex items-center justify-center rounded-full transition-all">←</button>
-          <h1 className="text-xl font-black tracking-tight uppercase">클럽 공지사항</h1>
-        </div>
-        {isStaff && (
+    <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-24 relative pt-6">
+      {isStaff && (
+        <div className="px-6 mb-4 flex justify-end">
           <button 
             onClick={() => router.push('/notice/create')}
-            className="bg-[#D4AF37] text-black text-[10px] font-bold px-3 py-1.5 rounded-full shadow-[0_4px_15px_rgba(212,175,55,0.3)] active:scale-90 transition-all uppercase tracking-widest"
+            className="bg-[#D4AF37] text-black text-[10px] font-bold px-4 py-2 rounded-full shadow-[0_4px_15px_rgba(212,175,55,0.3)] active:scale-90 transition-all uppercase tracking-widest"
           >
-            NEW
+            + 새 공지사항 작성
           </button>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* Notice List */}
       <div className="px-5 mt-6 space-y-3">

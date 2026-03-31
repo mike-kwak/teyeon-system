@@ -2,14 +2,17 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 /**
  * ArchivePage: The Teyeon Club Official Database
  * v1.1.0-beta.5: Triple-Tab Overhaul (Records, Global Ranking, Hall of Fame)
  */
 export default function ArchivePage() {
+  const { user, role } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [archives, setArchives] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -267,17 +270,7 @@ export default function ArchivePage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-x-hidden">
-      {/* Top Header */}
-      <header className="p-6 flex items-center justify-between bg-black/50 backdrop-blur-xl sticky top-0 z-40">
-        {selectedSessionId ? (
-            <button onClick={() => setSelectedSessionId(null)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform"><span className="text-xl">←</span></button>
-        ) : (
-            <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform"><span className="text-xl">←</span></Link>
-        )}
-        <h1 className="text-lg font-[1000] italic tracking-tighter uppercase">TEYEON <span className="text-[#D4AF37]">DATABASE</span></h1>
-        <div className="w-10"></div>
-      </header>
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-x-hidden pt-4">
 
       {/* Flagship Tab Navigation */}
       {!selectedSessionId && (
@@ -305,7 +298,24 @@ export default function ArchivePage() {
                         <div className="bg-white/5 border border-white/10 rounded-[35px] p-8 mb-8 relative overflow-hidden">
                             <div className="flex flex-col gap-1 mb-6">
                                 <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">{selectedSession.date}</span>
-                                <h2 className="text-2xl font-[1000] text-white italic leading-tight tracking-tighter uppercase">{selectedSession.title}</h2>
+                                <div className="flex items-center justify-between gap-2">
+                                  <h2 className="text-2xl font-[1000] text-white italic leading-tight tracking-tighter uppercase">{selectedSession.title}</h2>
+                                  {(role === 'ADMIN' || role === 'CEO') && (
+                                    <button 
+                                      onClick={() => {
+                                        if (confirm('⚠️ 이 세션과 모든 경기 기록을 정말 삭제하시겠습니까?')) {
+                                          supabase.from('matches').delete().eq('session_id', selectedSessionId).then(() => {
+                                            setSelectedSessionId(null);
+                                            window.location.reload();
+                                          });
+                                        }
+                                      }}
+                                      className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-black uppercase tracking-widest active:scale-90 transition-transform"
+                                    >
+                                      Delete Session
+                                    </button>
+                                  )}
+                                </div>
                             </div>
                             <div className="bg-black/60 p-1 rounded-2xl flex border border-white/5">
                                 {(['MATCHES', 'RANKING', 'PERSONAL'] as const).map(t => (

@@ -260,37 +260,50 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setSearchResult([]);
         
         try {
-            const isDigitSearch = /^\d+$/.test(inputValue);
-            let query = supabase.from('members').select('id, nickname, role, phone, email, is_guest');
+            const isDigits = /^\d+$/.test(inputValue);
             
-            if (isDigitSearch) {
-                const { data } = await query;
+            // 1. Fetch all eligible members (those not yet linked to an email and NOT guests)
+            const { data: candidates, error } = await supabase
+                .from('members')
+                .select('id, nickname, role, phone, email, is_guest')
+                .is('email', null)
+                .neq('role', 'GUEST');
+
+            if (error) throw error;
+
+            if (isDigits) {
+                // Phone matching (ends with input or exact match)
                 const inputDigits = inputValue.replace(/[^0-9]/g, '');
-                const found = data?.find(m => {
-                    if (m.email) return false;
-                    if (m.is_guest || m.role === '게스트') return false; // Task 3.1: Exclude Guests
+                const matches = candidates?.filter(m => {
                     if (!m.phone) return false;
                     const dbDigits = m.phone.replace(/[^0-9]/g, '');
                     return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
-                });
-                if (found) {
-                    setMatchedMember(found);
-                    setMatchingStatus('idle');
+                }) || [];
+
+                if (matches.length === 1) {
+                    setMatchedMember(matches[0]);
+                } else if (matches.length > 1) {
+                    setSearchResult(matches);
                 } else {
                     setMatchingStatus('error');
                 }
             } else {
-                const { data } = await query.ilike('nickname', `%${inputValue}%`).is('email', null);
-                if (data && data.length > 0) {
-                    if (data.length === 1) {
-                        setMatchedMember(data[0]);
-                    } else {
-                        setSearchResult(data);
-                    }
-                    setMatchingStatus('idle');
+                // Name matching (nickname)
+                const matches = candidates?.filter(m => 
+                    m.nickname && (m.nickname.includes(inputValue) || inputValue.includes(m.nickname))
+                ) || [];
+
+                if (matches.length === 1) {
+                    setMatchedMember(matches[0]);
+                } else if (matches.length > 1) {
+                    setSearchResult(matches);
                 } else {
                     setMatchingStatus('error');
                 }
+            }
+            
+            if (matchedMember || (searchResult && searchResult.length > 0)) {
+                setMatchingStatus('idle');
             }
         } catch (err) {
             setMatchingStatus('error');
