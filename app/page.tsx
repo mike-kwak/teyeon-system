@@ -165,7 +165,7 @@ export default function Home() {
             >
               <div 
                 className={`
-                  aspect-square rounded-[28px] flex flex-col items-center justify-center transition-all duration-500 border relative group overflow-hidden
+                  aspect-square rounded-[28px] flex flex-col items-center justify-center transition-all duration-500 border relative group overflow-visible
                   ${isComingSoon 
                     ? 'bg-black/20 border-white/5 opacity-60 grayscale-[0.5] cursor-not-allowed' 
                     : isRestricted 
@@ -175,6 +175,13 @@ export default function Home() {
                         : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/10 shadow-[0_8px_25px_rgba(0,0,0,0.5)] group-hover:border-[#D4AF37]/50 hover:scale-105 hover:shadow-[#D4AF37]/10 active:scale-95'}
                 `}
               >
+                {isComingSoon && (
+                  <div className="absolute -top-1 -right-1 z-20">
+                    <span className="bg-[#D4AF37] text-black text-[7px] font-[1000] px-2 py-0.5 rounded-full tracking-tighter shadow-[0_4px_12px_rgba(212,175,55,0.4)] animate-in zoom-in duration-500">
+                      COMING SOON
+                    </span>
+                  </div>
+                )}
                 <div className="text-4xl relative z-10 transition-transform group-hover:scale-110 mb-3 flex items-center justify-center h-12 w-12 overflow-visible">
                   {item.icon}
                 </div>
@@ -183,7 +190,7 @@ export default function Home() {
                 </span>
                 
                 {!(isComingSoon || isRestricted) && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#D4AF37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#D4AF37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[28px]"></div>
                 )}
               </div>
             </Link>
