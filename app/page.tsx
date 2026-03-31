@@ -149,7 +149,7 @@ export default function Home() {
 
 
       {/* Action Tower Grid - MAX IMPACT (Enlarged Icons & Spaced Gaps) */}
-      <section className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-10 sm:gap-x-12 sm:gap-y-16 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      <section className="grid grid-cols-3 gap-6 sm:grid-cols-4 lg:grid-cols-5 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
         {displayItems.map((item) => {
           const access = hasPermission(item.feature as any);
           const isComingSoon = (item as any).isComingSoon;
@@ -161,23 +161,23 @@ export default function Home() {
                 key={item.id} 
                 href={item.path || '/'} 
                 onClick={(e) => handleMenuClick(e, item)}
-                className="block w-full h-full"
+                className="block w-full"
             >
               <div 
                 className={`
-                  aspect-square rounded-[32px] flex flex-col items-center justify-center gap-1 transition-all duration-500 border relative overflow-hidden group
+                  flex flex-col items-center justify-center py-5 transition-all duration-500 border rounded-[28px] relative group min-h-[110px]
                   ${isComingSoon 
-                    ? 'bg-black/20 border-white/10 opacity-70 grayscale-[0.3] cursor-not-allowed' 
+                    ? 'bg-black/20 border-white/5 opacity-60 grayscale-[0.5] cursor-not-allowed' 
                     : isRestricted 
                       ? 'bg-black/40 border-white/5 opacity-40 grayscale-[0.8] cursor-not-allowed' 
                       : isReadOnly
                         ? 'bg-white/5 border-white/10 opacity-90'
-                        : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/10 shadow-[0_8px_25px_rgba(0,0,0,0.5)] shadow-inner group-hover:border-[#D4AF37]/50 hover:scale-105 hover:shadow-[#D4AF37]/10 active:scale-95'}
+                        : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/10 shadow-[0_8px_25px_rgba(0,0,0,0.5)] group-hover:border-[#D4AF37]/50 hover:scale-105 hover:shadow-[#D4AF37]/10 active:scale-95'}
                 `}
               >
                 {isComingSoon && (
-                  <div className="absolute top-3 right-3 z-20">
-                    <span className="bg-[#D4AF37] text-black text-[6px] font-[1000] px-1.5 py-0.5 rounded-full tracking-tighter shadow-lg animate-bounce">COMING SOON</span>
+                  <div className="absolute -top-1.5 -right-1.5 z-20">
+                    <span className="bg-[#D4AF37] text-black text-[7px] font-[1000] px-2 py-0.5 rounded-full tracking-tighter shadow-lg">COMING</span>
                   </div>
                 )}
                 <div className="text-[44px] relative z-10 transition-transform group-hover:scale-110 mb-2">

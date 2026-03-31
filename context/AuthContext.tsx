@@ -154,6 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Safety Force Resolve (Prevents "Syncing..." hang)
+    const safetyTimeout = setTimeout(() => {
+        setIsLoading(false);
+    }, 5000);
+
     const init = async (retryCount = 0) => {
       try {
         await fetchConfig();
@@ -179,7 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     init();
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -194,7 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
-      if (subscription?.subscription) subscription.subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
     };
   }, []);
 
