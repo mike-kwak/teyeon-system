@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import Link from 'next/link';
+import PremiumSpinner from '@/components/PremiumSpinner';
 
 interface Notice {
   id: string;
@@ -72,14 +73,9 @@ export default function NoticeListPage() {
 
   const isStaff = role === 'CEO' || role === 'ADMIN';
 
-  useEffect(() => {
-    console.log("NOTICE_STABILITY_v3.9_ACTIVE");
-  }, []);
 
   return (
     <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-24 relative">
-      {/* Diagnostic Marker (v3.9) */}
-      <div className="absolute top-2 right-4 text-[8px] font-black text-[#D4AF37]/20 uppercase tracking-widest z-[60]">v3.9 Stability</div>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-lg border-b border-white/5 px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -107,8 +103,8 @@ export default function NoticeListPage() {
         
         {isFetching ? (
           <div className="py-20 flex flex-col items-center gap-4">
-            <div className="w-8 h-8 border-3 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-[10px] text-white/20 uppercase tracking-widest font-black animate-pulse">Syncing Announcements...</p>
+            <div className="w-8 h-8 border-[3px] border-[#D4AF37]/20 border-t-[#D4AF37] rounded-full animate-spin"></div>
+            <p className="text-[10px] text-white/30 uppercase tracking-widest font-black animate-pulse">동기화 중...</p>
           </div>
         ) : notices.length > 0 ? (
           notices.map((notice) => (

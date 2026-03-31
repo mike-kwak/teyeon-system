@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, use } from 'react';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import PremiumSpinner from '@/components/PremiumSpinner';
 import { logAction } from '@/lib/logging';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -161,11 +164,7 @@ export default function NoticeDetailPage({ params }: { params: Promise<{ id: str
   };
 
   if (isPageLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <PremiumSpinner message="공지 내용을 불러오는 중..." />;
   }
 
   if (!notice) return <div className="min-h-screen bg-black text-white p-20 text-center">공지를 찾을 수 없습니다.</div>;

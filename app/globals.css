@@ -35,6 +35,14 @@ body {
   padding-right: var(--safe-right);
 }
 
+/* Galaxy Fold & Extra Narrow Screen Optimization */
+@media (max-width: 340px) {
+  .gap-x-8 { column-gap: 1.5rem !important; }
+  .gap-y-14 { row-gap: 2.5rem !important; }
+  .text-\[44px\] { font-size: 32px !important; }
+  .text-\[12px\] { font-size: 10px !important; }
+}
+
 /* Custom Scrollbar for Neon Aesthetic */
 ::-webkit-scrollbar {
   width: 6px;

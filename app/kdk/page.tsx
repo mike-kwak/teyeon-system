@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
+import PremiumSpinner from '@/components/PremiumSpinner';
 
 // --- Types & Interfaces ---
 interface Member {
@@ -422,7 +425,8 @@ export default function KDKPage() {
     const getPlayerName = (id: string) => {
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
         if (!m) return "???";
-        const name = attendeeConfigs?.[id]?.name || m?.nickname || "???";
+        // User Requirement: Use Real Names (stored as nickname) strictly. No nicknames/aliases.
+        const name = m?.nickname || attendeeConfigs?.[id]?.name || "???";
         const isGuest = m?.is_guest || attendeeConfigs?.[id]?.is_guest;
         return isGuest ? `${name}(G)` : name;
     };
@@ -865,25 +869,12 @@ export default function KDKPage() {
 
                 <div className="flex-1 px-6 space-y-6 overflow-y-auto no-scrollbar pb-32">
                     <section className="space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                            <h3 className="text-[10px] font-black text-white/40 tracking-[0.3em] uppercase">Members List</h3>
-                            <button 
-                                onClick={() => setSelectedIds(new Set())}
-                                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-white/30 uppercase tracking-[0.2em] active:scale-95 transition-all hover:text-[#4ADE80] hover:border-[#4ADE80]/30 hover:bg-[#4ADE80]/5"
-                            >
-                                전체 해제
-                            </button>
-                        </div>
+                    {isMembersLoading ? (
+                        <PremiumSpinner message="멤버 명단 동기화 중..." />
+                    ) : (
+                        <>
                         <div className="grid grid-cols-4 gap-3 py-2">
-                            {isMembersLoading ? (
-                                // Skeleton loading items
-                                Array.from({ length: 12 }).map((_, i) => (
-                                    <div key={i} className="h-16 rounded-2xl bg-white/5 border border-white/10 animate-pulse flex flex-col items-center justify-center">
-                                       <div className="w-8 h-2 bg-white/10 rounded mb-1"></div>
-                                       <div className="w-10 h-1 bg-white/5 rounded"></div>
-                                    </div>
-                                ))
-                            ) : ([...allMembers, ...tempGuests].length === 0) ? (
+                            {[...allMembers, ...tempGuests].length === 0 ? (
                                 <div className="col-span-4 py-10 text-center space-y-2 border border-dashed border-white/5 rounded-3xl">
                                     <span className="text-4xl block opacity-20">📂</span>
                                     <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">No members found</span>
@@ -909,29 +900,30 @@ export default function KDKPage() {
                                 })
                             )}
 
-                        {showGuestInput ? (
-                            <div className="h-16 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
-                                <input
-                                    autoFocus
-                                    value={newGuestName}
-                                    onChange={(e) => setNewGuestName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') addQuickGuest();
-                                        if (e.key === 'Escape') setShowGuestInput(false);
-                                    }}
-                                    placeholder="이름"
-                                    className="w-full bg-transparent text-sm font-black text-[#D4AF37] outline-none text-center"
-                                />
-                                <button onClick={() => addQuickGuest()} className="text-[#D4AF37] font-black px-1">↵</button>
-                            </div>
-                        ) : (
-                            <button onClick={() => setShowGuestInput(true)} className="h-16 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
-                                <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
-                                <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
-                            </button>
-                        )}
-                    </div>
-
+                            {showGuestInput ? (
+                                <div className="h-16 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
+                                    <input
+                                        autoFocus
+                                        value={newGuestName}
+                                        onChange={(e) => setNewGuestName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') addQuickGuest();
+                                            if (e.key === 'Escape') setShowGuestInput(false);
+                                        }}
+                                        placeholder="이름"
+                                        className="w-full bg-transparent text-sm font-black text-[#D4AF37] outline-none text-center"
+                                    />
+                                    <button onClick={() => addQuickGuest()} className="text-[#D4AF37] font-black px-1">↵</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setShowGuestInput(true)} className="h-16 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
+                                    <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
+                                    <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
+                                </button>
+                            )}
+                        </div>
+                        </>
+                    )}
                     </section>
 
                     {/* Removed ArchiveSection per user request for clean Step 1 */}

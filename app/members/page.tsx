@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PremiumSpinner from '@/components/PremiumSpinner';
 
 interface Member {
   id: string;
@@ -252,9 +253,7 @@ export default function MembersPage() {
       )}
 
       {loading ? (
-        <div className="flex-1 flex items-center justify-center py-20">
-          <div className="w-12 h-12 border-2 border-white/5 border-t-[#D4AF37] rounded-full animate-spin"></div>
-        </div>
+        <PremiumSpinner message="멤버 명단 동기화 중..." />
       ) : (
         <div className="grid grid-cols-2 gap-3 overflow-y-auto">
           {members.map((member) => (

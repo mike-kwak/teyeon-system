@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
+import PremiumSpinner from '@/components/PremiumSpinner';
 
 export type UserRole = 'CEO' | 'ADMIN' | 'MEMBER' | 'GUEST';
 export type AccessLevel = 'WRITE' | 'READ' | 'HIDE';
@@ -239,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, isLoading, isPendingMatching, confirmIdentity, signOut } = useAuth();
+    const { user, isLoading, isPendingMatching, confirmIdentity, signOut, setPendingMatching } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const [inputValue, setInputValue] = useState('');
@@ -260,13 +261,14 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
         
         try {
             const isDigitSearch = /^\d+$/.test(inputValue);
-            let query = supabase.from('members').select('id, nickname, role, phone, email');
+            let query = supabase.from('members').select('id, nickname, role, phone, email, is_guest');
             
             if (isDigitSearch) {
                 const { data } = await query;
                 const inputDigits = inputValue.replace(/[^0-9]/g, '');
                 const found = data?.find(m => {
                     if (m.email) return false;
+                    if (m.is_guest || m.role === '게스트') return false; // Task 3.1: Exclude Guests
                     if (!m.phone) return false;
                     const dbDigits = m.phone.replace(/[^0-9]/g, '');
                     return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
@@ -391,8 +393,15 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
             <div className="flex flex-col items-center gap-4 mt-4">
                 <button 
+                    onClick={() => setPendingMatching(false)}
+                    className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'} bg-white/5 rounded-2xl active:scale-95 transition-all`}
+                >
+                정회원이 아닙니다 (Guest로 시작)
+                </button>
+                
+                <button 
                     onClick={() => signOut()}
-                    className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-opacity`}
+                    className={`w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-opacity`}
                 >
                 로그아웃 후 다시 시도
                 </button>
@@ -407,32 +416,7 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     if (isLoading && pathname !== '/') {
-        return (
-            <div className={`fixed inset-0 flex items-center justify-center z-[1000] ${isWhiteTheme ? 'bg-[#FFFFFF]' : 'bg-[#0F0F1A]'}`}>
-                <div className="flex flex-col items-center gap-4">
-                    {!isLoadTimeout ? (
-                        <>
-                            <div className={`w-12 h-12 border-4 border-t-transparent rounded-full animate-spin ${isWhiteTheme ? 'border-slate-200 border-t-[#B45309]' : 'border-white/5 border-t-[#D4AF37]'}`}></div>
-                            <span className={`text-[10px] font-black uppercase tracking-[0.4em] animate-pulse ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}>Establishing Identity</span>
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center gap-6 p-8 animate-in fade-in duration-500">
-                             <span className="text-5xl">📡</span>
-                             <div className="text-center">
-                                <h3 className={`text-sm font-black mb-1 ${isWhiteTheme ? 'text-[#0F172A]' : 'text-white'}`}>네트워크 지연 발생</h3>
-                                <p className="text-[10px] opacity-50 font-bold">응답이 평소보다 늦어지고 있습니다.</p>
-                             </div>
-                             <button 
-                                onClick={() => window.location.reload()}
-                                className={`px-8 py-4 rounded-full text-[10px] font-black tracking-widest uppercase shadow-xl ${isWhiteTheme ? 'bg-[#B45309] text-white' : 'bg-[#D4AF37] text-black'}`}
-                             >
-                                다시 시도 (Retry)
-                             </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
+        return <PremiumSpinner isWhiteTheme={isWhiteTheme} message={isLoadTimeout ? "네트워크 지연 발생..." : "Establishing Identity..."} />;
     }
 
     return <>{children}</>;
