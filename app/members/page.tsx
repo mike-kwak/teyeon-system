@@ -39,8 +39,8 @@ const MEMBER_PRIORITY: Record<string, number> = {
 };
 
 const FALLBACK_MEMBERS: Member[] = [
-  { id: '1', nickname: '곽민섭', role: '회장', phone: '010-1234-5678', mbti: 'ENFJ', affiliation: '테연 클럽', achievements: '2025 테연 오픈 단체전 우승', position: 'CEO' },
-  { id: '2', nickname: '가내현', role: '부회장', phone: '010-2345-6789', mbti: 'ISTJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버', position: 'CEO' },
+  { id: '1', nickname: '곽민섭', role: 'CEO, 재무', phone: '010-2696-0356', mbti: 'ESFJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버 / 매니저' },
+  { id: '2', nickname: '가내현', role: '부회장', phone: '010-6680-7119', mbti: 'ESTJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버' },
   { id: '3', nickname: '강정호', role: '정회원', phone: '010-3456-7890', mbti: 'ENFP', achievements: '2024 신인왕' },
   { id: '4', nickname: '구봉준', role: '정회원', phone: '010-4567-8901', mbti: 'ENTJ', achievements: '경기 운영 지원' },
   { id: '5', nickname: '김민준', role: '정회원', phone: '010-5678-9012', mbti: 'INTP' },
@@ -69,7 +69,7 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
   
   const getRoleBadgeColor = (role: string) => {
     const r = role.trim();
-    if (r === '회장' || r === '부회장' || r === 'CEO') return 'bg-[#DC2626] text-white shadow-[0_0_15px_rgba(220,38,38,0.3)] font-black'; 
+    if (r.includes('CEO') || r === '회장' || r === '부회장') return 'bg-[#DC2626] text-white shadow-[0_0_15px_rgba(220,38,38,0.4)] font-[1000]'; 
     if (EXE_PRIORITY[r]) return 'bg-[#2563EB] text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] font-black'; 
     if (r === '정회원' || r === 'MEMBER') return 'bg-[#1A8D4D] text-white/90 font-bold';
     if (r === '준회원') return 'bg-[#10B981] text-white/90 font-bold';
@@ -134,6 +134,11 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
             <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.primary)}`}>
               {roleLabels.primary}
             </span>
+            {roleLabels.secondary && (
+              <span className="text-[7px] font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                {roleLabels.secondary}
+              </span>
+            )}
           </div>
         </div>
         <ProfileAvatar 
