@@ -248,6 +248,10 @@ export default function KDKPage() {
         setFixedTeamMode(false);
         setShowResetConfirm(false);
         setSelectedIds(new Set()); // Clear selections for a fresh start
+        setTempGuests([]); // Clear temporary guests for a truly clean slate
+        setHasSkippedGuestInfo(false);
+        setShowCeremony(false);
+        setActiveTab('MATCHES');
 
         // Generate a fresh session ID for the next tournament run
         const d = new Date();
@@ -256,9 +260,6 @@ export default function KDKPage() {
         
         // Ensure UI stays interactive and member-aware
         setIsMembersLoading(false); 
-        
-        // Critical: We do NOT clear allMembers or tempGuests here.
-        // This ensures the member cards remain in Step 1.
         
         // Sync to LocalStorage: Clear active session record
         localStorage.removeItem('kdk_live_session');
@@ -822,16 +823,17 @@ export default function KDKPage() {
         return (
             <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans w-full relative overflow-hidden">
                 <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
                             <span className="text-xl">←</span>
                         </Link>
                         <button 
                             onClick={() => setShowResetConfirm(true)}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/30 hover:text-red-500/60 transition-all active:scale-95 group"
-                            title="Reset Tournament"
+                            className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
+                            title="전체 데이터 초기화"
                         >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
                         </button>
                     </div>
 
@@ -990,9 +992,30 @@ export default function KDKPage() {
                     />
                 )}
 
-                <header className="flex flex-col items-center mb-10 pt-[calc(1rem+var(--safe-top))]">
-                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase px-3 py-1 bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/20 mb-2">Step 02</span>
-                    <h1 className="text-3xl font-black italic tracking-tighter text-center uppercase">Tournament Dashboard</h1>
+                <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4 text-center">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setStep(1)}
+                            className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform"
+                        >
+                            <span className="text-xl">←</span>
+                        </button>
+                        <button 
+                            onClick={() => setShowResetConfirm(true)}
+                            className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
+                            title="전체 데이터 초기화"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                        </button>
+                    </div>
+
+                    <div className="flex-1 text-center flex flex-col items-center">
+                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase px-3 py-1 bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/20 mb-2 invisible sm:visible">Step 02</span>
+                        <h1 className="text-xl font-black italic tracking-tighter uppercase whitespace-nowrap">Tournament Dashboard</h1>
+                    </div>
+
+                    <div className="flex-1" />
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
@@ -1211,26 +1234,24 @@ export default function KDKPage() {
 
     return (
         <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full pb-40 relative">
-            <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                    <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform mr-1">
+            <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between gap-4 mb-2">
+                <div className="flex items-center gap-2">
+                    <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
                         <span className="text-xl">←</span>
                     </Link>
-                    <img src="/logo.png" className="w-10 h-auto" alt="TEYEON Logo" />
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Live Tournament</span>
-                        <div className="flex items-center gap-1 opacity-20">
-                            <div className="w-1 h-1 rounded-full bg-[#D4AF37] animate-pulse" />
-                            <span className="text-[8px] font-bold uppercase tracking-widest">Active Session</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all" title="대진표 공유">📋</button>
-                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all" title="결과 보고">🏆</button>
-                    <button onClick={confirmReset} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/40 text-sm active:scale-90 transition-all hover:text-red-400 group" title="새 대진표 짜기 (초기화)">
-                        <span className="group-hover:rotate-90 transition-transform">×</span>
+                    <button 
+                        onClick={() => setShowResetConfirm(true)}
+                        className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                        title="전체 데이터 초기화"
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
                     </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all hover:bg-[#D4AF37]/20" title="대진표 공유">📋</button>
+                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all hover:bg-[#D4AF37]/20" title="결과 보고">🏆</button>
                 </div>
             </header>
 

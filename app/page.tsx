@@ -1,222 +1,357 @@
 'use client';
 
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { useState, useEffect } from 'react';
-
+import { styled, keyframes } from '@/stitches.config';
 import ProfileAvatar from '@/components/ProfileAvatar';
 
-export default function Home() {
-  const { user, role, appConfig, signInWithKakao, signOut, isLoading, hasPermission, getRestrictionMessage } = useAuth();
-  const [toast, setToast] = useState<string | null>(null);
+const fadeIn = keyframes({
+  from: { opacity: 0, transform: 'translateY(10px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
 
+const Container = styled('main', {
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: '100dvh',
+  padding: '$6 $4',
+  maxWidth: '500px',
+  margin: '0 auto',
+  width: '100%',
+  backgroundColor: '$black',
+  position: 'relative',
+});
+
+const Header = styled('header', {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  marginBottom: '$8',
+  width: '100%',
+  padding: '$2 0',
+});
+
+const LogoWrapper = styled('div', {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$4',
+  position: 'relative',
+});
+
+const LogoIcon = styled('div', {
+  position: 'relative',
+  width: '56px',
+  height: '56px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+const LogoBall = styled('div', {
+  position: 'absolute',
+  width: '28px',
+  height: '28px',
+  backgroundColor: '#E8E137',
+  borderRadius: '$full',
+  border: '1.5px solid black',
+  transform: 'translateX(10px) translateY(-10px)',
+  zIndex: 10,
+  boxShadow: '2px 2px 8px rgba(0,0,0,0.4)',
+});
+
+const LogoText = styled('div', {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  lineHeight: '0.9',
+});
+
+const BrandName = styled('h1', {
+  color: '$white',
+  fontSize: '38px',
+  fontWeight: '$black',
+  letterSpacing: '$tight',
+  textShadow: '0 4px 10px rgba(0,0,0,0.5)',
+});
+
+const SubBrand = styled('div', {
+  color: '$white',
+  fontSize: '$xs',
+  fontWeight: '$black',
+  letterSpacing: '$mega',
+  textTransform: 'uppercase',
+  fontStyle: 'italic',
+  opacity: 0.9,
+  marginTop: '$2',
+});
+
+const ProfileCard = styled('section', {
+  marginBottom: '$8',
+  width: '100%',
+});
+
+const StyledProfileLink = styled(Link, {
+  display: 'block',
+  background: 'linear-gradient(135deg, $gray800, $black)',
+  borderRadius: '$xl',
+  padding: '$4 $6',
+  border: '1px solid rgba(255,255,255,0.05)',
+  position: 'relative',
+  overflow: 'hidden',
+  transition: 'all 0.3s ease',
+  boxShadow: '$lg',
+
+  '&:hover': {
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    transform: 'translateY(-2px)',
+  },
+  
+  '&:active': {
+    transform: 'scale(0.98)',
+  },
+});
+
+const MenuGrid = styled('section', {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$4',
+  width: '100%',
+  animation: `${fadeIn} 0.7s ease-out`,
+});
+
+const MenuItem = styled(Link, {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '$5 $6',
+  borderRadius: '$lg',
+  background: '$gray900',
+  border: '1px solid $gray800',
+  transition: 'all 0.3s ease',
+  position: 'relative',
+  overflow: 'hidden',
+
+  '&:hover': {
+    background: '$gray800',
+    borderColor: '$gold',
+    boxShadow: '$gold',
+    '& .icon-bg': {
+      opacity: 0.2,
+      transform: 'scale(1.2) rotate(10deg)',
+    },
+  },
+
+  '&:active': {
+    transform: 'scale(0.97)',
+  },
+
+  variants: {
+    comingSoon: {
+      true: {
+        opacity: 0.5,
+        cursor: 'not-allowed',
+        '&:hover': {
+          borderColor: '$gray800',
+          boxShadow: 'none',
+        },
+      },
+    },
+    restricted: {
+      true: {
+        opacity: 0.3,
+        cursor: 'not-allowed',
+      },
+    },
+  },
+});
+
+const ItemContent = styled('div', {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$4',
+  zIndex: 1,
+});
+
+const ItemIcon = styled('div', {
+  fontSize: '24px',
+  width: '44px',
+  height: '44px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '$md',
+  background: 'rgba(212, 175, 55, 0.1)',
+  color: '$gold',
+});
+
+const ItemLabel = styled('span', {
+  fontSize: '$base',
+  fontWeight: '$bold',
+  letterSpacing: '$wide',
+  color: '$white',
+});
+
+const Badge = styled('span', {
+  fontSize: '9px',
+  fontWeight: '$black',
+  padding: '$1 $3',
+  borderRadius: '$full',
+  textTransform: 'uppercase',
+  letterSpacing: '$wider',
+
+  variants: {
+    type: {
+      new: { background: '$gold', color: '$black' },
+      soon: { background: '$gray500', color: '$white' },
+      live: { background: '$error', color: '$white', animation: 'pulse 2s infinite' },
+    },
+  },
+});
+
+const Toast = styled('div', {
+  position: 'fixed',
+  bottom: '100px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  zIndex: '$toast',
+  width: '85vw',
+  maxWidth: '400px',
+  background: 'linear-gradient(to right, $error, #FF6347)',
+  color: '$white',
+  padding: '$4 $6',
+  borderRadius: '$full',
+  fontWeight: '$black',
+  fontSize: '$sm',
+  textAlign: 'center',
+  boxShadow: '0 10px 30px rgba(255, 69, 0, 0.3)',
+  border: '2px solid rgba(255,255,255,0.2)',
+});
+
+export default function Home() {
+  const { user, role, signInWithKakao, signOut, isLoading, hasPermission, getRestrictionMessage } = useAuth();
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 2000);
+      const timer = setTimeout(() => setToast(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
 
-
   const menuItems = [
-    { id: "notice", icon: "📢", label: "클럽 공지", path: "/notice", feature: 'notice' },
-    { id: "profile", icon: "👤", label: "멤버 프로필", path: "/members", feature: 'profiles' },
-    { id: "tournament", icon: "🔥", label: "스페셜 매치", path: "/tournament", feature: 'kdk', isComingSoon: true },
-    { id: "kdk", icon: "⚙️", label: "대진 생성", path: "/kdk", feature: 'kdk' },
-    { id: "live_court", icon: "🎾", label: "라이브 코트", path: "/kdk", feature: 'scores' },
-    { id: "archive", icon: "📂", label: "경기 아카이브", path: "/archive", feature: 'scores' },
-    { id: "finance", icon: "💰", label: "클럽 재무", path: "/finance", feature: 'finance', isComingSoon: true },
-    { id: "ai_seed", icon: "🤖", label: "AI 시드 예측", path: "/prediction", feature: 'tournament', isComingSoon: true },
-    { id: "admin", icon: "🛠️", label: "관리자 설정", path: "/admin", feature: 'admin_settings' },
+    { id: "notice", icon: "📢", label: "Club Notice", path: "/notice", feature: 'notice' },
+    { id: "tournament", icon: "🏆", label: "Special Match", path: "/tournament", feature: 'kdk', badge: 'NEW' },
+    { id: "kdk", icon: "⚡", label: "Match Generator", path: "/kdk", feature: 'kdk' },
+    { id: "live_court", icon: "🎾", label: "Live Court", path: "/tournament", feature: 'scores', badge: 'LIVE' },
+    { id: "archive", icon: "📂", label: "Match Archive", path: "/results", feature: 'scores' },
+    { id: "profile", icon: "👤", label: "Member Profile", path: "/members", feature: 'profiles' },
+    { id: "finance", icon: "💰", label: "Finance", path: "/finance", feature: 'finance', isComingSoon: true },
+    { id: "ai_seed", icon: "🤖", label: "AI Prediction", path: "/prediction", feature: 'tournament', isComingSoon: true },
+    { id: "admin", icon: "⚙️", label: "Settings", path: "/admin", feature: 'admin_settings' },
   ];
 
-  // CEO MANDATE: Fixed 3x3 Grid Order
-  const displayItems = menuItems;
-
   const handleMenuClick = (e: React.MouseEvent, item: any) => {
-    // Priority 1: Coming Soon Logic
     if (item.isComingSoon) {
       e.preventDefault();
-      setToast("준비 중인 기능입니다. 곧 테연 클럽만의 특별한 기능을 만나보실 수 있습니다! 🎾");
+      setToast("This feature is coming soon! Stay tuned. 🎾");
       return false;
     }
 
     const access = hasPermission(item.feature as any);
-    
-    import('@/lib/logging').then(({ logAction }) => {
-      logAction(item.path, 'menu_click', { label: item.label, access });
-    });
-
     if (access === 'HIDE') {
-      e.preventDefault(); // Block navigation
-      const msg = getRestrictionMessage(item.feature);
-      setToast(msg);
+      e.preventDefault();
+      setToast(getRestrictionMessage(item.feature));
       return false;
     }
     return true;
   };
 
   return (
-    <main className="flex flex-col min-h-[100dvh] px-4 bg-gradient-to-b from-[#0A0A14] via-[#020205] to-[#000000] text-white font-sans max-w-[500px] mx-auto w-full relative">
-      {/* Universal Spacer - TOP (Balance) */}
-      <div className="h-8" />
-
-      {/* Top Section: Logo */}
-      <header className="flex flex-col items-center mb-6 w-full py-2">
-        <div className="relative group w-full flex flex-col items-center">
-          <div className="relative flex items-center gap-4 group">
-            <div className="relative w-14 h-14 flex items-center justify-center">
-                <div className="absolute w-[42px] h-[7px] bg-[#E33529] rounded-full rotate-[-45deg] -translate-x-[6px] -translate-y-[8px] opacity-100 shadow-sm"></div>
-                <div className="absolute w-[42px] h-[7px] bg-[#E33529] rounded-full rotate-[-45deg] -translate-x-[12px] translate-y-[0px] opacity-100 shadow-sm"></div>
-                <div className="absolute w-[42px] h-[7px] bg-[#E33529] rounded-full rotate-[-45deg] -translate-x-[18px] translate-y-[8px] opacity-100 shadow-sm"></div>
-                <div className="absolute w-7 h-7 bg-[#E8E137] rounded-full border-[1.5px] border-black translate-x-[10px] -translate-y-[10px] shadow-[2px_2px_8px_rgba(0,0,0,0.4)] z-10 flex items-center justify-center overflow-hidden">
-                    <div className="absolute w-full h-[1px] bg-black/20 rotate-[15deg] translate-y-[4px]"></div>
-                    <div className="absolute w-full h-[1px] bg-black/20 rotate-[15deg] -translate-y-[4px]"></div>
-                </div>
+    <Container>
+      <Header>
+        <LogoWrapper>
+          <LogoIcon>
+            <div style={{ position: 'absolute', width: '42px', height: '7px', background: '#E33529', borderRadius: '100px', transform: 'rotate(-45deg) translate(-6px, -8px)' }} />
+            <div style={{ position: 'absolute', width: '42px', height: '7px', background: '#E33529', borderRadius: '100px', transform: 'rotate(-45deg) translate(-12px, 0px)' }} />
+            <LogoBall />
+          </LogoIcon>
+          <LogoText>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.2em' }}>SINCE</span>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#D4AF37' }}>2025</span>
             </div>
-            <div className="flex flex-col items-center leading-none relative">
-                <div className="flex items-center gap-2 mb-[4px]">
-                    <span className="text-[10px] font-black text-white/90 tracking-[0.25em] uppercase">SINCE</span>
-                    <span className="text-[#D4AF37] text-[11px] font-black tracking-widest italic">2025</span>
-                </div>
-                <h1 className="text-white text-[38px] font-[1000] tracking-[-0.04em] leading-[0.9] drop-shadow-lg pr-1">TEYEON</h1>
-                <div className="flex items-center justify-center w-full mt-1.5 px-0.5 ml-1">
-                    <span className="text-white text-[11px] font-black tracking-[0.55em] uppercase opacity-90 italic">TENNIS</span>
-                </div>
-            </div>
-          </div>
-        </div>
-      </header>
+            <BrandName>TEYEON</BrandName>
+            <SubBrand>Tennis Club</SubBrand>
+          </LogoText>
+        </LogoWrapper>
+      </Header>
 
-      {/* Profile Card - COMPACT MARGIN TO MENU (v2.9 Restored) */}
-      <section className="mb-8">
+      <ProfileCard>
         {!user ? (
-          <button 
-            onClick={() => signInWithKakao()}
-            className="w-full bg-[#FEE500] text-[#3c1e1e] font-black py-4 rounded-[24px] flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all"
-          >
-            <span className="text-xl">💬</span>
-            카카오로 3초만에 로그인
-          </button>
+          <MenuItem as="button" onClick={() => signInWithKakao()} style={{ width: '100%', background: '#FEE500', color: '#3c1e1e', border: 'none' }}>
+            <ItemContent>
+              <ItemIcon style={{ background: 'rgba(0,0,0,0.05)', color: '#3c1e1e' }}>💬</ItemIcon>
+              <ItemLabel style={{ color: '#3c1e1e' }}>카카오로 3초 로그인</ItemLabel>
+            </ItemContent>
+          </MenuItem>
         ) : (
-          <div className="relative group">
-            <Link href="/members" className="block">
-              <section className="bg-gradient-to-br from-[#1A253D] to-[#14141F] rounded-[24px] py-4 px-6 border border-white/10 relative overflow-hidden active:scale-[0.98] transition-all shadow-xl">
-                <div className="flex items-center gap-5 relative z-10">
-                  <ProfileAvatar 
-                    src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-                    alt={user.user_metadata?.full_name || "Profile"} 
-                    size={48}
-                    className="rounded-full shadow-[0_0_15px_rgba(212,175,55,0.2)]"
-                    fallbackIcon={role === 'CEO' ? '👑' : role === 'ADMIN' ? '👨‍💼' : '👤'}
-                  />
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[#D4AF37] text-[8px] font-black tracking-widest uppercase bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">
-                        {role === 'CEO' ? 'Premium CEO' : role === 'ADMIN' ? 'Admin Staff' : 'Club Member'}
-                      </span>
-                      <span className="w-1 h-1 bg-[#4CAF50] rounded-full animate-pulse"></span>
-                    </div>
-                    <h2 className="text-lg font-bold tracking-tight text-white/90">
-                      반갑습니다, <span className="text-[#D4AF37]">{user.user_metadata?.nickname || user.user_metadata?.full_name || user.email?.split('@')[0]}</span>님!
-                    </h2>
-                    <p className="text-white/40 text-[10px] font-medium tracking-wide mt-0.5 whitespace-nowrap">매 순간이 <span className="text-[#A3E635] font-black italic uppercase">Champion Shot</span> 입니다 🎾</p>
-                  </div>
+          <StyledProfileLink href="/profile">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <ProfileAvatar 
+                src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                alt={user.user_metadata?.full_name || "Profile"} 
+                size={56}
+                fallbackIcon={role === 'CEO' ? '👑' : '👤'}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Badge type="new">{role === 'CEO' ? 'Premium CEO' : 'Member'}</Badge>
+                  <div style={{ width: '6px', height: '6px', background: '#4CAF50', borderRadius: '50%' }} />
                 </div>
-              </section>
-            </Link>
-            <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
-              <button 
-                onClick={() => window.location.reload()} 
-                className="text-[10px] text-white/20 hover:text-[#D4AF37] p-1.5 transition-colors"
-                title="앱 새로고침"
-              >
-                🔄
-              </button>
-              <button 
-                onClick={() => signOut()} 
-                className="text-[10px] text-white/20 hover:text-white/60 px-2 py-1 rounded-full"
-              >
-                로그아웃
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-
-      {/* Action Tower Grid - MAX IMPACT (Enlarged Icons & Spaced Gaps) */}
-      <section className="grid grid-cols-3 gap-5 relative w-full px-1 animate-in fade-in slide-in-from-bottom-5 duration-700">
-        {displayItems.map((item) => {
-          const access = hasPermission(item.feature as any);
-          const isComingSoon = (item as any).isComingSoon;
-          const isRestricted = access === 'HIDE';
-          const isReadOnly = access === 'READ';
-          
-          return (
-            <Link 
-                key={item.id} 
-                href={item.path || '/'} 
-                onClick={(e) => handleMenuClick(e, item)}
-                className="block w-full no-underline"
-            >
-              <div 
-                className={`
-                  aspect-square rounded-[28px] flex flex-col items-center justify-center transition-all duration-500 border relative group overflow-visible
-                  ${isComingSoon 
-                    ? 'bg-black/20 border-white/5 opacity-60 grayscale-[0.5] cursor-not-allowed' 
-                    : isRestricted 
-                      ? 'bg-black/40 border-white/5 opacity-40 grayscale-[0.8] cursor-not-allowed' 
-                      : isReadOnly
-                        ? 'bg-white/5 border-white/10 opacity-90'
-                        : 'bg-gradient-to-br from-[#1A253D] to-[#14141F] border-white/10 shadow-[0_8px_25px_rgba(0,0,0,0.5)] group-hover:border-[#D4AF37]/50 hover:scale-105 hover:shadow-[#D4AF37]/10 active:scale-95'}
-                `}
-              >
-                {isComingSoon && (
-                  <div className="absolute -top-1 -right-1 z-20">
-                    <span className="bg-[#D4AF37] text-black text-[7px] font-[1000] px-2 py-0.5 rounded-full tracking-tighter shadow-[0_4px_12px_rgba(212,175,55,0.4)] animate-in zoom-in duration-500">
-                      COMING SOON
-                    </span>
-                  </div>
-                )}
-                <div className="text-4xl relative z-10 transition-transform group-hover:scale-110 mb-3 flex items-center justify-center h-12 w-12 overflow-visible">
-                  {item.icon}
-                </div>
-                <span className={`text-[11px] font-black tracking-tight uppercase z-10 text-center px-1 leading-none ${isComingSoon ? 'text-white/70' : isRestricted ? 'text-white/30' : 'text-white/90'}`}>
-                  {item.label}
-                </span>
-                
-                {!(isComingSoon || isRestricted) && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#D4AF37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[28px]"></div>
-                )}
+                <h2 style={{ fontSize: '18px', fontWeight: 900 }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</h2>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Welcome to the Elite Circle 🎾</p>
               </div>
-            </Link>
+            </div>
+          </StyledProfileLink>
+        )}
+      </ProfileCard>
+
+      <MenuGrid>
+        <div style={{ padding: '0 8px', marginBottom: '-8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 900, color: '$gold', letterSpacing: '0.3em', textTransform: 'uppercase' }}>Main Features</span>
+        </div>
+        {menuItems.map((item) => {
+          const access = hasPermission(item.feature as any);
+          const isRestricted = access === 'HIDE';
+          return (
+            <MenuItem 
+              key={item.id} 
+              href={item.path} 
+              onClick={(e) => handleMenuClick(e, item)}
+              comingSoon={item.isComingSoon}
+              restricted={isRestricted}
+            >
+              <ItemContent>
+                <ItemIcon>{item.icon}</ItemIcon>
+                <ItemLabel>{item.label}</ItemLabel>
+              </ItemContent>
+              {item.badge && (
+                <Badge type={item.badge === 'LIVE' ? 'live' : 'new'}>{item.badge}</Badge>
+              )}
+              {item.isComingSoon && <Badge type="soon">Soon</Badge>}
+              <div className="icon-bg" style={{ position: 'absolute', right: '-10px', bottom: '-10px', fontSize: '60px', opacity: 0.05, filter: 'grayscale(1)', pointerEvents: 'none', transition: 'all 0.5s ease' }}>{item.icon}</div>
+            </MenuItem>
           );
         })}
+      </MenuGrid>
 
-        {/* Status Messages */}
-        {isLoading && (
-            <div className="col-span-3 py-10 text-center opacity-20 animate-pulse text-[10px] font-bold tracking-widest uppercase italic">
-                Syncing Master Permissions...
-            </div>
-        )}
+      {toast && <Toast>{toast}</Toast>}
 
-        {/* Toast Notification - Premium Floating UI */}
-        {toast && (
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[85vw] max-w-sm bg-gradient-to-r from-[#FF4500] to-[#FF6347] text-white px-6 py-4 rounded-[28px] font-black shadow-[0_20px_50px_rgba(255,69,0,0.4)] animate-in zoom-in-95 fade-in slide-in-from-bottom-5 duration-300 border-2 border-white/30 text-center flex items-center justify-center gap-3">
-             <span className="text-xl">🚨</span>
-             <span className="leading-tight text-xs tracking-tight">{toast}</span>
-          </div>
-        )}
-      </section>
-
-      <footer className="py-12 flex flex-col items-center opacity-30">
-        <p className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Teyeon Club Management</p>
-        <p className="text-[9px] font-bold tracking-widest text-[#D4AF37]">Premium Experience v3.9 Stability Ed.</p>
+      <footer style={{ marginTop: 'auto', padding: '40px 0', textAlign: 'center', opacity: 0.2 }}>
+        <p style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.2em' }}>TEYEON CLUB MANAGEMENT</p>
+        <p style={{ fontSize: '8px', marginTop: '4px' }}>PREMIUM EXPERIENCE v4.0 STITCHES ED.</p>
       </footer>
-    </main>
+    </Container>
   );
 }

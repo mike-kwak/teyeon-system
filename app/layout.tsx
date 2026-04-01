@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import GlobalHeader from "@/components/GlobalHeader";
+import BottomNav from "@/components/BottomNav";
+import StitchesRegistry from "./registry";
+import ThemeProvider from "@/components/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,19 +18,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "테연 테니스 | KDK 4.0",
-  description: "테연 테니스 클럽 매치 관리 시스템 (v4.0.0 Final Stable)",
+  title: "테연 테니스 | Premium Black & Gold",
+  description: "테연 테니스 클럽 매치 관리 시스템 (Stitches Edition)",
   manifest: "/manifest.json",
-  other: {
-    "version": "4.0.0-" + Date.now(),
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "테연",
-  },
-  formatDetection: {
-    telephone: false,
   },
 };
 
@@ -45,11 +42,18 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-black">
-        <AuthProvider>
-          <GlobalHeader />
-          {children}
-        </AuthProvider>
+      <body className="min-h-full flex flex-col bg-black pb-20">
+        <StitchesRegistry>
+          <AuthProvider>
+            <ThemeProvider>
+              <GlobalHeader />
+              <main className="flex-1 overflow-x-hidden">
+                {children}
+              </main>
+              <BottomNav />
+            </ThemeProvider>
+          </AuthProvider>
+        </StitchesRegistry>
       </body>
     </html>
   );
