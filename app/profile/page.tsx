@@ -7,60 +7,66 @@ import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
 
 const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'scale(0.95)' },
-  to: { opacity: 1, transform: 'scale(1)' },
+  from: { opacity: 0, transform: 'scale(0.95) translateY(10px)' },
+  to: { opacity: 1, transform: 'scale(1) translateY(0)' },
 });
 
 const Container = styled('main', {
   display: 'flex',
   flexDirection: 'column',
   minHeight: '100dvh',
-  padding: '$6 $4',
+  padding: '$8 $5',
   maxWidth: '500px',
   margin: '0 auto',
   width: '100%',
   backgroundColor: '$black',
-  paddingBottom: '100px',
+  paddingBottom: '110px',
 });
 
 const Header = styled('header', {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  marginBottom: '$8',
+  marginBottom: '$10',
 });
 
 const ProfileHero = styled('section', {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  marginBottom: '$10',
-  animation: `${fadeIn} 0.6s ease-out`,
+  marginBottom: '$12',
+  animation: `${fadeIn} 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)`,
+  padding: '$8',
+  background: 'linear-gradient(180deg, rgba(212, 175, 55, 0.05) 0%, transparent 100%)',
+  borderRadius: '$2xl',
+  borderGlow: 'rgba(212, 175, 55, 0.1)',
+  boxShadow: '$glass',
 });
 
 const AvatarWrapper = styled('div', {
   position: 'relative',
-  padding: '$2',
-  background: 'linear-gradient(135deg, $gold, transparent)',
+  padding: '$1',
+  background: 'linear-gradient(135deg, $gold, $goldGlint)',
   borderRadius: '$full',
-  marginBottom: '$4',
-  boxShadow: '0 0 30px rgba(212, 175, 55, 0.2)',
+  marginBottom: '$6',
+  boxShadow: '$goldGlow',
 });
 
 const UserBadge = styled('div', {
   position: 'absolute',
-  bottom: '-10px',
+  bottom: '-12px',
   left: '50%',
   transform: 'translateX(-50%)',
   background: '$gold',
   color: '$black',
   fontSize: '9px',
   fontWeight: '$black',
-  padding: '$1 $4',
+  padding: '$1.5 $5',
   borderRadius: '$full',
   textTransform: 'uppercase',
   letterSpacing: '$wider',
-  boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+  boxShadow: '0 8px 16px rgba(0,0,0,0.5)',
+  whiteSpace: 'nowrap',
 });
 
 const StatsGrid = styled('div', {
@@ -68,97 +74,108 @@ const StatsGrid = styled('div', {
   gridTemplateColumns: 'repeat(3, 1fr)',
   gap: '$4',
   width: '100%',
-  marginBottom: '$8',
+  marginBottom: '$10',
 });
 
 const StatCard = styled('div', {
-  background: '$gray900',
-  padding: '$5 $2',
-  borderRadius: '$lg',
-  border: '1px solid $gray800',
+  background: 'linear-gradient(135deg, $gray850, $gray950)',
+  padding: '$6 $2',
+  borderRadius: '$xl',
+  borderGlow: 'rgba(255, 255, 255, 0.03)',
   textAlign: 'center',
-  transition: 'all 0.3s ease',
+  transition: 'all 0.4s ease',
+  boxShadow: '$glass',
 
   '&:hover': {
-    borderColor: 'rgba(212,175,55,0.2)',
-    transform: 'translateY(-2px)',
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    transform: 'translateY(-4px)',
+    boxShadow: '$goldGlow',
   },
 });
 
 const StatValue = styled('div', {
-  fontSize: '$xl',
+  fontSize: '22px',
   fontWeight: '$black',
   color: '$white',
-  marginBottom: '$1',
+  marginBottom: '$2',
+  letterSpacing: '$tight',
 
   variants: {
     highlight: {
-      true: { color: '$gold' },
+      true: { color: '$gold', textShadow: '0 0 10px rgba(212,175,55,0.3)' },
     },
   },
 });
 
 const StatLabel = styled('div', {
-  fontSize: '9px',
+  fontSize: '8px',
   fontWeight: '$black',
   color: 'rgba(255,255,255,0.3)',
   textTransform: 'uppercase',
-  letterSpacing: '$widest',
+  letterSpacing: '$mega',
 });
 
 const FilterContainer = styled('div', {
   display: 'flex',
-  background: '$gray900',
   padding: '$1',
-  borderRadius: '$lg',
-  marginBottom: '$6',
-  border: '1px solid $gray800',
+  borderRadius: '$xl',
+  marginBottom: '$8',
+  background: 'rgba(255, 255, 255, 0.03)',
+  border: '1px solid rgba(255, 255, 255, 0.05)',
+  boxShadow: '$glass',
   width: '100%',
 });
 
 const FilterButton = styled('button', {
   flex: 1,
-  padding: '$2',
-  fontSize: '10px',
+  padding: '$3',
+  fontSize: '9px',
   fontWeight: '$black',
-  borderRadius: '$md',
-  transition: 'all 0.3s ease',
-  color: '$gray500',
+  borderRadius: '$lg',
+  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+  color: 'rgba(255, 255, 255, 0.3)',
+  textTransform: 'uppercase',
+  letterSpacing: '$wider',
 
   variants: {
     active: {
       true: {
         background: '$gray700',
-        color: '$white',
-        border: '1px solid rgba(255,255,255,0.1)',
+        color: '$gold',
+        border: '1px solid rgba(212,175,55,0.2)',
+        boxShadow: '$md',
       },
     },
   },
 });
 
 const SectionTitle = styled('h3', {
-  fontSize: '$xs',
+  fontSize: '10px',
   fontWeight: '$black',
   color: '$gold',
-  letterSpacing: '$widest',
+  letterSpacing: '$mega',
   textTransform: 'uppercase',
-  marginBottom: '$4',
+  marginBottom: '$5',
   paddingLeft: '$2',
   opacity: 0.8,
 });
 
 const MatchRecord = styled('div', {
-  background: 'linear-gradient(90deg, $gray900, $black)',
-  padding: '$4 $6',
-  borderRadius: '$lg',
-  border: '1px solid rgba(255,255,255,0.03)',
-  marginBottom: '$3',
+  background: 'linear-gradient(90deg, $gray850, $black)',
+  padding: '$5 $7',
+  borderRadius: '$xl',
+  borderGlow: 'rgba(255, 255, 255, 0.02)',
+  marginBottom: '$4',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+  boxShadow: '$glass',
+  transition: 'all 0.4s ease',
 
   '&:hover': {
-    background: '$gray800',
+    background: 'linear-gradient(90deg, $gray800, $black)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    transform: 'translateX(4px)',
   },
 });
 
@@ -166,7 +183,6 @@ export default function ProfilePage() {
   const { user, role, signOut } = useAuth();
   const [filter, setFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
 
-  // Simulated Stats (In a real app, this would be computed from Match data)
   const stats = useMemo(() => {
     const base = {
       weekly: { wins: 4, losses: 1, winRate: '80%' },
@@ -179,7 +195,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <Container>
-        <p>Please login to view your profile.</p>
+        <p style={{ textAlign: 'center', opacity: 0.5, marginTop: '100px' }}>Please login to view your profile.</p>
       </Container>
     );
   }
@@ -187,9 +203,9 @@ export default function ProfilePage() {
   return (
     <Container>
       <Header>
-        <Link href="/" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '24px' }}>←</Link>
-        <p style={{ fontWeight: 900, color: '$gold', fontSize: '10px', letterSpacing: '0.3em' }}>PREMIUM PROFILE</p>
-        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontWeight: 900 }}>LOGOUT</button>
+        <Link href="/" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '28px', padding: '$2' }}>←</Link>
+        <p style={{ fontWeight: 900, color: '$gold', fontSize: '10px', letterSpacing: '0.4em' }}>ELITE ANALYTICS</p>
+        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontWeight: 900, letterSpacing: '$wide' }}>LOGOUT</button>
       </Header>
 
       <ProfileHero>
@@ -197,17 +213,17 @@ export default function ProfilePage() {
             <ProfileAvatar 
               src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
               alt="Profile" 
-              size={100} 
+              size={120} 
               className="rounded-full border-4 border-black"
               fallbackIcon={role === 'CEO' ? '👑' : '👤'}
             />
-          <UserBadge>{role === 'CEO' ? 'GOLD ELITE' : 'CLUB MEMBER'}</UserBadge>
+          <UserBadge>{role === 'CEO' ? 'PLATINUM CEO' : 'GOLD MEMBER'}</UserBadge>
         </AvatarWrapper>
-        <h2 style={{ fontSize: '24px', fontWeight: 900, color: '$white' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</h2>
-        <p style={{ fontSize: '$sm', color: 'rgba(255,255,255,0.4)', marginTop: '$1' }}>Elite Amateur • SEOUL, KR</p>
+        <h2 style={{ fontSize: '28px', fontWeight: 900, color: '$white', letterSpacing: '$tight' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</h2>
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '$2', fontStyle: 'italic', letterSpacing: '0.1em' }}>Precision. Power. Prestige.</p>
       </ProfileHero>
 
-      <SectionTitle>Record Analytics</SectionTitle>
+      <SectionTitle>Performance Record</SectionTitle>
       
       <FilterContainer>
         <FilterButton active={filter === 'weekly'} onClick={() => setFilter('weekly')}>WEEKLY</FilterButton>
@@ -230,7 +246,7 @@ export default function ProfilePage() {
         </StatCard>
       </StatsGrid>
 
-      <SectionTitle>Recent Activity</SectionTitle>
+      <SectionTitle>Recent Match History</SectionTitle>
       <section>
         {[
           { date: 'SEP 14', opponent: 'Alex Rivera', result: 'W', score: '6-4' },
@@ -238,27 +254,27 @@ export default function ProfilePage() {
           { date: 'SEP 08', opponent: 'Jannik Sinner', result: 'W', score: '2-0' },
         ].map((m, idx) => (
           <MatchRecord key={idx}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: '8px', fontWeight: 900, color: 'rgba(255,255,255,0.2)' }}>{m.date.split(' ')[0]}</p>
-                <p style={{ fontSize: '14px', fontWeight: 900 }}>{m.date.split(' ')[1]}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <div style={{ textAlign: 'center', minWidth: '40px' }}>
+                <p style={{ fontSize: '9px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginBottom: '2px' }}>{m.date.split(' ')[0]}</p>
+                <p style={{ fontSize: '16px', fontWeight: 900, color: '$white' }}>{m.date.split(' ')[1]}</p>
               </div>
               <div>
-                <p style={{ fontSize: '$sm', fontWeight: '$black' }}>vs. {m.opponent}</p>
-                <p style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>Championship Match</p>
+                <p style={{ fontSize: '$base', fontWeight: '$black', letterSpacing: '$tight' }}>vs. {m.opponent}</p>
+                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '2px' }}>Championship Series</p>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '$sm', fontWeight: '$black', color: m.result === 'W' ? '$gold' : '$error' }}>{m.result}</p>
-              <p style={{ fontSize: '10px', fontWeight: 900, opacity: 0.5 }}>{m.score}</p>
+              <p style={{ fontSize: '18px', fontWeight: '$black', color: m.result === 'W' ? '$gold' : '$error' }}>{m.result}</p>
+              <p style={{ fontSize: '11px', fontWeight: 900, opacity: 0.4 }}>{m.score}</p>
             </div>
           </MatchRecord>
         ))}
       </section>
 
-      <div style={{ marginTop: '40px', background: '$gold', color: '$black', padding: '$6', borderRadius: '$xl', textAlign: 'center' }}>
-        <p style={{ fontSize: '12px', fontWeight: '$black', letterSpacing: '0.1em' }}>UPGRADE TO PRO MEMBERSHIP</p>
-        <p style={{ fontSize: '8px', opacity: 0.7, marginTop: '$1' }}>Access advanced AI insights and video replays</p>
+      <div style={{ marginTop: '50px', background: 'linear-gradient(135deg, $gold, $goldGlint)', color: '$black', padding: '$8', borderRadius: '$2xl', textAlign: 'center', boxShadow: '$goldGlow' }}>
+        <p style={{ fontSize: '14px', fontWeight: '$black', letterSpacing: '0.15em' }}>UPGRADE TO PRO ELITE</p>
+        <p style={{ fontSize: '10px', opacity: 0.8, marginTop: '$2', fontWeight: '$bold' }}>Unlock Advanced AI Predictive Analytics</p>
       </div>
 
     </Container>

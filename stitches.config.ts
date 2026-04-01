@@ -15,14 +15,15 @@ export const {
       black: '#000000',
       white: '#ffffff',
       gold: '#D4AF37',
-      goldLight: '#FDBB2D',
-      goldDark: '#996515',
+      goldLight: '#F3E5AB', // Lighter gold
+      goldGlint: '#FDBB2D', // Brighter, saturated gold
+      goldMuted: 'rgba(212, 175, 55, 0.2)',
+      goldGlass: 'rgba(212, 175, 55, 0.05)',
+      gray950: '#050505',
       gray900: '#0A0A0A',
-      gray800: '#111111',
-      gray700: '#1A1A1A',
-      gray600: '#222222',
-      gray500: '#333333',
-      gray400: '#444444',
+      gray850: '#151515',
+      gray800: '#1E1E1E',
+      gray700: '#2A2A2A',
       accent: '$gold',
       success: '#4CAF50',
       error: '#FF4B2B',
@@ -90,7 +91,14 @@ export const {
       md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
       lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       gold: '0 0 15px rgba(212, 175, 55, 0.3)',
-      goldGlow: '0 0 25px rgba(212, 175, 55, 0.5)',
+      goldGlow: '0 0 30px rgba(212, 175, 55, 0.4)',
+      goldAura: '0 0 50px rgba(212, 175, 55, 0.2)',
+      glass: 'inset 0 0 20px rgba(255, 255, 255, 0.03), 0 10px 30px rgba(0, 0, 0, 0.8)',
+    },
+    gradients: {
+      blackGold: 'linear-gradient(135deg, $gray900, $black)',
+      darker: 'linear-gradient(135deg, $gray850, $gray950)',
+      goldGlint: 'linear-gradient(90deg, transparent, $goldGlint, transparent)',
     },
     zIndices: {
       hide: -1,
@@ -135,6 +143,12 @@ export const {
     br: (value: any) => ({ borderRadius: value }),
     
     size: (value: any) => ({ width: value, height: value }),
+    
+    // New Utils for Premium Styles
+    borderGlow: (value: any) => ({
+      border: `1.5px solid ${value || 'rgba(212, 175, 55, 0.2)'}`,
+      boxShadow: '0 0 15px rgba(212, 175, 55, 0.1)',
+    }),
   },
 });
 
