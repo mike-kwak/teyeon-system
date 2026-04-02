@@ -83,38 +83,44 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
   };
 
   return (
-    <div className="relative overflow-hidden p-5 rounded-2xl flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] group bg-gradient-to-br from-[#222222] to-black border border-white/5 hover:border-[#D4AF37]/40 z-10 isolate">
-      <div className="flex justify-between items-start mb-3 z-20">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-base font-black mb-1.5 text-white tracking-tight drop-shadow-md">{member.nickname}</h3>
-          <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getBadgeStyle()}`}>
-            {roleLabels.primary}
-          </span>
+    <div className="relative overflow-hidden p-4 rounded-[24px] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] group bg-gradient-to-br from-[#1E1E1E] to-black border border-white/5 hover:border-[#D4AF37]/40 z-10 isolate h-[170px] justify-between w-full">
+      <div className="flex justify-between items-start mb-2 z-20 w-full">
+        <div className="flex-1 min-w-0 pr-1">
+          <h3 className="text-[17px] font-black mb-2 text-white/90 tracking-tight drop-shadow-md truncate">{member.nickname}</h3>
+          <div className="flex flex-wrap gap-1">
+            <span className={`text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${getBadgeStyle()}`}>
+              {roleLabels.primary}
+            </span>
+          </div>
         </div>
-        <ProfileAvatar 
-          src={finalAvatar} 
-          alt={member.nickname} 
-          size={48}
-          className="rounded-full border-2 border-[#D4AF37]/20 shadow-md bg-black"
-          fallbackIcon="🎾"
-        />
+        <div className="flex-shrink-0">
+          <ProfileAvatar 
+            src={finalAvatar} 
+            alt={member.nickname} 
+            size={46}
+            className="rounded-full border-2 border-[#D4AF37]/30 shadow-[0_4px_12px_rgba(0,0,0,0.8)] bg-[#111]"
+            fallbackIcon="🎾"
+          />
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1 mt-4 border-t border-white/5 pt-3 z-20">
-        <span className="text-[7px] font-black text-white/20 uppercase tracking-[0.1em]">Status Detail</span>
-        <span className="text-[10px] font-black text-white/60 tracking-tight">{member.affiliation || 'Elite Member'}</span>
+      <div className="flex flex-col gap-1 mt-auto border-t border-white/10 pt-2 z-20 w-full">
+        <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.1em]">Status Detail</span>
+        <span className="text-[11px] font-black text-white/70 tracking-tight truncate">{member.affiliation || 'Elite Member'}</span>
       </div>
 
-      <div className="mt-3 min-h-[14px] z-20">
-         {member.achievements && (
-           <p className="text-[9px] font-black text-[#D4AF37] italic opacity-80 drop-shadow-md">
+      <div className="mt-1 min-h-[16px] z-20 w-full">
+         {member.achievements ? (
+           <p className="text-[10px] font-black text-[#D4AF37] italic opacity-90 drop-shadow-md truncate">
              🏆 {member.achievements}
            </p>
+         ) : (
+           <p className="text-[10px] opacity-0">Placeholder</p>
          )}
       </div>
       
       {/* Background Graphic */}
-      <div className="absolute -right-2 -bottom-2 text-[64px] opacity-[0.02] pointer-events-none transition-opacity duration-300 group-hover:opacity-10 z-0 select-none">
+      <div className="absolute -right-3 -bottom-3 text-[70px] opacity-[0.03] pointer-events-none transition-opacity duration-300 group-hover:opacity-10 z-0 select-none">
         🎾
       </div>
     </div>
@@ -169,44 +175,47 @@ export default function MembersPage() {
   }
 
   return (
-    <main className="flex flex-col min-h-[100dvh] px-5 py-8 max-w-[500px] mx-auto w-full bg-black pb-[110px] overflow-hidden">
-      <header className="mb-8 pl-1">
-        <h1 className="text-[32px] font-black tracking-tight text-white uppercase leading-[0.9] italic font-['Rajdhani',sans-serif]">
-          TEYEON <span className="text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]">MEMBERS</span>
-        </h1>
-        <p className="text-[10px] font-black text-[#D4AF37] tracking-widest uppercase mt-2 opacity-60 font-['Rajdhani',sans-serif]">
-          Club Member Directory 2026
-        </p>
-      </header>
-
-      {loading ? (
-        <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-500">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-gradient-to-br from-white/5 to-black/50 h-[140px] rounded-[24px] border border-white-[0.02] shadow-lg" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 fade-in duration-500">
-          {members.map((member) => (
-            <MemberCard key={member.id} member={member} />
-          ))}
-        </div>
-      )}
-
-      {members.length === 0 && !loading && (
-        <div className="text-center py-[100px] opacity-30">
-          <span className="text-[64px] drop-shadow-[0_0_15px_rgba(212,175,55,1)]">🏜️</span>
-          <p className="text-[11px] font-[950] uppercase tracking-[0.4em] mt-5 font-['Rajdhani',sans-serif]">
-            No Members Detected
+    <main className="min-h-screen bg-black pt-10 pb-[160px] w-full flex flex-col items-center overflow-x-hidden relative">
+      <div className="w-full max-w-[430px] mx-auto flex flex-col items-center px-4">
+        
+        <header className="mb-8 w-full text-center flex flex-col items-center">
+          <h1 className="text-[36px] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 uppercase leading-[1.1] italic font-['Rajdhani',sans-serif] drop-shadow-[0_4px_12px_rgba(255,255,255,0.1)]">
+            TEYEON <span className="bg-clip-text bg-gradient-to-r from-[#FFFAC7] to-[#D4AF37] text-transparent drop-shadow-[0_4px_10px_rgba(212,175,55,0.6)]">MEMBERS</span>
+          </h1>
+          <p className="text-[11px] font-black text-[#D4AF37] tracking-widest uppercase mt-1 opacity-70 font-['Rajdhani',sans-serif]">
+            Club Member Directory 2026
           </p>
-        </div>
-      )}
+        </header>
 
-      <footer className="mt-auto py-[60px] text-center opacity-25">
-        <p className="text-[11px] font-[950] tracking-[0.5em] text-[#D4AF37] uppercase font-['Rajdhani',sans-serif]">
-          TEYEON NETWORK PRO STABLE
-        </p>
-      </footer>
+        {loading ? (
+          <div className="grid grid-cols-2 gap-4 w-full animate-in fade-in duration-500">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="animate-pulse bg-gradient-to-br from-[#1E1E1E] to-black/50 h-[170px] rounded-[24px] border border-white-[0.02] shadow-lg" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500">
+            {members.map((member) => (
+              <MemberCard key={member.id} member={member} />
+            ))}
+          </div>
+        )}
+
+        {members.length === 0 && !loading && (
+          <div className="text-center py-[100px] opacity-30 mt-10">
+            <span className="text-[64px] drop-shadow-[0_0_15px_rgba(212,175,55,1)]">🏜️</span>
+            <p className="text-[12px] font-[950] uppercase tracking-[0.4em] mt-5 font-['Rajdhani',sans-serif]">
+              No Members Detected
+            </p>
+          </div>
+        )}
+
+        <footer className="mt-[80px] text-center opacity-30 pb-4">
+          <p className="text-[11px] font-[950] tracking-[0.5em] text-[#D4AF37] uppercase font-['Rajdhani',sans-serif]">
+            TEYEON NETWORK PRO STABLE
+          </p>
+        </footer>
+      </div>
     </main>
   );
 }
