@@ -86,52 +86,48 @@ export default function Home() {
 
         {/* Authenticated State - Grid Menu (Moved up as requested) */}
         {!isLoading && user && (
-          <div className="grid grid-cols-2 gap-6 w-full mt-6 animate-in slide-in-from-bottom-4 duration-700">
-          {menuItems.map((item, index) => {
-            const isLastOdd = index === menuItems.length - 1 && menuItems.length % 2 !== 0;
-            
-            if (isLastOdd) {
-              return (
+          <>
+            <div className="grid grid-cols-2 gap-6 w-full mt-6 animate-in slide-in-from-bottom-4 duration-700">
+              {menuItems.slice(0, 6).map((item, index) => (
                 <Link 
-                  key={index}
+                  key={index} 
                   href={item.path}
-                  className={`col-span-2 relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} h-20 mt-2`}
+                  className="relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-[160px]"
                 >
-                  <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
-                    {React.isValidElement(item.icon) && React.cloneElement(item.icon as React.ReactElement<any>, { size: 28 })}
+                  {item.comingSoon && (
+                    <span className="absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse top-4 right-4">
+                      COMING SOON
+                    </span>
+                  )}
+                  <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
+                    {item.icon}
                   </div>
-                  <span className="font-bold text-[#C9B075]/80 tracking-[0.2em] text-center text-[16px] uppercase font-['Rajdhani',sans-serif]">
+                  <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
                     {item.label}
                   </span>
                 </Link>
-              );
-            }
+              ))}
+            </div>
 
-            return (
+            {/* Centered Admin Setting Button (v5.7 Vertical Balance) */}
+            <div className="w-full my-12 animate-in fade-in duration-1000">
               <Link 
-                key={index} 
-                href={item.path}
-                className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} h-[160px]`}
+                href={menuItems[6].path}
+                className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-20 w-full"
               >
-                {item.comingSoon && (
-                  <span className={`absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse top-4 right-4`}>
-                    COMING SOON
-                  </span>
-                )}
-                <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
-                  {item.icon}
+                <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
+                  {React.isValidElement(menuItems[6].icon) && React.cloneElement(menuItems[6].icon as React.ReactElement<any>, { size: 28 })}
                 </div>
-                <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
-                  {item.label}
+                <span className="font-bold text-[#C9B075]/80 tracking-[0.2em] text-center text-[16px] uppercase font-['Rajdhani',sans-serif]">
+                  {menuItems[6].label}
                 </span>
               </Link>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          </>
+        )}
 
         {/* Footer Text */}
-        <div className="mt-8 text-center flex flex-col gap-2 opacity-40">
+        <div className="mt-4 mb-20 text-center flex flex-col gap-2 opacity-40 animate-in fade-in duration-1000">
            <span className="text-[11px] font-black text-gray-400 tracking-[0.25em] uppercase font-['Rajdhani',sans-serif]">
              TEYEON CLUB MANAGEMENT
            </span>
