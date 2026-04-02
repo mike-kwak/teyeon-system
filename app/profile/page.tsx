@@ -179,6 +179,67 @@ const MatchRecord = styled('div', {
   },
 });
 
+const StyledGreetingCard = styled('div', {
+  background: 'linear-gradient(135deg, $gray850, $black)',
+  border: '1px solid rgba(255, 255, 255, 0.05)',
+  borderRadius: '$2xl',
+  padding: '$8',
+  paddingLeft: '$10',
+  display: 'flex',
+  alignItems: 'center',
+  boxShadow: '$glass',
+  position: 'relative',
+  overflow: 'hidden',
+  marginBottom: '$8',
+  animation: `${fadeIn} 0.8s cubic-bezier(0.165, 0.84, 0.44, 1)`,
+
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '1px',
+    background: 'linear-gradient(90deg, transparent, $gold, transparent)',
+    opacity: 0.3,
+  }
+});
+
+const GreetingContent = styled('div', {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$1',
+});
+
+const GreetingBadge = styled('span', {
+  fontSize: '9px',
+  fontWeight: '$black',
+  color: '$gold',
+  letterSpacing: '$mega',
+  textTransform: 'uppercase',
+  marginBottom: '$1',
+  fontFamily: 'var(--font-rajdhani)',
+});
+
+const GreetingTitle = styled('h2', {
+  fontSize: '20px',
+  fontWeight: '$black',
+  color: '$white',
+  marginBottom: '$1',
+  fontFamily: 'var(--font-rajdhani)',
+});
+
+const GreetingSubtitle = styled('p', {
+  fontSize: '11px',
+  color: 'rgba(255, 255, 255, 0.4)',
+  fontStyle: 'italic',
+  fontFamily: 'var(--font-rajdhani)',
+    '& strong': {
+    color: '$gold',
+    opacity: 0.8,
+  }
+});
+
 export default function ProfilePage() {
   const { user, role, signOut, isLoading, signInWithKakao } = useAuth();
   const [filter, setFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
@@ -200,7 +261,7 @@ export default function ProfilePage() {
           <div className="animate-pulse w-32 h-4 rounded bg-white/5"></div>
           <div className="animate-pulse w-12 h-4 rounded bg-white/5"></div>
         </Header>
-        <div className="animate-pulse w-full h-[240px] bg-white/5 rounded-[24px] mb-[48px]"></div>
+        <div className="animate-pulse w-full h-[140px] bg-white/5 rounded-[24px] mb-8"></div>
         <div className="animate-pulse w-32 h-4 rounded bg-white/5 mb-5"></div>
         <div className="animate-pulse w-full h-[40px] bg-white/5 rounded-[12px] mb-8"></div>
         <div className="grid grid-cols-3 gap-4 mb-10 w-full">
@@ -225,25 +286,31 @@ export default function ProfilePage() {
   return (
     <Container>
       <Header>
-        <Link href="/" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '28px', padding: '8px' }}>←</Link>
+        <Link href="/" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '24px', padding: '8px' }}>←</Link>
         <p style={{ fontWeight: 950, color: '$goldGlint', fontSize: '11px', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)' }}>PILOT ANALYTICS</p>
         <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>LOGOUT</button>
       </Header>
 
-      <ProfileHero>
-        <AvatarWrapper>
+      <StyledGreetingCard>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', width: '100%' }}>
             <ProfileAvatar 
               src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
               alt="Profile" 
-              size={124} 
-              className="rounded-full border-4 border-black"
+              size={64} 
+              className="border-2 border-gold shadow-[0_0_20px_rgba(212,175,55,0.2)] rounded-full"
               fallbackIcon={role === 'CEO' ? '👑' : '👤'}
             />
-          <UserBadge style={{ fontFamily: 'var(--font-rajdhani)' }}>{role === 'CEO' ? 'COMMANDER IN CHIEF' : 'ELITE CIRCUIT PILOT'}</UserBadge>
-        </AvatarWrapper>
-        <h2 style={{ fontSize: '34px', fontWeight: 950, color: '$white', letterSpacing: '-0.02em', fontFamily: 'var(--font-orbitron)' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</h2>
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px', fontStyle: 'italic', letterSpacing: '0.1em', fontFamily: 'var(--font-rajdhani)' }}>Precision. Power. Prestige.</p>
-      </ProfileHero>
+          <GreetingContent>
+            <GreetingBadge>{role === 'CEO' ? 'COMMANDER IN CHIEF' : 'ELITE CIRCUIT PILOT'}</GreetingBadge>
+            <GreetingTitle>
+              반갑습니다, <span style={{ color: '#D4AF37' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</span>님!
+            </GreetingTitle>
+            <GreetingSubtitle>
+              매 순간이 <strong>CHAMPION SHOT</strong>입니다 🎾
+            </GreetingSubtitle>
+          </GreetingContent>
+        </div>
+      </StyledGreetingCard>
 
       <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Performance Baseline</SectionTitle>
       
