@@ -78,8 +78,15 @@ export default function Home() {
 
         {/* Authenticated State - Profile Card */}
         {!isLoading && user && (
-          <div className="w-full bg-gradient-to-br from-[#1B1B1B] to-black/40 backdrop-blur-md border border-white/5 rounded-[24px] p-6 flex items-center justify-between shadow-[0_4px_10px_rgba(201,176,117,0.05)] relative overflow-hidden">
-            <div className="flex items-center justify-between w-full">
+          <div className="w-full bg-gradient-to-br from-[#1B1B1B] to-black/40 backdrop-blur-md border border-white/5 rounded-[24px] p-6 pl-10 flex items-center shadow-[0_4px_10px_rgba(201,176,117,0.05)] relative overflow-hidden">
+            <div className="flex items-center gap-6 w-full">
+              <ProfileAvatar 
+                src={user.user_metadata?.avatar_url} 
+                alt={user.user_metadata?.nickname} 
+                size={64}
+                fallbackIcon="👤"
+                className="border-2 border-[#C9B075] rounded-full shadow-[0_0_20px_rgba(201,176,117,0.2)]"
+              />
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] mb-1.5 font-['Rajdhani',sans-serif]">
                   {role === 'CEO' ? 'COMMANDER IN CHIEF' : 'CLUB MEMBER'}
@@ -91,13 +98,6 @@ export default function Home() {
                   매 순간이 <span className="font-bold text-[#C9B075]/80">CHAMPION SHOT</span>입니다 🎾
                 </span>
               </div>
-              <ProfileAvatar 
-                src={user.user_metadata?.avatar_url} 
-                alt={user.user_metadata?.nickname} 
-                size={64}
-                fallbackIcon="👤"
-                className="border-2 border-[#C9B075] rounded-full shadow-[0_0_20px_rgba(201,176,117,0.2)]"
-              />
             </div>
           </div>
         )}
