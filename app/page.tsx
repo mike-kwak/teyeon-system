@@ -109,14 +109,12 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Vertically Centered Admin Spacer (Row 3 to Admin) */}
-            <div className="h-8 w-full shrink-0" />
+            {/* Standalone Admin Setting Button (v6.0 24px Symmetrical Balance) */}
 
-            {/* Standalone Admin Setting Button (v5.9 Spacer Balanced) */}
-            <div className="w-full animate-in fade-in duration-1000">
+            <div className="w-full mt-6 mb-6 animate-in fade-in duration-1000">
               <Link 
                 href={menuItems[6].path}
-                className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-20 w-full"
+                className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-16 w-full"
               >
                 <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
                   {React.isValidElement(menuItems[6].icon) && React.cloneElement(menuItems[6].icon as React.ReactElement<any>, { size: 28 })}
@@ -126,13 +124,11 @@ export default function Home() {
                 </span>
               </Link>
             </div>
-            {/* Vertically Centered Admin Spacer (Admin to Footer) */}
-            <div className="h-8 w-full shrink-0" />
           </>
         )}
 
         {/* Footer Text */}
-        <div className="mt-4 mb-10 text-center flex flex-col gap-2 opacity-40 animate-in fade-in duration-1000">
+        <div className="mt-0 mb-8 text-center flex flex-col gap-2 opacity-40 animate-in fade-in duration-1000">
            <span className="text-[11px] font-black text-gray-400 tracking-[0.25em] uppercase font-['Rajdhani',sans-serif]">
              TEYEON CLUB MANAGEMENT
            </span>
