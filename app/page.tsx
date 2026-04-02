@@ -34,12 +34,12 @@ export default function Home() {
         {/* Luxury Skeleton Loading State */}
         {isLoading && (
           <div className="w-full flex flex-col gap-6 animate-pulse mt-4">
-            <div className="w-full h-[96px] bg-[#1B1B1B]/80 rounded-[24px] border border-white/5 shadow-xl"></div>
+            <div className="w-full h-[60px] bg-black/20 rounded-xl mb-2"></div>
             <div className="grid grid-cols-2 gap-4 w-full">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-[150px] bg-[#1B1B1B]/80 rounded-[24px] border border-white/5 shadow-md"></div>
+                <div key={i} className="h-[150px] bg-black/40 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
               ))}
-              <div className="col-span-2 h-[120px] bg-[#1B1B1B]/80 rounded-[24px] border border-white/5 shadow-md"></div>
+              <div className="col-span-2 h-[120px] bg-black/40 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
             </div>
           </div>
         )}
@@ -56,34 +56,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* Authenticated State - Profile Card (Moved to top, Logo removed) */}
+        {/* Authenticated State - Top Title */}
         {!isLoading && user && (
-          <div className="w-full bg-[#1B1B1B] rounded-[24px] p-6 flex items-center justify-between shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4">
-              <button onClick={() => signOut()} className="text-[10px] text-gray-500 font-bold hover:text-white transition-colors">
-                로그아웃
-              </button>
-            </div>
-            <div className="flex items-center gap-5 w-full">
-              <ProfileAvatar 
-                src={user.user_metadata?.avatar_url} 
-                alt={user.user_metadata?.nickname} 
-                size={64}
-                fallbackIcon="👤"
-                className="border-2 border-[#E8E137] rounded-full shadow-[0_0_20px_rgba(232,225,55,0.25)]"
-              />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#E8E137] tracking-[0.2em] mb-1.5 font-['Rajdhani',sans-serif]">
-                  {role === 'CEO' ? 'COMMANDER IN CHIEF' : 'CLUB MEMBER'}
-                </span>
-                <h2 className="text-[18px] font-black text-white mb-2 font-['Rajdhani',sans-serif]">
-                  반갑습니다, <span className="text-[#E8E137] font-['Pretendard']">{user.user_metadata?.nickname || '회원'}</span>님!
-                </h2>
-                <span className="text-[11px] text-gray-400 font-medium tracking-tight">
-                  매 순간이 <span className="font-bold text-[#E8E137]">CHAMPION SHOT</span>입니다 🎾
-                </span>
-              </div>
-            </div>
+          <div className="w-full flex justify-center items-center py-4 mb-2">
+            <h1 className="text-[36px] font-[1000] uppercase tracking-tighter font-['Rajdhani',sans-serif] text-transparent bg-clip-text bg-gradient-to-r from-[#FFFAC7] to-[#E8E137] drop-shadow-[0_4px_12px_rgba(232,225,55,0.25)]">
+              TEYEON MEMBERS
+            </h1>
           </div>
         )}
 
@@ -95,17 +73,17 @@ export default function Home() {
               <Link 
                 key={index} 
                 href={item.path}
-                className={`relative flex flex-col items-center justify-center bg-[#1B1B1B] rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#222222] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_20px_rgba(0,0,0,0.6)] group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[120px] flex-row gap-8' : 'h-[150px]'}`}
+                className={`relative flex flex-col items-center justify-center bg-black/30 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-black/50 hover:-translate-y-1 active:scale-[0.98] shadow-[0_4px_10px_rgba(232,225,55,0.15)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[120px] flex-row gap-8' : 'h-[150px]'}`}
               >
                 {item.comingSoon && (
-                  <span className={`absolute px-[8px] py-[3px] bg-[#2A2A20] text-[#E8E137] text-[8px] font-black rounded-lg tracking-wider shadow-sm ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-6' : 'top-4 right-4'}`}>
+                  <span className={`absolute px-[8px] py-[3px] bg-[#1A1A14] text-[#E8E137] text-[8px] font-black rounded-lg tracking-wider shadow-sm border border-[#E8E137]/20 ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-6' : 'top-4 right-4'}`}>
                     COMING SOON
                   </span>
                 )}
-                <div className={`text-[46px] filter drop-shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
+                <div className={`text-[46px] filter drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
                   {item.icon}
                 </div>
-                <span className={`font-bold text-gray-200 tracking-wider text-center px-2 ${isLastOdd ? 'text-[15px]' : 'text-[14px]'}`}>
+                <span className={`font-bold text-gray-200 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[15px]'}`}>
                   {item.label}
                 </span>
               </Link>
