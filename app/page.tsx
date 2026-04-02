@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
+// Note: We don't need a heavy external Skeleton library, basic tailwind animate-pulse blocks work flawlessly.
 
 export default function Home() {
-  const { user, role, signInWithKakao, signOut, isLoading } = useAuth();
+  const { user, role, signInWithKakao, signOut, isLoading, systemMessage } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,10 +31,16 @@ export default function Home() {
     <main className="min-h-screen bg-[#141416] px-5 pt-10 pb-[180px] w-full flex flex-col items-center overflow-x-hidden relative">
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center gap-6">
         
-        {/* Loading State */}
+        {/* Luxury Skeleton Loading State */}
         {isLoading && (
-          <div className="flex justify-center items-center h-24 w-full mb-6">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8E137]"></div>
+          <div className="w-full flex flex-col gap-6 animate-pulse mt-4">
+            <div className="w-full h-[96px] bg-[#1B1B1B]/80 rounded-[24px] border border-white/5 shadow-xl"></div>
+            <div className="grid grid-cols-2 gap-4 w-full">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-[150px] bg-[#1B1B1B]/80 rounded-[24px] border border-white/5 shadow-md"></div>
+              ))}
+              <div className="col-span-2 h-[120px] bg-[#1B1B1B]/80 rounded-[24px] border border-white/5 shadow-md"></div>
+            </div>
           </div>
         )}
 
@@ -118,9 +125,9 @@ export default function Home() {
       </div>
 
       {/* Toast Notification */}
-      {toast && (
+      {(toast || systemMessage) && (
         <div className="fixed bottom-[130px] left-1/2 -translate-x-1/2 w-[90vw] max-w-[380px] p-[16px] bg-[#E8E137] text-black font-black text-center rounded-xl z-[2000] shadow-[0_20px_50px_rgba(0,0,0,0.8)] font-['Rajdhani',sans-serif] tracking-wider text-[14px]">
-          {toast}
+          {toast || systemMessage}
         </div>
       )}
     </main>

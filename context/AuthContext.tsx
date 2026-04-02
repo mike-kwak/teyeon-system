@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
 import PremiumSpinner from '@/components/PremiumSpinner';
+import { withRetry } from '@/utils/withRetry';
 
 export type UserRole = 'CEO' | 'ADMIN' | 'MEMBER' | 'GUEST';
 export type AccessLevel = 'WRITE' | 'READ' | 'HIDE';
@@ -43,6 +44,8 @@ interface AuthContextType {
   isPendingMatching: boolean;
   setPendingMatching: (val: boolean) => void;
   confirmIdentity: (memberId: string) => Promise<void>;
+  systemMessage: string | null;
+  setSystemMessage: (msg: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,20 +63,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPendingMatching, setIsPendingMatching] = useState(false);
+  const [systemMessage, setSystemMessage] = useState<string | null>(null);
 
   const fetchConfig = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await withRetry(() => supabase
         .from('app_config')
         .select('*')
         .eq('id', 'primary')
-        .single();
+        .single());
       
       if (!error && data) {
         setAppConfig(data);
       }
     } catch (err) {
-      console.error('[Auth] Config fetch error:', err);
+      console.warn('[Network/Auth] Failed to load config, retaining last known mode.', err);
+      // setSystemMessage('네트워크가 지연되어 오프라인 모드로 자동 전환되었습니다.');
     } finally {
       // Don't setIsLoading(false) here yet, wait for init() to decide.
     }
@@ -104,11 +109,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initialRole = 'ADMIN';
       }
 
-      const { data: linkedMember } = await supabase
+      const { data: linkedMember } = await withRetry(() => supabase
         .from('members')
         .select('id, role, email')
         .eq('email', currentUser.email)
-        .single();
+        .single());
       
       if (linkedMember) {
         const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
@@ -129,12 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name;
       if (nickname) {
-        const { data: matchedNick } = await supabase
+        const { data: matchedNick } = await withRetry(() => supabase
           .from('members')
           .select('id')
           .eq('nickname', nickname)
           .is('email', null)
-          .single();
+          .single());
         
         if (matchedNick) {
           await supabase.from('members')
@@ -164,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const init = async (retryCount = 0) => {
       try {
         await fetchConfig();
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await withRetry(() => supabase.auth.getSession());
         if (error) throw error;
 
         setSession(session);
@@ -176,10 +181,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
         }
       } catch (err) {
+        console.warn(`[Supabase Auth] Init failed... retry: ${retryCount}`, err);
         if (retryCount < 2) {
+          setSystemMessage('연결이 잠시 지연되고 있습니다. 다시 시도 중...');
           setTimeout(() => init(retryCount + 1), 2000);
         } else {
-          setIsLoading(false);
+          setSystemMessage('네트워크 요청이 만료되었습니다. 캐시 데이터로 표시합니다.');
+          if (!user) setIsLoading(false); // Only disable loading if we truly have no cache
         }
       }
     };
@@ -242,7 +250,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ 
       user, session, role, appConfig, isLoading, 
       signInWithKakao, signOut, hasPermission, getRestrictionMessage,
-      refreshConfig: fetchConfig, isPendingMatching, setPendingMatching: setIsPendingMatching, confirmIdentity
+      refreshConfig: fetchConfig, isPendingMatching, setPendingMatching: setIsPendingMatching, confirmIdentity,
+      systemMessage, setSystemMessage
     }}>
       <NavigationGuard>
         {children}
