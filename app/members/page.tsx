@@ -7,6 +7,8 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import { withRetry } from '@/utils/withRetry';
 import { useRouter } from 'next/navigation';
 
+const CACHE_KEY = 'TEYEON_CACHE_MEMBERS';
+
 interface Member {
   id: string;
   nickname: string;
@@ -135,22 +137,47 @@ export default function MembersPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check hydration matches by doing fetch safely via client
+    // 1. Initial Load from LocalStorage (Offline-First)
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+          console.log('[Members] Loaded from cache (Offline-First)');
+          setMembers(parsed);
+          setLoading(false); // Instantly show cache, background fetch will sync
+        }
+      } catch (err) {
+        console.warn('[Members] Cache parse failed, proceeding to server fetch');
+      }
+    }
+
+    // 2. Trigger Background Fetch
     fetchMembers();
   }, []);
 
   async function fetchMembers() {
+    const startTime = Date.now();
     try {
-      setLoading(true);
+      if (members.length === 0) setLoading(true);
+      
       const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
       
-      // Use withRetry utility which was boosted to 15s to handle flaky connections
+      console.log('[Members] Initiating Supabase fetch (REST mode forced)...');
+      
+      // Select only required columns to reduce payload size
       const { data, error } = await withRetry(() => supabase
         .from('members')
-        .select('*')
+        .select('id, nickname, role, position, affiliation, achievements, avatar_url, is_admin, is_guest, email')
         .eq('club_id', clubId));
 
-      if (error) throw error;
+      const latency = Date.now() - startTime;
+      console.log(`[Members] Fetch completed in ${latency}ms`);
+
+      if (error) {
+        console.error(`[Members] Supabase Protocol Error: ${error.code} - ${error.message}`);
+        throw error;
+      }
       
       if (data && data.length > 0) {
         const sortedData = [...data].sort((a, b) => {
@@ -159,18 +186,19 @@ export default function MembersPage() {
           if (aP !== bP) return aP - bP;
           return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
         });
+        
         setMembers(sortedData);
+        // Persist to LocalStorage for future offline-first loads
+        localStorage.setItem(CACHE_KEY, JSON.stringify(sortedData));
       } else {
-        setMembers(FALLBACK_MEMBERS);
+        if (members.length === 0) setMembers(FALLBACK_MEMBERS);
       }
     } catch (err: any) {
-      console.error('[Members] Fetch Error:', err);
-      // Hard fallback on 3x fail timeout
-      setMembers(FALLBACK_MEMBERS);
+      console.error('[Members] Terminal Failure after 5 Retries:', err);
+      if (members.length === 0) setMembers(FALLBACK_MEMBERS);
     } finally {
       setLoading(false);
-      // Ensure router navigations are synced
-      router.refresh();
+      router.refresh(); // Sync potential SSR mismatched state
     }
   }
 
@@ -187,14 +215,21 @@ export default function MembersPage() {
           </p>
         </header>
 
-        {loading ? (
+        {loading && members.length === 0 ? (
           <div className="grid grid-cols-2 gap-4 w-full animate-in fade-in duration-500">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse bg-gradient-to-br from-[#1E1E1E] to-black/50 h-[170px] rounded-[24px] border border-white-[0.02] shadow-lg" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500">
+          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative">
+            {/* Background Sync Indicator */}
+            {loading && members.length > 0 && (
+              <div className="absolute top-[-30px] right-0 flex items-center gap-2 animate-pulse">
+                <div className="w-2 h-2 rounded-full bg-[#D4AF37]"></div>
+                <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-tighter">Syncing...</span>
+              </div>
+            )}
             {members.map((member) => (
               <MemberCard key={member.id} member={member} />
             ))}
