@@ -92,19 +92,18 @@ export default function Home() {
             
             if (isLastOdd) {
               return (
-                <div key={index} className="col-span-2 flex justify-center pt-2">
-                  <Link 
-                    href={item.path}
-                    className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-2 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} w-[calc(50%-12px)] h-[120px]`}
-                  >
-                    <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
-                      {React.isValidElement(item.icon) && React.cloneElement(item.icon as React.ReactElement<any>, { size: 24 })}
-                    </div>
-                    <span className="font-bold text-[#C9B075]/40 tracking-widest text-center px-2 text-[13px] uppercase font-['Rajdhani',sans-serif]">
-                      {item.label}
-                    </span>
-                  </Link>
-                </div>
+                <Link 
+                  key={index}
+                  href={item.path}
+                  className={`col-span-2 relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} h-20 mt-2`}
+                >
+                  <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
+                    {React.isValidElement(item.icon) && React.cloneElement(item.icon as React.ReactElement<any>, { size: 28 })}
+                  </div>
+                  <span className="font-bold text-[#C9B075]/80 tracking-[0.2em] text-center text-[16px] uppercase font-['Rajdhani',sans-serif]">
+                    {item.label}
+                  </span>
+                </Link>
               );
             }
 
