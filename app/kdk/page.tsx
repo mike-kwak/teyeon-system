@@ -1233,7 +1233,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#1A1A1A] text-white font-sans w-full pb-40 relative">
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full pb-40 relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-2">
                     <button 

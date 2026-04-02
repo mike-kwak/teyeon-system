@@ -22,7 +22,7 @@ const Container = styled('main', {
   maxWidth: '500px',
   margin: '0 auto',
   width: '100%',
-  backgroundColor: '$bgCharcoal',
+  backgroundColor: '#121212',
   paddingBottom: '250px', 
 });
 

@@ -67,7 +67,7 @@ export default function BottomNav() {
                 <item.icon size={32} strokeWidth={1.2} />
               </div>
               <span 
-                className={`text-[9.5px] font-black tracking-[0.2em] transition-all duration-300 uppercase ${
+                className={`text-[10px] font-[1000] tracking-[0.25em] transition-all duration-300 uppercase ${
                   isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_10px_rgba(239,223,180,0.4)]' : 'text-[#C9B075]/60'
                 }`}
               >
