@@ -113,13 +113,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
         
         let finalRole: UserRole = 'MEMBER';
+        
+        // Priority 1: CEO Email Check
         if (currentUser.email === CEO_EMAIL) {
           finalRole = 'CEO';
         } else if (linkedMember.role) {
+          // Priority 2: DB-determined Role Title
           const kRole = linkedMember.role.trim();
-          if (kRole === 'CEO' || kRole === '회장') finalRole = 'CEO';
-          else if (['부회장', '총무', '재무', '경기', '섭외'].includes(kRole) || ADMIN_EMAILS.includes(currentUser.email || '')) finalRole = 'ADMIN';
-          else if (['정회원', '준회원'].includes(kRole)) finalRole = 'MEMBER';
+          if (kRole === 'CEO' || kRole === '회장') {
+            finalRole = 'CEO';
+          } else if (['부회장', '총무', '재무', '경기', '섭외'].includes(kRole)) {
+            finalRole = 'ADMIN';
+          } else if (ADMIN_EMAILS.includes(currentUser.email || '')) {
+            finalRole = 'ADMIN';
+          } else if (['정회원', '준회원'].includes(kRole)) {
+            finalRole = 'MEMBER';
+          }
         }
 
         setRole(finalRole);

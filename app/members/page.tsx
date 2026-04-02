@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -72,7 +74,7 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
   };
 
   return (
-    <div className="relative overflow-hidden p-4 rounded-[24px] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(201,176,117,0.3)] group bg-gradient-to-br from-[#1E1E1E] to-black border border-white/5 hover:border-[#C9B075]/40 z-10 isolate h-[170px] justify-between w-full">
+    <div className="relative overflow-hidden p-4 py-6 rounded-[24px] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(201,176,117,0.3)] group bg-gradient-to-br from-[#1E1E1E] to-black border border-white/5 hover:border-[#C9B075]/40 z-10 isolate h-auto min-h-[170px] justify-between w-full">
       <div className="flex justify-between items-start mb-2 z-20 w-full">
         <div className="flex-1 min-w-0 pr-1">
           <h3 className="text-[17px] font-black mb-2 text-white/90 tracking-tight drop-shadow-md truncate">{member.nickname}</h3>
@@ -93,14 +95,14 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 mt-auto border-t border-white/10 pt-2 z-20 w-full">
+      <div className="flex flex-col gap-1 mt-auto border-t border-white/10 pt-4 z-20 w-full">
         <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.1em]">Status Detail</span>
         <span className="text-[11px] font-black text-white/60 tracking-tight truncate">{member.affiliation || 'Elite Member'}</span>
       </div>
 
-      <div className="mt-1 min-h-[16px] z-20 w-full">
+      <div className="mt-2 min-h-[20px] z-20 w-full">
          {member.achievements ? (
-           <p className="text-[10px] font-black text-[#C9B075] italic opacity-90 drop-shadow-md truncate">
+           <p className="text-[10px] font-black text-[#C9B075] italic opacity-90 drop-shadow-md leading-relaxed">
              🏆 {member.achievements}
            </p>
          ) : (
@@ -166,8 +168,8 @@ export default function MembersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#141416] pt-10 pb-[180px] w-full flex flex-col items-center overflow-x-hidden relative">
-      <div className="w-full max-w-[430px] mx-auto flex flex-col items-center px-4">
+    <main className="min-h-screen bg-[#141416] pt-10 pb-[10px] w-full flex flex-col items-center overflow-x-hidden relative">
+      <div className="w-full max-w-[430px] mx-auto flex flex-col items-center px-4 flex flex-col items-center">
         
         <header className="mb-8 w-full text-center flex flex-col items-center">
           <h1 className="text-[36px] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 uppercase leading-[1.1] italic font-['Rajdhani',sans-serif] drop-shadow-[0_4px_12px_rgba(255,255,255,0.05)]">
@@ -185,13 +187,13 @@ export default function MembersPage() {
             ))}
           </div>
         ) : members.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative pb-40">
+          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative pb-[180px]">
             {members.map((member) => (
               <MemberCard key={member.id} member={member} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-[100px] mt-10 w-full">
+          <div className="text-center py-[100px] mt-10 w-full mb-40">
             <div className="flex flex-col items-center gap-6">
               <div className="w-12 h-12 border-4 border-[#C9B075]/20 border-t-[#C9B075] rounded-full animate-spin"></div>
               <p className="text-[14px] font-black text-[#C9B075] tracking-tighter uppercase animate-pulse">
@@ -207,7 +209,7 @@ export default function MembersPage() {
           </div>
         )}
 
-        <footer className="mt-[80px] text-center opacity-20 pb-8">
+        <footer className="mt-[80px] text-center opacity-20 pb-8 mb-40">
           <p className="text-[11px] font-[950] tracking-[0.5em] text-[#C9B075] uppercase font-['Rajdhani',sans-serif]">
             TEYEON NETWORK PRO STABLE
           </p>
