@@ -73,6 +73,7 @@ const LogoText = styled('span', {
   letterSpacing: '$tighter',
   textTransform: 'uppercase',
   fontStyle: 'italic',
+  paddingRight: '8px', /* Prevents italic overhang from being clipped by background-clip: text */
   background: 'linear-gradient(90deg, #FFFFFF 0%, #D4AF37 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
