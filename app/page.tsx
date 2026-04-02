@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -81,7 +83,7 @@ export default function Home() {
 
         {/* Authenticated State - Grid Menu (Moved up as requested) */}
         {!isLoading && user && (
-          <div className="grid grid-cols-2 gap-4 w-full mt-2 animate-in slide-in-from-bottom-4 duration-700">
+          <div className="grid grid-cols-2 gap-4 w-full mt-16 animate-in slide-in-from-bottom-4 duration-700">
           {menuItems.map((item, index) => {
             const isLastOdd = index === menuItems.length - 1 && menuItems.length % 2 !== 0;
             return (

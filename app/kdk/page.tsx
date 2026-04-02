@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -826,12 +828,9 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans w-full relative overflow-hidden">
+            <main className="flex flex-col min-h-screen bg-[#1A1A1A] text-white font-sans w-full relative overflow-hidden">
                 <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
                     <div className="flex items-center gap-2">
-                        <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
-                            <span className="text-xl">←</span>
-                        </Link>
                         <button 
                             onClick={() => setShowResetConfirm(true)}
                             className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
@@ -1234,12 +1233,9 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full pb-40 relative">
+        <main className="flex flex-col min-h-screen bg-[#1A1A1A] text-white font-sans w-full pb-40 relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-2">
-                    <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
-                        <span className="text-xl">←</span>
-                    </Link>
                     <button 
                         onClick={() => setShowResetConfirm(true)}
                         className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"

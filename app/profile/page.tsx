@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { styled, keyframes } from '@/stitches.config';
@@ -286,9 +288,9 @@ export default function ProfilePage() {
   return (
     <Container>
       <Header>
-        <Link href="/" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '24px', padding: '8px' }}>←</Link>
-        <p style={{ fontWeight: 950, color: '$goldGlint', fontSize: '11px', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)' }}>PILOT ANALYTICS</p>
-        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>LOGOUT</button>
+        <div style={{ width: '40px' }} /> {/* Spacer to keep title centered if needed, or just remove if we want it flex-start */}
+        <p style={{ fontWeight: 950, color: '$goldGlint', fontSize: '11px', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)', textAlign: 'center', flex: 1 }}>PILOT ANALYTICS</p>
+        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)', width: '60px' }}>LOGOUT</button>
       </Header>
 
       <StyledGreetingCard>
