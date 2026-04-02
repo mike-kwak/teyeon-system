@@ -46,22 +46,36 @@ export default function Home() {
 
         {/* Unauthenticated State */}
         {!isLoading && !user && (
-          <div className="w-full">
-            <button 
-              onClick={() => signInWithKakao()}
-              className="w-full py-5 rounded-3xl bg-[#1B1B1B] text-[#E8E137] text-base font-black tracking-widest border border-[#E8E137]/60 shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:bg-[#E8E137]/5 active:scale-[0.98] flex items-center justify-center gap-3 font-['Rajdhani',sans-serif]"
-            >
-              <span className="text-2xl">💬</span> 카카오 계정으로 접속
-            </button>
+          <div className="w-full px-4 py-8 text-center bg-black/20 backdrop-blur-md rounded-[24px] border border-white/5">
+            <p className="text-[12px] font-['Rajdhani',sans-serif] tracking-widest text-[#E8E137]/60 uppercase font-black">
+              서비스 이용을 위해 로그인이 필요합니다
+            </p>
           </div>
         )}
 
-        {/* Authenticated State - Top Title */}
+        {/* Authenticated State - Profile Card */}
         {!isLoading && user && (
-          <div className="w-full flex justify-center items-center py-4 mb-2">
-            <h1 className="text-[36px] font-[1000] uppercase tracking-tighter font-['Rajdhani',sans-serif] text-transparent bg-clip-text bg-gradient-to-r from-[#FFFAC7] to-[#E8E137] drop-shadow-[0_4px_12px_rgba(232,225,55,0.25)]">
-              TEYEON MEMBERS
-            </h1>
+          <div className="w-full bg-gradient-to-br from-[#1B1B1B] to-black/40 backdrop-blur-md border border-white/5 rounded-[24px] p-6 flex items-center justify-between shadow-[0_4px_10px_rgba(232,225,55,0.05)] relative overflow-hidden">
+            <div className="flex items-center gap-5 w-full">
+              <ProfileAvatar 
+                src={user.user_metadata?.avatar_url} 
+                alt={user.user_metadata?.nickname} 
+                size={64}
+                fallbackIcon="👤"
+                className="border-2 border-[#E8E137] rounded-full shadow-[0_0_20px_rgba(232,225,55,0.25)]"
+              />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-[#E8E137] tracking-[0.2em] mb-1.5 font-['Rajdhani',sans-serif]">
+                  {role === 'CEO' ? 'COMMANDER IN CHIEF' : 'CLUB MEMBER'}
+                </span>
+                <h2 className="text-[18px] font-black text-white mb-2 font-['Rajdhani',sans-serif]">
+                  반갑습니다, <span className="text-[#E8E137] font-['Pretendard']">{user.user_metadata?.nickname || '회원'}</span>님!
+                </h2>
+                <span className="text-[11px] text-gray-400 font-medium tracking-tight">
+                  매 순간이 <span className="font-bold text-[#E8E137]">CHAMPION SHOT</span>입니다 🎾
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
