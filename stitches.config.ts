@@ -28,6 +28,8 @@ export const {
       accent: '$gold',
       success: '#4CAF50',
       error: '#FF4B2B',
+      deepNavy: '#0F172A',
+      cardNavy: '#1E293B',
     },
     space: {
       1: '2px',

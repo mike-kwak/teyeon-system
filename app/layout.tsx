@@ -41,7 +41,7 @@ export const viewport = {
 
 const GlobalMain = styled('main', {
   flex: 1,
-  backgroundColor: '$black',
+  backgroundColor: '#0F172A',
   minHeight: '100dvh',
   position: 'relative',
   overflowX: 'hidden',
@@ -58,10 +58,10 @@ export default function RootLayout({
     <html
       lang="ko"
       className={`${rajdhani.variable} ${orbitron.variable} h-full antialiased`}
-      style={{ backgroundColor: '#000000', colorScheme: 'dark' }}
+      style={{ backgroundColor: '#0F172A', colorScheme: 'dark' }}
     >
       <body style={{ 
-        backgroundColor: '#000000', 
+        backgroundColor: '#0F172A', 
         margin: 0, 
         padding: 0, 
         minHeight: '100dvh',

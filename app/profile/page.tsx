@@ -19,7 +19,7 @@ const Container = styled('main', {
   maxWidth: '500px',
   margin: '0 auto',
   width: '100%',
-  backgroundColor: '$black',
+  backgroundColor: '$deepNavy',
   paddingBottom: '110px',
 });
 
@@ -78,7 +78,7 @@ const StatsGrid = styled('div', {
 });
 
 const StatCard = styled('div', {
-  background: 'linear-gradient(135deg, $gray850, $gray950)',
+  background: 'linear-gradient(135deg, $cardNavy, $deepNavy)',
   padding: '$6 $2',
   borderRadius: '$xl',
   borderGlow: 'rgba(255, 255, 255, 0.03)',
@@ -161,7 +161,7 @@ const SectionTitle = styled('h3', {
 });
 
 const MatchRecord = styled('div', {
-  background: 'linear-gradient(90deg, $gray850, $black)',
+  background: 'linear-gradient(90deg, $cardNavy, $deepNavy)',
   padding: '$5 $7',
   borderRadius: '$xl',
   borderGlow: 'rgba(255, 255, 255, 0.02)',
@@ -173,14 +173,14 @@ const MatchRecord = styled('div', {
   transition: 'all 0.4s ease',
 
   '&:hover': {
-    background: 'linear-gradient(90deg, $gray800, $black)',
+    background: 'linear-gradient(90deg, $gray800, $deepNavy)',
     borderColor: 'rgba(255, 255, 255, 0.1)',
     transform: 'translateX(4px)',
   },
 });
 
 const StyledGreetingCard = styled('div', {
-  background: 'linear-gradient(135deg, $gray850, $black)',
+  background: 'linear-gradient(135deg, $cardNavy, $deepNavy)',
   border: '1px solid rgba(255, 255, 255, 0.05)',
   borderRadius: '$2xl',
   padding: '$8',
