@@ -44,12 +44,25 @@ export default function Home() {
           </div>
         )}
 
-        {/* Unauthenticated State */}
+        {/* Unauthenticated State - Center Login */}
         {!isLoading && !user && (
-          <div className="w-full px-4 py-8 text-center bg-black/20 backdrop-blur-md rounded-[24px] border border-white/5">
-            <p className="text-[12px] font-['Rajdhani',sans-serif] tracking-widest text-[#E8E137]/60 uppercase font-black">
-              서비스 이용을 위해 로그인이 필요합니다
+          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-2 bg-gradient-to-b from-[#1B1B1B]/90 to-black/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
+            <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#E8E137]/40 to-transparent"></div>
+            
+            <p className="text-[16px] font-[900] text-gray-200 tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
+              TEYEON에 오신 것을 환영합니다
             </p>
+            
+            <button 
+              onClick={() => signInWithKakao()}
+              className="w-full max-w-[320px] py-5 rounded-full bg-gradient-to-r from-[#222222] to-[#111111] text-[#E8E137] text-[15px] font-[1000] tracking-widest border border-[#E8E137]/30 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:border-[#E8E137]/80 hover:shadow-[0_15px_40px_rgba(232,225,55,0.2)] active:scale-[0.98] flex items-center justify-center gap-4 font-['Rajdhani',sans-serif]"
+            >
+              <span className="text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">💬</span> 카카오 계정으로 접속
+            </button>
+            
+            <span className="text-[10px] text-gray-500 font-bold tracking-widest mt-8 uppercase font-['Rajdhani',sans-serif]">
+              Authorized Personnel Only
+            </span>
           </div>
         )}
 

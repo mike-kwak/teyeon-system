@@ -216,13 +216,7 @@ export default function ProfilePage() {
     return (
       <Container>
         <div style={{ marginTop: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
-          <p style={{ textAlign: 'center', opacity: 0.5, fontFamily: 'var(--font-rajdhani)', letterSpacing: '0.1em' }}>PLEASE LOGIN TO INITIALIZE PILOT TELEMETRY.</p>
-          <button 
-            onClick={() => signInWithKakao()}
-            className="w-full max-w-[320px] py-5 rounded-3xl bg-[#1B1B1B] text-[#E8E137] text-base font-[1000] tracking-widest border border-[#E8E137]/60 shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:bg-[#E8E137]/5 active:scale-[0.98] flex items-center justify-center gap-3 font-['Rajdhani',sans-serif]"
-          >
-            <span className="text-2xl">💬</span> 카카오 계정으로 접속
-          </button>
+          <p style={{ textAlign: 'center', opacity: 0.5, fontFamily: 'var(--font-rajdhani)', letterSpacing: '0.1em' }}>PLEASE LOGIN FROM MAIN DASHBOARD TO INITIALIZE PILOT TELEMETRY.</p>
         </div>
       </Container>
     );
