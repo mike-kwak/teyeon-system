@@ -109,9 +109,9 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Standalone Admin Setting Button (v6.0 24px Symmetrical Balance) */}
+            {/* Standalone Admin Setting Button (v6.1 Upward Shift & Floating Balance) */}
 
-            <div className="w-full mt-6 mb-6 animate-in fade-in duration-1000">
+            <div className="w-full mt-3 mb-12 animate-in fade-in duration-1000">
               <Link 
                 href={menuItems[6].path}
                 className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-16 w-full"
