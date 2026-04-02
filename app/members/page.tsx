@@ -1,12 +1,14 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { withRetry } from '@/utils/withRetry';
 import { useRouter } from 'next/navigation';
+
+const CACHE_KEY = 'TEYEON_CACHE_MEMBERS';
+const BRAND_GOLD = '#C9B075';
 
 interface Member {
   id: string;
@@ -74,7 +76,7 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
   };
 
   return (
-    <div className="relative overflow-hidden p-4 py-6 rounded-[24px] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(201,176,117,0.3)] group bg-gradient-to-br from-[#1E1E1E] to-black border border-white/5 hover:border-[#C9B075]/40 z-10 isolate h-auto min-h-[170px] justify-between w-full">
+    <div className="relative overflow-hidden p-4 rounded-[24px] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(201,176,117,0.3)] group bg-gradient-to-br from-[#1E1E1E] to-black border border-white/5 hover:border-[#C9B075]/40 z-10 isolate h-[170px] justify-between w-full">
       <div className="flex justify-between items-start mb-2 z-20 w-full">
         <div className="flex-1 min-w-0 pr-1">
           <h3 className="text-[17px] font-black mb-2 text-white/90 tracking-tight drop-shadow-md truncate">{member.nickname}</h3>
@@ -95,14 +97,14 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 mt-auto border-t border-white/10 pt-4 z-20 w-full">
+      <div className="flex flex-col gap-1 mt-auto border-t border-white/10 pt-2 z-20 w-full">
         <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.1em]">Status Detail</span>
         <span className="text-[11px] font-black text-white/60 tracking-tight truncate">{member.affiliation || 'Elite Member'}</span>
       </div>
 
-      <div className="mt-2 min-h-[20px] z-20 w-full">
+      <div className="mt-1 min-h-[16px] z-20 w-full">
          {member.achievements ? (
-           <p className="text-[10px] font-black text-[#C9B075] italic opacity-90 drop-shadow-md leading-relaxed">
+           <p className="text-[10px] font-black text-[#C9B075] italic opacity-90 drop-shadow-md truncate">
              🏆 {member.achievements}
            </p>
          ) : (
@@ -123,32 +125,47 @@ MemberCard.displayName = 'MemberCard';
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const router = useRouter();
 
+  // 1. Zero-Delay Initial Render
   useEffect(() => {
+    // Synchronously check cache before background fetch
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+          console.log('[Members] Zero-Delay cache hit');
+          setMembers(parsed);
+          setLoading(false); // Set loading false immediately to show cache
+        }
+      } catch (err) {
+        console.warn('[Members] Cache invalid, falling back to server');
+      }
+    }
+
+    // Always fetch in background to sync
     fetchMembers();
   }, []);
 
   async function fetchMembers() {
+    const startTime = Date.now();
     try {
-      setLoading(true);
-      setErrorStatus(null);
+      // If no cache, we show whole page loading. If cache exists, we stay at loading=false (showing cache) but could show a sync pulse.
+      const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
       
-      // v4.3 ABSOLUTE STABILITY: Direct fetch with dummy timestamp-based filter for cache busting
-      // PostgREST doesn't support query params for cache busting in the URL easily via the client,
-      // so we use a dummy condition that is always true but unique.
-      const timestamp = Date.now();
-      console.log(`[CacheBust] Forcing fresh members fetch (t=${timestamp})`);
-
-      const { data, error } = await supabase
+      console.log(`[Members] Requesting fresh data (120s limit)...`);
+      
+      const { data, error } = await withRetry(() => supabase
         .from('members')
-        .select('*')
-        .not('id', 'is', null) // Safe invariant to force a fresh PostgREST request
-        .order('id', { ascending: false }); // Minor shuffling to bypass edge caches if any
+        .select('id, nickname, role, position, affiliation, achievements, avatar_url, is_admin, is_guest, email')
+        .eq('club_id', clubId));
+
+      const latency = Date.now() - startTime;
+      console.log(`[Members] Network synchronization complete in ${latency}ms`);
 
       if (error) {
-        console.error('[Members] Supabase Fetch Error:', error);
+        console.error(`[Members] Fetch Protocol Failure: ${error.code} - ${error.message}`);
         throw error;
       }
       
@@ -159,14 +176,12 @@ export default function MembersPage() {
           if (aP !== bP) return aP - bP;
           return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
         });
+        
         setMembers(sortedData);
-      } else {
-        setErrorStatus('서버 연결 확인 중... (Checking connection)');
-        setTimeout(fetchMembers, 3000);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(sortedData));
       }
     } catch (err: any) {
-      console.error('[Members] Terminal Failure:', err);
-      setErrorStatus('네트워크 요청 실패. 다시 시도해 주세요.');
+      console.error('[Members] Terminal Failure Path:', err);
     } finally {
       setLoading(false);
       router.refresh();
@@ -174,8 +189,8 @@ export default function MembersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#141416] pt-10 pb-10 w-full flex flex-col items-center overflow-x-hidden relative">
-      <div className="w-full max-w-[430px] mx-auto flex flex-col items-center px-4 flex flex-col items-center">
+    <main className="min-h-screen bg-[#141416] pt-10 pb-[200px] w-full flex flex-col items-center overflow-x-hidden relative">
+      <div className="w-full max-w-[430px] mx-auto flex flex-col items-center px-4">
         
         <header className="mb-8 w-full text-center flex flex-col items-center">
           <h1 className="text-[36px] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 uppercase leading-[1.1] italic font-['Rajdhani',sans-serif] drop-shadow-[0_4px_12px_rgba(255,255,255,0.05)]">
@@ -186,39 +201,37 @@ export default function MembersPage() {
           </p>
         </header>
 
-        {loading ? (
+        {loading && members.length === 0 ? (
           <div className="grid grid-cols-2 gap-4 w-full animate-in fade-in duration-500">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse bg-gradient-to-br from-[#1E1E1E] to-black/50 h-[170px] rounded-[24px] border border-white-[0.02] shadow-lg" />
             ))}
           </div>
-        ) : members.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative">
+        ) : (
+          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative pb-[120px]">
+             {/* Subtle Network Sync Indicator */}
+             {loading && members.length > 0 && (
+              <div className="absolute top-[-30px] right-0 flex items-center gap-2 animate-pulse">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#C9B075]"></div>
+                <span className="text-[9px] text-[#C9B075] font-black uppercase tracking-tighter opacity-70">Updating...</span>
+              </div>
+            )}
             {members.map((member) => (
               <MemberCard key={member.id} member={member} />
             ))}
-            
-            {/* [v4.3] ABSOLUTE SPACING: Unconditional 250px Bottom Anchor */}
-            <div className="col-span-2 h-[250px] w-full" aria-hidden="true" />
-          </div>
-        ) : (
-          <div className="text-center py-[100px] mt-10 w-full mb-40">
-            <div className="flex flex-col items-center gap-6">
-              <div className="w-12 h-12 border-4 border-[#C9B075]/20 border-t-[#C9B075] rounded-full animate-spin"></div>
-              <p className="text-[14px] font-black text-[#C9B075] tracking-tighter uppercase animate-pulse">
-                {errorStatus || 'Loading Directory...'}
-              </p>
-              <button 
-                onClick={() => fetchMembers()}
-                className="mt-4 px-8 py-3 bg-[#C9B075] text-black text-xs font-black rounded-full shadow-lg active:scale-95 transition-transform"
-              >
-                RESTORE CONNECTION
-              </button>
-            </div>
           </div>
         )}
 
-        <footer className="mt-[80px] text-center opacity-20 pb-8 mb-40">
+        {members.length === 0 && !loading && (
+          <div className="text-center py-[100px] opacity-20 mt-10">
+            <span className="text-[64px] drop-shadow-[0_0_15px_rgba(201,176,117,0.8)]">🏜️</span>
+            <p className="text-[12px] font-[950] uppercase tracking-[0.4em] mt-5 font-['Rajdhani',sans-serif]">
+              No Directory Found
+            </p>
+          </div>
+        )}
+
+        <footer className="mt-[80px] text-center opacity-20 pb-8">
           <p className="text-[11px] font-[950] tracking-[0.5em] text-[#C9B075] uppercase font-['Rajdhani',sans-serif]">
             TEYEON NETWORK PRO STABLE
           </p>
