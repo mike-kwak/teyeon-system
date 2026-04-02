@@ -102,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncProfile = async (currentUser: User) => {
     try {
+      console.log(`[Auth/DirectSync] Forcing single source of truth lookup for ${currentUser.email}`);
       const { data: linkedMember, error } = await supabase
         .from('members')
         .select('id, role, email')
@@ -114,11 +115,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         let finalRole: UserRole = 'MEMBER';
         
-        // Priority 1: CEO Email Check
+        // Priority 1: CEO Email Check (Hardcoded safety)
         if (currentUser.email === CEO_EMAIL) {
           finalRole = 'CEO';
         } else if (linkedMember.role) {
-          // Priority 2: DB-determined Role Title
+          // Priority 2: DB-determined Role Title (Absolute Authority)
           const kRole = linkedMember.role.trim();
           if (kRole === 'CEO' || kRole === '회장') {
             finalRole = 'CEO';
@@ -131,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
+        console.log(`[Auth/DirectSync] Target Role: ${finalRole}`);
         setRole(finalRole);
         setIsPendingMatching(false);
         setIsLoading(false);
@@ -138,10 +140,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setRole('GUEST');
-      setIsPendingMatching(false); // Disable matching gate for now as per instructions
+      setIsPendingMatching(false); // Disable matching gate as per v4.1 instructions
       setIsLoading(false);
     } catch (err) {
-      console.error('[Auth] Error syncing core profile state:', err);
+      console.error('[Auth/DirectSync] Critical Failure Path:', err);
       setRole('GUEST');
       setIsLoading(false);
     }

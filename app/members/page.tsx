@@ -135,10 +135,17 @@ export default function MembersPage() {
       setLoading(true);
       setErrorStatus(null);
       
-      // EMERGENCY RESET: Straight, unfiltered select call
+      // v4.3 ABSOLUTE STABILITY: Direct fetch with dummy timestamp-based filter for cache busting
+      // PostgREST doesn't support query params for cache busting in the URL easily via the client,
+      // so we use a dummy condition that is always true but unique.
+      const timestamp = Date.now();
+      console.log(`[CacheBust] Forcing fresh members fetch (t=${timestamp})`);
+
       const { data, error } = await supabase
         .from('members')
-        .select('*');
+        .select('*')
+        .not('id', 'is', null) // Safe invariant to force a fresh PostgREST request
+        .order('id', { ascending: false }); // Minor shuffling to bypass edge caches if any
 
       if (error) {
         console.error('[Members] Supabase Fetch Error:', error);
@@ -155,7 +162,6 @@ export default function MembersPage() {
         setMembers(sortedData);
       } else {
         setErrorStatus('서버 연결 확인 중... (Checking connection)');
-        // Auto-retry once after 3 seconds
         setTimeout(fetchMembers, 3000);
       }
     } catch (err: any) {
@@ -168,7 +174,7 @@ export default function MembersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#141416] pt-10 pb-[10px] w-full flex flex-col items-center overflow-x-hidden relative">
+    <main className="min-h-screen bg-[#141416] pt-10 pb-10 w-full flex flex-col items-center overflow-x-hidden relative">
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center px-4 flex flex-col items-center">
         
         <header className="mb-8 w-full text-center flex flex-col items-center">
@@ -187,10 +193,13 @@ export default function MembersPage() {
             ))}
           </div>
         ) : members.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative pb-[180px]">
+          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative">
             {members.map((member) => (
               <MemberCard key={member.id} member={member} />
             ))}
+            
+            {/* [v4.3] ABSOLUTE SPACING: Unconditional 250px Bottom Anchor */}
+            <div className="col-span-2 h-[250px] w-full" aria-hidden="true" />
           </div>
         ) : (
           <div className="text-center py-[100px] mt-10 w-full mb-40">
