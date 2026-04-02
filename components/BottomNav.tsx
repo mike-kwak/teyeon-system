@@ -45,7 +45,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-[16px] left-1/2 -translate-x-1/2 z-50 h-[100px] w-[92%] max-w-[400px] bg-[#1B1B21]/90 backdrop-blur-xl border border-white/10 px-2 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-[32px] transition-all duration-300">
+    <nav className="fixed bottom-[16px] left-1/2 -translate-x-1/2 z-50 h-[85px] w-[92%] max-w-[400px] bg-[#1B1B21]/90 backdrop-blur-xl border border-white/10 px-2 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-[32px] transition-all duration-300">
       <div className="max-w-[430px] w-full mx-auto flex justify-around items-center gap-2">
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path !== '/' && pathname?.startsWith(item.path));
@@ -54,21 +54,21 @@ export default function BottomNav() {
               key={item.path} 
               href={item.path}
               onClick={(e) => handleGuestClick(e, item.label)}
-              className={`relative flex flex-col items-center justify-center w-[85px] h-[80px] transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 active:scale-95'} ${!user && item.label !== 'MAIN' ? 'opacity-40' : ''}`}
+              className={`relative flex flex-col items-center justify-center w-[80px] h-[70px] transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 active:scale-95'} ${!user && item.label !== 'MAIN' ? 'opacity-40' : ''}`}
             >
               {isActive && (
-                <div className="absolute -top-[10px] w-[40px] h-[3px] bg-[#EFDFB4] rounded-full shadow-[0_0_15px_#EFDFB4]" />
+                <div className="absolute -top-[6px] w-[32px] h-[3px] bg-[#EFDFB4] rounded-full shadow-[0_0_12px_#EFDFB4]" />
               )}
               <div 
-                className={`mb-2 transition-all duration-300 ${
-                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_12px_rgba(239,223,180,0.8)]' : 'text-[#C9B075]/40'
+                className={`mb-1.5 transition-all duration-300 ${
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_10px_rgba(239,223,180,0.8)]' : 'text-[#C9B075]/40'
                 }`}
               >
-                <item.icon size={32} strokeWidth={1.2} />
+                <item.icon size={28} strokeWidth={1.3} />
               </div>
               <span 
-                className={`text-[10px] font-[1000] tracking-[0.25em] transition-all duration-300 uppercase ${
-                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_10px_rgba(239,223,180,0.4)]' : 'text-[#C9B075]/60'
+                className={`text-[11px] font-black tracking-[0.1em] transition-all duration-300 uppercase ${
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.4)]' : 'text-[#C9B075]/60'
                 }`}
               >
                 {item.label}
