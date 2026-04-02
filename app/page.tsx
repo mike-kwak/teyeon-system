@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { 
-  UserRound, 
+  Users, 
   Trophy, 
   Swords, 
   Megaphone, 
   Flame, 
-  Wallet, 
+  CircleDollarSign, 
   Cpu, 
   Settings 
 } from 'lucide-react';
@@ -29,10 +29,10 @@ export default function Home() {
 
   const menuItems = [
     { label: '클럽 공지', icon: <Megaphone size={36} strokeWidth={1.5} />, path: '/notice', comingSoon: false },
-    { label: '멤버 프로필', icon: <UserRound size={36} strokeWidth={1.5} />, path: '/members', comingSoon: false },
+    { label: '멤버 프로필', icon: <Users size={36} strokeWidth={1.5} />, path: '/members', comingSoon: false },
     { label: '스페셜 매치', icon: <Flame size={36} strokeWidth={1.5} />, path: '/tournament', comingSoon: true },
     { label: '대전 생성', icon: <Swords size={36} strokeWidth={1.5} />, path: '/kdk', comingSoon: false },
-    { label: '클럽 재무', icon: <Wallet size={36} strokeWidth={1.5} />, path: '/finance', comingSoon: true },
+    { label: '클럽 재무', icon: <CircleDollarSign size={36} strokeWidth={1.5} />, path: '/finance', comingSoon: true },
     { label: 'AI 시드 예측', icon: <Cpu size={36} strokeWidth={1.5} />, path: '/prediction', comingSoon: true },
     { label: '관리자 설정', icon: <Settings size={36} strokeWidth={1.5} />, path: '/admin', comingSoon: true },
   ];
@@ -113,14 +113,14 @@ export default function Home() {
                 className={`relative flex flex-col items-center justify-center bg-black/30 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-black/50 hover:-translate-y-1 active:scale-[0.98] shadow-[0_4px_10px_rgba(232,225,55,0.15)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[120px] flex-row gap-8' : 'h-[150px]'}`}
               >
                 {item.comingSoon && (
-                  <span className={`absolute px-[8px] py-[3px] bg-[#1A1A14] text-[#E8E137] text-[8px] font-black rounded-lg tracking-wider shadow-sm border border-[#E8E137]/20 ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-6' : 'top-4 right-4'}`}>
+                  <span className={`absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-8' : 'top-4 right-4'}`}>
                     COMING SOON
                   </span>
                 )}
-                <div className={`text-[#EFDFB4] drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
+                <div className={`text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
                   {item.icon}
                 </div>
-                <span className={`font-bold text-gray-200 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[15px]'}`}>
+                <span className={`font-bold text-[#C9B075]/80 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[15px]'}`}>
                   {item.label}
                 </span>
               </Link>

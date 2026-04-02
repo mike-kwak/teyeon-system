@@ -3,13 +3,30 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Medal, User } from 'lucide-react';
+import { Home, Medal, User, LoaderPinwheel } from 'lucide-react';
+
+const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke={color} 
+    strokeWidth={strokeWidth} 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <circle cx="15" cy="9" r="6" />
+    <path d="M10.5 13.5L3 21" />
+    <path d="M12 6l6 6M9 9l6 6" />
+  </svg>
+);
 
 const navItems = [
-  { path: '/', label: 'MAIN', icon: <Home size={24} strokeWidth={1.5} /> },
-  { path: '/live', label: 'LIVE COURT', icon: <Activity size={24} strokeWidth={1.5} /> },
-  { path: '/results', label: 'ARCHIVE', icon: <Medal size={24} strokeWidth={1.5} /> },
-  { path: '/profile', label: 'PROFILE', icon: <User size={24} strokeWidth={1.5} /> },
+  { path: '/', label: 'MAIN', icon: (props: any) => <Home {...props} /> },
+  { path: '/live', label: 'LIVE COURT', icon: (props: any) => <TennisRacket {...props} /> },
+  { path: '/results', label: 'ARCHIVE', icon: (props: any) => <Medal {...props} /> },
+  { path: '/profile', label: 'PROFILE', icon: (props: any) => <User {...props} /> },
 ];
 
 export default function BottomNav() {
@@ -31,14 +48,14 @@ export default function BottomNav() {
               )}
               <div 
                 className={`mb-[6px] transition-all duration-300 ${
-                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.8)]' : 'text-gray-500 opacity-40'
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.8)]' : 'text-[#C9B075]/40'
                 }`}
               >
-                {item.icon}
+                <item.icon size={24} strokeWidth={1.5} />
               </div>
               <span 
                 className={`text-[9px] font-black tracking-[0.15em] transition-all duration-300 ${
-                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.4)]' : 'text-gray-500'
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.4)]' : 'text-[#C9B075]/60'
                 }`}
               >
                 {item.label}
