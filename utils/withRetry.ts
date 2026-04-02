@@ -2,11 +2,11 @@ export async function withRetry<T>(
   asyncFn: () => Promise<T> | PromiseLike<T>,
   retries = 5,
   delayMs = 1500,
-  timeoutMs = 60000
+  timeoutMs = 120000
 ): Promise<T> {
   // Enforces a rigid localized timeout per execution
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Request timed out (10s limit)')), timeoutMs)
+    setTimeout(() => reject(new Error(`Request timed out (${Math.round(timeoutMs/1000)}s limit)`)), timeoutMs)
   );
 
   try {
