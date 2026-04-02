@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import PremiumSpinner from '@/components/PremiumSpinner';
+import { DataStateView } from '@/components/DataStateView';
+import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
 
 // --- Types & Interfaces ---
 interface Member {
@@ -64,13 +66,13 @@ export default function KDKPage() {
 
     if (role === 'GUEST') {
         return (
-            <div className="fixed inset-0 bg-black/98 flex flex-col items-center justify-center p-8 z-[1000]">
-                 <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
-                    <span className="text-4xl">🔒</span>
+            <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-8 z-[1000]">
+                 <div style={{ width: '80px', height: '80px', borderRadius: '100px', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                    <span style={{ fontSize: '32px' }}>🔒</span>
                  </div>
-                 <h2 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">Access Restricted</h2>
-                 <p className="text-sm text-white/40 text-center leading-relaxed max-w-xs">{getRestrictionMessage('kdk')}</p>
-                 <button onClick={() => router.push('/')} className="mt-8 px-8 py-4 bg-white/10 text-white font-black rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-widest">Back to Dashboard</button>
+                 <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#fff', fontStyle: 'italic', letterSpacing: '-0.02em', textTransform: 'uppercase', marginBottom: '8px' }}>Access Restricted</h2>
+                 <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.3)', textAlign: 'center', lineHeight: '1.6', maxWidth: '240px' }}>{getRestrictionMessage('kdk')}</p>
+                 <button onClick={() => router.push('/')} style={{ marginTop: '32px', padding: '16px 32px', background: 'rgba(255, 255, 255, 0.05)', color: '#fff', fontSize: '11px', fontWeight: 900, borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Back to Dashboard</button>
             </div>
         );
     }
@@ -125,6 +127,7 @@ export default function KDKPage() {
     const [showMemberEditModal, setShowMemberEditModal] = useState(false);
     const [hasSkippedGuestInfo, setHasSkippedGuestInfo] = useState(false);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
+    const [isMembersError, setIsMembersError] = useState(false);
     const [showCeremony, setShowCeremony] = useState(false);
 
     const allMatchesScored = useMemo(() => {
@@ -354,6 +357,8 @@ export default function KDKPage() {
 
     const fetchMembers = async () => {
         try {
+            setIsMembersLoading(true);
+            setIsMembersError(false);
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const { data: profile } = await supabase.from('profiles').select('club_role').eq('id', user.id).single();
@@ -361,8 +366,7 @@ export default function KDKPage() {
             }
 
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-            console.log("Fetching members for club:", clubId);
-
+            
             let query = supabase.from('members').select('*');
             if (clubId) {
                 query = query.eq('club_id', clubId);
@@ -374,6 +378,7 @@ export default function KDKPage() {
             setAllMembers(data || []);
         } catch (err) {
             console.error("Fetch Members Error:", err);
+            setIsMembersError(true);
         } finally {
             setIsMembersLoading(false);
         }
@@ -868,19 +873,19 @@ export default function KDKPage() {
                 </header>
 
                 <div className="flex-1 px-6 space-y-6 overflow-y-auto no-scrollbar pb-32">
-                    <section className="space-y-4">
-                    {isMembersLoading ? (
-                        <PremiumSpinner message="멤버 명단 동기화 중..." />
-                    ) : (
-                        <>
-                        <div className="grid grid-cols-4 gap-3 py-2">
-                            {[...allMembers, ...tempGuests].length === 0 ? (
-                                <div className="col-span-4 py-10 text-center space-y-2 border border-dashed border-white/5 rounded-3xl">
-                                    <span className="text-4xl block opacity-20">📂</span>
-                                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">No members found</span>
-                                </div>
-                            ) : (
-                                [...allMembers, ...tempGuests].map(m => {
+                    <DataStateView 
+                        isLoading={isMembersLoading} 
+                        isError={isMembersError}
+                        onRetry={fetchMembers}
+                        loadingComponent={
+                            <div className="grid grid-cols-3 gap-3">
+                                {[...Array(12)].map((_, i) => <Skeleton key={i} size="lg" />)}
+                            </div>
+                        }
+                    >
+                        <section className="space-y-4">
+                            <div className="grid grid-cols-3 gap-3 py-2">
+                                {[...allMembers, ...tempGuests].map(m => {
                                     const isSelected = selectedIds.has(m.id);
                                     return (
                                         <div
@@ -897,36 +902,32 @@ export default function KDKPage() {
                                             {m.is_guest && <span className={`text-[7px] font-black uppercase mt-0.5 ${isSelected ? 'text-black/60' : 'text-[#D4AF37]'}`}>Guest</span>}
                                         </div>
                                     );
-                                })
-                            )}
+                                })}
 
-                            {showGuestInput ? (
-                                <div className="h-16 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
-                                    <input
-                                        autoFocus
-                                        value={newGuestName}
-                                        onChange={(e) => setNewGuestName(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') addQuickGuest();
-                                            if (e.key === 'Escape') setShowGuestInput(false);
-                                        }}
-                                        placeholder="이름"
-                                        className="w-full bg-transparent text-sm font-black text-[#D4AF37] outline-none text-center"
-                                    />
-                                    <button onClick={() => addQuickGuest()} className="text-[#D4AF37] font-black px-1">↵</button>
-                                </div>
-                            ) : (
-                                <button onClick={() => setShowGuestInput(true)} className="h-16 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
-                                    <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
-                                    <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
-                                </button>
-                            )}
-                        </div>
-                        </>
-                    )}
-                    </section>
-
-                    {/* Removed ArchiveSection per user request for clean Step 1 */}
+                                {showGuestInput ? (
+                                    <div className="h-16 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
+                                        <input
+                                            autoFocus
+                                            value={newGuestName}
+                                            onChange={(e) => setNewGuestName(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') addQuickGuest();
+                                                if (e.key === 'Escape') setShowGuestInput(false);
+                                            }}
+                                            placeholder="이름"
+                                            className="w-full bg-transparent text-sm font-black text-[#D4AF37] outline-none text-center"
+                                        />
+                                        <button onClick={() => addQuickGuest()} className="text-[#D4AF37] font-black px-1">↵</button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => setShowGuestInput(true)} className="h-16 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
+                                        <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
+                                        <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
+                                    </button>
+                                )}
+                            </div>
+                        </section>
+                    </DataStateView>
                 </div>
 
                 <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0A0A0F] to-transparent z-20">
@@ -1311,7 +1312,7 @@ export default function KDKPage() {
                                         const isGroupB = (p0Group || 'A').toUpperCase().includes('B');
 
                                         return (
-                                            <div key={mId} className="group relative bg-[#1E1E2E] border border-white/10 rounded-[32px] p-4 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[140px]">
+                                            <div key={mId} className="group relative bg-[#000000] border border-white/5 rounded-[32px] p-4 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[140px]">
                                                 <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/5 border border-white/10">
                                                     <span className={`text-[8px] font-black italic ${isGroupB ? 'text-blue-400' : 'text-[#D4AF37]'}`}>{isGroupB ? 'B' : 'A'}조</span>
                                                 </div>
@@ -1985,7 +1986,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             </div>
 
             {/* Stage 3: Official Staff Closure (Final archival button) */}
-            <div className="mt-12 bg-[#1E1E2E] border border-[#D4AF37]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="mt-12 bg-[#000000] border border-[#D4AF37]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                     <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
                 </div>
@@ -2022,8 +2023,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
 function WarningModal({ message, onClose }: { message: string, onClose: () => void }) {
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="w-full max-w-xs bg-[#1E1E2E] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="w-full max-w-xs bg-[#000000] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
                 <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>

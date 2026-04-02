@@ -5,10 +5,16 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { styled, keyframes } from '@/stitches.config';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { Skeleton } from '@/components/Skeleton';
 
-const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'translateY(15px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
+const scanline = keyframes({
+  '0%': { transform: 'translateY(-100%)' },
+  '100%': { transform: 'translateY(100%)' },
+});
+
+const pulse = keyframes({
+  '0%, 100%': { opacity: 1, transform: 'scale(1)', filter: 'brightness(1)' },
+  '50%': { opacity: 0.8, transform: 'scale(0.98)', filter: 'brightness(1.5)' },
 });
 
 const shimmer = keyframes({
@@ -20,155 +26,14 @@ const Container = styled('main', {
   display: 'flex',
   flexDirection: 'column',
   minHeight: '100dvh',
-  padding: '$8 $5',
+  padding: '$6 $6 140px',
   maxWidth: '500px',
   margin: '0 auto',
   width: '100%',
-  backgroundColor: '$black',
+  backgroundColor: '#000000',
   position: 'relative',
   overflowX: 'hidden',
-});
-
-const Header = styled('header', {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  marginBottom: '$10',
-  width: '100%',
-  padding: '$2 0',
-});
-
-const LogoWrapper = styled('div', {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$5',
-  position: 'relative',
-});
-
-const LogoIcon = styled('div', {
-  position: 'relative',
-  width: '64px',
-  height: '64px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-});
-
-const LogoBall = styled('div', {
-  position: 'absolute',
-  width: '32px',
-  height: '32px',
-  backgroundColor: '#E8E137',
-  borderRadius: '$full',
-  border: '2px solid black',
-  transform: 'translateX(12px) translateY(-12px)',
-  zIndex: 10,
-  boxShadow: '4px 4px 12px rgba(0,0,0,0.5)',
-});
-
-const BrandName = styled('h1', {
-  color: '$white',
-  fontSize: '42px',
-  fontWeight: '$black',
-  letterSpacing: '$tight',
-  textShadow: '0 8px 15px rgba(0,0,0,0.8)',
-  lineHeight: '0.85',
-});
-
-const SubBrand = styled('div', {
-  color: '$gold',
-  fontSize: '11px',
-  fontWeight: '$black',
-  letterSpacing: '0.6em',
-  textTransform: 'uppercase',
-  fontStyle: 'italic',
-  opacity: 0.9,
-  marginTop: '$3',
-  textAlign: 'center',
-});
-
-const ProfileSection = styled('section', {
-  marginBottom: '$10',
-  width: '100%',
-});
-
-const StyledProfileLink = styled(Link, {
-  display: 'block',
-  background: 'linear-gradient(135deg, $gray850, $black)',
-  borderRadius: '$xl',
-  padding: '$6',
-  position: 'relative',
-  overflow: 'hidden',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-  borderGlow: 'rgba(212, 175, 55, 0.15)',
-  boxShadow: '$glass',
-
-  '&:hover': {
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-    transform: 'translateY(-4px) scale(1.02)',
-    boxShadow: '$goldGlow',
-  },
-  
-  '&:active': {
-    transform: 'scale(0.98)',
-  },
-});
-
-const KakaoButton = styled('button', {
-  width: '100%',
-  background: 'linear-gradient(135deg, $gray900, $black)',
-  color: '$gold',
-  borderRadius: '$xl',
-  padding: '$6',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '$4',
-  borderGlow: 'rgba(212, 175, 55, 0.3)',
-  boxShadow: '$glass',
-  transition: 'all 0.4s ease',
-  position: 'relative',
-  overflow: 'hidden',
-
-  '&:hover': {
-    background: 'linear-gradient(135deg, $gray800, $gray900)',
-    borderColor: '$gold',
-    boxShadow: '$goldGlow',
-    transform: 'translateY(-2px)',
-  },
-
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: '-100%',
-    width: '50%',
-    height: '100%',
-    background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent)',
-    animation: `${shimmer} 3s infinite`,
-  }
-});
-
-const MenuGrid = styled('section', {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '$5',
-  width: '100%',
-  animation: `${fadeIn} 0.8s ease-out`,
-});
-
-const MenuItem = styled(Link, {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '$6',
-  borderRadius: '$xl',
-  background: 'linear-gradient(135deg, $gray850, $gray950)',
-  borderGlow: 'rgba(255, 255, 255, 0.03)',
-  transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
-  position: 'relative',
-  overflow: 'hidden',
-  boxShadow: '$glass',
+  backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.08), transparent 70%)',
 
   '&::before': {
     content: '""',
@@ -176,115 +41,199 @@ const MenuItem = styled(Link, {
     top: 0,
     left: 0,
     width: '100%',
-    height: '1px',
-    background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent)',
-    opacity: 0,
-    transition: 'opacity 0.4s',
-  },
+    height: '2px',
+    background: 'linear-gradient(90deg, transparent, $goldGlint, transparent)',
+    boxShadow: '0 0 25px $goldGlint',
+    zIndex: 10,
+    animation: `${scanline} 6s linear infinite`,
+    opacity: 0.4,
+  }
+});
+
+const TelemetryGrid = styled('div', {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, 1fr)',
+  gap: '$4',
+  marginBottom: '$10',
+});
+
+const StatBox = styled('div', {
+  volumetricBox: '',
+  padding: '$5 $2',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  borderRadius: '$xl',
+  textAlign: 'center',
+  border: '1px solid rgba(255, 215, 0, 0.1)',
+  transition: 'all 0.3s ease',
 
   '&:hover': {
-    background: 'linear-gradient(135deg, $gray800, $gray900)',
-    borderColor: 'rgba(212, 175, 55, 0.5)',
-    boxShadow: '$goldGlow',
-    transform: 'translateX(4px)',
-    '&::before': { opacity: 1 },
-    '& .icon-wrapper': {
-      background: 'rgba(212, 175, 55, 0.2)',
-      color: '$goldGlint',
-      transform: 'scale(1.1) rotate(5deg)',
-    },
+    borderColor: '$goldGlint',
+    boxShadow: '0 0 20px rgba(255, 215, 0, 0.15)',
   },
 
-  '&:active': {
-    transform: 'scale(0.97)',
+  '& .label': {
+    fontSize: '10px',
+    fontFamily: '$sporty',
+    fontWeight: 900,
+    color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.2em',
+    marginBottom: '$2',
   },
 
-  variants: {
-    comingSoon: {
-      true: {
-        opacity: 0.4,
-        cursor: 'not-allowed',
-        filter: 'grayscale(1)',
-        '&:hover': {
-          transform: 'none',
-          borderColor: 'rgba(255,255,255,0.05)',
-          boxShadow: 'none',
-        },
-      },
-    },
+  '& .value': {
+    fontSize: '20px',
+    fontFamily: '$display',
+    fontWeight: 900,
+    color: '$goldGlint',
+    textShadow: '0 0 15px rgba(255, 215, 0, 0.4)',
   },
 });
 
-const ItemContent = styled('div', {
+const ProfileHero = styled('section', {
+  marginBottom: '$12',
+  width: '100%',
+});
+
+const PilotCard = styled(Link, {
   display: 'flex',
   alignItems: 'center',
+  padding: '$8',
+  borderRadius: '$2xl',
+  background: 'linear-gradient(135deg, #121212 0%, #000000 100%)',
+  border: '1px solid rgba(255, 215, 0, 0.3)',
+  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05), 0 25px 50px rgba(0,0,0,0.9)',
+  position: 'relative',
+  overflow: 'hidden',
+  transition: 'all 0.5s cubic-bezier(0.19, 1, 0.22, 1)',
+
+  '&:hover': {
+    borderColor: '$goldGlint',
+    transform: 'translateY(-4px)',
+    boxShadow: '0 0 40px rgba(255, 215, 0, 0.4)',
+  },
+});
+
+const KakaoLoginButton = styled('button', {
+   width: '100%',
+   padding: '$8',
+   borderRadius: '$2xl',
+   background: 'rgba(0, 0, 0, 0.95)',
+   color: '$goldGlint',
+   fontSize: '18px',
+   fontFamily: '$sporty',
+   fontWeight: 900,
+   letterSpacing: '0.15em',
+   textTransform: 'uppercase',
+   boxShadow: '0 15px 35px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 215, 0, 0.05)',
+   border: '1.5px solid $goldGlint',
+   transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+   display: 'flex',
+   alignItems: 'center',
+   justifyContent: 'center',
+   gap: '$4',
+   position: 'relative',
+   overflow: 'hidden',
+
+   '&::before': {
+     content: '""',
+     position: 'absolute',
+     top: 0,
+     left: '-100%',
+     width: '100%',
+     height: '100%',
+     background: 'linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent)',
+     animation: `${shimmer} 3s infinite linear`,
+   },
+
+   '&:hover': {
+     transform: 'translateY(-4px) scale(1.02)',
+     background: 'rgba(255, 215, 0, 0.05)',
+     boxShadow: '0 20px 50px rgba(255, 215, 0, 0.3)',
+   },
+   '&:active': { transform: 'scale(0.98)' }
+});
+
+const BentoGrid = styled('section', {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, 1fr)',
   gap: '$5',
-  zIndex: 1,
+  width: '100%',
 });
 
-const IconWrapper = styled('div', {
-  fontSize: '28px',
-  width: '52px',
-  height: '52px',
+const MegaMenuItem = styled(Link, {
+  gridColumn: 'span 2',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: '$lg',
-  background: 'rgba(212, 175, 55, 0.1)',
-  color: '$gold',
+  justifyContent: 'space-between',
+  padding: '$8',
+  borderRadius: '$2xl',
+  volumetricBox: '',
+  background: 'linear-gradient(135deg, #151515 0%, #000000 100%)',
+  border: '1px solid rgba(255, 215, 0, 0.2)',
+  boxShadow: '0 15px 35px rgba(0,0,0,0.8)',
   transition: 'all 0.4s ease',
-  boxShadow: 'inset 0 0 10px rgba(212, 175, 55, 0.1)',
+
+  '&:hover': {
+    borderColor: '$goldGlint',
+    transform: 'translateX(4px)',
+    boxShadow: '0 0 30px rgba(255, 215, 0, 0.2)',
+  }
 });
 
-const ItemLabel = styled('span', {
-  fontSize: '$lg',
-  fontWeight: '$black',
-  letterSpacing: '$wide',
-  color: '$white',
-  textTransform: 'uppercase',
-  fontStyle: 'italic',
-});
-
-const Badge = styled('span', {
-  fontSize: '9px',
-  fontWeight: '$black',
-  padding: '$1 $4',
-  borderRadius: '$full',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-  boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-
-  variants: {
-    type: {
-      new: { background: '$gold', color: '$black' },
-      soon: { background: '$gray700', color: '$gray400' },
-      live: { background: '$error', color: '$white', animation: 'pulse 1.5s infinite' },
-    },
-  },
-});
-
-const Toast = styled('div', {
-  position: 'fixed',
-  bottom: '110px',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  zIndex: '$toast',
-  width: '90vw',
-  maxWidth: '420px',
-  background: 'rgba(20, 20, 20, 0.95)',
-  backdropFilter: 'blur(20px)',
-  color: '$white',
-  padding: '$5 $8',
+const StandardMenuItem = styled(Link, {
+  display: 'flex',
+  flexDirection: 'column',
+  padding: '$6',
   borderRadius: '$xl',
-  fontWeight: '$black',
-  fontSize: '$sm',
-  textAlign: 'center',
-  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212,175,55,0.2)',
-  borderTop: '2px solid $gold',
+  volumetricBox: '',
+  background: 'linear-gradient(135deg, #151515 0%, #000000 100%)',
+  border: '1px solid rgba(255, 215, 0, 0.15)',
+  transition: 'all 0.3s ease',
+  gap: '$4',
+
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    borderColor: '$goldGlint',
+    boxShadow: '0 0 25px rgba(255, 215, 0, 0.2)',
+  }
+});
+
+const ProgressTrack = styled('div', {
+  width: '100%',
+  height: '10px',
+  background: '#000',
+  borderRadius: '$full',
+  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.9)',
+  overflow: 'hidden',
+  marginTop: '$4',
+  border: '1px solid rgba(255,255,255,0.03)',
+});
+
+const ProgressBar = styled('div', {
+  height: '100%',
+  background: 'linear-gradient(90deg, #D4AF37, #FFD700)',
+  boxShadow: '0 0 15px #FFD700',
+  borderRadius: '$full',
+  transition: 'width 1.5s cubic-bezier(0.16, 1, 0.3, 1)',
+});
+
+const Badge = styled('div', {
+  padding: '3px 10px',
+  background: '$goldGlint',
+  color: '$black',
+  fontSize: '10px',
+  fontWeight: 900,
+  borderRadius: '6px',
+  fontFamily: '$sporty',
+  letterSpacing: '0.1em',
+  boxShadow: '0 0 15px rgba(255, 215, 0, 0.5)',
 });
 
 export default function Home() {
-  const { user, role, signInWithKakao, signOut, isLoading, hasPermission, getRestrictionMessage } = useAuth();
+  const { user, role, signInWithKakao, isLoading } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -294,119 +243,161 @@ export default function Home() {
     }
   }, [toast]);
 
-  const menuItems = [
-    { id: "notice", icon: "📢", label: "Club Notice", path: "/notice", feature: 'notice' },
-    { id: "tournament", icon: "🏆", label: "Special Match", path: "/tournament", feature: 'kdk', badge: 'NEW' },
-    { id: "kdk", icon: "⚡", label: "Match Generator", path: "/kdk", feature: 'kdk' },
-    { id: "live_court", icon: "🎾", label: "Live Court", path: "/tournament", feature: 'scores', badge: 'LIVE' },
-    { id: "archive", icon: "📂", label: "Match Archive", path: "/results", feature: 'scores' },
-    { id: "profile", icon: "👤", label: "Member Profile", path: "/members", feature: 'profiles' },
-    { id: "finance", icon: "💰", label: "Finance", path: "/finance", feature: 'finance', isComingSoon: true },
-    { id: "ai_seed", icon: "🤖", label: "AI Prediction", path: "/prediction", feature: 'tournament', isComingSoon: true },
-    { id: "admin", icon: "⚙️", label: "Settings", path: "/admin", feature: 'admin_settings' },
-  ];
-
-  const handleMenuClick = (e: React.MouseEvent, item: any) => {
-    if (item.isComingSoon) {
-      e.preventDefault();
-      setToast("This feature is coming soon! Stay tuned. 🎾");
-      return false;
-    }
-
-    const access = hasPermission(item.feature as any);
-    if (access === 'HIDE') {
-      e.preventDefault();
-      setToast(getRestrictionMessage(item.feature));
-      return false;
-    }
-    return true;
-  };
-
   return (
     <Container>
-      <Header>
-        <LogoWrapper>
-          <LogoIcon>
-            <div style={{ position: 'absolute', width: '48px', height: '8px', background: '#E33529', borderRadius: '100px', transform: 'rotate(-45deg) translate(-8px, -10px)' }} />
-            <div style={{ position: 'absolute', width: '48px', height: '8px', background: '#E33529', borderRadius: '100px', transform: 'rotate(-45deg) translate(-15px, 0px)' }} />
-            <LogoBall />
-          </LogoIcon>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '6px', justifyContent: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.3em', color: 'rgba(255,255,255,0.5)' }}>EST.</span>
-              <span style={{ fontSize: '11px', fontWeight: 900, color: '#D4AF37' }}>2025</span>
-            </div>
-            <BrandName>TEYEON</BrandName>
-            <SubBrand>Elite Circuit</SubBrand>
-          </div>
-        </LogoWrapper>
-      </Header>
+      <TelemetryGrid>
+        <StatBox>
+          <span className="label">SYS STATUS</span>
+          <span className="value" style={{ color: '#4CAF50' }}>ACTIVE</span>
+        </StatBox>
+        <StatBox>
+          <span className="label">RPM GAUGE</span>
+          <span className="value">9,482</span>
+        </StatBox>
+        <StatBox>
+          <span className="label">PILOTS</span>
+          <span className="value">168</span>
+        </StatBox>
+      </TelemetryGrid>
 
-      <ProfileSection>
-        {!user ? (
-          <KakaoButton onClick={() => signInWithKakao()}>
-            <span style={{ fontSize: '24px' }}>💬</span>
-            <span style={{ fontWeight: 900, letterSpacing: '0.1em' }}>KAKAOTALK LOGIN ELITE</span>
-          </KakaoButton>
+      <ProfileHero>
+        {isLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '32px', background: 'rgba(255, 215, 0, 0.03)', borderRadius: '32px', border: '1px solid rgba(255, 215, 0, 0.1)' }}>
+            <Skeleton variant="circle" size="xl" style={{ width: '84px', height: '84px' }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+               <Skeleton variant="text" style={{ width: '40%' }} />
+               <Skeleton variant="text" style={{ width: '70%', height: '34px' }} />
+               <div style={{ display: 'flex', gap: '8px' }}>
+                  <Skeleton variant="rect" size="sm" style={{ width: '60px' }} />
+                  <Skeleton variant="rect" size="sm" style={{ width: '60px' }} />
+               </div>
+            </div>
+          </div>
+        ) : !user ? (
+          <KakaoLoginButton 
+            onClick={() => signInWithKakao()}
+            className="kakao-login-button"
+          >
+            <span>💬</span> KAKAOTALK LOGIN ELITE
+          </KakaoLoginButton>
         ) : (
-          <StyledProfileLink href="/profile">
+          <PilotCard href="/profile">
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
               <ProfileAvatar 
-                src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-                alt={user.user_metadata?.full_name || "Profile"} 
-                size={64}
-                className="rounded-full shadow-[0_0_25px_rgba(212,175,55,0.3)] border-2 border-gold"
+                src={user.user_metadata?.avatar_url} 
+                alt={user.user_metadata?.nickname} 
+                size={84}
                 fallbackIcon={role === 'CEO' ? '👑' : '👤'}
+                className="border-2 border-goldGlint shadow-[0_0_25px_rgba(255,215,0,0.4)] rounded-2xl"
               />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                  <Badge type="new">{role === 'CEO' ? 'Premium CEO' : 'Gold Member'}</Badge>
-                  <div style={{ width: '8px', height: '8px', background: '#4CAF50', borderRadius: '50%', boxShadow: '0 0 10px #4CAF50' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 950, color: '#FFD700', letterSpacing: '0.3em', fontFamily: 'var(--font-rajdhani)' }}>{role === 'CEO' ? 'COMMANDER IN CHIEF' : 'ELITE CIRCUIT PILOT'}</span>
+                <h2 style={{ fontSize: '34px', fontWeight: 950, color: '#FFF', fontFamily: 'var(--font-orbitron)', letterSpacing: '-0.02em' }}>{user.user_metadata?.nickname || "MEMBER"}</h2>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                   <div style={{ padding: '3px 8px', background: 'rgba(255,215,0,0.1)', border: '1px solid #D4AF37', borderRadius: '5px', fontSize: '10px', fontWeight: 950, color: '#D4AF37', fontFamily: 'var(--font-rajdhani)' }}>LVL 42</div>
+                   <div style={{ padding: '3px 8px', background: 'rgba(255,215,0,0.1)', border: '1px solid #D4AF37', borderRadius: '5px', fontSize: '10px', fontWeight: 950, color: '#D4AF37', fontFamily: 'var(--font-rajdhani)' }}>VIP PRESTIGE</div>
                 </div>
-                <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name || "MEMBER"}</h2>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', fontStyle: 'italic' }}>Precision. Power. Prestige. 🎾</p>
               </div>
             </div>
-            <div style={{ position: 'absolute', right: '20px', bottom: '20px', fontSize: '24px', opacity: 0.2 }}>→</div>
-          </StyledProfileLink>
+          </PilotCard>
         )}
-      </ProfileSection>
+      </ProfileHero>
 
-      <MenuGrid>
-        <div style={{ padding: '0 12px', marginBottom: '-10px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 900, color: '#D4AF37', letterSpacing: '0.4em', textTransform: 'uppercase', opacity: 0.6 }}>Executive Suite</span>
+      <BentoGrid>
+        <MegaMenuItem href="/notice">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ fontSize: '36px', filter: 'drop-shadow(0 0 10px $goldGlint)' }}>📢</div>
+              <div>
+                <h3 style={{ fontSize: '19px', fontWeight: 950, color: '#FFF', letterSpacing: '0.05em' }}>CLUB NOTICE</h3>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', letterSpacing: '0.05em' }}>Access core mission intelligence.</p>
+              </div>
+            </div>
+            <span style={{ fontSize: '28px', opacity: 0.4, color: '#D4AF37' }}>→</span>
+        </MegaMenuItem>
+
+        <StandardMenuItem href="/tournament">
+          <div style={{ fontSize: '28px', marginBottom: '$2' }}>🏆</div>
+          <h4 style={{ fontSize: '15px', fontWeight: 950, color: '#FFF', letterSpacing: '0.05em' }}>SPECIAL MATCH</h4>
+          <Badge style={{ width: 'fit-content', marginTop: 'auto' }}>LIVE</Badge>
+        </StandardMenuItem>
+
+        <StandardMenuItem href="/kdk">
+          <div style={{ fontSize: '28px', marginBottom: '$2' }}>⚡</div>
+          <h4 style={{ fontSize: '15px', fontWeight: 950, color: '#FFF', letterSpacing: '0.05em' }}>MATCH GENERATOR</h4>
+          <Badge style={{ width: 'fit-content', marginTop: 'auto' }}>TURBO</Badge>
+        </StandardMenuItem>
+
+        <MegaMenuItem href="/finance" style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #000000 100%)' }}>
+            <div style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '$2' }}>
+                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '28px' }}>💰</span>
+                    <h3 style={{ fontSize: '17px', fontWeight: 950, color: '#FFF' }}>FINANCE OVERVIEW</h3>
+                 </div>
+                 <span style={{ fontSize: '22px', fontFamily: 'var(--font-orbitron)', color: '#FFD700', fontWeight: 950 }}>₩1.2M</span>
+              </div>
+              <ProgressTrack><ProgressBar style={{ width: '75%' }} /></ProgressTrack>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '$4', fontSize: '10px', fontWeight: 950, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em' }}>
+                 <span>INCOME TRACKING</span>
+                 <span>75% CAPACITY</span>
+              </div>
+            </div>
+        </MegaMenuItem>
+
+        <MegaMenuItem href="/prediction" style={{ borderStyle: 'dashed' }}>
+            <div style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '$2' }}>
+                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '28px', animation: `${pulse} 2s infinite ease-in-out` }}>🤖</span>
+                    <h3 style={{ fontSize: '17px', fontWeight: 950, color: '#FFF' }}>NEURAL AI PREDICTION</h3>
+                 </div>
+                 <span style={{ fontSize: '20px', fontFamily: 'var(--font-orbitron)', color: '#FFD700', fontWeight: 950 }}>92% ACC</span>
+              </div>
+              <ProgressTrack><ProgressBar style={{ width: '92%', background: 'linear-gradient(90deg, #D4AF37, #FFD700)', boxShadow: '0 0 20px #FFD700' }} /></ProgressTrack>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '$4', fontSize: '10px', fontWeight: 950, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em' }}>
+                 <span>DEEP LEARNING SEEDING</span>
+                 <span>CERTAINTY INDEX</span>
+              </div>
+            </div>
+        </MegaMenuItem>
+
+        <StandardMenuItem href="/results">
+          <div style={{ fontSize: '28px', marginBottom: '$2' }}>📊</div>
+          <h4 style={{ fontSize: '15px', fontWeight: 950, color: '#FFF', letterSpacing: '0.05em' }}>TELEMETRY DATA</h4>
+        </StandardMenuItem>
+
+        <StandardMenuItem href="/admin">
+          <div style={{ fontSize: '28px', marginBottom: '$2' }}>⚙️</div>
+          <h4 style={{ fontSize: '14px', fontWeight: 950, color: '#FFF' }}>CORE SYSTEM</h4>
+        </StandardMenuItem>
+      </BentoGrid>
+
+      {toast && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '130px', 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          width: '90vw', 
+          padding: '18px', 
+          background: 'rgba(255, 215, 0, 0.95)', 
+          color: '#000', 
+          fontWeight: 950, 
+          textAlign: 'center', 
+          borderRadius: '14px', 
+          zIndex: 2000, 
+          boxShadow: '0 25px 60px rgba(0,0,0,0.8)', 
+          fontFamily: 'var(--font-rajdhani)', 
+          letterSpacing: '0.05em',
+          fontSize: '15px'
+        }}>
+          {toast}
         </div>
-        {menuItems.map((item) => {
-          const access = hasPermission(item.feature as any);
-          const isRestricted = access === 'HIDE';
-          return (
-            <MenuItem 
-              key={item.id} 
-              href={item.path} 
-              onClick={(e) => handleMenuClick(e, item)}
-              comingSoon={item.isComingSoon}
-            >
-              <ItemContent>
-                <IconWrapper className="icon-wrapper">{item.icon}</IconWrapper>
-                <ItemLabel>{item.label}</ItemLabel>
-              </ItemContent>
-              {item.badge && (
-                <Badge type={item.badge === 'LIVE' ? 'live' : 'new'}>{item.badge}</Badge>
-              )}
-              {item.isComingSoon && <Badge type="soon">Soon</Badge>}
-              
-              <div style={{ position: 'absolute', right: '-20px', bottom: '-20px', fontSize: '72px', opacity: 0.03, transform: 'rotate(-15deg)', pointerEvents: 'none' }}>{item.icon}</div>
-            </MenuItem>
-          );
-        })}
-      </MenuGrid>
+      )}
 
-      {toast && <Toast>{toast}</Toast>}
-
-      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.2 }}>
-        <div style={{ height: '1px', width: '60px', background: 'rgba(212,175,55,0.3)', margin: '0 auto 20px' }} />
-        <p style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.4em', color: '$gold' }}>TEYEON CLUB SYSTEM</p>
-        <p style={{ fontSize: '9px', marginTop: '6px', letterSpacing: '0.2em' }}>V4.1 FINAL STABLE • DESIGNED BY ANTIGRAVITY</p>
+      <footer style={{ marginTop: '100px', textAlign: 'center', opacity: 0.25 }}>
+        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$gold', textTransform: 'uppercase' }}>TEYEON CORE V4.2 STABLE RELEASE</p>
+        <p style={{ fontSize: '9px', marginTop: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em' }}>EXECUTIVE CIRCUIT ENGINE • POWERED BY ANTIGRAVITY</p>
       </footer>
     </Container>
   );

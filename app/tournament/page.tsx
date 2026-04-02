@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { styled, keyframes } from '@/stitches.config';
 import { supabase } from '@/lib/supabase';
 import { Match, Player, calculateRankings, PlayerStats } from '@/lib/kdk';
+import { DataStateView } from '@/components/DataStateView';
+import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
 
 const fadeIn = keyframes({
   from: { opacity: 0, transform: 'translateY(15px)' },
@@ -238,6 +240,7 @@ export default function LivePage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [rankings, setRankings] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -247,13 +250,16 @@ export default function LivePage() {
 
   async function fetchData() {
     try {
-      const { data: liveMatches } = await supabase
+      const { data: liveMatches, error: matchError } = await supabase
         .from('matches')
         .select('*')
         .eq('status', 'playing')
         .order('court', { ascending: true });
       
+      if (matchError) throw matchError;
+
       setMatches(liveMatches || []);
+      setError(false);
 
       const savedMatches = localStorage.getItem('teyeon_matches');
       const savedPlayers = localStorage.getItem('teyeon_players');
@@ -265,14 +271,18 @@ export default function LivePage() {
       } else {
         setRankings([
           { name: '곽민섭', wins: 55, losses: 12, ptsDiff: 142, matches: 67, rank: 1, isGuest: false },
-          { name: 'Marcus Vance', wins: 42, losses: 18, ptsDiff: 120, matches: 60, rank: 2, isGuest: false },
-          { name: 'Carlos Alcaraz', wins: 38, losses: 22, ptsDiff: 98, matches: 60, rank: 3, isGuest: false },
-          { name: 'Alex Rivera', wins: 35, losses: 25, ptsDiff: 85, matches: 60, rank: 4, isGuest: false },
-          { name: 'Jannik Sinner', wins: 30, losses: 30, ptsDiff: 70, matches: 60, rank: 5, isGuest: false },
+          { name: '가내현', wins: 42, losses: 18, ptsDiff: 120, matches: 60, rank: 2, isGuest: false },
+          { name: '강정호', wins: 38, losses: 22, ptsDiff: 98, matches: 60, rank: 3, isGuest: false },
+          { name: '김병식', wins: 35, losses: 25, ptsDiff: 85, matches: 60, rank: 4, isGuest: false },
+          { name: '구봉준', wins: 30, losses: 30, ptsDiff: 70, matches: 60, rank: 5, isGuest: false },
         ]);
       }
     } catch (err) {
       console.error("Fetch Error:", err);
+      // Only set error if we have no data at all
+      if (matches.length === 0 && rankings.length === 0) {
+        setError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -281,69 +291,83 @@ export default function LivePage() {
   return (
     <Container>
       <Header>
-        <Title>Live <span style={{ color: '#D4AF37' }}>Circuit</span></Title>
+        <Title style={{ fontFamily: 'var(--font-orbitron)', fontSize: '28px', fontWeight: 950 }}>Live <span style={{ color: '$goldGlint' }}>Circuit</span></Title>
         <LiveStatus />
       </Header>
 
       <TabContainer>
-        <TabButton active={activeTab === 'matches'} onClick={() => setActiveTab('matches')}>대진표</TabButton>
-        <TabButton active={activeTab === 'ranking'} onClick={() => setActiveTab('ranking')}>실시간 랭킹</TabButton>
+        <TabButton active={activeTab === 'matches'} onClick={() => setActiveTab('matches')} style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '12px' }}>대진표</TabButton>
+        <TabButton active={activeTab === 'ranking'} onClick={() => setActiveTab('ranking')} style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '12px' }}>실시간 랭킹</TabButton>
       </TabContainer>
 
-      {activeTab === 'matches' ? (
-        <section>
-          {matches.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.2 }}>
-              <div style={{ fontSize: '64px', marginBottom: '$6' }}>🏟️</div>
-              <p style={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontSize: '11px' }}>Waiting for Next Session</p>
-            </div>
-          ) : (
-            matches.map((m, idx) => (
-              <Card key={idx}>
-                <MatchInfo>
-                  <CourtBadge>COURT {(m.court || idx + 1).toString().padStart(2, '0')}</CourtBadge>
-                  <div style={{ display: 'flex', gap: '$3' }}>
-                     <span style={{ fontSize: '10px', fontWeight: 900, color: '$gold', letterSpacing: '0.1em' }}>LIVE DATA FEEDED</span>
-                     <div style={{ width: '8px', height: '8px', background: '$error', borderRadius: '50%', boxShadow: '0 0 10px $error' }} />
+      <DataStateView 
+        isLoading={loading && matches.length === 0} 
+        isError={error}
+        onRetry={fetchData}
+        loadingComponent={
+          <SkeletonGroup>
+            <Skeleton size="xl" />
+            <Skeleton size="lg" />
+            <Skeleton size="lg" />
+            <Skeleton size="lg" />
+          </SkeletonGroup>
+        }
+      >
+        {activeTab === 'matches' ? (
+          <section>
+            {matches.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
+                <div style={{ fontSize: '64px', marginBottom: '24px', filter: 'drop-shadow(0 0 10px $goldGlint)' }}>🏟️</div>
+                <p style={{ fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', fontSize: '12px', fontFamily: 'var(--font-rajdhani)' }}>Waiting for Next Session</p>
+              </div>
+            ) : (
+              matches.map((m, idx) => (
+                <Card key={idx}>
+                  <MatchInfo>
+                    <CourtBadge style={{ fontFamily: 'var(--font-orbitron)' }}>COURT {(m.court || idx + 1).toString().padStart(2, '0')}</CourtBadge>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                       <span style={{ fontSize: '10px', fontWeight: 950, color: '$goldGlint', letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>LIVE DATA STREAM</span>
+                       <div style={{ width: '10px', height: '10px', background: '$error', borderRadius: '50%', boxShadow: '0 0 15px $error' }} />
+                    </div>
+                  </MatchInfo>
+                  <div style={{ padding: '16px 0' }}>
+                    <TeamName style={{ fontFamily: 'var(--font-rajdhani)', fontWeight: 950, fontSize: '22px' }}>{m.player_names?.slice(0, 2).join(' / ') || 'Elite Squad Alpha'}</TeamName>
+                    <VS style={{ fontFamily: 'var(--font-orbitron)', letterSpacing: '0.3em', color: '$goldGlint' }}>VS</VS>
+                    <TeamName style={{ fontFamily: 'var(--font-rajdhani)', fontWeight: 950, fontSize: '22px' }}>{m.player_names?.slice(2, 4).join(' / ') || 'Premium Squad Beta'}</TeamName>
                   </div>
-                </MatchInfo>
-                <div style={{ padding: '$4 0' }}>
-                  <TeamName>{m.player_names?.slice(0, 2).join(' / ') || 'Elite Squad Alpha'}</TeamName>
-                  <VS>VOLUMETRIC SCORE</VS>
-                  <TeamName>{m.player_names?.slice(2, 4).join(' / ') || 'Premium Squad Beta'}</TeamName>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                    <button style={{ color: '$gold', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)' }}>Detailed Analytics View</button>
+                  </div>
+                </Card>
+              ))
+            )}
+          </section>
+        ) : (
+          <section>
+            <div style={{ padding: '0 12px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', fontWeight: 950, color: '$goldGlint', letterSpacing: '0.5em', textTransform: 'uppercase', fontFamily: 'var(--font-rajdhani)' }}>Elite Standings</span>
+            </div>
+            {rankings.map((s, idx) => (
+              <RankingItem key={idx} top={s.rank as any}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                  <RankNumber top={s.rank as any} style={{ fontFamily: 'var(--font-orbitron)' }}>{s.rank === 1 ? '👑' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : s.rank}</RankNumber>
+                  <div>
+                    <p style={{ fontSize: '18px', fontWeight: 950, color: '$white', letterSpacing: '-0.02em', fontFamily: 'var(--font-rajdhani)' }}>{s.name}</p>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 800, marginTop: '2px', fontFamily: 'var(--font-rajdhani)' }}>{s.wins}W - {s.losses}L • DIFF {s.ptsDiff > 0 ? `+${s.ptsDiff}` : s.ptsDiff}</p>
+                  </div>
                 </div>
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '$6', display: 'flex', justifyContent: 'center' }}>
-                  <button style={{ color: '$gold', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em' }}>Analyze Match Performance</button>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '19px', fontWeight: 950, color: '$goldGlint', fontFamily: 'var(--font-orbitron)' }}>{s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0}%</p>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>Efficiency</p>
                 </div>
-              </Card>
-            ))
-          )}
-        </section>
-      ) : (
-        <section>
-          <div style={{ padding: '0 12px', marginBottom: '$6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', fontWeight: 900, color: '#D4AF37', letterSpacing: '0.4em', textTransform: 'uppercase' }}>Elite Standings</span>
-          </div>
-          {rankings.map((s, idx) => (
-            <RankingItem key={idx} top={s.rank as any}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                <RankNumber top={s.rank as any}>{s.rank === 1 ? '👑' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : s.rank}</RankNumber>
-                <div>
-                  <p style={{ fontSize: '$lg', fontWeight: '$black', color: '$white', letterSpacing: '$tight' }}>{s.name}</p>
-                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: '$semibold', marginTop: '2px' }}>{s.wins}W - {s.losses}L • DIFF {s.ptsDiff > 0 ? `+${s.ptsDiff}` : s.ptsDiff}</p>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '18px', fontWeight: '$black', color: '$gold' }}>{s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0}%</p>
-                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontWeight: '$black', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Efficiency</p>
-              </div>
-            </RankingItem>
-          ))}
-        </section>
-      )}
+              </RankingItem>
+            ))}
+          </section>
+        )}
+      </DataStateView>
 
-      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.15 }}>
-        <p style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.4em' }}>TEYEON MATCH ENGINE PRO</p>
+      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.25 }}>
+        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint', textTransform: 'uppercase' }}>TEYEON MATCH ENGINE PRO STABLE</p>
       </footer>
     </Container>
   );

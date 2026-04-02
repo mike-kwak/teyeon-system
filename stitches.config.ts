@@ -15,10 +15,11 @@ export const {
       black: '#000000',
       white: '#ffffff',
       gold: '#D4AF37',
-      goldLight: '#F3E5AB', // Lighter gold
-      goldGlint: '#FDBB2D', // Brighter, saturated gold
-      goldMuted: 'rgba(212, 175, 55, 0.2)',
-      goldGlass: 'rgba(212, 175, 55, 0.05)',
+      goldLight: '#F3E5AB',
+      goldGlint: '#FFD700', // Electric Yellow/Gold
+      goldMuted: 'rgba(212, 175, 55, 0.15)',
+      goldGlass: 'rgba(212, 175, 55, 0.03)',
+      carbon: '#0A0A0A',
       gray950: '#050505',
       gray900: '#0A0A0A',
       gray850: '#151515',
@@ -29,11 +30,11 @@ export const {
       error: '#FF4B2B',
     },
     space: {
-      1: '4px',
-      2: '8px',
-      3: '12px',
-      4: '16px',
-      5: '20px',
+      1: '2px',
+      2: '4px',
+      3: '8px',
+      4: '12px',
+      5: '16px',
       6: '24px',
       8: '32px',
       10: '40px',
@@ -48,10 +49,13 @@ export const {
       '2xl': '24px',
       '3xl': '32px',
       '4xl': '48px',
+      '5xl': '64px',
     },
     fonts: {
       sans: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      mono: 'SBL Hebrew, Menlo, Monaco, Consolas, "Courier New", monospace',
+      sporty: 'var(--font-rajdhani), sans-serif',
+      display: 'var(--font-orbitron), sans-serif',
+      mono: 'Menlo, Monaco, Consolas, "Courier New", monospace',
     },
     fontWeights: {
       light: 300,
@@ -63,7 +67,7 @@ export const {
     },
     lineHeights: {
       none: 1,
-      tight: 1.25,
+      tight: 1.1,
       snug: 1.375,
       normal: 1.5,
       relaxed: 1.625,
@@ -76,29 +80,32 @@ export const {
       wide: '0.025em',
       wider: '0.05em',
       widest: '0.1em',
-      mega: '0.25em',
+      mega: '0.4em',
     },
     radii: {
       sm: '4px',
       md: '8px',
       lg: '16px',
       xl: '24px',
-      '2xl': '32px',
+      '2xl': '40px',
       full: '9999px',
     },
     shadows: {
       sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-      md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-      lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      md: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
       gold: '0 0 15px rgba(212, 175, 55, 0.3)',
-      goldGlow: '0 0 30px rgba(212, 175, 55, 0.4)',
+      goldGlow: '0 0 30px rgba(212, 175, 55, 0.5)',
       goldAura: '0 0 50px rgba(212, 175, 55, 0.2)',
-      glass: 'inset 0 0 20px rgba(255, 255, 255, 0.03), 0 10px 30px rgba(0, 0, 0, 0.8)',
+      glass: 'inset 0 0 20px rgba(255, 255, 255, 0.02), 0 15px 35px rgba(0, 0, 0, 0.9)',
+      volumetric: 'inset 0 2px 4px rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.8)',
+      inner: 'inset 0 2px 10px rgba(0, 0, 0, 0.8)',
     },
     gradients: {
       blackGold: 'linear-gradient(135deg, $gray900, $black)',
-      darker: 'linear-gradient(135deg, $gray850, $gray950)',
-      goldGlint: 'linear-gradient(90deg, transparent, $goldGlint, transparent)',
+      diagonal: 'linear-gradient(135deg, rgba(25, 25, 25, 1) 0%, rgba(5, 5, 5, 1) 100%)',
+      carbon: 'linear-gradient(135deg, #0A0A0A 0%, #000000 100%)',
+      shimmer: 'linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent)',
     },
     zIndices: {
       hide: -1,
@@ -120,7 +127,7 @@ export const {
     mobile: '(max-width: 640px)',
     tablet: '(max-width: 1024px)',
     desktop: '(min-width: 1025px)',
-    fold: '(max-width: 280px)', // Galaxy Fold cover screen
+    fold: '(max-width: 280px)',
   },
   utils: {
     p: (value: any) => ({ padding: value }),
@@ -144,10 +151,15 @@ export const {
     
     size: (value: any) => ({ width: value, height: value }),
     
-    // New Utils for Premium Styles
     borderGlow: (value: any) => ({
-      border: `1.5px solid ${value || 'rgba(212, 175, 55, 0.2)'}`,
-      boxShadow: '0 0 15px rgba(212, 175, 55, 0.1)',
+      border: `1px solid ${value || 'rgba(212, 175, 55, 0.3)'}`,
+      filter: `drop-shadow(0 0 2px ${value || 'rgba(212, 175, 55, 0.4)'})`,
+    }),
+    
+    volumetricBox: () => ({
+      background: 'linear-gradient(135deg, #151515 0%, #050505 100%)',
+      boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05), 0 10px 20px rgba(0,0,0,0.8)',
+      border: '1px solid rgba(212, 175, 55, 0.15)',
     }),
   },
 });
@@ -157,9 +169,10 @@ export const globalStyles = globalCss({
   'html, body': {
     backgroundColor: '$black',
     color: '$white',
-    fontFamily: '$sans',
+    fontFamily: '$sporty', // High-fidelity sporty font by default
     overflowX: 'hidden',
     height: '100%',
+    '-webkit-font-smoothing': 'antialiased',
   },
   'a': {
     color: 'inherit',
@@ -179,7 +192,7 @@ export const globalStyles = globalCss({
     background: '$black',
   },
   '::-webkit-scrollbar-thumb': {
-    background: '$gray600',
+    background: '$gray700',
     borderRadius: '$full',
   },
 });

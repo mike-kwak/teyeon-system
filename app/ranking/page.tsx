@@ -3,6 +3,162 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Match, Player, calculateRankings, PlayerStats } from '@/lib/kdk';
+import { styled, keyframes } from '@/stitches.config';
+
+const fadeIn = keyframes({
+  from: { opacity: 0, transform: 'translateY(15px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+const Container = styled('main', {
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: '100dvh',
+  padding: '$8 $5',
+  maxWidth: '500px',
+  margin: '0 auto',
+  width: '100%',
+  backgroundColor: '$black',
+  paddingBottom: '110px',
+});
+
+const Subtitle = styled('p', {
+  fontSize: '10px',
+  fontWeight: '$black',
+  color: '$gold',
+  letterSpacing: '$mega',
+  textTransform: 'uppercase',
+  marginTop: '$2',
+  opacity: 0.6,
+  textAlign: 'center',
+});
+
+const TabRow = styled('div', {
+  display: 'flex',
+  background: 'rgba(255, 255, 255, 0.03)',
+  padding: '$1',
+  borderRadius: '$2xl',
+  border: '1px solid rgba(255, 255, 255, 0.05)',
+  marginBottom: '$10',
+});
+
+const TabItem = styled('button', {
+  flex: 1,
+  padding: '$3',
+  fontSize: '11px',
+  fontWeight: '$black',
+  borderRadius: '$xl',
+  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+  textTransform: 'uppercase',
+  letterSpacing: '$wider',
+
+  variants: {
+    active: {
+      true: {
+        background: '$gold',
+        color: '$black',
+        boxShadow: '$goldGlow',
+        transform: 'scale(1.05)',
+      },
+      false: {
+        color: 'rgba(255, 255, 255, 0.3)',
+        '&:hover': { color: '$white' },
+      },
+    },
+  },
+});
+
+const PodiumContainer = styled('div', {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'flex-end',
+  gap: '$3',
+  height: '200px',
+  marginBottom: '$12',
+  padding: '0 $2',
+});
+
+const PodiumCard = styled('div', {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  padding: '$4',
+  borderRadius: '$2xl',
+  position: 'relative',
+  overflow: 'hidden',
+  transition: 'all 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)',
+
+  variants: {
+    rank: {
+      1: {
+        height: '100%',
+        background: 'linear-gradient(180deg, rgba(212, 175, 55, 0.3), transparent)',
+        border: '2px solid $gold',
+        boxShadow: '$goldGlow',
+        '& .rank-label': { color: '$gold', fontSize: '18px' },
+      },
+      2: {
+        height: '85%',
+        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        '& .rank-label': { color: '#E5E4E2', fontSize: '14px' },
+      },
+      3: {
+        height: '75%',
+        background: 'linear-gradient(180deg, rgba(205, 127, 50, 0.1), transparent)',
+        border: '1px solid rgba(205, 127, 50, 0.2)',
+        '& .rank-label': { color: '#CD7F32', fontSize: '14px' },
+      },
+    },
+  },
+});
+
+const RankCard = styled('div', {
+  background: 'linear-gradient(135deg, $gray850, $black)',
+  borderRadius: '$2xl',
+  padding: '$5',
+  borderGlow: 'rgba(255, 255, 255, 0.03)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: '$4',
+  animation: `${fadeIn} 0.6s ease-out`,
+  boxShadow: '$glass',
+  transition: 'all 0.4s ease',
+
+  '&:hover': {
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    transform: 'translateX(4px)',
+    boxShadow: '$goldGlow',
+  },
+});
+
+const ProfileInfo = styled('div', {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$4',
+});
+
+const RankCircle = styled('div', {
+  width: '42px',
+  height: '42px',
+  borderRadius: '$full',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '16px',
+  fontWeight: '$black',
+  fontStyle: 'italic',
+
+  variants: {
+    top: {
+      true: { background: '$gold', color: '$black', boxShadow: '$goldGlow' },
+      false: { background: 'rgba(255, 255, 255, 0.05)', color: 'rgba(255, 255, 255, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' },
+    },
+  },
+});
 
 export default function RankingPage() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
@@ -16,131 +172,82 @@ export default function RankingPage() {
       const rankings = calculateRankings(matches, players);
       setStats(rankings);
     } else {
-      // Fallback Dummy Data for UI Demo
       setStats([
         { name: '곽민섭', wins: 5, losses: 1, ptsDiff: 12, matches: 6, rank: 1, isGuest: false },
-        { name: '홍길동', wins: 4, losses: 2, ptsDiff: 8, matches: 6, rank: 2, isGuest: false },
-        { name: '김철수', wins: 4, losses: 2, ptsDiff: 5, matches: 6, rank: 3, isGuest: false },
-        { name: '박지성', wins: 3, losses: 3, ptsDiff: 2, matches: 6, rank: 4, isGuest: false },
-        { name: '손흥민', wins: 2, losses: 4, ptsDiff: -3, matches: 6, rank: 5, isGuest: false },
-        { name: 'Guest 1', wins: 1, losses: 5, ptsDiff: -15, matches: 6, rank: 6, isGuest: true },
+        { name: '가내현', wins: 4, losses: 2, ptsDiff: 8, matches: 6, rank: 2, isGuest: false },
+        { name: '강정호', wins: 3, losses: 3, ptsDiff: 5, matches: 6, rank: 3, isGuest: false },
+        { name: '김병식', wins: 2, losses: 4, ptsDiff: -2, matches: 6, rank: 4, isGuest: false },
       ]);
     }
   }, []);
 
   const getRankBadge = (rank: number) => {
-    if (rank === 1) return '👑';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
+    if (rank === 1) return '🏆';
+    if (rank === 2) return '❷';
+    if (rank === 3) return '❸';
     return rank;
   };
 
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#1E1E2E] text-white font-sans w-full pb-10">
-      {/* Header */}
-      <header className="flex items-center justify-between mb-8">
-        <Link href="/" className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform">
-          <span className="text-xl">←</span>
-        </Link>
-        <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
-          실시간 랭킹 <span className="text-[#D4AF37]">●</span>
-        </h1>
-        <div className="w-10"></div>
+    <Container>
+      <header style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '36px', fontWeight: 950, color: '$white', fontFamily: 'var(--font-orbitron)', fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: '1' }}>Elite <span style={{ color: '$goldGlint' }}>Ranking</span></h1>
+        <Subtitle>The Championship Circuit • Live Stats</Subtitle>
       </header>
 
-      {/* Period Tabs */}
-      <div className="flex bg-white/5 p-1 rounded-2xl mb-8 border border-white/5">
-        {['주간', '월간', '연간', '전체'].map((tab) => (
-          <button
-            key={tab}
-            className={`
-              flex-1 py-2 text-[11px] font-black rounded-xl transition-all
-              ${tab === '전체' ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40 hover:text-white'}
-            `}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <TabRow>
+        <TabItem active={false}>Weekly</TabItem>
+        <TabItem active={false}>Monthly</TabItem>
+        <TabItem active={true}>All Time</TabItem>
+      </TabRow>
 
-      {/* Top 3 Podium Cards */}
-      <div className="flex justify-center items-end gap-2 mb-10 h-48">
-        {/* 2nd Place */}
+      <PodiumContainer>
         {stats[1] && (
-          <div className="flex-1 bg-gradient-to-t from-[#B4B4B4]/20 to-[#E5E4E2]/40 border border-[#E5E4E2]/30 rounded-t-2xl p-3 flex flex-col items-center justify-end h-[85%] relative overflow-hidden">
-            <div className="absolute top-2 text-2xl">🥈</div>
-            <div className="text-[12px] font-black mb-1 truncate w-full text-center">{stats[1].name}</div>
-            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[10px] font-black">2ND</div>
-          </div>
+          <PodiumCard rank={2}>
+            <span className="rank-label" style={{ fontWeight: 950, marginBottom: '4px', fontFamily: 'var(--font-orbitron)' }}>❷</span>
+            <span style={{ fontSize: '11px', fontWeight: 950, color: '$white', textAlign: 'center', fontFamily: 'var(--font-rajdhani)' }}>{stats[1].name}</span>
+          </PodiumCard>
         )}
-        
-        {/* 1st Place */}
         {stats[0] && (
-          <div className="flex-1 bg-gradient-to-t from-[#FF8C00]/30 to-[#FFD700]/50 border-2 border-[#FFD700] rounded-t-3xl p-3 flex flex-col items-center justify-end h-full relative overflow-hidden shadow-[0_10px_30px_rgba(255,215,0,0.2)]">
-            <div className="absolute top-2 text-4xl animate-bounce">👑</div>
-            <div className="text-[14px] font-black mb-2 truncate w-full text-center">{stats[0].name}</div>
-            <div className="w-10 h-10 rounded-full bg-[#FFD700] text-black flex items-center justify-center text-[12px] font-black shadow-[0_0_15px_rgba(255,215,0,0.5)]">1ST</div>
-          </div>
+          <PodiumCard rank={1}>
+            <span style={{ position: 'absolute', top: '10px', fontSize: '32px' }}>👑</span>
+            <span className="rank-label" style={{ fontWeight: 950, marginBottom: '8px', fontFamily: 'var(--font-orbitron)' }}>❶</span>
+            <span style={{ fontSize: '14px', fontWeight: 950, color: '$white', textAlign: 'center', fontFamily: 'var(--font-rajdhani)' }}>{stats[0].name}</span>
+          </PodiumCard>
         )}
-
-        {/* 3rd Place */}
         {stats[2] && (
-          <div className="flex-1 bg-gradient-to-t from-[#8B4513]/20 to-[#CD7F32]/40 border border-[#CD7F32]/30 rounded-t-2xl p-3 flex flex-col items-center justify-end h-[75%] relative overflow-hidden">
-            <div className="absolute top-2 text-2xl">🥉</div>
-            <div className="text-[12px] font-black mb-1 truncate w-full text-center">{stats[2].name}</div>
-            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[10px] font-black">3RD</div>
-          </div>
+          <PodiumCard rank={3}>
+            <span className="rank-label" style={{ fontWeight: 950, marginBottom: '4px', fontFamily: 'var(--font-orbitron)' }}>❸</span>
+            <span style={{ fontSize: '11px', fontWeight: 950, color: '$white', textAlign: 'center', fontFamily: 'var(--font-rajdhani)' }}>{stats[2].name}</span>
+          </PodiumCard>
         )}
-      </div>
+      </PodiumContainer>
 
-      {/* Leaderboard List */}
-      <section className="space-y-3">
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {stats.map((s) => (
-          <div 
-            key={s.name}
-            className={`
-              flex items-center justify-between p-4 rounded-2xl border transition-all
-              ${s.rank === 1 ? 'bg-gradient-to-r from-[#FFD700]/20 to-transparent border-[#FFD700]' : 
-                s.rank === 2 ? 'bg-gradient-to-r from-[#E5E4E2]/20 to-transparent border-[#E5E4E2]/40' :
-                s.rank === 3 ? 'bg-gradient-to-r from-[#CD7F32]/20 to-transparent border-[#CD7F32]/40' :
-                'bg-white/5 border-white/5'}
-            `}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`
-                w-10 h-10 rounded-full flex items-center justify-center font-black text-lg
-                ${s.rank <= 3 ? 'bg-white/10' : 'bg-white/5 text-white/40 border border-white/10'}
-              `}>
-                {getRankBadge(s.rank)}
-              </div>
+          <RankCard key={s.name}>
+            <ProfileInfo>
+              <RankCircle top={s.rank <= 1}>{getRankBadge(s.rank)}</RankCircle>
               <div>
-                <div className="font-black text-base flex items-center gap-2">
-                  {s.name}
-                  {s.isGuest && <span className="text-[9px] px-1.5 py-0.5 bg-black/20 rounded-md font-bold uppercase tracking-tighter opacity-70">Guest</span>}
-                </div>
-                <div className={`text-[10px] font-bold ${s.rank <= 3 ? 'opacity-80' : 'text-white/40'}`}>
-                  {s.wins}승 {s.losses}패 • 득실차 {s.ptsDiff > 0 ? `+${s.ptsDiff}` : s.ptsDiff}
-                </div>
+                <p style={{ fontWeight: 950, fontSize: '18px', color: '$white', fontFamily: 'var(--font-rajdhani)' }}>{s.name}</p>
+                <p style={{ fontSize: '11px', fontWeight: 800, color: '$gold', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-rajdhani)' }}>
+                  {s.wins}W {s.losses}L • Diff {s.ptsDiff > 0 ? `+${s.ptsDiff}` : s.ptsDiff}
+                </p>
               </div>
+            </ProfileInfo>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '9px', fontWeight: 950, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontFamily: 'var(--font-rajdhani)' }}>Win Rate</p>
+              <p style={{ fontSize: '20px', fontWeight: 950, color: s.rank <= 1 ? '$goldGlint' : '$white', fontFamily: 'var(--font-orbitron)' }}>
+                {s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0}%
+              </p>
             </div>
-            
-            <div className="text-right flex items-center gap-4">
-              <div className="h-8 w-px bg-white/5 mx-2"></div>
-              <div>
-                <div className="text-[9px] font-black opacity-30 uppercase tracking-widest leading-none mb-1">Win Rate</div>
-                <div className="text-sm font-black text-[#D4AF37]">
-                  {s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0}%
-                </div>
-              </div>
-            </div>
-          </div>
+          </RankCard>
         ))}
       </section>
 
-      {/* Footer Info */}
-      <footer className="mt-auto py-10 flex justify-center opacity-30">
-        <p className="text-[10px] font-bold tracking-widest uppercase">Teyeon v2.0 • Real-time Leaderboard</p>
+      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.2 }}>
+        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint' }}>TEYEON CHAMPIONSHIP DATA</p>
       </footer>
-    </main>
+    </Container>
   );
 }

@@ -1,65 +1,143 @@
 'use client';
 
 import React from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { styled, keyframes } from '@/stitches.config';
+import ProfileAvatar from './ProfileAvatar';
 
-const PATH_MAP: Record<string, string> = {
-  '/': '테연 클럽',
-  '/notice': '클럽 공지사항',
-  '/members': '클럽 멤버 명단',
-  '/kdk': '대진 생성',
-  '/archive': '경기 아카이브',
-  '/finance': '클럽 재무 관리',
-  '/admin': '마스터 관리자 설정',
-  '/profile': '내 프로필 설정',
-  '/ranking': '전체 랭킹 보드',
-};
+const shimmer = keyframes({
+  '0%': { backgroundPosition: '-100% 0' },
+  '100%': { backgroundPosition: '100% 0' },
+});
 
-const GlobalHeader = () => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { role } = useAuth();
-  const isHome = pathname === '/';
+const HeaderContainer = styled('header', {
+  position: 'sticky',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '72px',
+  background: 'rgba(0, 0, 0, 0.85)',
+  backdropFilter: 'blur(30px) saturate(200%)',
+  borderBottom: '1px solid rgba(255, 215, 0, 0.15)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 $6',
+  zIndex: '$sticky',
+  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.8)',
 
-  if (isHome) return null;
+  '@supports (padding-top: env(safe-area-inset-top))': {
+    height: 'calc(72px + env(safe-area-inset-top))',
+    paddingTop: 'env(safe-area-inset-top)',
+  },
+});
 
-  // Hide on certain paths if needed, or simplify the title
-  const getTitle = () => {
-    if (pathname.startsWith('/notice/')) return '공지사항 상세';
-    if (pathname.startsWith('/kdk/')) return '대진표 상세';
-    return PATH_MAP[pathname] || '테연 테니스';
-  };
+const LogoLink = styled(Link, {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$3',
+  textDecoration: 'none',
+  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+
+  '&:hover': {
+    transform: 'scale(1.05)',
+    '& .logo-box': {
+      boxShadow: '0 0 25px rgba(255, 215, 0, 0.5)',
+      transform: 'rotate(-5deg) scale(1.1)',
+    }
+  },
+});
+
+const LogoBox = styled('div', {
+  width: '36px',
+  height: '36px',
+  background: 'linear-gradient(135deg, #FFD700 0%, #D4AF37 100%)',
+  borderRadius: '10px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '20px',
+  boxShadow: '0 0 15px rgba(255, 215, 0, 0.3)',
+  transition: 'all 0.4s ease',
+  color: '#000',
+  fontWeight: 950,
+  fontFamily: '$display',
+});
+
+const LogoText = styled('span', {
+  fontSize: '24px',
+  fontFamily: '$sporty',
+  fontWeight: 900,
+  color: '$white',
+  letterSpacing: '$tighter',
+  textTransform: 'uppercase',
+  fontStyle: 'italic',
+  background: 'linear-gradient(90deg, #FFFFFF 0%, #D4AF37 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+});
+
+const UserSection = styled('div', {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$4',
+});
+
+const RoleBadge = styled('div', {
+  padding: '4px 12px',
+  borderRadius: '$full',
+  fontSize: '11px',
+  fontFamily: '$sporty',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.15em',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '$2',
+  background: 'rgba(0, 0, 0, 0.5)',
+  border: '1px solid rgba(255, 215, 0, 0.3)',
+  color: '$goldGlint',
+  boxShadow: 'inset 0 0 10px rgba(255, 215, 0, 0.1)',
+});
+
+const StatusDot = styled('div', {
+  width: '6px',
+  height: '6px',
+  borderRadius: '$full',
+  background: '#4CAF50',
+  boxShadow: '0 0 10px #4CAF50',
+});
+
+export default function GlobalHeader() {
+  const { user, role, isLoading } = useAuth();
 
   return (
-    <header className="sticky top-0 z-[100] w-full bg-black/60 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between safe-top">
-      <div className="flex items-center gap-4 min-w-0">
-        {!isHome && (
-          <button 
-            onClick={() => router.back()} 
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 active:scale-90 transition-all text-[#D4AF37]"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+    <HeaderContainer>
+      <LogoLink href="/">
+        <LogoBox className="logo-box">T</LogoBox>
+        <LogoText>TEYEON</LogoText>
+      </LogoLink>
+
+      <UserSection>
+        {user && !isLoading && (
+          <>
+            <RoleBadge>
+               <StatusDot />
+               {role === 'CEO' ? 'EXEC CEO' : 'GOLD PILOT'}
+            </RoleBadge>
+            <Link href="/profile">
+              <ProfileAvatar 
+                src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                alt={user.user_metadata?.full_name} 
+                size={40}
+                fallbackIcon={role === 'CEO' ? '👑' : '👤'}
+                className="border-2 border-goldGlint shadow-[0_0_20px_rgba(255,215,0,0.3)] rounded-full transition-all hover:scale-110 active:scale-90"
+              />
+            </Link>
+          </>
         )}
-        <h1 className="text-sm font-black tracking-tight text-white uppercase truncate italic">
-          {getTitle()}
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className={`px-3 py-1 rounded-full border text-[9px] font-[1000] tracking-widest uppercase transition-all ${
-          role === 'CEO' ? 'bg-[#DC2626] border-[#DC2626] text-white shadow-[0_0_10px_rgba(220,38,38,0.4)]' :
-          role === 'ADMIN' ? 'bg-[#2563EB]/20 border-[#2563EB]/40 text-[#2563EB]' :
-          'bg-white/5 border-white/10 text-white/40'
-        }`}>
-          {role}
-        </div>
-      </div>
-    </header>
+      </UserSection>
+    </HeaderContainer>
   );
-};
-
-export default GlobalHeader;
+}

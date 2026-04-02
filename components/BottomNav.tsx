@@ -6,9 +6,9 @@ import { usePathname } from 'next/navigation';
 import { styled, keyframes } from '@/stitches.config';
 
 const glow = keyframes({
-  '0%': { boxShadow: '0 0 10px rgba(212, 175, 55, 0.2)' },
-  '50%': { boxShadow: '0 0 30px rgba(212, 175, 55, 0.5)' },
-  '100%': { boxShadow: '0 0 10px rgba(212, 175, 55, 0.2)' },
+  '0%': { boxShadow: '0 0 10px rgba(255, 215, 0, 0.2)' },
+  '50%': { boxShadow: '0 0 35px rgba(255, 215, 0, 0.6)' },
+  '100%': { boxShadow: '0 0 10px rgba(255, 215, 0, 0.2)' },
 });
 
 const slideUp = keyframes({
@@ -21,22 +21,21 @@ const NavContainer = styled('nav', {
   bottom: 0,
   left: 0,
   right: 0,
-  height: '92px',
-  background: 'rgba(5, 5, 5, 0.85)',
-  backdropFilter: 'blur(24px) saturate(180%)',
-  borderTop: '1px solid rgba(212, 175, 55, 0.1)',
+  height: '96px',
+  background: 'rgba(0, 0, 0, 0.95)',
+  backdropFilter: 'blur(30px) saturate(200%)',
+  borderTop: '1px solid rgba(255, 215, 0, 0.15)',
   display: 'flex',
   justifyContent: 'space-around',
   alignItems: 'center',
-  padding: '0 $4 24px',
+  padding: '0 $4 28px',
   zIndex: '$sticky',
-  boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.8)',
-  animation: `${slideUp} 0.6s cubic-bezier(0.23, 1, 0.32, 1)`,
+  boxShadow: '0 -15px 50px rgba(0, 0, 0, 0.9)',
+  animation: `${slideUp} 0.8s cubic-bezier(0.16, 1, 0.3, 1)`,
 
-  /* iOS Safe Area Support */
   '@supports (padding-bottom: env(safe-area-inset-bottom))': {
-    height: 'calc(92px + env(safe-area-inset-bottom))',
-    paddingBottom: 'calc(24px + env(safe-area-inset-bottom))',
+    height: 'calc(96px + env(safe-area-inset-bottom))',
+    paddingBottom: 'calc(28px + env(safe-area-inset-bottom))',
   },
 });
 
@@ -44,33 +43,33 @@ const NavLink = styled(Link, {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  gap: '$1',
+  gap: '2px',
   textDecoration: 'none',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+  transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
   position: 'relative',
   padding: '$2',
-  borderRadius: '$lg',
-  minWidth: '72px',
+  minWidth: '76px',
 
   variants: {
     active: {
       true: {
         '& .icon-wrapper': {
           color: '$goldGlint',
-          transform: 'translateY(-6px) scale(1.15)',
-          background: 'rgba(212, 175, 55, 0.15)',
-          boxShadow: '$goldGlow',
+          transform: 'translateY(-8px) scale(1.2)',
+          background: 'rgba(255, 215, 0, 0.12)',
+          filter: 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.5))',
         },
         '& .nav-label': {
-          color: '$gold',
+          color: '$goldGlint',
           opacity: 1,
           transform: 'translateY(-2px)',
-          fontWeight: '$black',
+          fontWeight: 900,
+          textShadow: '0 0 10px rgba(255, 215, 0, 0.3)',
         },
       },
       false: {
         '&:active': {
-          transform: 'scale(0.9)',
+          transform: 'scale(0.85)',
         },
       },
     },
@@ -78,23 +77,24 @@ const NavLink = styled(Link, {
 });
 
 const IconWrapper = styled('div', {
-  fontSize: '30px', /* Increased from 24px */
-  color: 'rgba(255, 255, 255, 0.25)',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-  size: '56px',
+  fontSize: '32px',
+  color: 'rgba(255, 255, 255, 0.2)',
+  transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+  size: '60px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderRadius: '$xl',
+  borderRadius: '20px',
   position: 'relative',
   zIndex: 2,
 });
 
 const NavLabel = styled('span', {
-  fontSize: '9px',
-  fontWeight: '$black',
-  letterSpacing: '$wider',
-  color: 'rgba(255, 255, 255, 0.2)',
+  fontSize: '10px',
+  fontFamily: '$sporty',
+  fontWeight: 800,
+  letterSpacing: '0.15em',
+  color: 'rgba(255, 255, 255, 0.25)',
   textTransform: 'uppercase',
   transition: 'all 0.4s ease',
   zIndex: 2,
@@ -103,29 +103,29 @@ const NavLabel = styled('span', {
 const Indicator = styled('div', {
   position: 'absolute',
   top: '-1px',
-  width: '32px',
-  height: '3px',
-  background: '$gold',
+  width: '36px',
+  height: '4px',
+  background: '$goldGlint',
   borderRadius: '$full',
-  boxShadow: '$goldGlow',
+  boxShadow: '0 0 15px #FFD700, 0 0 5px #FFD700',
   zIndex: 3,
 });
 
 const Aura = styled('div', {
   position: 'absolute',
-  width: '80px',
-  height: '80px',
-  background: 'radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, transparent 70%)',
+  width: '84px',
+  height: '84px',
+  background: 'radial-gradient(circle, rgba(255, 215, 0, 0.12) 0%, transparent 75%)',
   borderRadius: '$full',
   zIndex: 1,
-  animation: `${glow} 3s infinite`,
+  animation: `${glow} 2.5s infinite ease-in-out`,
 });
 
 const navItems = [
-  { path: '/', label: 'HOME', icon: '🏠' },
-  { path: '/tournament', label: 'LIVE', icon: '🎾' },
-  { path: '/results', label: 'ARCHIVE', icon: '📂' },
-  { path: '/profile', label: 'PROFILE', icon: '👤' },
+  { path: '/', label: 'DASHBOARD', icon: '🏎️' },
+  { path: '/tournament', label: 'CIRCUIT', icon: '🏁' },
+  { path: '/results', label: 'TELEMETRY', icon: '📊' },
+  { path: '/profile', label: 'PILOT', icon: '🆔' },
 ];
 
 export default function BottomNav() {

@@ -195,7 +195,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <Container>
-        <p style={{ textAlign: 'center', opacity: 0.5, marginTop: '100px' }}>Please login to view your profile.</p>
+        <p style={{ textAlign: 'center', opacity: 0.5, marginTop: '100px', fontFamily: 'var(--font-rajdhani)' }}>Please login to initialize pilot telemetry.</p>
       </Container>
     );
   }
@@ -203,9 +203,9 @@ export default function ProfilePage() {
   return (
     <Container>
       <Header>
-        <Link href="/" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '28px', padding: '$2' }}>←</Link>
-        <p style={{ fontWeight: 900, color: '$gold', fontSize: '10px', letterSpacing: '0.4em' }}>ELITE ANALYTICS</p>
-        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontWeight: 900, letterSpacing: '$wide' }}>LOGOUT</button>
+        <Link href="/" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '28px', padding: '8px' }}>←</Link>
+        <p style={{ fontWeight: 950, color: '$goldGlint', fontSize: '11px', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)' }}>PILOT ANALYTICS</p>
+        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>LOGOUT</button>
       </Header>
 
       <ProfileHero>
@@ -213,40 +213,40 @@ export default function ProfilePage() {
             <ProfileAvatar 
               src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
               alt="Profile" 
-              size={120} 
+              size={124} 
               className="rounded-full border-4 border-black"
               fallbackIcon={role === 'CEO' ? '👑' : '👤'}
             />
-          <UserBadge>{role === 'CEO' ? 'PLATINUM CEO' : 'GOLD MEMBER'}</UserBadge>
+          <UserBadge style={{ fontFamily: 'var(--font-rajdhani)' }}>{role === 'CEO' ? 'COMMANDER IN CHIEF' : 'ELITE CIRCUIT PILOT'}</UserBadge>
         </AvatarWrapper>
-        <h2 style={{ fontSize: '28px', fontWeight: 900, color: '$white', letterSpacing: '$tight' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</h2>
-        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '$2', fontStyle: 'italic', letterSpacing: '0.1em' }}>Precision. Power. Prestige.</p>
+        <h2 style={{ fontSize: '34px', fontWeight: 950, color: '$white', letterSpacing: '-0.02em', fontFamily: 'var(--font-orbitron)' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</h2>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px', fontStyle: 'italic', letterSpacing: '0.1em', fontFamily: 'var(--font-rajdhani)' }}>Precision. Power. Prestige.</p>
       </ProfileHero>
 
-      <SectionTitle>Performance Record</SectionTitle>
+      <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Performance Baseline</SectionTitle>
       
       <FilterContainer>
-        <FilterButton active={filter === 'weekly'} onClick={() => setFilter('weekly')}>WEEKLY</FilterButton>
-        <FilterButton active={filter === 'monthly'} onClick={() => setFilter('monthly')}>MONTHLY</FilterButton>
-        <FilterButton active={filter === 'yearly'} onClick={() => setFilter('yearly')}>YEARLY</FilterButton>
+        <FilterButton active={filter === 'weekly'} onClick={() => setFilter('weekly')} style={{ fontFamily: 'var(--font-rajdhani)' }}>WEEKLY</FilterButton>
+        <FilterButton active={filter === 'monthly'} onClick={() => setFilter('monthly')} style={{ fontFamily: 'var(--font-rajdhani)' }}>MONTHLY</FilterButton>
+        <FilterButton active={filter === 'yearly'} onClick={() => setFilter('yearly')} style={{ fontFamily: 'var(--font-rajdhani)' }}>YEARLY</FilterButton>
       </FilterContainer>
 
       <StatsGrid>
         <StatCard>
-          <StatValue highlight>{stats.winRate}</StatValue>
-          <StatLabel>Win Rate</StatLabel>
+          <StatValue highlight style={{ fontFamily: 'var(--font-orbitron)' }}>{stats.winRate}</StatValue>
+          <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Win Rate</StatLabel>
         </StatCard>
         <StatCard>
-          <StatValue>{stats.wins}</StatValue>
-          <StatLabel>Wins</StatLabel>
+          <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{stats.wins}</StatValue>
+          <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Wins</StatLabel>
         </StatCard>
         <StatCard>
-          <StatValue>{stats.losses}</StatValue>
-          <StatLabel>Losses</StatLabel>
+          <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{stats.losses}</StatValue>
+          <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Losses</StatLabel>
         </StatCard>
       </StatsGrid>
 
-      <SectionTitle>Recent Match History</SectionTitle>
+      <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Recent Telemetry Data</SectionTitle>
       <section>
         {[
           { date: 'SEP 14', opponent: 'Alex Rivera', result: 'W', score: '6-4' },
@@ -255,26 +255,26 @@ export default function ProfilePage() {
         ].map((m, idx) => (
           <MatchRecord key={idx}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              <div style={{ textAlign: 'center', minWidth: '40px' }}>
-                <p style={{ fontSize: '9px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginBottom: '2px' }}>{m.date.split(' ')[0]}</p>
-                <p style={{ fontSize: '16px', fontWeight: 900, color: '$white' }}>{m.date.split(' ')[1]}</p>
+              <div style={{ textAlign: 'center', minWidth: '45px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 950, color: 'rgba(255,255,255,0.25)', marginBottom: '4px', fontFamily: 'var(--font-rajdhani)' }}>{m.date.split(' ')[0]}</p>
+                <p style={{ fontSize: '18px', fontWeight: 950, color: '$white', fontFamily: 'var(--font-orbitron)' }}>{m.date.split(' ')[1]}</p>
               </div>
               <div>
-                <p style={{ fontSize: '$base', fontWeight: '$black', letterSpacing: '$tight' }}>vs. {m.opponent}</p>
-                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '2px' }}>Championship Series</p>
+                <p style={{ fontSize: '17px', fontWeight: 950, letterSpacing: '-0.01em', fontFamily: 'var(--font-rajdhani)' }}>vs. {m.opponent}</p>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '4px', fontFamily: 'var(--font-rajdhani)' }}>Championship Series</p>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '18px', fontWeight: '$black', color: m.result === 'W' ? '$gold' : '$error' }}>{m.result}</p>
-              <p style={{ fontSize: '11px', fontWeight: 900, opacity: 0.4 }}>{m.score}</p>
+              <p style={{ fontSize: '20px', fontWeight: 950, color: m.result === 'W' ? '$goldGlint' : '$error', fontFamily: 'var(--font-orbitron)' }}>{m.result}</p>
+              <p style={{ fontSize: '12px', fontWeight: 950, opacity: 0.4, fontFamily: 'var(--font-orbitron)' }}>{m.score}</p>
             </div>
           </MatchRecord>
         ))}
       </section>
 
-      <div style={{ marginTop: '50px', background: 'linear-gradient(135deg, $gold, $goldGlint)', color: '$black', padding: '$8', borderRadius: '$2xl', textAlign: 'center', boxShadow: '$goldGlow' }}>
-        <p style={{ fontSize: '14px', fontWeight: '$black', letterSpacing: '0.15em' }}>UPGRADE TO PRO ELITE</p>
-        <p style={{ fontSize: '10px', opacity: 0.8, marginTop: '$2', fontWeight: '$bold' }}>Unlock Advanced AI Predictive Analytics</p>
+      <div style={{ marginTop: '60px', background: 'linear-gradient(135deg, $gold, $goldGlint)', color: '$black', padding: '32px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(212, 175, 55, 0.4)' }}>
+        <p style={{ fontSize: '16px', fontWeight: 950, letterSpacing: '0.2em', fontFamily: 'var(--font-rajdhani)' }}>UPGRADE TO PRO ELITE</p>
+        <p style={{ fontSize: '11px', opacity: 0.9, marginTop: '8px', fontWeight: 800, fontFamily: 'var(--font-rajdhani)' }}>Unlock Advanced AI Predictive Analytics</p>
       </div>
 
     </Container>

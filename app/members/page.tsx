@@ -1,12 +1,132 @@
 'use client';
 
-
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import PremiumSpinner from '@/components/PremiumSpinner';
+import { styled, keyframes } from '@/stitches.config';
+
+const fadeIn = keyframes({
+  from: { opacity: 0, transform: 'translateY(15px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+const Container = styled('main', {
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: '100dvh',
+  padding: '$8 $5',
+  maxWidth: '500px',
+  margin: '0 auto',
+  width: '100%',
+  backgroundColor: '$black',
+  paddingBottom: '110px',
+});
+
+const Header = styled('header', {
+  marginBottom: '$8',
+});
+
+const Title = styled('h1', {
+  fontSize: '32px',
+  fontWeight: '$black',
+  letterSpacing: '$tight',
+  color: '$white',
+  textTransform: 'uppercase',
+  lineHeight: '0.9',
+  fontStyle: 'italic',
+});
+
+const Subtitle = styled('p', {
+  fontSize: '10px',
+  fontWeight: '$black',
+  color: '$gold',
+  letterSpacing: '$mega',
+  textTransform: 'uppercase',
+  marginTop: '$2',
+  opacity: 0.6,
+});
+
+const MemberGrid = styled('div', {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, 1fr)',
+  gap: '$4',
+  animation: `${fadeIn} 0.6s ease-out`,
+});
+
+const StyledMemberCard = styled('div', {
+  background: 'linear-gradient(135deg, $gray850, $black)',
+  borderGlow: 'rgba(255, 255, 255, 0.03)',
+  borderRadius: '$2xl',
+  padding: '$5',
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: '$glass',
+  transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
+  position: 'relative',
+  overflow: 'hidden',
+
+  '&:hover': {
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+    transform: 'translateY(-4px)',
+    boxShadow: '$goldGlow',
+    '& .hover-icon': { opacity: 0.1 },
+  },
+});
+
+const RoleBadge = styled('span', {
+  fontSize: '8px',
+  fontWeight: '$black',
+  padding: '$1 $3',
+  borderRadius: '$full',
+  textTransform: 'uppercase',
+  letterSpacing: '$wider',
+
+  variants: {
+    type: {
+      premium: {
+        background: '$gold',
+        color: '$black',
+        boxShadow: '$gold',
+      },
+      elite: {
+        background: 'rgba(255, 255, 255, 0.08)',
+        color: '$gold',
+        border: '1px solid rgba(212, 175, 55, 0.3)',
+      },
+      standard: {
+        background: 'rgba(255, 255, 255, 0.05)',
+        color: 'rgba(255, 255, 255, 0.4)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+      },
+    },
+  },
+});
+
+const DetailItem = styled('div', {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '$1',
+  marginTop: '$4',
+  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+  paddingTop: '$3',
+});
+
+const DetailLabel = styled('span', {
+  fontSize: '7px',
+  fontWeight: '$black',
+  color: 'rgba(255, 255, 255, 0.2)',
+  textTransform: 'uppercase',
+  letterSpacing: '$mega',
+});
+
+const DetailValue = styled('span', {
+  fontSize: '10px',
+  fontWeight: '$black',
+  color: 'rgba(255, 255, 255, 0.6)',
+  letterSpacing: '$tight',
+});
 
 interface Member {
   id: string;
@@ -15,7 +135,7 @@ interface Member {
   is_admin?: boolean;
   is_guest?: boolean;
   phone?: string;
-  email?: string; // Newly added
+  email?: string;
   mbti?: string;
   affiliation?: string;
   position?: string;
@@ -24,32 +144,12 @@ interface Member {
 }
 
 const EXE_PRIORITY: Record<string, number> = {
-  '회장': 1,
-  '부회장': 2,
-  '총무': 3,
-  '재무': 4,
-  '경기': 5,
-  '섭외': 6,
+  '회장': 1, '부회장': 2, '총무': 3, '재무': 4, '경기': 5, '섭외': 6,
 };
 
 const MEMBER_PRIORITY: Record<string, number> = {
-  '정회원': 10,
-  '준회원': 20,
-  '게스트': 30,
+  '정회원': 10, '준회원': 20, '게스트': 30,
 };
-
-const FALLBACK_MEMBERS: Member[] = [
-  { id: '1', nickname: '곽민섭', role: 'CEO, 재무', phone: '010-2696-0356', mbti: 'ESFJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버 / 매니저' },
-  { id: '2', nickname: '가내현', role: '부회장', phone: '010-6680-7119', mbti: 'ESTJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버' },
-  { id: '3', nickname: '강정호', role: '정회원', phone: '010-3456-7890', mbti: 'ENFP', achievements: '2024 신인왕' },
-  { id: '4', nickname: '구봉준', role: '정회원', phone: '010-4567-8901', mbti: 'ENTJ', achievements: '경기 운영 지원' },
-  { id: '5', nickname: '김민준', role: '정회원', phone: '010-5678-9012', mbti: 'INTP' },
-  { id: '6', nickname: '김병식', role: '정회원', phone: '010-6789-0123', mbti: 'ISFP' },
-  { id: '7', nickname: '김상준', role: '정회원', mbti: 'ESTJ' },
-  { id: '8', nickname: '김영우', role: '준회원', mbti: 'INFJ' },
-  { id: '9', nickname: '김영호', role: '준회원' },
-  { id: '10', nickname: '김재형', role: '준회원' },
-];
 
 const getMemberPriority = (m: Member): number => {
   const role = (m.role || '').trim();
@@ -63,111 +163,70 @@ const getMemberPriority = (m: Member): number => {
   return 99;
 };
 
-// Separate, Memoized Member Card Component
+const FALLBACK_MEMBERS: Member[] = [
+  { id: '1', nickname: '곽민섭', role: 'CEO, 재무', phone: '010-2696-0356', mbti: 'ESFJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버 / 매니저' },
+  { id: '2', nickname: '가내현', role: '부회장', phone: '010-6680-7119', mbti: 'ESTJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버' },
+  { id: '3', nickname: '강정호', role: '정회원', phone: '010-3456-7890', mbti: 'ENFP', achievements: '2024 신인왕' },
+  { id: '4', nickname: '구봉준', role: '정회원', phone: '010-4567-8901', mbti: 'ENTJ', achievements: '경기 운영 지원' },
+  { id: '5', nickname: '김민준', role: '정회원', phone: '010-5678-9012', mbti: 'INTP' },
+  { id: '6', nickname: '김병식', role: '정회원', phone: '010-6789-0123', mbti: 'ISFP' },
+  { id: '7', nickname: '김상준', role: '정회원', mbti: 'ESTJ' },
+];
+
 const MemberCard = React.memo(({ member }: { member: Member }) => {
   const { user } = useAuth();
   
-  const getRoleBadgeColor = (role: string) => {
-    const r = role.trim();
-    if (r.includes('CEO') || r === '회장' || r === '부회장') return 'bg-[#DC2626] text-white shadow-[0_0_15px_rgba(220,38,38,0.4)] font-[1000]'; 
-    if (EXE_PRIORITY[r]) return 'bg-[#2563EB] text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] font-black'; 
-    if (r === '정회원' || r === 'MEMBER') return 'bg-[#1A8D4D] text-white/90 font-bold';
-    if (r === '준회원') return 'bg-[#10B981] text-white/90 font-bold';
-    return 'bg-white/5 text-white/30 border border-white/10 font-medium';
-  };
-
   const roleLabels = useMemo(() => {
     const role = (member.role || '').trim();
     const pos = (member.position || '').trim();
-    
-    let primary = '';
-    let secondary = '';
-
-    const isRoleExe = EXE_PRIORITY[role] || role === 'CEO';
-    const isPosExe = EXE_PRIORITY[pos] || pos === 'CEO';
-
-    if (isRoleExe && isPosExe) {
-      if (EXE_PRIORITY[role] < EXE_PRIORITY[pos] || !EXE_PRIORITY[pos]) {
-        primary = role;
-        secondary = (pos !== role) ? pos : '';
-      } else {
-        primary = pos;
-        secondary = (role !== pos) ? role : '';
-      }
-    } else if (isRoleExe) {
-      primary = role;
-      secondary = (pos !== role) ? pos : '';
-    } else if (isPosExe) {
-      primary = pos;
-      secondary = (role !== pos) ? role : '';
-    } else {
-      primary = role || pos || '게스트';
-      if (primary === role && pos && pos !== role) {
-        secondary = pos;
-      } else if (primary === pos && role && role !== pos) {
-        secondary = role;
-      }
-    }
-    return { primary: primary || '게스트', secondary };
+    let primary = role || pos || '게스트';
+    return { primary: primary || '게스트' };
   }, [member.role, member.position]);
 
-  // Real-time Photo Priority Logic
+  const badgeType = useMemo(() => {
+    const r = roleLabels.primary.trim();
+    if (r.includes('CEO') || r === '회장' || r === '부회장' || member.is_admin) return 'premium';
+    if (EXE_PRIORITY[r] || r === '정회원') return 'elite';
+    return 'standard';
+  }, [roleLabels.primary, member.is_admin]);
+
   const finalAvatar = useMemo(() => {
     if (user?.email && member.email && user.email === member.email) {
-      return (
-        user.user_metadata?.avatar_url || 
-        user.user_metadata?.picture || 
-        user.user_metadata?.profile_image_url ||
-        user.user_metadata?.profile_image ||
-        member.avatar_url
-      );
+      return user.user_metadata?.avatar_url || user.user_metadata?.picture || member.avatar_url;
     }
     return member.avatar_url;
   }, [user?.email, user?.user_metadata, member.email, member.avatar_url]);
 
   return (
-    <div className="bg-gradient-to-br from-[#1A253D] to-[#0A0E1A] border border-white/5 rounded-[24px] p-4 flex flex-col shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 group relative overflow-hidden">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-base font-black tracking-tight group-hover:text-[#D4AF37] transition-colors mb-1 truncate">{member.nickname}</h3>
-          <div className="flex flex-wrap gap-1">
-            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${getRoleBadgeColor(roleLabels.primary)}`}>
-              {roleLabels.primary}
-            </span>
-            {roleLabels.secondary && (
-              <span className="text-[7px] font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                {roleLabels.secondary}
-              </span>
-            )}
-          </div>
+    <StyledMemberCard>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 900, marginBottom: '6px', color: '#fff', letterSpacing: '-0.02em' }}>{member.nickname}</h3>
+          <RoleBadge type={badgeType}>{roleLabels.primary}</RoleBadge>
         </div>
         <ProfileAvatar 
           src={finalAvatar} 
           alt={member.nickname} 
-          size={44}
-          className="rounded-full shrink-0 border-2 border-[#D4AF37]/20"
+          size={48}
+          className="rounded-full border-2 border-[rgba(212,175,55,0.2)]"
           fallbackIcon="🎾"
         />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[7px] text-white/20 font-black uppercase tracking-widest">Contact</span>
-          <span className="text-[9px] font-bold text-white/50 truncate">{member.phone || '비공개'}</span>
-        </div>
-        <div className="flex flex-col gap-0.5 border-t border-white/5 pt-2">
-          <span className="text-[7px] text-white/20 font-black uppercase tracking-widest">Affiliation</span>
-          <span className="text-[9px] font-bold text-white/40 truncate">{member.affiliation || 'Teyeon Club'}</span>
-        </div>
-        {member.achievements && (
-          <div className="mt-1">
-            <p className="text-[8px] font-medium text-[#D4AF37]/60 italic line-clamp-1">
-              🏆 {member.achievements}
-            </p>
-          </div>
-        )}
+      <DetailItem>
+        <DetailLabel>Status Detail</DetailLabel>
+        <DetailValue>{member.affiliation || 'Elite Member'}</DetailValue>
+      </DetailItem>
+
+      <div style={{ marginTop: '12px', minHeight: '14px' }}>
+         {member.achievements && (
+           <p style={{ fontSize: '9px', fontWeight: 800, color: '#D4AF37', fontStyle: 'italic', opacity: 0.8 }}>
+             🏆 {member.achievements}
+           </p>
+         )}
       </div>
-    </div>
+      <div className="hover-icon" style={{ position: 'absolute', right: '-10px', bottom: '-10px', fontSize: '64px', opacity: 0.02, pointerEvents: 'none', transition: 'opacity 0.4s' }}>🎾</div>
+    </StyledMemberCard>
   );
 });
 
@@ -176,43 +235,22 @@ MemberCard.displayName = 'MemberCard';
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMembers();
   }, []);
 
   async function fetchMembers() {
-    console.log('[Members] Fetching members starting...');
-    
-    // Safety flag to prevent infinite loading
-    let fetchCompleted = false;
-    const safetyTimeout = setTimeout(() => {
-      if (!fetchCompleted) {
-        console.warn('[Members] Fetch safety timeout triggered.');
-        setLoading(false);
-        if (members.length === 0) setMembers(FALLBACK_MEMBERS);
-      }
-    }, 6000);
-
     try {
       setLoading(true);
-      setErrorMsg(null);
-      
       const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-
       const { data, error } = await supabase
         .from('members')
         .select('*')
         .eq('club_id', clubId);
 
-      fetchCompleted = true;
-      clearTimeout(safetyTimeout);
-
       if (error) throw error;
       
-      console.log('[Members] Data received:', data?.length || 0);
-
       if (data && data.length > 0) {
         const sortedData = [...data].sort((a, b) => {
           const aP = getMemberPriority(a);
@@ -222,50 +260,43 @@ export default function MembersPage() {
         });
         setMembers(sortedData);
       } else {
-        console.log('[Members] No data found, using fallback');
         setMembers(FALLBACK_MEMBERS);
       }
     } catch (err: any) {
-      fetchCompleted = true;
-      clearTimeout(safetyTimeout);
-      console.error('[Members] Fetch Error:', err.message || err);
-      setErrorMsg(err.message || String(err));
-      if (!members.length) setMembers(FALLBACK_MEMBERS);
+      console.error('[Members] Fetch Error:', err);
+      setMembers(FALLBACK_MEMBERS);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="flex flex-col min-h-screen p-6 bg-[#000000] text-white font-sans w-full pb-10 pt-4">
-      {errorMsg && (
-        <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl mb-6 text-red-200 text-xs font-bold w-full lg:max-w-none">
-          ⚠️ 오류 발생: {errorMsg}
-        </div>
-      )}
+    <Container>
+      <Header>
+        <Title>The <span style={{ color: '$goldGlint' }}>Elite</span></Title>
+        <Subtitle>Club Member Directory 2026</Subtitle>
+      </Header>
 
       {loading ? (
-        <PremiumSpinner message="멤버 명단 동기화 중..." />
+        <PremiumSpinner message="Authenticating directory..." />
       ) : (
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto">
+        <MemberGrid>
           {members.map((member) => (
             <MemberCard key={member.id} member={member} />
           ))}
-        </div>
+        </MemberGrid>
       )}
 
       {members.length === 0 && !loading && (
-        <div className="text-center py-20 opacity-30 flex flex-col items-center">
-          <span className="text-5xl mb-6">🏜️</span>
-          <p className="text-lg font-black tracking-tight">멤버가 존재하지 않습니다.</p>
+        <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
+          <span style={{ fontSize: '64px', filter: 'drop-shadow(0 0 15px $goldGlint)' }}>🏜️</span>
+          <p style={{ fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', marginTop: '20px', fontFamily: 'var(--font-rajdhani)' }}>No Members Detected</p>
         </div>
       )}
 
-      {/* Footer Info */}
-      <footer className="mt-16 py-8 border-t border-white/5 flex flex-col items-center opacity-20">
-        <p className="text-[10px] font-black tracking-widest uppercase mb-2">Teyeon Club Management System</p>
-        <p className="text-[8px] font-bold">PREMIUM CHAMPAGNE GOLD Ed. v2.1 • Optimized Performance</p>
+      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.25 }}>
+        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint', textTransform: 'uppercase' }}>TEYEON NETWORK PRO STABLE</p>
       </footer>
-    </main>
+    </Container>
   );
 }
