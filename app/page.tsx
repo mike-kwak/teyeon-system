@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { 
-  Users, 
+  UserRound, 
   Trophy, 
-  GitMerge, 
+  Swords, 
   Megaphone, 
   Flame, 
   Wallet, 
@@ -28,13 +28,13 @@ export default function Home() {
   }, [toast]);
 
   const menuItems = [
-    { label: '클럽 공지', icon: <Megaphone size={40} strokeWidth={2.5} />, path: '/notice', comingSoon: false },
-    { label: '멤버 프로필', icon: <Users size={40} strokeWidth={2.5} />, path: '/members', comingSoon: false },
-    { label: '스페셜 매치', icon: <Flame size={40} strokeWidth={2.5} />, path: '/tournament', comingSoon: true },
-    { label: '대전 생성', icon: <GitMerge size={40} strokeWidth={2.5} />, path: '/kdk', comingSoon: false },
-    { label: '클럽 재무', icon: <Wallet size={40} strokeWidth={2.5} />, path: '/finance', comingSoon: true },
-    { label: 'AI 시드 예측', icon: <Cpu size={40} strokeWidth={2.5} />, path: '/prediction', comingSoon: true },
-    { label: '관리자 설정', icon: <Settings size={40} strokeWidth={2.5} />, path: '/admin', comingSoon: true },
+    { label: '클럽 공지', icon: <Megaphone size={36} strokeWidth={1.5} />, path: '/notice', comingSoon: false },
+    { label: '멤버 프로필', icon: <UserRound size={36} strokeWidth={1.5} />, path: '/members', comingSoon: false },
+    { label: '스페셜 매치', icon: <Flame size={36} strokeWidth={1.5} />, path: '/tournament', comingSoon: true },
+    { label: '대전 생성', icon: <Swords size={36} strokeWidth={1.5} />, path: '/kdk', comingSoon: false },
+    { label: '클럽 재무', icon: <Wallet size={36} strokeWidth={1.5} />, path: '/finance', comingSoon: true },
+    { label: 'AI 시드 예측', icon: <Cpu size={36} strokeWidth={1.5} />, path: '/prediction', comingSoon: true },
+    { label: '관리자 설정', icon: <Settings size={36} strokeWidth={1.5} />, path: '/admin', comingSoon: true },
   ];
 
   return (
@@ -117,7 +117,7 @@ export default function Home() {
                     COMING SOON
                   </span>
                 )}
-                <div className={`text-[#E8E137] drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
+                <div className={`text-[#EFDFB4] drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
                   {item.icon}
                 </div>
                 <span className={`font-bold text-gray-200 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[15px]'}`}>

@@ -3,13 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Trophy, User } from 'lucide-react';
+import { Home, Activity, Medal, User } from 'lucide-react';
 
 const navItems = [
-  { path: '/', label: 'MAIN', icon: <Home size={28} strokeWidth={2.5} /> },
-  { path: '/live', label: 'LIVE COURT', icon: <Activity size={28} strokeWidth={2.5} /> },
-  { path: '/results', label: 'ARCHIVE', icon: <Trophy size={28} strokeWidth={2.5} /> },
-  { path: '/profile', label: 'PROFILE', icon: <User size={28} strokeWidth={2.5} /> },
+  { path: '/', label: 'MAIN', icon: <Home size={24} strokeWidth={1.5} /> },
+  { path: '/live', label: 'LIVE COURT', icon: <Activity size={24} strokeWidth={1.5} /> },
+  { path: '/results', label: 'ARCHIVE', icon: <Medal size={24} strokeWidth={1.5} /> },
+  { path: '/profile', label: 'PROFILE', icon: <User size={24} strokeWidth={1.5} /> },
 ];
 
 export default function BottomNav() {
@@ -27,18 +27,18 @@ export default function BottomNav() {
               className={`relative flex flex-col items-center justify-center w-[76px] transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 active:scale-95'}`}
             >
               {isActive && (
-                <div className="absolute -top-[16px] w-[36px] h-[4px] bg-[#E8E137] rounded-full shadow-[0_0_12px_#E8E137]" />
+                <div className="absolute -top-[16px] w-[36px] h-[3px] bg-[#EFDFB4] rounded-full shadow-[0_0_12px_#EFDFB4]" />
               )}
               <div 
                 className={`mb-[6px] transition-all duration-300 ${
-                  isActive ? 'text-[#E8E137] drop-shadow-[0_0_8px_rgba(232,225,55,0.8)]' : 'text-gray-500 opacity-40'
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.8)]' : 'text-gray-500 opacity-40'
                 }`}
               >
                 {item.icon}
               </div>
               <span 
-                className={`text-[10px] font-black tracking-[0.1em] transition-all duration-300 ${
-                  isActive ? 'text-[#E8E137] drop-shadow-[0_0_8px_rgba(232,225,55,0.4)]' : 'text-gray-500'
+                className={`text-[9px] font-black tracking-[0.15em] transition-all duration-300 ${
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.4)]' : 'text-gray-500'
                 }`}
               >
                 {item.label}
