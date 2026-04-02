@@ -116,8 +116,14 @@ export default function GlobalHeader() {
   return (
     <HeaderContainer>
       <LogoLink href="/">
-        <LogoBox className="logo-box">T</LogoBox>
-        <LogoText>TEYEON</LogoText>
+        <img 
+          src="/teyeon_logo_gold.png" 
+          alt="TEYEON" 
+          className="h-[42px] w-auto transition-all duration-300 drop-shadow-[0_0_12px_rgba(201,176,117,0.4)]"
+          style={{
+            filter: 'invert(84%) sepia(18%) saturate(1143%) hue-rotate(3deg) brightness(87%) contrast(86%)'
+          }}
+        />
       </LogoLink>
 
       <UserSection>

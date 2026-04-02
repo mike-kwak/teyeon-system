@@ -64,10 +64,10 @@ export default function BottomNav() {
                   isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_10px_rgba(239,223,180,0.8)]' : 'text-[#C9B075]/40'
                 }`}
               >
-                <item.icon size={28} strokeWidth={1.3} />
+                <item.icon size={30} strokeWidth={1.2} />
               </div>
               <span 
-                className={`text-[11px] font-black tracking-[0.1em] transition-all duration-300 uppercase ${
+                className={`text-[11px] font-black tracking-[0.15em] transition-all duration-300 uppercase ${
                   isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_8px_rgba(239,223,180,0.4)]' : 'text-[#C9B075]/60'
                 }`}
               >
