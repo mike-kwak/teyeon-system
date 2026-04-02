@@ -2,7 +2,7 @@ export async function withRetry<T>(
   asyncFn: () => Promise<T> | PromiseLike<T>,
   retries = 3,
   delayMs = 1500,
-  timeoutMs = 10000
+  timeoutMs = 15000
 ): Promise<T> {
   // Enforces a rigid localized timeout per execution
   const timeoutPromise = new Promise<never>((_, reject) =>

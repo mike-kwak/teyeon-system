@@ -4,130 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import PremiumSpinner from '@/components/PremiumSpinner';
 import { withRetry } from '@/utils/withRetry';
-import { styled, keyframes } from '@/stitches.config';
-
-const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'translateY(15px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
-});
-
-const Container = styled('main', {
-  display: 'flex',
-  flexDirection: 'column',
-  minHeight: '100dvh',
-  padding: '$8 $5',
-  maxWidth: '500px',
-  margin: '0 auto',
-  width: '100%',
-  backgroundColor: '$black',
-  paddingBottom: '110px',
-});
-
-const Header = styled('header', {
-  marginBottom: '$8',
-});
-
-const Title = styled('h1', {
-  fontSize: '32px',
-  fontWeight: '$black',
-  letterSpacing: '$tight',
-  color: '$white',
-  textTransform: 'uppercase',
-  lineHeight: '0.9',
-  fontStyle: 'italic',
-});
-
-const Subtitle = styled('p', {
-  fontSize: '10px',
-  fontWeight: '$black',
-  color: '$gold',
-  letterSpacing: '$mega',
-  textTransform: 'uppercase',
-  marginTop: '$2',
-  opacity: 0.6,
-});
-
-const MemberGrid = styled('div', {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, 1fr)',
-  gap: '$4',
-  animation: `${fadeIn} 0.6s ease-out`,
-});
-
-const StyledMemberCard = styled('div', {
-  background: 'linear-gradient(135deg, $gray850, $black)',
-  borderGlow: 'rgba(255, 255, 255, 0.03)',
-  borderRadius: '$2xl',
-  padding: '$5',
-  display: 'flex',
-  flexDirection: 'column',
-  boxShadow: '$glass',
-  transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
-  position: 'relative',
-  overflow: 'hidden',
-
-  '&:hover': {
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-    transform: 'translateY(-4px)',
-    boxShadow: '$goldGlow',
-    '& .hover-icon': { opacity: 0.1 },
-  },
-});
-
-const RoleBadge = styled('span', {
-  fontSize: '8px',
-  fontWeight: '$black',
-  padding: '$1 $3',
-  borderRadius: '$full',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-
-  variants: {
-    type: {
-      premium: {
-        background: '$gold',
-        color: '$black',
-        boxShadow: '$gold',
-      },
-      elite: {
-        background: 'rgba(255, 255, 255, 0.08)',
-        color: '$gold',
-        border: '1px solid rgba(212, 175, 55, 0.3)',
-      },
-      standard: {
-        background: 'rgba(255, 255, 255, 0.05)',
-        color: 'rgba(255, 255, 255, 0.4)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-      },
-    },
-  },
-});
-
-const DetailItem = styled('div', {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '$1',
-  marginTop: '$4',
-  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-  paddingTop: '$3',
-});
-
-const DetailLabel = styled('span', {
-  fontSize: '7px',
-  fontWeight: '$black',
-  color: 'rgba(255, 255, 255, 0.2)',
-  textTransform: 'uppercase',
-  letterSpacing: '$mega',
-});
-
-const DetailValue = styled('span', {
-  fontSize: '10px',
-  fontWeight: '$black',
-  color: 'rgba(255, 255, 255, 0.6)',
-  letterSpacing: '$tight',
-});
+import { useRouter } from 'next/navigation';
 
 interface Member {
   id: string;
@@ -198,36 +76,48 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
     return member.avatar_url;
   }, [user?.email, user?.user_metadata, member.email, member.avatar_url]);
 
+  const getBadgeStyle = () => {
+    if (badgeType === 'premium') return 'bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.8)]';
+    if (badgeType === 'elite') return 'bg-white/10 text-[#D4AF37] border border-[#D4AF37]/30';
+    return 'bg-white/5 text-white/40 border border-white/10';
+  };
+
   return (
-    <StyledMemberCard>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 900, marginBottom: '6px', color: '#fff', letterSpacing: '-0.02em' }}>{member.nickname}</h3>
-          <RoleBadge type={badgeType}>{roleLabels.primary}</RoleBadge>
+    <div className="relative overflow-hidden p-5 rounded-2xl flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] group bg-gradient-to-br from-[#222222] to-black border border-white/5 hover:border-[#D4AF37]/40 z-10 isolate">
+      <div className="flex justify-between items-start mb-3 z-20">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-black mb-1.5 text-white tracking-tight drop-shadow-md">{member.nickname}</h3>
+          <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${getBadgeStyle()}`}>
+            {roleLabels.primary}
+          </span>
         </div>
         <ProfileAvatar 
           src={finalAvatar} 
           alt={member.nickname} 
           size={48}
-          className="rounded-full border-2 border-[rgba(212,175,55,0.2)]"
+          className="rounded-full border-2 border-[#D4AF37]/20 shadow-md bg-black"
           fallbackIcon="🎾"
         />
       </div>
 
-      <DetailItem>
-        <DetailLabel>Status Detail</DetailLabel>
-        <DetailValue>{member.affiliation || 'Elite Member'}</DetailValue>
-      </DetailItem>
+      <div className="flex flex-col gap-1 mt-4 border-t border-white/5 pt-3 z-20">
+        <span className="text-[7px] font-black text-white/20 uppercase tracking-[0.1em]">Status Detail</span>
+        <span className="text-[10px] font-black text-white/60 tracking-tight">{member.affiliation || 'Elite Member'}</span>
+      </div>
 
-      <div style={{ marginTop: '12px', minHeight: '14px' }}>
+      <div className="mt-3 min-h-[14px] z-20">
          {member.achievements && (
-           <p style={{ fontSize: '9px', fontWeight: 800, color: '#D4AF37', fontStyle: 'italic', opacity: 0.8 }}>
+           <p className="text-[9px] font-black text-[#D4AF37] italic opacity-80 drop-shadow-md">
              🏆 {member.achievements}
            </p>
          )}
       </div>
-      <div className="hover-icon" style={{ position: 'absolute', right: '-10px', bottom: '-10px', fontSize: '64px', opacity: 0.02, pointerEvents: 'none', transition: 'opacity 0.4s' }}>🎾</div>
-    </StyledMemberCard>
+      
+      {/* Background Graphic */}
+      <div className="absolute -right-2 -bottom-2 text-[64px] opacity-[0.02] pointer-events-none transition-opacity duration-300 group-hover:opacity-10 z-0 select-none">
+        🎾
+      </div>
+    </div>
   );
 });
 
@@ -236,8 +126,10 @@ MemberCard.displayName = 'MemberCard';
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
+    // Check hydration matches by doing fetch safely via client
     fetchMembers();
   }, []);
 
@@ -245,6 +137,8 @@ export default function MembersPage() {
     try {
       setLoading(true);
       const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+      
+      // Use withRetry utility which was boosted to 15s to handle flaky connections
       const { data, error } = await withRetry(() => supabase
         .from('members')
         .select('*')
@@ -265,43 +159,54 @@ export default function MembersPage() {
       }
     } catch (err: any) {
       console.error('[Members] Fetch Error:', err);
+      // Hard fallback on 3x fail timeout
       setMembers(FALLBACK_MEMBERS);
     } finally {
       setLoading(false);
+      // Ensure router navigations are synced
+      router.refresh();
     }
   }
 
   return (
-    <Container>
-      <Header>
-        <Title>TEYEON <span style={{ color: '$goldGlint' }}>MEMBERS</span></Title>
-        <Subtitle>Club Member Directory 2026</Subtitle>
-      </Header>
+    <main className="flex flex-col min-h-[100dvh] px-5 py-8 max-w-[500px] mx-auto w-full bg-black pb-[110px] overflow-hidden">
+      <header className="mb-8 pl-1">
+        <h1 className="text-[32px] font-black tracking-tight text-white uppercase leading-[0.9] italic font-['Rajdhani',sans-serif]">
+          TEYEON <span className="text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]">MEMBERS</span>
+        </h1>
+        <p className="text-[10px] font-black text-[#D4AF37] tracking-widest uppercase mt-2 opacity-60 font-['Rajdhani',sans-serif]">
+          Club Member Directory 2026
+        </p>
+      </header>
 
       {loading ? (
-        <MemberGrid>
+        <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-500">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="animate-pulse" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.5))', height: '140px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.02)' }} />
+            <div key={i} className="animate-pulse bg-gradient-to-br from-white/5 to-black/50 h-[140px] rounded-[24px] border border-white-[0.02] shadow-lg" />
           ))}
-        </MemberGrid>
+        </div>
       ) : (
-        <MemberGrid>
+        <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 fade-in duration-500">
           {members.map((member) => (
             <MemberCard key={member.id} member={member} />
           ))}
-        </MemberGrid>
-      )}
-
-      {members.length === 0 && !loading && (
-        <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
-          <span style={{ fontSize: '64px', filter: 'drop-shadow(0 0 15px $goldGlint)' }}>🏜️</span>
-          <p style={{ fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', marginTop: '20px', fontFamily: 'var(--font-rajdhani)' }}>No Members Detected</p>
         </div>
       )}
 
-      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.25 }}>
-        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint', textTransform: 'uppercase' }}>TEYEON NETWORK PRO STABLE</p>
+      {members.length === 0 && !loading && (
+        <div className="text-center py-[100px] opacity-30">
+          <span className="text-[64px] drop-shadow-[0_0_15px_rgba(212,175,55,1)]">🏜️</span>
+          <p className="text-[11px] font-[950] uppercase tracking-[0.4em] mt-5 font-['Rajdhani',sans-serif]">
+            No Members Detected
+          </p>
+        </div>
+      )}
+
+      <footer className="mt-auto py-[60px] text-center opacity-25">
+        <p className="text-[11px] font-[950] tracking-[0.5em] text-[#D4AF37] uppercase font-['Rajdhani',sans-serif]">
+          TEYEON NETWORK PRO STABLE
+        </p>
       </footer>
-    </Container>
+    </main>
   );
 }
