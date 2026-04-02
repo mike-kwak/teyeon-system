@@ -119,9 +119,9 @@ export default function GlobalHeader() {
         <img 
           src="/teyeon_logo_gold.png" 
           alt="TEYEON" 
-          className="h-[42px] w-auto transition-all duration-300 drop-shadow-[0_0_12px_rgba(201,176,117,0.4)]"
+          className="h-[40px] w-auto transition-all duration-300 opacity-100 drop-shadow-[0_4px_10px_rgba(201,176,117,0.4)]"
           style={{
-            filter: 'invert(84%) sepia(18%) saturate(1143%) hue-rotate(3deg) brightness(87%) contrast(86%)'
+            filter: 'brightness(0) invert(1) invert(81%) sepia(19%) saturate(1006%) hue-rotate(3deg) brightness(88%) contrast(85%)'
           }}
         />
       </LogoLink>
