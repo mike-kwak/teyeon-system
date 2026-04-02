@@ -30,6 +30,8 @@ export const {
       error: '#FF4B2B',
       deepNavy: '#0F172A',
       cardNavy: '#1E293B',
+      bgCharcoal: '#1A1A1A',
+      cardCharcoal: '#242424',
     },
     space: {
       1: '2px',

@@ -42,16 +42,16 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#0F172A] px-5 pt-10 pb-[180px] w-full flex flex-col items-center overflow-x-hidden relative">
+    <main className="min-h-screen bg-[#1A1A1A] px-5 pt-10 pb-[180px] w-full flex flex-col items-center overflow-x-hidden relative">
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center gap-6">
         
         {/* Luxury Skeleton Loading State */}
         {isLoading && (
           <div className="w-full flex flex-col gap-6 animate-pulse mt-4">
-            <div className="w-full h-[60px] bg-[#1E293B]/40 rounded-xl mb-2"></div>
+            <div className="w-full h-[60px] bg-[#242424]/40 rounded-xl mb-2"></div>
             <div className="grid grid-cols-2 gap-4 w-full">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-[150px] bg-[#1E293B]/60 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
+                <div key={i} className="h-[150px] bg-[#242424]/60 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
               ))}
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function Home() {
 
         {/* Unauthenticated State - Center Login */}
         {!isLoading && !user && (
-          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-2 bg-gradient-to-b from-[#1E293B]/90 to-[#0F172A]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
+          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-2 bg-gradient-to-b from-[#242424]/90 to-[#1A1A1A]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
             <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#E8E137]/40 to-transparent"></div>
             
             <p className="text-[16px] font-[900] text-gray-200 tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
@@ -68,7 +68,7 @@ export default function Home() {
             
             <button 
               onClick={() => signInWithKakao()}
-              className="w-full max-w-[320px] py-5 rounded-full bg-gradient-to-r from-[#1E293B] to-[#0F172A] text-[#E8E137] text-[15px] font-[1000] tracking-widest border border-[#E8E137]/30 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:border-[#E8E137]/80 hover:shadow-[0_15px_40px_rgba(232,225,55,0.2)] active:scale-[0.98] flex items-center justify-center gap-4 font-['Rajdhani',sans-serif]"
+              className="w-full max-w-[320px] py-5 rounded-full bg-gradient-to-r from-[#242424] to-[#1A1A1A] text-[#E8E137] text-[15px] font-[1000] tracking-widest border border-[#E8E137]/30 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:border-[#E8E137]/80 hover:shadow-[0_15px_40px_rgba(232,225,55,0.2)] active:scale-[0.98] flex items-center justify-center gap-4 font-['Rajdhani',sans-serif]"
             >
               <span className="text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">💬</span> 카카오 계정으로 접속
             </button>
@@ -88,7 +88,7 @@ export default function Home() {
               <Link 
                 key={index} 
                 href={item.path}
-                className={`relative flex flex-col items-center justify-center bg-[#1E293B]/80 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1E293B] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_20px_rgba(0,0,0,0.5)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[120px] flex-row gap-8' : 'h-[150px]'}`}
+                className={`relative flex flex-col items-center justify-center bg-[#242424]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#242424] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[120px] flex-row gap-8' : 'h-[150px]'}`}
               >
                 {item.comingSoon && (
                   <span className={`absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-8' : 'top-4 right-4'}`}>

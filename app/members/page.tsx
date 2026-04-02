@@ -20,7 +20,7 @@ const Container = styled('main', {
   maxWidth: '500px',
   margin: '0 auto',
   width: '100%',
-  backgroundColor: '$deepNavy',
+  backgroundColor: '$bgCharcoal',
   paddingBottom: '250px', 
 });
 
@@ -57,7 +57,7 @@ const MemberGrid = styled('div', {
 });
 
 const StyledMemberCard = styled('div', {
-  background: 'linear-gradient(135deg, $cardNavy, $deepNavy)',
+  background: 'linear-gradient(135deg, $cardCharcoal, $bgCharcoal)',
   border: '1px solid rgba(255, 255, 255, 0.03)',
   borderRadius: '$2xl',
   padding: '$5',
