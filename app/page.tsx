@@ -78,26 +78,26 @@ export default function Home() {
 
         {/* Authenticated State - Profile Card */}
         {!isLoading && user && (
-          <div className="w-full bg-gradient-to-br from-[#1B1B1B] to-black/40 backdrop-blur-md border border-white/5 rounded-[24px] p-6 flex items-center justify-between shadow-[0_4px_10px_rgba(232,225,55,0.05)] relative overflow-hidden">
-            <div className="flex items-center gap-5 w-full">
+          <div className="w-full bg-gradient-to-br from-[#1B1B1B] to-black/40 backdrop-blur-md border border-white/5 rounded-[24px] p-6 flex items-center justify-between shadow-[0_4px_10px_rgba(201,176,117,0.05)] relative overflow-hidden">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] mb-1.5 font-['Rajdhani',sans-serif]">
+                  {role === 'CEO' ? 'COMMANDER IN CHIEF' : 'CLUB MEMBER'}
+                </span>
+                <h2 className="text-[18px] font-black text-white mb-2 font-['Rajdhani',sans-serif]">
+                  반갑습니다, <span className="text-[#C9B075] font-['Pretendard']">{user.user_metadata?.nickname || '회원'}</span>님!
+                </h2>
+                <span className="text-[11px] text-gray-400 font-medium tracking-tight">
+                  매 순간이 <span className="font-bold text-[#C9B075]/80">CHAMPION SHOT</span>입니다 🎾
+                </span>
+              </div>
               <ProfileAvatar 
                 src={user.user_metadata?.avatar_url} 
                 alt={user.user_metadata?.nickname} 
                 size={64}
                 fallbackIcon="👤"
-                className="border-2 border-[#E8E137] rounded-full shadow-[0_0_20px_rgba(232,225,55,0.25)]"
+                className="border-2 border-[#C9B075] rounded-full shadow-[0_0_20px_rgba(201,176,117,0.2)]"
               />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#E8E137] tracking-[0.2em] mb-1.5 font-['Rajdhani',sans-serif]">
-                  {role === 'CEO' ? 'COMMANDER IN CHIEF' : 'CLUB MEMBER'}
-                </span>
-                <h2 className="text-[18px] font-black text-white mb-2 font-['Rajdhani',sans-serif]">
-                  반갑습니다, <span className="text-[#E8E137] font-['Pretendard']">{user.user_metadata?.nickname || '회원'}</span>님!
-                </h2>
-                <span className="text-[11px] text-gray-400 font-medium tracking-tight">
-                  매 순간이 <span className="font-bold text-[#E8E137]">CHAMPION SHOT</span>입니다 🎾
-                </span>
-              </div>
             </div>
           </div>
         )}
