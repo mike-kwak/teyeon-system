@@ -50,6 +50,17 @@ export const supabase = createBrowserClient(
   {
     global: {
       fetch: fetchWithRetry
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+    cookieOptions: {
+      maxAge: 30 * 24 * 60 * 60, // 30 Days
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
     }
   }
 );

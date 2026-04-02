@@ -187,13 +187,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      // Enhanced stability: Catch all active session events
+      if (['SIGNED_IN', 'INITIAL_SESSION', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
           await syncProfile(session.user);
         }
-      } else {
+      } else if (event === 'SIGNED_OUT') {
+        // Only clear state on explicit SIGNED_OUT
+        setSession(null);
+        setUser(null);
         setRole('GUEST');
         setIsPendingMatching(false);
         setIsLoading(false);
