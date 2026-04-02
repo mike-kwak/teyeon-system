@@ -274,7 +274,7 @@ export default function MembersPage() {
   return (
     <Container>
       <Header>
-        <Title>The <span style={{ color: '$goldGlint' }}>Elite</span></Title>
+        <Title>TEYEON <span style={{ color: '$goldGlint' }}>MEMBERS</span></Title>
         <Subtitle>Club Member Directory 2026</Subtitle>
       </Header>
 
