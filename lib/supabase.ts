@@ -7,50 +7,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key is missing in environment variables.');
 }
 
-/**
- * Advanced Fetch Wrapper with Exponential Backoff (v4.0 Stability)
- * Designed to handle "Request timeout" and network instability in remote locations.
- */
-const fetchWithRetry = async (
-  url: RequestInfo | URL,
-  options: RequestInit = {},
-  retries = 3,
-  backoff = 500
-): Promise<Response> => {
-  try {
-    const res = await fetch(url, {
-      ...options,
-      cache: 'no-store', // Always bypass cache for real-time accuracy
-      // Add a custom timeout signal if needed (default is browser managed)
-    });
-
-    // If we get a server error (5xx) or a timeout-like status, consider retrying
-    if (!res.ok && res.status >= 500 && retries > 0) {
-      console.warn(`[Supabase] Server Error (${res.status}). Retrying in ${backoff}ms... (${retries} left)`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
-    }
-
-    return res;
-  } catch (err: any) {
-    // Catch network errors (like timeout or DNS failure)
-    if (retries > 0) {
-      console.warn(`[Supabase] Network Error: ${err.message}. Retrying in ${backoff}ms... (${retries} left)`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
-    }
-    throw err;
-  }
-};
-
-// Optimized Client for Browser (Next.js App Router compatible)
+// RESTORE: Standard Browser Client (v4.1 Emergency Reset)
+// Reverted custom fetch retry logic to resolve PC/Mobile connectivity mismatch.
 export const supabase = createBrowserClient(
   supabaseUrl,
   supabaseAnonKey,
   {
-    global: {
-      fetch: fetchWithRetry
-    },
     auth: {
       persistSession: true,
       autoRefreshToken: true,

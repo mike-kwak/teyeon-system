@@ -102,60 +102,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncProfile = async (currentUser: User) => {
     try {
-      let initialRole: UserRole = 'GUEST';
-      if (currentUser.email === CEO_EMAIL) {
-        initialRole = 'CEO';
-      } else if (ADMIN_EMAILS.includes(currentUser.email || '')) {
-        initialRole = 'ADMIN';
-      }
-
-      const { data: linkedMember } = await withRetry(() => supabase
+      const { data: linkedMember, error } = await supabase
         .from('members')
         .select('id, role, email')
         .eq('email', currentUser.email)
-        .single());
+        .single();
       
       if (linkedMember) {
         const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
         await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
         
-        let finalRole: UserRole = initialRole;
-        if (linkedMember.role) {
-            const kRole = linkedMember.role.trim();
-            if (kRole === 'CEO') finalRole = 'CEO';
-            else if (STAFF_ROLES.includes(kRole)) finalRole = 'ADMIN';
-            else if (MEMBER_ROLES.includes(kRole)) finalRole = 'MEMBER';
+        let finalRole: UserRole = 'MEMBER';
+        if (currentUser.email === CEO_EMAIL) {
+          finalRole = 'CEO';
+        } else if (linkedMember.role) {
+          const kRole = linkedMember.role.trim();
+          if (kRole === 'CEO' || kRole === '회장') finalRole = 'CEO';
+          else if (['부회장', '총무', '재무', '경기', '섭외'].includes(kRole) || ADMIN_EMAILS.includes(currentUser.email || '')) finalRole = 'ADMIN';
+          else if (['정회원', '준회원'].includes(kRole)) finalRole = 'MEMBER';
         }
+
         setRole(finalRole);
         setIsPendingMatching(false);
         setIsLoading(false);
         return;
       }
 
-      const nickname = currentUser.user_metadata?.nickname || currentUser.user_metadata?.full_name;
-      if (nickname) {
-        const { data: matchedNick } = await withRetry(() => supabase
-          .from('members')
-          .select('id')
-          .eq('nickname', nickname)
-          .is('email', null)
-          .single());
-        
-        if (matchedNick) {
-          await supabase.from('members')
-            .update({ email: currentUser.email, avatar_url: currentUser.user_metadata?.avatar_url })
-            .eq('id', matchedNick.id);
-          
-          setTimeout(() => syncProfile(currentUser), 500);
-          return;
-        }
-      }
-
       setRole('GUEST');
-      setIsPendingMatching(true);
+      setIsPendingMatching(false); // Disable matching gate for now as per instructions
       setIsLoading(false);
     } catch (err) {
-      console.error('[Auth] Sync error:', err);
+      console.error('[Auth] Error syncing core profile state:', err);
+      setRole('GUEST');
       setIsLoading(false);
     }
   };

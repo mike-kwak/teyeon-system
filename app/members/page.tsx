@@ -4,11 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { withRetry } from '@/utils/withRetry';
 import { useRouter } from 'next/navigation';
-
-const CACHE_KEY = 'TEYEON_CACHE_MEMBERS';
-const BRAND_GOLD = '#C9B075';
 
 interface Member {
   id: string;
@@ -125,47 +121,25 @@ MemberCard.displayName = 'MemberCard';
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const router = useRouter();
 
-  // 1. Zero-Delay Initial Render
   useEffect(() => {
-    // Synchronously check cache before background fetch
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-          console.log('[Members] Zero-Delay cache hit');
-          setMembers(parsed);
-          setLoading(false); // Set loading false immediately to show cache
-        }
-      } catch (err) {
-        console.warn('[Members] Cache invalid, falling back to server');
-      }
-    }
-
-    // Always fetch in background to sync
     fetchMembers();
   }, []);
 
   async function fetchMembers() {
-    const startTime = Date.now();
     try {
-      // If no cache, we show whole page loading. If cache exists, we stay at loading=false (showing cache) but could show a sync pulse.
-      const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+      setLoading(true);
+      setErrorStatus(null);
       
-      console.log(`[Members] Requesting fresh data (120s limit)...`);
-      
-      const { data, error } = await withRetry(() => supabase
+      // EMERGENCY RESET: Straight, unfiltered select call
+      const { data, error } = await supabase
         .from('members')
-        .select('id, nickname, role, position, affiliation, achievements, avatar_url, is_admin, is_guest, email')
-        .eq('club_id', clubId));
-
-      const latency = Date.now() - startTime;
-      console.log(`[Members] Network synchronization complete in ${latency}ms`);
+        .select('*');
 
       if (error) {
-        console.error(`[Members] Fetch Protocol Failure: ${error.code} - ${error.message}`);
+        console.error('[Members] Supabase Fetch Error:', error);
         throw error;
       }
       
@@ -176,12 +150,15 @@ export default function MembersPage() {
           if (aP !== bP) return aP - bP;
           return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
         });
-        
         setMembers(sortedData);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(sortedData));
+      } else {
+        setErrorStatus('서버 연결 확인 중... (Checking connection)');
+        // Auto-retry once after 3 seconds
+        setTimeout(fetchMembers, 3000);
       }
     } catch (err: any) {
-      console.error('[Members] Terminal Failure Path:', err);
+      console.error('[Members] Terminal Failure:', err);
+      setErrorStatus('네트워크 요청 실패. 다시 시도해 주세요.');
     } finally {
       setLoading(false);
       router.refresh();
@@ -201,33 +178,32 @@ export default function MembersPage() {
           </p>
         </header>
 
-        {loading && members.length === 0 ? (
+        {loading ? (
           <div className="grid grid-cols-2 gap-4 w-full animate-in fade-in duration-500">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse bg-gradient-to-br from-[#1E1E1E] to-black/50 h-[170px] rounded-[24px] border border-white-[0.02] shadow-lg" />
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative pb-[120px]">
-             {/* Subtle Network Sync Indicator */}
-             {loading && members.length > 0 && (
-              <div className="absolute top-[-30px] right-0 flex items-center gap-2 animate-pulse">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#C9B075]"></div>
-                <span className="text-[9px] text-[#C9B075] font-black uppercase tracking-tighter opacity-70">Updating...</span>
-              </div>
-            )}
+        ) : members.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 relative pb-40">
             {members.map((member) => (
               <MemberCard key={member.id} member={member} />
             ))}
           </div>
-        )}
-
-        {members.length === 0 && !loading && (
-          <div className="text-center py-[100px] opacity-20 mt-10">
-            <span className="text-[64px] drop-shadow-[0_0_15px_rgba(201,176,117,0.8)]">🏜️</span>
-            <p className="text-[12px] font-[950] uppercase tracking-[0.4em] mt-5 font-['Rajdhani',sans-serif]">
-              No Directory Found
-            </p>
+        ) : (
+          <div className="text-center py-[100px] mt-10 w-full">
+            <div className="flex flex-col items-center gap-6">
+              <div className="w-12 h-12 border-4 border-[#C9B075]/20 border-t-[#C9B075] rounded-full animate-spin"></div>
+              <p className="text-[14px] font-black text-[#C9B075] tracking-tighter uppercase animate-pulse">
+                {errorStatus || 'Loading Directory...'}
+              </p>
+              <button 
+                onClick={() => fetchMembers()}
+                className="mt-4 px-8 py-3 bg-[#C9B075] text-black text-xs font-black rounded-full shadow-lg active:scale-95 transition-transform"
+              >
+                RESTORE CONNECTION
+              </button>
+            </div>
           </div>
         )}
 
