@@ -47,11 +47,14 @@ export default function Home() {
     <main className="min-h-screen bg-[#121212] px-5 pt-0 pb-[250px] w-full flex flex-col items-center overflow-x-hidden relative">
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center">
         
+        {/* Perfect Balance Spacer (48px Header-to-Grid) */}
+        <div className="h-[48px] w-full shrink-0" />
+
         {/* Luxury Skeleton Loading State */}
         {isLoading && (
-          <div className="w-full flex flex-col gap-6 animate-pulse mt-6">
+          <div className="w-full flex flex-col gap-12 animate-pulse">
             <div className="w-full h-[60px] bg-[#1A1A1A]/40 rounded-xl mb-2"></div>
-            <div className="grid grid-cols-2 gap-6 w-full">
+            <div className="grid grid-cols-2 gap-y-12 gap-x-6 w-full">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="h-[150px] bg-[#1A1A1A]/60 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
               ))}
@@ -61,7 +64,7 @@ export default function Home() {
 
         {/* Unauthenticated State - Center Login */}
         {!isLoading && !user && (
-          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-6 bg-gradient-to-b from-[#1A1A1A]/90 to-[#121212]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
+          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 bg-gradient-to-b from-[#1A1A1A]/90 to-[#121212]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
             <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#E8E137]/40 to-transparent"></div>
             
             <p className="text-[16px] font-[900] text-gray-200 tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
@@ -83,7 +86,7 @@ export default function Home() {
 
         {/* Authenticated State - Grid Menu (Moved up as requested) */}
         {!isLoading && user && (
-          <div className="grid grid-cols-2 gap-6 w-full mt-6 animate-in slide-in-from-bottom-4 duration-700">
+          <div className="grid grid-cols-2 gap-y-12 gap-x-6 w-full animate-in slide-in-from-bottom-4 duration-700">
           {menuItems.map((item, index) => {
             const isLastOdd = index === menuItems.length - 1 && menuItems.length % 2 !== 0;
             return (
