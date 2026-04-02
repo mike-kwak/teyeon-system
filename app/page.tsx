@@ -19,7 +19,7 @@ export default function Home() {
 
   const menuItems = [
     { label: '클럽 공지', icon: '📢', path: '/notice', comingSoon: false },
-    { label: '멤버 프로필', icon: '👤', path: '/profile', comingSoon: false },
+    { label: '멤버 프로필', icon: '👤', path: '/members', comingSoon: false },
     { label: '스페셜 매치', icon: '🔥', path: '/tournament', comingSoon: true },
     { label: '대전 생성', icon: '⚙️', path: '/kdk', comingSoon: false },
     { label: '클럽 재무', icon: '💰', path: '/finance', comingSoon: true },

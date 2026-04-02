@@ -180,7 +180,7 @@ const MatchRecord = styled('div', {
 });
 
 export default function ProfilePage() {
-  const { user, role, signOut } = useAuth();
+  const { user, role, signOut, isLoading } = useAuth();
   const [filter, setFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
 
   const stats = useMemo(() => {
@@ -191,6 +191,26 @@ export default function ProfilePage() {
     };
     return base[filter];
   }, [filter]);
+
+  if (isLoading) {
+    return (
+      <Container>
+        <Header>
+          <div className="animate-pulse w-8 h-8 rounded-full bg-white/5"></div>
+          <div className="animate-pulse w-32 h-4 rounded bg-white/5"></div>
+          <div className="animate-pulse w-12 h-4 rounded bg-white/5"></div>
+        </Header>
+        <div className="animate-pulse w-full h-[240px] bg-white/5 rounded-[24px] mb-[48px]"></div>
+        <div className="animate-pulse w-32 h-4 rounded bg-white/5 mb-5"></div>
+        <div className="animate-pulse w-full h-[40px] bg-white/5 rounded-[12px] mb-8"></div>
+        <div className="grid grid-cols-3 gap-4 mb-10 w-full">
+           <div className="animate-pulse h-[100px] bg-white/5 rounded-[12px]"></div>
+           <div className="animate-pulse h-[100px] bg-white/5 rounded-[12px]"></div>
+           <div className="animate-pulse h-[100px] bg-white/5 rounded-[12px]"></div>
+        </div>
+      </Container>
+    );
+  }
 
   if (!user) {
     return (

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import PremiumSpinner from '@/components/PremiumSpinner';
+import { withRetry } from '@/utils/withRetry';
 import { styled, keyframes } from '@/stitches.config';
 
 const fadeIn = keyframes({
@@ -244,10 +245,10 @@ export default function MembersPage() {
     try {
       setLoading(true);
       const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-      const { data, error } = await supabase
+      const { data, error } = await withRetry(() => supabase
         .from('members')
         .select('*')
-        .eq('club_id', clubId);
+        .eq('club_id', clubId));
 
       if (error) throw error;
       
@@ -278,7 +279,11 @@ export default function MembersPage() {
       </Header>
 
       {loading ? (
-        <PremiumSpinner message="Authenticating directory..." />
+        <MemberGrid>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="animate-pulse" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.5))', height: '140px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.02)' }} />
+          ))}
+        </MemberGrid>
       ) : (
         <MemberGrid>
           {members.map((member) => (
