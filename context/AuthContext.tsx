@@ -103,7 +103,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const syncProfile = async (currentUser: User) => {
     try {
       console.log(`[Auth/DirectSync] Forcing single source of truth lookup for ${currentUser.email}`);
-      const { data: linkedMember, error } = await supabase
+      
+      // Early Priority: CEO Email Check (Hardcoded safety)
+      if (currentUser.email === CEO_EMAIL) {
+        setRole('CEO');
+        setIsPendingMatching(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 1: Check Members Table (Official Hub)
+      const { data: linkedMember, error: memberError } = await supabase
         .from('members')
         .select('id, role, email')
         .eq('email', currentUser.email)
@@ -114,33 +124,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
         
         let finalRole: UserRole = 'MEMBER';
-        
-        // Priority 1: CEO Email Check (Hardcoded safety)
-        if (currentUser.email === CEO_EMAIL) {
-          finalRole = 'CEO';
-        } else if (linkedMember.role) {
-          // Priority 2: DB-determined Role Title (Absolute Authority)
+        if (linkedMember.role) {
           const kRole = linkedMember.role.trim();
-          if (kRole === 'CEO' || kRole === '회장') {
-            finalRole = 'CEO';
-          } else if (['부회장', '총무', '재무', '경기', '섭외'].includes(kRole)) {
-            finalRole = 'ADMIN';
-          } else if (ADMIN_EMAILS.includes(currentUser.email || '')) {
-            finalRole = 'ADMIN';
-          } else if (['정회원', '준회원'].includes(kRole)) {
-            finalRole = 'MEMBER';
-          }
+          if (kRole === 'CEO' || kRole === '회장') finalRole = 'CEO';
+          else if (['부회장', '총무', '재무', '경기', '섭외'].includes(kRole) || ADMIN_EMAILS.includes(currentUser.email || '')) finalRole = 'ADMIN';
+          else if (['정회원', '준회원'].includes(kRole)) finalRole = 'MEMBER';
         }
 
-        console.log(`[Auth/DirectSync] Target Role: ${finalRole}`);
+        console.log(`[Auth/DirectSync] Target Role (Members): ${finalRole}`);
         setRole(finalRole);
         setIsPendingMatching(false);
         setIsLoading(false);
         return;
       }
 
+      // Step 2: Check Profiles Table (Secondary Source for Role)
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileData && profileData.role) {
+        let finalRole: UserRole = 'MEMBER';
+        const pRole = profileData.role.trim();
+        if (pRole === 'CEO' || pRole === '회장') finalRole = 'CEO';
+        else if (['부회장', '총무', '재무', '경기', '섭외'].includes(pRole)) finalRole = 'ADMIN';
+        
+        console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
+        setRole(finalRole);
+        setIsLoading(false);
+        return;
+      }
+
       setRole('GUEST');
-      setIsPendingMatching(false); // Disable matching gate as per v4.1 instructions
+      setIsPendingMatching(false);
       setIsLoading(false);
     } catch (err) {
       console.error('[Auth/DirectSync] Critical Failure Path:', err);

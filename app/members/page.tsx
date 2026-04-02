@@ -21,12 +21,12 @@ const Container = styled('main', {
   margin: '0 auto',
   width: '100%',
   backgroundColor: '$black',
-  paddingBottom: '250px', // [FIX] Adjusted to 250px per user instruction
+  paddingBottom: '250px', 
 });
 
 const Header = styled('header', {
   marginBottom: '$8',
-  textAlign: 'center', // Ensuring text-center for the header
+  textAlign: 'center',
 });
 
 const Title = styled('h1', {
@@ -163,16 +163,6 @@ const getMemberPriority = (m: Member): number => {
   return 99;
 };
 
-const FALLBACK_MEMBERS: Member[] = [
-  { id: '1', nickname: '정성용', role: '회장', phone: '010-0000-0000', mbti: 'ESFJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버 / 매니저' },
-  { id: '2', nickname: '가내현', role: '부회장', phone: '010-6680-7119', mbti: 'ESTJ', affiliation: '테연 클럽', achievements: '클럽 창립 멤버' },
-  { id: '3', nickname: '강정호', role: '정회원', phone: '010-3456-7890', mbti: 'ENFP', achievements: '2024 신인왕' },
-  { id: '4', nickname: '구봉준', role: '정회원', phone: '010-4567-8901', mbti: 'ENTJ', achievements: '경기 운영 지원' },
-  { id: '5', nickname: '김민준', role: '정회원', phone: '010-5678-9012', mbti: 'INTP' },
-  { id: '6', nickname: '김병식', role: '정회원', phone: '010-6789-0123', mbti: 'ISFP' },
-  { id: '7', nickname: '김상준', role: '정회원', mbti: 'ESTJ' },
-];
-
 const MemberCard = React.memo(({ member }: { member: Member }) => {
   const { user } = useAuth();
   
@@ -247,7 +237,8 @@ export default function MembersPage() {
       const { data, error } = await supabase
         .from('members')
         .select('*')
-        .eq('club_id', clubId);
+        .eq('club_id', clubId)
+        .order('nickname', { ascending: true });
 
       if (error) throw error;
       
@@ -260,11 +251,11 @@ export default function MembersPage() {
         });
         setMembers(sortedData);
       } else {
-        setMembers(FALLBACK_MEMBERS);
+        setMembers([]);
       }
     } catch (err: any) {
       console.error('[Members] Fetch Error:', err);
-      setMembers(FALLBACK_MEMBERS);
+      setMembers([]);
     } finally {
       setLoading(false);
     }
@@ -273,7 +264,7 @@ export default function MembersPage() {
   return (
     <Container>
       <Header>
-        <Title>The <span style={{ color: '$goldGlint' }}>Elite</span></Title>
+        <Title>TEYEON <span style={{ color: '#D4AF37' }}>MEMBERS</span></Title>
         <Subtitle>Club Member Directory 2026</Subtitle>
       </Header>
 
@@ -284,18 +275,20 @@ export default function MembersPage() {
           {members.map((member) => (
             <MemberCard key={member.id} member={member} />
           ))}
+          {/* Phone Visibility Guard */}
+          <div className="h-[200px] w-full col-span-2" />
         </MemberGrid>
       )}
 
       {members.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
-          <span style={{ fontSize: '64px', filter: 'drop-shadow(0 0 15px $goldGlint)' }}>🏜️</span>
+          <span style={{ fontSize: '64px', filter: 'drop-shadow(0 0 15px #C9B075)' }}>🏜️</span>
           <p style={{ fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', marginTop: '20px', fontFamily: 'var(--font-rajdhani)' }}>No Members Detected</p>
         </div>
       )}
 
       <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.25 }}>
-        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint', textTransform: 'uppercase' }}>TEYEON NETWORK PRO STABLE</p>
+        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '#D4AF37', textTransform: 'uppercase' }}>TEYEON NETWORK PRO STABLE</p>
       </footer>
     </Container>
   );
