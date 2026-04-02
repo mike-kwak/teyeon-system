@@ -19,13 +19,17 @@ import {
 export default function Home() {
   const { user, role, signInWithKakao, signOut, isLoading, systemMessage } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     if (toast) {
       const timer = setTimeout(() => setToast(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  if (!isMounted) return null;
 
   const menuItems = [
     { label: '클럽 공지', icon: <Megaphone size={36} strokeWidth={1.5} />, path: '/notice', comingSoon: false },
@@ -41,8 +45,43 @@ export default function Home() {
     <main className="min-h-screen bg-[#141416] px-5 pt-10 pb-[180px] w-full flex flex-col items-center overflow-x-hidden relative">
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center gap-6">
         
-        {/* Grid Menu */}
-        <div className="grid grid-cols-2 gap-4 w-full mt-2 animate-in slide-in-from-bottom-4 duration-700">
+        {/* Luxury Skeleton Loading State */}
+        {isLoading && (
+          <div className="w-full flex flex-col gap-6 animate-pulse mt-4">
+            <div className="w-full h-[60px] bg-black/20 rounded-xl mb-2"></div>
+            <div className="grid grid-cols-2 gap-4 w-full">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-[150px] bg-black/40 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Unauthenticated State - Center Login */}
+        {!isLoading && !user && (
+          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-2 bg-gradient-to-b from-[#1B1B1B]/90 to-black/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
+            <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#E8E137]/40 to-transparent"></div>
+            
+            <p className="text-[16px] font-[900] text-gray-200 tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
+              TEYEON에 오신 것을 환영합니다
+            </p>
+            
+            <button 
+              onClick={() => signInWithKakao()}
+              className="w-full max-w-[320px] py-5 rounded-full bg-gradient-to-r from-[#222222] to-[#111111] text-[#E8E137] text-[15px] font-[1000] tracking-widest border border-[#E8E137]/30 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:border-[#E8E137]/80 hover:shadow-[0_15px_40px_rgba(232,225,55,0.2)] active:scale-[0.98] flex items-center justify-center gap-4 font-['Rajdhani',sans-serif]"
+            >
+              <span className="text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">💬</span> 카카오 계정으로 접속
+            </button>
+            
+            <span className="text-[10px] text-gray-500 font-bold tracking-widest mt-8 uppercase font-['Rajdhani',sans-serif]">
+              Authorized Personnel Only
+            </span>
+          </div>
+        )}
+
+        {/* Authenticated State - Grid Menu (Moved up as requested) */}
+        {!isLoading && user && (
+          <div className="grid grid-cols-2 gap-4 w-full mt-2 animate-in slide-in-from-bottom-4 duration-700">
           {menuItems.map((item, index) => {
             const isLastOdd = index === menuItems.length - 1 && menuItems.length % 2 !== 0;
             return (
@@ -66,6 +105,7 @@ export default function Home() {
             );
           })}
         </div>
+      )}
 
         {/* Footer Text */}
         <div className="mt-8 text-center flex flex-col gap-2 opacity-40">

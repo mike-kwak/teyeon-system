@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Medal, User, LoaderPinwheel } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) => (
   <svg 
@@ -31,6 +32,17 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user, setSystemMessage } = useAuth();
+
+  const handleGuestClick = (e: React.MouseEvent, itemLabel: string) => {
+    if (!user && itemLabel !== 'MAIN') {
+      e.preventDefault();
+      setSystemMessage('로그인이 필요한 메뉴입니다. 카카오 계정으로 로그인해 주세요.');
+      
+      // Auto-clear after 3 seconds
+      setTimeout(() => setSystemMessage(null), 3000);
+    }
+  };
 
   return (
     <nav className="fixed bottom-[16px] left-1/2 -translate-x-1/2 z-50 h-[80px] w-[92%] max-w-[400px] bg-[#1B1B21]/90 backdrop-blur-xl border border-white/10 px-2 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-[32px] transition-all duration-300">
@@ -41,7 +53,8 @@ export default function BottomNav() {
             <Link 
               key={item.path} 
               href={item.path}
-              className={`relative flex flex-col items-center justify-center w-[76px] transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 active:scale-95'}`}
+              onClick={(e) => handleGuestClick(e, item.label)}
+              className={`relative flex flex-col items-center justify-center w-[76px] transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 active:scale-95'} ${!user && item.label !== 'MAIN' ? 'opacity-40' : ''}`}
             >
               {isActive && (
                 <div className="absolute -top-[16px] w-[36px] h-[3px] bg-[#EFDFB4] rounded-full shadow-[0_0_12px_#EFDFB4]" />
