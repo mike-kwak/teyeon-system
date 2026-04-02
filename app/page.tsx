@@ -89,21 +89,40 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-6 w-full mt-6 animate-in slide-in-from-bottom-4 duration-700">
           {menuItems.map((item, index) => {
             const isLastOdd = index === menuItems.length - 1 && menuItems.length % 2 !== 0;
+            
+            if (isLastOdd) {
+              return (
+                <div key={index} className="col-span-2 flex justify-center pt-2">
+                  <Link 
+                    href={item.path}
+                    className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-2 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} w-[calc(50%-12px)] h-[120px]`}
+                  >
+                    <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
+                      {React.isValidElement(item.icon) && React.cloneElement(item.icon as React.ReactElement<any>, { size: 24 })}
+                    </div>
+                    <span className="font-bold text-[#C9B075]/40 tracking-widest text-center px-2 text-[13px] uppercase font-['Rajdhani',sans-serif]">
+                      {item.label}
+                    </span>
+                  </Link>
+                </div>
+              );
+            }
+
             return (
               <Link 
                 key={index} 
                 href={item.path}
-                className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[140px] flex-row gap-8' : 'h-[160px]'}`}
+                className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} h-[160px]`}
               >
                 {item.comingSoon && (
-                  <span className={`absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-8' : 'top-4 right-4'}`}>
+                  <span className={`absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse top-4 right-4`}>
                     COMING SOON
                   </span>
                 )}
-                <div className={`text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
+                <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
                   {item.icon}
                 </div>
-                <span className={`font-bold text-[#C9B075]/80 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[16px]'}`}>
+                <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
                   {item.label}
                 </span>
               </Link>
