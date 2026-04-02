@@ -47,16 +47,16 @@ export default function Home() {
     <main className="min-h-screen bg-[#121212] px-5 pt-0 pb-[250px] w-full flex flex-col items-center overflow-x-hidden relative">
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center">
         
-        {/* Perfect Balance Spacer (48px Header-to-Grid) */}
-        <div className="h-[48px] w-full shrink-0" />
+        {/* Perfect Balance Spacer (24px Header-to-Grid) */}
+        <div className="h-[24px] w-full shrink-0" />
 
         {/* Luxury Skeleton Loading State */}
         {isLoading && (
-          <div className="w-full flex flex-col gap-12 animate-pulse">
+          <div className="w-full flex flex-col gap-6 animate-pulse">
             <div className="w-full h-[60px] bg-[#1A1A1A]/40 rounded-xl mb-2"></div>
-            <div className="grid grid-cols-2 gap-y-12 gap-x-6 w-full">
+            <div className="grid grid-cols-2 gap-6 w-full">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-[150px] bg-[#1A1A1A]/60 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
+                <div key={i} className="h-[160px] bg-[#1A1A1A]/60 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
               ))}
             </div>
           </div>
@@ -64,7 +64,7 @@ export default function Home() {
 
         {/* Unauthenticated State - Center Login */}
         {!isLoading && !user && (
-          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 bg-gradient-to-b from-[#1A1A1A]/90 to-[#121212]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
+          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-6 bg-gradient-to-b from-[#1A1A1A]/90 to-[#121212]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
             <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#E8E137]/40 to-transparent"></div>
             
             <p className="text-[16px] font-[900] text-gray-200 tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
@@ -86,14 +86,14 @@ export default function Home() {
 
         {/* Authenticated State - Grid Menu (Moved up as requested) */}
         {!isLoading && user && (
-          <div className="grid grid-cols-2 gap-y-12 gap-x-6 w-full animate-in slide-in-from-bottom-4 duration-700">
+          <div className="grid grid-cols-2 gap-6 w-full mt-6 animate-in slide-in-from-bottom-4 duration-700">
           {menuItems.map((item, index) => {
             const isLastOdd = index === menuItems.length - 1 && menuItems.length % 2 !== 0;
             return (
               <Link 
                 key={index} 
                 href={item.path}
-                className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[120px] flex-row gap-8' : 'h-[150px]'}`}
+                className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group ${!user ? 'opacity-50 pointer-events-none grayscale' : ''} ${isLastOdd ? 'col-span-2 h-[140px] flex-row gap-8' : 'h-[160px]'}`}
               >
                 {item.comingSoon && (
                   <span className={`absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse ${isLastOdd ? 'top-1/2 -translate-y-1/2 right-8' : 'top-4 right-4'}`}>
@@ -103,7 +103,7 @@ export default function Home() {
                 <div className={`text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
                   {item.icon}
                 </div>
-                <span className={`font-bold text-[#C9B075]/80 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[15px]'}`}>
+                <span className={`font-bold text-[#C9B075]/80 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[16px]'}`}>
                   {item.label}
                 </span>
               </Link>
