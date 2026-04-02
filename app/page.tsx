@@ -109,9 +109,11 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Standalone Admin Setting Button (v6.1 Upward Shift & Floating Balance) */}
+            {/* Vertically Centered Admin Spacer (Row 3 to Admin) */}
+            <div className="h-8 w-full shrink-0" />
 
-            <div className="w-full mt-3 mb-12 animate-in fade-in duration-1000">
+            {/* Standalone Admin Setting Button (v6.2 Pixel-Perfect Symmetrical Lock) */}
+            <div className="w-full animate-in fade-in duration-1000">
               <Link 
                 href={menuItems[6].path}
                 className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-16 w-full"
@@ -124,11 +126,14 @@ export default function Home() {
                 </span>
               </Link>
             </div>
+
+            {/* Vertically Centered Admin Spacer (Admin to Footer) */}
+            <div className="h-8 w-full shrink-0" />
           </>
         )}
 
         {/* Footer Text */}
-        <div className="mt-0 mb-8 text-center flex flex-col gap-2 opacity-40 animate-in fade-in duration-1000">
+        <div className="mt-0 mb-12 text-center flex flex-col gap-2 opacity-40 animate-in fade-in duration-1000">
            <span className="text-[11px] font-black text-gray-400 tracking-[0.25em] uppercase font-['Rajdhani',sans-serif]">
              TEYEON CLUB MANAGEMENT
            </span>
