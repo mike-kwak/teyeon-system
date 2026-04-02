@@ -3,12 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Home, Activity, Trophy, User } from 'lucide-react';
 
 const navItems = [
-  { path: '/', label: 'MAIN', icon: '🏠' },
-  { path: '/live', label: 'LIVE COURT', icon: '🎾' },
-  { path: '/results', label: 'ARCHIVE', icon: '📊' },
-  { path: '/profile', label: 'PROFILE', icon: '👤' },
+  { path: '/', label: 'MAIN', icon: <Home size={28} strokeWidth={2.5} /> },
+  { path: '/live', label: 'LIVE COURT', icon: <Activity size={28} strokeWidth={2.5} /> },
+  { path: '/results', label: 'ARCHIVE', icon: <Trophy size={28} strokeWidth={2.5} /> },
+  { path: '/profile', label: 'PROFILE', icon: <User size={28} strokeWidth={2.5} /> },
 ];
 
 export default function BottomNav() {
@@ -29,8 +30,8 @@ export default function BottomNav() {
                 <div className="absolute -top-[16px] w-[36px] h-[4px] bg-[#E8E137] rounded-full shadow-[0_0_12px_#E8E137]" />
               )}
               <div 
-                className={`text-[28px] mb-[6px] drop-shadow-md transition-all duration-300 ${
-                  isActive ? 'filter brightness-125' : 'opacity-40 grayscale'
+                className={`mb-[6px] transition-all duration-300 ${
+                  isActive ? 'text-[#E8E137] drop-shadow-[0_0_8px_rgba(232,225,55,0.8)]' : 'text-gray-500 opacity-40'
                 }`}
               >
                 {item.icon}

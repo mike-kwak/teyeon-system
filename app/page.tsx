@@ -4,6 +4,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { 
+  Users, 
+  Trophy, 
+  GitMerge, 
+  Megaphone, 
+  Flame, 
+  Wallet, 
+  Cpu, 
+  Settings 
+} from 'lucide-react';
 // Note: We don't need a heavy external Skeleton library, basic tailwind animate-pulse blocks work flawlessly.
 
 export default function Home() {
@@ -18,13 +28,13 @@ export default function Home() {
   }, [toast]);
 
   const menuItems = [
-    { label: '클럽 공지', icon: '📢', path: '/notice', comingSoon: false },
-    { label: '멤버 프로필', icon: '👤', path: '/members', comingSoon: false },
-    { label: '스페셜 매치', icon: '🔥', path: '/tournament', comingSoon: true },
-    { label: '대전 생성', icon: '⚙️', path: '/kdk', comingSoon: false },
-    { label: '클럽 재무', icon: '💰', path: '/finance', comingSoon: true },
-    { label: 'AI 시드 예측', icon: '🤖', path: '/prediction', comingSoon: true },
-    { label: '관리자 설정', icon: '🛠️', path: '/admin', comingSoon: true },
+    { label: '클럽 공지', icon: <Megaphone size={40} strokeWidth={2.5} />, path: '/notice', comingSoon: false },
+    { label: '멤버 프로필', icon: <Users size={40} strokeWidth={2.5} />, path: '/members', comingSoon: false },
+    { label: '스페셜 매치', icon: <Flame size={40} strokeWidth={2.5} />, path: '/tournament', comingSoon: true },
+    { label: '대전 생성', icon: <GitMerge size={40} strokeWidth={2.5} />, path: '/kdk', comingSoon: false },
+    { label: '클럽 재무', icon: <Wallet size={40} strokeWidth={2.5} />, path: '/finance', comingSoon: true },
+    { label: 'AI 시드 예측', icon: <Cpu size={40} strokeWidth={2.5} />, path: '/prediction', comingSoon: true },
+    { label: '관리자 설정', icon: <Settings size={40} strokeWidth={2.5} />, path: '/admin', comingSoon: true },
   ];
 
   return (
@@ -107,7 +117,7 @@ export default function Home() {
                     COMING SOON
                   </span>
                 )}
-                <div className={`text-[46px] filter drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
+                <div className={`text-[#E8E137] drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${isLastOdd && item.comingSoon ? 'mr-0' : ''}`}>
                   {item.icon}
                 </div>
                 <span className={`font-bold text-gray-200 tracking-wide text-center px-2 ${isLastOdd ? 'text-[16px]' : 'text-[15px]'}`}>
