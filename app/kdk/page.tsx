@@ -1426,7 +1426,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-12 overflow-y-auto pb-44 no-scrollbar">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="mt-6">
+                        <section className="mt-16 relative z-10">
                             <div className="flex items-center gap-3 mb-5">
                                 <h2 className="text-2xl font-black tracking-tighter uppercase text-[#e2e2e2]">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
@@ -1445,24 +1445,25 @@ export default function KDKPage() {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="relative group bg-[#1b1b1b] rounded-xl p-6 border-l-4 border-[#C9B075] shadow-2xl mb-4 last:mb-0">
-                                                <div className="flex justify-between items-center">
+                                            <div key={mId} className="relative group bg-[#1b1b1b] rounded-xl p-6 border-l-4 border-[#C9B075] shadow-2xl mb-6 last:mb-0 z-50 min-h-[128px] flex items-center">
+                                                <div className="flex justify-between items-center w-full">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className="text-white tracking-tight text-xl font-black leading-tight truncate uppercase">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                            <span className="text-[#C9B075] tracking-tight text-xl font-black leading-tight truncate uppercase">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <span className="text-white tracking-tight text-xl font-[1000] leading-none truncate uppercase">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                            <div className="h-0.5" />
+                                                            <span className="text-[#C9B075] tracking-tight text-xl font-[1000] leading-none truncate uppercase">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                     <div className="ml-6 flex flex-col items-end gap-3 shrink-0">
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); updateMatchCourt(mId); }} 
-                                                            className="text-[10px] font-black text-[#94927a] uppercase tracking-widest hover:text-[#C9B075] transition-colors"
+                                                            className="text-[10px] font-black text-[#94927a] uppercase tracking-widest hover:text-[#C9B075] transition-all"
                                                         >
                                                             COURT {String(m.court).padStart(2, '0')}
                                                         </button>
                                                         <button 
-                                                            onClick={() => { setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                            className="bg-[#C9B075] text-black text-[11px] font-black px-6 py-3 rounded-lg active:scale-95 transition-all shadow-lg uppercase"
+                                                            onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
+                                                            className="bg-[#C9B075] text-black text-[12px] font-black px-6 py-3.5 rounded-xl active:scale-95 transition-all shadow-xl shadow-[#C9B075]/10 uppercase"
                                                         >
                                                             SCORE
                                                         </button>
