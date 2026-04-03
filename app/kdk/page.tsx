@@ -1011,7 +1011,7 @@ export default function KDKPage() {
                     </div>
                 </header>
 
-                <div className="px-6 space-y-8 max-w-lg mx-auto w-full">
+                <div className="px-6 space-y-12 max-w-lg mx-auto w-full">
                     
                     {/* Archive Identity Section */}
                     <section className="space-y-4">
@@ -1046,17 +1046,16 @@ export default function KDKPage() {
                                             <span className="text-[14px] font-[1000] text-white/90 group-hover:text-[#D4AF37] transition-colors">{m.name}</span>
                                             <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter">{m.is_guest ? 'Guest (G)' : 'Member'}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 flex-1 justify-end">
+                                        <div className="flex items-center gap-3 flex-1 justify-end">
                                             <button 
                                                 onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
-                                                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/10 hover:text-white/30'}`}
+                                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/10 hover:text-white/30'}`}
                                             >
-                                                <span className="text-base text-inherit">🕒</span>
+                                                <span className="text-xl text-inherit">🕒</span>
                                             </button>
-                                            <div className="flex bg-white/5 rounded-xl border border-white/10 p-0.5">
-                                                {['A', 'B'].map(g => (
-                                                    <button key={g} onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: g as any } }))} className={`px-4 py-2 rounded-lg text-[10px] font-[1000] transition-all ${config.group === g ? 'bg-[#D4AF37] text-black shadow-lg scale-105' : 'text-white/20 hover:text-white/40'}`}>{g}</button>
-                                                ))}
+                                            <div className="flex bg-[#121212] rounded-[20px] border border-white/5 p-1.5 shadow-inner gap-1">
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-black shadow-lg scale-105 ring-2 ring-[#C9B075]/30' : 'text-white/20 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#E5E7EB] text-black shadow-xl ring-2 ring-white/30' : 'text-white/20 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1114,66 +1113,66 @@ export default function KDKPage() {
                     </section>
 
                     {/* Constraints & Rules Section */}
-                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8">
+                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-10 mt-10">
                         <div className="space-y-6">
                             <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
                                 CONSTRAINTS
                             </h4>
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
-                                    <span className="text-[12px] font-black text-white/30 uppercase tracking-[0.1em]">Total Courts</span>
+                            <div className="space-y-5">
+                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
+                                    <span className="text-[13px] font-black text-white/30 uppercase tracking-[0.1em]">Total Courts</span>
                                     <div className="flex items-center gap-6">
-                                        <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-2xl font-[1000] text-[#D4AF37] min-w-[30px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{totalCourts}</span>
-                                        <button onClick={() => setTotalCourts(totalCourts + 1)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                        <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[30px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{totalCourts}</span>
+                                        <button onClick={() => setTotalCourts(totalCourts + 1)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
-                                    <span className="text-[12px] font-black text-white/30 uppercase tracking-[0.1em]">Match Mins</span>
+                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
+                                    <span className="text-[13px] font-black text-white/30 uppercase tracking-[0.1em]">Match Mins</span>
                                     <div className="flex items-center gap-6">
-                                        <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-2xl font-[1000] text-[#D4AF37] min-w-[50px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{matchTime}</span>
-                                        <button onClick={() => setMatchTime(matchTime + 30)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                        <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[50px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{matchTime}</span>
+                                        <button onClick={() => setMatchTime(matchTime + 30)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-6 mt-10">
                             <h4 className="text-[11px] font-black text-[#4ADE80] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80]" />
                                 FINANCIALS
                             </h4>
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
-                                    <span className="text-[12px] font-black text-white/30 uppercase tracking-[0.1em]">Prize Gold</span>
+                            <div className="space-y-5">
+                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
+                                    <span className="text-[13px] font-black text-white/30 uppercase tracking-[0.1em]">Prize Gold</span>
                                     <div className="flex items-center gap-6">
-                                        <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-2xl font-[1000] text-white min-w-[60px] text-center">{(firstPrize/1000).toFixed(0)}k</span>
-                                        <button onClick={() => setFirstPrize(firstPrize + 5000)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                        <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(firstPrize/1000).toFixed(0)}k</span>
+                                        <button onClick={() => setFirstPrize(firstPrize + 5000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
                                     <div className="flex flex-col">
-                                        <span className="text-[12px] font-black text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
-                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Bottom 25%~50%</span>
+                                        <span className="text-[13px] font-black text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
+                                        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-1">Bottom 25%~50%</span>
                                     </div>
                                     <div className="flex items-center gap-6">
-                                        <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-2xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Late/1000).toFixed(0)}k</span>
-                                        <button onClick={() => setBottom25Late(bottom25Late + 1000)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                        <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Late/1000).toFixed(0)}k</span>
+                                        <button onClick={() => setBottom25Late(bottom25Late + 1000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
                                     <div className="flex flex-col">
-                                        <span className="text-[12px] font-black text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
-                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Bottom 0%~25%</span>
+                                        <span className="text-[13px] font-black text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
+                                        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-1">Bottom 0%~25%</span>
                                     </div>
                                     <div className="flex items-center gap-6">
-                                        <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-2xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
-                                        <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                        <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
+                                        <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
                             </div>
@@ -1194,16 +1193,16 @@ export default function KDKPage() {
                     </section>
                 </div>
 
-                {/* Fixed Footer: Action Anchor (bottom-28) */}
-                <div className="fixed bottom-[112px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
+                {/* Fixed Footer: Action Anchor (bottom-32) */}
+                <div className="fixed bottom-[128px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
                     <div className="max-w-md mx-auto relative inline-block w-full pointer-events-auto" onClick={generateKDK}>
                         {/* High-Contrast Separation Layer */}
-                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/80 to-transparent backdrop-blur-md rounded-[40px] -z-10" />
+                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/90 to-transparent backdrop-blur-lg rounded-[40px] -z-10" />
                         
                         <button 
                             disabled={isGenerating}
-                            className={`w-full py-5 rounded-[28px] font-[1000] text-lg shadow-[0_0_40px_rgba(212,175,55,0.4)] border-2 active:scale-95 flex items-center justify-center gap-3 transition-all
-                            ${isGenerating ? 'bg-white/10 text-white/20 border-white/5' : 'bg-black text-[#D4AF37] border-[#D4AF37]'}`}
+                            className={`w-full py-5 rounded-[28px] font-[1000] text-lg shadow-[0_0_40px_rgba(212,175,55,0.6)] border-2 active:scale-95 flex items-center justify-center gap-3 transition-all
+                            ${isGenerating ? 'bg-white/10 text-white/20 border-white/5' : 'bg-[#D4AF37] text-[#0A0A0F] border-[#D4AF37]'}`}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
                         </button>
