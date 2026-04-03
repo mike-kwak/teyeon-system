@@ -975,264 +975,282 @@ export default function KDKPage() {
             return { id, name: m?.nickname || 'Unknown', is_guest: !!m?.is_guest };
         });
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
-
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
-                {((genMode === 'AWARD' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
-                    <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-                        <div className="bg-[#1C1C28] border border-[#D4AF37]/30 rounded-[32px] p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95">
-                            <div className="text-center space-y-2">
-                                <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase">Data Required</span>
-                                <h3 className="text-xl font-black italic text-white tracking-tighter uppercase">게스트 상세 정보 필요</h3>
-                                <p className="text-[10px] font-bold text-white/40 leading-relaxed uppercase tracking-widest">이 모드는 게스트의 나이와 입상 여부가 필요합니다.</p>
-                            </div>
-                            <button 
-                                onClick={() => setShowGuestDataModal(true)}
-                                className="w-full py-4 bg-[#D4AF37] text-black font-black rounded-2xl shadow-xl active:scale-95 transition-all text-xs uppercase tracking-widest"
-                            >
-                                정보 입력하기 ➡️
-                            </button>
-                        </div>
-                    </div>
-                )}
+            <main className="flex flex-col min-h-screen bg-[#1A1A1A] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[400px]">
+                
+                {/* Elite Compact Header Spacer (4px) */}
 
-                {showGuestDataModal && (
-                    <GuestDataModal 
-                        guests={attendees.filter(m => m.is_guest)} 
-                        configs={attendeeConfigs} 
-                        onSave={handleGuestDataSave} 
-                        onClose={() => { setShowGuestDataModal(false); setHasSkippedGuestInfo(true); }} 
-                    />
-                )}
+                <div className="h-1 w-full shrink-0" />
 
-                <header className="flex items-center justify-between px-6 pt-8 mb-4 gap-4 text-center">
-                    <div className="flex items-center gap-2">
+                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0">
+                    <div className="flex items-center">
                         <button 
                             onClick={() => setStep(1)}
-                            className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-transform"
+                            className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-95 transition-all text-white/60 hover:text-white"
                         >
                             <span className="text-xl">←</span>
                         </button>
+                    </div>
+
+                    <div className="text-center flex flex-col items-center">
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
+                        <h1 className="text-xl font-[1000] italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
+                    </div>
+
+                    <div className="flex justify-end">
                         <button 
                             onClick={() => setShowResetConfirm(true)}
-                            className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
+                            className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
                             title="전체 데이터 초기화"
                         >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            <span className="text-[9px] font-black uppercase tracking-tighter">초기화</span>
                         </button>
                     </div>
-
-                    <div className="flex-1 text-center flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block">Step 02</span>
-                        <h1 className="text-2xl font-[1000] italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
-                    </div>
-
-                    <div className="flex-1" />
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
-                    <div className="lg:col-span-12 mb-4">
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-4 block">Archive Title</span>
+                <div className="px-6 space-y-8 max-w-lg mx-auto w-full">
+                    
+                    {/* Archive Identity Section */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                            <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3>
+                        </div>
                         <input 
                             type="text" 
                             value={sessionTitle} 
                             onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-[#D4AF37]/50 transition-all outline-none"
+                            className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#D4AF37]/50 focus:bg-white/[0.08] transition-all outline-none"
                             placeholder="Ex: 2026-03-27 테연 정기전"
                         />
-                    </div>
+                    </section>
 
-                    <div className="lg:col-span-7 space-y-6">
-                        <section className="bg-white/[0.02] border border-white/5 rounded-[32px] p-6 backdrop-blur-md">
-                            <h3 className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase mb-6 px-2">Attendee Matrix</h3>
-                            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                                {attendees.map(m => {
-                                    const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
-                                    return (
-                                        <div key={m.id} className="bg-black/20 border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4">
-                                            <div className="flex flex-col min-w-[80px]">
-                                                <span className="text-xs font-black text-white">{m.name}</span>
-                                                <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">{m.is_guest ? 'Guest' : 'Member'}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 flex-1 justify-end">
-                                                <button 
-                                                    onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
-                                                    className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/20 hover:text-white/40'}`}
-                                                    title="지각 처리"
-                                                >
-                                                    🕒
-                                                </button>
-                                                <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-[10px] font-bold text-white/60 outline-none">
-                                                    {timeOptions.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
-                                                </select>
-                                                <span className="text-[8px] font-black text-white/10">TO</span>
-                                                <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} className="bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-[10px] font-bold text-white/60 outline-none">
-                                                    {timeOptions.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
-                                                </select>
-                                                <div className="flex bg-white/5 rounded-xl border border-white/10 p-0.5 ml-2">
-                                                    {['A', 'B'].map(g => (
-                                                        <button key={g} onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: g as any } }))} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${config.group === g ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/20 hover:text-white/40'}`}>{g}</button>
-                                                    ))}
-                                                </div>
+                    {/* Attendee Matrix Section */}
+                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[11px] font-black text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                                ATTENDEE MATRIX
+                            </h3>
+                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
+                        </div>
+                        <div className="space-y-3 max-h-[440px] overflow-y-auto pr-2 custom-scrollbar no-scrollbar">
+                            {attendees.map(m => {
+                                const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
+                                return (
+                                    <div key={m.id} className="bg-black/40 border border-white/5 rounded-[24px] p-4 flex items-center justify-between gap-4 group hover:border-[#D4AF37]/20 transition-all">
+                                        <div className="flex flex-col min-w-[80px]">
+                                            <span className="text-[14px] font-[1000] text-white/90 group-hover:text-[#D4AF37] transition-colors">{m.name}</span>
+                                            <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter">{m.is_guest ? 'Guest (G)' : 'Member'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-1 justify-end">
+                                            <button 
+                                                onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
+                                                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/10 hover:text-white/30'}`}
+                                            >
+                                                <span className="text-base text-inherit">🕒</span>
+                                            </button>
+                                            <div className="flex bg-white/5 rounded-xl border border-white/10 p-0.5">
+                                                {['A', 'B'].map(g => (
+                                                    <button key={g} onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: g as any } }))} className={`px-4 py-2 rounded-lg text-[10px] font-[1000] transition-all ${config.group === g ? 'bg-[#D4AF37] text-black shadow-lg scale-105' : 'text-white/20 hover:text-white/40'}`}>{g}</button>
+                                                ))}
                                             </div>
                                         </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+
+                    {/* Generation Strategy Section */}
+                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8">
+                        <div className="space-y-6">
+                            <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                                CORE STRATEGY
+                            </h4>
+                            <div className="grid grid-cols-2 gap-3">
+                                {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
+                                    <button key={mode} onClick={() => setGenMode(mode)} className={`py-5 rounded-[24px] border-[1.5px] text-[11px] font-black transition-all ${genMode === mode ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_10px_25px_rgba(212,175,55,0.3)] scale-105 z-10' : 'bg-white/5 border-white/10 text-white/30 hover:border-white/20'}`}>
+                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE SPLIT' : mode === 'AWARD' ? 'HISTORY' : 'MBTI'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                                    FIXED PARTNERS
+                                </h4>
+                                <button onClick={() => setFixedTeamMode(!fixedTeamMode)} className={`px-4 py-2 rounded-full text-[10px] font-black transition-all border-2 ${fixedTeamMode ? 'bg-[#D4AF37] text-black border-white/20' : 'text-white/20 border-white/10'}`}>
+                                    {fixedTeamMode ? 'TEAM MODE' : 'ROUND 1 ONLY'}
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {fixedPartners.map((pair, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-black/40 p-4 rounded-[20px] border border-white/5">
+                                        <div className="flex items-center gap-4 text-[13px] font-black text-white/80">
+                                            <span>{getPlayerName(pair[0])}</span>
+                                            <span className="text-[#D4AF37] scale-125">♥</span>
+                                            <span>{getPlayerName(pair[1])}</span>
+                                        </div>
+                                        <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-red-500/50 hover:bg-red-500/10 hover:text-red-500 transition-all text-xl leading-none">×</button>
+                                    </div>
+                                ))}
+                                <button 
+                                    onClick={() => setPartnerSelectSource('NEW')} 
+                                    className="w-full py-5 border-2 border-dashed border-white/10 rounded-[24px] text-[11px] font-black text-white/20 uppercase hover:bg-white/[0.03] hover:text-white/50 hover:border-white/20 transition-all"
+                                >
+                                    + Add Fixed Partner Pair
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Constraints & Rules Section */}
+                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8">
+                        <div className="space-y-6">
+                            <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                                CONSTRAINTS
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                    <span className="text-[12px] font-black text-white/30 uppercase tracking-[0.1em]">Total Courts</span>
+                                    <div className="flex items-center gap-6">
+                                        <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-2xl font-[1000] text-[#D4AF37] min-w-[30px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{totalCourts}</span>
+                                        <button onClick={() => setTotalCourts(totalCourts + 1)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                    <span className="text-[12px] font-black text-white/30 uppercase tracking-[0.1em]">Match Mins</span>
+                                    <div className="flex items-center gap-6">
+                                        <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-2xl font-[1000] text-[#D4AF37] min-w-[50px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{matchTime}</span>
+                                        <button onClick={() => setMatchTime(matchTime + 30)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <h4 className="text-[11px] font-black text-[#4ADE80] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80]" />
+                                FINANCIALS
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                    <span className="text-[12px] font-black text-white/30 uppercase tracking-[0.1em]">Prize Gold</span>
+                                    <div className="flex items-center gap-6">
+                                        <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-2xl font-[1000] text-white min-w-[60px] text-center">{(firstPrize/1000).toFixed(0)}k</span>
+                                        <button onClick={() => setFirstPrize(firstPrize + 5000)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                    <div className="flex flex-col">
+                                        <span className="text-[12px] font-black text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
+                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Bottom 25%~50%</span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-2xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Late/1000).toFixed(0)}k</span>
+                                        <button onClick={() => setBottom25Late(bottom25Late + 1000)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between bg-black/40 p-6 rounded-[28px] border border-white/5">
+                                    <div className="flex flex-col">
+                                        <span className="text-[12px] font-black text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
+                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Bottom 0%~25%</span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
+                                        <span className="text-2xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
+                                        <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-8 border-t border-white/10 space-y-4">
+                            <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                                TOURNAMENT RULES
+                            </h4>
+                            <textarea 
+                                value={matchRules} 
+                                onChange={(e) => setMatchRules(e.target.value)} 
+                                className="w-full bg-black/40 border border-white/10 rounded-[28px] p-8 text-[14px] font-bold text-white/60 min-h-[160px] outline-none focus:border-[#D4AF37]/50 focus:text-white transition-all no-scrollbar shadow-inner" 
+                                placeholder="Edit tournament rules, policies, and local ground conventions..." 
+                            />
+                        </div>
+                    </section>
+                </div>
+
+                {/* Fixed Footer: Action Anchor (bottom-28) */}
+                <div className="fixed bottom-[112px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
+                    <div className="max-w-md mx-auto relative inline-block w-full pointer-events-auto" onClick={generateKDK}>
+                        {/* High-Contrast Separation Layer */}
+                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/80 to-transparent backdrop-blur-md rounded-[40px] -z-10" />
+                        
+                        <button 
+                            disabled={isGenerating}
+                            className={`w-full py-5 rounded-[28px] font-[1000] text-lg shadow-[0_0_40px_rgba(212,175,55,0.4)] border-2 active:scale-95 flex items-center justify-center gap-3 transition-all
+                            ${isGenerating ? 'bg-white/10 text-white/20 border-white/5' : 'bg-black text-[#D4AF37] border-[#D4AF37]'}`}
+                        >
+                            {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Partner Selection Overlay */}
+                {partnerSelectSource && (
+                    <div className="fixed inset-0 bg-[#121212]/95 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
+                        <div className="bg-[#1C1C1C] border border-white/10 rounded-[48px] w-full max-w-md p-10 space-y-8 shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in-95 duration-300">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Strategy</span>
+                                    <h3 className="text-xl font-[1000] italic text-white tracking-tighter uppercase">SELECT PARTNER</h3>
+                                </div>
+                                <button onClick={() => setPartnerSelectSource(null)} className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-all text-3xl font-light">×</button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar no-scrollbar">
+                                {availablePlayersForPartnering.map(p => {
+                                    const isSelected = partnerSelectSource !== 'NEW' && partnerSelectSource === p.id;
+                                    return (
+                                        <button 
+                                            key={p.id}
+                                            onClick={() => {
+                                                if (partnerSelectSource === 'NEW') {
+                                                    setPartnerSelectSource(p.id);
+                                                } else {
+                                                    setFixedPartners(prev => [...prev, [partnerSelectSource as string, p.id]]);
+                                                    setPartnerSelectSource(null);
+                                                }
+                                            }}
+                                            className={`p-6 rounded-[24px] border-2 transition-all text-[13px] font-black text-left flex flex-col gap-1 ${isSelected ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-xl ring-4 ring-[#D4AF37]/20 scale-105' : 'bg-white/5 border-white/10 text-white/70 hover:border-white/30 hover:bg-white/[0.08]'}`}
+                                        >
+                                            <span>{p.nickname}</span>
+                                            <span className="text-[8px] opacity-40 uppercase tracking-widest">{p.is_guest ? 'Guest' : 'Member'}</span>
+                                        </button>
                                     );
                                 })}
                             </div>
-                        </section>
+                            <div className="text-center">
+                                <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em] animate-pulse">
+                                    {partnerSelectSource === 'NEW' ? 'Select identity of first player' : 'Pick a partner for ' + getPlayerName(partnerSelectSource)}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-
-                    <div className="lg:col-span-5 space-y-6">
-                        <section className="bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-[32px] p-8 space-y-6">
-                            <div>
-                                <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em] mb-4">Core Strategy</h4>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
-                                        <button key={mode} onClick={() => setGenMode(mode)} className={`py-4 rounded-2xl border text-[10px] font-black transition-all ${genMode === mode ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-xl' : 'bg-white/5 border-white/10 text-white/40'}`}>
-                                            {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? '연령(OB vs YB)' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between px-2">
-                                    <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Fixed Partnering</h4>
-                                    <button onClick={() => setFixedTeamMode(!fixedTeamMode)} className={`px-3 py-1.5 rounded-full text-[9px] font-black transition-all border ${fixedTeamMode ? 'bg-[#D4AF37] text-black border-[#D4AF37]' : 'text-white/20 border-white/10'}`}>
-                                        {fixedTeamMode ? 'TEAM MODE ON' : 'TEAM MODE OFF'}
-                                    </button>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                    {fixedPartners.map((pair, idx) => (
-                                        <div key={idx} className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10">
-                                            <div className="flex items-center gap-2 text-xs font-bold text-white/60">
-                                                <span>{getPlayerName(pair[0])}</span>
-                                                <span className="text-[#D4AF37]">♥</span>
-                                                <span>{getPlayerName(pair[1])}</span>
-                                            </div>
-                                            <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="text-red-500/60 text-lg leading-none">×</button>
-                                        </div>
-                                    ))}
-                                    <button 
-                                        onClick={() => setPartnerSelectSource('NEW')} 
-                                        className="w-full py-4 border border-dashed border-white/10 rounded-2xl text-[10px] font-black text-white/20 uppercase hover:bg-white/5 hover:text-white transition-all"
-                                    >
-                                        + Add Fixed Partner (Round {fixedTeamMode ? 'All' : '1'})
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Constraints</h4>
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5">
-                                        <span className="text-[10px] font-black text-white/40 uppercase">Total Courts</span>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="text-white/20 font-black">-</button>
-                                            <span className="text-sm font-black text-[#D4AF37] w-4 text-center">{totalCourts}</span>
-                                            <button onClick={() => setTotalCourts(totalCourts + 1)} className="text-white/20 font-black">+</button>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5">
-                                        <span className="text-[10px] font-black text-white/40 uppercase">Match Time (mins)</span>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="text-white/20 font-black">-</button>
-                                            <span className="text-sm font-black text-[#D4AF37] w-4 text-center">{matchTime}</span>
-                                            <button onClick={() => setMatchTime(matchTime + 30)} className="text-white/20 font-black">+</button>
-                                        </div>
-                                    </div>
-                                    <div className="h-px bg-white/5 my-2" />
-                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5">
-                                        <span className="text-[10px] font-black text-[#4ADE80] uppercase">First Prize</span>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="text-white/20 font-black">-</button>
-                                            <span className="text-sm font-black text-white w-12 text-center">{(firstPrize/1000).toFixed(0)}k</span>
-                                            <button onClick={() => setFirstPrize(firstPrize + 5000)} className="text-white/20 font-black">+</button>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-[#D4AF37] uppercase">Tier 1 Fine</span>
-                                            <span className="text-[7px] text-white/20 uppercase font-bold">Bottom 25~50%</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="text-white/20 font-black">-</button>
-                                            <span className="text-sm font-black text-white w-12 text-center">{(bottom25Late/1000).toFixed(0)}k</span>
-                                            <button onClick={() => setBottom25Late(bottom25Late + 1000)} className="text-white/20 font-black">+</button>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-red-500 uppercase">Tier 2 Penalty</span>
-                                            <span className="text-[7px] text-white/20 uppercase font-bold">Bottom 0~25%</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="text-white/20 font-black">-</button>
-                                            <span className="text-sm font-black text-white w-12 text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
-                                            <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} className="text-white/20 font-black">+</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="pt-6 border-t border-[#D4AF37]/10 space-y-4">
-                                <h4 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em] mb-2">Rules & Financials</h4>
-                                <textarea value={matchRules} onChange={(e) => setMatchRules(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-[11px] font-bold text-white/60 min-h-[100px] outline-none" placeholder="Match Rules..." />
-                            </div>
-
-                            <button 
-                                onClick={generateKDK}
-                                disabled={isGenerating}
-                                className={`w-full py-6 rounded-[32px] font-black uppercase text-xs tracking-[0.2em] transition-all shadow-2xl relative overflow-hidden group ${isGenerating ? 'bg-white/10 text-white/20' : 'bg-[#D4AF37] text-black hover:scale-[1.02] active:scale-95'}`}
-                            >
-                                {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
-                            </button>
-                        </section>
-
-                        {/* Partner Selection Overlay */}
-                        {partnerSelectSource && (
-                            <div className="fixed inset-0 bg-[#0A0A0F]/90 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                                <div className="bg-[#1C1C28] border border-white/10 rounded-[40px] w-full max-w-md p-8 space-y-6 shadow-2xl">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-xs font-black text-[#D4AF37] uppercase tracking-[0.4em]">Select Pair</h3>
-                                        <button onClick={() => setPartnerSelectSource(null)} className="text-white/20 text-2xl">×</button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {availablePlayersForPartnering.map(p => {
-                                            const isSelected = partnerSelectSource !== 'NEW' && partnerSelectSource === p.id;
-                                            return (
-                                                <button 
-                                                    key={p.id}
-                                                    onClick={() => {
-                                                        if (partnerSelectSource === 'NEW') {
-                                                            setPartnerSelectSource(p.id);
-                                                        } else {
-                                                            setFixedPartners(prev => [...prev, [partnerSelectSource as string, p.id]]);
-                                                            setPartnerSelectSource(null);
-                                                        }
-                                                    }}
-                                                    className={`p-4 rounded-2xl border transition-all text-[11px] font-bold text-left ${isSelected ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-white/5 border-white/5 text-white/60 hover:border-white/20'}`}
-                                                >
-                                                    {p.nickname}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <p className="text-[9px] text-white/20 font-medium text-center uppercase tracking-widest">
-                                        {partnerSelectSource === 'NEW' ? 'Select first player' : 'Select partner for ' + getPlayerName(partnerSelectSource)}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="fixed bottom-[100px] left-0 right-0 p-6 z-40 flex flex-col items-center gap-4 text-center pointer-events-none">
-                    <button onClick={() => setStep(1)} className="text-[10px] font-black text-white/40 uppercase tracking-[0.5em] hover:text-[#C9B075] pointer-events-auto">Back to Attendance</button>
-                </div>
+                )}
 
                 {showWarning && (
                     <WarningModal 
