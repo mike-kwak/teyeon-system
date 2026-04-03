@@ -1031,8 +1031,8 @@ export default function KDKPage() {
                     {/* Attendee Matrix Section */}
                     <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-6">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-[11px] font-black text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                            <h3 className="text-[13px] font-[1000] text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 ATTENDEE MATRIX
                             </h3>
                             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
@@ -1046,16 +1046,27 @@ export default function KDKPage() {
                                             <span className="text-[14px] font-[1000] text-white/90 group-hover:text-[#D4AF37] transition-colors">{m.name}</span>
                                             <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter">{m.is_guest ? 'Guest (G)' : 'Member'}</span>
                                         </div>
-                                        <div className="flex items-center gap-3 flex-1 justify-end">
-                                            <button 
-                                                onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
-                                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/10 hover:text-white/30'}`}
-                                            >
-                                                <span className="text-xl text-inherit">🕒</span>
-                                            </button>
+                                        <div className="flex items-center gap-4 flex-1 justify-end">
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
+                                                    className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/10 hover:text-white/30'}`}
+                                                >
+                                                    <span className="text-xl text-inherit">🕒</span>
+                                                </button>
+                                                <div className="flex items-center gap-2 bg-white/5 rounded-2xl px-2 py-1 border border-white/10">
+                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-transparent text-[13px] font-black text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
+                                                        {timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C28]">{t}</option>)}
+                                                    </select>
+                                                    <span className="text-[10px] font-[1000] text-gray-400">TO</span>
+                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} className="bg-transparent text-[13px] font-black text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
+                                                        {timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C28]">{t}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
                                             <div className="flex bg-[#121212] rounded-[20px] border border-white/5 p-1.5 shadow-inner gap-1">
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-black shadow-lg scale-105 ring-2 ring-[#C9B075]/30' : 'text-white/20 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#E5E7EB] text-black shadow-xl ring-2 ring-white/30' : 'text-white/20 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-black shadow-lg scale-105 ring-2 ring-[#C9B075]/30' : 'border border-gray-400 text-white hover:bg-white/10'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#E5E7EB] text-black shadow-xl ring-2 ring-white/30' : 'border border-gray-400 text-white hover:bg-white/10'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1067,8 +1078,8 @@ export default function KDKPage() {
                     {/* Generation Strategy Section */}
                     <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8">
                         <div className="space-y-6">
-                            <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                            <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 CORE STRATEGY
                             </h4>
                             <div className="grid grid-cols-2 gap-3">
@@ -1082,8 +1093,8 @@ export default function KDKPage() {
 
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                                <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                    <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                     FIXED PARTNERS
                                 </h4>
                                 <button onClick={() => setFixedTeamMode(!fixedTeamMode)} className={`px-4 py-2 rounded-full text-[10px] font-black transition-all border-2 ${fixedTeamMode ? 'bg-[#D4AF37] text-black border-white/20' : 'text-white/20 border-white/10'}`}>
@@ -1115,13 +1126,13 @@ export default function KDKPage() {
                     {/* Constraints & Rules Section */}
                     <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-10 mt-10">
                         <div className="space-y-6">
-                            <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                            <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 CONSTRAINTS
                             </h4>
                             <div className="space-y-5">
                                 <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
-                                    <span className="text-[13px] font-black text-white/30 uppercase tracking-[0.1em]">Total Courts</span>
+                                    <span className="text-[13px] font-black text-gray-300 uppercase tracking-[0.1em]">Total Courts</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
                                         <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[30px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{totalCourts}</span>
@@ -1129,7 +1140,7 @@ export default function KDKPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
-                                    <span className="text-[13px] font-black text-white/30 uppercase tracking-[0.1em]">Match Mins</span>
+                                    <span className="text-[13px] font-black text-gray-300 uppercase tracking-[0.1em]">Match Mins</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
                                         <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[50px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{matchTime}</span>
@@ -1140,13 +1151,13 @@ export default function KDKPage() {
                         </div>
 
                         <div className="space-y-6 mt-10">
-                            <h4 className="text-[11px] font-black text-[#4ADE80] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80]" />
+                            <h4 className="text-[13px] font-[1000] text-[#4ADE80] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#4ADE80] shadow-[0_0_10px_rgba(74,222,128,0.8)]" />
                                 FINANCIALS
                             </h4>
                             <div className="space-y-5">
                                 <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
-                                    <span className="text-[13px] font-black text-white/30 uppercase tracking-[0.1em]">Prize Gold</span>
+                                    <span className="text-[13px] font-black text-gray-300 uppercase tracking-[0.1em]">Prize Gold</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
                                         <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(firstPrize/1000).toFixed(0)}k</span>
@@ -1156,7 +1167,7 @@ export default function KDKPage() {
                                 <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
                                     <div className="flex flex-col">
                                         <span className="text-[13px] font-black text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
-                                        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-1">Bottom 25%~50%</span>
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 25%~50%</span>
                                     </div>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
@@ -1167,7 +1178,7 @@ export default function KDKPage() {
                                 <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
                                     <div className="flex flex-col">
                                         <span className="text-[13px] font-black text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
-                                        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest mt-1">Bottom 0%~25%</span>
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 0%~25%</span>
                                     </div>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
@@ -1179,8 +1190,8 @@ export default function KDKPage() {
                         </div>
 
                         <div className="pt-8 border-t border-white/10 space-y-4">
-                            <h4 className="text-[11px] font-black text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                            <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 TOURNAMENT RULES
                             </h4>
                             <textarea 
@@ -1193,16 +1204,16 @@ export default function KDKPage() {
                     </section>
                 </div>
 
-                {/* Fixed Footer: Action Anchor (bottom-32) */}
-                <div className="fixed bottom-[128px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
+                {/* Fixed Footer: Action Anchor (bottom-36) */}
+                <div className="fixed bottom-[140px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
                     <div className="max-w-md mx-auto relative inline-block w-full pointer-events-auto" onClick={generateKDK}>
                         {/* High-Contrast Separation Layer */}
-                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/90 to-transparent backdrop-blur-lg rounded-[40px] -z-10" />
+                        <div className="absolute inset-x-0 -inset-y-6 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/95 to-transparent backdrop-blur-xl rounded-[40px] -z-10" />
                         
                         <button 
                             disabled={isGenerating}
-                            className={`w-full py-5 rounded-[28px] font-[1000] text-lg shadow-[0_0_40px_rgba(212,175,55,0.6)] border-2 active:scale-95 flex items-center justify-center gap-3 transition-all
-                            ${isGenerating ? 'bg-white/10 text-white/20 border-white/5' : 'bg-[#D4AF37] text-[#0A0A0F] border-[#D4AF37]'}`}
+                            className={`w-full py-5 rounded-[28px] font-[1000] text-lg shadow-[0_0_50px_rgba(255,255,255,0.7)] border-2 active:scale-95 flex items-center justify-center gap-3 transition-all
+                            ${isGenerating ? 'bg-white/10 text-white/20 border-white/5' : 'bg-white text-[#0A0A0F] border-white'}`}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
                         </button>
