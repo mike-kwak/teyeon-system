@@ -86,7 +86,7 @@ export default function RootLayout({
                 flexDirection: 'column',
                 overflowX: 'hidden',
                 margin: '0 auto',
-                paddingTop: '48px'
+                paddingTop: '20px'
               }}>
                 <GlobalHeader />
                 <GlobalMain id="main-container">

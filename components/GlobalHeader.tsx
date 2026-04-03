@@ -22,7 +22,7 @@ const HeaderContainer = styled('header', {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: '12px 0 0 0',
+  padding: '0',
   zIndex: '$sticky',
   boxShadow: '0 10px 40px rgba(0, 0, 0, 0.8)',
 
