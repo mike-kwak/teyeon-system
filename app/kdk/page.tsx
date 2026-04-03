@@ -836,7 +836,7 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col h-screen bg-[#121212] text-white font-sans w-full max-w-[480px] mx-auto relative overflow-hidden">
+            <main className="flex flex-col h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden">
                 
                 {/* Elite Compact Header Spacer (4px) */}
                 <div className="h-1 w-full shrink-0" />
@@ -991,7 +991,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full max-w-[480px] mx-auto relative overflow-y-auto no-scrollbar pb-40">
+            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-40">
                 
                 {/* Elite Compact Header Spacer (4px) */}
 
@@ -1272,8 +1272,8 @@ export default function KDKPage() {
                 
                 
                 {/* Fixed Generate Button */}
-                <div style={{ position: 'fixed', bottom: '108px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
-                    <div style={{ maxWidth: '448px', margin: '0 auto', pointerEvents: 'auto' }}>
+                <div style={{ position: 'fixed', bottom: '108px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '450px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                    <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
                             disabled={isGenerating}
                             onClick={generateKDK}
@@ -1368,7 +1368,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full max-w-[480px] mx-auto relative overflow-y-auto no-scrollbar pb-32">
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 

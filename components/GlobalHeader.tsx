@@ -12,10 +12,12 @@ const shimmer = keyframes({
 });
 
 const HeaderContainer = styled('header', {
-  position: 'sticky',
+  position: 'fixed',
   top: 0,
-  left: 0,
-  right: 0,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  width: '100%',
+  maxWidth: '450px',
   height: '72px',
   background: 'rgba(0, 0, 0, 0.85)',
   backdropFilter: 'blur(30px) saturate(200%)',
@@ -115,7 +117,7 @@ export default function GlobalHeader() {
 
   return (
     <HeaderContainer>
-      <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="flex items-center justify-between w-full px-6">
         <LogoLink href="/">
           <span 
             className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"

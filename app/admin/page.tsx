@@ -171,7 +171,7 @@ export default function AdminPage() {
 
   return (
     <main 
-      className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full max-w-[480px] mx-auto"
+      className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full"
       style={{ paddingBottom: '250px' }}
     >
       <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">

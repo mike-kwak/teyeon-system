@@ -19,8 +19,6 @@ const Container = styled('main', {
   flexDirection: 'column',
   minHeight: '100dvh',
   padding: '$8 $5',
-  maxWidth: '480px',
-  margin: '0 auto',
   width: '100%',
   backgroundColor: '#121212',
   paddingBottom: '250px',

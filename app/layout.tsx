@@ -59,23 +59,39 @@ export default function RootLayout({
     <html
       lang="ko"
       className={`${rajdhani.variable} ${orbitron.variable} h-full antialiased`}
-      style={{ backgroundColor: '#121212', colorScheme: 'dark' }}
+      style={{ backgroundColor: '#0A0A0A', colorScheme: 'dark' }}
     >
       <body style={{ 
-        backgroundColor: '#121212', 
+        backgroundColor: '#000000', 
         margin: 0, 
         padding: 0, 
         minHeight: '100dvh',
-        fontFamily: 'var(--font-rajdhani), sans-serif'
+        fontFamily: 'var(--font-rajdhani), sans-serif',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start'
       }}>
         <StitchesRegistry>
           <AuthProvider>
             <ThemeProvider>
-              <GlobalHeader />
-              <GlobalMain id="main-container">
-                {children}
-              </GlobalMain>
-              <BottomNav />
+              <div style={{ 
+                width: '100%', 
+                maxWidth: '450px', 
+                minHeight: '100dvh', 
+                backgroundColor: '#121212', 
+                position: 'relative',
+                boxShadow: '0 0 100px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.4)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflowX: 'hidden',
+                margin: '0 auto'
+              }}>
+                <GlobalHeader />
+                <GlobalMain id="main-container">
+                  {children}
+                </GlobalMain>
+                <BottomNav />
+              </div>
             </ThemeProvider>
           </AuthProvider>
         </StitchesRegistry>

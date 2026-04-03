@@ -45,7 +45,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-[16px] left-1/2 -translate-x-1/2 z-50 h-[85px] w-[92%] max-w-[400px] bg-[#1B1B21]/90 backdrop-blur-xl border border-white/10 px-2 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-[32px] transition-all duration-300">
+    <nav className="fixed bottom-[16px] left-1/2 -translate-x-1/2 z-50 h-[85px] w-[90%] max-w-[414px] bg-[#1B1B21]/90 backdrop-blur-xl border border-white/10 px-2 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-[32px] transition-all duration-300">
       <div className="max-w-[430px] w-full mx-auto flex justify-around items-center gap-2">
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path !== '/' && pathname?.startsWith(item.path));
