@@ -823,10 +823,7 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main 
-                className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto"
-                style={{ paddingBottom: '320px' }}
-            >
+            <main className="flex flex-col h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden">
                 
                 {/* Slim Executive Spacer (12px) */}
                 <div className="h-[12px] w-full shrink-0" />
@@ -873,7 +870,7 @@ export default function KDKPage() {
                     </div>
                 </header>
 
-                <div className="px-6 space-y-6">
+                <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar">
                     <DataStateView 
                         isLoading={isMembersLoading} 
                         isError={isMembersError}
@@ -930,13 +927,17 @@ export default function KDKPage() {
                             </div>
                         </section>
                     </DataStateView>
+                    
+                    {/* Invisible Spacer to prevent list from being hidden behind fixed button */}
+                    <div className="h-40 w-full shrink-0" />
                 </div>
 
-                {/* Force Field Spacer (v14.0 "Non-Intelligent" Solution) */}
-                <div className="h-60 w-full shrink-0 px-6 block" />
-
-                <div className="fixed bottom-[160px] left-0 right-0 px-6 z-[100] pointer-events-none">
-                    <button onClick={handleStep1Confirm} className="w-full max-w-md mx-auto py-5 bg-[#C9B075] text-black font-black text-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] active:scale-95 flex items-center justify-center gap-2 pointer-events-auto">
+                {/* Fixed Footer for Step 1 Action */}
+                <div className="fixed bottom-[128px] left-0 right-0 px-6 z-[60] bg-gradient-to-t from-[#121212] via-[#121212]/95 to-transparent pt-8 pb-4 pointer-events-none">
+                    <button 
+                        onClick={handleStep1Confirm} 
+                        className="w-full max-w-md mx-auto py-5 bg-[#C9B075] text-black font-black text-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] active:scale-95 flex items-center justify-center gap-2 pointer-events-auto"
+                    >
                         참석자 확정 및 설정 ➡️
                     </button>
                 </div>
@@ -945,7 +946,7 @@ export default function KDKPage() {
                     <CustomConfirmModal 
                         title="초기화 확인" 
                         message="모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다." 
-                        onConfirm={confirmReset} 
+                        onConfirm={actualReset} 
                         onCancel={() => setShowResetConfirm(false)} 
                     />
                 )}
@@ -970,10 +971,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main 
-                className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans w-full relative overflow-y-auto no-scrollbar"
-                style={{ paddingBottom: '320px' }}
-            >
+            <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
                 {((genMode === 'AWARD' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
                     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
                         <div className="bg-[#1C1C28] border border-[#D4AF37]/30 rounded-[32px] p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95">
@@ -1242,10 +1240,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main 
-            className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar"
-            style={{ paddingBottom: '320px' }}
-        >
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
