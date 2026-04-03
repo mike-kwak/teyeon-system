@@ -116,14 +116,12 @@ export default function GlobalHeader() {
   return (
     <HeaderContainer>
       <LogoLink href="/">
-        <img 
-          src="/teyeon_logo_gold.png" 
-          alt="TEYEON" 
-          className="h-[40px] w-auto transition-all duration-300 opacity-100 drop-shadow-[0_4px_10px_rgba(201,176,117,0.4)]"
-          style={{
-            filter: 'brightness(0) invert(1) invert(81%) sepia(19%) saturate(1006%) hue-rotate(3deg) brightness(88%) contrast(85%)'
-          }}
-        />
+        <span 
+          className="text-[25px] font-[1000] text-[#C9B075] tracking-[0.16em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
+          style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
+        >
+          TEYEON
+        </span>
       </LogoLink>
 
       <UserSection>
