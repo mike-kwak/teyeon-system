@@ -48,6 +48,7 @@ const GlobalMain = styled('main', {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
+  paddingBottom: '120px',
 });
 
 export default function RootLayout({
@@ -84,7 +85,8 @@ export default function RootLayout({
                 display: 'flex',
                 flexDirection: 'column',
                 overflowX: 'hidden',
-                margin: '0 auto'
+                margin: '0 auto',
+                paddingTop: '48px'
               }}>
                 <GlobalHeader />
                 <GlobalMain id="main-container">

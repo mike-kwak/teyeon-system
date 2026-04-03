@@ -12,12 +12,9 @@ const shimmer = keyframes({
 });
 
 const HeaderContainer = styled('header', {
-  position: 'fixed',
+  position: 'sticky',
   top: 0,
-  left: '50%',
-  transform: 'translateX(-50%)',
   width: '100%',
-  maxWidth: '450px',
   height: '72px',
   background: 'rgba(0, 0, 0, 0.85)',
   backdropFilter: 'blur(30px) saturate(200%)',
@@ -25,7 +22,7 @@ const HeaderContainer = styled('header', {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: '0',
+  padding: '12px 0 0 0',
   zIndex: '$sticky',
   boxShadow: '0 10px 40px rgba(0, 0, 0, 0.8)',
 
