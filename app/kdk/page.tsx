@@ -1443,7 +1443,7 @@ export default function KDKPage() {
                                         const isGroupB = (p0Group || 'A').toUpperCase().includes('B');
 
                                         return (
-                                            <div key={mId} className="group relative bg-[#000000] border border-white/5 rounded-[32px] p-4 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[140px]">
+                                            <div key={mId} className="group relative bg-[#1C1C20] border border-[#D4AF37]/40 rounded-[28px] p-5 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[150px]">
                                                 <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/5 border border-white/10">
                                                     <span className={`text-[8px] font-black italic ${isGroupB ? 'text-blue-400' : 'text-[#D4AF37]'}`}>{isGroupB ? 'B' : 'A'}조</span>
                                                 </div>
@@ -1455,18 +1455,18 @@ export default function KDKPage() {
                                                 </button>
                                                 <div onClick={() => { setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }} className="space-y-3">
                                                     <div className="flex justify-between items-start px-1 pt-4">
-                                                        <div className="flex flex-col gap-0.5 max-w-[45%]">
-                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[0])}</p>
-                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[1])}</p>
+                                                        <div className="flex flex-col gap-1 max-w-[45%]">
+                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[0])}</p>
+                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[1])}</p>
                                                         </div>
-                                                        <span className="text-[8px] font-black text-[#D4AF37]/40 italic pt-1 text-center flex-1">VS</span>
-                                                        <div className="flex flex-col gap-0.5 max-w-[45%] text-right">
-                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[2])}</p>
-                                                            <p className="text-[11px] font-black text-white/80 truncate">{getPlayerName(m.playerIds[3])}</p>
+                                                        <span className="text-[9px] font-black text-[#D4AF37]/60 italic pt-1 text-center flex-1">VS</span>
+                                                        <div className="flex flex-col gap-1 max-w-[45%] text-right">
+                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[2])}</p>
+                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[3])}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="w-full py-2 bg-white/[0.03] rounded-xl text-center">
-                                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest group-hover:text-[#D4AF37] transition-colors">Score Input</span>
+                                                    <div className="w-full py-2.5 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-xl text-center mt-1">
+                                                        <span className="text-[9px] font-black text-[#D4AF37]/80 uppercase tracking-widest">탭하여 스코어 입력</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1504,24 +1504,28 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className={`bg-white/[0.03] border border-white/5 p-5 rounded-[24px] flex items-center justify-between transition-all ${hasConflict ? 'opacity-30' : ''}`}>
-                                                            <div className="flex flex-col gap-1">
+                                                        <div key={m.id} className={`bg-[#1C1C20] border rounded-[20px] p-4 flex items-center justify-between gap-3 transition-all ${hasConflict ? 'opacity-30 border-white/5' : 'border-white/15 hover:border-[#D4AF37]/30'}`}>
+                                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-[8px] font-bold text-white/20 uppercase">Round {m.round}</span>
+                                                                    <span className="text-[9px] font-bold text-white/40 uppercase">Round {m.round}</span>
                                                                     {hasConflict && (
-                                                                        <span className="text-[7px] font-black text-red-500/60 uppercase tracking-tighter">
-                                                                            Conflict: {busyPlayers.map(pid => getPlayerName(pid)).join(', ')}
+                                                                        <span className="text-[7px] font-black text-red-400/80 uppercase tracking-tighter">
+                                                                            경기중: {busyPlayers.map(pid => getPlayerName(pid)).join(', ')}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <span className={`text-xs font-bold transition-colors ${hasConflict ? 'text-white/20' : 'text-white/60'}`}>
-                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])} vs {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
+                                                                <span className={`text-[13px] font-black leading-snug transition-colors ${hasConflict ? 'text-white/20' : 'text-white/90'}`}>
+                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}
+                                                                </span>
+                                                                <span className="text-[10px] font-bold text-[#D4AF37]/60">vs</span>
+                                                                <span className={`text-[13px] font-black leading-snug transition-colors ${hasConflict ? 'text-white/20' : 'text-white/90'}`}>
+                                                                    {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
                                                                 </span>
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`text-[10px] font-black uppercase px-3 py-1 rounded-lg ${hasConflict ? 'bg-white/5 text-white/5 cursor-not-allowed' : 'bg-[#D4AF37] text-black active:scale-95'}`}
+                                                                className={`text-[11px] font-black uppercase px-4 py-3 rounded-xl shrink-0 transition-all active:scale-90 ${hasConflict ? 'bg-white/5 text-white/10 cursor-not-allowed' : 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:bg-[#C9B075]'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1578,7 +1582,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-50">
+            <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[450px] p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-50">
                 <div className="max-w-xs mx-auto bg-white/5 border border-white/10 backdrop-blur-2xl rounded-full p-1.5 flex shadow-2xl">
                     {(['MATCHES', 'RANKING'] as const).map(t => (
                         <button key={t} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab(t); }} className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}>{t === 'MATCHES' ? '🔥 Matches' : '📊 Ranking'}</button>
