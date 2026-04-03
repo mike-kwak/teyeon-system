@@ -115,8 +115,6 @@ export default function GlobalHeader() {
 
   return (
     <HeaderContainer>
-      <div className="flex-1" /> {/* Left Spacer to Center Logo */}
-
       <LogoLink href="/">
         <span 
           className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
@@ -126,7 +124,7 @@ export default function GlobalHeader() {
         </span>
       </LogoLink>
 
-      <UserSection className="flex-1 justify-end">
+      <UserSection>
         {user && !isLoading && (
           <div className="flex items-center gap-3">
             <RoleBadge className="bg-[#2A2A2A] text-[#C9B075] border-[#C9B075]/20 text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase shadow-inner">
