@@ -115,6 +115,8 @@ export default function GlobalHeader() {
 
   return (
     <HeaderContainer>
+      <div className="flex-1" /> {/* Left Spacer to Center Logo */}
+
       <LogoLink href="/">
         <span 
           className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
@@ -124,23 +126,22 @@ export default function GlobalHeader() {
         </span>
       </LogoLink>
 
-      <UserSection>
+      <UserSection className="flex-1 justify-end">
         {user && !isLoading && (
-          <>
-            <RoleBadge>
-               <StatusDot />
-               {role === 'CEO' ? 'EXEC CEO' : 'GOLD PILOT'}
+          <div className="flex items-center gap-3">
+            <RoleBadge className="bg-[#2A2A2A] text-[#C9B075] border-[#C9B075]/20 text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase shadow-inner">
+               {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
             </RoleBadge>
             <Link href="/profile">
               <ProfileAvatar 
                 src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
                 alt={user.user_metadata?.full_name} 
-                size={40}
+                size={32}
                 fallbackIcon={role === 'CEO' ? '👑' : '👤'}
-                className="border-2 border-goldGlint shadow-[0_0_20px_rgba(255,215,0,0.3)] rounded-full transition-all hover:scale-110 active:scale-90"
+                className="border border-[#C9B075]/30 shadow-[0_0_15px_rgba(201,176,117,0.2)] rounded-full transition-all hover:scale-110 active:scale-90"
               />
             </Link>
-          </>
+          </div>
         )}
       </UserSection>
     </HeaderContainer>
