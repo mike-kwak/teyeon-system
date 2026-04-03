@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-12 overflow-y-auto pb-44 no-scrollbar">
+            <div className="flex-1 px-6 space-y-12 overflow-y-auto pb-[calc(176px+env(safe-area-inset-bottom))] no-scrollbar">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section className="mt-16 relative z-10">
@@ -1446,12 +1446,12 @@ export default function KDKPage() {
                                         if (!m) return null;
                                         return (
                                             <div key={mId} className="relative group bg-[#1a1a1a] rounded-xl p-6 border border-white/5 border-l-4 border-l-[#C9B075] shadow-2xl mb-6 last:mb-0 z-50 min-h-[144px] flex items-center transition-all">
-                                                <div className="flex justify-between items-center w-full pt-10">
+                                                <div className="flex justify-between items-center w-full pt-8">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex flex-col gap-2">
-                                                            <span className="text-white tracking-tight text-xl font-[1000] leading-none whitespace-nowrap truncate uppercase">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                            <span className="text-white tracking-tight text-xl md:text-2xl font-[1000] leading-none whitespace-nowrap truncate uppercase">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
                                                             <div className="h-0.5" />
-                                                            <span className="text-[#C9B075] tracking-tight text-xl font-[1000] leading-none whitespace-nowrap truncate uppercase">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <span className="text-[#C9B075] tracking-tight text-xl md:text-2xl font-[1000] leading-none whitespace-nowrap truncate uppercase">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                     <div className="ml-6 flex flex-col items-end gap-3 shrink-0">
@@ -1505,8 +1505,8 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
                                                         <div key={m.id} className="bg-[#1a1a1a] rounded-xl p-6 flex items-center justify-between gap-4 shadow-2xl border border-white/5">
-                                                            <div className="flex items-center gap-6 min-w-0">
-                                                                <span className="text-3xl font-[1000] text-[#3a3a3a] italic shrink-0 leading-none">{String(idx + 1).padStart(2, '0')}</span>
+                                                            <div className="flex items-center gap-6 min-w-0 flex-1">
+                                                                <span className="text-3xl font-[1000] text-[#3a3a3a] italic w-12 shrink-0 leading-none">{String(idx + 1).padStart(2, '0')}</span>
                                                                 <div className="min-w-0 flex-1">
                                                                     <p className="text-white font-[1000] text-[15px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
                                                                     <div className="flex items-center gap-2 mt-1">
@@ -1544,17 +1544,17 @@ export default function KDKPage() {
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
                                             <div className="flex items-center gap-4 w-full justify-between">
-                                                <span className="text-[12px] font-[1000] text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <span className="text-[12px] md:text-[14px] font-[1000] text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
                                                 <div className="flex flex-col items-center px-4">
-                                                    <span className="text-3xl font-[1000] text-[#C9B075]">{m.score1} : {m.score2}</span>
+                                                    <span className="text-3xl md:text-4xl font-[1000] text-[#C9B075]">{m.score1} : {m.score2}</span>
                                                 </div>
-                                                <span className="text-[12px] font-[1000] text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-[12px] md:text-[14px] font-[1000] text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
                                             <span className="text-[8px] font-black text-white/10 uppercase tracking-widest">Tap to edit result</span>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="h-32" />
+                                <div className="h-[calc(128px+env(safe-area-inset-bottom))]" />
                             </div>
                         )}
                     </>
@@ -1581,7 +1581,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[80px] left-1/2 -translate-x-1/2 rounded-full px-2 py-1.5 min-w-[320px] bg-[#2a2a2a]/90 backdrop-blur-md shadow-2xl flex items-center justify-between gap-1 z-[70] border border-white/10">
+            <nav className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 rounded-full px-2 py-1.5 min-w-[320px] bg-[#2a2a2a]/90 backdrop-blur-md shadow-2xl flex items-center justify-between gap-1 z-[70] border border-white/10">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-full py-3 font-black text-[13px] flex items-center justify-center gap-2 transition-all active:scale-95 uppercase ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/40 hover:text-white'}`}
