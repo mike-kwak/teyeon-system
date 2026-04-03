@@ -969,6 +969,7 @@ export default function KDKPage() {
     }
 
     // --- Step 2: Settings Dashboard ---
+    // FORCE_REBUILD_v26: 2026-04-03T02:52:00Z
     if (step === 2) {
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
@@ -1064,9 +1065,35 @@ export default function KDKPage() {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div className="flex bg-[#121212] rounded-[20px] border border-white/5 p-1.5 gap-2">
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-black scale-105' : 'bg-black border border-gray-400 text-white'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#C9B075] text-black scale-105' : 'bg-black border border-gray-400 text-white'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
+                                            <div style={{ display: 'flex', background: '#121212', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', padding: '6px', gap: '8px' }}>
+                                                <button
+                                                    onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))}
+                                                    style={{
+                                                        width: '48px', height: '48px', borderRadius: '14px',
+                                                        background: config.group === 'A' ? '#C9B075' : '#000000',
+                                                        color: config.group === 'A' ? '#000000' : '#FFFFFF',
+                                                        border: config.group === 'A' ? 'none' : '1.5px solid #9CA3AF',
+                                                        fontWeight: 1000, fontSize: '16px',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        transform: config.group === 'A' ? 'scale(1.05)' : 'scale(1)',
+                                                        transition: 'all 0.15s',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >A</button>
+                                                <button
+                                                    onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))}
+                                                    style={{
+                                                        width: '48px', height: '48px', borderRadius: '14px',
+                                                        background: config.group === 'B' ? '#C9B075' : '#000000',
+                                                        color: config.group === 'B' ? '#000000' : '#FFFFFF',
+                                                        border: config.group === 'B' ? 'none' : '1.5px solid #9CA3AF',
+                                                        fontWeight: 1000, fontSize: '16px',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        transform: config.group === 'B' ? 'scale(1.05)' : 'scale(1)',
+                                                        transition: 'all 0.15s',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >B</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1084,7 +1111,22 @@ export default function KDKPage() {
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                                 {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
-                                    <button key={mode} onClick={() => setGenMode(mode)} className={`py-6 rounded-[24px] border-2 text-[14px] font-[1000] transition-all ${genMode === mode ? 'bg-[#1A1A1A] border-[#D4AF37] text-[#D4AF37] scale-105' : 'bg-[#121212] border-[#222] text-gray-500 hover:border-[#444] hover:text-gray-300'}`}>
+                                    <button
+                                        key={mode}
+                                        onClick={() => setGenMode(mode)}
+                                        style={{
+                                                background: '#121212',
+                                                border: genMode === mode ? '2px solid #D4AF37' : '2px solid #222',
+                                                color: genMode === mode ? '#D4AF37' : '#6B7280',
+                                                transform: genMode === mode ? 'scale(1.05)' : 'scale(1)',
+                                                borderRadius: '24px',
+                                                padding: '24px 8px',
+                                                fontSize: '14px',
+                                                fontWeight: 1000,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s'
+                                        }}
+                                    >
                                         {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE SPLIT' : mode === 'AWARD' ? 'HISTORY' : 'MBTI'}
                                     </button>
                                 ))}
@@ -1207,16 +1249,31 @@ export default function KDKPage() {
                 {/* Physical Scroll Enforcer */}
                 <div className="h-48 w-full" />
 
-                {/* Fixed Footer: Action Anchor (bottom-36) */}
-                <div className="fixed bottom-[144px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
-                    <div className="max-w-md mx-auto relative inline-block w-full pointer-events-auto" onClick={generateKDK}>
-                        {/* High-Contrast Separation Layer */}
-                        <div className="absolute inset-x-0 -inset-y-6 bg-[#1A1A1A] rounded-[40px] -z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] opacity-90" />
-                        
-                        <button 
+                {/* Fixed Footer: Action Anchor - INLINE FORCED */}
+                <div style={{ position: 'fixed', bottom: '144px', left: 0, right: 0, padding: '0 24px', zIndex: 9999, textAlign: 'center', pointerEvents: 'none' }}>
+                    <div style={{ maxWidth: '448px', margin: '0 auto', position: 'relative', display: 'inline-block', width: '100%', pointerEvents: 'auto' }}>
+                        {/* Hard BG separator */}
+                        <div style={{ position: 'absolute', inset: '-24px -0px', background: '#1A1A1A', borderRadius: '40px', zIndex: -1, boxShadow: '0 -20px 60px rgba(0,0,0,0.95)' }} />
+                        <button
                             disabled={isGenerating}
-                            className={`w-full py-6 rounded-[32px] font-[1000] text-xl border-4 active:scale-95 flex items-center justify-center gap-4 transition-all tracking-tight
-                            ${isGenerating ? 'bg-[#1C1C1C] text-gray-500 border-[#333]' : 'bg-[#D4AF37] text-black border-[#C9B075]'}`}
+                            onClick={generateKDK}
+                            style={{
+                                width: '100%',
+                                padding: '22px 0',
+                                borderRadius: '28px',
+                                background: isGenerating ? '#1C1C1C' : '#C9B075',
+                                color: isGenerating ? '#6B7280' : '#000000',
+                                border: isGenerating ? '3px solid #333' : '3px solid #A89060',
+                                fontSize: '18px',
+                                fontWeight: 1000,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '12px',
+                                cursor: isGenerating ? 'not-allowed' : 'pointer',
+                                boxShadow: isGenerating ? 'none' : '0 0 40px rgba(201,176,117,0.5)',
+                                transition: 'all 0.15s'
+                            }}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
                         </button>
