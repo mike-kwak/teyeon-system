@@ -979,7 +979,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#1A1A1A] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[400px]">
+            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[500px]">
                 
                 {/* Elite Compact Header Spacer (4px) */}
 
@@ -1030,7 +1030,7 @@ export default function KDKPage() {
                     </section>
 
                     {/* Attendee Matrix Section */}
-                    <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-6 relative z-10">
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-[1000] text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
@@ -1065,14 +1065,14 @@ export default function KDKPage() {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div style={{ display: 'flex', background: '#121212', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', padding: '6px', gap: '8px' }}>
+                                            <div style={{ display: 'flex', background: '#0A0A0A', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', padding: '6px', gap: '8px' }}>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))}
                                                     style={{
                                                         width: '48px', height: '48px', borderRadius: '14px',
-                                                        background: config.group === 'A' ? '#C9B075' : '#000000',
+                                                        background: config.group === 'A' ? '#C9B075' : '#0A0A0A',
                                                         color: config.group === 'A' ? '#000000' : '#FFFFFF',
-                                                        border: config.group === 'A' ? 'none' : '1.5px solid #9CA3AF',
+                                                        border: config.group === 'A' ? 'none' : '1px solid #6B7280',
                                                         fontWeight: 1000, fontSize: '16px',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         transform: config.group === 'A' ? 'scale(1.05)' : 'scale(1)',
@@ -1084,9 +1084,9 @@ export default function KDKPage() {
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))}
                                                     style={{
                                                         width: '48px', height: '48px', borderRadius: '14px',
-                                                        background: config.group === 'B' ? '#C9B075' : '#000000',
+                                                        background: config.group === 'B' ? '#C9B075' : '#0A0A0A',
                                                         color: config.group === 'B' ? '#000000' : '#FFFFFF',
-                                                        border: config.group === 'B' ? 'none' : '1.5px solid #9CA3AF',
+                                                        border: config.group === 'B' ? 'none' : '1px solid #6B7280',
                                                         fontWeight: 1000, fontSize: '16px',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         transform: config.group === 'B' ? 'scale(1.05)' : 'scale(1)',
@@ -1103,28 +1103,28 @@ export default function KDKPage() {
                     </section>
 
                     {/* Generation Strategy Section */}
-                    <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-12 relative z-10 w-full overflow-hidden">
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                 CORE STRATEGY
                             </h4>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4" style={{ marginTop: '20px' }}>
                                 {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
                                     <button
                                         key={mode}
                                         onClick={() => setGenMode(mode)}
                                         style={{
-                                                background: '#121212',
-                                                border: genMode === mode ? '2px solid #D4AF37' : '2px solid #222',
-                                                color: genMode === mode ? '#D4AF37' : '#6B7280',
-                                                transform: genMode === mode ? 'scale(1.05)' : 'scale(1)',
-                                                borderRadius: '24px',
-                                                padding: '24px 8px',
-                                                fontSize: '14px',
-                                                fontWeight: 1000,
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s'
+                                            background: '#141414',
+                                            border: genMode === mode ? '1px solid #C9B075' : '1px solid #2A2A2A',
+                                            color: genMode === mode ? '#C9B075' : '#6B7280',
+                                            transform: genMode === mode ? 'scale(1.03)' : 'scale(1)',
+                                            borderRadius: '24px',
+                                            padding: '24px 8px',
+                                            fontSize: '14px',
+                                            fontWeight: 1000,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s'
                                         }}
                                     >
                                         {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE SPLIT' : mode === 'AWARD' ? 'HISTORY' : 'MBTI'}
@@ -1144,20 +1144,32 @@ export default function KDKPage() {
                                 </button>
                             </div>
                             
-                            <div className="space-y-6">
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                                 {fixedPartners.map((pair, idx) => (
-                                    <div key={idx} className="flex items-center justify-between bg-[#121212] p-6 rounded-[24px] border border-[#333]">
-                                        <div className="flex items-center gap-6 text-[15px] font-[1000] text-white">
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '15px', fontWeight: 1000, color: '#FFFFFF' }}>
                                             <span>{getPlayerName(pair[0])}</span>
-                                            <span className="text-[#D4AF37] scale-150">♥</span>
+                                            <span style={{ color: '#C9B075', fontSize: '18px' }}>♥</span>
                                             <span>{getPlayerName(pair[1])}</span>
                                         </div>
                                         <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
                                     </div>
                                 ))}
                                 <button 
-                                    onClick={() => setPartnerSelectSource('NEW')} 
-                                    className="w-full py-8 border-2 border-dashed border-[#555] rounded-[24px] text-[15px] font-[1000] text-gray-300 uppercase hover:text-white hover:border-gray-300 transition-all bg-[#121212]"
+                                    onClick={() => setPartnerSelectSource('NEW')}
+                                    style={{
+                                        width: '100%', padding: '28px 0',
+                                        border: '1px dashed #666',
+                                        borderRadius: '24px',
+                                        fontSize: '16px',
+                                        fontWeight: 1000,
+                                        color: '#D4D4D4',
+                                        background: '#141414',
+                                        cursor: 'pointer',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.1em',
+                                        transition: 'all 0.15s'
+                                    }}
                                 >
                                     + ADD FIXED PARTNER
                                 </button>
@@ -1166,7 +1178,7 @@ export default function KDKPage() {
                     </section>
 
                     {/* Constraints & Rules Section */}
-                    <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-10 mt-10 relative z-10 w-full overflow-hidden">
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginTop: '12px', overflow: 'visible' }}>
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
@@ -1247,7 +1259,7 @@ export default function KDKPage() {
                 </div>
                 
                 {/* Physical Scroll Enforcer */}
-                <div className="h-48 w-full" />
+                <div style={{ height: '256px', width: '100%', flexShrink: 0 }} />
 
                 {/* Fixed Footer: Action Anchor - INLINE FORCED */}
                 <div style={{ position: 'fixed', bottom: '144px', left: 0, right: 0, padding: '0 24px', zIndex: 9999, textAlign: 'center', pointerEvents: 'none' }}>
