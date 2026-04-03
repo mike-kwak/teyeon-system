@@ -1032,7 +1032,7 @@ export default function KDKPage() {
                     <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-6 relative z-10">
                         <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-[1000] text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                 ATTENDEE MATRIX
                             </h3>
                             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
@@ -1064,9 +1064,9 @@ export default function KDKPage() {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div className="flex bg-[#121212] rounded-[20px] border border-white/5 p-1.5 shadow-inner gap-1">
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-[#121212] shadow-lg scale-105 ring-2 ring-[#C9B075]' : 'border border-[#333] text-gray-500 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#C9B075] text-[#121212] shadow-lg scale-105 ring-2 ring-[#C9B075]' : 'border border-[#333] text-gray-500 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
+                                            <div className="flex bg-[#121212] rounded-[20px] border border-white/5 p-1.5 gap-2">
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-black scale-105' : 'bg-black border border-gray-400 text-white'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#C9B075] text-black scale-105' : 'bg-black border border-gray-400 text-white'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1079,12 +1079,12 @@ export default function KDKPage() {
                     <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-12 relative z-10 w-full overflow-hidden">
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                 CORE STRATEGY
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                                 {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
-                                    <button key={mode} onClick={() => setGenMode(mode)} className={`py-6 rounded-[24px] border-2 text-[14px] font-[1000] transition-all ${genMode === mode ? 'bg-[#0A0A0A] border-[#D4AF37] text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.4)] scale-105' : 'bg-[#121212] border-[#222] text-gray-500 hover:border-[#444] hover:text-gray-300'}`}>
+                                    <button key={mode} onClick={() => setGenMode(mode)} className={`py-6 rounded-[24px] border-2 text-[14px] font-[1000] transition-all ${genMode === mode ? 'bg-[#1A1A1A] border-[#D4AF37] text-[#D4AF37] scale-105' : 'bg-[#121212] border-[#222] text-gray-500 hover:border-[#444] hover:text-gray-300'}`}>
                                         {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE SPLIT' : mode === 'AWARD' ? 'HISTORY' : 'MBTI'}
                                     </button>
                                 ))}
@@ -1094,7 +1094,7 @@ export default function KDKPage() {
                         <div className="space-y-6 mt-10">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                    <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                                    <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                     FIXED PARTNERS
                                 </h4>
                                 <button onClick={() => setFixedTeamMode(!fixedTeamMode)} className={`px-4 py-2 rounded-full text-[10px] font-black transition-all border-2 ${fixedTeamMode ? 'bg-[#D4AF37] text-black border-white/20' : 'text-white/20 border-white/10'}`}>
@@ -1102,12 +1102,12 @@ export default function KDKPage() {
                                 </button>
                             </div>
                             
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 {fixedPartners.map((pair, idx) => (
-                                    <div key={idx} className="flex items-center justify-between bg-[#121212] p-5 rounded-[24px] border border-[#333]">
+                                    <div key={idx} className="flex items-center justify-between bg-[#121212] p-6 rounded-[24px] border border-[#333]">
                                         <div className="flex items-center gap-6 text-[15px] font-[1000] text-white">
                                             <span>{getPlayerName(pair[0])}</span>
-                                            <span className="text-[#D4AF37] scale-150 drop-shadow-[0_0_10px_rgba(212,175,55,0.5)]">♥</span>
+                                            <span className="text-[#D4AF37] scale-150">♥</span>
                                             <span>{getPlayerName(pair[1])}</span>
                                         </div>
                                         <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
@@ -1115,7 +1115,7 @@ export default function KDKPage() {
                                 ))}
                                 <button 
                                     onClick={() => setPartnerSelectSource('NEW')} 
-                                    className="w-full py-6 border-2 border-dashed border-[#555] rounded-[24px] text-[13px] font-[1000] text-gray-300 uppercase hover:text-white hover:border-[#777] transition-all bg-[#121212]"
+                                    className="w-full py-8 border-2 border-dashed border-[#555] rounded-[24px] text-[15px] font-[1000] text-gray-300 uppercase hover:text-white hover:border-gray-300 transition-all bg-[#121212]"
                                 >
                                     + ADD FIXED PARTNER
                                 </button>
@@ -1127,7 +1127,7 @@ export default function KDKPage() {
                     <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-10 mt-10 relative z-10 w-full overflow-hidden">
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                 CONSTRAINTS
                             </h4>
                             <div className="space-y-5">
@@ -1152,7 +1152,7 @@ export default function KDKPage() {
 
                         <div className="space-y-6 mt-10">
                             <h4 className="text-[13px] font-[1000] text-[#4ADE80] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#4ADE80] shadow-[0_0_10px_rgba(74,222,128,0.8)]" />
+                                <span className="w-2 h-2 rounded-full bg-[#4ADE80]" />
                                 FINANCIALS
                             </h4>
                             <div className="space-y-5">
@@ -1191,13 +1191,13 @@ export default function KDKPage() {
 
                         <div className="pt-8 border-t border-[#333] space-y-4">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                 TOURNAMENT RULES
                             </h4>
                             <textarea 
                                 value={matchRules} 
                                 onChange={(e) => setMatchRules(e.target.value)} 
-                                className="w-full bg-[#121212] border border-[#222] rounded-[28px] p-8 text-[15px] font-[1000] text-white/80 min-h-[160px] outline-none focus:border-[#D4AF37]/50 focus:text-white transition-all shadow-inner break-words" 
+                                className="w-full bg-[#121212] border border-[#333] rounded-[28px] p-8 text-[15px] font-[1000] text-gray-200 min-h-[160px] outline-none focus:border-[#D4AF37]/50 focus:text-white transition-all break-words" 
                                 placeholder="Edit tournament rules, policies, and local ground conventions..." 
                             />
                         </div>
@@ -1205,18 +1205,18 @@ export default function KDKPage() {
                 </div>
                 
                 {/* Physical Scroll Enforcer */}
-                <div className="h-40 w-full" />
+                <div className="h-48 w-full" />
 
                 {/* Fixed Footer: Action Anchor (bottom-36) */}
-                <div className="fixed bottom-[140px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
+                <div className="fixed bottom-[144px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
                     <div className="max-w-md mx-auto relative inline-block w-full pointer-events-auto" onClick={generateKDK}>
                         {/* High-Contrast Separation Layer */}
-                        <div className="absolute inset-x-0 -inset-y-6 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/95 to-transparent backdrop-blur-xl rounded-[40px] -z-10" />
+                        <div className="absolute inset-x-0 -inset-y-6 bg-[#1A1A1A] rounded-[40px] -z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] opacity-90" />
                         
                         <button 
                             disabled={isGenerating}
-                            className={`w-full py-6 rounded-[32px] font-[1000] text-xl shadow-[0_0_50px_rgba(255,255,255,0.5)] border-4 active:scale-95 flex items-center justify-center gap-4 transition-all
-                            ${isGenerating ? 'bg-[#1C1C1C] text-gray-500 border-[#333]' : 'bg-[#000000] text-[#FFFFFF] border-white drop-shadow-2xl'}`}
+                            className={`w-full py-6 rounded-[32px] font-[1000] text-xl border-4 active:scale-95 flex items-center justify-center gap-4 transition-all tracking-tight
+                            ${isGenerating ? 'bg-[#1C1C1C] text-gray-500 border-[#333]' : 'bg-[#D4AF37] text-black border-[#C9B075]'}`}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
                         </button>
