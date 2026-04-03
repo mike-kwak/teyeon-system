@@ -228,7 +228,7 @@ export default function ArchivePage() {
   }
 
   return (
-    <Container>
+    <Container style={{ paddingBottom: '250px' }}>
       <Header>
         <Title style={{ fontFamily: 'var(--font-orbitron)', fontSize: '28px', fontWeight: 950 }}>The <span style={{ color: '$goldGlint' }}>Archive</span></Title>
         <Subtitle>Surface: Elite Grass | Legacy 2026</Subtitle>

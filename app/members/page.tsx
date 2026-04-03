@@ -264,7 +264,7 @@ export default function MembersPage() {
   }
 
   return (
-    <Container>
+    <Container style={{ paddingBottom: '250px' }}>
       <Header>
         <Title>TEYEON <span style={{ color: '#D4AF37' }}>MEMBERS</span></Title>
         <Subtitle>Club Member Directory 2026</Subtitle>

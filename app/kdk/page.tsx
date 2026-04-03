@@ -244,30 +244,25 @@ export default function KDKPage() {
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const resetSession = () => {
-        // Tournament-specific state to clear
+        // --- 1. Immediate Storage Purge ---
+        localStorage.removeItem('kdk_live_session');
+        
+        // --- 2. Brutal Page Refresh (Ensures 100% state cleanup) ---
+        window.location.reload();
+
+        // (The code below is maintained for semantic completeness, though reload() will execute immediately)
         setMatches([]);
         setActiveMatchIds([]);
         setAttendeeConfigs({});
-        setStep(1); // Return to Step 1 (Member Selection)
+        setStep(1); 
         setFixedPartners([]);
         setFixedTeamMode(false);
         setShowResetConfirm(false);
-        setSelectedIds(new Set()); // Clear selections for a fresh start
-        setTempGuests([]); // Clear temporary guests for a truly clean slate
+        setSelectedIds(new Set());
+        setTempGuests([]); 
         setHasSkippedGuestInfo(false);
         setShowCeremony(false);
         setActiveTab('MATCHES');
-
-        // Generate a fresh session ID for the next tournament run
-        const d = new Date();
-        const dateStr = d.toISOString().split('T')[0].replace(/-/g, '');
-        setSessionId(`KDK-${dateStr}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
-        
-        // Ensure UI stays interactive and member-aware
-        setIsMembersLoading(false); 
-        
-        // Sync to LocalStorage: Clear active session record
-        localStorage.removeItem('kdk_live_session');
     };
 
     const confirmReset = () => {
@@ -828,16 +823,19 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden pb-[250px]">
+            <main 
+                className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto"
+                style={{ paddingBottom: '320px' }}
+            >
                 
-                {/* Golden Ratio Header Spacer (24px) */}
-                <div className="h-[24px] w-full shrink-0" />
+                {/* Slim Executive Spacer (12px) */}
+                <div className="h-[12px] w-full shrink-0" />
 
-                <header className="grid grid-cols-3 px-6 mb-8 items-center h-16">
+                <header className="grid grid-cols-3 px-6 mb-2 items-center h-12">
                     <div className="flex items-center">
                         <button 
                             onClick={() => setShowResetConfirm(true)}
-                            className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
+                            className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
                             title="전체 데이터 초기화"
                         >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
@@ -846,9 +844,9 @@ export default function KDKPage() {
                     </div>
 
                     <div className="text-center flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1.5 inline-block">Step 01</span>
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block">Step 01</span>
                         <h1 className="text-2xl font-[1000] italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">참석자 확정</h1>
-                        <div className="mt-2.5 flex items-center justify-center gap-2 opacity-40">
+                        <div className="mt-2 flex items-center justify-center gap-2 opacity-40">
                              <div className="h-px w-3 bg-[#C9B075]/30" />
                              <span className="text-[8px] font-black text-white uppercase tracking-widest">{selectedIds.size} READY</span>
                              <div className="h-px w-3 bg-[#C9B075]/30" />
@@ -875,21 +873,22 @@ export default function KDKPage() {
                     </div>
                 </header>
 
-                <div className="flex-1 px-6 space-y-6 overflow-y-auto no-scrollbar pb-32">
+                <div className="px-6 space-y-6">
                     <DataStateView 
                         isLoading={isMembersLoading} 
                         isError={isMembersError}
                         onRetry={fetchMembers}
                         loadingComponent={
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-3 gap-2">
                                 {[...Array(12)].map((_, i) => <Skeleton key={i} size="lg" />)}
                             </div>
                         }
                     >
                         <section className="space-y-4">
-                            <div className="grid grid-cols-3 gap-3 py-2">
+                            <div className="grid grid-cols-3 gap-2 py-2">
                                 {[...allMembers, ...tempGuests].map(m => {
                                     const isSelected = selectedIds.has(m.id);
+                                    const isGuest = m.is_guest || m.id.startsWith('guest-');
                                     return (
                                         <div
                                             key={m.id}
@@ -900,15 +899,15 @@ export default function KDKPage() {
                                                 : 'bg-[#1A1A1A]/80 border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 shadow-lg'}`}
                                         >
                                             <span className="text-[15px] font-bold break-keep leading-tight px-1 drop-shadow-sm">
-                                                {m.nickname}{m.is_guest ? '(G)' : ''}
+                                                {m.nickname}{isGuest ? '(G)' : ''}
                                             </span>
-                                            {m.is_guest && <span className={`text-[8px] font-black uppercase mt-1 ${isSelected ? 'text-black/60' : 'text-[#C9B075]'}`}>Guest</span>}
+                                            {isGuest && <span className={`text-[8px] font-black uppercase mt-1 ${isSelected ? 'text-black/60' : 'text-[#C9B075]'}`}>Guest</span>}
                                         </div>
                                     );
                                 })}
 
                                 {showGuestInput ? (
-                                    <div className="h-16 rounded-2xl border border-[#D4AF37] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
+                                    <div className="h-20 rounded-2xl border border-[#C9B075] bg-black/40 px-2 flex items-center gap-1 animate-in zoom-in-95">
                                         <input
                                             autoFocus
                                             value={newGuestName}
@@ -918,12 +917,12 @@ export default function KDKPage() {
                                                 if (e.key === 'Escape') setShowGuestInput(false);
                                             }}
                                             placeholder="이름"
-                                            className="w-full bg-transparent text-sm font-black text-[#D4AF37] outline-none text-center"
+                                            className="w-full bg-transparent text-sm font-black text-[#C9B075] outline-none text-center"
                                         />
-                                        <button onClick={() => addQuickGuest()} className="text-[#D4AF37] font-black px-1">↵</button>
+                                        <button onClick={() => addQuickGuest()} className="text-[#C9B075] font-black px-1">↵</button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowGuestInput(true)} className="h-16 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
+                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
                                         <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
                                         <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
                                     </button>
@@ -933,8 +932,11 @@ export default function KDKPage() {
                     </DataStateView>
                 </div>
 
-                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0A0A0F] to-transparent z-20">
-                    <button onClick={handleStep1Confirm} className="w-full max-w-md mx-auto py-5 bg-[#D4AF37] text-black font-black text-lg rounded-[28px] shadow-2xl active:scale-95 flex items-center justify-center gap-2">
+                {/* Force Field Spacer (v14.0 "Non-Intelligent" Solution) */}
+                <div className="h-60 w-full shrink-0 px-6 block" />
+
+                <div className="fixed bottom-[160px] left-0 right-0 px-6 z-[100] pointer-events-none">
+                    <button onClick={handleStep1Confirm} className="w-full max-w-md mx-auto py-5 bg-[#C9B075] text-black font-black text-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] active:scale-95 flex items-center justify-center gap-2 pointer-events-auto">
                         참석자 확정 및 설정 ➡️
                     </button>
                 </div>
@@ -968,7 +970,10 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans w-full p-4 pb-48">
+            <main 
+                className="flex flex-col min-h-screen bg-[#14141F] text-white font-sans w-full relative overflow-y-auto no-scrollbar"
+                style={{ paddingBottom: '320px' }}
+            >
                 {((genMode === 'AWARD' || genMode === 'AGE') && !showGuestDataModal && !hasSkippedGuestInfo && attendees.some(m => m.is_guest && (attendeeConfigs[m.id]?.age === undefined || attendeeConfigs[m.id]?.isWinner === undefined))) && (
                     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
                         <div className="bg-[#1C1C28] border border-[#D4AF37]/30 rounded-[32px] p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95">
@@ -996,7 +1001,7 @@ export default function KDKPage() {
                     />
                 )}
 
-                <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4 text-center">
+                <header className="flex items-center justify-between px-6 pt-8 mb-4 gap-4 text-center">
                     <div className="flex items-center gap-2">
                         <button 
                             onClick={() => setStep(1)}
@@ -1015,8 +1020,8 @@ export default function KDKPage() {
                     </div>
 
                     <div className="flex-1 text-center flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase px-3 py-1 bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/20 mb-2 invisible sm:visible">Step 02</span>
-                        <h1 className="text-xl font-black italic tracking-tighter uppercase whitespace-nowrap">Tournament Dashboard</h1>
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block">Step 02</span>
+                        <h1 className="text-2xl font-[1000] italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
                     </div>
 
                     <div className="flex-1" />
@@ -1219,8 +1224,8 @@ export default function KDKPage() {
                     </div>
                 </div>
 
-                <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/95 to-transparent z-40 flex flex-col items-center gap-4 text-center">
-                    <button onClick={() => setStep(1)} className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em] hover:text-[#D4AF37]">Back to Attendance</button>
+                <div className="fixed bottom-[100px] left-0 right-0 p-6 z-40 flex flex-col items-center gap-4 text-center pointer-events-none">
+                    <button onClick={() => setStep(1)} className="text-[10px] font-black text-white/40 uppercase tracking-[0.5em] hover:text-[#C9B075] pointer-events-auto">Back to Attendance</button>
                 </div>
 
                 {showWarning && (
@@ -1237,8 +1242,11 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full pb-[250px] relative">
-            <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between gap-4 mb-2">
+        <main 
+            className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar"
+            style={{ paddingBottom: '320px' }}
+        >
+            <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setShowResetConfirm(true)}

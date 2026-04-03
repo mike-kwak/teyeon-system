@@ -44,7 +44,10 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#121212] px-5 pt-0 pb-[250px] w-full flex flex-col items-center overflow-x-hidden relative">
+    <main 
+      className="min-h-screen bg-[#121212] px-5 pt-0 w-full flex flex-col items-center overflow-x-hidden relative"
+      style={{ paddingBottom: '250px' }}
+    >
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center">
         
         {/* Perfect Balance Spacer (24px Header-to-Grid) */}

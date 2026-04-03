@@ -287,7 +287,7 @@ export default function ArchivePage() {
         </nav>
       )}
 
-      <section className="flex-1 px-6 pb-32">
+      <section className="flex-1 px-6 pb-[250px]">
         {loading ? (
             <div className="py-20 text-center animate-pulse"><div className="w-8 h-8 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p className="text-[10px] font-black text-[#D4AF37] tracking-widest uppercase">Initializing Vault...</p></div>
         ) : mainTab === 'RECORDS' ? (

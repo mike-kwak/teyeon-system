@@ -28,7 +28,7 @@ const Container = styled('main', {
   margin: '0 auto',
   width: '100%',
   backgroundColor: '$black',
-  paddingBottom: '110px',
+  paddingBottom: '250px',
 });
 
 const Header = styled('header', {

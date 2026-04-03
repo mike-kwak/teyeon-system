@@ -73,7 +73,7 @@ export default function NoticeListPage() {
 
 
   return (
-    <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-24 relative pt-6">
+    <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-[250px] relative pt-6">
       {isStaff && (
         <div className="px-6 mb-4 flex justify-end">
           <button 
