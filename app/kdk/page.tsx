@@ -1445,7 +1445,7 @@ export default function KDKPage() {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="relative bg-[#2a2a2a] rounded-xl p-4 border-l-4 border-[#C9B075] shadow-2xl border-y border-r border-[#494834]/20">
+                                            <div key={mId} className="relative bg-[#1b1b1b] rounded-xl p-4 border-l-4 border-[#C9B075] shadow-2xl border-y border-r border-[#494834]/20">
                                                 <div className="flex justify-between items-center">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex flex-col gap-0.5">
@@ -1493,38 +1493,29 @@ export default function KDKPage() {
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} className="space-y-3">
-                                            <div className="flex items-center gap-2 px-1">
-                                                <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] text-black font-black ${group === 'A' ? 'bg-[#D4AF37]' : 'bg-blue-500'}`}>{group}</span>
-                                                <h3 className="text-[12px] font-black text-white/80 uppercase tracking-wider">{group}조 대기 경기</h3>
+                                        <div key={group} className="space-y-4">
+                                            <div className="flex items-center gap-3 px-1">
+                                                <span className={`w-8 h-1 bg-[#C9B075] rounded-full`} />
+                                                <h3 className="text-[14px] font-black text-white/90 uppercase tracking-tighter">{group}조 대기 경기</h3>
                                             </div>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                {groupMatches.map(m => {
+                                            <div className="grid grid-cols-1 gap-1.5">
+                                                {groupMatches.map((m, idx) => {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className={`bg-[#1C1C20] border rounded-[20px] p-4 flex items-center justify-between gap-3 transition-all ${hasConflict ? 'opacity-30 border-white/5' : 'border-white/15 hover:border-[#D4AF37]/30'}`}>
-                                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-[9px] font-bold text-white/40 uppercase">Round {m.round}</span>
-                                                                    {hasConflict && (
-                                                                        <span className="text-[7px] font-black text-red-400/80 uppercase tracking-tighter">
-                                                                            경기중: {busyPlayers.map(pid => getPlayerName(pid)).join(', ')}
-                                                                        </span>
-                                                                    )}
+                                                        <div key={m.id} className={`flex items-center justify-between p-4 rounded-xl transition-colors ${hasConflict ? 'bg-[#1b1b1b]/40 opacity-40' : 'bg-[#1b1b1b] hover:bg-[#1f1f1f]'}`}>
+                                                            <div className="flex items-center gap-5">
+                                                                <span className="text-2xl font-black text-[#494834] italic tracking-tighter w-8 text-center shrink-0">{String(idx + 1).padStart(2, '0')}</span>
+                                                                <div className="min-w-0">
+                                                                    <p className="font-black text-[#e2e2e2] text-[14px] leading-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                                    <p className="text-[11px] font-bold text-[#94927a] mt-0.5">vs {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
+                                                                    {hasConflict && <p className="text-[9px] font-bold text-red-400/80 uppercase mt-0.5">● 경기중</p>}
                                                                 </div>
-                                                                <span className={`text-[13px] font-black leading-snug transition-colors ${hasConflict ? 'text-white/20' : 'text-white/90'}`}>
-                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}
-                                                                </span>
-                                                                <span className="text-[10px] font-bold text-[#D4AF37]/60">vs</span>
-                                                                <span className={`text-[13px] font-black leading-snug transition-colors ${hasConflict ? 'text-white/20' : 'text-white/90'}`}>
-                                                                    {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
-                                                                </span>
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`text-[11px] font-black uppercase px-4 py-3 rounded-xl shrink-0 transition-all active:scale-90 ${hasConflict ? 'bg-white/5 text-white/10 cursor-not-allowed' : 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:bg-[#C9B075]'}`}
+                                                                className={`shrink-0 text-[11px] font-black px-4 py-2.5 rounded-lg transition-all active:scale-90 uppercase ${hasConflict ? 'text-[#494834] cursor-not-allowed' : 'bg-[#C9B075] text-black hover:bg-[#b8a063]'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1540,18 +1531,18 @@ export default function KDKPage() {
 
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
-                                <h3 className="text-[10px] font-black text-[#D4AF37]/40 tracking-[0.3em] uppercase px-2">Completed Matches</h3>
+                                <h3 className="text-[10px] font-black text-[#C9B075]/40 tracking-[0.3em] uppercase px-2">Completed Matches</h3>
                                 <div className="grid grid-cols-1 gap-3">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
-                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/[0.02] border border-white/5 p-8 rounded-[32px] flex flex-col items-center gap-4 backdrop-blur-sm shadow-[0_4px_30px_rgba(0,0,0,0.4)] group">
-                                            <div className="flex items-center gap-8 w-full justify-center">
-                                                <span className="text-[12px] font-black text-white/50 truncate flex-1 text-right">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center px-6">
-                                                    <span className="text-4xl font-black text-[#4ADE80] drop-shadow-[0_0_15px_rgba(74,222,128,0.6)]">{m.score1} : {m.score2}</span>
+                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1b1b1b] border border-[#494834]/20 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
+                                            <div className="flex items-center gap-4 w-full justify-between">
+                                                <span className="text-[12px] font-black text-white/50 truncate flex-1 text-right leading-tight">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <div className="flex flex-col items-center px-4">
+                                                    <span className="text-3xl font-black text-[#C9B075]">{m.score1} : {m.score2}</span>
                                                 </div>
-                                                <span className="text-[12px] font-black text-white/50 truncate flex-1 text-left">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-[12px] font-black text-white/50 truncate flex-1 text-left leading-tight">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
-                                            <span className="text-[9px] font-black text-white/10 uppercase tracking-widest group-hover:text-[#C9B075]/60 transition-colors">Tap to edit result</span>
+                                            <span className="text-[8px] font-black text-white/10 uppercase tracking-widest">Tap to edit result</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1581,12 +1572,19 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[118px] left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60]">
-                <div className="mx-auto bg-[#1C1C24] border border-white/15 backdrop-blur-2xl rounded-full p-1.5 flex shadow-2xl">
-                    {(['MATCHES', 'RANKING'] as const).map(t => (
-                        <button key={t} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab(t); }} className={`flex-1 py-3.5 rounded-full text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/50 hover:text-white'}`}>{t === 'MATCHES' ? '🔥 Matches' : '📊 Ranking'}</button>
-                    ))}
-                </div>
+            <nav className="fixed bottom-32 left-1/2 -translate-x-1/2 rounded-full px-2 py-1 min-w-[280px] bg-[#2a2a2a]/95 backdrop-blur-lg shadow-2xl flex items-center justify-between gap-1 z-[60] border border-[#494834]/40">
+                <button 
+                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
+                    className={`rounded-full px-6 py-2.5 font-black text-[12px] flex items-center gap-2 transition-all active:scale-95 uppercase ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-lg' : 'text-[#94927a] hover:text-white'}`}
+                >
+                    🔥 Matches
+                </button>
+                <button 
+                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
+                    className={`rounded-full px-6 py-2.5 font-black text-[12px] flex items-center gap-2 transition-all active:scale-95 uppercase ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black shadow-lg' : 'text-[#94927a] hover:text-white'}`}
+                >
+                    📊 Ranking
+                </button>
             </nav>
 
             {/* Floating Ceremony Trigger Button (Visible when all matches scored) */}
