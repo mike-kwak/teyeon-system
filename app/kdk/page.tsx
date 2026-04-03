@@ -1440,27 +1440,27 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-4">
+                                <div className="flex flex-col gap-4 mt-6">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="bg-zinc-900/50 border border-white/10 p-6 rounded-2xl relative mb-4 active:scale-95 transition-all">
-                                                <div className="flex flex-col gap-4">
+                                            <div key={mId} className="bg-[#1a1a1a] border border-white/5 p-6 rounded-3xl relative mb-4 shadow-2xl active:scale-[0.98] transition-all overflow-hidden">
+                                                <div className="flex flex-col gap-5">
                                                     <div className="flex items-center">
-                                                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest bg-[#C9B075]/10 px-2 py-1 rounded">COURT {String(m.court).padStart(2, '0')}</span>
+                                                        <span className="text-[10px] font-[1000] text-[#C9B075] uppercase tracking-[0.2em] bg-[#C9B075]/10 px-3 py-1.5 rounded-full">COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-2xl font-black text-white uppercase tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <span className="text-2xl font-[1000] text-white uppercase tracking-tight leading-none">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
                                                         <div className="flex items-center gap-3">
-                                                            <span className="text-[11px] font-black text-white/20 uppercase italic">VS</span>
-                                                            <span className="text-xl font-black text-white/40 uppercase tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <span className="text-[12px] font-black text-white/20 uppercase italic tracking-tighter">VS</span>
+                                                            <span className="text-xl font-black text-white/40 uppercase tracking-tight leading-none">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="absolute top-6 right-6 bg-[#C9B075] text-black font-black text-[13px] px-6 py-2.5 rounded-xl shadow-lg active:scale-90 transition-all uppercase"
+                                                    className="absolute top-1/2 -translate-y-1/2 right-6 bg-[#C9B075] text-black font-[1000] text-[13px] px-7 py-3 rounded-full shadow-2xl shadow-[#C9B075]/20 active:scale-90 transition-all uppercase tracking-tight"
                                                 >
                                                     SCORE
                                                 </button>
@@ -1494,29 +1494,29 @@ export default function KDKPage() {
                                                 <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] shadow-[0_0_10px_rgba(201,176,117,0.5)]" />
                                                 <h3 className="text-xs font-black text-white/40 tracking-[0.4em] uppercase">{group}조 대기 순번</h3>
                                             </div>
-                                            <div className="flex flex-col gap-3">
+                                            <div className="flex flex-col gap-4 mt-6">
                                                 {groupMatches.map((m, idx) => {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-zinc-900/50 border border-white/5 p-5 rounded-2xl flex items-center justify-between gap-4 mb-3 active:scale-98 transition-all">
-                                                            <div className="flex flex-col gap-1 min-w-0 flex-1">
-                                                                <p className="text-lg font-black text-white uppercase tracking-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                        <div key={m.id} className="bg-[#1a1a1a] border border-white/5 p-5 rounded-2xl flex items-center justify-between gap-4 mb-4 active:scale-98 transition-all shadow-xl">
+                                                            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                                                                <p className="text-lg font-[1000] text-white/90 uppercase tracking-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-[10px] font-black text-[#C9B075] uppercase italic">VS</span>
+                                                                    <span className="text-[10px] font-black text-[#C9B075] uppercase italic tracking-widest bg-[#C9B075]/5 px-2 py-0.5 rounded">VS</span>
                                                                     <p className="text-sm font-black text-white/30 uppercase tracking-tight truncate">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
                                                                 </div>
                                                                 {hasConflict && (
-                                                                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#C9B075]/10 border border-[#C9B075]/20">
-                                                                        <span className="w-1 h-1 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                        <span className="text-[9px] font-black text-[#C9B075] uppercase italic">BUSY</span>
+                                                                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 border border-white/5 shadow-inner">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
+                                                                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-wider italic">BUSY PLAYER</span>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-6 py-3 rounded-full text-[11px] font-black uppercase transition-all ${hasConflict ? 'bg-white/5 text-white/10' : 'bg-[#C9B075] text-black active:scale-90 shadow-lg'}`}
+                                                                className={`px-8 py-4 rounded-full text-[12px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-white/5 text-white/10' : 'bg-[#C9B075] text-black active:scale-90 shadow-[#C9B075]/10 hover:brightness-110'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1550,10 +1550,10 @@ export default function KDKPage() {
                             </div>
                         )}
                         
-                        <div className="h-32" />
+                        <div className="h-40" />
                     </>
                 ) : (
-                    <div className="pb-32">
+                    <div className="pb-40">
                         <RankingView 
                             sessionMatches={matches} 
                             configs={attendeeConfigs} 
