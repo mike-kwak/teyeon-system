@@ -11,12 +11,78 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@theme {
+  /* Brand Colors (TEYEON Gold branding) */
+  --color-primary: #C9B075;
+  --color-primary-container: #C9B075;
+  --color-primary-fixed: #C9B075;
+  --color-primary-fixed-dim: #C9B075;
+  --color-secondary-container: #C9B075;
+  --color-secondary-fixed: #C9B075;
+  --color-secondary-fixed-dim: #C9B075;
+  --color-surface-tint: #C9B075;
+
+  /* Neutrals & Surfaces (Kinetic Style) */
+  --color-background: #131313;
+  --color-surface: #131313;
+  --color-surface-dim: #131313;
+  --color-surface-bright: #393939;
+  --color-surface-variant: #353535;
+  --color-surface-container-lowest: #0e0e0e;
+  --color-surface-container-low: #1b1b1b;
+  --color-surface-container: #1f1f1f;
+  --color-surface-container-high: #2a2a2a;
+  --color-surface-container-highest: #353535;
+
+  /* Typography & Accents */
+  --color-secondary: #ffffff;
+  --color-on-surface: #e2e2e2;
+  --color-on-surface-variant: #cbc7ad;
+  --color-on-background: #e2e2e2;
+  --color-outline: #94927a;
+  --color-outline-variant: #494834;
+  --color-inverse-surface: #e2e2e2;
+  --color-inverse-on-surface: #303030;
+  --color-inverse-primary: #646100;
+
+  /* Functional Colors */
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  /* Tertiary System */
+  --color-tertiary: #fff6f5;
+  --color-tertiary-container: #ffd1ca;
+  --color-tertiary-fixed: #ffdad5;
+  --color-tertiary-fixed-dim: #ffb4a9;
+  --color-on-tertiary: #690002;
+  --color-on-tertiary-container: #bf1713;
+  --color-on-tertiary-fixed: #410001;
+  --color-on-tertiary-fixed-variant: #930004;
+
+  /* Contrast Variants */
+  --color-on-primary: #343200;
+  --color-on-primary-container: #666300;
+  --color-on-primary-fixed: #1e1c00;
+  --color-on-primary-fixed-variant: #4b4900;
+  --color-on-secondary: #373100;
+  --color-on-secondary-container: #716500;
+  --color-on-secondary-fixed: #201c00;
+  --color-on-secondary-fixed-variant: #504700;
+
+  /* Fonts */
+  --font-geist: var(--font-geist);
+  --font-sans: var(--font-geist);
+  
+  /* Radius */
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+
+  /* Custom */
+  --color-accent: #C9B075;
 }
 
 body {

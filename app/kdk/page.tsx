@@ -1426,47 +1426,46 @@ export default function KDKPage() {
             <div className="flex-1 p-6 space-y-8 overflow-y-auto">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-2 mb-3">
-                                <h3 className="text-[11px] font-black text-white/40 tracking-[0.3em] uppercase">Now Playing</h3>
-                                {activeMatchIds.length > 0 && <span className="text-[9px] font-black text-[#D4AF37] bg-[#D4AF37]/15 px-3 py-1 rounded-full border border-[#D4AF37]/30">{activeMatchIds.length} ACTIVE</span>}
+                        <section>
+                            <div className="flex items-center gap-3 mb-5">
+                                <h2 className="text-2xl font-black tracking-tighter uppercase text-[#e2e2e2]">NOW PLAYING</h2>
+                                {activeMatchIds.length > 0 && (
+                                    <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/15 text-red-300 rounded-full text-[9px] font-bold tracking-widest uppercase border border-red-500/25">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                                        {activeMatchIds.length} LIVE
+                                    </span>
+                                )}
                             </div>
+
                             {activeMatchIds.length === 0 ? (
-                                <div className="py-20 text-center opacity-20 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">Waiting for next round...</div>
+                                <div className="py-14 text-center text-[#494834] border border-dashed border-[#494834]/40 rounded-xl text-[11px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-3">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
-                                        const p0 = m.playerIds[0];
-                                        const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
-                                        const isGroupB = (p0Group || 'A').toUpperCase().includes('B');
-
                                         return (
-                                            <div key={mId} className="group relative bg-[#1E1E28] border border-[#D4AF37]/30 rounded-[28px] p-5 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[160px]">
-                                                <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                                                    <span className={`text-[8px] font-black italic ${isGroupB ? 'text-blue-400' : 'text-[#D4AF37]'}`}>{isGroupB ? 'B' : 'A'}조</span>
-                                                </div>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); updateMatchCourt(mId); }}
-                                                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black italic text-[#D4AF37] border border-white/10"
-                                                >
-                                                    #{m.court}
-                                                </button>
-                                                <div onClick={() => { setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }} className="space-y-3">
-                                                    <div className="flex justify-between items-start px-1 pt-4">
-                                                        <div className="flex flex-col gap-1 max-w-[45%]">
-                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[0])}</p>
-                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[1])}</p>
-                                                        </div>
-                                                        <span className="text-[9px] font-black text-[#D4AF37]/60 italic pt-1 text-center flex-1">VS</span>
-                                                        <div className="flex flex-col gap-1 max-w-[45%] text-right">
-                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[2])}</p>
-                                                            <p className="text-[13px] font-black text-white truncate">{getPlayerName(m.playerIds[3])}</p>
+                                            <div key={mId} className="relative bg-[#2a2a2a] rounded-xl p-4 border-l-4 border-[#C9B075] shadow-2xl border-y border-r border-[#494834]/20">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-white tracking-tight text-[18px] font-black leading-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                            <span className="text-[#cbc7ad] tracking-tight text-[18px] font-black leading-tight truncate">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="w-full py-2.5 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-xl text-center mt-1">
-                                                        <span className="text-[9px] font-black text-[#D4AF37]/80 uppercase tracking-widest">탭하여 스코어 입력</span>
+                                                    <div className="ml-4 flex flex-col items-end gap-2 shrink-0">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); updateMatchCourt(mId); }} 
+                                                            className="text-[9px] font-black text-[#94927a] uppercase tracking-widest hover:text-[#C9B075] transition-colors"
+                                                        >
+                                                            COURT {String(m.court).padStart(2, '0')}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => { setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
+                                                            className="bg-[#C9B075] text-black text-[11px] font-black px-5 py-2.5 rounded-lg active:scale-95 transition-all shadow-lg uppercase"
+                                                        >
+                                                            SCORE
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1474,7 +1473,7 @@ export default function KDKPage() {
                                     })}
                                 </div>
                             )}
-                        </div>
+                        </section>
                         <div className="space-y-8">
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');

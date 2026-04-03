@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Rajdhani, Orbitron } from "next/font/google";
+import { Rajdhani, Orbitron, Geist } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -12,6 +12,11 @@ const rajdhani = Rajdhani({
   variable: "--font-rajdhani",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+});
+
+const geist = Geist({
+  variable: "--font-geist",
+  subsets: ["latin"],
 });
 
 const orbitron = Orbitron({
@@ -59,7 +64,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${rajdhani.variable} ${orbitron.variable} h-full antialiased`}
+      className={`${geist.variable} ${rajdhani.variable} ${orbitron.variable} h-full antialiased`}
       style={{ backgroundColor: '#0A0A0A', colorScheme: 'dark' }}
     >
       <body style={{ 
@@ -67,7 +72,7 @@ export default function RootLayout({
         margin: 0, 
         padding: 0, 
         minHeight: '100dvh',
-        fontFamily: 'var(--font-rajdhani), sans-serif',
+        fontFamily: 'var(--font-geist), var(--font-rajdhani), sans-serif',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start'
