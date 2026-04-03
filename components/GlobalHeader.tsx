@@ -117,7 +117,7 @@ export default function GlobalHeader() {
     <HeaderContainer>
       <LogoLink href="/">
         <span 
-          className="text-[25px] font-[1000] text-[#C9B075] tracking-[0.16em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
+          className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
           style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
         >
           TEYEON
