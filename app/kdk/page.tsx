@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-14 text-center text-[#494834] border border-dashed border-[#494834]/40 rounded-xl text-[11px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid gap-3">
+                                <div className="grid gap-3 mt-10">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1493,7 +1493,7 @@ export default function KDKPage() {
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} className="space-y-3 mb-8 last:mb-0">
+                                        <div key={group} className="space-y-4 mb-8 last:mb-0">
                                             <div className="flex items-center gap-3 px-1">
                                                 <span className="w-1 h-4 bg-[#C9B075] rounded-full" />
                                                 <h3 className="text-[11px] font-black text-white/40 tracking-[0.3em] uppercase">{group}조 대기 명단</h3>
@@ -1503,17 +1503,17 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#1b1b1b] rounded-xl p-4 flex items-center justify-between gap-4 shadow-xl border border-white/5">
-                                                            <div className="flex items-center gap-4 min-w-0">
-                                                                <span className="text-2xl font-black text-[#494834] italic shrink-0">{String(idx + 1).padStart(2, '0')}</span>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-white font-black text-sm uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-[9px] font-bold text-[#C9B075] italic uppercase tracking-tighter shrink-0">VS</span>
-                                                                        <p className="text-white/40 font-bold text-xs uppercase truncate tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
+                                                        <div key={m.id} className="bg-[#1b1b1b] rounded-xl p-5 flex items-center justify-between gap-4 shadow-xl border border-white/5">
+                                                            <div className="flex items-center gap-5 min-w-0">
+                                                                <span className="text-3xl font-[1000] text-[#3a3a3a] italic shrink-0 leading-none">{String(idx + 1).padStart(2, '0')}</span>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-white font-[1000] text-[15px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="text-[9px] font-black text-[#C9B075] italic uppercase tracking-tighter shrink-0">VS</span>
+                                                                        <p className="text-white/40 font-bold text-[13px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
                                                                     </div>
                                                                     {hasConflict && (
-                                                                        <p className="text-[8px] font-black text-[#C9B075] uppercase mt-1 flex items-center gap-1 opacity-60">
+                                                                        <p className="text-[8px] font-black text-[#C9B075] uppercase mt-1.5 flex items-center gap-1 opacity-60">
                                                                             <span className="w-1 h-1 rounded-full bg-[#C9B075] animate-pulse" /> BUSY
                                                                         </p>
                                                                     )}
@@ -1522,7 +1522,7 @@ export default function KDKPage() {
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`shrink-0 text-[10px] font-black px-4 py-2 rounded-lg transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/5 text-[#494834]' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10'}`}
+                                                                className={`shrink-0 text-[10px] font-black px-5 py-3 rounded-xl transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/5 text-[#494834]' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10 hover:brightness-110'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1579,7 +1579,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-32 left-1/2 -translate-x-1/2 rounded-full px-2 py-1.5 min-w-[320px] bg-[#2a2a2a]/95 backdrop-blur-lg shadow-2xl flex items-center justify-between gap-1 z-[70] border border-white/10">
+            <nav className="fixed bottom-32 left-1/2 -translate-x-1/2 rounded-full px-2 py-1.5 min-w-[320px] bg-[#2a2a2a]/90 backdrop-blur-md shadow-2xl flex items-center justify-between gap-1 z-[70] border border-white/10">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-full py-3 font-black text-[13px] flex items-center justify-center gap-2 transition-all active:scale-95 uppercase ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/40 hover:text-white'}`}
