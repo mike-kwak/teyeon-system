@@ -1426,7 +1426,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-6 overflow-y-auto pb-[calc(180px+env(safe-area-inset-bottom))] no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="mt-8 relative z-10">
+                        <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3 mb-6">
                                 <h1 className="text-3xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h1>
                                 {activeMatchIds.length > 0 && (
@@ -1445,22 +1445,22 @@ export default function KDKPage() {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="bg-zinc-900 border border-white/5 p-6 rounded-2xl relative mb-4 shadow-xl active:scale-95 transition-all">
-                                                <div className="flex flex-col gap-5">
+                                            <div key={mId} style={{ backgroundColor: '#18181b', borderRadius: '16px', padding: '20px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', borderLeft: '6px solid #C9B075', position: 'relative' }}>
+                                                <div className="flex flex-col gap-4">
                                                     <div className="flex items-center">
                                                         <span className="text-[10px] font-bold text-[#C9B075] uppercase tracking-[0.2em] bg-[#C9B075]/10 px-3 py-1.5 rounded-full">COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
                                                     <div className="flex flex-col gap-1.5">
-                                                        <span className="text-2xl font-bold text-white uppercase tracking-tight leading-none">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                        <span style={{ fontSize: '20px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: '1.2' }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
                                                         <div className="flex items-center gap-3">
-                                                            <span className="text-[12px] font-black text-white/20 uppercase italic tracking-tighter">VS</span>
-                                                            <span className="text-xl font-black text-white/40 uppercase tracking-tight leading-none">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <span style={{ fontSize: '12px', fontWeight: '1000', color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', textTransform: 'uppercase' }}>VS</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '1000', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="absolute top-1/2 -translate-y-1/2 right-6 bg-[#C9B075] text-black font-bold text-[13px] px-7 py-3 rounded-full shadow-2xl shadow-[#C9B075]/20 active:scale-90 transition-all uppercase tracking-tight"
+                                                    style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: '20px', backgroundColor: '#C9B075', color: 'black', fontWeight: '900', padding: '8px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px' }}
                                                 >
                                                     SCORE
                                                 </button>
@@ -1489,7 +1489,7 @@ export default function KDKPage() {
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} className="space-y-4 mb-10 last:mb-0">
+                                        <div key={group} style={{ marginTop: '24px', marginBottom: '40px' }}>
                                             <div className="flex items-center gap-3 px-1">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] shadow-[0_0_10px_rgba(201,176,117,0.5)]" />
                                                 <h3 className="text-xs font-black text-white/40 tracking-[0.4em] uppercase">{group}조 대기 순번</h3>
@@ -1499,24 +1499,24 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-zinc-900 border border-white/5 p-5 rounded-2xl flex items-center justify-between gap-4 mb-4 active:scale-98 transition-all shadow-lg">
+                                                        <div key={m.id} style={{ backgroundColor: '#18181b', borderRadius: '16px', padding: '20px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'between', gap: '16px' }}>
                                                             <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                                                                <p className="text-lg font-bold text-white/90 uppercase tracking-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                                <p style={{ fontSize: '20px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-[10px] font-black text-[#C9B075] uppercase italic tracking-widest bg-[#C9B075]/5 px-2 py-0.5 rounded">VS</span>
-                                                                    <p className="text-sm font-black text-white/30 uppercase tracking-tight truncate">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
+                                                                    <span style={{ fontSize: '10px', fontWeight: '1000', color: '#C9B075', fontStyle: 'italic', textTransform: 'uppercase' }}>VS</span>
+                                                                    <p style={{ fontSize: '14px', fontWeight: '1000', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
                                                                 </div>
                                                                 {hasConflict && (
-                                                                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 border border-white/5 shadow-inner">
+                                                                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 border border-white/5">
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-wider italic">BUSY PLAYER</span>
+                                                                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-wider italic">BUSY</span>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-8 py-4 rounded-full text-[12px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-white/5 text-white/10' : 'bg-[#C9B075] text-black active:scale-90 shadow-[#C9B075]/10 hover:brightness-110'}`}
+                                                                style={{ padding: '12px 24px', borderRadius: '99px', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', backgroundColor: hasConflict ? 'rgba(255,255,255,0.05)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black' }}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
