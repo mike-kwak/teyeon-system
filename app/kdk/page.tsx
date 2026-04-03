@@ -943,7 +943,7 @@ export default function KDKPage() {
                         
                         <button 
                             onClick={handleStep1Confirm} 
-                            className="w-full py-5 bg-[#D4AF37] text-black font-[1000] text-lg rounded-[28px] shadow-[0_0_30px_rgba(212,175,55,0.6)] border-2 border-white/60 active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
+                            className="w-full py-5 bg-black text-[#D4AF37] font-[1000] text-lg rounded-[28px] shadow-[0_0_40px_rgba(212,175,55,0.4)] border-2 border-[#D4AF37] active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
                         >
                             참석자 확정 및 설정 ➡️
                         </button>
