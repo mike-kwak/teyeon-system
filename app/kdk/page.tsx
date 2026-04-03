@@ -1029,7 +1029,7 @@ export default function KDKPage() {
                     </section>
 
                     {/* Attendee Matrix Section */}
-                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-6">
+                    <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-6 relative z-10">
                         <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-[1000] text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
@@ -1041,7 +1041,7 @@ export default function KDKPage() {
                             {attendees.map(m => {
                                 const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
                                 return (
-                                    <div key={m.id} className="bg-black/40 border border-white/5 rounded-[24px] p-4 flex items-center justify-between gap-4 group hover:border-[#D4AF37]/20 transition-all">
+                                    <div key={m.id} className="bg-[#121212] border border-white/5 rounded-[24px] p-4 flex items-center justify-between gap-4 group hover:border-[#D4AF37]/20 transition-all">
                                         <div className="flex flex-col min-w-[80px]">
                                             <span className="text-[14px] font-[1000] text-white/90 group-hover:text-[#D4AF37] transition-colors">{m.name}</span>
                                             <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter">{m.is_guest ? 'Guest (G)' : 'Member'}</span>
@@ -1054,19 +1054,19 @@ export default function KDKPage() {
                                                 >
                                                     <span className="text-xl text-inherit">🕒</span>
                                                 </button>
-                                                <div className="flex items-center gap-2 bg-white/5 rounded-2xl px-2 py-1 border border-white/10">
-                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-transparent text-[13px] font-black text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
+                                                <div className="flex items-center gap-2 bg-[#1C1C1C] rounded-2xl px-2 py-1 border border-white/10">
+                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-transparent text-[14px] font-[1000] text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
                                                         {timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C28]">{t}</option>)}
                                                     </select>
-                                                    <span className="text-[10px] font-[1000] text-gray-400">TO</span>
-                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} className="bg-transparent text-[13px] font-black text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
+                                                    <span className="text-[10px] font-[1000] text-gray-500">TO</span>
+                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} className="bg-transparent text-[14px] font-[1000] text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
                                                         {timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C28]">{t}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
                                             <div className="flex bg-[#121212] rounded-[20px] border border-white/5 p-1.5 shadow-inner gap-1">
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-black shadow-lg scale-105 ring-2 ring-[#C9B075]/30' : 'border border-gray-400 text-white hover:bg-white/10'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#E5E7EB] text-black shadow-xl ring-2 ring-white/30' : 'border border-gray-400 text-white hover:bg-white/10'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'A' ? 'bg-[#C9B075] text-[#121212] shadow-lg scale-105 ring-2 ring-[#C9B075]' : 'border border-[#333] text-gray-500 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">A</span></button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${config.group === 'B' ? 'bg-[#C9B075] text-[#121212] shadow-lg scale-105 ring-2 ring-[#C9B075]' : 'border border-[#333] text-gray-500 hover:bg-white/5'}`}><span className="text-[16px] font-[1000] leading-none">B</span></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1076,22 +1076,22 @@ export default function KDKPage() {
                     </section>
 
                     {/* Generation Strategy Section */}
-                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8">
+                    <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-12 relative z-10 w-full overflow-hidden">
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 CORE STRATEGY
                             </h4>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-4">
                                 {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
-                                    <button key={mode} onClick={() => setGenMode(mode)} className={`py-5 rounded-[24px] border-[1.5px] text-[11px] font-black transition-all ${genMode === mode ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_10px_25px_rgba(212,175,55,0.3)] scale-105 z-10' : 'bg-white/5 border-white/10 text-white/30 hover:border-white/20'}`}>
+                                    <button key={mode} onClick={() => setGenMode(mode)} className={`py-6 rounded-[24px] border-2 text-[14px] font-[1000] transition-all ${genMode === mode ? 'bg-[#0A0A0A] border-[#D4AF37] text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.4)] scale-105' : 'bg-[#121212] border-[#222] text-gray-500 hover:border-[#444] hover:text-gray-300'}`}>
                                         {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE SPLIT' : mode === 'AWARD' ? 'HISTORY' : 'MBTI'}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-6 mt-10">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                     <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
@@ -1102,45 +1102,45 @@ export default function KDKPage() {
                                 </button>
                             </div>
                             
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                                 {fixedPartners.map((pair, idx) => (
-                                    <div key={idx} className="flex items-center justify-between bg-black/40 p-4 rounded-[20px] border border-white/5">
-                                        <div className="flex items-center gap-4 text-[13px] font-black text-white/80">
+                                    <div key={idx} className="flex items-center justify-between bg-[#121212] p-5 rounded-[24px] border border-[#333]">
+                                        <div className="flex items-center gap-6 text-[15px] font-[1000] text-white">
                                             <span>{getPlayerName(pair[0])}</span>
-                                            <span className="text-[#D4AF37] scale-125">♥</span>
+                                            <span className="text-[#D4AF37] scale-150 drop-shadow-[0_0_10px_rgba(212,175,55,0.5)]">♥</span>
                                             <span>{getPlayerName(pair[1])}</span>
                                         </div>
-                                        <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-red-500/50 hover:bg-red-500/10 hover:text-red-500 transition-all text-xl leading-none">×</button>
+                                        <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
                                     </div>
                                 ))}
                                 <button 
                                     onClick={() => setPartnerSelectSource('NEW')} 
-                                    className="w-full py-5 border-2 border-dashed border-white/10 rounded-[24px] text-[11px] font-black text-white/20 uppercase hover:bg-white/[0.03] hover:text-white/50 hover:border-white/20 transition-all"
+                                    className="w-full py-6 border-2 border-dashed border-[#555] rounded-[24px] text-[13px] font-[1000] text-gray-300 uppercase hover:text-white hover:border-[#777] transition-all bg-[#121212]"
                                 >
-                                    + Add Fixed Partner Pair
+                                    + ADD FIXED PARTNER
                                 </button>
                             </div>
                         </div>
                     </section>
 
                     {/* Constraints & Rules Section */}
-                    <section className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-10 mt-10">
+                    <section className="bg-[#1A1A1A] border border-white/10 rounded-[40px] p-8 space-y-10 mt-10 relative z-10 w-full overflow-hidden">
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 CONSTRAINTS
                             </h4>
                             <div className="space-y-5">
-                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
-                                    <span className="text-[13px] font-black text-gray-300 uppercase tracking-[0.1em]">Total Courts</span>
+                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
+                                    <span className="text-[13px] font-[1000] text-gray-200 uppercase tracking-[0.1em]">Total Courts</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
                                         <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[30px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{totalCourts}</span>
                                         <button onClick={() => setTotalCourts(totalCourts + 1)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
-                                    <span className="text-[13px] font-black text-gray-300 uppercase tracking-[0.1em]">Match Mins</span>
+                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
+                                    <span className="text-[13px] font-[1000] text-gray-200 uppercase tracking-[0.1em]">Match Mins</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
                                         <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[50px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{matchTime}</span>
@@ -1156,18 +1156,18 @@ export default function KDKPage() {
                                 FINANCIALS
                             </h4>
                             <div className="space-y-5">
-                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
-                                    <span className="text-[13px] font-black text-gray-300 uppercase tracking-[0.1em]">Prize Gold</span>
+                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
+                                    <span className="text-[13px] font-[1000] text-gray-200 uppercase tracking-[0.1em]">Prize Gold</span>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
                                         <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(firstPrize/1000).toFixed(0)}k</span>
                                         <button onClick={() => setFirstPrize(firstPrize + 5000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
+                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
                                     <div className="flex flex-col">
-                                        <span className="text-[13px] font-black text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 25%~50%</span>
+                                        <span className="text-[13px] font-[1000] text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 25%~50%</span>
                                     </div>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
@@ -1175,10 +1175,10 @@ export default function KDKPage() {
                                         <button onClick={() => setBottom25Late(bottom25Late + 1000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-black/40 px-6 py-8 rounded-[28px] border border-white/5 shadow-md">
+                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
                                     <div className="flex flex-col">
-                                        <span className="text-[13px] font-black text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 0%~25%</span>
+                                        <span className="text-[13px] font-[1000] text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 0%~25%</span>
                                     </div>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
@@ -1189,7 +1189,7 @@ export default function KDKPage() {
                             </div>
                         </div>
 
-                        <div className="pt-8 border-t border-white/10 space-y-4">
+                        <div className="pt-8 border-t border-[#333] space-y-4">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
                                 TOURNAMENT RULES
@@ -1197,12 +1197,15 @@ export default function KDKPage() {
                             <textarea 
                                 value={matchRules} 
                                 onChange={(e) => setMatchRules(e.target.value)} 
-                                className="w-full bg-black/40 border border-white/10 rounded-[28px] p-8 text-[14px] font-bold text-white/60 min-h-[160px] outline-none focus:border-[#D4AF37]/50 focus:text-white transition-all no-scrollbar shadow-inner" 
+                                className="w-full bg-[#121212] border border-[#222] rounded-[28px] p-8 text-[15px] font-[1000] text-white/80 min-h-[160px] outline-none focus:border-[#D4AF37]/50 focus:text-white transition-all shadow-inner break-words" 
                                 placeholder="Edit tournament rules, policies, and local ground conventions..." 
                             />
                         </div>
                     </section>
                 </div>
+                
+                {/* Physical Scroll Enforcer */}
+                <div className="h-40 w-full" />
 
                 {/* Fixed Footer: Action Anchor (bottom-36) */}
                 <div className="fixed bottom-[140px] left-0 right-0 px-6 z-[70] pointer-events-none text-center">
@@ -1212,8 +1215,8 @@ export default function KDKPage() {
                         
                         <button 
                             disabled={isGenerating}
-                            className={`w-full py-5 rounded-[28px] font-[1000] text-lg shadow-[0_0_50px_rgba(255,255,255,0.7)] border-2 active:scale-95 flex items-center justify-center gap-3 transition-all
-                            ${isGenerating ? 'bg-white/10 text-white/20 border-white/5' : 'bg-white text-[#0A0A0F] border-white'}`}
+                            className={`w-full py-6 rounded-[32px] font-[1000] text-xl shadow-[0_0_50px_rgba(255,255,255,0.5)] border-4 active:scale-95 flex items-center justify-center gap-4 transition-all
+                            ${isGenerating ? 'bg-[#1C1C1C] text-gray-500 border-[#333]' : 'bg-[#000000] text-[#FFFFFF] border-white drop-shadow-2xl'}`}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
                         </button>
