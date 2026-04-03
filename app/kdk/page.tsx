@@ -823,7 +823,7 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden">
+            <main className="flex flex-col h-screen bg-[#121212] text-white font-sans w-full max-w-[480px] mx-auto relative overflow-hidden">
                 
                 {/* Elite Compact Header Spacer (4px) */}
                 <div className="h-1 w-full shrink-0" />
@@ -936,9 +936,8 @@ export default function KDKPage() {
                 </div>
 
                 {/* Fixed Footer: Action Anchor (bottom-28) */}
-                <div className="fixed bottom-[112px] left-0 right-0 px-6 z-[70] pointer-events-none">
-                    <div className="max-w-md mx-auto relative">
-                        {/* High-Contrast Separation Layer */}
+                <div className="fixed bottom-[112px] left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-[70] pointer-events-none">
+                    <div className="relative">
                         <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#121212] via-[#121212]/80 to-transparent backdrop-blur-md rounded-[40px] -z-10" />
                         
                         <button 
@@ -979,7 +978,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full relative overflow-y-auto no-scrollbar">
+            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full max-w-[480px] mx-auto relative overflow-y-auto no-scrollbar pb-40">
                 
                 {/* Elite Compact Header Spacer (4px) */}
 
@@ -1253,11 +1252,9 @@ export default function KDKPage() {
                     </section>
                 </div>
                 
-                {/* Physical Scroll Enforcer — h-40 ONLY */}
-                <div style={{ height: '160px', width: '100%', flexShrink: 0 }} />
-
+                
                 {/* Fixed Generate Button */}
-                <div style={{ position: 'fixed', bottom: '88px', left: 0, right: 0, padding: '0 20px', zIndex: 9999, pointerEvents: 'none' }}>
+                <div style={{ position: 'fixed', bottom: '88px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
                     <div style={{ maxWidth: '448px', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
                             disabled={isGenerating}
@@ -1353,7 +1350,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full max-w-[480px] mx-auto relative overflow-y-auto no-scrollbar pb-32">
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
@@ -1563,7 +1560,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-50">
+            <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-50">
                 <div className="max-w-xs mx-auto bg-white/5 border border-white/10 backdrop-blur-2xl rounded-full p-1.5 flex shadow-2xl">
                     {(['MATCHES', 'RANKING'] as const).map(t => (
                         <button key={t} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab(t); }} className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}>{t === 'MATCHES' ? '🔥 Matches' : '📊 Ranking'}</button>
@@ -1573,7 +1570,7 @@ export default function KDKPage() {
 
             {/* Floating Ceremony Trigger Button (Visible when all matches scored) */}
             {allMatchesScored && step === 3 && activeTab === 'MATCHES' && (
-                <div className="fixed bottom-24 left-0 right-0 px-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
                     <button 
                         onClick={handleStartCeremony}
                         className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-[1000] rounded-[28px] shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"

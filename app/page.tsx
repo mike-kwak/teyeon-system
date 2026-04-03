@@ -45,7 +45,7 @@ export default function Home() {
 
   return (
     <main 
-      className="min-h-screen bg-[#121212] px-5 pt-0 w-full flex flex-col items-center overflow-x-hidden relative"
+      className="min-h-screen bg-[#121212] px-5 pt-0 w-full max-w-[480px] mx-auto flex flex-col items-center overflow-x-hidden relative"
       style={{ paddingBottom: '250px' }}
     >
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center">
