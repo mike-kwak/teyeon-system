@@ -935,9 +935,9 @@ export default function KDKPage() {
                                         <button onClick={() => addQuickGuest()} className="text-[#C9B075] font-black px-1">↵</button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-[#D4AF37]/40 bg-[#D4AF37]/5 text-[#D4AF37] flex flex-col items-center justify-center active:scale-95 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]/60 transition-all group">
-                                        <span className="text-3xl font-bold group-hover:scale-125 transition-transform text-[#D4AF37] leading-none mb-1">+</span>
-                                        <span className="text-[9px] font-black uppercase tracking-tighter text-[#D4AF37]">ADD GUEST</span>
+                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-[#C9B075]/40 bg-[#C9B075]/5 text-[#C9B075] flex flex-col items-center justify-center active:scale-95 hover:bg-[#C9B075]/10 hover:border-[#C9B075]/60 transition-all group">
+                                        <span className="text-3xl font-bold group-hover:scale-125 transition-transform text-[#C9B075] leading-none mb-1">+</span>
+                                        <span className="text-[9px] font-black uppercase tracking-tighter text-[#C9B075]">ADD GUEST</span>
                                     </button>
                                 )}
                             </div>
@@ -955,7 +955,7 @@ export default function KDKPage() {
                         
                         <button 
                             onClick={handleStep1Confirm} 
-                            className="w-full py-5 bg-black text-[#D4AF37] font-[1000] text-lg rounded-[28px] shadow-[0_0_40px_rgba(212,175,55,0.4)] border-2 border-[#D4AF37] active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
+                            className="w-full py-5 bg-black text-[#C9B075] font-[1000] text-lg rounded-[28px] shadow-[0_0_40px_rgba(212,175,55,0.4)] border-2 border-[#C9B075] active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
                         >
                             참석자 확정 및 설정 ➡️
                         </button>
@@ -1029,14 +1029,14 @@ export default function KDKPage() {
                     {/* Archive Identity Section */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" />
                             <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3>
                         </div>
                         <input 
                             type="text" 
                             value={sessionTitle} 
                             onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#D4AF37]/50 focus:bg-white/[0.08] transition-all outline-none"
+                            className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#C9B075]/50 focus:bg-white/[0.08] transition-all outline-none"
                             placeholder="Ex: 2026-03-27 테연 정기전"
                         />
                     </section>
@@ -1044,8 +1044,8 @@ export default function KDKPage() {
                     {/* Attendee Matrix Section */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="flex items-center justify-between">
-                            <h3 className="text-[13px] font-[1000] text-[#D4AF37] tracking-[0.3em] uppercase flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                            <h3 className="text-[13px] font-[1000] text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
                                 ATTENDEE MATRIX
                             </h3>
                             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
@@ -1098,8 +1098,8 @@ export default function KDKPage() {
                     {/* Generation Strategy Section */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="space-y-6">
-                            <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                            <h4 className="text-[13px] font-[1000] text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
                                 CORE STRATEGY
                             </h4>
                             <div className="grid grid-cols-2 gap-4" style={{ marginTop: '20px' }}>
@@ -1128,8 +1128,8 @@ export default function KDKPage() {
 
                         <div className="space-y-6 mt-10">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                    <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                                <h4 className="text-[13px] font-[1000] text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3">
+                                    <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
                                     FIXED PARTNERS
                                 </h4>
                                 <button
@@ -1187,8 +1187,8 @@ export default function KDKPage() {
                     {/* Constraints & Rules Section */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '28px 24px', marginTop: '12px', overflow: 'visible' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37', flexShrink: 0, display: 'inline-block' }} />
+                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#C9B075', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C9B075', flexShrink: 0, display: 'inline-block' }} />
                                 CONSTRAINTS
                             </h4>
                             {/* Total Courts */}
@@ -1196,7 +1196,7 @@ export default function KDKPage() {
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{totalCourts}</span>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{totalCourts}</span>
                                     <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
@@ -1205,7 +1205,7 @@ export default function KDKPage() {
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
                                     <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
@@ -1253,8 +1253,8 @@ export default function KDKPage() {
 
                         {/* Tournament Rules */}
                         <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #333' }}>
-                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37', flexShrink: 0, display: 'inline-block' }} />
+                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#C9B075', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C9B075', flexShrink: 0, display: 'inline-block' }} />
                                 TOURNAMENT RULES
                             </h4>
                             <textarea
@@ -1307,7 +1307,7 @@ export default function KDKPage() {
                             {/* Header */}
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                 <div>
-                                    <div style={{ fontSize: '11px', fontWeight: 900, color: '#D4AF37', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
+                                    <div style={{ fontSize: '11px', fontWeight: 900, color: '#C9B075', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
                                     <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>SELECT PARTNER</h3>
                                 </div>
                                 <button onClick={() => setPartnerSelectSource(null)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
@@ -1382,22 +1382,22 @@ export default function KDKPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all hover:bg-[#D4AF37]/20" title="대진표 공유">📋</button>
-                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center text-[#D4AF37] text-sm active:scale-90 transition-all hover:bg-[#D4AF37]/20" title="결과 보고">🏆</button>
+                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
+                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
                 </div>
             </header>
 
             <div className="px-6 mb-8">
-                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#D4AF37]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative overflow-hidden">
+                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative overflow-hidden">
                     <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                            <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Tournament Info</span>
-                            <button onClick={() => setShowMemberEditModal(true)} className="text-[#D4AF37] text-[9px] font-black underline underline-offset-4 decoration-[#D4AF37]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
+                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
+                            <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[9px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
                         </div>
                         <input 
                             value={sessionTitle} 
                             onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#D4AF37]/20 transition-all"
+                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all"
                             placeholder="Session Title"
                         />
                     </div>
@@ -1408,14 +1408,14 @@ export default function KDKPage() {
                             <input 
                                 value={matchRules} 
                                 onChange={(e) => setMatchRules(e.target.value)}
-                                className="w-full bg-black/20 border border-white/5 rounded-xl px-3 h-10 text-[9px] font-bold text-white/60 outline-none focus:border-[#D4AF37]/20 truncate"
+                                className="w-full bg-black/20 border border-white/5 rounded-xl px-3 h-10 text-[9px] font-bold text-white/60 outline-none focus:border-[#C9B075]/20 truncate"
                                 placeholder="Rules..."
                             />
                         </div>
                         <div className="space-y-1">
                             <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
                             <div className="bg-black/20 border border-white/5 rounded-xl p-3 space-y-1">
-                                <p className="text-[9px] font-bold text-[#D4AF37]">🥇 {firstPrize.toLocaleString()}원</p>
+                                <p className="text-[9px] font-bold text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</p>
                                 <p className="text-[9px] font-bold text-red-400/80">📉 {bottom25Late.toLocaleString()}~{bottom25Penalty.toLocaleString()}원</p>
                             </div>
                         </div>
@@ -1440,25 +1440,26 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid gap-3">
+                                <div className="flex flex-col gap-4">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="relative group bg-[#1e1e1e] rounded-2xl px-4 py-8 border border-white/5 border-l-8 border-l-[#C9B075] shadow-2xl mb-4 last:mb-0 z-50 transition-all active:scale-[0.98]">
-                                                <div className="flex flex-col gap-4">
+                                            <div key={mId} className="relative group bg-[#1e1e1e] rounded-2xl border border-white/5 shadow-2xl mb-4 last:mb-0 z-50 transition-all active:scale-[0.98] overflow-hidden">
+                                                <div className="absolute left-0 top-0 w-2 h-full bg-[#C9B075] z-20" />
+                                                <div className="pl-8 py-8 pr-6 flex flex-col gap-4 relative z-10">
                                                     <div className="flex items-center">
                                                         <span className="text-[10px] font-black text-[#94927a] uppercase tracking-widest bg-white/5 px-2 py-1 rounded">COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3 flex-wrap">
-                                                        <span className="text-white tracking-tighter text-2xl font-black truncate uppercase leading-none">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-white font-black text-2xl truncate uppercase leading-none">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
                                                         <span className="shrink-0 text-[11px] font-black text-white/20 uppercase tracking-tighter italic">VS</span>
-                                                        <span className="text-white tracking-tighter text-2xl font-black truncate uppercase leading-none">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                        <span className="text-white font-black text-2xl truncate uppercase leading-none">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="absolute top-6 right-6 bg-[#C9B075] text-black text-[13px] font-black px-6 py-3 rounded-xl active:scale-95 transition-all shadow-xl shadow-[#C9B075]/20 uppercase tracking-tight"
+                                                    className="absolute top-6 right-6 bg-[#C9B075] text-black text-[13px] font-black px-6 py-3 rounded-xl active:scale-95 transition-all shadow-xl shadow-[#C9B075]/20 uppercase tracking-tight z-30"
                                                 >
                                                     SCORE
                                                 </button>
@@ -1497,8 +1498,8 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="relative bg-[#1e1e1e] rounded-2xl p-6 flex items-center justify-between gap-4 shadow-xl border border-white/5 mb-3 last:mb-0 overflow-hidden group transition-all active:scale-[0.98]">
-                                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-5xl font-black italic text-white/5 pointer-events-none group-hover:text-white/10 transition-all">{String(idx + 1).padStart(2, '0')}</div>
+                                                        <div key={m.id} className="relative bg-[#1e1e1e] rounded-2xl p-5 flex items-center justify-between gap-4 shadow-xl border border-white/5 mb-3 last:mb-0 overflow-hidden group transition-all active:scale-[0.98]">
+                                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-4xl font-black italic text-white/10 pointer-events-none group-hover:text-white/20 transition-all">{String(idx + 1).padStart(2, '0')}</div>
                                                             <div className="flex items-center gap-4 min-w-0 flex-1 relative z-10 pl-14">
                                                                 <div className="min-w-0 flex-1">
                                                                     <p className="text-white font-black text-[16px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
@@ -1517,7 +1518,7 @@ export default function KDKPage() {
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`relative z-10 shrink-0 text-[11px] font-black px-6 py-4 rounded-full transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/5 text-white/10 shadow-inner' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10 hover:brightness-110 active:brightness-90'}`}
+                                                                className={`relative z-10 shrink-0 text-[11px] font-black px-6 py-4 rounded-full transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/10 text-white/20 shadow-inner' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10 hover:brightness-110 active:brightness-90'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1548,9 +1549,11 @@ export default function KDKPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <div className="h-[calc(128px+env(safe-area-inset-bottom))]" />
                             </div>
                         )}
+                        
+                        <div className="h-40" />
+                        <div className="h-[calc(128px+env(safe-area-inset-bottom))]" />
                     </>
                 ) : (
                     <div className="pb-40">
@@ -1595,7 +1598,7 @@ export default function KDKPage() {
                 <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60] animate-in slide-in-from-bottom-10 fade-in duration-500">
                     <button 
                         onClick={handleStartCeremony}
-                        className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-[1000] rounded-[28px] shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
+                        className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-[1000] rounded-[28px] shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
                     >
                         <span>🏆 즉시 순위 및 축하 화면 보러가기</span>
                     </button>
@@ -1634,8 +1637,8 @@ export default function KDKPage() {
                     <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setShowScoreModal(null)}></div>
                     <div className="relative w-full max-w-lg bg-[#14141F] border-t border-white/10 rounded-t-[40px] p-8 pb-10 shadow-2xl animate-in slide-in-from-bottom duration-300">
                         <header className="flex flex-col items-center gap-2 mb-8 text-center px-4">
-                            <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase">Set Final Result</span>
-                            <div className="mt-2 py-2 px-6 bg-[#D4AF37]/10 rounded-2xl border border-[#D4AF37]/20">
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Set Final Result</span>
+                            <div className="mt-2 py-2 px-6 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20">
                                 <h3 className="text-xl font-black italic text-white tracking-tight">🏆 WINNER SELECTION</h3>
                             </div>
                         </header>
@@ -1643,7 +1646,7 @@ export default function KDKPage() {
                             {[0, 1].map(side => (
                                 <div key={side} className="flex flex-col gap-4">
                                     <span className="text-[10px] font-black text-white/40 uppercase tracking-widest text-center truncate">{getPlayerName(activeMatchForScore.playerIds[side*2])} & {getPlayerName(activeMatchForScore.playerIds[side*2+1])}</span>
-                                    <div className="text-5xl font-black text-[#D4AF37] text-center mb-2">{side === 0 ? tempScores.s1 : tempScores.s2}</div>
+                                    <div className="text-5xl font-black text-[#C9B075] text-center mb-2">{side === 0 ? tempScores.s1 : tempScores.s2}</div>
                                     <div className="grid grid-cols-3 gap-2">
                                         {[0,1,2,3,4,5,6].map(n => (
                                             <button 
@@ -1653,7 +1656,7 @@ export default function KDKPage() {
                                                     const val = Math.min(6, Math.max(0, n));
                                                     setTempScores(p => side === 0 ? ({ ...p, s1: val }) : ({ ...p, s2: val }));
                                                 }} 
-                                                className={`h-12 rounded-xl text-lg font-black transition-all ${ (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#D4AF37] text-black scale-105' : 'bg-white/5 text-white/30'}`}
+                                                className={`h-12 rounded-xl text-lg font-black transition-all ${ (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#C9B075] text-black scale-105' : 'bg-white/5 text-white/30'}`}
                                             >
                                                 {n}
                                             </button>
@@ -1664,7 +1667,7 @@ export default function KDKPage() {
                         </div>
                         <div className="flex gap-4">
                             <button onClick={() => setShowScoreModal(null)} className="flex-1 py-5 bg-white/5 border border-white/10 text-white font-black rounded-[28px] uppercase text-xs tracking-widest">Cancel</button>
-                            <button disabled={tempScores.s1 === tempScores.s2} onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="flex-[2] py-5 bg-[#D4AF37] text-black font-black rounded-[28px] uppercase text-xs tracking-widest shadow-xl disabled:opacity-20 font-black">Confirm Score 🏆</button>
+                            <button disabled={tempScores.s1 === tempScores.s2} onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="flex-[2] py-5 bg-[#C9B075] text-black font-black rounded-[28px] uppercase text-xs tracking-widest shadow-xl disabled:opacity-20 font-black">Confirm Score 🏆</button>
                         </div>
                     </div>
                 </div>
@@ -1678,7 +1681,7 @@ export default function KDKPage() {
                     </header>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
                         <section className="space-y-4">
-                            <h3 className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase">Toggle Active Players</h3>
+                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Toggle Active Players</h3>
                             <div className="grid grid-cols-4 gap-3">
                                 {[...allMembers, ...tempGuests].map(m => {
                                     const isSelected = selectedIds.has(m.id);
@@ -1695,7 +1698,7 @@ export default function KDKPage() {
                                             }}
                                             className={`h-16 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
                                             ${isSelected 
-                                                ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg scale-105' 
+                                                ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg scale-105' 
                                                 : 'bg-white/[0.05] border-white/10 text-white/40'}
                                             ${isBusy ? 'opacity-30 border-dashed cursor-not-allowed' : ''}`}
                                         >
@@ -1714,7 +1717,7 @@ export default function KDKPage() {
                         <button 
                             disabled={isGenerating}
                             onClick={handleMemberEditConfirm}
-                            className={`w-full py-5 rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#D4AF37] text-black'}`}
+                            className={`w-full py-5 rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#C9B075] text-black'}`}
                         >
                             {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
                         </button>
@@ -1775,7 +1778,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
             <div className="relative w-full max-w-md bg-[#1C1C28] border border-white/10 rounded-[40px] p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-8">
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase mb-1">Guest Registry</span>
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-1">Guest Registry</span>
                         <h3 className="text-xl font-black italic text-white tracking-tighter uppercase">게스트 상세 정보</h3>
                     </div>
                     <button onClick={onClose} className="text-white/20 text-3xl">×</button>
@@ -1788,7 +1791,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                             <div key={g.id} className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-black text-white">{g.name}</span>
-                                    <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em] bg-[#D4AF37]/10 px-2 py-1 rounded">Guest</span>
+                                    <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.2em] bg-[#C9B075]/10 px-2 py-1 rounded">Guest</span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -1798,14 +1801,14 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                                             placeholder="나이"
                                             value={conf.age || ''}
                                             onChange={(e) => onSave(g.id, parseInt(e.target.value) || 0, !!conf.isWinner)}
-                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#D4AF37]/50"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#C9B075]/50"
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Winner? (입상여부)</label>
                                         <button 
                                             onClick={() => onSave(g.id, conf.age || 0, !conf.isWinner)}
-                                            className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all ${conf.isWinner ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
+                                            className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all ${conf.isWinner ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
                                         >
                                             {conf.isWinner ? '🏆 YES (OB)' : 'NO (YB)'}
                                         </button>
@@ -1819,7 +1822,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                 <div className="pt-4">
                     <button 
                         onClick={onClose}
-                        className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
+                        className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
                     >
                         Save & Continue ➡️
                     </button>
@@ -1852,9 +1855,9 @@ function ArchiveSection({ onLoad }: { onLoad: (session: any) => void }) {
             <h3 className="text-[10px] font-black text-white/30 tracking-[0.3em] uppercase px-2 flex items-center gap-2">📦 Load History</h3>
             <div className="space-y-2">
                 {archives.map(a => (
-                    <button key={a.id} onClick={() => handleLoad(a)} className="w-full bg-white/[0.03] border border-white/5 p-4 rounded-[20px] flex items-center justify-between group hover:border-[#D4AF37]/30 transition-all text-left">
+                    <button key={a.id} onClick={() => handleLoad(a)} className="w-full bg-white/[0.03] border border-white/5 p-4 rounded-[20px] flex items-center justify-between group hover:border-[#C9B075]/30 transition-all text-left">
                         <div className="flex flex-col"><span className="text-xs font-black text-white/60">{a.note?.startsWith('{') ? JSON.parse(a.note).title : a.note}</span><span className="text-[8px] font-bold text-white/20 uppercase">{new Date(a.created_at).toLocaleDateString()}</span></div>
-                        <span className="text-[10px] font-black text-[#D4AF37]">OPEN →</span>
+                        <span className="text-[10px] font-black text-[#C9B075]">OPEN →</span>
                     </button>
                 ))}
             </div>
@@ -1959,7 +1962,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
     const RankingTable = ({ players, title }: { players: any[], title: string }) => (
         <section className="space-y-4 mb-8">
-            <h3 className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase px-2 flex items-center justify-between">
+            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase px-2 flex items-center justify-between">
                 <span>{title}</span>
                 <span className="text-white/20">{players.length} Players</span>
             </h3>
@@ -1971,7 +1974,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             <th onClick={() => toggleSort('name')} className="py-5 px-2 text-left cursor-pointer hover:text-white transition-colors">Player {sortKey === 'name' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th className="py-5 px-1 text-center">Fine</th>
                             <th onClick={() => toggleSort('diff')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">Diff {sortKey === 'diff' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th onClick={() => toggleSort('age')} className="py-5 px-1 text-center cursor-pointer hover:text-[#D4AF37] transition-colors text-[#D4AF37]/60">Age {sortKey === 'age' && (sortDir === 'asc' ? '▴' : '▾')}</th>
+                            <th onClick={() => toggleSort('age')} className="py-5 px-1 text-center cursor-pointer hover:text-[#C9B075] transition-colors text-[#C9B075]/60">Age {sortKey === 'age' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th onClick={() => toggleSort('wins')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">W {sortKey === 'wins' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th onClick={() => toggleSort('losses')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">L {sortKey === 'losses' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th className="py-5 px-1 text-center">Gm</th>
@@ -1984,14 +1987,14 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
                             const isBottom = isPenaltyTier || isFineTier;
                             return (
-                                <tr key={p.id} className={`border-t border-white/5 last:border-0 hover:bg-white/[0.04] transition-all ${isWinner ? 'bg-[#D4AF37]/5' : isBottom ? 'bg-red-500/[0.02]' : ''}`}>
-                                    <td className={`py-5 px-4 text-center font-black italic ${isWinner ? 'text-[#D4AF37] text-lg' : isBottom ? 'text-red-500/40' : 'text-white/20'}`}>
+                                <tr key={p.id} className={`border-t border-white/5 last:border-0 hover:bg-white/[0.04] transition-all ${isWinner ? 'bg-[#C9B075]/5' : isBottom ? 'bg-red-500/[0.02]' : ''}`}>
+                                    <td className={`py-5 px-4 text-center font-black italic ${isWinner ? 'text-[#C9B075] text-lg' : isBottom ? 'text-red-500/40' : 'text-white/20'}`}>
                                         {isWinner ? '👑' : players.findIndex((x: any) => x.id === p.id) + 1}
                                     </td>
                                     <td className="py-5 px-2">
                                         <div className="flex flex-col">
-                                            <span className={`font-bold ${isWinner ? 'text-[#D4AF37] text-base' : 'text-white'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
-                                            {isWinner && <span className="text-[9px] font-black text-[#D4AF37]/60 uppercase tracking-widest">Tournament MVP</span>}
+                                            <span className={`font-bold ${isWinner ? 'text-[#C9B075] text-base' : 'text-white'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
+                                            {isWinner && <span className="text-[9px] font-black text-[#C9B075]/60 uppercase tracking-widest">Tournament MVP</span>}
                                         </div>
                                     </td>
                                     <td className={`py-5 px-1 text-center font-black text-xs ${amount > 0 ? 'text-[#4ADE80]' : amount < 0 ? 'text-red-500' : 'text-white/20'}`}>
@@ -2005,7 +2008,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     <td className="py-5 px-1 text-center font-bold text-red-500/60">{p.losses}</td>
                                     <td className="py-5 px-1 text-center font-bold text-white/20">{p.games}</td>
                                     <td className="py-5 px-4 text-right font-black text-[10px] whitespace-nowrap">
-                                        <span className={`px-2 py-1 rounded-lg ${amount > 0 ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : amount < 0 ? 'bg-red-500/10 text-red-500' : 'text-white/20'}`}>
+                                        <span className={`px-2 py-1 rounded-lg ${amount > 0 ? 'bg-[#C9B075]/10 text-[#C9B075]' : amount < 0 ? 'bg-red-500/10 text-red-500' : 'text-white/20'}`}>
                                             {note || '-'}
                                         </span>
                                     </td>
@@ -2068,13 +2071,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         <div className="space-y-6 pb-40 relative overflow-hidden">
             {/* Celebration Ceremony Header */}
             {ceremonyMode && (
-                <div className="py-8 px-4 bg-gradient-to-b from-[#D4AF37]/20 to-transparent border-t-2 border-[#D4AF37]/40 animate-in fade-in slide-in-from-top-4 duration-1000">
+                <div className="py-8 px-4 bg-gradient-to-b from-[#C9B075]/20 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000">
                     <div className="flex flex-col items-center text-center space-y-3">
-                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase animate-pulse">Official Results Announced</span>
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase animate-pulse">Official Results Announced</span>
                         <h2 className="text-3xl font-[1000] italic text-white tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">
                             🏆 오늘 대회의 최종 순위입니다!
                         </h2>
-                        <div className="h-0.5 w-12 bg-[#D4AF37] rounded-full mx-auto" />
+                        <div className="h-0.5 w-12 bg-[#C9B075] rounded-full mx-auto" />
                     </div>
                 </div>
             )}
@@ -2084,7 +2087,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     {[...Array(20)].map((_, i) => (
                         <div 
                             key={i} 
-                            className="absolute top-[-10px] w-2 h-2 bg-[#D4AF37] rounded-full animate-confetti-fall"
+                            className="absolute top-[-10px] w-2 h-2 bg-[#C9B075] rounded-full animate-confetti-fall"
                             style={{ 
                                 left: `${Math.random() * 100}%`, 
                                 animationDelay: `${Math.random() * 2}s`,
@@ -2114,20 +2117,20 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </button>
                 <button 
                     onClick={copyFinalResults}
-                    className="flex-1 py-4 bg-[#D4AF37] text-black text-[11px] font-black uppercase tracking-widest rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+                    className="flex-1 py-4 bg-[#C9B075] text-black text-[11px] font-black uppercase tracking-widest rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
                 >
                     <span>🏆 최종결과 공유</span>
                 </button>
             </div>
 
             {/* Stage 3: Official Staff Closure (Final archival button) */}
-            <div className="mt-12 bg-[#000000] border border-[#D4AF37]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="mt-12 bg-[#000000] border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                     <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
                 </div>
                 <div className="text-center space-y-2">
-                    <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.4em] uppercase block">Tournament Official Closure</span>
-                    <h4 className="text-xl font-black italic text-white tracking-tighter uppercase underline decoration-[#D4AF37]/30 underline-offset-4">대회 결과 최종 확정 및 저장</h4>
+                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase block">Tournament Official Closure</span>
+                    <h4 className="text-xl font-black italic text-white tracking-tighter uppercase underline decoration-[#C9B075]/30 underline-offset-4">대회 결과 최종 확정 및 저장</h4>
                     <p className="text-[10px] text-white/30 font-medium max-w-[200px] mx-auto leading-relaxed">이 버튼을 누르면 오늘의 경기 기록이 아카이브로 전송되며, 라이브 대진표가 종료됩니다.</p>
                 </div>
 
@@ -2135,7 +2138,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     <button 
                         onClick={onFinalize}
                         disabled={isGenerating}
-                        className="w-full py-5 bg-[#D4AF37] text-black text-[13px] font-[1000] rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-none outline-none"
+                        className="w-full py-5 bg-[#C9B075] text-black text-[13px] font-[1000] rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-none outline-none"
                     >
                         <span>📅 공식 종료 및 데이터 보존 🚀</span>
                         {isGenerating && <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>}
@@ -2164,12 +2167,12 @@ function WarningModal({ message, onClose }: { message: string, onClose: () => vo
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase underline decoration-[#D4AF37]/30 underline-offset-4">Warning</h3>
+                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase underline decoration-[#C9B075]/30 underline-offset-4">Warning</h3>
                     <p className="text-sm font-bold text-white/60 leading-relaxed whitespace-pre-wrap">{message}</p>
                 </div>
                 <button 
                     onClick={onClose}
-                    className="w-full py-4 bg-[#D4AF37] text-black font-black rounded-[20px] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
+                    className="w-full py-4 bg-[#C9B075] text-black font-black rounded-[20px] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
                 >
                     확인했습니다
                 </button>
@@ -2191,11 +2194,11 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                 }
             `}</style>
             <div className="w-full max-w-xs bg-[#1E1E2E] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
-                <div className="w-20 h-20 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/20 flex items-center justify-center">
                     <span className="text-4xl">⚠️</span>
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-xl font-black text-[#D4AF37] italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
+                    <h3 className="text-xl font-black text-[#C9B075] italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
                     <p className="text-sm font-bold text-white/60 leading-relaxed">{message}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 w-full">
@@ -2207,7 +2210,7 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                     </button>
                     <button 
                         onClick={onConfirm}
-                        className="py-5 bg-[#D4AF37] text-black font-black rounded-2xl shadow-[0_10px_20px_rgba(212,175,55,0.3)] active:scale-95 transition-all text-[12px] uppercase tracking-widest"
+                        className="py-5 bg-[#C9B075] text-black font-black rounded-2xl shadow-[0_10px_20px_rgba(212,175,55,0.3)] active:scale-95 transition-all text-[12px] uppercase tracking-widest"
                     >
                         데이터 초기화
                     </button>
