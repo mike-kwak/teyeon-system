@@ -885,7 +885,7 @@ export default function KDKPage() {
                         }
                     >
                         <section className="space-y-4">
-                            <div className="grid grid-cols-3 gap-1.5 py-1">
+                            <div className="grid grid-cols-3 gap-3 py-1">
                                 {[...allMembers, ...tempGuests].map(m => {
                                     const isSelected = selectedIds.has(m.id);
                                     const isGuest = m.is_guest || m.id.startsWith('guest-');
@@ -893,10 +893,10 @@ export default function KDKPage() {
                                         <div
                                             key={m.id}
                                             onClick={() => toggleMember(m.id)}
-                                            className={`h-20 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
+                                            className={`h-22 rounded-[24px] border-2 transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
                                             ${isSelected 
-                                                ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-[0_8px_30px_rgba(201,176,117,0.3)] scale-105 z-10' 
-                                                : 'bg-[#1A1A1A]/80 border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 shadow-lg'}`}
+                                                ? 'bg-[#C9B075] border-white/20 text-black shadow-[0_10px_25px_rgba(201,176,117,0.4)] scale-100 z-10' 
+                                                : 'bg-[#1A1A1A] border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 scale-95 opacity-80 shadow-lg'}`}
                                         >
                                             <span className="text-[15px] font-bold break-keep leading-tight px-1 drop-shadow-sm">
                                                 {m.nickname}{isGuest ? '(G)' : ''}
