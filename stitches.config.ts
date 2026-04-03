@@ -14,11 +14,11 @@ export const {
     colors: {
       black: '#000000',
       white: '#ffffff',
-      gold: '#D4AF37',
+      gold: '#C9B075',
       goldLight: '#F3E5AB',
       goldGlint: '#FFD700', // Electric Yellow/Gold
-      goldMuted: 'rgba(212, 175, 55, 0.15)',
-      goldGlass: 'rgba(212, 175, 55, 0.03)',
+      goldMuted: 'rgba(201, 176, 117, 0.15)',
+      goldGlass: 'rgba(201, 176, 117, 0.03)',
       carbon: '#0A0A0A',
       gray950: '#050505',
       gray900: '#0A0A0A',
@@ -98,9 +98,9 @@ export const {
       sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
       md: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
       lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-      gold: '0 0 15px rgba(212, 175, 55, 0.3)',
-      goldGlow: '0 0 30px rgba(212, 175, 55, 0.5)',
-      goldAura: '0 0 50px rgba(212, 175, 55, 0.2)',
+      gold: '0 0 15px rgba(201, 176, 117, 0.3)',
+      goldGlow: '0 0 30px rgba(201, 176, 117, 0.5)',
+      goldAura: '0 0 50px rgba(201, 176, 117, 0.2)',
       glass: 'inset 0 0 20px rgba(255, 255, 255, 0.02), 0 15px 35px rgba(0, 0, 0, 0.9)',
       volumetric: 'inset 0 2px 4px rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.8)',
       inner: 'inset 0 2px 10px rgba(0, 0, 0, 0.8)',
@@ -109,7 +109,7 @@ export const {
       blackGold: 'linear-gradient(135deg, $gray900, $black)',
       diagonal: 'linear-gradient(135deg, rgba(25, 25, 25, 1) 0%, rgba(5, 5, 5, 1) 100%)',
       carbon: 'linear-gradient(135deg, #0A0A0A 0%, #000000 100%)',
-      shimmer: 'linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent)',
+      shimmer: 'linear-gradient(90deg, transparent, rgba(201, 176, 117, 0.1), transparent)',
     },
     zIndices: {
       hide: -1,
@@ -156,14 +156,14 @@ export const {
     size: (value: any) => ({ width: value, height: value }),
     
     borderGlow: (value: any) => ({
-      border: `1px solid ${value || 'rgba(212, 175, 55, 0.3)'}`,
-      filter: `drop-shadow(0 0 2px ${value || 'rgba(212, 175, 55, 0.4)'})`,
+      border: `1px solid ${value || 'rgba(201, 176, 117, 0.3)'}`,
+      filter: `drop-shadow(0 0 2px ${value || 'rgba(201, 176, 117, 0.4)'})`,
     }),
     
     volumetricBox: () => ({
       background: 'linear-gradient(135deg, #151515 0%, #050505 100%)',
       boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05), 0 10px 20px rgba(0,0,0,0.8)',
-      border: '1px solid rgba(212, 175, 55, 0.15)',
+      border: '1px solid rgba(201, 176, 117, 0.15)',
     }),
   },
 });
