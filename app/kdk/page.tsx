@@ -1177,8 +1177,8 @@ export default function KDKPage() {
                                 CONSTRAINTS
                             </h4>
                             {/* Total Courts */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#E5E7EB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                     <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '32px', textAlign: 'center' }}>{totalCourts}</span>
@@ -1186,8 +1186,8 @@ export default function KDKPage() {
                                 </div>
                             </div>
                             {/* Match Mins */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#E5E7EB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                     <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '50px', textAlign: 'center' }}>{matchTime}</span>
@@ -1202,8 +1202,8 @@ export default function KDKPage() {
                                 FINANCIALS
                             </h4>
                             {/* Prize Gold */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#E5E7EB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                     <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center' }}>{(firstPrize/1000).toFixed(0)}k</span>
@@ -1211,7 +1211,7 @@ export default function KDKPage() {
                                 </div>
                             </div>
                             {/* Tier 1 Fine */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#FACC15', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 1 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
@@ -1223,7 +1223,7 @@ export default function KDKPage() {
                                 </div>
                             </div>
                             {/* Tier 2 Fine */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 2 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
@@ -1250,6 +1250,9 @@ export default function KDKPage() {
                             />
                         </div>
                     </section>
+
+                    {/* Elite Bottom Spacer (h-44) */}
+                    <div className="h-44 w-full shrink-0" />
                 </div>
                 
                 
