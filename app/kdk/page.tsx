@@ -932,17 +932,22 @@ export default function KDKPage() {
                     </DataStateView>
                     
                     {/* Invisible Spacer to prevent list from being hidden behind fixed button */}
-                    <div className="h-40 w-full shrink-0" />
+                    <div className="h-44 w-full shrink-0" />
                 </div>
 
-                {/* Fixed Footer for Step 1 Action */}
-                <div className="fixed bottom-[128px] left-0 right-0 px-6 z-[60] bg-gradient-to-t from-[#121212] via-[#121212]/95 to-transparent pt-8 pb-4 pointer-events-none">
-                    <button 
-                        onClick={handleStep1Confirm} 
-                        className="w-full max-w-md mx-auto py-5 bg-[#D4AF37] text-black font-black text-lg rounded-[28px] shadow-[0_20px_50px_rgba(212,175,55,0.4)] border border-white/30 active:scale-95 flex items-center justify-center gap-2 pointer-events-auto"
-                    >
-                        참석자 확정 및 설정 ➡️
-                    </button>
+                {/* Fixed Footer: Action Anchor (bottom-28) */}
+                <div className="fixed bottom-[112px] left-0 right-0 px-6 z-[70] pointer-events-none">
+                    <div className="max-w-md mx-auto relative">
+                        {/* High-Contrast Separation Layer */}
+                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#121212] via-[#121212]/80 to-transparent backdrop-blur-md rounded-[40px] -z-10" />
+                        
+                        <button 
+                            onClick={handleStep1Confirm} 
+                            className="w-full py-5 bg-[#D4AF37] text-black font-[1000] text-lg rounded-[28px] shadow-[0_15px_40px_rgba(212,175,55,0.4)] border-2 border-white/40 active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
+                        >
+                            참석자 확정 및 설정 ➡️
+                        </button>
+                    </div>
                 </div>
 
                 {showResetConfirm && (
