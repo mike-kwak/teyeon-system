@@ -828,34 +828,34 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden pb-[200px]">
+            <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden pb-[250px]">
                 
                 {/* Golden Ratio Header Spacer (24px) */}
                 <div className="h-[24px] w-full shrink-0" />
 
-                <header className="flex items-center justify-between px-6 mb-8 gap-4">
-                    <div className="flex items-center gap-2">
+                <header className="grid grid-cols-3 px-6 mb-8 items-center h-16">
+                    <div className="flex items-center">
                         <button 
                             onClick={() => setShowResetConfirm(true)}
                             className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
                             title="전체 데이터 초기화"
                         >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            <span className="text-[9px] font-black uppercase tracking-tighter">초기화</span>
                         </button>
                     </div>
 
-                    <div className="flex-[2] text-center flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#D4AF37] tracking-[0.5em] uppercase px-3 py-1 bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/20 mb-2 inline-block">Step 01</span>
-                        <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap">참석자 확정</h1>
-                        <div className="mt-3 flex items-center justify-center gap-2">
-                             <div className="h-px w-4 bg-[#D4AF37]/30" />
-                             <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{selectedIds.size} PLAYERS READY</span>
-                             <div className="h-px w-4 bg-[#D4AF37]/30" />
+                    <div className="text-center flex flex-col items-center">
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1.5 inline-block">Step 01</span>
+                        <h1 className="text-2xl font-[1000] italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">참석자 확정</h1>
+                        <div className="mt-2.5 flex items-center justify-center gap-2 opacity-40">
+                             <div className="h-px w-3 bg-[#C9B075]/30" />
+                             <span className="text-[8px] font-black text-white uppercase tracking-widest">{selectedIds.size} READY</span>
+                             <div className="h-px w-3 bg-[#C9B075]/30" />
                         </div>
                     </div>
 
-                    <div className="flex-1 flex justify-end">
+                    <div className="flex justify-end">
                         <ManualRecoveryButton 
                             onRestore={(data) => {
                                  setMatches(data.matches || []);
@@ -899,7 +899,7 @@ export default function KDKPage() {
                                                 ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-[0_8px_30px_rgba(201,176,117,0.3)] scale-105 z-10' 
                                                 : 'bg-[#1A1A1A]/80 border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 shadow-lg'}`}
                                         >
-                                            <span className="text-[12px] font-[1000] break-keep leading-tight px-1 drop-shadow-sm">
+                                            <span className="text-[15px] font-bold break-keep leading-tight px-1 drop-shadow-sm">
                                                 {m.nickname}{m.is_guest ? '(G)' : ''}
                                             </span>
                                             {m.is_guest && <span className={`text-[8px] font-black uppercase mt-1 ${isSelected ? 'text-black/60' : 'text-[#C9B075]'}`}>Guest</span>}
@@ -1237,7 +1237,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full pb-[220px] relative">
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full pb-[250px] relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-2">
                     <button 
