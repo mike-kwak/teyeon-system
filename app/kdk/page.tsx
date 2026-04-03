@@ -1118,7 +1118,7 @@ export default function KDKPage() {
                                             transition: 'all 0.15s'
                                         }}
                                     >
-                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE (YB vs OB)' : mode === 'AWARD' ? 'AWARD (입상 vs 비입상)' : 'MBTI'}
+                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
                                     </button>
                                 ))}
                             </div>
@@ -1192,7 +1192,7 @@ export default function KDKPage() {
                             {/* Total Courts */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', height: '44px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', height: '44px' }}>
                                     <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '40px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '44px' }}>{totalCourts}</span>
                                     <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
@@ -1201,7 +1201,7 @@ export default function KDKPage() {
                             {/* Match Mins */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', height: '44px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', height: '44px' }}>
                                     <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '60px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '44px' }}>{matchTime}</span>
                                     <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
@@ -1217,7 +1217,7 @@ export default function KDKPage() {
                             {/* Prize Gold */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', height: '44px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', height: '44px' }}>
                                     <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '44px' }}>{(firstPrize/1000).toFixed(0)}k</span>
                                     <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
@@ -1229,7 +1229,7 @@ export default function KDKPage() {
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#FACC15', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 1 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', height: '44px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', height: '44px' }}>
                                     <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '44px' }}>{(bottom25Late/1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
@@ -1241,7 +1241,7 @@ export default function KDKPage() {
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 2 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', height: '44px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', height: '44px' }}>
                                     <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '44px' }}>{(bottom25Penalty/1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
