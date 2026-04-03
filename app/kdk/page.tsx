@@ -472,7 +472,7 @@ export default function KDKPage() {
         try {
             const attendees = Array.from(selectedIds).map(id => {
                 const m = allMembers.find(x => x.id === id) || tempGuests.find(x => x.id === id);
-                const conf = attendeeConfigs[id] || { group: 'A', startTime: '18:00', endTime: '22:00' };
+                const conf = attendeeConfigs[id] || { group: 'A', startTime: '19:00', endTime: '22:00' };
                 return {
                     id,
                     name: m?.nickname || "Unknown",
@@ -565,7 +565,7 @@ export default function KDKPage() {
             // Re-map players
             const attendees = Array.from(selectedIds).map(id => {
                 const m = allMembers.find(x => x.id === id) || tempGuests.find(x => x.id === id);
-                const conf = attendeeConfigs[id] || { group: 'A', startTime: '18:00', endTime: '22:00' };
+                const conf = attendeeConfigs[id] || { group: 'A', startTime: '19:00', endTime: '22:00' };
                 return {
                     id,
                     name: m?.nickname || "Unknown",
@@ -1105,7 +1105,7 @@ export default function KDKPage() {
                                             transition: 'all 0.15s'
                                         }}
                                     >
-                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE SPLIT' : mode === 'AWARD' ? 'HISTORY' : 'MBTI'}
+                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'AGE (YB vs OB)' : mode === 'AWARD' ? 'AWARD (입상 vs 비입상)' : 'MBTI'}
                                     </button>
                                 ))}
                             </div>
@@ -1192,6 +1192,22 @@ export default function KDKPage() {
                                     <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '60px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '44px' }}>{matchTime}</span>
                                     <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
+                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#4ADE80', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ADE80', flexShrink: 0, display: 'inline-block' }} />
+                                FINANCIALS
+                            </h4>
+                            {/* Prize Gold */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{(firstPrize/1000).toFixed(0)}k</span>
+                                    <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                                 </div>
                             </div>
                         </div>
