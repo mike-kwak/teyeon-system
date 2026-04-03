@@ -979,7 +979,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[500px]">
+            <main className="flex flex-col min-h-screen bg-[#111111] text-white font-sans w-full relative overflow-y-auto no-scrollbar">
                 
                 {/* Elite Compact Header Spacer (4px) */}
 
@@ -1158,12 +1158,12 @@ export default function KDKPage() {
                                 <button 
                                     onClick={() => setPartnerSelectSource('NEW')}
                                     style={{
-                                        width: '100%', padding: '28px 0',
-                                        border: '1px dashed #666',
-                                        borderRadius: '24px',
-                                        fontSize: '16px',
-                                        fontWeight: 1000,
-                                        color: '#D4D4D4',
+                                        width: '100%', padding: '14px 0',
+                                        border: '1px dashed #555',
+                                        borderRadius: '20px',
+                                        fontSize: '13px',
+                                        fontWeight: 900,
+                                        color: '#A0A0A0',
                                         background: '#141414',
                                         cursor: 'pointer',
                                         textTransform: 'uppercase',
@@ -1178,7 +1178,7 @@ export default function KDKPage() {
                     </section>
 
                     {/* Constraints & Rules Section */}
-                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginTop: '12px', overflow: 'visible' }}>
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px 32px 32px 36px', marginTop: '12px', overflow: 'visible' }}>
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
                                 <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
@@ -1258,8 +1258,8 @@ export default function KDKPage() {
                     </section>
                 </div>
                 
-                {/* Physical Scroll Enforcer */}
-                <div style={{ height: '256px', width: '100%', flexShrink: 0 }} />
+                {/* Physical Scroll Enforcer — h-40 ONLY */}
+                <div style={{ height: '160px', width: '100%', flexShrink: 0 }} />
 
                 {/* Fixed Footer: Action Anchor - INLINE FORCED */}
                 <div style={{ position: 'fixed', bottom: '144px', left: 0, right: 0, padding: '0 24px', zIndex: 9999, textAlign: 'center', pointerEvents: 'none' }}>
@@ -1277,14 +1277,15 @@ export default function KDKPage() {
                                 color: isGenerating ? '#6B7280' : '#000000',
                                 border: isGenerating ? '3px solid #333' : '3px solid #A89060',
                                 fontSize: '18px',
-                                fontWeight: 1000,
+                                fontWeight: 900,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '12px',
                                 cursor: isGenerating ? 'not-allowed' : 'pointer',
-                                boxShadow: isGenerating ? 'none' : '0 0 40px rgba(201,176,117,0.5)',
-                                transition: 'all 0.15s'
+                                boxShadow: isGenerating ? 'none' : '0 0 30px rgba(201,176,117,0.4)',
+                                transition: 'all 0.15s',
+                                WebkitTextFillColor: isGenerating ? '#6B7280' : '#000000'
                             }}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
