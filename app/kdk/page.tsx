@@ -1445,25 +1445,22 @@ export default function KDKPage() {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="relative group bg-[#1a1a1a] rounded-xl p-6 border border-white/5 border-l-4 border-l-[#C9B075] shadow-2xl mb-6 last:mb-0 z-50 min-h-[144px] flex items-center transition-all">
-                                                <div className="flex justify-between items-center w-full pt-8">
+                                            <div key={mId} className="relative group bg-[#1a1a1a] rounded-xl p-5 border border-white/5 border-l-4 border-l-[#C9B075] shadow-2xl mb-6 last:mb-0 z-50 min-h-[110px] flex items-center transition-all">
+                                                <div className="flex justify-between items-center w-full">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-white tracking-tight text-xl md:text-2xl font-[1000] leading-none whitespace-nowrap truncate uppercase">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                            <div className="h-0.5" />
-                                                            <span className="text-[#C9B075] tracking-tight text-xl md:text-2xl font-[1000] leading-none whitespace-nowrap truncate uppercase">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-[10px] font-black text-[#94927a] uppercase tracking-widest pl-0.5">COURT {String(m.court).padStart(2, '0')}</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-white tracking-tighter text-xl md:text-2xl font-[1000] truncate uppercase leading-none">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                                <span className="shrink-0 text-[11px] font-black text-[#94927a]/40 uppercase tracking-tighter italic">VS</span>
+                                                                <span className="text-white tracking-tighter text-xl md:text-2xl font-[1000] truncate uppercase leading-none">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="ml-6 flex flex-col items-end gap-3 shrink-0">
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); updateMatchCourt(mId); }} 
-                                                            className="text-[10px] font-black text-[#94927a] uppercase tracking-widest hover:text-[#C9B075] transition-all"
-                                                        >
-                                                            COURT {String(m.court).padStart(2, '0')}
-                                                        </button>
+                                                    <div className="ml-6 shrink-0">
                                                         <button 
                                                             onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                            className="bg-[#C9B075] text-black text-[12px] font-black px-6 py-4 rounded-xl active:scale-95 transition-all shadow-xl shadow-[#C9B075]/10 uppercase"
+                                                            className="bg-[#C9B075] text-black text-[12px] font-[1000] px-8 py-4 rounded-full active:scale-95 transition-all shadow-xl shadow-[#C9B075]/20 uppercase tracking-tight"
                                                         >
                                                             SCORE
                                                         </button>
