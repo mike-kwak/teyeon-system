@@ -871,6 +871,9 @@ export default function KDKPage() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar">
+                    {/* Top Breathing Space (24px) */}
+                    <div className="h-6 w-full shrink-0" />
+
                     <DataStateView 
                         isLoading={isMembersLoading} 
                         isError={isMembersError}
@@ -919,9 +922,9 @@ export default function KDKPage() {
                                         <button onClick={() => addQuickGuest()} className="text-[#C9B075] font-black px-1">↵</button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-white/10 text-white/20 flex flex-col items-center justify-center active:scale-95 hover:bg-white/5 transition-all group">
+                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-white/30 bg-white/5 text-white/60 flex flex-col items-center justify-center active:scale-95 hover:bg-white/10 hover:border-white/40 transition-all group">
                                         <span className="text-xl font-light group-hover:scale-125 transition-transform">+</span>
-                                        <span className="text-[7px] font-black uppercase tracking-tighter opacity-40">Add Guest</span>
+                                        <span className="text-[7px] font-black uppercase tracking-tighter opacity-80">Add Guest</span>
                                     </button>
                                 )}
                             </div>
@@ -936,7 +939,7 @@ export default function KDKPage() {
                 <div className="fixed bottom-[128px] left-0 right-0 px-6 z-[60] bg-gradient-to-t from-[#121212] via-[#121212]/95 to-transparent pt-8 pb-4 pointer-events-none">
                     <button 
                         onClick={handleStep1Confirm} 
-                        className="w-full max-w-md mx-auto py-5 bg-[#C9B075] text-black font-black text-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] active:scale-95 flex items-center justify-center gap-2 pointer-events-auto"
+                        className="w-full max-w-md mx-auto py-5 bg-[#C9B075] text-black font-black text-lg rounded-[28px] shadow-[0_20px_50px_rgba(201,176,117,0.4)] border border-[#C9B075]/40 active:scale-95 flex items-center justify-center gap-2 pointer-events-auto"
                     >
                         참석자 확정 및 설정 ➡️
                     </button>
@@ -2069,13 +2072,13 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                 <div className="grid grid-cols-2 gap-3 w-full">
                     <button 
                         onClick={onCancel}
-                        className="py-4 bg-white/5 text-white/40 font-black rounded-2xl active:scale-95 transition-all text-[10px] uppercase tracking-widest"
+                        className="py-5 bg-white/10 text-white/60 font-black rounded-2xl active:scale-95 transition-all text-[12px] uppercase tracking-widest border border-white/5"
                     >
                         취소
                     </button>
                     <button 
                         onClick={onConfirm}
-                        className="py-4 bg-[#D4AF37] text-black font-black rounded-2xl shadow-xl active:scale-95 transition-all text-[10px] uppercase tracking-widest"
+                        className="py-5 bg-[#D4AF37] text-black font-black rounded-2xl shadow-[0_10px_20px_rgba(212,175,55,0.3)] active:scale-95 transition-all text-[12px] uppercase tracking-widest"
                     >
                         데이터 초기화
                     </button>
