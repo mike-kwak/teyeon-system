@@ -23,7 +23,7 @@ const HeaderContainer = styled('header', {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: '0 $6',
+  padding: '0',
   zIndex: '$sticky',
   boxShadow: '0 10px 40px rgba(0, 0, 0, 0.8)',
 
@@ -115,33 +115,35 @@ export default function GlobalHeader() {
 
   return (
     <HeaderContainer>
-      <LogoLink href="/">
-        <span 
-          className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
-          style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
-        >
-          TEYEON
-        </span>
-      </LogoLink>
+      <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <LogoLink href="/">
+          <span 
+            className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
+            style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
+          >
+            TEYEON
+          </span>
+        </LogoLink>
 
-      <UserSection>
-        {user && !isLoading && (
-          <div className="flex items-center gap-3">
-            <RoleBadge className="bg-[#2A2A2A] text-[#C9B075] border-[#C9B075]/20 text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase shadow-inner">
-               {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
-            </RoleBadge>
-            <Link href="/profile">
-              <ProfileAvatar 
-                src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-                alt={user.user_metadata?.full_name} 
-                size={32}
-                fallbackIcon={role === 'CEO' ? '👑' : '👤'}
-                className="border border-[#C9B075]/30 shadow-[0_0_15px_rgba(201,176,117,0.2)] rounded-full transition-all hover:scale-110 active:scale-90"
-              />
-            </Link>
-          </div>
-        )}
-      </UserSection>
+        <UserSection>
+          {user && !isLoading && (
+            <div className="flex items-center gap-3">
+              <RoleBadge className="bg-[#2A2A2A] text-[#C9B075] border-[#C9B075]/20 text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase shadow-inner">
+                 {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
+              </RoleBadge>
+              <Link href="/profile">
+                <ProfileAvatar 
+                  src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                  alt={user.user_metadata?.full_name} 
+                  size={32}
+                  fallbackIcon={role === 'CEO' ? '👑' : '👤'}
+                  className="border border-[#C9B075]/30 shadow-[0_0_15px_rgba(201,176,117,0.2)] rounded-full transition-all hover:scale-110 active:scale-90"
+                />
+              </Link>
+            </div>
+          )}
+        </UserSection>
+      </div>
     </HeaderContainer>
   );
 }

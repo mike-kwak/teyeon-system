@@ -14,6 +14,7 @@ interface AdminMember {
   nickname: string;
   role: string;
   avatar_url: string | null;
+  is_guest?: boolean;
 }
 
 const ROLE_OPTIONS = [
@@ -69,7 +70,7 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from('members')
-        .select('id, nickname, role, avatar_url')
+        .select('id, nickname, role, avatar_url, is_guest')
         .order('nickname', { ascending: true });
       if (error) throw error;
       setMembers(data || []);
@@ -170,7 +171,7 @@ export default function AdminPage() {
 
   return (
     <main 
-      className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full"
+      className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full max-w-[480px] mx-auto"
       style={{ paddingBottom: '250px' }}
     >
       <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">
@@ -229,7 +230,7 @@ export default function AdminPage() {
                         <div key={m.id} className="bg-white/[0.03] border border-white/5 p-4 rounded-[32px] flex items-center gap-4 hover:border-white/20 transition-all hover:bg-white/[0.05]">
                             <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={40} className="rounded-full shrink-0 border border-white/10 shadow-sm" fallbackIcon="👤" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-black tracking-tight">{m.nickname}</p>
+                                <p className="text-[13px] font-black tracking-tight">{m.nickname}{m.is_guest ? ' (G)' : ''}</p>
                                 <p className="text-[9px] text-[#A3E635] font-black tracking-[0.1em] mt-0.5 truncate uppercase">{m.role}</p>
                             </div>
                             <select 

@@ -19,11 +19,11 @@ const Container = styled('main', {
   flexDirection: 'column',
   minHeight: '100dvh',
   padding: '$8 $5',
-  maxWidth: '500px',
+  maxWidth: '480px',
   margin: '0 auto',
   width: '100%',
   backgroundColor: '#121212',
-  paddingBottom: '250px', 
+  paddingBottom: '250px',
 });
 
 const Header = styled('header', {
@@ -193,7 +193,9 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
     <StyledMemberCard>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 900, marginBottom: '6px', color: '#fff', letterSpacing: '-0.02em' }}>{member.nickname}</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 900, marginBottom: '2px', color: '#fff', letterSpacing: '-0.02em' }}>
+            {member.nickname}{member.is_guest ? ' (G)' : ''}
+          </h3>
           <RoleBadge type={badgeType}>{roleLabels.primary}</RoleBadge>
         </div>
         <ProfileAvatar 

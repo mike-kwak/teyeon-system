@@ -47,6 +47,7 @@ const GlobalMain = styled('main', {
   overflowX: 'hidden',
   display: 'flex',
   flexDirection: 'column',
+  alignItems: 'center',
 });
 
 export default function RootLayout({
