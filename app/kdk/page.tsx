@@ -1423,10 +1423,10 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-8 overflow-y-auto pb-[calc(176px+env(safe-area-inset-bottom))] no-scrollbar">
+            <div className="flex-1 px-6 space-y-6 overflow-y-auto pb-[calc(176px+env(safe-area-inset-bottom))] no-scrollbar">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="mt-10 relative z-10">
+                        <section className="mt-6 relative z-10">
                             <div className="flex items-center gap-3 mb-4">
                                 <h2 className="text-2xl font-black tracking-tighter uppercase text-[#e2e2e2]">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
@@ -1440,12 +1440,12 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-14 text-center text-[#494834] border border-dashed border-[#494834]/40 rounded-xl text-[11px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid gap-2 mt-6">
+                                <div className="grid gap-2 mt-4">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="relative group bg-[#1e1e1e] rounded-xl px-4 py-3 border border-white/5 border-l-4 border-l-[#C9B075] shadow-2xl mb-4 last:mb-0 z-50 min-h-[100px] flex items-center transition-all">
+                                            <div key={mId} className="relative group bg-[#1e1e1e] rounded-2xl px-4 py-3 border border-white/5 border-l-4 border-l-[#C9B075] shadow-2xl mb-4 last:mb-0 z-50 min-h-[100px] flex items-center transition-all">
                                                 <div className="flex justify-between items-center w-full">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex flex-col gap-0.5">
@@ -1460,7 +1460,7 @@ export default function KDKPage() {
                                                     <div className="ml-4 shrink-0">
                                                         <button 
                                                             onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                            className="bg-[#C9B075] text-black text-[12px] font-[1000] px-6 py-4 rounded-xl active:scale-95 transition-all shadow-xl shadow-[#C9B075]/20 uppercase tracking-tight"
+                                                            className="bg-[#C9B075] text-black text-[12px] font-black px-8 py-4 rounded-full active:scale-95 transition-all shadow-xl shadow-[#C9B075]/20 uppercase tracking-tight"
                                                         >
                                                             SCORE
                                                         </button>
@@ -1472,7 +1472,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div className="space-y-8">
+                        <div className="space-y-6">
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1501,14 +1501,14 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between gap-4 shadow-2xl border border-white/5 mb-2 last:mb-0">
+                                                        <div key={m.id} className="bg-[#1e1e1e] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-2xl border border-white/5 mb-2 last:mb-0">
                                                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                                <span className="text-4xl font-black text-[#3a3a3a] italic w-12 shrink-0 leading-none">{String(idx + 1).padStart(2, '0')}</span>
+                                                                <span className="text-3xl font-black text-gray-800 italic w-12 shrink-0 leading-none">{String(idx + 1).padStart(2, '0')}</span>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <p className="text-gray-100 font-extrabold text-[15px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                                    <p className="text-gray-100 font-black text-[15px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
                                                                     <div className="flex items-center gap-2 mt-0.5">
                                                                         <span className="text-[9px] font-black text-[#C9B075] italic uppercase tracking-tighter shrink-0">VS</span>
-                                                                        <p className="text-white/40 font-extrabold text-[13px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
+                                                                        <p className="text-white/40 font-black text-[13px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
                                                                     </div>
                                                                     {hasConflict && (
                                                                         <p className="text-[8px] font-black text-[#C9B075] uppercase mt-1.5 flex items-center gap-1 opacity-60">
@@ -1520,7 +1520,7 @@ export default function KDKPage() {
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`shrink-0 text-[10px] font-black px-5 py-4 rounded-xl transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/5 text-[#494834]' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10 hover:brightness-110'}`}
+                                                                className={`shrink-0 text-[10px] font-black px-6 py-4 rounded-full transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/5 text-[#494834]' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10 hover:brightness-110'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
