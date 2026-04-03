@@ -1251,13 +1251,13 @@ export default function KDKPage() {
                         </div>
                     </section>
 
-                    {/* Elite Bottom Spacer (h-44) */}
-                    <div className="h-44 w-full shrink-0" />
+                    {/* Elite Bottom Spacer (Forced 180px) */}
+                    <div style={{ height: '180px', minHeight: '180px', width: '100%' }} />
                 </div>
                 
                 
                 {/* Fixed Generate Button */}
-                <div style={{ position: 'fixed', bottom: '88px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                <div style={{ position: 'fixed', bottom: '108px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
                     <div style={{ maxWidth: '448px', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
                             disabled={isGenerating}
