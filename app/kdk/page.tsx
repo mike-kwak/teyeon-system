@@ -1445,21 +1445,22 @@ export default function KDKPage() {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} className="relative group bg-[#1e1e1e] rounded-2xl border border-white/5 shadow-2xl mb-4 last:mb-0 z-50 transition-all active:scale-[0.98] overflow-hidden">
-                                                <div className="absolute left-0 top-0 w-2 h-full bg-[#C9B075] z-20" />
-                                                <div className="pl-8 py-8 pr-6 flex flex-col gap-4 relative z-10">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e1e', borderRadius: '16px', borderLeft: '8px solid #C9B075', padding: '24px', marginBottom: '20px', position: 'relative', overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                <div className="flex flex-col gap-4 relative z-10">
                                                     <div className="flex items-center">
                                                         <span className="text-[10px] font-black text-[#94927a] uppercase tracking-widest bg-white/5 px-2 py-1 rounded">COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-white font-black text-2xl truncate uppercase leading-none">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                        <span className="shrink-0 text-[11px] font-black text-white/20 uppercase tracking-tighter italic">VS</span>
-                                                        <span className="text-white font-black text-2xl truncate uppercase leading-none">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                    <div className="flex flex-col gap-1 min-w-0 pr-24">
+                                                        <span style={{ fontSize: '24px', fontWeight: '900', color: 'white', textTransform: 'uppercase', lineHeight: '1.1', letterSpacing: '-0.02em' }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="shrink-0 text-[11px] font-black text-white/20 uppercase tracking-tighter italic">VS</span>
+                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', lineHeight: '1.1' }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="absolute top-6 right-6 bg-[#C9B075] text-black text-[13px] font-black px-6 py-3 rounded-xl active:scale-95 transition-all shadow-xl shadow-[#C9B075]/20 uppercase tracking-tight z-30"
+                                                    style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: '#C9B075', color: 'black', fontSize: '13px', fontWeight: 'bold', padding: '12px 24px', borderRadius: '12px', border: 'none', cursor: 'pointer', zIndex: 30 }}
                                                 >
                                                     SCORE
                                                 </button>
@@ -1498,14 +1499,14 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="relative bg-[#1e1e1e] rounded-2xl p-5 flex items-center justify-between gap-4 shadow-xl border border-white/5 mb-3 last:mb-0 overflow-hidden group transition-all active:scale-[0.98]">
-                                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-4xl font-black italic text-white/10 pointer-events-none group-hover:text-white/20 transition-all">{String(idx + 1).padStart(2, '0')}</div>
-                                                            <div className="flex items-center gap-4 min-w-0 flex-1 relative z-10 pl-14">
+                                                        <div key={m.id} style={{ backgroundColor: '#161616', borderRadius: '12px', padding: '20px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '48px', fontWeight: '900', color: 'rgba(255,255,255,0.05)', fontStyle: 'italic', pointerEvents: 'none', zIndex: 0 }}>{String(idx + 1).padStart(2, '0')}</div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0, flex: 1, position: 'relative', zIndex: 10, paddingLeft: '56px' }}>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <p className="text-white font-black text-[16px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className="text-[10px] font-black text-[#C9B075] italic uppercase tracking-tighter shrink-0">VS</span>
-                                                                        <p className="text-white/30 font-black text-[14px] uppercase truncate tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
+                                                                    <p style={{ color: 'white', fontWeight: '900', fontSize: '16px', textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075', fontStyle: 'italic', textTransform: 'uppercase' }}>VS</span>
+                                                                        <p style={{ color: 'rgba(255,255,255,0.3)', fontWeight: '900', fontSize: '14px', textTransform: 'uppercase', margin: 0 }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
                                                                     </div>
                                                                     {hasConflict && (
                                                                         <div className="mt-2.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#C9B075]/10 border border-[#C9B075]/20">
@@ -1518,7 +1519,7 @@ export default function KDKPage() {
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`relative z-10 shrink-0 text-[11px] font-black px-6 py-4 rounded-full transition-all active:scale-95 uppercase ${hasConflict ? 'bg-white/10 text-white/20 shadow-inner' : 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/10 hover:brightness-110 active:brightness-90'}`}
+                                                                style={{ position: 'relative', zIndex: 10, shrink: 0, fontSize: '11px', fontWeight: '900', padding: '12px 20px', borderRadius: '30px', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', backgroundColor: hasConflict ? 'rgba(255,255,255,0.1)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.2)' : 'black', textTransform: 'uppercase' }}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1552,11 +1553,10 @@ export default function KDKPage() {
                             </div>
                         )}
                         
-                        <div className="h-40" />
-                        <div className="h-[calc(128px+env(safe-area-inset-bottom))]" />
+                        <div style={{ height: "160px" }} />
                     </>
                 ) : (
-                    <div className="pb-40">
+                    <div style={{ paddingBottom: "160px" }}>
                         <RankingView 
                             sessionMatches={matches} 
                             configs={attendeeConfigs} 
