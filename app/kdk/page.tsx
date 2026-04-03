@@ -1038,61 +1038,40 @@ export default function KDKPage() {
                             </h3>
                             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
                         </div>
-                        <div className="space-y-3 max-h-[440px] overflow-y-auto pr-2 custom-scrollbar no-scrollbar">
+                        <div className="space-y-2 no-scrollbar" style={{ maxHeight: '480px', overflowY: 'auto' }}>
                             {attendees.map(m => {
                                 const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
                                 return (
-                                    <div key={m.id} className="bg-[#121212] border border-white/5 rounded-[24px] p-4 flex items-center justify-between gap-4 group hover:border-[#D4AF37]/20 transition-all">
-                                        <div className="flex flex-col min-w-[80px]">
-                                            <span className="text-[14px] font-[1000] text-white/90 group-hover:text-[#D4AF37] transition-colors">{m.name}</span>
-                                            <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter">{m.is_guest ? 'Guest (G)' : 'Member'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4 flex-1 justify-end">
-                                            <div className="flex items-center gap-2">
-                                                <button 
+                                    <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {/* Row 1: Name */}
+                                        <span style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>{m.name}</span>
+                                        {/* Row 2: Time + A/B */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            {/* Clock + Time selects */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
-                                                    className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${config.isLate ? 'bg-orange-500/20 border-orange-500/50 text-orange-500' : 'bg-white/5 border-white/10 text-white/10 hover:text-white/30'}`}
-                                                >
-                                                    <span className="text-xl text-inherit">🕒</span>
-                                                </button>
-                                                <div className="flex items-center gap-2 bg-[#1C1C1C] rounded-2xl px-2 py-1 border border-white/10">
-                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-transparent text-[14px] font-[1000] text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
-                                                        {timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C28]">{t}</option>)}
+                                                    style={{ width: '32px', height: '32px', borderRadius: '10px', border: config.isLate ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.1)', background: config.isLate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' }}
+                                                >🕒</button>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#0A0A0A', borderRadius: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>
+                                                        {timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}
                                                     </select>
-                                                    <span className="text-[10px] font-[1000] text-gray-500">TO</span>
-                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} className="bg-transparent text-[14px] font-[1000] text-white outline-none appearance-none text-center min-w-[50px] cursor-pointer">
-                                                        {timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C28]">{t}</option>)}
+                                                    <span style={{ color: '#6B7280', fontSize: '10px', fontWeight: 700 }}>TO</span>
+                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>
+                                                        {timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div style={{ display: 'flex', background: '#0A0A0A', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', padding: '6px', gap: '8px' }}>
+                                            {/* A/B buttons */}
+                                            <div style={{ display: 'flex', gap: '6px' }}>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))}
-                                                    style={{
-                                                        width: '48px', height: '48px', borderRadius: '14px',
-                                                        background: config.group === 'A' ? '#C9B075' : '#0A0A0A',
-                                                        color: config.group === 'A' ? '#000000' : '#FFFFFF',
-                                                        border: config.group === 'A' ? 'none' : '1px solid #6B7280',
-                                                        fontWeight: 1000, fontSize: '16px',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        transform: config.group === 'A' ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.15s',
-                                                        cursor: 'pointer'
-                                                    }}
+                                                    style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'A' ? '#C9B075' : '#0A0A0A', color: config.group === 'A' ? '#000' : '#fff', border: config.group === 'A' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
                                                 >A</button>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))}
-                                                    style={{
-                                                        width: '48px', height: '48px', borderRadius: '14px',
-                                                        background: config.group === 'B' ? '#C9B075' : '#0A0A0A',
-                                                        color: config.group === 'B' ? '#000000' : '#FFFFFF',
-                                                        border: config.group === 'B' ? 'none' : '1px solid #6B7280',
-                                                        fontWeight: 1000, fontSize: '16px',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        transform: config.group === 'B' ? 'scale(1.05)' : 'scale(1)',
-                                                        transition: 'all 0.15s',
-                                                        cursor: 'pointer'
-                                                    }}
+                                                    style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'B' ? '#C9B075' : '#0A0A0A', color: config.group === 'B' ? '#000' : '#fff', border: config.group === 'B' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
                                                 >B</button>
                                             </div>
                                         </div>
@@ -1261,31 +1240,28 @@ export default function KDKPage() {
                 {/* Physical Scroll Enforcer — h-40 ONLY */}
                 <div style={{ height: '160px', width: '100%', flexShrink: 0 }} />
 
-                {/* Fixed Footer: Action Anchor - INLINE FORCED */}
-                <div style={{ position: 'fixed', bottom: '144px', left: 0, right: 0, padding: '0 24px', zIndex: 9999, textAlign: 'center', pointerEvents: 'none' }}>
-                    <div style={{ maxWidth: '448px', margin: '0 auto', position: 'relative', display: 'inline-block', width: '100%', pointerEvents: 'auto' }}>
-                        {/* Hard BG separator */}
-                        <div style={{ position: 'absolute', inset: '-24px -0px', background: '#1A1A1A', borderRadius: '40px', zIndex: -1, boxShadow: '0 -20px 60px rgba(0,0,0,0.95)' }} />
+                {/* Fixed Generate Button — no 후광/bg halo */}
+                <div style={{ position: 'fixed', bottom: '72px', left: 0, right: 0, padding: '0 20px', zIndex: 9999, pointerEvents: 'none' }}>
+                    <div style={{ maxWidth: '448px', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
                             disabled={isGenerating}
                             onClick={generateKDK}
                             style={{
                                 width: '100%',
-                                padding: '22px 0',
-                                borderRadius: '28px',
-                                background: isGenerating ? '#1C1C1C' : '#C9B075',
-                                color: isGenerating ? '#6B7280' : '#000000',
-                                border: isGenerating ? '3px solid #333' : '3px solid #A89060',
-                                fontSize: '18px',
+                                padding: '18px 0',
+                                borderRadius: '22px',
+                                background: isGenerating ? '#2A2A2A' : '#C9B075',
+                                color: '#000000',
+                                border: 'none',
+                                fontSize: '17px',
                                 fontWeight: 900,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '12px',
+                                gap: '10px',
                                 cursor: isGenerating ? 'not-allowed' : 'pointer',
-                                boxShadow: isGenerating ? 'none' : '0 0 30px rgba(201,176,117,0.4)',
-                                transition: 'all 0.15s',
-                                WebkitTextFillColor: isGenerating ? '#6B7280' : '#000000'
+                                WebkitTextFillColor: '#000000',
+                                transition: 'all 0.15s'
                             }}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
