@@ -922,9 +922,9 @@ export default function KDKPage() {
                                         <button onClick={() => addQuickGuest()} className="text-[#C9B075] font-black px-1">↵</button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-white/40 bg-white/10 text-white/80 flex flex-col items-center justify-center active:scale-95 hover:bg-white/20 hover:border-white/50 transition-all group">
-                                        <span className="text-xl font-light group-hover:scale-125 transition-transform text-white">+</span>
-                                        <span className="text-[7px] font-black uppercase tracking-tighter text-white">Add Guest</span>
+                                    <button onClick={() => setShowGuestInput(true)} className="h-20 rounded-2xl border-2 border-dashed border-[#D4AF37]/40 bg-[#D4AF37]/5 text-[#D4AF37] flex flex-col items-center justify-center active:scale-95 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]/60 transition-all group">
+                                        <span className="text-3xl font-bold group-hover:scale-125 transition-transform text-[#D4AF37] leading-none mb-1">+</span>
+                                        <span className="text-[9px] font-black uppercase tracking-tighter text-[#D4AF37]">ADD GUEST</span>
                                     </button>
                                 )}
                             </div>
@@ -943,7 +943,7 @@ export default function KDKPage() {
                         
                         <button 
                             onClick={handleStep1Confirm} 
-                            className="w-full py-5 bg-[#D4AF37] text-black font-[1000] text-lg rounded-[28px] shadow-[0_15px_40px_rgba(212,175,55,0.4)] border-2 border-white/40 active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
+                            className="w-full py-5 bg-[#D4AF37] text-black font-[1000] text-lg rounded-[28px] shadow-[0_0_30px_rgba(212,175,55,0.6)] border-2 border-white/60 active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
                         >
                             참석자 확정 및 설정 ➡️
                         </button>
