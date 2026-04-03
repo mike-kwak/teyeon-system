@@ -1118,7 +1118,21 @@ export default function KDKPage() {
                                     <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                                     FIXED PARTNERS
                                 </h4>
-                                <button onClick={() => setFixedTeamMode(!fixedTeamMode)} className={`px-4 py-2 rounded-full text-[10px] font-black transition-all border-2 ${fixedTeamMode ? 'bg-[#D4AF37] text-black border-white/20' : 'text-white/20 border-white/10'}`}>
+                                <button
+                                    onClick={() => setFixedTeamMode(!fixedTeamMode)}
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: '99px',
+                                        fontSize: '12px',
+                                        fontWeight: 800,
+                                        border: fixedTeamMode ? '1px solid #C9B075' : '1px solid rgba(255,255,255,0.3)',
+                                        background: fixedTeamMode ? '#C9B075' : 'transparent',
+                                        color: fixedTeamMode ? '#000' : 'rgba(255,255,255,0.7)',
+                                        cursor: 'pointer',
+                                        letterSpacing: '0.05em',
+                                        textTransform: 'uppercase'
+                                    }}
+                                >
                                     {fixedTeamMode ? 'TEAM MODE' : 'ROUND 1 ONLY'}
                                 </button>
                             </div>
@@ -1157,81 +1171,83 @@ export default function KDKPage() {
                     </section>
 
                     {/* Constraints & Rules Section */}
-                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px 32px 32px 36px', marginTop: '12px', overflow: 'visible' }}>
-                        <div className="space-y-6">
-                            <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '28px 24px', marginTop: '12px', overflow: 'visible' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37', flexShrink: 0, display: 'inline-block' }} />
                                 CONSTRAINTS
                             </h4>
-                            <div className="space-y-5">
-                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
-                                    <span className="text-[13px] font-[1000] text-gray-200 uppercase tracking-[0.1em]">Total Courts</span>
-                                    <div className="flex items-center gap-6">
-                                        <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[30px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{totalCourts}</span>
-                                        <button onClick={() => setTotalCourts(totalCourts + 1)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
-                                    </div>
+                            {/* Total Courts */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#E5E7EB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '32px', textAlign: 'center' }}>{totalCourts}</span>
+                                    <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                                 </div>
-                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
-                                    <span className="text-[13px] font-[1000] text-gray-200 uppercase tracking-[0.1em]">Match Mins</span>
-                                    <div className="flex items-center gap-6">
-                                        <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-3xl font-[1000] text-[#D4AF37] min-w-[50px] text-center drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">{matchTime}</span>
-                                        <button onClick={() => setMatchTime(matchTime + 30)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
-                                    </div>
+                            </div>
+                            {/* Match Mins */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#E5E7EB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#D4AF37', minWidth: '50px', textAlign: 'center' }}>{matchTime}</span>
+                                    <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="space-y-6 mt-10">
-                            <h4 className="text-[13px] font-[1000] text-[#4ADE80] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#4ADE80]" />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
+                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#4ADE80', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ADE80', flexShrink: 0, display: 'inline-block' }} />
                                 FINANCIALS
                             </h4>
-                            <div className="space-y-5">
-                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
-                                    <span className="text-[13px] font-[1000] text-gray-200 uppercase tracking-[0.1em]">Prize Gold</span>
-                                    <div className="flex items-center gap-6">
-                                        <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(firstPrize/1000).toFixed(0)}k</span>
-                                        <button onClick={() => setFirstPrize(firstPrize + 5000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
-                                    </div>
+                            {/* Prize Gold */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#E5E7EB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center' }}>{(firstPrize/1000).toFixed(0)}k</span>
+                                    <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                                 </div>
-                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
-                                    <div className="flex flex-col">
-                                        <span className="text-[13px] font-[1000] text-[#FACC15] uppercase tracking-[0.1em]">Tier 1 Fine</span>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 25%~50%</span>
-                                    </div>
-                                    <div className="flex items-center gap-6">
-                                        <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Late/1000).toFixed(0)}k</span>
-                                        <button onClick={() => setBottom25Late(bottom25Late + 1000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
-                                    </div>
+                            </div>
+                            {/* Tier 1 Fine */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#FACC15', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 1 Fine</span>
+                                    <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
                                 </div>
-                                <div className="flex items-center justify-between bg-[#121212] px-6 py-8 rounded-[28px] border border-[#222] shadow-md">
-                                    <div className="flex flex-col">
-                                        <span className="text-[13px] font-[1000] text-red-500 uppercase tracking-[0.1em]">Tier 2 Fine</span>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Bottom 0%~25%</span>
-                                    </div>
-                                    <div className="flex items-center gap-6">
-                                        <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">-</button>
-                                        <span className="text-3xl font-[1000] text-white min-w-[60px] text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
-                                        <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl text-white/40 hover:text-white active:scale-95 transition-all">+</button>
-                                    </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center' }}>{(bottom25Late/1000).toFixed(0)}k</span>
+                                    <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
+                                </div>
+                            </div>
+                            {/* Tier 2 Fine */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '16px 20px', borderRadius: '20px', border: '1px solid #222' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 2 Fine</span>
+                                    <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>−</button>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', minWidth: '60px', textAlign: 'center' }}>{(bottom25Penalty/1000).toFixed(0)}k</span>
+                                    <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="pt-8 border-t border-[#333] space-y-4">
-                            <h4 className="text-[13px] font-[1000] text-[#D4AF37] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                        {/* Tournament Rules */}
+                        <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #333' }}>
+                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37', flexShrink: 0, display: 'inline-block' }} />
                                 TOURNAMENT RULES
                             </h4>
-                            <textarea 
-                                value={matchRules} 
-                                onChange={(e) => setMatchRules(e.target.value)} 
-                                className="w-full bg-[#121212] border border-[#333] rounded-[28px] p-8 text-[15px] font-[1000] text-gray-200 min-h-[160px] outline-none focus:border-[#D4AF37]/50 focus:text-white transition-all break-words" 
-                                placeholder="Edit tournament rules, policies, and local ground conventions..." 
+                            <textarea
+                                value={matchRules}
+                                onChange={(e) => setMatchRules(e.target.value)}
+                                style={{ width: '100%', background: '#141414', border: '1px solid #333', borderRadius: '16px', padding: '16px', fontSize: '14px', fontWeight: 600, color: '#E5E7EB', minHeight: '120px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
+                                placeholder="토너먼트 규칙을 입력하세요..."
                             />
                         </div>
                     </section>
@@ -1240,8 +1256,8 @@ export default function KDKPage() {
                 {/* Physical Scroll Enforcer — h-40 ONLY */}
                 <div style={{ height: '160px', width: '100%', flexShrink: 0 }} />
 
-                {/* Fixed Generate Button — no 후광/bg halo */}
-                <div style={{ position: 'fixed', bottom: '72px', left: 0, right: 0, padding: '0 20px', zIndex: 9999, pointerEvents: 'none' }}>
+                {/* Fixed Generate Button */}
+                <div style={{ position: 'fixed', bottom: '88px', left: 0, right: 0, padding: '0 20px', zIndex: 9999, pointerEvents: 'none' }}>
                     <div style={{ maxWidth: '448px', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
                             disabled={isGenerating}
@@ -1271,20 +1287,22 @@ export default function KDKPage() {
 
                 {/* Partner Selection Overlay */}
                 {partnerSelectSource && (
-                    <div className="fixed inset-0 bg-[#121212]/95 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
-                        <div className="bg-[#1C1C1C] border border-white/10 rounded-[48px] w-full max-w-md p-10 space-y-8 shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in-95 duration-300">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Strategy</span>
-                                    <h3 className="text-xl font-[1000] italic text-white tracking-tighter uppercase">SELECT PARTNER</h3>
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                        <div style={{ background: '#1C1C1C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '32px', width: '100%', maxWidth: '400px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            {/* Header */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                                <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 900, color: '#D4AF37', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
+                                    <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>SELECT PARTNER</h3>
                                 </div>
-                                <button onClick={() => setPartnerSelectSource(null)} className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-all text-3xl font-light">×</button>
+                                <button onClick={() => setPartnerSelectSource(null)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
                             </div>
-                            <div className="grid grid-cols-2 gap-4 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar no-scrollbar">
+                            {/* Player list - single column */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto' }}>
                                 {availablePlayersForPartnering.map(p => {
                                     const isSelected = partnerSelectSource !== 'NEW' && partnerSelectSource === p.id;
                                     return (
-                                        <button 
+                                        <button
                                             key={p.id}
                                             onClick={() => {
                                                 if (partnerSelectSource === 'NEW') {
@@ -1294,19 +1312,29 @@ export default function KDKPage() {
                                                     setPartnerSelectSource(null);
                                                 }
                                             }}
-                                            className={`p-6 rounded-[24px] border-2 transition-all text-[13px] font-black text-left flex flex-col gap-1 ${isSelected ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-xl ring-4 ring-[#D4AF37]/20 scale-105' : 'bg-white/5 border-white/10 text-white/70 hover:border-white/30 hover:bg-white/[0.08]'}`}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                padding: '16px 20px',
+                                                borderRadius: '16px',
+                                                background: isSelected ? '#C9B075' : '#252525',
+                                                border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                                                color: isSelected ? '#000' : '#fff',
+                                                fontSize: '16px', fontWeight: 800,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                                textAlign: 'left'
+                                            }}
                                         >
                                             <span>{p.nickname}</span>
-                                            <span className="text-[8px] opacity-40 uppercase tracking-widest">{p.is_guest ? 'Guest' : 'Member'}</span>
+                                            <span style={{ fontSize: '11px', fontWeight: 600, color: isSelected ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{p.is_guest ? 'GUEST' : 'MEMBER'}</span>
                                         </button>
                                     );
                                 })}
                             </div>
-                            <div className="text-center">
-                                <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em] animate-pulse">
-                                    {partnerSelectSource === 'NEW' ? 'Select identity of first player' : 'Pick a partner for ' + getPlayerName(partnerSelectSource)}
-                                </p>
-                            </div>
+                            {/* Hint */}
+                            <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>
+                                {partnerSelectSource === 'NEW' ? '첫 번째 플레이어를 선택하세요' : getPlayerName(partnerSelectSource) + '의 파트너를 선택하세요'}
+                            </p>
                         </div>
                     </div>
                 )}
