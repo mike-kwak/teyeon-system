@@ -828,8 +828,12 @@ export default function KDKPage() {
     // --- Step 1: Attendee Selection ---
     if (step === 1) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#1A1A1A] text-white font-sans w-full relative overflow-hidden">
-                <header className="flex items-center justify-between px-6 pt-[calc(1.5rem+var(--safe-top))] mb-8 gap-4">
+            <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-hidden pb-[200px]">
+                
+                {/* Golden Ratio Header Spacer (24px) */}
+                <div className="h-[24px] w-full shrink-0" />
+
+                <header className="flex items-center justify-between px-6 mb-8 gap-4">
                     <div className="flex items-center gap-2">
                         <button 
                             onClick={() => setShowResetConfirm(true)}
@@ -890,15 +894,15 @@ export default function KDKPage() {
                                         <div
                                             key={m.id}
                                             onClick={() => toggleMember(m.id)}
-                                            className={`h-16 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
+                                            className={`h-20 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
                                             ${isSelected 
-                                                ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_8px_30px_rgba(212,175,55,0.3)] scale-105 z-10' 
-                                                : 'bg-white/[0.05] border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20'}`}
+                                                ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-[0_8px_30px_rgba(201,176,117,0.3)] scale-105 z-10' 
+                                                : 'bg-[#1A1A1A]/80 border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 shadow-lg'}`}
                                         >
-                                            <span className="text-[11px] font-[1000] break-keep leading-tight px-1">
-                                                {m.nickname}
+                                            <span className="text-[12px] font-[1000] break-keep leading-tight px-1 drop-shadow-sm">
+                                                {m.nickname}{m.is_guest ? '(G)' : ''}
                                             </span>
-                                            {m.is_guest && <span className={`text-[7px] font-black uppercase mt-0.5 ${isSelected ? 'text-black/60' : 'text-[#D4AF37]'}`}>Guest</span>}
+                                            {m.is_guest && <span className={`text-[8px] font-black uppercase mt-1 ${isSelected ? 'text-black/60' : 'text-[#C9B075]'}`}>Guest</span>}
                                         </div>
                                     );
                                 })}
@@ -1233,7 +1237,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full pb-40 relative">
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full pb-[220px] relative">
             <header className="p-6 pt-[calc(1.5rem+var(--safe-top))] flex items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-2">
                     <button 
@@ -1405,15 +1409,15 @@ export default function KDKPage() {
                                 <h3 className="text-[10px] font-black text-[#D4AF37]/40 tracking-[0.3em] uppercase px-2">Completed Matches</h3>
                                 <div className="grid grid-cols-1 gap-3">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
-                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] flex flex-col items-center gap-3 backdrop-blur-sm grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all group">
-                                            <div className="flex items-center gap-4 w-full justify-center">
-                                                <span className="text-[10px] font-bold text-white/40 truncate flex-1 text-right">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center px-4">
-                                                    <span className="text-xl font-black text-[#4ADE80] drop-shadow-[0_0_10px_rgba(74,222,128,0.4)]">{m.score1} : {m.score2}</span>
+                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/[0.02] border border-white/5 p-8 rounded-[32px] flex flex-col items-center gap-4 backdrop-blur-sm shadow-[0_4px_30px_rgba(0,0,0,0.4)] group">
+                                            <div className="flex items-center gap-8 w-full justify-center">
+                                                <span className="text-[12px] font-black text-white/50 truncate flex-1 text-right">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                <div className="flex flex-col items-center px-6">
+                                                    <span className="text-4xl font-black text-[#4ADE80] drop-shadow-[0_0_15px_rgba(74,222,128,0.6)]">{m.score1} : {m.score2}</span>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-white/40 truncate flex-1 text-left">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-[12px] font-black text-white/50 truncate flex-1 text-left">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                             </div>
-                                            <span className="text-[8px] font-black text-white/10 uppercase tracking-widest group-hover:text-[#D4AF37]/40">Tap to edit result</span>
+                                            <span className="text-[9px] font-black text-white/10 uppercase tracking-widest group-hover:text-[#C9B075]/60 transition-colors">Tap to edit result</span>
                                         </div>
                                     ))}
                                 </div>
