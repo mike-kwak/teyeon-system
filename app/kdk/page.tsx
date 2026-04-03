@@ -1445,22 +1445,22 @@ export default function KDKPage() {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e1e', borderRadius: '16px', borderLeft: '8px solid #C9B075', padding: '16px 24px', marginBottom: '16px', position: 'relative', overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                <div className="flex flex-col gap-4 relative z-10">
+                                            <div key={mId} className="bg-zinc-900/50 border border-white/10 p-6 rounded-2xl relative mb-4 active:scale-95 transition-all">
+                                                <div className="flex flex-col gap-4">
                                                     <div className="flex items-center">
-                                                        <span className="text-[10px] font-black text-[#94927a] uppercase tracking-widest bg-white/5 px-2 py-1 rounded">COURT {String(m.court).padStart(2, '0')}</span>
+                                                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest bg-[#C9B075]/10 px-2 py-1 rounded">COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
-                                                    <div className="flex flex-col gap-1 min-w-0 pr-24">
-                                                        <span style={{ fontSize: '24px', fontWeight: '900', color: 'white', textTransform: 'uppercase', lineHeight: '1.0', letterSpacing: '-0.03em' }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-2xl font-black text-white uppercase tracking-tight">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
                                                         <div className="flex items-center gap-3">
-                                                            <span className="shrink-0 text-[10px] font-black text-white/10 uppercase tracking-tighter italic" style={{ opacity: 0.3 }}>VS</span>
-                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', lineHeight: '1.1' }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <span className="text-[11px] font-black text-white/20 uppercase italic">VS</span>
+                                                            <span className="text-xl font-black text-white/40 uppercase tracking-tight">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: '#C9B075', color: 'black', fontSize: '13px', fontWeight: 'bold', padding: '12px 24px', borderRadius: '12px', border: 'none', cursor: 'pointer', zIndex: 30 }}
+                                                    className="absolute top-6 right-6 bg-[#C9B075] text-black font-black text-[13px] px-6 py-2.5 rounded-xl shadow-lg active:scale-90 transition-all uppercase"
                                                 >
                                                     SCORE
                                                 </button>
@@ -1499,27 +1499,24 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} style={{ backgroundColor: '#161616', borderRadius: '12px', padding: '12px 20px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                            <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '44px', fontWeight: '900', color: 'rgba(255,255,255,0.03)', fontStyle: 'italic', pointerEvents: 'none', zIndex: 0 }}>{String(idx + 1).padStart(2, '0')}</div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0, flex: 1, position: 'relative', zIndex: 10, paddingLeft: '40px' }}>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <p style={{ color: 'white', fontWeight: '900', fontSize: '16px', textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075', fontStyle: 'italic', textTransform: 'uppercase' }}>VS</span>
-                                                                        <p style={{ color: 'rgba(255,255,255,0.3)', fontWeight: '900', fontSize: '14px', textTransform: 'uppercase', margin: 0 }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
-                                                                    </div>
-                                                                    {hasConflict && (
-                                                                        <div className="mt-2.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#C9B075]/10 border border-[#C9B075]/20">
-                                                                            <span className="w-1 h-1 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                            <span className="text-[10px] font-black text-[#C9B075] uppercase italic">BUSY</span>
-                                                                        </div>
-                                                                    )}
+                                                        <div key={m.id} className="bg-zinc-900/50 border border-white/5 p-5 rounded-2xl flex items-center justify-between gap-4 mb-3 active:scale-98 transition-all">
+                                                            <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                                <p className="text-lg font-black text-white uppercase tracking-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] font-black text-[#C9B075] uppercase italic">VS</span>
+                                                                    <p className="text-sm font-black text-white/30 uppercase tracking-tight truncate">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
                                                                 </div>
+                                                                {hasConflict && (
+                                                                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#C9B075]/10 border border-[#C9B075]/20">
+                                                                        <span className="w-1 h-1 rounded-full bg-[#C9B075] animate-pulse" />
+                                                                        <span className="text-[9px] font-black text-[#C9B075] uppercase italic">BUSY</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                style={{ position: 'relative', zIndex: 10, shrink: 0, fontSize: '11px', fontWeight: '900', padding: '12px 20px', borderRadius: '30px', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', backgroundColor: hasConflict ? 'rgba(255,255,255,0.05)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black', textTransform: 'uppercase' }}
+                                                                className={`px-6 py-3 rounded-full text-[11px] font-black uppercase transition-all ${hasConflict ? 'bg-white/5 text-white/10' : 'bg-[#C9B075] text-black active:scale-90 shadow-lg'}`}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
@@ -1553,10 +1550,10 @@ export default function KDKPage() {
                             </div>
                         )}
                         
-                        <div style={{ height: "180px" }} />
+                        <div className="h-32" />
                     </>
                 ) : (
-                    <div style={{ paddingBottom: "180px" }}>
+                    <div className="pb-32">
                         <RankingView 
                             sessionMatches={matches} 
                             configs={attendeeConfigs} 
