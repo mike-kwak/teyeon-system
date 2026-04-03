@@ -1368,7 +1368,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
+        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[240px]">
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
@@ -1427,9 +1427,9 @@ export default function KDKPage() {
                 {activeTab === 'MATCHES' ? (
                     <>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between px-2">
-                                <h3 className="text-[10px] font-black text-white/30 tracking-[0.3em] uppercase">Now Playing</h3>
-                                {activeMatchIds.length > 0 && <span className="text-[8px] font-black text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/20">{activeMatchIds.length} ACTIVE</span>}
+                            <div className="flex items-center justify-between px-2 mb-3">
+                                <h3 className="text-[11px] font-black text-white/40 tracking-[0.3em] uppercase">Now Playing</h3>
+                                {activeMatchIds.length > 0 && <span className="text-[9px] font-black text-[#D4AF37] bg-[#D4AF37]/15 px-3 py-1 rounded-full border border-[#D4AF37]/30">{activeMatchIds.length} ACTIVE</span>}
                             </div>
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-20 text-center opacity-20 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">Waiting for next round...</div>
@@ -1443,7 +1443,7 @@ export default function KDKPage() {
                                         const isGroupB = (p0Group || 'A').toUpperCase().includes('B');
 
                                         return (
-                                            <div key={mId} className="group relative bg-[#1C1C20] border border-[#D4AF37]/40 rounded-[28px] p-5 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[150px]">
+                                            <div key={mId} className="group relative bg-[#1E1E28] border border-[#D4AF37]/30 rounded-[28px] p-5 shadow-xl active:scale-95 transition-all flex flex-col justify-between min-h-[160px]">
                                                 <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/5 border border-white/10">
                                                     <span className={`text-[8px] font-black italic ${isGroupB ? 'text-blue-400' : 'text-[#D4AF37]'}`}>{isGroupB ? 'B' : 'A'}조</span>
                                                 </div>
@@ -1494,11 +1494,11 @@ export default function KDKPage() {
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-[#D4AF37] tracking-[0.3em] uppercase px-2 flex items-center gap-2">
-                                                <span className={`w-4 h-4 rounded flex items-center justify-center text-[8px] text-black font-black ${group === 'A' ? 'bg-[#D4AF37]' : 'bg-blue-500'}`}>{group}</span>
-                                                {group}조 대기 경기
-                                            </h3>
+                                        <div key={group} className="space-y-3">
+                                            <div className="flex items-center gap-2 px-1">
+                                                <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] text-black font-black ${group === 'A' ? 'bg-[#D4AF37]' : 'bg-blue-500'}`}>{group}</span>
+                                                <h3 className="text-[12px] font-black text-white/80 uppercase tracking-wider">{group}조 대기 경기</h3>
+                                            </div>
                                             <div className="grid grid-cols-1 gap-2">
                                                 {groupMatches.map(m => {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
@@ -1582,17 +1582,17 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[450px] p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-50">
-                <div className="max-w-xs mx-auto bg-white/5 border border-white/10 backdrop-blur-2xl rounded-full p-1.5 flex shadow-2xl">
+            <nav className="fixed bottom-[118px] left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60]">
+                <div className="mx-auto bg-[#1C1C24] border border-white/15 backdrop-blur-2xl rounded-full p-1.5 flex shadow-2xl">
                     {(['MATCHES', 'RANKING'] as const).map(t => (
-                        <button key={t} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab(t); }} className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}>{t === 'MATCHES' ? '🔥 Matches' : '📊 Ranking'}</button>
+                        <button key={t} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab(t); }} className={`flex-1 py-3.5 rounded-full text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/50 hover:text-white'}`}>{t === 'MATCHES' ? '🔥 Matches' : '📊 Ranking'}</button>
                     ))}
                 </div>
             </nav>
 
             {/* Floating Ceremony Trigger Button (Visible when all matches scored) */}
             {allMatchesScored && step === 3 && activeTab === 'MATCHES' && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
+                <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60] animate-in slide-in-from-bottom-10 fade-in duration-500">
                     <button 
                         onClick={handleStartCeremony}
                         className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-black font-[1000] rounded-[28px] shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
