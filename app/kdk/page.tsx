@@ -1449,41 +1449,40 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-[40px] p-8 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col gap-6">
-                                                <div className="flex flex-row items-center justify-between gap-4">
-                                                    {/* TEAM A BLOCK (HORIZONTAL REFACTOR) */}
-                                                    <div className="flex-1 h-28 bg-white/10 backdrop-blur-3xl rounded-[32px] p-4 relative border border-white/10 text-center flex flex-col items-center justify-center">
-                                                        <div className="absolute top-[-10px] left-[-5px] bg-[#C9B075] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
+                                            <div key={mId} className="bg-[#1e1e2e] rounded-[40px] p-8 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col gap-8">
+                                                <div className="grid grid-cols-2 gap-4 items-center relative">
+                                                    {/* SYMMETRY vs MARKER */}
+                                                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 text-[10px] font-black italic text-white/5 uppercase">vs</div>
+
+                                                    {/* TEAM A BLOCK (LEGEND Restoration) */}
+                                                    <div className="bg-white/10 backdrop-blur-3xl rounded-[32px] p-10 relative border border-white/10 text-center flex flex-col items-center justify-center min-h-[160px]">
+                                                        <div className="absolute top-[-12px] left-[-6px] bg-[#FFD700] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
                                                             {normalizedGroup}조
                                                         </div>
-                                                        <div className="flex flex-col gap-1 items-center justify-center h-full w-full">
-                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[0])}</span>
-                                                            <div className="h-1" /> {/* Micro-spacing */}
-                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[1])}</span>
+                                                        <div className="flex flex-col gap-2 items-center justify-center h-full w-full">
+                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[0])}</span>
+                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[1])}</span>
                                                         </div>
                                                     </div>
 
-                                                    <div className="text-[10px] font-black italic text-white/10 shrink-0">VS</div>
-
-                                                    {/* TEAM B BLOCK (HORIZONTAL REFACTOR) */}
-                                                    <div className="flex-1 h-28 bg-white/10 backdrop-blur-3xl rounded-[32px] p-4 relative border border-white/10 text-center flex flex-col items-center justify-center">
-                                                        <div className="absolute top-[-10px] right-[-5px] bg-[#C9B075] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
+                                                    {/* TEAM B BLOCK (LEGEND Restoration) */}
+                                                    <div className="bg-white/10 backdrop-blur-3xl rounded-[32px] p-10 relative border border-white/10 text-center flex flex-col items-center justify-center min-h-[160px]">
+                                                        <div className="absolute top-[-12px] left-[-6px] bg-[#C9B075] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
                                                             #{m.court}
                                                         </div>
-                                                        <div className="flex flex-col gap-1 items-center justify-center h-full w-full">
-                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[2])}</span>
-                                                            <div className="h-1" /> {/* Micro-spacing */}
-                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[3])}</span>
+                                                        <div className="flex flex-col gap-2 items-center justify-center h-full w-full">
+                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[2])}</span>
+                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* SLIM SCORE INPUT BUTTON */}
+                                                {/* ACTION (ENTER FINAL SCORE) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl text-[sm] font-black text-white/30 uppercase tracking-widest hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
+                                                    className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black text-white/20 uppercase tracking-[0.4em] hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
                                                 >
-                                                    SCORE INPUT
+                                                    ENTER FINAL SCORE
                                                 </button>
                                             </div>
                                         );
