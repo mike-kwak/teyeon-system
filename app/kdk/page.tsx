@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3 mt-6">
+                                <div className="flex flex-col gap-6 mt-6">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,33 +1449,39 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-2xl p-4 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col gap-3">
-                                                {/* TEAM A */}
-                                                <div className="flex flex-col gap-1.5 relative">
-                                                    <div style={{ position: 'absolute', top: '-4px', left: '-4px', width: '24px', height: '24px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '900', color: 'white', zIndex: 1, backdropFilter: 'blur(4px)' }}>{normalizedGroup}</div>
-                                                    <div className="bg-white/10 p-2 rounded-lg text-center">
-                                                        <span className="text-[14px] font-black text-white leading-tight block truncate">{getPlayerName(m.playerIds[0])}</span>
-                                                        <span className="text-[14px] font-black text-white leading-tight block truncate">{getPlayerName(m.playerIds[1])}</span>
+                                            <div key={mId} className="bg-[#1e1e2e] rounded-[32px] p-6 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col gap-6">
+                                                <div className="flex items-center justify-between gap-4">
+                                                    {/* TEAM A BLOCK */}
+                                                    <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[24px] p-6 relative border border-white/10 text-center">
+                                                        <div className="absolute -top-2 -left-2 bg-white/20 border border-white/30 rounded-full w-10 h-10 flex items-center justify-center text-[10px] font-black text-white shadow-xl z-10">
+                                                            {normalizedGroup}조
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-2xl font-black text-white leading-tight break-all">{getPlayerName(m.playerIds[0])}</span>
+                                                            <span className="text-2xl font-black text-white leading-tight break-all">{getPlayerName(m.playerIds[1])}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="text-[10px] font-black italic text-white/10 shrink-0">VS</div>
+
+                                                    {/* TEAM B BLOCK */}
+                                                    <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[24px] p-6 relative border border-white/10 text-center text-white">
+                                                        <div className="absolute -top-2 -right-2 bg-[#C9B075]/20 border border-[#C9B075]/30 rounded-full w-10 h-10 flex items-center justify-center text-[10px] font-black text-[#C9B075] shadow-xl z-10">
+                                                            #{m.court}
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-2xl font-black text-white leading-tight break-all">{getPlayerName(m.playerIds[2])}</span>
+                                                            <span className="text-2xl font-black text-white leading-tight break-all">{getPlayerName(m.playerIds[3])}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="text-center opacity-10 text-[8px] font-black italic">VS</div>
-
-                                                {/* TEAM B */}
-                                                <div className="flex flex-col gap-1.5 relative">
-                                                    <div style={{ position: 'absolute', top: '-4px', right: '-4px', width: '24px', height: '24px', backgroundColor: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.3)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '900', color: '#C9B075', zIndex: 1, backdropFilter: 'blur(4px)' }}>#{m.court}</div>
-                                                    <div className="bg-white/10 p-2 rounded-lg text-center">
-                                                        <span className="text-[14px] font-black text-white leading-tight block truncate">{getPlayerName(m.playerIds[2])}</span>
-                                                        <span className="text-[14px] font-black text-white leading-tight block truncate">{getPlayerName(m.playerIds[3])}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* ACTION */}
+                                                {/* LARGE SCORE INPUT BUTTON */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full py-2 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-xl text-[10px] font-black text-[#C9B075] uppercase tracking-widest hover:bg-[#C9B075]/20 active:scale-95 transition-all"
+                                                    className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-[12px] font-black text-white/20 uppercase tracking-[0.3em] hover:bg-white/10 active:scale-95 transition-all text-center"
                                                 >
-                                                    SCORE
+                                                    SCORE INPUT
                                                 </button>
                                             </div>
                                         );
@@ -1512,20 +1518,22 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="flex items-center justify-between px-4 py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
-                                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                                <span className="text-white font-bold text-[13px] truncate">
-                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}
-                                                                </span>
-                                                                <span className="text-white/20 italic text-[10px] font-black shrink-0">VS</span>
-                                                                <span className="text-white/40 font-bold text-[13px] truncate">
-                                                                    {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
-                                                                </span>
+                                                        <div key={m.id} className="bg-zinc-900 p-5 rounded-2xl mb-3 border border-white/5 flex items-center justify-between gap-4 shadow-xl active:scale-98 transition-all">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1 overflow-hidden">
+                                                                    <span className="text-white font-black text-[16px] truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                                    <span className="text-[10px] font-black text-white/5 italic shrink-0">VS</span>
+                                                                    <span className="text-white/40 font-black text-[16px] truncate">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[9px] font-black text-white/10 uppercase tracking-widest">Queue #{idx + 1}</span>
+                                                                    {hasConflict && <span className="text-[9px] font-black text-[#C9B075] uppercase animate-pulse">Conflict: 선수 경기중</span>}
+                                                                </div>
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${hasConflict ? 'bg-black text-white/10' : 'bg-[#C9B075] text-black active:scale-95'}`}
+                                                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${hasConflict ? 'bg-black text-white/5 opacity-50' : 'bg-[#C9B075] text-black active:scale-95 shadow-lg shadow-[#C9B075]/20'}`}
                                                             >
                                                                 {hasConflict ? '대기 중' : '투입 🚀'}
                                                             </button>
@@ -1584,7 +1592,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] bg-[#1a1a1a] border border-white/20 shadow-[0_40px_80px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75] backdrop-blur-3xl">
+            <nav className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] bg-black/80 border border-white/20 shadow-[0_40px_80px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75] backdrop-blur-md">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
