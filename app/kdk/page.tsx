@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-5 mt-8">
+                                <div className="flex flex-col gap-4 mt-8 pb-10">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,39 +1449,39 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', position: 'relative', width: '100%', height: '180px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 20px 1fr', alignItems: 'center', width: '100%', height: '110px' }}>
-                                                    {/* TEAM A BLOCK (5:5 SPEC) */}
-                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '90px', width: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                                                        <span style={{ position: 'absolute', top: '0', left: '0', width: '30px', height: '30px', backgroundColor: '#facc15', borderRadius: '0 0 12px 0', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '10', color: 'black' }}>{normalizedGroup}조</span>
-                                                        <span style={{ fontSize: '16px', fontWeight: '900', color: 'white', textAlign: 'center', wordBreak: 'keep-all', whiteSpace: 'pre-wrap', width: '90%', lineHeight: '1.2' }}>
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '20px', padding: '12px', height: '140px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', boxShadow: '0 15px 30px -10px rgba(0, 0, 0, 0.5)' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 16px 1fr', alignItems: 'center' }}>
+                                                    {/* TEAM A BLOCK (ULTRA-COMPACT) */}
+                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', height: '60px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                        <span style={{ position: 'absolute', top: '-6px', left: '-6px', width: '28px', height: '28px', backgroundColor: '#facc15', borderRadius: '50%', fontSize: '9px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '20', color: 'black', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)' }}>{normalizedGroup}조</span>
+                                                        <span style={{ color: 'white', fontSize: '15px', fontWeight: '900', textAlign: 'center', width: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
-                                                    {/* Central VS */}
-                                                    <div style={{ color: 'rgba(255,255,255,0.1)', fontStyle: 'italic', fontWeight: '900', fontSize: '10px', textAlign: 'center' }}>vs</div>
+                                                    {/* Central vs */}
+                                                    <div style={{ color: 'rgba(255,255,255,0.1)', fontStyle: 'italic', fontWeight: '900', fontSize: '9px', textAlign: 'center' }}>vs</div>
 
-                                                    {/* TEAM B BLOCK (5:5 SPEC) */}
-                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '90px', width: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                                                        <span style={{ position: 'absolute', top: '0', left: '0', width: '30px', height: '30px', backgroundColor: '#C9B075', borderRadius: '0 0 12px 0', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '10', color: 'black' }}>#{m.court}</span>
-                                                        <span style={{ fontSize: '16px', fontWeight: '900', color: 'white', textAlign: 'center', wordBreak: 'keep-all', whiteSpace: 'pre-wrap', width: '90%', lineHeight: '1.2' }}>
+                                                    {/* TEAM B BLOCK (ULTRA-COMPACT) */}
+                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', height: '60px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                        <span style={{ position: 'absolute', top: '-6px', right: '-6px', width: '28px', height: '28px', backgroundColor: '#C9B075', borderRadius: '50%', fontSize: '9px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '20', color: 'black', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)' }}>#{m.court}</span>
+                                                        <span style={{ color: 'white', fontSize: '15px', fontWeight: '900', textAlign: 'center', width: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* ACTION (5:5 SPEC SCORE BUTTON) */}
+                                                {/* SCORE INPUT BUTTON (ULTRA-COMPACT) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    style={{ width: '100%', height: '32px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginTop: '12px', fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}
+                                                    style={{ height: '28px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginTop: '10px', fontSize: '9px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
                                             </div>
                                         );
                                     })}
-                                    <div style={{ height: '200px' }} />
+                                    <div style={{ height: '180px' }} />
                                 </div>
                             )}
                         </section>
