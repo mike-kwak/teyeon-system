@@ -1449,47 +1449,39 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '12px 16px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 15px 30px rgba(0, 0, 0, 0.4)', position: 'relative' }}>
-                                                <div className="flex flex-col gap-2">
-                                                    <div className="flex items-center justify-between px-1">
-                                                         <div className="flex items-center gap-1.5 text-[8px] font-black tracking-widest text-[#C9B075]/40 italic uppercase">
-                                                            <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#C9B075', boxShadow: '0 0 8px #C9B075' }} />
-                                                            On Air
-                                                         </div>
-                                                         <span style={{ fontSize: '9px', fontWeight: '900', color: 'rgba(255,255,255,0.1)' }}>CRT-{String(m.court).padStart(2, '0')}</span>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-2">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '32px', padding: '24px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative' }}>
+                                                <div className="flex flex-col gap-6">
+                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-4">
                                                         {/* TEAM 1 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '14px 10px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                            <div style={{ position: 'absolute', top: '-6px', left: '10px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '1px 6px', fontSize: '7px', fontWeight: '900', color: 'white' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', borderRadius: '24px', padding: '24px 16px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '20px', left: '16px', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '4px 12px', fontSize: '9px', fontWeight: '900', color: 'white' }}>
                                                                 {normalizedGroup}조
                                                             </div>
-                                                            <span style={{ fontSize: '18px', fontWeight: '900', color: 'white', letterSpacing: '-0.03em', lineHeight: '1.2', display: 'block' }}>
+                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'white', letterSpacing: '-0.03em', lineHeight: '1.2' }}>
                                                                 {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                             </span>
                                                         </div>
 
                                                         {/* VS */}
-                                                        <div style={{ fontSize: '9px', fontWeight: '1000', color: 'rgba(255,255,255,0.05)', fontStyle: 'italic' }}>VS</div>
+                                                        <div style={{ fontSize: '12px', fontWeight: '1000', color: 'rgba(255,255,255,0.1)', fontStyle: 'italic' }}>VS</div>
 
                                                         {/* TEAM 2 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '14px 10px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                            <div style={{ position: 'absolute', top: '-6px', right: '10px', backgroundColor: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.2)', borderRadius: '999px', padding: '1px 6px', fontSize: '7px', fontWeight: '900', color: '#C9B075' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', borderRadius: '24px', padding: '24px 16px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '20px', right: '16px', backgroundColor: 'rgba(201,176,117,0.1)', border: '1px solid rgba(201,176,117,0.2)', borderRadius: '999px', padding: '4px 12px', fontSize: '9px', fontWeight: '900', color: '#C9B075' }}>
                                                                 #{m.court}
                                                             </div>
-                                                            <span style={{ fontSize: '18px', fontWeight: '900', color: 'white', letterSpacing: '-0.03em', lineHeight: '1.2', display: 'block' }}>
+                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'white', letterSpacing: '-0.03em', lineHeight: '1.2' }}>
                                                                 {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    {/* SLIM ACTION BUTTON */}
+                                                    {/* SCORE INPUT BUTTON (11:35 Sync) */}
                                                     <button 
                                                         onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                        style={{ width: '100%', padding: '6px', backgroundColor: 'rgba(201,176,117,0.05)', border: '1px dashed rgba(201,176,117,0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' }}
+                                                        style={{ width: '100%', padding: '20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                                                     >
-                                                        <span style={{ fontSize: '9px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.1em' }}>ENTER SCORE 🏆</span>
+                                                        <span style={{ fontSize: '12px', fontWeight: '900', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>SCORE INPUT</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1598,7 +1590,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] bg-[#1a1a1a] border border-white/8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] bg-[#1a1a1a]/95 backdrop-blur-xl shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex items-center justify-between gap-1 z-[70] border border-white/5">
+            <nav className="fixed bottom-[calc(110px+env(safe-area-inset-bottom))] bg-[#1a1a1a] border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] bg-[#1a1a1a] border border-white/8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] bg-[#1a1a1a]/95 backdrop-blur-xl shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex items-center justify-between gap-1 z-[70] border border-white/5">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
