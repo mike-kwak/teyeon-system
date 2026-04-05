@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-0 mt-8">
+                                <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 mt-8 no-scrollbar pb-6 -mx-6 px-6">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,7 +1449,7 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-[20px] p-4 mb-5 border border-white/5 relative shadow-2xl">
+                                            <div key={mId} className="min-w-[85vw] md:min-w-[400px] snap-center shrink-0 bg-[#1e1e2e] rounded-[20px] p-4 border border-white/5 relative shadow-2xl">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                                                     
                                                     {/* TEAM A BLOCK (LEGEND SPEC) */}
