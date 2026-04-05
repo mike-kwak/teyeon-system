@@ -1388,7 +1388,7 @@ export default function KDKPage() {
             </header>
 
             <div className="px-6 mb-8">
-                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative overflow-hidden">
+                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative">
                     <div className="space-y-1">
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 mt-8 no-scrollbar pb-6 -mx-6 px-6">
+                                <div className="flex flex-col gap-4 mt-6">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,15 +1449,15 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="min-w-[85vw] md:min-w-[400px] snap-center shrink-0 bg-[#1e1e2e] rounded-[20px] p-4 border border-white/5 relative shadow-2xl">
+                                            <div key={mId} className="bg-[#181824] rounded-[24px] p-4 border border-[#C9B075]/10 relative shadow-2xl">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                                                     
                                                     {/* TEAM A BLOCK (LEGEND SPEC) */}
-                                                    <div className="relative bg-[#2a2a36]/50 rounded-2xl h-24 flex items-center justify-center border border-white/5">
-                                                        <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-[#facc15] text-black text-[9px] font-black flex items-center justify-center shadow-lg z-10">
+                                                    <div className="relative bg-[#242436] rounded-[16px] h-[100px] flex items-center justify-center border border-white/5">
+                                                        <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-[#facc15] text-black text-[10px] font-black flex items-center justify-center shadow z-10">
                                                             A조
                                                         </div>
-                                                        <span className="text-white text-base font-black text-center leading-snug relative z-0">
+                                                        <span className="text-white text-[15px] font-black text-center leading-[1.3] relative z-0 mt-2">
                                                             {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
@@ -1466,11 +1466,11 @@ export default function KDKPage() {
                                                     <div className="text-[#C9B075]/60 font-black text-[10px] uppercase text-center italic px-1">vs</div>
 
                                                     {/* TEAM B BLOCK (LEGEND SPEC) */}
-                                                    <div className="relative bg-[#2a2a36]/50 rounded-2xl h-24 flex items-center justify-center border border-white/5">
-                                                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#C9B075] text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10">
+                                                    <div className="relative bg-[#242436] rounded-[16px] h-[100px] flex items-center justify-center border border-white/5">
+                                                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#C9B075] text-black text-[10px] font-black flex items-center justify-center shadow z-10">
                                                             #{m.court}
                                                         </div>
-                                                        <span className="text-white text-base font-black text-center leading-snug relative z-0">
+                                                        <span className="text-white text-[15px] font-black text-center leading-[1.3] relative z-0 mt-2">
                                                             {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
@@ -1480,7 +1480,7 @@ export default function KDKPage() {
                                                 {/* SCORE INPUT BUTTON */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-9 bg-white/5 hover:bg-white/10 active:bg-white/20 transition-all rounded-[10px] flex items-center justify-center mt-3 text-[10px] font-black text-white/30 uppercase tracking-widest"
+                                                    className="w-full h-10 bg-white/5 hover:bg-white/10 active:bg-white/20 transition-all rounded-xl flex items-center justify-center mt-4 text-[11px] font-black text-white/30 uppercase tracking-widest"
                                                 >
                                                     SCORE INPUT
                                                 </button>
@@ -1521,13 +1521,11 @@ export default function KDKPage() {
                                                     return (
                                                         <div key={m.id} className="bg-zinc-900/50 p-6 rounded-[24px] mb-4 border border-white/5 flex items-center justify-between gap-6 shadow-2xl active:scale-98 transition-all overflow-hidden">
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="flex flex-col gap-1 overflow-hidden min-w-0">
-                                                                    <span className="text-white font-extrabold text-[18px] leading-tight truncate">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="text-[10px] font-black text-white/10 italic shrink-0">VS</span>
-                                                                        <span className="text-white/40 font-bold text-[18px] leading-tight truncate">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                                <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                                                                        <span className="text-white font-extrabold text-[14px] leading-tight truncate">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                                        <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
+                                                                        <span className="text-white/50 font-bold text-[14px] leading-tight truncate">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                                     </div>
-                                                                </div>
                                                                 <div className="flex items-center gap-2 mt-2">
                                                                     <span className="text-[9px] font-black text-white/10 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">Queue #{idx + 1}</span>
                                                                     {hasConflict && <span className="text-[9px] font-black text-[#C9B075] uppercase animate-pulse">Conflict: 선수 경기중</span>}
