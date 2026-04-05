@@ -1444,26 +1444,60 @@ export default function KDKPage() {
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
+                                        const p0 = m.playerIds[0];
+                                        const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                        const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                        
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#18181b', borderRadius: '16px', padding: '20px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', borderLeft: '6px solid #C9B075', position: 'relative' }}>
-                                                <div className="flex flex-col gap-4">
-                                                    <div className="flex items-center">
-                                                        <span className="text-[10px] font-bold text-[#C9B075] uppercase tracking-[0.2em] bg-[#C9B075]/10 px-3 py-1.5 rounded-full">COURT {String(m.court).padStart(2, '0')}</span>
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '32px', padding: '24px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden' }}>
+                                                {/* Background Layered Gradient */}
+                                                <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(201,176,117,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
+                                                
+                                                <div className="flex flex-col gap-6">
+                                                    <div className="flex items-center justify-between px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#C9B075', boxShadow: '0 0 10px #C9B075' }} />
+                                                            <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Live Dashboard</span>
+                                                        </div>
+                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <span style={{ fontSize: '20px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: '1.2' }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                        <div className="flex items-center gap-3">
-                                                            <span style={{ fontSize: '12px', fontWeight: '1000', color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', textTransform: 'uppercase' }}>VS</span>
-                                                            <span style={{ fontSize: '18px', fontWeight: '1000', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+
+                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-4">
+                                                        {/* TEAM 1 BLOCK */}
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', borderRadius: '24px', padding: '24px 16px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+                                                            {/* Group Badge */}
+                                                            <div style={{ position: 'absolute', top: '-10px', left: '16px', backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '4px 12px', fontSize: '9px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
+                                                                {normalizedGroup}조
+                                                            </div>
+                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'white', letterSpacing: '-0.03em', lineHeight: '1.2' }}>
+                                                                {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* VS */}
+                                                        <div style={{ fontSize: '12px', fontWeight: '1000', color: 'rgba(255,255,255,0.15)', fontStyle: 'italic' }}>VS</div>
+
+                                                        {/* TEAM 2 BLOCK */}
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', borderRadius: '24px', padding: '24px 16px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+                                                            {/* Court Badge indicator */}
+                                                            <div style={{ position: 'absolute', top: '-10px', right: '16px', backgroundColor: 'rgba(201,176,117,0.2)', border: '1px solid rgba(201,176,117,0.3)', borderRadius: '999px', padding: '4px 12px', fontSize: '9px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
+                                                                #{m.court}
+                                                            </div>
+                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: '-0.03em', lineHeight: '1.2' }}>
+                                                                {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
+                                                            </span>
                                                         </div>
                                                     </div>
+
+                                                    {/* INTEGRATED SCORE INPUT */}
+                                                    <button 
+                                                        onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
+                                                        style={{ width: '100%', padding: '16px', backgroundColor: 'rgba(201,176,117,0.1)', border: '1px border-dashed rgba(201,176,117,0.2)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', marginTop: '4px' }}
+                                                    >
+                                                        <span style={{ fontSize: '11px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.2em', textTransform: 'uppercase' }}>ENTER FINAL SCORE</span>
+                                                        <span style={{ fontSize: '14px' }}>🏆</span>
+                                                    </button>
                                                 </div>
-                                                <button 
-                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: '20px', backgroundColor: '#C9B075', color: 'black', fontWeight: '900', padding: '8px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px' }}
-                                                >
-                                                    SCORE
-                                                </button>
                                             </div>
                                         );
                                     })}
@@ -1499,24 +1533,30 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} style={{ backgroundColor: '#18181b', borderRadius: '16px', padding: '20px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'between', gap: '16px' }}>
-                                                            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                                                                <p style={{ fontSize: '20px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</p>
+                                                        <div key={m.id} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px 20px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', position: 'relative' }}>
+                                                            <div className="flex flex-col gap-1 min-w-0 flex-1">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span style={{ fontSize: '10px', fontWeight: '1000', color: '#C9B075', fontStyle: 'italic', textTransform: 'uppercase' }}>VS</span>
-                                                                    <p style={{ fontSize: '14px', fontWeight: '1000', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</p>
+                                                                    <span style={{ fontSize: '16px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                        {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span style={{ fontSize: '9px', fontWeight: '1000', color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', textTransform: 'uppercase' }}>W-NEXT</span>
+                                                                    <p style={{ fontSize: '13px', fontWeight: '1000', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                        {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
+                                                                    </p>
                                                                 </div>
                                                                 {hasConflict && (
-                                                                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 border border-white/5">
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-wider italic">BUSY</span>
+                                                                    <div style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#C9B075' }} />
+                                                                        <span style={{ fontSize: '8px', fontWeight: '900', color: '#C9B075', textTransform: 'uppercase' }}>BUSY</span>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                style={{ padding: '12px 24px', borderRadius: '99px', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', backgroundColor: hasConflict ? 'rgba(255,255,255,0.05)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black' }}
+                                                                style={{ padding: '10px 20px', borderRadius: '16px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', backgroundColor: hasConflict ? 'rgba(255,255,255,0.02)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black', transition: 'all 0.2s' }}
                                                             >
                                                                 {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
