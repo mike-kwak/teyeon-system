@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-6 overflow-y-auto pb-40 no-scrollbar bg-black antialiased">
+            <div className="flex-1 px-6 space-y-6 overflow-y-auto no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-6 mt-8 pb-4">
+                                <div className="flex flex-col gap-0 mt-8">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,38 +1449,39 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-[24px] p-5 shadow-2xl relative border border-white/5">
-                                                <div className="grid grid-cols-[1fr_20px_1fr] items-center">
-                                                    {/* TEAM A BLOCK (3:12 LEGEND ROLLBACK) */}
-                                                    <div className="relative bg-white/10 rounded-2xl h-20 flex items-center justify-center shadow-inner">
-                                                        <span className="absolute -top-1 -left-1 w-8 h-8 rounded-full bg-yellow-500 text-black text-[10px] font-black flex items-center justify-center shadow-lg z-20">{normalizedGroup}조</span>
-                                                        <span className="text-white text-lg font-black text-center px-4 leading-tight truncate overflow-hidden whitespace-nowrap w-full">
-                                                            {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
+                                            <div key={mId} className="bg-[#1e1e2e] rounded-[24px] p-4 shadow-2xl mb-6 border border-white/5">
+                                                <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
+                                                    {/* TEAM A BLOCK (GOLDEN SPEC) */}
+                                                    <div className="relative bg-white/10 rounded-2xl h-24 flex items-center justify-center border border-white/5">
+                                                        <span className="absolute -top-2 -left-2 px-2 py-1 rounded-full bg-[#facc15] text-black text-[10px] font-black shadow-lg z-20">{normalizedGroup}조</span>
+                                                        <span className="text-white text-lg font-black text-center leading-tight truncate px-2">
+                                                            {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
                                                     {/* Central VS */}
-                                                    <div className="text-gray-600 font-bold text-[10px] uppercase text-center shrink-0">vs</div>
+                                                    <div className="text-gray-600 italic font-black text-[10px] uppercase">vs</div>
 
-                                                    {/* TEAM B BLOCK (3:12 LEGEND ROLLBACK) */}
-                                                    <div className="relative bg-white/10 rounded-2xl h-20 flex items-center justify-center shadow-inner">
-                                                        <span className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-[#C9B075] text-black text-[10px] font-black flex items-center justify-center shadow-lg z-20">#{m.court}</span>
-                                                        <span className="text-white text-lg font-black text-center px-4 leading-tight truncate overflow-hidden whitespace-nowrap w-full">
-                                                            {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
+                                                    {/* TEAM B BLOCK (GOLDEN SPEC) */}
+                                                    <div className="relative bg-white/10 rounded-2xl h-24 flex items-center justify-center border border-white/5">
+                                                        <span className="absolute -top-2 -right-2 px-2 py-1 rounded-full bg-[#C9B075] text-black text-[10px] font-black shadow-lg z-20">#{m.court}</span>
+                                                        <span className="text-white text-lg font-black text-center leading-tight truncate px-2">
+                                                            {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* ACTION (3:12 LEGEND SCORE BUTTON - DE-BLOATED) */}
+                                                {/* ACTION (GOLDEN SCORE BUTTON) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full mt-4 h-8 bg-zinc-900 border border-white/5 rounded-lg text-white/30 text-[9px] font-black tracking-widest uppercase hover:bg-zinc-800 transition-all text-center flex items-center justify-center"
+                                                    className="w-full mt-4 h-9 bg-white/5 hover:bg-white/10 rounded-xl text-white/30 text-[9px] font-black tracking-widest uppercase border border-white/5 transition-all text-center flex items-center justify-center"
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
                                             </div>
                                         );
                                     })}
+                                    <div className="h-60" />
                                 </div>
                             )}
                         </section>
