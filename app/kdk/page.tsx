@@ -991,7 +991,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-56" style={{ paddingBottom: "160px" }}>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
                 
                 
 
@@ -1368,7 +1368,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-56" style={{ paddingBottom: "160px" }}>
+        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
@@ -1450,30 +1450,30 @@ export default function KDKPage() {
                                         
                                         return (
                                             <div key={mId} className="bg-[#1e1e2e] rounded-[40px] p-8 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col gap-6">
-                                                <div className="flex items-center justify-between gap-6">
-                                                    {/* TEAM A BLOCK (CENTRE FIX) */}
-                                                    <div className="flex-1 bg-white/10 backdrop-blur-3xl rounded-[32px] p-8 relative border border-white/10 text-center flex flex-col items-center justify-center min-h-[140px]">
+                                                <div className="flex flex-row items-center justify-between gap-4">
+                                                    {/* TEAM A BLOCK (HORIZONTAL REFACTOR) */}
+                                                    <div className="flex-1 h-28 bg-white/10 backdrop-blur-3xl rounded-[32px] p-4 relative border border-white/10 text-center flex flex-col items-center justify-center">
                                                         <div className="absolute top-[-10px] left-[-5px] bg-[#C9B075] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
                                                             {normalizedGroup}조
                                                         </div>
-                                                        <div className="flex flex-col gap-0 justify-center h-full w-full">
-                                                            <span className="text-3xl font-extrabold text-white truncate break-all leading-none">{getPlayerName(m.playerIds[0])}</span>
-                                                            <div className="h-2" /> {/* Micro-spacing */}
-                                                            <span className="text-3xl font-extrabold text-white truncate break-all leading-none">{getPlayerName(m.playerIds[1])}</span>
+                                                        <div className="flex flex-col gap-1 items-center justify-center h-full w-full">
+                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[0])}</span>
+                                                            <div className="h-1" /> {/* Micro-spacing */}
+                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[1])}</span>
                                                         </div>
                                                     </div>
 
-                                                    <div className="text-[12px] font-black italic text-white/15 shrink-0 px-2">vs</div>
+                                                    <div className="text-[10px] font-black italic text-white/10 shrink-0">VS</div>
 
-                                                    {/* TEAM B BLOCK (CENTRE FIX) */}
-                                                    <div className="flex-1 bg-white/10 backdrop-blur-3xl rounded-[32px] p-8 relative border border-white/10 text-center flex flex-col items-center justify-center min-h-[140px]">
+                                                    {/* TEAM B BLOCK (HORIZONTAL REFACTOR) */}
+                                                    <div className="flex-1 h-28 bg-white/10 backdrop-blur-3xl rounded-[32px] p-4 relative border border-white/10 text-center flex flex-col items-center justify-center">
                                                         <div className="absolute top-[-10px] right-[-5px] bg-[#C9B075] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
                                                             #{m.court}
                                                         </div>
-                                                        <div className="flex flex-col gap-0 justify-center h-full w-full">
-                                                            <span className="text-3xl font-extrabold text-white truncate break-all leading-none">{getPlayerName(m.playerIds[2])}</span>
-                                                            <div className="h-2" /> {/* Micro-spacing */}
-                                                            <span className="text-3xl font-extrabold text-white truncate break-all leading-none">{getPlayerName(m.playerIds[3])}</span>
+                                                        <div className="flex flex-col gap-1 items-center justify-center h-full w-full">
+                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[2])}</span>
+                                                            <div className="h-1" /> {/* Micro-spacing */}
+                                                            <span className="text-2xl font-black text-white truncate break-all leading-none">{getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1481,7 +1481,7 @@ export default function KDKPage() {
                                                 {/* SLIM SCORE INPUT BUTTON */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-[48px] bg-white/5 border border-white/10 rounded-2xl text-[sm] font-black text-white/30 uppercase tracking-widest hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
+                                                    className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl text-[sm] font-black text-white/30 uppercase tracking-widest hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
                                                 >
                                                     SCORE INPUT
                                                 </button>
