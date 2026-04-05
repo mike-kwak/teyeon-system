@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-0 overflow-y-auto no-scrollbar bg-black antialiased">
+            <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
@@ -1449,36 +1449,40 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                                            <div key={mId} className="bg-[#1e1e2e] rounded-[20px] p-4 mb-5 border border-white/5 relative shadow-2xl">
+                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                                                     
-                                                    {/* TEAM A BLOCK (SLIM SPEC) */}
-                                                    <div style={{ flex: 1, position: 'relative', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <div style={{ position: 'absolute', top: '-6px', left: '-6px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#facc15', color: 'black', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>{normalizedGroup}조</div>
-                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2' }}>
+                                                    {/* TEAM A BLOCK (LEGEND SPEC) */}
+                                                    <div className="relative bg-[#2a2a36]/50 rounded-2xl h-24 flex items-center justify-center border border-white/5">
+                                                        <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-[#facc15] text-black text-[9px] font-black flex items-center justify-center shadow-lg z-10">
+                                                            A조
+                                                        </div>
+                                                        <span className="text-white text-base font-black text-center leading-snug relative z-0">
                                                             {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
                                                     {/* Central VS */}
-                                                    <div style={{ textAlign: 'center', color: '#4b5563', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', paddingBottom: '4px' }}>vs</div>
+                                                    <div className="text-[#C9B075]/60 font-black text-[10px] uppercase text-center italic px-1">vs</div>
 
-                                                    {/* TEAM B BLOCK (SLIM SPEC) */}
-                                                    <div style={{ flex: 1, position: 'relative', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <div style={{ position: 'absolute', top: '-6px', right: '-6px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#C9B075', color: 'black', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>#{m.court}</div>
-                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2' }}>
+                                                    {/* TEAM B BLOCK (LEGEND SPEC) */}
+                                                    <div className="relative bg-[#2a2a36]/50 rounded-2xl h-24 flex items-center justify-center border border-white/5">
+                                                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#C9B075] text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10">
+                                                            #{m.court}
+                                                        </div>
+                                                        <span className="text-white text-base font-black text-center leading-snug relative z-0">
                                                             {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (SLIM SPEC) */}
+                                                {/* SCORE INPUT BUTTON */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    style={{ width: '100%', height: '36px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '10px', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', border: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
+                                                    className="w-full h-9 bg-white/5 hover:bg-white/10 active:bg-white/20 transition-all rounded-[10px] flex items-center justify-center mt-3 text-[10px] font-black text-white/30 uppercase tracking-widest"
                                                 >
-                                                    ENTER FINAL SCORE
+                                                    SCORE INPUT
                                                 </button>
                                             </div>
                                         );
@@ -1591,7 +1595,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="!fixed !bottom-28 !bg-black/95 !border !border-white/20 !shadow-[0_50px_100px_rgba(0,0,0,1)] !left-1/2 !-translate-x-1/2 !rounded-[32px] !px-2 !py-2 !w-[90%] !max-w-[420px] !flex !items-center !justify-between !gap-1 !z-[75]">
+            <nav className="fixed bottom-32 bg-black border border-white/10 shadow-2xl left-1/2 -translate-x-1/2 rounded-[32px] p-1.5 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
