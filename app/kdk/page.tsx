@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-4 mt-8 pb-10">
+                                <div className="flex flex-col gap-3 mt-8 pb-10">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,32 +1449,32 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-[24px] p-4 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col max-h-[180px]">
+                                            <div key={mId} className="bg-[#1e1e2e] rounded-[24px] p-4 py-3 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col max-h-[160px]">
                                                 <div className="grid grid-cols-[1fr_20px_1fr] items-center relative">
-                                                    {/* TEAM A BLOCK (ULTRA-SLIM OVERRIDE) */}
-                                                    <div className="relative bg-white/10 rounded-xl h-20 flex items-center justify-center border border-white/5">
-                                                        <span className="absolute -top-1 -left-1 w-8 h-8 rounded-full bg-[#facc15] text-black font-black flex items-center justify-center text-[10px] shadow-lg z-20">{normalizedGroup}조</span>
-                                                        <span className="text-white text-lg font-black leading-tight text-center line-clamp-2 px-2">
+                                                    {/* TEAM A BLOCK (ULTRA-COMPACT FINAL SPEC) */}
+                                                    <div className="relative bg-white/10 rounded-xl h-16 flex items-center justify-center border border-white/5">
+                                                        <span className="absolute -top-1 -left-1 w-7 h-7 rounded-full bg-[#facc15] text-black font-black flex items-center justify-center text-[9px] shadow-lg z-20">{normalizedGroup}조</span>
+                                                        <span className="text-white text-base font-black leading-tight text-center line-clamp-2 px-2">
                                                             {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
                                                     {/* Central vs */}
-                                                    <div className="text-gray-500 italic font-black text-[10px] px-1 uppercase shrink-0 text-center">vs</div>
+                                                    <div className="text-gray-500/60 font-black text-[10px] px-1 uppercase shrink-0 text-center">vs</div>
 
-                                                    {/* TEAM B BLOCK (ULTRA-SLIM OVERRIDE) */}
-                                                    <div className="relative bg-white/10 rounded-xl h-20 flex items-center justify-center border border-white/5">
-                                                        <span className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-[#C9B075] text-black font-black flex items-center justify-center text-[10px] shadow-lg z-20">#{m.court}</span>
-                                                        <span className="text-white text-lg font-black leading-tight text-center line-clamp-2 px-2">
+                                                    {/* TEAM B BLOCK (ULTRA-COMPACT FINAL SPEC) */}
+                                                    <div className="relative bg-white/10 rounded-xl h-16 flex items-center justify-center border border-white/5">
+                                                        <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-[#C9B075] text-black font-black flex items-center justify-center text-[9px] shadow-lg z-20">#{m.court}</span>
+                                                        <span className="text-white text-base font-black leading-tight text-center line-clamp-2 px-2">
                                                             {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* ACTION (ULTRA-SLIM SCORE BUTTON) */}
+                                                {/* ACTION (ULTRA-COMPACT SCORE BUTTON) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full mt-3 h-8 bg-white/5 rounded-lg text-white/30 text-[9px] font-black tracking-widest uppercase hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
+                                                    className="w-full mt-2 h-7 bg-white/5 rounded-lg text-white/30 text-[10px] font-black tracking-widest uppercase hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
