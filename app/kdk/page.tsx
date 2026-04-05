@@ -1449,23 +1449,23 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '14px 16px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)', position: 'relative' }}>
-                                                <div className="flex flex-col gap-3">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '16px', padding: '12px 10px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)', position: 'relative', overflow: 'hidden' }}>
+                                                <div className="flex flex-col gap-2">
                                                     <div className="flex items-center justify-between px-1">
-                                                         <div className="flex items-center gap-2">
-                                                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#C9B075' }} />
-                                                            <span style={{ fontSize: '9px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live</span>
+                                                         <div className="flex items-center gap-1.5">
+                                                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#C9B075', boxShadow: '0 0 10px #C9B075' }} />
+                                                            <span style={{ fontSize: '8px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live Dashboard</span>
                                                          </div>
-                                                         <span style={{ fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.2)' }}>CRT_{String(m.court).padStart(2, '0')}</span>
+                                                         <span style={{ fontSize: '9px', fontWeight: '900', color: 'rgba(255,255,255,0.2)' }}>COURT #{m.court}</span>
                                                     </div>
 
-                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3">
+                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-2">
                                                         {/* TEAM 1 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '12px 10px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                            <div style={{ position: 'absolute', top: '-8px', left: '10px', backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)', borderRadius: '12px', padding: '12px 6px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '-6px', left: '8px', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '1px 6px', fontSize: '7px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
                                                                 {normalizedGroup}조
                                                             </div>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
+                                                            <span style={{ fontSize: '15px', fontWeight: '900', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
                                                                 {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                             </span>
                                                         </div>
@@ -1474,22 +1474,22 @@ export default function KDKPage() {
                                                         <div style={{ fontSize: '10px', fontWeight: '1000', color: 'rgba(255,255,255,0.1)', fontStyle: 'italic' }}>VS</div>
 
                                                         {/* TEAM 2 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '12px 10px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                            <div style={{ position: 'absolute', top: '-8px', right: '10px', backgroundColor: 'rgba(201,176,117,0.2)', border: '1px solid rgba(201,176,117,0.3)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)', borderRadius: '12px', padding: '12px 6px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '-6px', right: '8px', backgroundColor: 'rgba(18,18,18,0.3)', border: '1px solid rgba(201,176,117,0.3)', borderRadius: '999px', padding: '1px 6px', fontSize: '7px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
                                                                 #{m.court}
                                                             </div>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
+                                                            <span style={{ fontSize: '15px', fontWeight: '900', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
                                                                 {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    {/* FINAL SCORE LINK */}
+                                                    {/* SCORE INPUT */}
                                                     <button 
                                                         onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                        style={{ width: '100%', padding: '8px', backgroundColor: 'rgba(201,176,117,0.08)', border: '1px dashed rgba(201,176,117,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
+                                                        style={{ width: '100%', padding: '8px', backgroundColor: 'rgba(201,176,117,0.1)', border: '1px dashed rgba(201,176,117,0.2)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
                                                     >
-                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.05em' }}>ENTER FINAL SCORE 🏆</span>
+                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075' }}>SCORE🏆</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1524,6 +1524,8 @@ export default function KDKPage() {
                                             </div>
                                             <div className="flex flex-col gap-4 mt-6">
                                                 {groupMatches.map((m, idx) => {
+                                                    const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
+                                                    const hasConflict = busyPlayers.length > 0;
                                                     return (
                                                         <div key={m.id} style={{ backgroundColor: '#1a1a24', borderRadius: '16px', padding: '10px 16px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
                                                             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
@@ -1535,10 +1537,11 @@ export default function KDKPage() {
                                                                 </p>
                                                             </div>
                                                             <button 
+                                                                disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                style={{ padding: '8px 14px', backgroundColor: '#C9B075', color: 'black', borderRadius: '10px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+                                                                style={{ padding: '8px 14px', backgroundColor: hasConflict ? 'rgba(255,255,255,0.02)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black', borderRadius: '10px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', boxShadow: hasConflict ? 'none' : '0 4px 10px rgba(0,0,0,0.3)' }}
                                                             >
-                                                                투입 🚀
+                                                                {hasConflict ? 'BUSY' : '투입 🚀'}
                                                             </button>
                                                         </div>
                                                     );
