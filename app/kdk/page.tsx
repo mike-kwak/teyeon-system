@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-6 overflow-y-auto pb-80 no-scrollbar bg-black antialiased">
+            <div className="flex-1 px-6 space-y-6 overflow-y-auto !pb-80 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-6 mt-8 pb-10">
+                                <div className="flex flex-col gap-5 mt-8 pb-10">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,33 +1449,29 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="flex flex-col gap-2">
-                                                {/* SLIM SINGLE-LINE CARD */}
-                                                <div className="bg-[#1e1e2e] rounded-[24px] h-[120px] px-4 border border-white/5 shadow-2xl relative overflow-hidden flex items-center justify-between">
-                                                    {/* TEAM A BLOCK (SINGLE-LINE OVERRIDE) */}
-                                                    <div className="relative w-[42%] h-20 bg-white/10 rounded-xl flex items-center justify-center border border-white/5">
-                                                        <span className="absolute -top-1 -left-1 w-6 h-6 rounded-full bg-[#facc15] text-black font-black flex items-center justify-center text-[8px] shadow-lg z-20">{normalizedGroup}조</span>
-                                                        <span className="text-white text-lg font-black truncate px-2 whitespace-nowrap overflow-hidden w-full text-center">
+                                            <div key={mId} className="!bg-[#1e1e2e] !rounded-[24px] !p-4 !border !border-white/5 !shadow-2xl !relative !overflow-hidden !flex !flex-col !max-h-[140px]">
+                                                <div className="!grid !grid-cols-2 !gap-3 !items-center !relative !w-full">
+                                                    {/* TEAM A BLOCK (!IMPORTANT OVERRIDE) */}
+                                                    <div className="!relative !bg-white/10 !rounded-2xl !h-20 !flex !items-center !justify-center !overflow-hidden !border !border-white/5">
+                                                        <span className="!absolute !-top-1 !-left-1 !w-8 !h-8 !rounded-full !bg-yellow-500 !text-black !text-[10px] !font-black !flex !items-center !justify-center !z-20">{normalizedGroup}조</span>
+                                                        <span className="!text-white !text-lg !font-black !truncate !px-2 !leading-tight !whitespace-nowrap !w-full !text-center">
                                                             {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
-                                                    {/* Central vs */}
-                                                    <div className="text-gray-600 font-bold text-[10px] mx-1 uppercase shrink-0">vs</div>
-
-                                                    {/* TEAM B BLOCK (SINGLE-LINE OVERRIDE) */}
-                                                    <div className="relative w-[42%] h-20 bg-white/10 rounded-xl flex items-center justify-center border border-white/5">
-                                                        <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#C9B075] text-black font-black flex items-center justify-center text-[8px] shadow-lg z-20">#{m.court}</span>
-                                                        <span className="text-white text-lg font-black truncate px-2 whitespace-nowrap overflow-hidden w-full text-center">
+                                                    {/* TEAM B BLOCK (!IMPORTANT OVERRIDE) */}
+                                                    <div className="!relative !bg-white/10 !rounded-2xl !h-20 !flex !items-center !justify-center !overflow-hidden !border !border-white/5">
+                                                        <span className="!absolute !-top-1 !-right-1 !w-8 !h-8 !rounded-full !bg-[#C9B075] !text-black !text-[10px] !font-black !flex !items-center !justify-center !z-20">#{m.court}</span>
+                                                        <span className="!text-white !text-lg !font-black !truncate !px-2 !leading-tight !whitespace-nowrap !w-full !text-center">
                                                             {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* EXTERNALIZED SLIM BUTTON */}
+                                                {/* ACTION (!IMPORTANT SLIM BUTTON) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-8 bg-zinc-900 border border-white/5 rounded-lg text-white/30 text-[9px] font-black tracking-widest uppercase hover:bg-zinc-800 transition-all text-center flex items-center justify-center"
+                                                    className="!w-full !mt-3 !h-8 !bg-white/5 !text-white/30 !text-[9px] !font-black !rounded-lg !uppercase !tracking-widest !transition-all !text-center !flex !items-center !justify-center"
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
@@ -1590,7 +1586,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-28 bg-black/90 border border-white/20 shadow-[0_50px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75]">
+            <nav className="!fixed !bottom-28 !bg-black/95 !border !border-white/20 !shadow-[0_50px_100px_rgba(0,0,0,1)] !left-1/2 !-translate-x-1/2 !rounded-[32px] !px-2 !py-2 !w-[90%] !max-w-[420px] !flex !items-center !justify-between !gap-1 !z-[75]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
