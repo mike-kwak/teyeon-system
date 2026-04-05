@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-6 overflow-y-auto !pb-80 no-scrollbar bg-black antialiased">
+            <div className="flex-1 px-6 space-y-6 overflow-y-auto no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
@@ -1440,7 +1440,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="flex flex-col gap-5 mt-8 pb-10">
+                                <div className="flex flex-col gap-5 mt-8">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1449,35 +1449,39 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="!bg-[#1e1e2e] !rounded-[24px] !p-4 !border !border-white/5 !shadow-2xl !relative !overflow-hidden !flex !flex-col !max-h-[140px]">
-                                                <div className="!grid !grid-cols-2 !gap-3 !items-center !relative !w-full">
-                                                    {/* TEAM A BLOCK (!IMPORTANT OVERRIDE) */}
-                                                    <div className="!relative !bg-white/10 !rounded-2xl !h-20 !flex !items-center !justify-center !overflow-hidden !border !border-white/5">
-                                                        <span className="!absolute !-top-1 !-left-1 !w-8 !h-8 !rounded-full !bg-yellow-500 !text-black !text-[10px] !font-black !flex !items-center !justify-center !z-20">{normalizedGroup}조</span>
-                                                        <span className="!text-white !text-lg !font-black !truncate !px-2 !leading-tight !whitespace-nowrap !w-full !text-center">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', position: 'relative', width: '100%', height: '180px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr', alignItems: 'center', height: '100px' }}>
+                                                    {/* TEAM A BLOCK (INLINE SPEC) */}
+                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '8px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                        <span style={{ position: 'absolute', top: '-8px', left: '-8px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#facc15', color: 'black', fontSize: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>{normalizedGroup}조</span>
+                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical' }}>
                                                             {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
-                                                    {/* TEAM B BLOCK (!IMPORTANT OVERRIDE) */}
-                                                    <div className="!relative !bg-white/10 !rounded-2xl !h-20 !flex !items-center !justify-center !overflow-hidden !border !border-white/5">
-                                                        <span className="!absolute !-top-1 !-right-1 !w-8 !h-8 !rounded-full !bg-[#C9B075] !text-black !text-[10px] !font-black !flex !items-center !justify-center !z-20">#{m.court}</span>
-                                                        <span className="!text-white !text-lg !font-black !truncate !px-2 !leading-tight !whitespace-nowrap !w-full !text-center">
+                                                    {/* Central VS */}
+                                                    <div style={{ color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', fontWeight: '900', fontSize: '10px', textAlign: 'center' }}>vs</div>
+
+                                                    {/* TEAM B BLOCK (INLINE SPEC) */}
+                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '8px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                        <span style={{ position: 'absolute', top: '-8px', right: '-8px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#C9B075', color: 'black', fontSize: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>#{m.court}</span>
+                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical' }}>
                                                             {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* ACTION (!IMPORTANT SLIM BUTTON) */}
+                                                {/* ACTION (INLINE SPEC SCORE BUTTON) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="!w-full !mt-3 !h-8 !bg-white/5 !text-white/30 !text-[9px] !font-black !rounded-lg !uppercase !tracking-widest !transition-all !text-center !flex !items-center !justify-center"
+                                                    style={{ width: '100%', height: '32px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginTop: '12px', fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
                                             </div>
                                         );
                                     })}
+                                    <div style={{ height: '160px' }} />
                                 </div>
                             )}
                         </section>
