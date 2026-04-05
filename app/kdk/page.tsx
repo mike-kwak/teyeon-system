@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-6 overflow-y-auto pb-0 no-scrollbar bg-black antialiased">
+            <div className="flex-1 px-6 space-y-0 overflow-y-auto no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
@@ -1452,7 +1452,7 @@ export default function KDKPage() {
                                             <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                                                     
-                                                    {/* 왼쪽 팀 (A조) - SLIM SPEC */}
+                                                    {/* TEAM A BLOCK (SLIM SPEC) */}
                                                     <div style={{ flex: 1, position: 'relative', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                         <div style={{ position: 'absolute', top: '-6px', left: '-6px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#facc15', color: 'black', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>{normalizedGroup}조</div>
                                                         <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2' }}>
@@ -1460,10 +1460,10 @@ export default function KDKPage() {
                                                         </span>
                                                     </div>
 
-                                                    {/* 중앙 VS */}
+                                                    {/* Central VS */}
                                                     <div style={{ textAlign: 'center', color: '#4b5563', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', paddingBottom: '4px' }}>vs</div>
 
-                                                    {/* 오른쪽 팀 (#1) - SLIM SPEC */}
+                                                    {/* TEAM B BLOCK (SLIM SPEC) */}
                                                     <div style={{ flex: 1, position: 'relative', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                         <div style={{ position: 'absolute', top: '-6px', right: '-6px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#C9B075', color: 'black', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>#{m.court}</div>
                                                         <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2' }}>
@@ -1473,7 +1473,7 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* 스코어 버튼 - SLIM SPEC */}
+                                                {/* SCORE INPUT BUTTON (SLIM SPEC) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
                                                     style={{ width: '100%', height: '36px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '10px', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', border: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
@@ -1483,12 +1483,6 @@ export default function KDKPage() {
                                             </div>
                                         );
                                     })}
-                                    <div style={{ height: '200px' }} />
-                                </div>
-                            )}
-                                    <div style={{ height: '200px' }} />
-                                </div>
-                            )}
                                 </div>
                             )}
                         </section>
