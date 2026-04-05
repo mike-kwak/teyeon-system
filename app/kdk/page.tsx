@@ -1512,21 +1512,22 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} style={{ backgroundColor: '#1a1a24', borderRadius: '16px', padding: '10px 16px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-                                                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                                                <span style={{ fontSize: '15px', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                    {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
+                                                        <div key={m.id} className="flex items-center justify-between px-4 py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                                <span className="text-white font-bold text-[13px] truncate">
+                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}
                                                                 </span>
-                                                                <p style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.1)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                    VS  {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
-                                                                </p>
+                                                                <span className="text-white/20 italic text-[10px] font-black shrink-0">VS</span>
+                                                                <span className="text-white/40 font-bold text-[13px] truncate">
+                                                                    {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
+                                                                </span>
                                                             </div>
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                style={{ padding: '8px 12px', backgroundColor: hasConflict ? 'transparent' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black', opacity: hasConflict ? '0.3' : '1', borderRadius: '10px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', border: hasConflict ? '1px solid rgba(255,255,255,0.1)' : 'none', cursor: hasConflict ? 'not-allowed' : 'pointer' }}
+                                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${hasConflict ? 'bg-black text-white/10' : 'bg-[#C9B075] text-black active:scale-95'}`}
                                                             >
-                                                                {hasConflict ? '경기 중' : '투입 🚀'}
+                                                                {hasConflict ? '대기 중' : '투입 🚀'}
                                                             </button>
                                                         </div>
                                                     );
@@ -1540,7 +1541,7 @@ export default function KDKPage() {
 
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
-                                <h3 className="text-[10px] font-black text-[#C9B075]/40 tracking-[0.3em] uppercase px-2">Completed Matches</h3>
+                                <h3 className="text-[10px] font-black text-[#C9B075]/40 tracking-[0.3em] uppercase px-2 mb-4">Completed Matches</h3>
                                 <div className="grid grid-cols-1 gap-3">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
@@ -1583,7 +1584,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] bg-black border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75]">
+            <nav className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] bg-[#1a1a1a] border border-white/20 shadow-[0_40px_80px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75] backdrop-blur-3xl">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
