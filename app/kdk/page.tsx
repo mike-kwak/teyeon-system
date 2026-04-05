@@ -1449,38 +1449,36 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-[40px] p-8 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col gap-8">
+                                            <div key={mId} className="bg-[#1e1e2e] rounded-[40px] p-6 border border-white/5 shadow-2xl relative overflow-hidden flex flex-col">
                                                 <div className="grid grid-cols-2 gap-4 items-center relative">
-                                                    {/* SYMMETRY vs MARKER */}
-                                                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 text-[10px] font-black italic text-white/5 uppercase">vs</div>
-
-                                                    {/* TEAM A BLOCK (LEGEND Restoration) */}
-                                                    <div className="bg-white/10 backdrop-blur-3xl rounded-[32px] p-10 relative border border-white/10 text-center flex flex-col items-center justify-center min-h-[160px]">
-                                                        <div className="absolute top-[-12px] left-[-6px] bg-[#FFD700] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
+                                                    {/* TEAM A BLOCK (SIDE-BY-SIDE OVERRIDE) */}
+                                                    <div className="bg-white/10 rounded-2xl h-24 flex items-center justify-center relative border border-white/5">
+                                                        <div className="absolute -top-2 -left-2 w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shadow-lg z-20">
                                                             {normalizedGroup}조
                                                         </div>
-                                                        <div className="flex flex-col gap-2 items-center justify-center h-full w-full">
-                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[0])}</span>
-                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[1])}</span>
+                                                        <div className="flex flex-col items-center justify-center px-2 w-full truncate">
+                                                            <span className="text-white text-xl font-extrabold truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
                                                         </div>
                                                     </div>
 
-                                                    {/* TEAM B BLOCK (LEGEND Restoration) */}
-                                                    <div className="bg-white/10 backdrop-blur-3xl rounded-[32px] p-10 relative border border-white/10 text-center flex flex-col items-center justify-center min-h-[160px]">
-                                                        <div className="absolute top-[-12px] left-[-6px] bg-[#C9B075] border-4 border-[#1e1e2e] rounded-full w-14 h-14 flex items-center justify-center text-[13px] font-black text-black shadow-2xl z-20">
+                                                    {/* CENTRAL vs */}
+                                                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-500 italic text-sm z-10 uppercase">vs</div>
+
+                                                    {/* TEAM B BLOCK (SIDE-BY-SIDE OVERRIDE) */}
+                                                    <div className="bg-white/10 rounded-2xl h-24 flex items-center justify-center relative border border-white/5">
+                                                        <div className="absolute -top-2 -left-2 w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shadow-lg z-20">
                                                             #{m.court}
                                                         </div>
-                                                        <div className="flex flex-col gap-2 items-center justify-center h-full w-full">
-                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[2])}</span>
-                                                            <span className="text-3xl font-black text-white leading-none truncate break-all">{getPlayerName(m.playerIds[3])}</span>
+                                                        <div className="flex flex-col items-center justify-center px-2 w-full truncate">
+                                                            <span className="text-white text-xl font-extrabold truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* ACTION (ENTER FINAL SCORE) */}
+                                                {/* ACTION (SLIM ENTER FINAL SCORE) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black text-white/20 uppercase tracking-[0.4em] hover:bg-white/10 active:scale-95 transition-all text-center flex items-center justify-center"
+                                                    className="mt-4 w-full h-10 bg-zinc-800 text-white/50 text-xs rounded-lg uppercase tracking-widest hover:bg-zinc-700 transition-all font-black"
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
@@ -1595,7 +1593,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[calc(110px+env(safe-area-inset-bottom))] bg-black border border-white/20 shadow-[0_50px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75]">
+            <nav className="fixed bottom-28 bg-black border border-white/20 shadow-[0_50px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[32px] px-2 py-2 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[75]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
