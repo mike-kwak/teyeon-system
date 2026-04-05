@@ -1450,28 +1450,28 @@ export default function KDKPage() {
                                         
                                         return (
                                             <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', position: 'relative', width: '100%', height: '180px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr', alignItems: 'center', height: '100px' }}>
-                                                    {/* TEAM A BLOCK (INLINE SPEC) */}
-                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '8px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                        <span style={{ position: 'absolute', top: '-8px', left: '-8px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#facc15', color: 'black', fontSize: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>{normalizedGroup}조</span>
-                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 20px 1fr', alignItems: 'center', width: '100%', height: '110px' }}>
+                                                    {/* TEAM A BLOCK (5:5 SPEC) */}
+                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '90px', width: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                                        <span style={{ position: 'absolute', top: '0', left: '0', width: '30px', height: '30px', backgroundColor: '#facc15', borderRadius: '0 0 12px 0', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '10', color: 'black' }}>{normalizedGroup}조</span>
+                                                        <span style={{ fontSize: '16px', fontWeight: '900', color: 'white', textAlign: 'center', wordBreak: 'keep-all', whiteSpace: 'pre-wrap', width: '90%', lineHeight: '1.2' }}>
                                                             {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
                                                     {/* Central VS */}
-                                                    <div style={{ color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', fontWeight: '900', fontSize: '10px', textAlign: 'center' }}>vs</div>
+                                                    <div style={{ color: 'rgba(255,255,255,0.1)', fontStyle: 'italic', fontWeight: '900', fontSize: '10px', textAlign: 'center' }}>vs</div>
 
-                                                    {/* TEAM B BLOCK (INLINE SPEC) */}
-                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '8px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                        <span style={{ position: 'absolute', top: '-8px', right: '-8px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#C9B075', color: 'black', fontSize: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>#{m.court}</span>
-                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical' }}>
+                                                    {/* TEAM B BLOCK (5:5 SPEC) */}
+                                                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', height: '90px', width: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                                        <span style={{ position: 'absolute', top: '0', left: '0', width: '30px', height: '30px', backgroundColor: '#C9B075', borderRadius: '0 0 12px 0', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '10', color: 'black' }}>#{m.court}</span>
+                                                        <span style={{ fontSize: '16px', fontWeight: '900', color: 'white', textAlign: 'center', wordBreak: 'keep-all', whiteSpace: 'pre-wrap', width: '90%', lineHeight: '1.2' }}>
                                                             {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* ACTION (INLINE SPEC SCORE BUTTON) */}
+                                                {/* ACTION (5:5 SPEC SCORE BUTTON) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
                                                     style={{ width: '100%', height: '32px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', marginTop: '12px', fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}
@@ -1481,7 +1481,7 @@ export default function KDKPage() {
                                             </div>
                                         );
                                     })}
-                                    <div style={{ height: '160px' }} />
+                                    <div style={{ height: '200px' }} />
                                 </div>
                             )}
                         </section>
