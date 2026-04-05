@@ -991,7 +991,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-40">
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-44" style={{ paddingBottom: "160px" }}>
                 
                 
 
@@ -1368,7 +1368,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-40">
+        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-44" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
@@ -1449,23 +1449,23 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)', position: 'relative' }}>
-                                                <div className="flex flex-col gap-4">
-                                                    <div className="flex items-center justify-between px-2">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '14px 16px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)', position: 'relative' }}>
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center justify-between px-1">
                                                          <div className="flex items-center gap-2">
                                                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#C9B075' }} />
-                                                            <span style={{ fontSize: '9px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Now Playing</span>
+                                                            <span style={{ fontSize: '9px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live</span>
                                                          </div>
-                                                         <span style={{ fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.2)' }}>COURT {String(m.court).padStart(2, '0')}</span>
+                                                         <span style={{ fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.2)' }}>CRT_{String(m.court).padStart(2, '0')}</span>
                                                     </div>
 
                                                     <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3">
                                                         {/* TEAM 1 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '16px 12px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                            <div style={{ position: 'absolute', top: '-8px', left: '12px', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '12px 10px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '-8px', left: '10px', backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
                                                                 {normalizedGroup}조
                                                             </div>
-                                                            <span style={{ fontSize: '17px', fontWeight: '900', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
                                                                 {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                             </span>
                                                         </div>
@@ -1474,22 +1474,22 @@ export default function KDKPage() {
                                                         <div style={{ fontSize: '10px', fontWeight: '1000', color: 'rgba(255,255,255,0.1)', fontStyle: 'italic' }}>VS</div>
 
                                                         {/* TEAM 2 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '16px 12px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
-                                                            <div style={{ position: 'absolute', top: '-8px', right: '12px', backgroundColor: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.2)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '12px 10px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '-8px', right: '10px', backgroundColor: 'rgba(201,176,117,0.2)', border: '1px solid rgba(201,176,117,0.3)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
                                                                 #{m.court}
                                                             </div>
-                                                            <span style={{ fontSize: '17px', fontWeight: '900', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
                                                                 {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    {/* SLIM SCORE BUTTON */}
+                                                    {/* FINAL SCORE LINK */}
                                                     <button 
                                                         onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                        style={{ width: '100%', padding: '10px', backgroundColor: 'rgba(201,176,117,0.1)', border: '1px dashed rgba(201,176,117,0.2)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
+                                                        style={{ width: '100%', padding: '8px', backgroundColor: 'rgba(201,176,117,0.08)', border: '1px dashed rgba(201,176,117,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
                                                     >
-                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075' }}>ENTER FINAL SCORE 🏆</span>
+                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.05em' }}>ENTER FINAL SCORE 🏆</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1525,23 +1525,18 @@ export default function KDKPage() {
                                             <div className="flex flex-col gap-4 mt-6">
                                                 {groupMatches.map((m, idx) => {
                                                     return (
-                                                        <div key={m.id} style={{ backgroundColor: '#1e1e2e', borderRadius: '20px', padding: '14px 18px', marginBottom: '10px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-                                                            <div className="flex flex-col gap-1 min-w-0 flex-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span style={{ fontSize: '16px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                        {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span style={{ fontSize: '9px', fontWeight: '900', color: 'rgba(255,255,255,0.15)', textTransform: 'uppercase' }}>VS</span>
-                                                                    <p style={{ fontSize: '13px', fontWeight: '900', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                        {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
-                                                                    </p>
-                                                                </div>
+                                                        <div key={m.id} style={{ backgroundColor: '#1a1a24', borderRadius: '16px', padding: '10px 16px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                                                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                                                <span style={{ fontSize: '16px', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    {getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}
+                                                                </span>
+                                                                <p style={{ fontSize: '12px', fontWeight: '800', color: 'rgba(255,255,255,0.15)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    VS  {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
+                                                                </p>
                                                             </div>
                                                             <button 
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                style={{ padding: '8px 16px', backgroundColor: '#C9B075', color: 'black', borderRadius: '12px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(201,176,117,0.2)' }}
+                                                                style={{ padding: '8px 14px', backgroundColor: '#C9B075', color: 'black', borderRadius: '10px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
                                                             >
                                                                 투입 🚀
                                                             </button>
@@ -1560,13 +1555,13 @@ export default function KDKPage() {
                                 <h3 className="text-[10px] font-black text-[#C9B075]/40 tracking-[0.3em] uppercase px-2">Completed Matches</h3>
                                 <div className="grid grid-cols-1 gap-3">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
-                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#141414] border border-white/5 p-6 rounded-2xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
+                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
                                             <div className="flex items-center gap-4 w-full justify-between">
-                                                <span className="text-[12px] md:text-[14px] font-bold text-gray-100/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <span className="text-[12px] md:text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
                                                 <div className="flex flex-col items-center px-4">
                                                     <span className="text-3xl md:text-4xl font-bold text-[#C9B075]">{m.score1} : {m.score2}</span>
                                                 </div>
-                                                <span className="text-[12px] md:text-[14px] font-bold text-gray-100/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-[12px] md:text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
                                             <span className="text-[8px] font-black text-white/10 uppercase tracking-widest pt-2">Tap to edit result</span>
                                         </div>
