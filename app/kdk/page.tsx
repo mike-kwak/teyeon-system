@@ -1449,32 +1449,34 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#1e1e2e] rounded-[24px] p-4 shadow-2xl mb-6 border border-white/5">
-                                                <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
-                                                    {/* TEAM A BLOCK (GOLDEN SPEC) */}
-                                                    <div className="relative bg-white/10 rounded-2xl h-24 flex items-center justify-center border border-white/5">
-                                                        <span className="absolute -top-2 -left-2 px-2 py-1 rounded-full bg-[#facc15] text-black text-[10px] font-black shadow-lg z-20">{normalizedGroup}조</span>
-                                                        <span className="text-white text-lg font-black text-center leading-tight truncate px-2">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr', alignItems: 'center' }}>
+                                                    
+                                                    {/* 왼쪽 팀 (A조) - INLINE SPEC */}
+                                                    <div style={{ position: 'relative', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', height: '84px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <div style={{ position: 'absolute', top: '-6px', left: '-6px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#facc15', color: 'black', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', zIndex: 10 }}>{normalizedGroup}조</div>
+                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2' }}>
                                                             {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
-                                                    {/* Central VS */}
-                                                    <div className="text-gray-600 italic font-black text-[10px] uppercase">vs</div>
+                                                    {/* VS */}
+                                                    <div style={{ textAlign: 'center', color: '#4b5563', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic' }}>vs</div>
 
-                                                    {/* TEAM B BLOCK (GOLDEN SPEC) */}
-                                                    <div className="relative bg-white/10 rounded-2xl h-24 flex items-center justify-center border border-white/5">
-                                                        <span className="absolute -top-2 -right-2 px-2 py-1 rounded-full bg-[#C9B075] text-black text-[10px] font-black shadow-lg z-20">#{m.court}</span>
-                                                        <span className="text-white text-lg font-black text-center leading-tight truncate px-2">
+                                                    {/* 오른쪽 팀 (#1) - INLINE SPEC */}
+                                                    <div style={{ position: 'relative', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', height: '84px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <div style={{ position: 'absolute', top: '-6px', right: '-6px', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#C9B075', color: 'black', fontSize: '10px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', zIndex: 10 }}>#{m.court}</div>
+                                                        <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', textAlign: 'center', lineHeight: '1.2' }}>
                                                             {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
+
                                                 </div>
 
-                                                {/* ACTION (GOLDEN SCORE BUTTON) */}
+                                                {/* 스코어 버튼 - INLINE SPEC */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full mt-4 h-9 bg-white/5 hover:bg-white/10 rounded-xl text-white/30 text-[9px] font-black tracking-widest uppercase border border-white/5 transition-all text-center flex items-center justify-center"
+                                                    style={{ width: '100%', height: '36px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '10px', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', border: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
                                                 >
                                                     ENTER FINAL SCORE
                                                 </button>
