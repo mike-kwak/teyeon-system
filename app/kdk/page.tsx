@@ -991,7 +991,7 @@ export default function KDKPage() {
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-32">
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-40">
                 
                 
 
@@ -1368,7 +1368,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-32">
+        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-40">
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button 
@@ -1449,53 +1449,47 @@ export default function KDKPage() {
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         
                                         return (
-                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '32px', padding: '24px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden' }}>
-                                                {/* Background Layered Gradient */}
-                                                <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(201,176,117,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
-                                                
-                                                <div className="flex flex-col gap-6">
+                                            <div key={mId} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)', position: 'relative' }}>
+                                                <div className="flex flex-col gap-4">
                                                     <div className="flex items-center justify-between px-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#C9B075', boxShadow: '0 0 10px #C9B075' }} />
-                                                            <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Live Dashboard</span>
-                                                        </div>
-                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>COURT {String(m.court).padStart(2, '0')}</span>
+                                                         <div className="flex items-center gap-2">
+                                                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#C9B075' }} />
+                                                            <span style={{ fontSize: '9px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Now Playing</span>
+                                                         </div>
+                                                         <span style={{ fontSize: '10px', fontWeight: '900', color: 'rgba(255,255,255,0.2)' }}>COURT {String(m.court).padStart(2, '0')}</span>
                                                     </div>
 
-                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-4">
+                                                    <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3">
                                                         {/* TEAM 1 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', borderRadius: '24px', padding: '24px 16px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                                                            {/* Group Badge */}
-                                                            <div style={{ position: 'absolute', top: '-10px', left: '16px', backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '4px 12px', fontSize: '9px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '16px 12px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '-8px', left: '12px', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: 'white', backdropFilter: 'blur(5px)' }}>
                                                                 {normalizedGroup}조
                                                             </div>
-                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'white', letterSpacing: '-0.03em', lineHeight: '1.2' }}>
+                                                            <span style={{ fontSize: '17px', fontWeight: '900', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
                                                                 {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                             </span>
                                                         </div>
 
                                                         {/* VS */}
-                                                        <div style={{ fontSize: '12px', fontWeight: '1000', color: 'rgba(255,255,255,0.15)', fontStyle: 'italic' }}>VS</div>
+                                                        <div style={{ fontSize: '10px', fontWeight: '1000', color: 'rgba(255,255,255,0.1)', fontStyle: 'italic' }}>VS</div>
 
                                                         {/* TEAM 2 BLOCK */}
-                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', borderRadius: '24px', padding: '24px 16px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                                                            {/* Court Badge indicator */}
-                                                            <div style={{ position: 'absolute', top: '-10px', right: '16px', backgroundColor: 'rgba(201,176,117,0.2)', border: '1px solid rgba(201,176,117,0.3)', borderRadius: '999px', padding: '4px 12px', fontSize: '9px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
+                                                        <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '16px 12px', position: 'relative', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                                            <div style={{ position: 'absolute', top: '-8px', right: '12px', backgroundColor: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.2)', borderRadius: '999px', padding: '2px 8px', fontSize: '8px', fontWeight: '900', color: '#C9B075', backdropFilter: 'blur(5px)' }}>
                                                                 #{m.court}
                                                             </div>
-                                                            <span style={{ fontSize: '20px', fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: '-0.03em', lineHeight: '1.2' }}>
+                                                            <span style={{ fontSize: '17px', fontWeight: '900', color: 'white', letterSpacing: '-0.02em', lineHeight: '1.2', display: 'block' }}>
                                                                 {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    {/* INTEGRATED SCORE INPUT */}
+                                                    {/* SLIM SCORE BUTTON */}
                                                     <button 
                                                         onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                        style={{ width: '100%', padding: '16px', backgroundColor: 'rgba(201,176,117,0.1)', border: '1px border-dashed rgba(201,176,117,0.2)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', marginTop: '4px' }}
+                                                        style={{ width: '100%', padding: '10px', backgroundColor: 'rgba(201,176,117,0.1)', border: '1px dashed rgba(201,176,117,0.2)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
                                                     >
-                                                        <span style={{ fontSize: '11px', fontWeight: '900', color: '#C9B075', letterSpacing: '0.2em', textTransform: 'uppercase' }}>ENTER FINAL SCORE</span>
-                                                        <span style={{ fontSize: '14px' }}>🏆</span>
+                                                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#C9B075' }}>ENTER FINAL SCORE 🏆</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1530,10 +1524,8 @@ export default function KDKPage() {
                                             </div>
                                             <div className="flex flex-col gap-4 mt-6">
                                                 {groupMatches.map((m, idx) => {
-                                                    const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
-                                                    const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} style={{ backgroundColor: '#1e1e2e', borderRadius: '24px', padding: '16px 20px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', position: 'relative' }}>
+                                                        <div key={m.id} style={{ backgroundColor: '#1e1e2e', borderRadius: '20px', padding: '14px 18px', marginBottom: '10px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
                                                             <div className="flex flex-col gap-1 min-w-0 flex-1">
                                                                 <div className="flex items-center gap-2">
                                                                     <span style={{ fontSize: '16px', fontWeight: '800', color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1541,24 +1533,17 @@ export default function KDKPage() {
                                                                     </span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
-                                                                    <span style={{ fontSize: '9px', fontWeight: '1000', color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', textTransform: 'uppercase' }}>W-NEXT</span>
-                                                                    <p style={{ fontSize: '13px', fontWeight: '1000', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    <span style={{ fontSize: '9px', fontWeight: '900', color: 'rgba(255,255,255,0.15)', textTransform: 'uppercase' }}>VS</span>
+                                                                    <p style={{ fontSize: '13px', fontWeight: '900', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                         {getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}
                                                                     </p>
                                                                 </div>
-                                                                {hasConflict && (
-                                                                    <div style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#C9B075' }} />
-                                                                        <span style={{ fontSize: '8px', fontWeight: '900', color: '#C9B075', textTransform: 'uppercase' }}>BUSY</span>
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                             <button 
-                                                                disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                style={{ padding: '10px 20px', borderRadius: '16px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: hasConflict ? 'not-allowed' : 'pointer', backgroundColor: hasConflict ? 'rgba(255,255,255,0.02)' : '#C9B075', color: hasConflict ? 'rgba(255,255,255,0.1)' : 'black', transition: 'all 0.2s' }}
+                                                                style={{ padding: '8px 16px', backgroundColor: '#C9B075', color: 'black', borderRadius: '12px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(201,176,117,0.2)' }}
                                                             >
-                                                                {hasConflict ? 'BUSY' : '투입 🚀'}
+                                                                투입 🚀
                                                             </button>
                                                         </div>
                                                     );
