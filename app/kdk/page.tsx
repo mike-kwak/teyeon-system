@@ -1420,8 +1420,8 @@ export default function KDKPage() {
                         />
                     </div>
                     
-                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-10">
-                        <div className="space-y-1 overflow-hidden">
+                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-10 max-w-full box-sizing-border-box">
+                        <div className="space-y-1">
                             <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Match Rules</span>
                             <input 
                                 value={matchRules} 
@@ -1462,6 +1462,17 @@ export default function KDKPage() {
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
+                                        
+                                        const allMatchesInGroupSorted = matches.filter(mx => {
+                                            const p0 = mx.playerIds[0];
+                                            const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                            const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                            return nGroup === (m.groupName || 'A');
+                                        }).sort((a,b) => {
+                                            if(a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                            return a.id.localeCompare(b.id);
+                                        });
+                                        const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
                                         const normalizedGroup = m.groupName || 'A';
                                         
                                         return (
@@ -1479,8 +1490,8 @@ export default function KDKPage() {
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-xs font-black flex items-center justify-center shadow z-10`}>
-                                                            {normalizedGroup}조
+                                                        <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[9px] font-black flex items-center justify-center shadow z-10`}>
+                                                            {normalizedGroup}조 · G{matchNo}
                                                         </div>
                                                         <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
                                                             {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
@@ -1572,7 +1583,7 @@ export default function KDKPage() {
                                                             </div>
 
                                                             <div className="flex items-center justify-between gap-4 py-2 h-[72px]">
-                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full relative -top-[4px]">
+                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full relative translate-y-[-6px]">
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                     <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1598,7 +1609,7 @@ export default function KDKPage() {
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
                                 <h3 className="text-xl font-black text-white tracking-widest uppercase px-2 mb-4">Completed Matches</h3>
-                                <div className="grid grid-cols-2 gap-3 pb-8">
+                                <div className="grid grid-cols-2 gap-3 pb-2">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
                                             <div className="grid grid-cols-[1fr_80px_1fr] items-center gap-0 w-full min-h-[48px]">
