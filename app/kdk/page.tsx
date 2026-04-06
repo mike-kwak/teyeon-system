@@ -1444,7 +1444,7 @@ export default function KDKPage() {
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3 mb-6">
-                                <h1 className="text-3xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h1>
+                                <h2 className="text-xl font-black text-white italic tracking-tighter uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
                                     <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30">
                                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -1479,7 +1479,7 @@ export default function KDKPage() {
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-[#facc15] text-black text-[7px] font-black flex items-center justify-center shadow z-10">
+                                                        <div className="absolute top-1 left-1 px-2 py-0.5 rounded-full bg-[#facc15] text-black text-xs font-black flex items-center justify-center shadow z-10">
                                                             A조
                                                         </div>
                                                         <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
@@ -1492,7 +1492,7 @@ export default function KDKPage() {
 
                                                     {/* TEAM B BLOCK (STRICT CENTERING) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full bg-[#C9B075] text-black text-[7px] font-black flex items-center justify-center shadow z-10">
+                                                        <div className="absolute top-1 left-1 px-2 py-0.5 rounded-full bg-[#C9B075] text-black text-xs font-black flex items-center justify-center shadow z-10">
                                                             #{m.court}
                                                         </div>
                                                         <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
@@ -1540,7 +1540,7 @@ export default function KDKPage() {
                                         <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }} className="px-6">
                                             <div className="flex items-center gap-4 pl-4">
                                                 <span className="w-2 h-2 rounded-full bg-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.6)]" />
-                                                <h3 className="text-lg font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
+                                                <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
                                             </div>
                                             <div className="flex flex-col gap-6 mt-6">
                                                 {groupMatches.map((m, idx) => {
@@ -1554,7 +1554,7 @@ export default function KDKPage() {
                                                                         <span className="text-[10px] font-black text-black uppercase">Round {m.round || 1}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-3 pr-6">
+                                                                <div className="flex items-center gap-3 pr-8">
                                                                     <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
                                                                     <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
                                                                 </div>
@@ -1586,16 +1586,16 @@ export default function KDKPage() {
 
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
-                                <h3 className="text-[10px] font-black text-[#C9B075]/40 tracking-[0.3em] uppercase px-2 mb-4">Completed Matches</h3>
+                                <h3 className="text-xl font-black text-white tracking-widest uppercase px-2 mb-4">Completed Matches</h3>
                                 <div className="grid grid-cols-1 gap-3">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
-                                            <div className="flex items-center gap-4 w-full justify-between">
-                                                <span className="text-[12px] md:text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center px-4">
+                                            <div className="flex items-center gap-4 w-full justify-between min-h-[60px]">
+                                                <span className="text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase flex items-center justify-end h-full">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <div className="flex flex-col items-center px-4 justify-center">
                                                     <span className="text-3xl md:text-4xl font-bold text-[#C9B075]">{m.score1} : {m.score2}</span>
                                                 </div>
-                                                <span className="text-[12px] md:text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase flex items-center justify-start h-full">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
                                             <span className="text-[8px] font-black text-white/10 uppercase tracking-widest pt-2">Tap to edit result</span>
                                         </div>
