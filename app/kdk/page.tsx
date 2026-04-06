@@ -1407,7 +1407,7 @@ export default function KDKPage() {
 
             <div className="mx-4 mb-8">
                 <div 
-                    className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-5 shadow-2xl space-y-6 relative"
+                    className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-5 shadow-2xl space-y-6 relative overflow-hidden"
                     style={{ width: 'calc(100% - 32px)' }}
                 >
                     <div className="space-y-1 pl-10">
@@ -1423,7 +1423,7 @@ export default function KDKPage() {
                         />
                     </div>
                     
-                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-10 max-w-full box-sizing-border-box">
+                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-10 max-w-full">
                         <div className="space-y-1">
                             <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Match Rules</span>
                             <input 
@@ -1571,15 +1571,16 @@ export default function KDKPage() {
                                                                 <span className="text-[10px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex-1 flex flex-col items-center justify-center leading-tight">
-                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <div className="flex-1 flex flex-col items-center justify-center leading-tight gap-0.5">
+                                                                <span className="text-white text-base font-black truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                                <span className="text-gray-500 text-[10px] font-black uppercase italic tracking-widest leading-none">vs</span>
+                                                                <span className="text-white text-base font-black truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                             </div>
 
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`absolute bottom-1 right-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
+                                                                className={`absolute bottom-3 right-3 px-4 py-2 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
                                                             >
                                                                 투입 🚀
                                                             </button>
