@@ -560,7 +560,7 @@ export default function KDKPage() {
             
             // 1. Supabase Sync (optional if real-time is disabled, but good for persistence)
             const { error } = await supabase
-                .from('kdk_matches')
+                .from('matches')
                 .update({ 
                     status: 'waiting', 
                     court: null 
@@ -1513,7 +1513,7 @@ export default function KDKPage() {
                                                 {/* SCORE INPUT BUTTON (BRIGHT SPEC) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-11 bg-white hover:bg-white/90 active:scale-95 border border-white/20 shadow-xl transition-all rounded-xl flex items-center justify-center mt-3 text-[12px] font-black text-black uppercase tracking-[0.2em] shrink-0"
+                                                    className="w-full h-11 bg-[#1A1A2E] hover:bg-[#242436] active:scale-95 border border-[#C9B075]/30 shadow-xl transition-all rounded-xl flex items-center justify-center mt-3 text-[12px] font-black text-[#C9B075] uppercase tracking-[0.2em] shrink-0"
                                                 >
                                                     SCORE INPUT
                                                 </button>
@@ -1575,7 +1575,7 @@ export default function KDKPage() {
                                                                 <button 
                                                                     disabled={hasConflict}
                                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                    className={`px-10 py-4 rounded-2xl text-[14px] font-black uppercase transition-all shadow-2xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-black active:scale-95 hover:bg-white'}`}
+                                                                    className={`px-10 py-4 rounded-2xl text-[14px] font-black uppercase transition-all shadow-2xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
                                                                 >
                                                                     투입 🚀
                                                                 </button>
