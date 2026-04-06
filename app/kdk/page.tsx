@@ -1551,7 +1551,7 @@ export default function KDKPage() {
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
                                                                 <div className="flex items-center gap-4 pl-1">
                                                                     <div className="px-3 py-1 bg-[#C9B075] rounded-full">
-                                                                        <span className="text-[10px] font-black text-black uppercase">Round {m.round || 1}</span>
+                                                                        <span className="text-[10px] font-black text-black uppercase">GAME {idx + 1}</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-3 pr-8">
@@ -1560,10 +1560,10 @@ export default function KDKPage() {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-6 py-2 min-h-[60px]">
-                                                                <div className="flex-1 flex flex-row items-center justify-center gap-3 text-base font-black h-full">
+                                                            <div className="flex items-center justify-between gap-4 py-2 min-h-[60px]">
+                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full translate-y-[-2px]">
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
-                                                                    <span className="text-[11px] font-black text-[#C9B075] italic shrink-0">VS</span>
+                                                                    <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                                 </div>
                                                                 <button 
@@ -1587,17 +1587,17 @@ export default function KDKPage() {
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
                                 <h3 className="text-xl font-black text-white tracking-widest uppercase px-2 mb-4">Completed Matches</h3>
-                                <div className="grid grid-cols-1 gap-3">
+                                <div className="grid grid-cols-2 gap-3 pb-8">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
-                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-4 shadow-xl transition-all active:scale-98">
-                                            <div className="flex items-center gap-4 w-full justify-between min-h-[60px]">
-                                                <span className="text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase flex items-center justify-end h-full">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center px-4 justify-center">
-                                                    <span className="text-3xl md:text-4xl font-bold text-[#C9B075]">{m.score1} : {m.score2}</span>
+                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-3 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
+                                            <div className="flex items-center gap-2 w-full justify-between min-h-[48px]">
+                                                <span className="text-[11px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <div className="flex flex-col items-center px-1">
+                                                    <span className="text-lg font-bold text-[#C9B075]">{m.score1}:{m.score2}</span>
                                                 </div>
-                                                <span className="text-[14px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase flex items-center justify-start h-full">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-[11px] font-bold text-white/50 whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
-                                            <span className="text-[8px] font-black text-white/10 uppercase tracking-widest pt-2">Tap to edit result</span>
+                                            <span className="text-[7px] font-black text-gray-400 uppercase tracking-widest pb-1 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
                                         </div>
                                     ))}
                                 </div>
