@@ -1543,25 +1543,36 @@ export default function KDKPage() {
                                                 <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
                                             </div>
                                             <div className="flex flex-col gap-6 mt-6">
-                                                {groupMatches.map((m, idx) => {
+                                                {groupMatches.map((m) => {
+                                                    const allMatchesInGroupSorted = matches.filter(mx => {
+                                                        const p0 = mx.playerIds[0];
+                                                        const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                                        const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                                        return nGroup === group;
+                                                    }).sort((a,b) => {
+                                                        if(a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                                        return a.id.localeCompare(b.id);
+                                                    });
+                                                    const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
+                                                    
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
                                                         <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all relative group">
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
                                                                 <div className="flex items-center gap-4 pl-1">
-                                                                    <div className="px-3 py-1 bg-[#C9B075] rounded-full flex items-center justify-center">
-                                                                        <span className="text-[10px] font-black text-black uppercase leading-none">GAME {idx + 1}</span>
+                                                                    <div className="px-3.5 py-1.5 bg-[#C9B075] rounded-full flex items-center justify-center">
+                                                                        <span className="text-[10px] font-black text-black uppercase leading-none">GAME {matchNo}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-3 pr-8">
+                                                                <div className="flex items-center gap-3 pr-12">
                                                                     <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
                                                                     <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
                                                                 </div>
                                                             </div>
 
                                                             <div className="flex items-center justify-between gap-4 py-2 min-h-[60px]">
-                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full translate-y-[-3px]">
+                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full translate-y-[-4px]">
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                     <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1591,13 +1602,13 @@ export default function KDKPage() {
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-3 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
                                             <div className="flex items-center gap-2 w-full justify-between min-h-[48px]">
-                                                <span className="text-sm font-bold text-white whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center px-1">
-                                                    <span className="text-lg font-bold text-[#C9B075]">{m.score1}:{m.score2}</span>
+                                                <span className="text-sm font-black text-white whitespace-nowrap truncate flex-1 text-right leading-tight uppercase">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <div className="flex flex-col items-center px-6">
+                                                    <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
                                                 </div>
-                                                <span className="text-sm font-bold text-white whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-sm font-black text-white whitespace-nowrap truncate flex-1 text-left leading-tight uppercase">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
-                                            <span className="text-[7px] font-black text-gray-400 uppercase tracking-widest pb-1 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
+                                            <span className="text-[7px] font-black text-gray-300 uppercase tracking-widest pb-1 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
                                         </div>
                                     ))}
                                 </div>
