@@ -25,7 +25,7 @@ const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) 
 
 const navItems = [
   { path: '/', label: 'MAIN', icon: (props: any) => <Home {...props} /> },
-  { path: '/live', label: 'LIVE COURT', icon: (props: any) => <TennisRacket {...props} /> },
+  { path: '/kdk', label: 'LIVE COURT', icon: (props: any) => <TennisRacket {...props} /> },
   { path: '/results', label: 'ARCHIVE', icon: (props: any) => <Medal {...props} /> },
   { path: '/profile', label: 'PROFILE', icon: (props: any) => <User {...props} /> },
 ];

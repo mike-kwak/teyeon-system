@@ -1529,12 +1529,15 @@ export default function KDKPage() {
                                         
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         return normalizedGroup === group;
-                                    }).sort((a, b) => (a.round || 0) - (b.round || 0));
+                                    }).sort((a, b) => {
+                                        if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                        return a.id.localeCompare(b.id);
+                                    });
 
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }} className="px-4">
+                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }} className="px-6">
                                             <div className="flex items-center gap-4 pl-4">
                                                 <span className="w-2 h-2 rounded-full bg-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.6)]" />
                                                 <h3 className="text-lg font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
@@ -1544,7 +1547,7 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all overflow-hidden relative group">
+                                                        <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all relative group">
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
                                                                 <div className="flex items-center gap-4 pl-1">
                                                                     <div className="px-3 py-1 bg-[#C9B075] rounded-full">
@@ -1557,7 +1560,7 @@ export default function KDKPage() {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-6 py-2">
+                                                            <div className="flex items-center justify-between gap-6 py-2 min-h-[60px]">
                                                                 <div className="flex-1 flex flex-row items-center justify-center gap-3 text-base font-black h-full">
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                     <span className="text-[11px] font-black text-[#C9B075] italic shrink-0">VS</span>
