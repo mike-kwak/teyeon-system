@@ -1405,8 +1405,11 @@ export default function KDKPage() {
                 </div>
             </header>
 
-            <div className="px-6 mb-8">
-                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-8 shadow-2xl space-y-6 relative">
+            <div className="px-4 mb-8">
+                <div 
+                    className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-8 shadow-2xl space-y-6 relative"
+                    style={{ width: 'calc(100% - 32px)', margin: '0 auto' }}
+                >
                     <div className="space-y-1 pl-10">
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
@@ -1490,7 +1493,7 @@ export default function KDKPage() {
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[9px] font-black flex items-center justify-center shadow z-10`}>
+                                                        <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[9px] font-black flex items-center justify-center shadow z-10 whitespace-nowrap`}>
                                                             {normalizedGroup}조 · G{matchNo}
                                                         </div>
                                                         <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
@@ -1501,11 +1504,8 @@ export default function KDKPage() {
                                                     {/* Central VS */}
                                                     <div className="text-[#C9B075] font-black text-[10px] uppercase text-center italic opacity-40">vs</div>
 
-                                                    {/* TEAM B BLOCK (STRICT CENTERING) */}
+                                                    {/* TEAM B BLOCK (STRICT CENTERING - NO BADGE) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className="absolute top-1 left-1 px-2 py-0.5 rounded-full bg-[#C9B075] text-black text-xs font-black flex items-center justify-center shadow z-10">
-                                                            #{m.court}
-                                                        </div>
                                                         <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
                                                             {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
@@ -1571,19 +1571,19 @@ export default function KDKPage() {
                                                     return (
                                                         <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all relative group">
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
-                                                                <div className="flex items-center gap-4 pl-1">
-                                                                    <div className="w-12 h-12 bg-[#C9B075] rounded-full flex items-center justify-center shadow-xl">
-                                                                        <span className="text-[12px] font-black text-black uppercase leading-none">G{matchNo}</span>
+                                                                <div className="flex items-center gap-2 pl-1">
+                                                                    <div className="w-10 h-10 bg-[#C9B075] rounded-full flex items-center justify-center shadow-xl">
+                                                                        <span className="text-[10px] font-black text-black uppercase leading-none">G{matchNo}</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-3 pr-12">
-                                                                    <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                    <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
+                                                                    <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-4 py-2 h-[72px]">
-                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full relative translate-y-[-6px]">
+                                                            <div className="flex items-center justify-between gap-4 h-14">
+                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-sm font-bold h-full relative translate-y-[-2px]">
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                     <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1609,7 +1609,7 @@ export default function KDKPage() {
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
                                 <h3 className="text-xl font-black text-white tracking-widest uppercase px-2 mb-4">Completed Matches</h3>
-                                <div className="grid grid-cols-2 gap-3 pb-2">
+                                <div className="grid grid-cols-2 gap-3 pb-0">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
                                             <div className="grid grid-cols-[1fr_80px_1fr] items-center gap-0 w-full min-h-[48px]">
