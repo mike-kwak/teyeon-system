@@ -558,18 +558,10 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             
-            // 1. Supabase Sync (optional if real-time is disabled, but good for persistence)
-            const { error } = await supabase
-                .from('matches')
-                .update({ 
-                    status: 'waiting', 
-                    court: null 
-                })
-                .eq('id', matchId);
-            
-            if (error) throw error;
-
-            // 2. Local State Update
+            // 1. Local State Update Only
+            // DECISION: We rely on session-level persistence. Individual match records in the live table 
+            // use UUIDs, while our local match generator uses custom string IDs. 
+            // Attempting to sync these string IDs with the UUID field in Supabase causes a 400 error.
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
             setActiveMatchIds(prev => prev.filter(id => id !== matchId));
         } catch (err: any) {
@@ -1547,27 +1539,26 @@ export default function KDKPage() {
                                                 <span className="w-2 h-2 rounded-full bg-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.6)]" />
                                                 <h3 className="text-lg font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
                                             </div>
-                                            <div className="flex flex-col gap-4 mt-6">
+                                            <div className="flex flex-col gap-6 mt-6">
                                                 {groupMatches.map((m, idx) => {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] p-6 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-5 shadow-2xl active:scale-98 transition-all overflow-hidden relative group">
+                                                        <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all overflow-hidden relative group">
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
                                                                 <div className="flex items-center gap-4 pl-1">
                                                                     <div className="px-3 py-1 bg-[#C9B075] rounded-full">
                                                                         <span className="text-[10px] font-black text-black uppercase">Round {m.round || 1}</span>
                                                                     </div>
-                                                                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Queue #{idx + 1}</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-3 pr-2">
+                                                                <div className="flex items-center gap-3 pr-6">
                                                                     <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
                                                                     <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-6 min-h-[60px]">
-                                                                <div className="flex-1 flex flex-row items-center gap-2 text-[18px] font-black pl-2">
+                                                            <div className="flex items-center justify-between gap-6 py-2">
+                                                                <div className="flex-1 flex flex-row items-center gap-2 text-[18px] font-black pl-2 h-full">
                                                                     <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                     <span className="text-[11px] font-black text-[#C9B075] italic shrink-0 mx-2">VS</span>
                                                                     <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1575,7 +1566,7 @@ export default function KDKPage() {
                                                                 <button 
                                                                     disabled={hasConflict}
                                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                    className={`px-10 py-4 rounded-2xl text-[14px] font-black uppercase transition-all shadow-2xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
+                                                                    className={`px-10 py-3 rounded-2xl text-[14px] font-black uppercase transition-all shadow-2xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
                                                                 >
                                                                     투입 🚀
                                                                 </button>
