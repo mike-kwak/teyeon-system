@@ -47,6 +47,7 @@ interface Match {
     mode: string;
     round?: number;
     teams?: [string[], string[]];
+    groupName?: string;
 }
 
 type KDKConcept = 'RANDOM' | 'MBTI' | 'AWARD' | 'AGE';
@@ -514,7 +515,8 @@ export default function KDKPage() {
                 status: 'waiting',
                 mode: 'KDK',
                 round: km.round,
-                teams: [km.team1, km.team2]
+                teams: [km.team1, km.team2],
+                groupName: km.group
             })) as any;
 
             // ENABLE DB SAVE (Sync Live Matches)
@@ -1460,9 +1462,7 @@ export default function KDKPage() {
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
-                                        const p0 = m.playerIds[0];
-                                        const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
-                                        const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                        const normalizedGroup = m.groupName || 'A';
                                         
                                         return (
                                             <div key={mId} className="bg-[#181824] rounded-[20px] p-3 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
@@ -1561,18 +1561,18 @@ export default function KDKPage() {
                                                         <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all relative group">
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
                                                                 <div className="flex items-center gap-4 pl-1">
-                                                                    <div className="px-4 py-2 bg-[#C9B075] rounded-full flex items-center justify-center">
-                                                                        <span className="text-[10px] font-black text-black uppercase leading-none">GAME {matchNo}</span>
+                                                                    <div className="w-12 h-12 bg-[#C9B075] rounded-full flex items-center justify-center shadow-xl">
+                                                                        <span className="text-[12px] font-black text-black uppercase leading-none">G{matchNo}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-3 pr-10">
+                                                                <div className="flex items-center gap-3 pr-12">
                                                                     <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
                                                                     <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-4 py-2 min-h-[60px]">
-                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full translate-y-[-5px]">
+                                                            <div className="flex items-center justify-between gap-4 py-2 h-[72px]">
+                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-base font-black h-full relative -top-[4px]">
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                     <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
                                                                     <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1601,10 +1601,10 @@ export default function KDKPage() {
                                 <div className="grid grid-cols-2 gap-3 pb-8">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
-                                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0 w-full min-h-[48px]">
+                                            <div className="grid grid-cols-[1fr_80px_1fr] items-center gap-0 w-full min-h-[48px]">
                                                 <span className="text-base font-black text-white whitespace-nowrap truncate text-right leading-tight uppercase pr-2">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center px-10">
-                                                    <span className="text-xl font-bold text-[#C9B075]">{m.score1}:{m.score2}</span>
+                                                <div className="flex flex-col items-center w-20">
+                                                    <span className="text-xl font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
                                                 </div>
                                                 <span className="text-base font-black text-white whitespace-nowrap truncate text-left leading-tight uppercase pl-2">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
