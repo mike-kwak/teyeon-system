@@ -1529,13 +1529,13 @@ export default function KDKPage() {
                                         
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         return normalizedGroup === group;
-                                    });
+                                    }).sort((a, b) => (a.round || 0) - (b.round || 0));
 
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }}>
-                                            <div className="flex items-center gap-4 pl-6">
+                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }} className="px-4">
+                                            <div className="flex items-center gap-4 pl-4">
                                                 <span className="w-2 h-2 rounded-full bg-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.6)]" />
                                                 <h3 className="text-lg font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
                                             </div>
@@ -1558,10 +1558,10 @@ export default function KDKPage() {
                                                             </div>
 
                                                             <div className="flex items-center justify-between gap-6 py-2">
-                                                                <div className="flex-1 flex flex-row items-center gap-2 text-[18px] font-black pl-2 h-full">
-                                                                    <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
-                                                                    <span className="text-[11px] font-black text-[#C9B075] italic shrink-0 mx-2">VS</span>
-                                                                    <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                                <div className="flex-1 flex flex-row items-center justify-center gap-3 text-base font-black h-full">
+                                                                    <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                                    <span className="text-[11px] font-black text-[#C9B075] italic shrink-0">VS</span>
+                                                                    <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                                 </div>
                                                                 <button 
                                                                     disabled={hasConflict}
@@ -1626,16 +1626,16 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[104px] bg-black/60 backdrop-blur-xl border border-white/20 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
+            <nav className="fixed bottom-[104px] bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[22px] py-6 font-black text-[22px] flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#EFDFB4] text-black shadow-2xl shadow-[#EFDFB4]/30' : 'text-white/30 hover:text-white/50'}`}
+                    className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     🔥 MATCHES
                 </button>
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[22px] py-6 font-black text-[22px] flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-[#EFDFB4] text-black shadow-2xl shadow-[#EFDFB4]/30' : 'text-white/30 hover:text-white/50'}`}
+                    className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     📊 RANKING
                 </button>
