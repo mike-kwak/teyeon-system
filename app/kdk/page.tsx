@@ -1388,8 +1388,8 @@ export default function KDKPage() {
             </header>
 
             <div className="px-6 mb-8">
-                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative">
-                    <div className="space-y-1 pl-4">
+                <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-8 shadow-2xl space-y-6 relative">
+                    <div className="space-y-1 pl-8">
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
                             <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[9px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
@@ -1397,18 +1397,18 @@ export default function KDKPage() {
                         <input 
                             value={sessionTitle} 
                             onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all pl-1"
+                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all pl-4"
                             placeholder="Session Title"
                         />
                     </div>
                     
-                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-4">
+                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-8">
                         <div className="space-y-1 overflow-hidden">
                             <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Match Rules</span>
                             <input 
                                 value={matchRules} 
                                 onChange={(e) => setMatchRules(e.target.value)}
-                                className="w-full bg-black/20 border border-white/5 rounded-xl px-3 h-10 text-[9px] font-bold text-white/60 outline-none focus:border-[#C9B075]/20 truncate"
+                                className="w-full bg-black/20 border border-white/5 rounded-xl px-4 h-10 text-[9px] font-bold text-white/60 outline-none focus:border-[#C9B075]/20 truncate"
                                 placeholder="Rules..."
                             />
                         </div>
@@ -1477,10 +1477,10 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON */}
+                                                {/* SCORE INPUT BUTTON (GOLD SPEC) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-9 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/5 shadow-lg transition-all rounded-xl flex items-center justify-center mt-3 text-[10px] font-black text-white/60 uppercase tracking-widest shrink-0"
+                                                    className="w-full h-11 bg-gradient-to-r from-[#C9B075] to-[#B8860B] hover:scale-[1.02] active:scale-95 border border-white/20 shadow-[0_5px_15px_rgba(201,176,117,0.3)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-black uppercase tracking-[0.1em] shrink-0"
                                                 >
                                                     SCORE INPUT
                                                 </button>
@@ -1519,30 +1519,30 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all overflow-hidden relative group">
+                                                        <div key={m.id} className="bg-[#181824] p-6 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-5 shadow-2xl active:scale-98 transition-all overflow-hidden relative group">
                                                             <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="px-2.5 py-1 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-lg">
-                                                                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter">Round {m.round || 1}</span>
+                                                                <div className="flex items-center gap-4 pl-1">
+                                                                    <div className="px-3 py-1 bg-[#C9B075] rounded-full">
+                                                                        <span className="text-[10px] font-black text-black uppercase">Round {m.round || 1}</span>
                                                                     </div>
-                                                                    <span className="text-[9px] font-black text-white/10 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-md">Queue #{idx + 1}</span>
+                                                                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Queue #{idx + 1}</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                    <span className="text-[10px] font-black text-[#C9B075]/80 uppercase tracking-widest">대기중</span>
+                                                                <div className="flex items-center gap-3 pr-2">
+                                                                    <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
+                                                                    <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-4">
-                                                                <div className="flex-1 flex flex-row items-center gap-1.5 text-[15px] font-black pl-1">
+                                                            <div className="flex items-center justify-between gap-6 min-h-[60px]">
+                                                                <div className="flex-1 flex flex-row items-center gap-2 text-[18px] font-black pl-2">
                                                                     <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
-                                                                    <span className="text-[10px] font-black text-[#C9B075]/40 italic shrink-0 mx-1">VS</span>
-                                                                    <span className="text-white/40 truncate max-w-[42%]">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                                    <span className="text-[11px] font-black text-[#C9B075] italic shrink-0 mx-2">VS</span>
+                                                                    <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                                 </div>
                                                                 <button 
                                                                     disabled={hasConflict}
                                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                    className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-black text-white/5 opacity-50' : 'bg-[#C9B075] text-black active:scale-95 shadow-[#C9B075]/10'}`}
+                                                                    className={`px-8 py-4 rounded-2xl text-[12px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-white/5 text-white/10 opacity-30 cursor-not-allowed' : 'bg-[#C9B075] text-black active:scale-95 shadow-[#C9B075]/20 hover:bg-[#D4AF37]'}`}
                                                                 >
                                                                     투입 🚀
                                                                 </button>
@@ -1602,16 +1602,16 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[92px] bg-black/90 backdrop-blur-xl border border-white/10 shadow-2xl left-1/2 -translate-x-1/2 rounded-full p-1.5 w-[85%] max-w-[360px] flex items-center justify-between gap-1 z-[90]">
+            <nav className="fixed bottom-[96px] bg-black/95 backdrop-blur-3xl border border-white/20 shadow-[0_20px_80px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-full p-2 w-[92%] max-w-[420px] flex items-center justify-between gap-2 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-full py-3.5 font-black text-[13px] flex items-center justify-center gap-2.5 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/20 hover:text-white/40'}`}
+                    className={`flex-1 rounded-full py-6 font-black text-[20px] flex items-center justify-center gap-4 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-xl shadow-[#C9B075]/40' : 'text-white/20 hover:text-white/40'}`}
                 >
                     🔥 Matches
                 </button>
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-full py-3.5 font-black text-[13px] flex items-center justify-center gap-2.5 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/20 hover:text-white/40'}`}
+                    className={`flex-1 rounded-full py-6 font-black text-[20px] flex items-center justify-center gap-4 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black shadow-xl shadow-[#C9B075]/40' : 'text-white/20 hover:text-white/40'}`}
                 >
                     📊 Ranking
                 </button>
