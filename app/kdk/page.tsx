@@ -1389,7 +1389,7 @@ export default function KDKPage() {
 
             <div className="px-6 mb-8">
                 <div className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-4 relative">
-                    <div className="space-y-1">
+                    <div className="space-y-1 pl-4">
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
                             <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[9px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
@@ -1397,12 +1397,12 @@ export default function KDKPage() {
                         <input 
                             value={sessionTitle} 
                             onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all"
+                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all pl-1"
                             placeholder="Session Title"
                         />
                     </div>
                     
-                    <div className="grid grid-cols-[1.5fr_1fr] gap-4">
+                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-4">
                         <div className="space-y-1 overflow-hidden">
                             <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Match Rules</span>
                             <input 
@@ -1412,7 +1412,7 @@ export default function KDKPage() {
                                 placeholder="Rules..."
                             />
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1 pr-2">
                             <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
                             <div className="bg-black/20 border border-white/5 rounded-xl p-3 space-y-1">
                                 <p className="text-[9px] font-bold text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</p>
@@ -1480,9 +1480,9 @@ export default function KDKPage() {
                                                 {/* SCORE INPUT BUTTON */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-8 bg-white/5 hover:bg-white/10 active:bg-white/20 transition-all rounded-lg flex items-center justify-center mt-3 text-[9px] font-black text-white/40 uppercase tracking-widest shrink-0"
+                                                    className="w-full h-9 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/5 shadow-lg transition-all rounded-xl flex items-center justify-center mt-3 text-[10px] font-black text-white/60 uppercase tracking-widest shrink-0"
                                                 >
-                                                    SCORE
+                                                    SCORE INPUT
                                                 </button>
                                             </div>
                                         );
@@ -1519,25 +1519,34 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-zinc-900/50 p-6 rounded-[24px] mb-4 border border-white/5 flex items-center justify-between gap-6 shadow-2xl active:scale-98 transition-all overflow-hidden">
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex flex-row items-center gap-1 w-full text-[13px] font-black whitespace-nowrap overflow-hidden">
-                                                                        <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
-                                                                        <span className="text-[10px] font-black text-[#C9B075] italic shrink-0 mx-1">VS</span>
-                                                                        <span className="text-white/50 truncate max-w-[42%]">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                        <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all overflow-hidden relative group">
+                                                            <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="px-2.5 py-1 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-lg">
+                                                                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter">Round {m.round || 1}</span>
                                                                     </div>
-                                                                <div className="flex items-center gap-2 mt-2">
-                                                                    <span className="text-[9px] font-black text-white/10 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded">Queue #{idx + 1}</span>
-                                                                    {hasConflict && <span className="text-[9px] font-black text-[#C9B075] uppercase animate-pulse">Conflict: 선수 경기중</span>}
+                                                                    <span className="text-[9px] font-black text-white/10 uppercase tracking-widest bg-white/5 px-2 py-1 rounded-md">Queue #{idx + 1}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
+                                                                    <span className="text-[10px] font-black text-[#C9B075]/80 uppercase tracking-widest">대기중</span>
                                                                 </div>
                                                             </div>
-                                                            <button 
-                                                                disabled={hasConflict}
-                                                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase transition-all ${hasConflict ? 'bg-black text-white/5' : 'bg-[#C9B075] text-black active:scale-95 shadow-xl shadow-[#C9B075]/10'}`}
-                                                            >
-                                                                {hasConflict ? '대기 중' : '투입 🚀'}
-                                                            </button>
+
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <div className="flex-1 flex flex-row items-center gap-1.5 text-[15px] font-black pl-1">
+                                                                    <span className="text-white truncate max-w-[42%]">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                                    <span className="text-[10px] font-black text-[#C9B075]/40 italic shrink-0 mx-1">VS</span>
+                                                                    <span className="text-white/40 truncate max-w-[42%]">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                                </div>
+                                                                <button 
+                                                                    disabled={hasConflict}
+                                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
+                                                                    className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-black text-white/5 opacity-50' : 'bg-[#C9B075] text-black active:scale-95 shadow-[#C9B075]/10'}`}
+                                                                >
+                                                                    투입 🚀
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -1593,16 +1602,16 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-32 bg-black border border-white/10 shadow-2xl left-1/2 -translate-x-1/2 rounded-[32px] p-1.5 w-[90%] max-w-[420px] flex items-center justify-between gap-1 z-[90]">
+            <nav className="fixed bottom-[92px] bg-black/90 backdrop-blur-xl border border-white/10 shadow-2xl left-1/2 -translate-x-1/2 rounded-full p-1.5 w-[85%] max-w-[360px] flex items-center justify-between gap-1 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
+                    className={`flex-1 rounded-full py-3.5 font-black text-[13px] flex items-center justify-center gap-2.5 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/20 hover:text-white/40'}`}
                 >
                     🔥 Matches
                 </button>
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[24px] py-4 font-black text-[14px] flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black shadow-2xl shadow-[#C9B075]/30' : 'text-white/20 hover:text-white/40'}`}
+                    className={`flex-1 rounded-full py-3.5 font-black text-[13px] flex items-center justify-center gap-2.5 transition-all active:scale-95 uppercase tracking-widest ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/20 hover:text-white/40'}`}
                 >
                     📊 Ranking
                 </button>
