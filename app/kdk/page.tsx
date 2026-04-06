@@ -1405,10 +1405,10 @@ export default function KDKPage() {
                 </div>
             </header>
 
-            <div className="px-4 mb-8">
+            <div className="mx-4 mb-8">
                 <div 
-                    className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-8 shadow-2xl space-y-6 relative"
-                    style={{ width: 'calc(100% - 32px)', margin: '0 auto' }}
+                    className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-5 shadow-2xl space-y-6 relative"
+                    style={{ width: 'calc(100% - 32px)' }}
                 >
                     <div className="space-y-1 pl-10">
                         <div className="flex items-center justify-between">
@@ -1448,8 +1448,8 @@ export default function KDKPage() {
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
-                            <div className="flex items-center gap-3 mb-6">
-                                <h2 className="text-xl font-black text-white italic tracking-tighter uppercase opacity-100">NOW PLAYING</h2>
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
                                     <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30">
                                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -1548,12 +1548,9 @@ export default function KDKPage() {
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }} className="px-6">
-                                            <div className="flex items-center gap-4 pl-4">
-                                                <span className="w-2 h-2 rounded-full bg-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.6)]" />
-                                                <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">{group}조 대기 순번</h3>
-                                            </div>
-                                            <div className="flex flex-col gap-6 mt-6">
+                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }}>
+                                            <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">{group}조 대기 순번</h3>
+                                            <div className="grid grid-cols-2 gap-3 mt-6 px-6">
                                                 {groupMatches.map((m) => {
                                                     const allMatchesInGroupSorted = matches.filter(mx => {
                                                         const p0 = mx.playerIds[0];
@@ -1569,33 +1566,23 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] p-5 rounded-[24px] mb-4 border border-white/5 flex flex-col gap-4 shadow-2xl active:scale-98 transition-all relative group">
-                                                            <div className="flex items-center justify-between w-full border-b border-white/5 pb-3">
-                                                                <div className="flex items-center gap-2 pl-1">
-                                                                    <div className="w-10 h-10 bg-[#C9B075] rounded-full flex items-center justify-center shadow-xl">
-                                                                        <span className="text-[10px] font-black text-black uppercase leading-none">G{matchNo}</span>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-3 pr-12">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-pulse" />
-                                                                    <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest">대기중</span>
-                                                                </div>
+                                                        <div key={m.id} className="bg-[#181824] px-4 py-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex flex-col justify-between h-20 overflow-hidden">
+                                                            <div className="absolute top-1 left-1 h-6 px-2 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20">
+                                                                <span className="text-[10px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex items-center justify-between gap-4 h-14">
-                                                                <div className="flex-1 flex flex-row items-center justify-center gap-2 text-sm font-bold h-full relative translate-y-[-2px]">
-                                                                    <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
-                                                                    <span className="text-[10px] font-black text-[#C9B075] italic shrink-0">VS</span>
-                                                                    <span className="text-white truncate max-w-[42%] text-center">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
-                                                                </div>
-                                                                <button 
-                                                                    disabled={hasConflict}
-                                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                    className={`px-10 py-3 rounded-2xl text-[14px] font-black uppercase transition-all shadow-2xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
-                                                                >
-                                                                    투입 🚀
-                                                                </button>
+                                                            <div className="flex-1 flex flex-col items-center justify-center leading-tight">
+                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                             </div>
+
+                                                            <button 
+                                                                disabled={hasConflict}
+                                                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
+                                                                className={`absolute bottom-1 right-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
+                                                            >
+                                                                투입 🚀
+                                                            </button>
                                                         </div>
                                                     );
                                                 })}
@@ -1608,7 +1595,7 @@ export default function KDKPage() {
 
                         {matches.some(m => m.status === 'complete') && (
                             <div className="space-y-4 pt-8">
-                                <h3 className="text-xl font-black text-white tracking-widest uppercase px-2 mb-4">Completed Matches</h3>
+                                <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">Completed Matches</h3>
                                 <div className="grid grid-cols-2 gap-3 pb-0">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
@@ -1651,7 +1638,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-[104px] bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
+            <nav className="fixed bottom-32 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
