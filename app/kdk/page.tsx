@@ -1504,21 +1504,21 @@ export default function KDKPage() {
                                         
                                         return (
                                             <div key={mId} className="bg-[#181824] rounded-[20px] p-2 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
-                                                {/* CANCEL/UNDO BUTTON (MOVED TO TOP-LEFT) */}
+                                                {/* CANCEL/UNDO BUTTON (MOVED TO TOP-CENTER) */}
                                                 <button 
                                                     type="button"
                                                     onClick={() => cancelMatch(mId)}
-                                                    className="absolute top-1 left-1.5 w-6 h-6 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 flex items-center justify-center text-[10px] active:scale-90 transition-all z-20 backdrop-blur-sm"
+                                                    className="absolute top-1 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 flex items-center justify-center text-[10px] active:scale-90 transition-all z-20 backdrop-blur-sm"
                                                     title="Cancel Match"
                                                 >
                                                     ↩️
                                                 </button>
 
-                                                {/* REFRESH SCORE UTILITY (MOVED TO TOP-CENTER) */}
+                                                {/* REFRESH SCORE UTILITY (MOVED TO TOP-RIGHT AS REQUESTED) */}
                                                 <button 
                                                     type="button"
                                                     onClick={() => syncMatchScore(mId)}
-                                                    className="absolute top-1 left-1/2 -translate-x-1/2 w-6 h-6 bg-[#C9B075]/10 text-[#C9B075] rounded-lg border border-[#C9B075]/20 flex items-center justify-center transition-all z-20 active:scale-90 hover:bg-[#C9B075]/20 focus:outline-none"
+                                                    className="absolute top-1 right-1.5 w-6 h-6 bg-[#C9B075]/10 text-[#C9B075] rounded-lg border border-[#C9B075]/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-[#C9B075]/20 focus:outline-none"
                                                 >
                                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                 </button>
@@ -1527,7 +1527,8 @@ export default function KDKPage() {
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className={`absolute top-1 right-1.5 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[8px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap`}>
+                                                        {/* GROUP-MATCH ID BADGE (MOVED TO TOP-LEFT AS REQUESTED) */}
+                                                        <div className={`absolute top-1 left-1.5 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[8px] font-black flex items-center justify-center shadow-lg z-20 whitespace-nowrap`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
                                                         <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2 mt-1">
@@ -1567,7 +1568,7 @@ export default function KDKPage() {
                                     <div className="py-10 text-center opacity-10 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">No Matches in Queue</div>
                                 );
 
-                                return [ 'A', 'B' ].map(group => {
+                                return ['A', 'B'].map(group => {
                                     const groupMatches = waitingMatches.filter(m => {
                                         const p0 = m.playerIds[0];
                                         const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
@@ -1590,34 +1591,41 @@ export default function KDKPage() {
                                                         const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
                                                         const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                                         return nGroup === group;
-                                                    }).sort((a,b) => {
-                                                        if(a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                                    }).sort((a, b) => {
+                                                        if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
                                                         return a.id.localeCompare(b.id);
                                                     });
                                                     const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
-                                                    
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
+
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] px-6 py-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex items-center justify-between h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
-                                                            <div className="absolute top-1.5 left-1.5 w-8 h-8 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/30 z-10 shadow-lg">
-                                                                <span className="text-[11px] font-black uppercase">G{matchNo}</span>
+                                                        <div key={m.id} className="bg-[#181824] p-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+                                                            {/* G# Badge Column */}
+                                                            <div className="flex items-center justify-center">
+                                                                <div className="w-9 h-9 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/30 shadow-lg shrink-0">
+                                                                    <span className="text-[12px] font-black uppercase">G{matchNo}</span>
+                                                                </div>
                                                             </div>
 
-                                                            <div className="flex-1 flex items-center justify-start gap-4 text-left pl-14 pr-2">
-                                                                <span className="flex-1 text-white text-[16px] font-bold truncate leading-none">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
-                                                                <span className="text-[#C9B075] text-[9px] font-black uppercase italic tracking-widest opacity-30 shrink-0">vs</span>
-                                                                <span className="flex-1 text-white text-[16px] font-bold truncate leading-none">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                            {/* Participant Names Column (STRICKLY CENTERED) */}
+                                                            <div className="flex items-center justify-center gap-4 text-center px-2">
+                                                                <span className="flex-1 text-white text-[17px] font-bold truncate leading-none">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                                <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0">vs</span>
+                                                                <span className="flex-1 text-white text-[17px] font-bold truncate leading-none">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                             </div>
 
-                                                            <button 
-                                                                disabled={hasConflict}
-                                                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#C9B075] !text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
-                                                                style={{ backgroundColor: hasConflict ? undefined : '#C9B075', color: hasConflict ? undefined : '#000000' }}
-                                                            >
-                                                                투입 🚀
-                                                            </button>
+                                                            {/* Action Button Column */}
+                                                            <div className="flex items-center justify-end pr-2">
+                                                                <button 
+                                                                    disabled={hasConflict}
+                                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
+                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#C9B075] !text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
+                                                                    style={{ backgroundColor: hasConflict ? undefined : '#C9B075', color: hasConflict ? undefined : '#000000' }}
+                                                                >
+                                                                    투입 🚀
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
