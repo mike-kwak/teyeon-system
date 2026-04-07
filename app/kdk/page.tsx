@@ -1509,7 +1509,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="h-auto mb-20 pb-12" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
+                        <section className="h-auto mb-14 pb-10" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col mb-6">
                                 <div className="flex items-center gap-3 ml-4">
                                     <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
@@ -1544,7 +1544,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 rounded-[32px] p-2 relative shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col justify-between h-full group">
+                                            <div key={mId} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 rounded-[32px] p-2 relative shadow-[0_10px_30px_rgba(0,0,0,0.6)] flex flex-col justify-between h-full group">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
@@ -1592,7 +1592,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div className="space-y-20 mb-20">
+                        <div className="space-y-14 mb-14">
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1614,7 +1614,7 @@ export default function KDKPage() {
 
                                     return (
                                         <div key={group} className="space-y-4">
-                                            <div className="flex flex-col mt-16 mb-8">
+                                            <div className="flex flex-col mt-14 mb-6">
                                                 <h3 className="text-3xl font-black italic tracking-tighter uppercase text-white ml-4">WAITING LIST</h3>
                                                 <div className="mt-2 h-1.5 w-48 ml-4 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                             </div>
@@ -1634,7 +1634,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 p-3 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden">
+                                                        <div key={m.id} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 p-2 rounded-[32px] shadow-[0_10px_30px_rgba(0,0,0,0.6)] active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden">
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1668,7 +1668,7 @@ export default function KDKPage() {
                         </div>
 
                         {matches.some(m => m.status === 'complete') && (
-                            <div className="space-y-12 pt-28">
+                            <div className="space-y-10 pt-14">
                                 <h3 className="text-3xl font-black italic tracking-tighter uppercase text-white ml-4">COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-4 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent mb-8" />
                                 <div className="grid grid-cols-2 gap-3 pb-0">
@@ -1686,7 +1686,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-2 rounded-xl shadow-xl flex flex-col items-center gap-1 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/5 backdrop-blur-sm border border-white/10 border-t-white/20 p-2 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.6)] flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group">
                                                 <div className="absolute top-1 left-1 px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
                                                     {m.groupName || 'A'}-G{gMatchNo}
                                                 </div>
