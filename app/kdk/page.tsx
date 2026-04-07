@@ -579,6 +579,18 @@ export default function KDKPage() {
         setMatches(prev => prev.map(m => m.id === matchId ? { ...m, court: courtNum } : m));
     };
 
+    const syncMatchScore = async (matchId: string) => {
+        try {
+            if (window.navigator?.vibrate) window.navigator.vibrate(50);
+            const { data, error } = await supabase.from('matches').select('score1, score2').eq('id', matchId).single();
+            if (error) return;
+            if (data) {
+                setMatches(prev => prev.map(m => m.id === matchId ? { ...m, score1: data.score1 ?? m.score1, score2: data.score2 ?? m.score2 } : m));
+                if (showScoreModal === matchId) setTempScores({ s1: data.score1 || 0, s2: data.score2 || 0 });
+            }
+        } catch (err) { console.error(err); }
+    };
+
     const handleMemberEditConfirm = async () => {
         const result = validateGroups();
         if (!result.ok) {
@@ -1414,46 +1426,33 @@ export default function KDKPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button 
-                        onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); window.location.reload(); }}
-                        className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] z-50 active:scale-90 transition-all hover:bg-[#C9B075]/20"
-                        title="데이터 새로고침"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                    </button>
                     <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
                     <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
                 </div>
             </header>
 
             <div 
-                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-xl px-4 py-1.5 flex items-center justify-between gap-4 shadow-2xl backdrop-blur-md relative z-10"
+                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-xl px-5 py-2.5 flex flex-col gap-1.5 shadow-2xl backdrop-blur-md relative z-10"
             >
-                {/* 1. IDENTITY SLOT (LEFT) */}
-                <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">Session</span>
-                    <span className="text-[10px] font-bold text-white truncate max-w-[100px]">{sessionTitle || '260407_KDK_01'}</span>
-                </div>
-
-                {/* 2. RULES SLOT (CENTER) */}
-                <div className="flex items-center gap-2 border-x border-white/5 px-4 min-w-0">
-                    <span className="text-[10px]">📋</span>
-                    <span className="text-[10px] font-bold text-white/60 truncate uppercase tracking-tighter">1:1, No-Ad, Tie 3:3</span>
-                </div>
-
-                {/* 3. FINANCIALS SLOT (RIGHT) */}
-                <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px]">💰</span>
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-tight uppercase">Win: 10K / Pen: 3~5K</span>
+                {/* LINE 1: SESSION & WIN/PEN */}
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">Session</span>
+                        <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter">{sessionTitle || '260407_KDK_01'}</span>
                     </div>
-                    <button 
-                        onClick={() => setShowMemberEditModal(true)} 
-                        className="text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90"
-                        title="인원 수정"
-                    >
-                        ⚙️
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-60">Payout</span>
+                        <span className="text-[10px] font-bold text-white/90 tracking-tighter uppercase whitespace-nowrap">Win: 10K / Pen: 3~5K</span>
+                        <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
+                    </div>
+                </div>
+
+                {/* LINE 2: RULES (DETAILED SLIM) */}
+                <div className="flex items-center gap-2 pt-1.5 border-t border-white/5">
+                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest shrink-0">Rules</span>
+                    <span className="text-[10px] font-bold text-white/50 tracking-tighter leading-tight italic uppercase truncate">
+                        1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
+                    </span>
                 </div>
             </div>
 
@@ -1500,6 +1499,15 @@ export default function KDKPage() {
                                                     title="경기 취소"
                                                 >
                                                     ↩️
+                                                </button>
+
+                                                {/* REFRESH SCORE UTILITY [NEW] */}
+                                                <button 
+                                                    onClick={() => syncMatchScore(mId)}
+                                                    className="absolute top-1 right-1 w-6 h-6 bg-[#C9B075]/10 text-[#C9B075] rounded-lg border border-[#C9B075]/20 flex items-center justify-center transition-all z-20 shadow-xl backdrop-blur-md active:scale-90"
+                                                    title="점수 동기화"
+                                                >
+                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                 </button>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
