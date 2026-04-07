@@ -801,71 +801,81 @@ export default function KDKPage() {
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
     const copyMatchTable = () => {
-        let text = `📌 오늘의 대진표: ${sessionTitle}\n`;
-        text += `⚖️ 규칙: ${matchRules}\n`;
-        text += `💰 상벌금: 1등 ${firstPrize.toLocaleString()}원 / 하위 ${bottom25Late.toLocaleString()}~${bottom25Penalty.toLocaleString()}원\n`;
+        if (!matches || matches.length === 0) {
+            alert("데이터를 불러오는 중입니다...");
+            return;
+        }
+
+        let text = `📌 오늘의 대진표: ${sessionTitle || 'Live Tournament'}\n`;
+        text += `⚖️ 규칙: ${matchRules || '1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승'}\n`;
+        text += `💰 상벌금: 우승 ${firstPrize.toLocaleString()} / 지각 ${bottom25Late.toLocaleString()} / 하위 ${bottom25Penalty.toLocaleString()}\n`;
         text += `━━━━━━━━━━━━━━\n`;
         
-        const matchesByRound: Record<number, Match[]> = {};
-        matches.forEach(m => {
-            const r = m.round || 1;
-            if (!matchesByRound[r]) matchesByRound[r] = [];
-            matchesByRound[r].push(m);
-        });
-
-        Object.entries(matchesByRound).sort(([a], [b]) => Number(a) - Number(b)).forEach(([round, roundMatches]) => {
-            text += `📍 ${round}라운드\n`;
-            roundMatches.forEach((m, idx) => {
-                text += `${idx + 1}코트: ${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])} vs ${getPlayerName(m.playerIds[2])}/${getPlayerName(m.playerIds[3])}\n`;
+        // Group matches by round for logical template generation
+        const rounds = [...new Set(matches.map(m => m.round || 1))].sort((a, b) => a - b);
+        
+        rounds.forEach(r => {
+            text += `📍 ${r}라운드\n`;
+            const roundMatches = matches.filter(m => m.round === r).sort((a, b) => (a.court || 99) - (b.court || 99));
+            roundMatches.forEach(m => {
+                const teamA = `${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])}`;
+                const teamB = `${getPlayerName(m.playerIds[2])}/${getPlayerName(m.playerIds[3])}`;
+                text += `${m.court}코트: ${teamA} vs ${teamB}\n`;
             });
             text += `\n`;
         });
 
-        text += `━━━━━━━━━━━━━━\n`;
-        text += `※ 상세 결과 확인: ${window.location.origin}/kdk`;
+        text = text.trim() + `\n━━━━━━━━━━━━━━\n`;
+        text += `※ 상세 결과 확인: https://teyeon-system.vercel.app/kdk`;
         
         navigator.clipboard.writeText(text);
-        alert("📋 대진표 텍스트가 복사되었습니다!");
+        alert("실시간 대진표가 복사되었습니다! ✅");
     };
 
     const copyFinalResults = () => {
-        let text = `📌 오늘의 대진표: ${sessionTitle}\n`;
-        text += `실시간 및 확정 랭킹 및 벌금 현황\n`;
+        if (!matches || matches.length === 0) {
+            alert("데이터를 불러오는 중입니다...");
+            return;
+        }
+
+        let text = `🏆 오늘의 최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
         text += `🏦 계좌: ${accountInfo}\n`;
         text += `━━━━━━━━━━━━━━\n\n`;
         
         const sortedPlayers = [...allPlayersInRanking];
         const totalCount = sortedPlayers.length;
-        // Bottom 25% get penalties
-        const penaltyThreshold = Math.ceil(totalCount * 0.25);
-        const penaltyStartIndex = totalCount - penaltyThreshold;
+        
+        // Logical Settlement Rules (MBTI/AGE/RANDOM Consistency)
+        const bottomHalfCount = Math.ceil(totalCount / 2);
+        const penaltyCount = Math.ceil(bottomHalfCount / 2);
+        const fineCount = bottomHalfCount - penaltyCount;
 
         sortedPlayers.forEach((p, i) => {
-            let rankPrefix = '';
-            if (i === 0) rankPrefix = '🥇 ';
-            else if (i === 1) rankPrefix = '🥈 ';
-            else if (i === 2) rankPrefix = '🥉 ';
-            else rankPrefix = `${i + 1}위 `;
+            const originalRank = i + 1;
+            let rankPrefix = (originalRank === 1) ? '🥇 ' : (originalRank === 2) ? '🥈 ' : (originalRank === 3) ? '🥉 ' : `${originalRank}위 `;
 
-            let prizePenalty = '';
-            if (i === 0) {
-                prizePenalty = ` [💰 +${firstPrize.toLocaleString()}원]`;
-            } else if (i >= penaltyStartIndex) {
-                const isLate = attendeeConfigs[p.id]?.isLate;
-                const amt = isLate ? bottom25Late : bottom25Penalty;
-                prizePenalty = ` [💸 -${amt.toLocaleString()}원]`;
+            const isPenaltyTier = i >= (totalCount - penaltyCount);
+            const isFineTier = !isPenaltyTier && i >= (totalCount - bottomHalfCount);
+
+            let prizePenaltyText = '';
+            if (originalRank === 1 && !p.is_guest) {
+                prizePenaltyText = ` [💰 +${firstPrize.toLocaleString()}원]`;
+            } else if (isPenaltyTier) {
+                prizePenaltyText = ` [💸 -${bottom25Penalty.toLocaleString()}원]`;
+            } else if (isFineTier) {
+                prizePenaltyText = ` [💸 -${bottom25Late.toLocaleString()}원]`;
             } else {
-                prizePenalty = ` [0원]`;
+                prizePenaltyText = ` [0원]`;
             }
 
-            text += `${rankPrefix}${p.name}${p.is_guest ? ' (G)' : ''}: ${p.wins}승 ${p.losses}패${prizePenalty}\n`;
+            text += `${rankPrefix}${p.name}${p.is_guest ? ' (G)' : ''}: ${p.wins}승 ${p.losses}패${prizePenaltyText}\n`;
         });
 
         text += `\n━━━━━━━━━━━━━━\n`;
-        text += `※ 전체 결과 확인: ${window.location.origin}/kdk`;
+        text += `※ 전체 아카이브 확인: https://teyeon-system.vercel.app/archive?session=${sessionId}`;
         
         navigator.clipboard.writeText(text);
-        alert("📊 최종 결과 및 벌금 현황이 복사되었습니다!");
+        alert("최종 결과 및 정산 현황이 복사되었습니다! ✅");
     };
 
     function addMinutesToTime(time: string, mins: number) {
