@@ -1420,41 +1420,49 @@ export default function KDKPage() {
             </header>
 
             <div 
-                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-5 shadow-2xl space-y-6 relative overflow-hidden"
+                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-8 relative overflow-hidden"
                 style={{ width: 'calc(100% - 32px)' }}
             >
-                    <div className="space-y-1 pl-10">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
-                            <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[9px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
-                        </div>
-                        <input 
-                            value={sessionTitle} 
-                            onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-transparent text-xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all pl-6"
-                            placeholder="Session Title"
-                        />
+                {/* 1. LAYER: DATE/SESSION */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Identity</span>
+                        <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[10px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
                     </div>
-                    
-                    <div className="grid grid-cols-[1.5fr_1fr] gap-4 pl-10 max-w-full">
-                        <div className="space-y-1">
-                            <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Match Rules</span>
-                            <input 
-                                value={matchRules} 
-                                onChange={(e) => setMatchRules(e.target.value)}
-                                className="w-full bg-black/20 border border-white/5 rounded-xl px-4 h-10 text-[9px] font-bold text-white/60 outline-none focus:border-[#C9B075]/20 truncate"
-                                placeholder="Rules..."
-                            />
+                    <input 
+                        value={sessionTitle} 
+                        onChange={(e) => setSessionTitle(e.target.value)}
+                        className="w-full bg-transparent text-2xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all"
+                        placeholder="Session Title"
+                    />
+                </div>
+                
+                {/* 2. LAYER: MATCH RULES */}
+                <div className="space-y-2">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Match Rules & Protocols</span>
+                    <textarea 
+                        value={matchRules} 
+                        onChange={(e) => setMatchRules(e.target.value)}
+                        className="w-full bg-black/40 border border-white/5 rounded-2xl px-5 py-4 text-[12px] font-bold text-white/80 outline-none focus:border-[#C9B075]/20 min-h-[80px] leading-relaxed no-scrollbar"
+                        placeholder="Define rules..."
+                    />
+                </div>
+
+                {/* 3. LAYER: FINANCIALS */}
+                <div className="space-y-4">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl">🏆</span>
+                            <span className="text-sm font-black text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</span>
                         </div>
-                        <div className="space-y-1 pr-2">
-                            <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
-                            <div className="bg-black/20 border border-white/5 rounded-xl p-3 space-y-1">
-                                <p className="text-[9px] font-bold text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</p>
-                                <p className="text-[9px] font-bold text-red-400/80">📉 {bottom25Late.toLocaleString()}~{bottom25Penalty.toLocaleString()}원</p>
-                            </div>
+                        <div className="flex flex-col items-end gap-1">
+                            <span className="text-[11px] font-black text-red-400">📉 {bottom25Late.toLocaleString()}원 (Lower 50%)</span>
+                            <span className="text-[11px] font-black text-red-600">📉 {bottom25Penalty.toLocaleString()}원 (Lower 25%)</span>
                         </div>
                     </div>
                 </div>
+            </div>
 
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
@@ -1583,16 +1591,16 @@ export default function KDKPage() {
                                                                 <span className="text-[9px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex-1 flex items-center gap-4 text-center mt-2">
-                                                                <span className="flex-1 text-white text-base font-black truncate">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                            <div className="flex-1 flex items-center justify-center gap-4 text-center px-10">
+                                                                <span className="flex-1 text-white text-[15px] font-black truncate">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                 <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-40">vs</span>
-                                                                <span className="flex-1 text-white text-base font-black truncate">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                                <span className="flex-1 text-white text-[15px] font-black truncate">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                             </div>
 
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`absolute bottom-3 right-3 px-4 py-2 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#EFDFB4] text-white active:scale-95 hover:bg-[#C9B075]'}`}
+                                                                className={`px-5 py-2.5 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#C9B075] text-black active:scale-95 hover:bg-[#B8860B]'}`}
                                                             >
                                                                 투입 🚀
                                                             </button>
@@ -1651,7 +1659,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-32 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
+            <nav className="fixed bottom-20 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
