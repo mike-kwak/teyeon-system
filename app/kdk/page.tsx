@@ -1427,45 +1427,45 @@ export default function KDKPage() {
             </header>
 
             <div 
-                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] p-8 shadow-2xl space-y-10 relative max-w-none"
+                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] p-5 shadow-2xl relative max-w-none divide-y divide-white/5"
                 style={{ width: 'calc(100% - 32px)' }}
             >
-                {/* 1. LAYER: DATE/SESSION */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                {/* 1. TIER: IDENTITY (TOP) */}
+                <div className="pb-6 space-y-3">
+                    <div className="flex items-center justify-between px-2">
                         <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Identity</span>
                         <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[10px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
                     </div>
                     <input 
                         value={sessionTitle} 
                         onChange={(e) => setSessionTitle(e.target.value)}
-                        className="w-full bg-transparent text-2xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all"
+                        className="w-full bg-transparent px-2 text-2xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all"
                         placeholder="Session Title"
                     />
                 </div>
                 
-                {/* 2. LAYER: MATCH RULES */}
-                <div className="space-y-2">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Match Rules & Protocols</span>
+                {/* 2. TIER: RULES (MIDDLE) */}
+                <div className="py-6 space-y-3">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Match Rules & Protocols</span>
                     <textarea 
                         value={matchRules} 
                         onChange={(e) => setMatchRules(e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-2xl px-5 py-4 text-[12px] font-bold text-white/80 outline-none focus:border-[#C9B075]/20 min-h-[80px] leading-relaxed no-scrollbar"
+                        className="w-full bg-black/40 border border-white/5 rounded-[24px] px-6 py-5 text-[12px] font-bold text-white/80 outline-none focus:border-[#C9B075]/20 min-h-[100px] leading-relaxed no-scrollbar"
                         placeholder="Define rules..."
                     />
                 </div>
 
-                {/* 3. LAYER: FINANCIALS */}
-                <div className="space-y-4">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
-                    <div className="bg-black/40 border border-white/5 rounded-[28px] p-6 flex items-center justify-between gap-6">
+                {/* 3. TIER: FINANCIALS (BOTTOM) */}
+                <div className="pt-6 space-y-4">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Prizes & Penalties</span>
+                    <div className="bg-black/40 border border-white/5 rounded-[32px] p-6 flex items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
-                            <span className="text-2xl">🏆</span>
-                            <span className="text-base font-black text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</span>
+                            <span className="text-2xl drop-shadow-[0_0_10px_rgba(201,176,117,0.3)]">🏆</span>
+                            <span className="text-lg font-black text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</span>
                         </div>
-                        <div className="flex flex-col items-end gap-1.5 px-2">
-                            <span className="text-[12px] font-black text-red-400/90 whitespace-nowrap">📉 {bottom25Late.toLocaleString()}원 (L50)</span>
-                            <span className="text-[12px] font-black text-red-600/90 whitespace-nowrap">📉 {bottom25Penalty.toLocaleString()}원 (L25)</span>
+                        <div className="flex flex-col items-end gap-1.5 px-2 text-right">
+                            <span className="text-[12px] font-black text-red-400/90 whitespace-nowrap tracking-tighter">📉 {bottom25Late.toLocaleString()}원 (L50-L26)</span>
+                            <span className="text-[12px] font-black text-red-600/90 whitespace-nowrap tracking-tighter">📉 {bottom25Penalty.toLocaleString()}원 (L25-L01)</span>
                         </div>
                     </div>
                 </div>
@@ -1540,10 +1540,10 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (RE-STYLED WHITE SPEC) */}
+                                                {/* SCORE INPUT BUTTON (GOLD DOMINANCE) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-10 bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 shadow-xl transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-bold text-white uppercase tracking-[0.1em] shrink-0"
+                                                    className="w-full h-11 !bg-[#C9B075] hover:bg-[#B8860B] active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.4)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black !text-black uppercase tracking-[0.1em] shrink-0"
                                                 >
                                                     SCORE INPUT
                                                 </button>
@@ -1564,7 +1564,6 @@ export default function KDKPage() {
                                     const groupMatches = waitingMatches.filter(m => {
                                         const p0 = m.playerIds[0];
                                         const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
-                                        
                                         const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                         return normalizedGroup === group;
                                     }).sort((a, b) => {
@@ -1594,14 +1593,14 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
                                                         <div key={m.id} className="bg-[#181824] px-6 py-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex items-center justify-between h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
-                                                            <div className="absolute top-1 left-1 h-5 px-1.5 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20 z-10">
-                                                                <span className="text-[9px] font-black uppercase">G{matchNo}</span>
+                                                            <div className="absolute top-1.5 left-1.5 w-8 h-8 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/30 z-10 shadow-lg">
+                                                                <span className="text-[11px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex-1 flex items-center justify-center gap-4 text-center px-10">
-                                                                <span className="flex-1 text-white text-[15px] font-black truncate">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                            <div className="flex-1 flex items-center justify-center gap-6 text-center px-10">
+                                                                <span className="flex-1 text-white text-lg font-bold truncate leading-none">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                 <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-40">vs</span>
-                                                                <span className="flex-1 text-white text-[15px] font-black truncate">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                                <span className="flex-1 text-white text-lg font-bold truncate leading-none">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                             </div>
 
                                                             <button 
