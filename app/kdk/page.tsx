@@ -1416,10 +1416,10 @@ export default function KDKPage() {
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); window.location.reload(); }}
-                        className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/40 text-sm active:scale-90 transition-all hover:bg-white/10 hover:text-white"
+                        className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] z-50 active:scale-90 transition-all hover:bg-[#C9B075]/20"
                         title="데이터 새로고침"
                     >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                     </button>
                     <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
                     <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
@@ -1427,53 +1427,45 @@ export default function KDKPage() {
             </header>
 
             <div 
-                className="mx-4 mb-8 w-[calc(100%-32px)] bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] px-5 py-6 shadow-2xl relative max-w-none divide-y divide-white/5"
+                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 shadow-xl backdrop-blur-md relative z-10"
             >
-                {/* 1. TIER: IDENTITY (TOP) */}
-                <div className="pb-6 space-y-3">
-                    <div className="flex items-center justify-between px-2">
-                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Identity</span>
-                        <button onClick={() => setShowMemberEditModal(true)} className="text-[#C9B075] text-[10px] font-black underline underline-offset-4 decoration-[#C9B075]/30 hover:text-white transition-colors">인원 수정 (기권/추가)</button>
-                    </div>
+                {/* SLIM BANNER: IDENTITY & STATUS */}
+                <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                    <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest shrink-0 opacity-80">KDK Live</span>
                     <input 
                         value={sessionTitle} 
                         onChange={(e) => setSessionTitle(e.target.value)}
-                        className="w-full bg-transparent px-2 text-2xl font-black italic text-white tracking-tighter outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all"
-                        placeholder="Session Title"
-                    />
-                </div>
-                
-                {/* 2. TIER: RULES (MIDDLE) */}
-                <div className="py-6 space-y-3">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Match Rules & Protocols</span>
-                    <textarea 
-                        value={matchRules} 
-                        onChange={(e) => setMatchRules(e.target.value)}
-                        className="w-full bg-black/40 border border-white/5 rounded-[24px] px-6 py-5 text-[12px] font-bold text-white/80 outline-none focus:border-[#C9B075]/20 min-h-[100px] leading-relaxed no-scrollbar"
-                        placeholder="Define rules..."
+                        className="bg-transparent text-sm font-black text-white tracking-tight outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all truncate"
+                        placeholder="Session Name"
                     />
                 </div>
 
-                {/* 3. TIER: FINANCIALS (BOTTOM) */}
-                <div className="pt-6 space-y-4">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Prizes & Penalties</span>
-                    <div className="bg-black/40 border border-white/5 rounded-[32px] p-6 flex items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <span className="text-2xl drop-shadow-[0_0_10px_rgba(201,176,117,0.3)]">🏆</span>
-                            <span className="text-lg font-black text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</span>
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5 px-2 text-right">
-                            <span className="text-[12px] font-black text-red-400/90 whitespace-nowrap tracking-tighter">📉 {bottom25Late.toLocaleString()}원 (L50-L26)</span>
-                            <span className="text-[12px] font-black text-red-600/90 whitespace-nowrap tracking-tighter">📉 {bottom25Penalty.toLocaleString()}원 (L25-L01)</span>
-                        </div>
+                {/* SLIM BANNER: RULES (COMPACT) */}
+                <div className="hidden xs:flex items-center gap-2 overflow-hidden px-4 border-x border-white/5 mx-2 min-w-0">
+                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest shrink-0">Rules</span>
+                    <span className="text-[10px] font-bold text-white/40 truncate italic max-w-[120px]">{matchRules || 'Standard'}</span>
+                </div>
+
+                {/* SLIM BANNER: PRIZE & ACTION */}
+                <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-1.5 bg-[#C9B075]/5 px-2.5 py-1 rounded-full border border-[#C9B075]/10">
+                        <span className="text-[10px]">🏆</span>
+                        <span className="text-[11px] font-black text-[#C9B075] tracking-tighter">{firstPrize.toLocaleString()}W</span>
                     </div>
+                    <button 
+                        onClick={() => setShowMemberEditModal(true)} 
+                        className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#C9B075] text-[10px] hover:bg-white/10 transition-all shadow-lg active:scale-90"
+                        title="인원 수정"
+                    >
+                        ⚙️
+                    </button>
                 </div>
             </div>
 
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section style={{ marginTop: '32px', position: 'relative', zIndex: 10 }}>
+                        <section style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3">
                                 <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
