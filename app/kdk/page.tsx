@@ -560,15 +560,25 @@ export default function KDKPage() {
     const cancelMatch = async (matchId: string) => {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
+            setSpinningMatchId(matchId); // Start spin feedback
             
-            // 1. Local State Update Only
-            // DECISION: We rely on session-level persistence. Individual match records in the live table 
-            // use UUIDs, while our local match generator uses custom string IDs. 
-            // Attempting to sync these string IDs with the UUID field in Supabase causes a 400 error.
+            // 1. Supabase Sync (Update status to waiting and clear court)
+            const { error: syncError } = await supabase
+                .from('matches')
+                .update({ status: 'waiting', court: null })
+                .eq('id', matchId)
+                .eq('session_id', sessionId);
+            
+            if (syncError) console.warn("Cancel match sync error:", syncError);
+
+            // 2. Local State Update
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
             setActiveMatchIds(prev => prev.filter(id => id !== matchId));
+            
+            setTimeout(() => setSpinningMatchId(null), 500); // 0.5s Fast spin as requested
         } catch (err: any) {
             console.error("Cancel match error:", err);
+            setSpinningMatchId(null);
             alert("경기 취소 중 오류가 발생했습니다: " + err.message);
         }
     };
@@ -1504,34 +1514,12 @@ export default function KDKPage() {
                                         
                                         return (
                                             <div key={mId} className="bg-[#181824] rounded-[20px] p-2 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
-                                                {/* BLUE REFRESH SCORE UTILITY (MOVED TO TOP-RIGHT AS REQUESTED) */}
+                                                {/* BLUE CANCEL UTILITY (FUNCTION: BACK TO WAITING LIST) */}
                                                 <button 
                                                     type="button"
-                                                    onClick={async () => {
-                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50);
-                                                        setSpinningMatchId(mId);
-                                                        // FAST SYNC: Fetch matches from Supabase and clear spin in 500ms
-                                                        const { data, error } = await supabase
-                                                            .from('matches')
-                                                            .select('*')
-                                                            .eq('session_id', sessionId)
-                                                            .order('groupName', { ascending: true })
-                                                            .order('round', { ascending: true })
-                                                            .order('id', { ascending: true });
-                                                        
-                                                        if (!error && data) {
-                                                            setMatches(prev => {
-                                                                const next = [...prev];
-                                                                data.forEach(dm => {
-                                                                    const idx = next.findIndex(x => x.id === dm.id);
-                                                                    if (idx !== -1) next[idx] = { ...next[idx], ...dm };
-                                                                });
-                                                                return next;
-                                                            });
-                                                        }
-                                                        setTimeout(() => setSpinningMatchId(null), 500); // Super-fast 0.5s spin as requested
-                                                    }}
+                                                    onClick={() => cancelMatch(mId)}
                                                     className="absolute top-2 right-1.5 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                    title="웨이팅 리스트로 복귀"
                                                 >
                                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                 </button>
@@ -1540,8 +1528,8 @@ export default function KDKPage() {
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING - pt-12 FOR BADGE SPACE) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] pt-12 flex flex-col items-center justify-center border border-white/5 w-full">
-                                                        {/* GROUP-MATCH ID BADGE (DOCKING: top-2, left-2, font-black) */}
-                                                        <div className={`absolute top-2 left-2 px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap border border-white/10`}>
+                                                        {/* GROUP-MATCH ID BADGE (DOCKING: top-1, left-2, font-black) */}
+                                                        <div className={`absolute top-1 left-2 px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap border border-white/10`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
                                                         <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2 mt-1">
