@@ -915,8 +915,8 @@ export default function KDKPage() {
                             </div>
                         }
                     >
-                        <section className="space-y-4">
-                            <div className="grid grid-cols-3 gap-3 py-1">
+                        <section className="space-y-4 pb-40">
+                            <div className="grid grid-cols-3 gap-x-3 gap-y-6 py-1">
                                 {[...allMembers, ...tempGuests].map(m => {
                                     const isSelected = selectedIds.has(m.id);
                                     const isGuest = m.is_guest || m.id.startsWith('guest-');
@@ -973,7 +973,7 @@ export default function KDKPage() {
                         
                         <button 
                             onClick={handleStep1Confirm} 
-                            className="w-full py-5 bg-[#C9B075] text-black font-black text-lg rounded-full shadow-2xl active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all"
+                            className="w-full py-6 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black text-lg rounded-full shadow-[0_20px_50px_rgba(201,176,117,0.3)] active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all border border-white/20"
                         >
                             참석자 확정 및 설정 ➡️
                         </button>
@@ -1297,12 +1297,12 @@ export default function KDKPage() {
                             onClick={generateKDK}
                             style={{
                                 width: '100%',
-                                padding: '18px 0',
+                                padding: '24px 0',
                                 borderRadius: '999px',
-                                background: isGenerating ? '#1A1A1A' : '#C9B075',
+                                background: isGenerating ? '#1A1A1A' : 'linear-gradient(to right, #C9B075, #B8860B)',
                                 color: '#000000',
-                                border: 'none',
-                                fontSize: '16px',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                fontSize: '18px',
                                 fontWeight: 900,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1310,7 +1310,8 @@ export default function KDKPage() {
                                 gap: '10px',
                                 cursor: isGenerating ? 'not-allowed' : 'pointer',
                                 WebkitTextFillColor: '#000000',
-                                transition: 'all 0.15s'
+                                transition: 'all 0.15s',
+                                boxShadow: '0 20px 50px rgba(201,176,117,0.3)'
                             }}
                         >
                             {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
@@ -2254,24 +2255,24 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                     animation: confetti-fall 4s linear forwards;
                 }
             `}</style>
-            <div className="w-full max-w-xs bg-[#1E1E2E] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
-                <div className="w-20 h-20 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/20 flex items-center justify-center">
-                    <span className="text-4xl">⚠️</span>
+            <div className="w-full max-w-sm bg-black/80 border border-white/10 rounded-[40px] p-10 shadow-2xl flex flex-col items-center text-center space-y-8 animate-in zoom-in-95 duration-300 backdrop-blur-2xl">
+                <div className="w-24 h-24 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                    <span className="text-5xl">⚠️</span>
                 </div>
-                <div className="space-y-2">
-                    <h3 className="text-xl font-black text-[#C9B075] italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
-                    <p className="text-sm font-bold text-white/60 leading-relaxed">{message}</p>
+                <div className="space-y-3">
+                    <h3 className="text-xl font-black text-red-500 italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
+                    <p className="text-base font-bold text-white/80 leading-relaxed px-2">{message}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 w-full">
+                <div className="grid grid-cols-2 gap-4 w-full">
                     <button 
                         onClick={onCancel}
-                        className="py-5 bg-white/10 text-white/60 font-black rounded-2xl active:scale-95 transition-all text-[12px] uppercase tracking-widest border border-white/5"
+                        className="py-6 bg-white/10 text-white/60 font-black rounded-3xl active:scale-95 transition-all text-[14px] uppercase tracking-widest border border-white/5"
                     >
                         취소
                     </button>
                     <button 
                         onClick={onConfirm}
-                        className="py-5 bg-[#C9B075] text-black font-black rounded-2xl shadow-[0_10px_20px_rgba(212,175,55,0.3)] active:scale-95 transition-all text-[12px] uppercase tracking-widest"
+                        className="py-6 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-3xl shadow-[0_10px_30px_rgba(239,68,68,0.4)] active:scale-95 transition-all text-[14px] uppercase tracking-widest border border-red-400/20"
                     >
                         데이터 초기화
                     </button>
