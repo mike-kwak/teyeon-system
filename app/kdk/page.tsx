@@ -1686,7 +1686,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/5 backdrop-blur-sm border border-white/10 border-t-white/20 p-2 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.6)] flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group">
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/5 backdrop-blur-sm border border-white/10 border-t-white/20 p-2 rounded-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group">
                                                 <div className="absolute top-1 left-1 px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
                                                     {m.groupName || 'A'}-G{gMatchNo}
                                                 </div>
