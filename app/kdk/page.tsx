@@ -881,12 +881,7 @@ export default function KDKPage() {
 
                     <div className="text-center flex flex-col items-center">
                         <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 01</span>
-                        <h1 className="text-xl font-bold italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">참석자 확정</h1>
-                        <div className="mt-1 flex items-center justify-center gap-2 opacity-40">
-                             <div className="h-px w-3 bg-[#C9B075]/30" />
-                             <span className="text-[8px] font-black text-white uppercase tracking-widest leading-none">{selectedIds.size} READY</span>
-                             <div className="h-px w-3 bg-[#C9B075]/30" />
-                        </div>
+                        <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">참석자 확정</h1>
                     </div>
 
                     <div className="flex justify-end">
@@ -901,7 +896,7 @@ export default function KDKPage() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar">
+                <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar pb-40">
                     
                     
 
@@ -915,7 +910,7 @@ export default function KDKPage() {
                             </div>
                         }
                     >
-                        <section className="space-y-4 pb-40">
+                        <section className="space-y-4">
                             <div className="grid grid-cols-3 gap-x-3 gap-y-6 py-1">
                                 {[...allMembers, ...tempGuests].map(m => {
                                     const isSelected = selectedIds.has(m.id);
@@ -973,7 +968,7 @@ export default function KDKPage() {
                         
                         <button 
                             onClick={handleStep1Confirm} 
-                            className="w-full py-6 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black text-lg rounded-full shadow-[0_20px_50px_rgba(201,176,117,0.3)] active:scale-95 flex items-center justify-center gap-3 pointer-events-auto transition-all border border-white/20"
+                            className="w-full py-2 bg-[#C9B075] text-black font-black text-sm rounded-full shadow-[0_10px_25px_rgba(201,176,117,0.4)] active:scale-95 flex items-center justify-center gap-2 pointer-events-auto transition-all border border-white/20"
                         >
                             참석자 확정 및 설정 ➡️
                         </button>
@@ -1027,7 +1022,7 @@ export default function KDKPage() {
 
                     <div className="text-center flex flex-col items-center">
                         <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
-                        <h1 className="text-xl font-bold italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
+                        <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
                     </div>
 
                     <div className="flex justify-end">
@@ -1297,24 +1292,24 @@ export default function KDKPage() {
                             onClick={generateKDK}
                             style={{
                                 width: '100%',
-                                padding: '24px 0',
+                                padding: '8px 0',
                                 borderRadius: '999px',
-                                background: isGenerating ? '#1A1A1A' : 'linear-gradient(to right, #C9B075, #B8860B)',
+                                background: isGenerating ? '#1A1A1A' : '#C9B075',
                                 color: '#000000',
-                                border: '1px solid rgba(255, 255, 255, 0.2)',
-                                fontSize: '18px',
-                                fontWeight: 900,
+                                border: '1px solid rgba(255, 255, 255, 0.4)',
+                                fontSize: '14px',
+                                fontWeight: 1000,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '10px',
+                                gap: '8px',
                                 cursor: isGenerating ? 'not-allowed' : 'pointer',
                                 WebkitTextFillColor: '#000000',
                                 transition: 'all 0.15s',
-                                boxShadow: '0 20px 50px rgba(201,176,117,0.3)'
+                                boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
                             }}
                         >
-                            {isGenerating ? 'GENERATE TOURNAMENT...' : '최종 대진 자동 생성! 🚀'}
+                            {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
                         </button>
                     </div>
                 </div>
@@ -1480,11 +1475,11 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
                                         
                                         return (
-                                            <div key={mId} className="bg-[#181824] rounded-[20px] p-3 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
+                                            <div key={mId} className="bg-[#181824] rounded-[20px] p-2 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
                                                 {/* CANCEL/UNDO BUTTON [NEW] */}
                                                 <button 
                                                     onClick={() => cancelMatch(mId)}
-                                                    className="absolute -top-2 -right-2 w-8 h-8 bg-red-500/20 text-red-400 rounded-full border border-red-500/30 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all z-20 shadow-xl backdrop-blur-md active:scale-95"
+                                                    className="absolute -top-1 -right-1 w-6 h-6 bg-red-500/20 text-red-400 rounded-full border border-red-500/30 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-all z-20 shadow-xl backdrop-blur-md active:scale-95"
                                                     title="경기 취소"
                                                 >
                                                     ↩️
@@ -1493,21 +1488,21 @@ export default function KDKPage() {
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING) */}
-                                                    <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[9px] font-black flex items-center justify-center shadow z-10 whitespace-nowrap`}>
-                                                            {normalizedGroup}조 · G{matchNo}
+                                                    <div className="relative bg-[#242436] rounded-[12px] h-[48px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        <div className={`absolute top-0.5 left-0.5 px-1.5 py-0.2 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[7px] font-black flex items-center justify-center shadow z-10 whitespace-nowrap`}>
+                                                            {normalizedGroup}·G{matchNo}
                                                         </div>
-                                                        <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
+                                                        <span className="text-white text-[10px] font-black text-center leading-tight relative z-0 truncate w-full px-1">
                                                             {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
                                                     {/* Central VS */}
-                                                    <div className="text-[#C9B075] font-black text-[10px] uppercase text-center italic opacity-40">vs</div>
+                                                    <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-40">vs</div>
 
                                                     {/* TEAM B BLOCK (STRICT CENTERING - NO BADGE) */}
-                                                    <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <span className="text-white text-xs font-black text-center leading-tight relative z-0 truncate w-full px-1">
+                                                    <div className="relative bg-[#242436] rounded-[12px] h-[48px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        <span className="text-white text-[10px] font-black text-center leading-tight relative z-0 truncate w-full px-1">
                                                             {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
@@ -1517,9 +1512,9 @@ export default function KDKPage() {
                                                 {/* SCORE INPUT BUTTON (BRIGHT SPEC) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-11 bg-[#1A1A2E] hover:bg-[#242436] active:scale-95 border border-[#C9B075]/30 shadow-xl transition-all rounded-xl flex items-center justify-center mt-3 text-[12px] font-black text-[#C9B075] uppercase tracking-[0.2em] shrink-0"
+                                                    className="w-full h-8 bg-[#1A1A2E] hover:bg-[#242436] active:scale-95 border border-[#C9B075]/30 shadow-xl transition-all rounded-lg flex items-center justify-center mt-2 text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] shrink-0"
                                                 >
-                                                    SCORE INPUT
+                                                    SCORE
                                                 </button>
                                             </div>
                                         );
@@ -1567,15 +1562,14 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] px-4 py-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex flex-col justify-between h-20 overflow-hidden">
-                                                            <div className="absolute top-1 left-1 h-6 px-2 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20">
-                                                                <span className="text-[10px] font-black uppercase">G{matchNo}</span>
+                                                        <div key={m.id} className="bg-[#181824] px-3 py-2 rounded-[20px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex flex-col justify-between h-14 overflow-hidden">
+                                                            <div className="absolute top-0.5 left-0.5 h-4 px-1.5 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20">
+                                                                <span className="text-[8px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex-1 flex flex-col items-center justify-center leading-tight gap-0.5">
-                                                                <span className="text-white text-base font-black truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                                <span className="text-gray-500 text-[10px] font-black uppercase italic tracking-widest leading-none">vs</span>
-                                                                <span className="text-white text-base font-black truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <div className="flex-1 flex flex-col items-center justify-center leading-tight gap-0">
+                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
+                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
                                                             </div>
 
                                                             <button 
@@ -1600,15 +1594,15 @@ export default function KDKPage() {
                                 <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">Completed Matches</h3>
                                 <div className="grid grid-cols-2 gap-3 pb-0">
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
-                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-4 rounded-xl shadow-xl flex flex-col items-center gap-2 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
-                                            <div className="grid grid-cols-[1fr_80px_1fr] items-center gap-0 w-full min-h-[48px]">
-                                                <span className="text-base font-black text-white whitespace-nowrap truncate text-right leading-tight uppercase pr-2">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
-                                                <div className="flex flex-col items-center w-20">
-                                                    <span className="text-xl font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
+                                        <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-2 rounded-xl shadow-xl flex flex-col items-center gap-1 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
+                                            <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-0 w-full min-h-[32px]">
+                                                <span className="text-sm font-black text-white whitespace-nowrap truncate text-right leading-tight uppercase pr-1">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <div className="flex flex-col items-center w-14">
+                                                    <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
                                                 </div>
-                                                <span className="text-base font-black text-white whitespace-nowrap truncate text-left leading-tight uppercase pl-2">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-sm font-black text-white whitespace-nowrap truncate text-left leading-tight uppercase pl-1">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
-                                            <span className="text-[7px] font-black text-gray-300 uppercase tracking-widest pb-1 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
+                                            <span className="text-[6px] font-black text-gray-300 uppercase tracking-widest pb-0.5 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
                                         </div>
                                     ))}
                                 </div>
