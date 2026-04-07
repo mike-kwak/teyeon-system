@@ -70,12 +70,12 @@ export default function KDKPage() {
     if (role === 'GUEST') {
         return (
             <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-8 z-[1000]">
-                 <div style={{ width: '80px', height: '80px', borderRadius: '100px', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '100px', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
                     <span style={{ fontSize: '32px' }}>🔒</span>
-                 </div>
-                 <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#fff', fontStyle: 'italic', letterSpacing: '-0.02em', textTransform: 'uppercase', marginBottom: '8px' }}>Access Restricted</h2>
-                 <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.3)', textAlign: 'center', lineHeight: '1.6', maxWidth: '240px' }}>{getRestrictionMessage('kdk')}</p>
-                 <button onClick={() => router.push('/')} style={{ marginTop: '32px', padding: '16px 32px', background: 'rgba(255, 255, 255, 0.05)', color: '#fff', fontSize: '11px', fontWeight: 900, borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Back to Dashboard</button>
+                </div>
+                <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#fff', fontStyle: 'italic', letterSpacing: '-0.02em', textTransform: 'uppercase', marginBottom: '8px' }}>Access Restricted</h2>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.3)', textAlign: 'center', lineHeight: '1.6', maxWidth: '240px' }}>{getRestrictionMessage('kdk')}</p>
+                <button onClick={() => router.push('/')} style={{ marginTop: '32px', padding: '16px 32px', background: 'rgba(255, 255, 255, 0.05)', color: '#fff', fontSize: '11px', fontWeight: 900, borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Back to Dashboard</button>
             </div>
         );
     }
@@ -150,7 +150,7 @@ export default function KDKPage() {
     // Stage 2: Official Archive & Shutdown (Admin Only)
     const handleFinalArchive = async () => {
         if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
-        
+
         try {
             setIsGenerating(true);
             const today = new Date();
@@ -191,7 +191,7 @@ export default function KDKPage() {
 
             // 4. Redirect to Archive Portal
             router.push(`/archive?session=${sessionId}`);
-            
+
         } catch (err: any) {
             alert("공식 종료 실패: " + err.message);
         } finally {
@@ -248,7 +248,7 @@ export default function KDKPage() {
     const resetSession = () => {
         // --- 1. Immediate Storage Purge ---
         localStorage.removeItem('kdk_live_session');
-        
+
         // --- 2. Brutal Page Refresh (Ensures 100% state cleanup) ---
         window.location.reload();
 
@@ -256,19 +256,19 @@ export default function KDKPage() {
         setMatches([]);
         setActiveMatchIds([]);
         setAttendeeConfigs({});
-        setStep(1); 
+        setStep(1);
         setFixedPartners([]);
         setFixedTeamMode(false);
         setShowResetConfirm(false);
         setSelectedIds(new Set());
-        setTempGuests([]); 
+        setTempGuests([]);
         setHasSkippedGuestInfo(false);
         setShowCeremony(false);
         setActiveTab('MATCHES');
     };
 
     const confirmReset = () => {
-        setShowResetConfirm(true); 
+        setShowResetConfirm(true);
     };
 
     const actualReset = () => {
@@ -280,7 +280,7 @@ export default function KDKPage() {
         try {
             const saved = localStorage.getItem('kdk_live_session');
             if (!saved) return;
-            
+
             const data = JSON.parse(saved);
             if (data.matches) setMatches(data.matches || []);
             if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs || {});
@@ -289,7 +289,7 @@ export default function KDKPage() {
             if (data.step) setStep(data.step || 1);
             if (data.sessionTitle) setSessionTitle(data.sessionTitle);
             if (data.sessionId) setSessionId(data.sessionId);
-            
+
             console.log("Session restored from LocalStorage");
         } catch (e) {
             console.error("Session Restoration Error:", e);
@@ -378,14 +378,14 @@ export default function KDKPage() {
             }
 
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-            
+
             let query = supabase.from('members').select('*');
             if (clubId) {
                 query = query.eq('club_id', clubId);
             }
-            
+
             const { data, error } = await query.order('nickname');
-            
+
             if (error) throw error;
             setAllMembers(data || []);
         } catch (err) {
@@ -405,10 +405,10 @@ export default function KDKPage() {
             // Auto-populate attendee config if member has data
             const member = allMembers.find(m => m.id === id);
             if (member && !attendeeConfigs[id]) {
-                const isAwardWinner = (member.achievements || '').includes('우승') || 
-                                     (member.achievements || '').includes('준우승') || 
-                                     (member.achievements || '').includes('입상');
-                
+                const isAwardWinner = (member.achievements || '').includes('우승') ||
+                    (member.achievements || '').includes('준우승') ||
+                    (member.achievements || '').includes('입상');
+
                 setAttendeeConfigs(prev => ({
                     ...prev,
                     [id]: {
@@ -507,7 +507,7 @@ export default function KDKPage() {
             };
 
             const kdkMatches = generateKdkMatches(attendees, groupCourtMap, targetGames, genMode, fixedPartners, fixedTeamMode);
-            
+
             // Convert KdkMatch to internal Match
             const formattedMatches: Match[] = kdkMatches.map(km => ({
                 id: km.id,
@@ -561,20 +561,20 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
-            
+
             // 1. Supabase Sync (Update status to waiting and clear court)
             const { error: syncError } = await supabase
                 .from('matches')
                 .update({ status: 'waiting', court: null })
                 .eq('id', matchId)
                 .eq('session_id', sessionId);
-            
+
             if (syncError) console.warn("Cancel match sync error:", syncError);
 
             // 2. Local State Update
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
             setActiveMatchIds(prev => prev.filter(id => id !== matchId));
-            
+
             setTimeout(() => setSpinningMatchId(null), 500); // 0.5s Fast spin as requested
         } catch (err: any) {
             console.error("Cancel match error:", err);
@@ -600,8 +600,8 @@ export default function KDKPage() {
                 if (showScoreModal === matchId) setTempScores({ s1: data.score1 || 0, s2: data.score2 || 0 });
             }
             setTimeout(() => setSpinningMatchId(null), 1000);
-        } catch (err) { 
-            console.error(err); 
+        } catch (err) {
+            console.error(err);
             setSpinningMatchId(null);
         }
     };
@@ -617,7 +617,7 @@ export default function KDKPage() {
         // Mid-tournament re-generate logic
         const completedMatches = matches.filter(m => m.status === 'complete');
         const activeMatches = matches.filter(m => m.status === 'playing');
-        
+
         setIsGenerating(true);
         try {
             // Re-map players
@@ -637,16 +637,16 @@ export default function KDKPage() {
                 } as any;
             });
 
-            const groupCourtMap: Record<string, number[]> = { 'A': [1,2,3,4,5,6], 'B': [1,2,3,4,5,6] };
-            
+            const groupCourtMap: Record<string, number[]> = { 'A': [1, 2, 3, 4, 5, 6], 'B': [1, 2, 3, 4, 5, 6] };
+
             // DECISION: We keep COMPLETED and PLAYING matches as is.
             // We re-generate only the FUTURE matches.
             const newMatches = generateKdkMatches(
-                attendees, 
-                groupCourtMap, 
-                targetGames, 
-                genMode, 
-                fixedPartners, 
+                attendees,
+                groupCourtMap,
+                targetGames,
+                genMode,
+                fixedPartners,
                 fixedTeamMode,
                 [...completedMatches, ...activeMatches] as any
             );
@@ -676,7 +676,7 @@ export default function KDKPage() {
             setIsGenerating(false);
         }
     };
-    
+
     const finishMatch = async (matchId: string, s1: number, s2: number) => {
         try {
             // 1. Prepare match data for archiving
@@ -715,7 +715,7 @@ export default function KDKPage() {
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
             const matchDateStr = `${yyyy}-${mm}-${dd}`;
-            
+
             // Deterministic Unique ID for Upsert (Session + Round + Court)
             const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
 
@@ -731,13 +731,13 @@ export default function KDKPage() {
                 court: matchToFinish.court,
                 player_ids: matchToFinish.playerIds
             };
-            
+
             // Critical check to see if match exists in live table to move it
             const { data: liveRow } = await supabase.from('matches').select('id').eq('id', matchId).single();
 
             // UPSERT into Archive (prevents duplicates from concurrent submissions)
             const { error: insError } = await supabase.from('matches_archive').upsert([archiveRecord], { onConflict: 'id' });
-            
+
             if (insError) {
                 console.error("Archive Insert Error:", insError);
                 // Enhanced Alert for debugging
@@ -771,7 +771,7 @@ export default function KDKPage() {
                 const score2 = Number(m?.score2 || 0);
                 const win = isTeam1 ? (score1 > score2) : (score2 > score1);
                 const d = isTeam1 ? (score1 - score2) : (score2 - score1);
-                
+
                 res[pid].games += 1;
                 if (win) res[pid].wins += 1;
                 else res[pid].losses += 1;
@@ -782,16 +782,16 @@ export default function KDKPage() {
     }, [matches]);
 
     const allPlayersInRanking = useMemo(() => {
-        const participantIds = (selectedIds?.size > 0) 
-            ? Array.from(selectedIds) 
+        const participantIds = (selectedIds?.size > 0)
+            ? Array.from(selectedIds)
             : Array.from(new Set((matches || []).flatMap(m => m?.playerIds || [])));
 
         return participantIds.map(id => {
             const m = (allMembers || []).find(x => x?.id === id) || (tempGuests || []).find(x => x?.id === id);
             const conf = attendeeConfigs?.[id] || { name: m?.nickname || id, group: 'A', is_guest: m?.is_guest };
             return {
-                id, 
-                name: m?.nickname || id, 
+                id,
+                name: m?.nickname || id,
                 is_guest: m?.is_guest || conf?.is_guest,
                 group: conf?.group || 'A',
                 age: conf?.age || 0,
@@ -800,36 +800,54 @@ export default function KDKPage() {
         }).sort((a, b) => (b?.wins || 0) - (a?.wins || 0) || (b?.diff || 0) - (a?.diff || 0));
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
-    const copyMatchTable = () => {
+    const execCopySchedule = () => {
         if (!matches || matches.length === 0) {
             alert("데이터를 불러오는 중입니다...");
             return;
         }
 
+        // [v3.2 - FINAL REQUESTED TEMPLATE]
         let text = `📌 오늘의 대진표: ${sessionTitle || 'Live Tournament'}\n`;
         text += `⚖️ 규칙: ${matchRules || '1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승'}\n`;
-        text += `💰 상벌금: 우승 ${firstPrize.toLocaleString()} / 지각 ${bottom25Late.toLocaleString()} / 하위 ${bottom25Penalty.toLocaleString()}\n`;
+        text += `💰 상벌금: 우승 ${firstPrize.toLocaleString()} / 벌금 ${bottom25Late.toLocaleString()} / 벌금 ${bottom25Penalty.toLocaleString()}\n`;
         text += `━━━━━━━━━━━━━━\n`;
         
-        // Group matches by round for logical template generation
-        const rounds = [...new Set(matches.map(m => m.round || 1))].sort((a, b) => a - b);
-        
-        rounds.forEach(r => {
-            text += `📍 ${r}라운드\n`;
-            const roundMatches = matches.filter(m => m.round === r).sort((a, b) => (a.court || 99) - (b.court || 99));
-            roundMatches.forEach(m => {
-                const teamA = `${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])}`;
-                const teamB = `${getPlayerName(m.playerIds[2])}/${getPlayerName(m.playerIds[3])}`;
-                text += `${m.court}코트: ${teamA} vs ${teamB}\n`;
+        const uniqueGroups = [...new Set(matches.map(m => m.groupName || 'A'))].sort();
+        const hasMultipleGroups = uniqueGroups.length > 1;
+
+        uniqueGroups.forEach(group => {
+            if (hasMultipleGroups) {
+                text += `\n📍 '${group}'조 대진표\n`;
+            }
+            
+            const groupMatches = matches.filter(m => (m.groupName || 'A') === group);
+            const rounds = [...new Set(groupMatches.map(m => m.round || 1))].sort((a, b) => a - b);
+
+            rounds.forEach(r => {
+                text += `\n📍 ${r}라운드\n`;
+                const roundMatches = groupMatches.filter(m => m.round === r).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+                roundMatches.forEach(m => {
+                    const teamA = `${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])}`;
+                    const teamB = `${getPlayerName(m.playerIds[2])}/${getPlayerName(m.playerIds[3])}`;
+                    // STRICT FORMAT: No court, just players
+                    text += `${teamA} vs ${teamB}\n`;
+                });
             });
-            text += `\n`;
+            
+            if (hasMultipleGroups) {
+                text += `\n━━━━━━━━━━━━━━\n`;
+            }
         });
 
-        text = text.trim() + `\n━━━━━━━━━━━━━━\n`;
-        text += `※ 상세 결과 확인: https://teyeon-system.vercel.app/kdk`;
+        text = text.trim();
+        if (!hasMultipleGroups) {
+            text += `\n━━━━━━━━━━━━━━`;
+        }
+        text += `\n※ 상세 결과 확인: https://teyeon-system.vercel.app/kdk`;
         
+        console.log("Copied Match Schedule v3.2 (No Courts, No '지각')");
         navigator.clipboard.writeText(text);
-        alert("실시간 대진표가 복사되었습니다! ✅");
+        alert("실시간 대진표가 클립보드에 복사되었습니다! ✅");
     };
 
     const copyFinalResults = () => {
@@ -841,10 +859,10 @@ export default function KDKPage() {
         let text = `🏆 오늘의 최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
         text += `🏦 계좌: ${accountInfo}\n`;
         text += `━━━━━━━━━━━━━━\n\n`;
-        
+
         const sortedPlayers = [...allPlayersInRanking];
         const totalCount = sortedPlayers.length;
-        
+
         // Logical Settlement Rules (MBTI/AGE/RANDOM Consistency)
         const bottomHalfCount = Math.ceil(totalCount / 2);
         const penaltyCount = Math.ceil(bottomHalfCount / 2);
@@ -873,7 +891,7 @@ export default function KDKPage() {
 
         text += `\n━━━━━━━━━━━━━━\n`;
         text += `※ 전체 아카이브 확인: https://teyeon-system.vercel.app/archive?session=${sessionId}`;
-        
+
         navigator.clipboard.writeText(text);
         alert("최종 결과 및 정산 현황이 복사되었습니다! ✅");
     };
@@ -892,27 +910,27 @@ export default function KDKPage() {
     if (step === 1) {
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
-                
-                
-                
+
+
+
 
                 <header className="grid grid-cols-3 px-6 mb-1 items-center h-12">
                     <div className="flex items-center">
-                        <ManualRecoveryButton 
+                        <ManualRecoveryButton
                             onRestore={(data) => {
-                                 setMatches(data.matches || []);
-                                 setAttendeeConfigs(data.attendeeConfigs || {});
-                                 setSelectedIds(new Set(data.selectedIds || []));
-                                 setTempGuests(data.tempGuests || []);
-                                 setStep(data.step || 1);
-                                 setSessionTitle(data.sessionTitle || "");
-                                 if (data.settings?.finance) {
-                                     setFirstPrize(data.settings.finance.firstPrize);
-                                     setBottom25Late(data.settings.finance.bottom25Late);
-                                     setBottom25Penalty(data.settings.finance.bottom25Penalty);
-                                     setAccountInfo(data.settings.finance.accountInfo);
-                                 }
-                            }} 
+                                setMatches(data.matches || []);
+                                setAttendeeConfigs(data.attendeeConfigs || {});
+                                setSelectedIds(new Set(data.selectedIds || []));
+                                setTempGuests(data.tempGuests || []);
+                                setStep(data.step || 1);
+                                setSessionTitle(data.sessionTitle || "");
+                                if (data.settings?.finance) {
+                                    setFirstPrize(data.settings.finance.firstPrize);
+                                    setBottom25Late(data.settings.finance.bottom25Late);
+                                    setBottom25Penalty(data.settings.finance.bottom25Penalty);
+                                    setAccountInfo(data.settings.finance.accountInfo);
+                                }
+                            }}
                         />
                     </div>
 
@@ -922,7 +940,7 @@ export default function KDKPage() {
                     </div>
 
                     <div className="flex justify-end">
-                        <button 
+                        <button
                             onClick={() => setShowResetConfirm(true)}
                             className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
                             title="전체 데이터 초기화"
@@ -934,11 +952,11 @@ export default function KDKPage() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar" style={{ paddingBottom: '240px' }}>
-                    
-                    
 
-                    <DataStateView 
-                        isLoading={isMembersLoading} 
+
+
+                    <DataStateView
+                        isLoading={isMembersLoading}
                         isError={isMembersError}
                         onRetry={fetchMembers}
                         loadingComponent={
@@ -957,9 +975,9 @@ export default function KDKPage() {
                                             key={m.id}
                                             onClick={() => toggleMember(m.id)}
                                             className={`h-22 rounded-[24px] border-2 transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
-                                            ${isSelected 
-                                                ? 'bg-[#C9B075] border-white/20 text-black shadow-[0_10px_25px_rgba(201,176,117,0.4)] scale-100 z-10' 
-                                                : 'bg-[#1A1A1A] border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 scale-95 opacity-80 shadow-lg'}`}
+                                            ${isSelected
+                                                    ? 'bg-[#C9B075] border-white/20 text-black shadow-[0_10px_25px_rgba(201,176,117,0.4)] scale-100 z-10'
+                                                    : 'bg-[#1A1A1A] border-white/5 text-white/90 hover:bg-white/10 hover:border-white/10 scale-95 opacity-80 shadow-lg'}`}
                                         >
                                             <span className="text-[15px] font-bold break-keep leading-tight px-1 drop-shadow-sm">
                                                 {m.nickname}{isGuest ? ' (G)' : ''}
@@ -993,18 +1011,18 @@ export default function KDKPage() {
                             </div>
                         </section>
                     </DataStateView>
-                    
-                    
-                    
+
+
+
                 </div>
 
-                
+
                 <div className="fixed bottom-[120px] left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-[70] pointer-events-none">
                     <div className="relative">
                         <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#121212] via-[#121212]/80 to-transparent backdrop-blur-md rounded-[40px] -z-10" />
-                        
-                        <button 
-                            onClick={handleStep1Confirm} 
+
+                        <button
+                            onClick={handleStep1Confirm}
                             style={{
                                 width: '100%',
                                 padding: '8px 0',
@@ -1031,17 +1049,17 @@ export default function KDKPage() {
                 </div>
 
                 {showResetConfirm && (
-                    <CustomConfirmModal 
-                        title="초기화 확인" 
-                        message="모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다." 
-                        onConfirm={actualReset} 
-                        onCancel={() => setShowResetConfirm(false)} 
+                    <CustomConfirmModal
+                        title="초기화 확인"
+                        message="모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                        onConfirm={actualReset}
+                        onCancel={() => setShowResetConfirm(false)}
                     />
                 )}
                 {showWarning && (
-                    <WarningModal 
-                        message={warningMsg} 
-                        onClose={() => setShowWarning(false)} 
+                    <WarningModal
+                        message={warningMsg}
+                        onClose={() => setShowWarning(false)}
                     />
                 )}
             </main>
@@ -1049,7 +1067,7 @@ export default function KDKPage() {
     }
 
     // --- Step 2: Settings Dashboard ---
-    // FORCE_REBUILD_v26: 2026-04-03T02:52:00Z
+    // FORCE_REBUILD_v28: 2026-04-07T12:35:00Z
     if (step === 2) {
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
@@ -1060,14 +1078,14 @@ export default function KDKPage() {
 
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
-                
-                
 
-                
+
+
+
 
                 <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0">
                     <div className="flex items-center">
-                        <button 
+                        <button
                             onClick={() => setStep(1)}
                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-95 transition-all text-white/60 hover:text-white"
                         >
@@ -1081,7 +1099,7 @@ export default function KDKPage() {
                     </div>
 
                     <div className="flex justify-end">
-                        <button 
+                        <button
                             onClick={() => setShowResetConfirm(true)}
                             className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
                             title="전체 데이터 초기화"
@@ -1093,23 +1111,23 @@ export default function KDKPage() {
                 </header>
 
                 <div className="px-6 space-y-12 max-w-lg mx-auto w-full">
-                    
-                    
+
+
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" />
                             <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3>
                         </div>
-                        <input 
-                            type="text" 
-                            value={sessionTitle} 
+                        <input
+                            type="text"
+                            value={sessionTitle}
                             onChange={(e) => setSessionTitle(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#C9B075]/50 focus:bg-white/[0.08] transition-all outline-none"
                             placeholder="Ex: 2026-03-27 테연 정기전"
                         />
                     </section>
 
-                    
+
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3">
@@ -1123,13 +1141,13 @@ export default function KDKPage() {
                                 const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
                                 return (
                                     <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        
+
                                         <span style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>
                                             {m.name}{m.is_guest ? ' (G)' : ''}
                                         </span>
-                                        
+
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            
+
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
@@ -1145,7 +1163,7 @@ export default function KDKPage() {
                                                     </select>
                                                 </div>
                                             </div>
-                                            
+
                                             <div style={{ display: 'flex', gap: '6px' }}>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))}
@@ -1163,7 +1181,7 @@ export default function KDKPage() {
                         </div>
                     </section>
 
-                    
+
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-bold text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3">
@@ -1218,7 +1236,7 @@ export default function KDKPage() {
                                     {fixedTeamMode ? 'TEAM MODE' : 'ROUND 1 ONLY'}
                                 </button>
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                                 {fixedPartners.map((pair, idx) => (
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
@@ -1230,7 +1248,7 @@ export default function KDKPage() {
                                         <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
                                     </div>
                                 ))}
-                                <button 
+                                <button
                                     onClick={() => setPartnerSelectSource('NEW')}
                                     style={{
                                         width: '100%', padding: '14px 0',
@@ -1252,14 +1270,14 @@ export default function KDKPage() {
                         </div>
                     </section>
 
-                    
+
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '28px 24px', marginTop: '12px', overflow: 'visible' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#C9B075', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C9B075', flexShrink: 0, display: 'inline-block' }} />
                                 CONSTRAINTS
                             </h4>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
@@ -1268,7 +1286,7 @@ export default function KDKPage() {
                                     <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
@@ -1284,16 +1302,16 @@ export default function KDKPage() {
                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ADE80', flexShrink: 0, display: 'inline-block' }} />
                                 FINANCIALS
                             </h4>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize/1000).toFixed(0)}k</span>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#FACC15', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 1 Fine</span>
@@ -1301,11 +1319,11 @@ export default function KDKPage() {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late/1000).toFixed(0)}k</span>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 2 Fine</span>
@@ -1313,13 +1331,13 @@ export default function KDKPage() {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty/1000).toFixed(0)}k</span>
+                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
                         </div>
 
-                        
+
                         <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #333' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#C9B075', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C9B075', flexShrink: 0, display: 'inline-block' }} />
@@ -1334,12 +1352,12 @@ export default function KDKPage() {
                         </div>
                     </section>
 
-                    
-                    
+
+
                 </div>
-                
-                
-                
+
+
+
                 <div style={{ position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '450px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
                     <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
@@ -1369,11 +1387,11 @@ export default function KDKPage() {
                     </div>
                 </div>
 
-                
+
                 {partnerSelectSource && (
                     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                         <div style={{ background: '#1C1C1C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '32px', width: '100%', maxWidth: '400px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            
+
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                 <div>
                                     <div style={{ fontSize: '11px', fontWeight: 900, color: '#C9B075', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
@@ -1381,7 +1399,7 @@ export default function KDKPage() {
                                 </div>
                                 <button onClick={() => setPartnerSelectSource(null)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto' }}>
                                 {availablePlayersForPartnering.map(p => {
                                     const isSelected = partnerSelectSource !== 'NEW' && partnerSelectSource === p.id;
@@ -1415,7 +1433,7 @@ export default function KDKPage() {
                                     );
                                 })}
                             </div>
-                            
+
                             <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>
                                 {partnerSelectSource === 'NEW' ? '첫 번째 플레이어를 선택하세요' : (allMembers.find(x => x.id === partnerSelectSource)?.nickname + (allMembers.find(x => x.id === partnerSelectSource)?.is_guest ? ' (G)' : '')) + '의 파트너를 선택하세요'}
                             </p>
@@ -1424,9 +1442,9 @@ export default function KDKPage() {
                 )}
 
                 {showWarning && (
-                    <WarningModal 
-                        message={warningMsg} 
-                        onClose={() => setShowWarning(false)} 
+                    <WarningModal
+                        message={warningMsg}
+                        onClose={() => setShowWarning(false)}
                     />
                 )}
             </main>
@@ -1440,7 +1458,7 @@ export default function KDKPage() {
         <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
-                    <button 
+                    <button
                         onClick={() => setShowResetConfirm(true)}
                         className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
                         title="전체 데이터 초기화"
@@ -1451,12 +1469,12 @@ export default function KDKPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
+                    <button onClick={execCopySchedule} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
                     <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
                 </div>
             </header>
 
-            <div 
+            <div
                 className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-xl px-5 py-2.5 flex flex-col gap-1.5 shadow-2xl backdrop-blur-md relative z-10"
             >
                 {/* LINE 1: SESSION & WIN/PEN */}
@@ -1509,31 +1527,31 @@ export default function KDKPage() {
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
-                                        
+
                                         const allMatchesInGroupSorted = matches.filter(mx => {
                                             const p0 = mx.playerIds[0];
                                             const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
                                             const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                             return nGroup === (m.groupName || 'A');
-                                        }).sort((a,b) => {
-                                            if(a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                        }).sort((a, b) => {
+                                            if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
                                             return a.id.localeCompare(b.id);
                                         });
                                         const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
                                         const normalizedGroup = m.groupName || 'A';
-                                        
+
                                         return (
                                             <div key={mId} className="bg-[#181824] rounded-[20px] p-2 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
-                                                    
+
                                                     {/* TEAM A BLOCK (STRICT CENTERING - pt-12 FOR BADGE SPACE) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] pt-12 flex flex-col items-center justify-center border border-white/5 w-full">
-                                                        {/* GROUP-MATCH ID BADGE (DOCKING: top-1, left-1.5, font-black) */}
-                                                        <div className={`absolute top-1 left-1.5 px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap border border-white/10`}>
+                                                        {/* GROUP-MATCH ID BADGE (DOCKING: top-1.5, left-2, font-black) */}
+                                                        <div className={`absolute top-1.5 left-2 px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap border border-white/10`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
                                                         <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2 mt-1">
-                                                            {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
+                                                            {getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
@@ -1542,24 +1560,24 @@ export default function KDKPage() {
 
                                                     {/* TEAM B BLOCK (STRICT SYMMETRY - pt-12 FOR UTILITY SPACE) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] pt-12 flex flex-col items-center justify-center border border-white/5 w-full">
-                                                        {/* BLUE CANCEL UTILITY (DOCKING: top-0.5, right-1 - MIRRORING BADGE) */}
-                                                        <button 
+                                                        {/* BLUE CANCEL UTILITY (DOCKING: top-1.5, right-2 - MIRRORING BADGE) */}
+                                                        <button
                                                             type="button"
                                                             onClick={() => cancelMatch(mId)}
-                                                            className="absolute top-0.5 right-1 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                            className="absolute top-1.5 right-2 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
                                                             title="웨이팅 리스트로 복귀"
                                                         >
                                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                         </button>
                                                         <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
-                                                            {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
+                                                            {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
 
                                                 </div>
 
                                                 {/* SCORE INPUT BUTTON (REFINED OUTLINE STYLE) */}
-                                                <button 
+                                                <button
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
                                                     className="w-full h-11 bg-white/5 border border-[#C9B075] hover:bg-[#C9B075]/10 active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.1)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-[#C9B075] uppercase tracking-[0.1em] shrink-0"
                                                 >
@@ -1627,9 +1645,9 @@ export default function KDKPage() {
 
                                                             {/* Action Button Column */}
                                                             <div className="flex items-center justify-end pr-2">
-                                                                <button 
+                                                                <button
                                                                     disabled={hasConflict}
-                                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
+                                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }}
                                                                     className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#C9B075] !text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
                                                                     style={{ backgroundColor: hasConflict ? undefined : '#C9B075', color: hasConflict ? undefined : '#000000' }}
                                                                 >
@@ -1650,16 +1668,16 @@ export default function KDKPage() {
                             <div className="space-y-4 pt-8">
                                 <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">Completed Matches</h3>
                                 <div className="grid grid-cols-2 gap-3 pb-0">
-                                    {matches.filter(m => m.status === 'complete').sort((a,b) => {
+                                    {matches.filter(m => m.status === 'complete').sort((a, b) => {
                                         const gA = a.groupName || 'A';
                                         const gB = b.groupName || 'A';
-                                        if(gA !== gB) return gA.localeCompare(gB);
-                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === gA).sort((x,y) => (x.round || 0) - (y.round || 0) || x.id.localeCompare(y.id));
+                                        if (gA !== gB) return gA.localeCompare(gB);
+                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === gA).sort((x, y) => (x.round || 0) - (y.round || 0) || x.id.localeCompare(y.id));
                                         return groupMatchesSorted.findIndex(x => x.id === a.id) - groupMatchesSorted.findIndex(x => x.id === b.id);
                                     }).map(m => {
                                         // Calculate group game number
-                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === (m.groupName || 'A')).sort((a,b) => {
-                                            if(a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === (m.groupName || 'A')).sort((a, b) => {
+                                            if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
                                             return a.id.localeCompare(b.id);
                                         });
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
@@ -1672,11 +1690,11 @@ export default function KDKPage() {
                                                 </div>
 
                                                 <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-0 w-full min-h-[32px] pt-1.5">
-                                                    <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase pr-1">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                    <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase pr-1">{getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}</span>
                                                     <div className="flex flex-col items-center w-14">
                                                         <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
                                                     </div>
-                                                    <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-left leading-tight uppercase pl-1">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                    <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-left leading-tight uppercase pl-1">{getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}</span>
                                                 </div>
                                                 <span className="text-[6px] font-black text-gray-300 uppercase tracking-widest pb-0.5 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
                                             </div>
@@ -1685,22 +1703,22 @@ export default function KDKPage() {
                                 </div>
                             </div>
                         )}
-                        
-                        
+
+
                     </>
                 ) : (
                     <div className="pb-40">
-                        <RankingView 
-                            sessionMatches={matches} 
-                            configs={attendeeConfigs} 
+                        <RankingView
+                            sessionMatches={matches}
+                            configs={attendeeConfigs}
                             allPlayers={allPlayersInRanking}
                             allMembers={allMembers}
                             tempGuests={tempGuests}
                             sessionId={sessionId}
                             sessionTitle={sessionTitle}
                             actualReset={actualReset}
-                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }} 
-                            copyMatchTable={copyMatchTable}
+                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }}
+                            copyMatchTable={execCopySchedule}
                             copyFinalResults={copyFinalResults}
                             ceremonyMode={showCeremony}
                             onFinalize={handleFinalArchive}
@@ -1712,13 +1730,13 @@ export default function KDKPage() {
             </div>
 
             <nav className="fixed bottom-24 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
-                <button 
+                <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     🔥 MATCHES
                 </button>
-                <button 
+                <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
                     className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
@@ -1726,10 +1744,10 @@ export default function KDKPage() {
                 </button>
             </nav>
 
-            
+
             {allMatchesScored && step === 3 && activeTab === 'MATCHES' && (
                 <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60] animate-in slide-in-from-bottom-10 fade-in duration-500">
-                    <button 
+                    <button
                         onClick={handleStartCeremony}
                         className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-bold rounded-full shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
                     >
@@ -1745,16 +1763,16 @@ export default function KDKPage() {
                         <button onClick={() => setShowRankingModal(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-xl text-white">×</button>
                     </header>
                     <div className="flex-1 overflow-y-auto p-4">
-                        <RankingView 
-                            sessionMatches={matches} 
-                            configs={attendeeConfigs} 
+                        <RankingView
+                            sessionMatches={matches}
+                            configs={attendeeConfigs}
                             allPlayers={allPlayersInRanking}
                             allMembers={allMembers}
                             tempGuests={tempGuests}
                             sessionId={sessionId}
                             sessionTitle={sessionTitle}
-                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }} 
-                            copyMatchTable={copyMatchTable}
+                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }}
+                            copyMatchTable={execCopySchedule}
                             copyFinalResults={copyFinalResults}
                             ceremonyMode={showCeremony}
                             onFinalize={handleFinalArchive}
@@ -1778,18 +1796,18 @@ export default function KDKPage() {
                         <div className="grid grid-cols-2 gap-8 mb-10">
                             {[0, 1].map(side => (
                                 <div key={side} className="flex flex-col gap-4">
-                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest text-center truncate">{getPlayerName(activeMatchForScore.playerIds[side*2])} & {getPlayerName(activeMatchForScore.playerIds[side*2+1])}</span>
+                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest text-center truncate">{getPlayerName(activeMatchForScore.playerIds[side * 2])} & {getPlayerName(activeMatchForScore.playerIds[side * 2 + 1])}</span>
                                     <div className="text-5xl font-black text-[#C9B075] text-center mb-2">{side === 0 ? tempScores.s1 : tempScores.s2}</div>
                                     <div className="grid grid-cols-3 gap-2">
-                                        {[0,1,2,3,4,5,6].map(n => (
-                                            <button 
-                                                key={n} 
+                                        {[0, 1, 2, 3, 4, 5, 6].map(n => (
+                                            <button
+                                                key={n}
                                                 onClick={() => {
                                                     if (window.navigator?.vibrate) window.navigator.vibrate(50); // 탁!
                                                     const val = Math.min(6, Math.max(0, n));
                                                     setTempScores(p => side === 0 ? ({ ...p, s1: val }) : ({ ...p, s2: val }));
-                                                }} 
-                                                className={`h-12 rounded-xl text-lg font-black transition-all ${ (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#C9B075] text-black scale-105' : 'bg-white/5 text-white/30'}`}
+                                                }}
+                                                className={`h-12 rounded-xl text-lg font-black transition-all ${(side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#C9B075] text-black scale-105' : 'bg-white/5 text-white/30'}`}
                                             >
                                                 {n}
                                             </button>
@@ -1805,7 +1823,7 @@ export default function KDKPage() {
                     </div>
                 </div>
             )}
-            
+
             {showMemberEditModal && (
                 <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col p-6 overflow-hidden">
                     <header className="flex items-center justify-between mb-8">
@@ -1824,15 +1842,15 @@ export default function KDKPage() {
                                             key={m.id}
                                             onClick={() => {
                                                 if (isBusy) {
-                                                     alert("현재 경기 중인 선수는 기권 처리할 수 없습니다. 경기가 끝난 후 조정해 주세요.");
-                                                     return;
+                                                    alert("현재 경기 중인 선수는 기권 처리할 수 없습니다. 경기가 끝난 후 조정해 주세요.");
+                                                    return;
                                                 }
                                                 toggleMember(m.id);
                                             }}
                                             className={`h-16 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
-                                            ${isSelected 
-                                                ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg scale-105' 
-                                                : 'bg-white/[0.05] border-white/10 text-white/40'}
+                                            ${isSelected
+                                                    ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg scale-105'
+                                                    : 'bg-white/[0.05] border-white/10 text-white/40'}
                                             ${isBusy ? 'opacity-30 border-dashed cursor-not-allowed' : ''}`}
                                         >
                                             <span className="text-[10px] font-black truncate w-full px-1">{m.nickname}</span>
@@ -1843,11 +1861,11 @@ export default function KDKPage() {
                             </div>
                         </section>
                         <p className="text-[10px] font-bold text-white/30 leading-relaxed uppercase tracking-widest text-center italic">
-                            💡 선수를 추가하거나 제거하면, <br/>아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
+                            💡 선수를 추가하거나 제거하면, <br />아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
                         </p>
                     </div>
                     <div className="mt-8">
-                        <button 
+                        <button
                             disabled={isGenerating}
                             onClick={handleMemberEditConfirm}
                             className={`w-full py-5 rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#C9B075] text-black'}`}
@@ -1859,17 +1877,17 @@ export default function KDKPage() {
             )}
 
             {showResetConfirm && (
-                <CustomConfirmModal 
-                    title="대진표 초기화" 
-                    message="현재 진행 중인 모든 대진과 선택된 멤버 정보를 삭제하고 처음부터 다시 시작하시겠습니까?" 
-                    onConfirm={actualReset} 
-                    onCancel={() => setShowResetConfirm(false)} 
+                <CustomConfirmModal
+                    title="대진표 초기화"
+                    message="현재 진행 중인 모든 대진과 선택된 멤버 정보를 삭제하고 처음부터 다시 시작하시겠습니까?"
+                    onConfirm={actualReset}
+                    onCancel={() => setShowResetConfirm(false)}
                 />
             )}
             {showWarning && (
-                <WarningModal 
-                    message={warningMsg} 
-                    onClose={() => setShowWarning(false)} 
+                <WarningModal
+                    message={warningMsg}
+                    onClose={() => setShowWarning(false)}
                 />
             )}
         </main>
@@ -1886,7 +1904,7 @@ function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void })
     if (!hasSession) return null;
 
     return (
-        <button 
+        <button
             onClick={() => {
                 const saved = localStorage.getItem('kdk_live_session');
                 if (saved) {
@@ -1895,7 +1913,7 @@ function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void })
                         onRestore(data);
                     } catch (e) { console.error(e); }
                 }
-            }} 
+            }}
             className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/40 uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all active:scale-95 group whitespace-nowrap"
         >
             <span className="text-[12px] group-hover:scale-110 transition-transform grayscale group-hover:grayscale-0">📂</span>
@@ -1916,7 +1934,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                     </div>
                     <button onClick={onClose} className="text-white/20 text-3xl">×</button>
                 </div>
-                
+
                 <div className="space-y-4">
                     {guests.map(g => {
                         const conf = configs[g.id] || {};
@@ -1929,8 +1947,8 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Age (나이)</label>
-                                        <input 
-                                            type="number" 
+                                        <input
+                                            type="number"
                                             placeholder="나이"
                                             value={conf.age || ''}
                                             onChange={(e) => onSave(g.id, parseInt(e.target.value) || 0, !!conf.isWinner)}
@@ -1939,7 +1957,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Winner? (입상여부)</label>
-                                        <button 
+                                        <button
                                             onClick={() => onSave(g.id, conf.age || 0, !conf.isWinner)}
                                             className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all ${conf.isWinner ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
                                         >
@@ -1953,7 +1971,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                 </div>
 
                 <div className="pt-4">
-                    <button 
+                    <button
                         onClick={onClose}
                         className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
                     >
@@ -1972,7 +1990,7 @@ function ArchiveSection({ onLoad }: { onLoad: (session: any) => void }) {
         supabase.from('matches_archive').select('*').order('created_at', { ascending: false }).limit(5)
             .then(({ data }) => { if (data) setArchives(data); });
     }, []);
-    
+
     const handleLoad = (raw: any) => {
         const session = {
             id: raw.id,
@@ -2024,7 +2042,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     const calculateSettlement = (p: any, idx: number, total: number) => {
         let amount = 0;
         let note = "";
-        
+
         const isWinner = idx === 0 && !p.is_guest;
 
         // Bottom 50% split logic:
@@ -2038,28 +2056,28 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         const isPenaltyTier = idx >= (total - penaltyCount); // Very bottom
         const isFineTier = !isPenaltyTier && idx >= (total - bottomHalfCount); // Next bottom
-        
+
         let performancePenalty = 0;
         if (isWinner) {
             performancePenalty = prizes.first || 10000;
-            note = `👑 우승 상물 (+${(performancePenalty/1000).toFixed(0)}k)`;
+            note = `👑 우승 상물 (+${(performancePenalty / 1000).toFixed(0)}k)`;
         } else if (isPenaltyTier) {
             performancePenalty = -(prizes.l2 || 5000);
-            note = `📉 패널티 (-${(Math.abs(performancePenalty)/1000).toFixed(0)}k)`;
+            note = `📉 패널티 (-${(Math.abs(performancePenalty) / 1000).toFixed(0)}k)`;
         } else if (isFineTier) {
             performancePenalty = -(prizes.l1 || 3000);
-            note = `📉 하위권 벌금 (-${(Math.abs(performancePenalty)/1000).toFixed(0)}k)`;
+            note = `📉 하위권 벌금 (-${(Math.abs(performancePenalty) / 1000).toFixed(0)}k)`;
         }
 
         if (p.is_guest) {
             amount = -5000 + performancePenalty;
-            note = performancePenalty !== 0 
+            note = performancePenalty !== 0
                 ? `❗ 게스트(-5k) + ${note.split(' ')[1]}`
                 : "❗ 게스트 (-5,000)";
         } else {
             amount = performancePenalty;
         }
-        
+
         return { amount, note, isWinner, isPenaltyTier, isFineTier };
     };
 
@@ -2156,10 +2174,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
     const finalizeTournament = async () => {
         if (!confirm("모든 경기를 정산하고 이번 대진표를 아카이브에 최종 저장하시겠습니까?\n(랭킹과 상세 기록이 심층 기록소로 안전하게 이관됩니다.)")) return;
-        
+
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
-            
+
             // 1. Archival Snapshot (Ranking, Metadata, etc.)
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
@@ -2191,7 +2209,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
             // 2. Celebration/Confirmation
             alert("🏆 토너먼트가 성공적으로 정산되었습니다!\n전체 경기와 최종 순위가 '심층 기록소'에 안전하게 보존됩니다.");
-            
+
             // 3. Final local cleanup
             actualReset();
         } catch (e: any) {
@@ -2202,7 +2220,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
     return (
         <div className="space-y-6 pb-40 relative overflow-hidden">
-            
+
             {ceremonyMode && (
                 <div className="py-8 px-4 bg-gradient-to-b from-[#C9B075]/20 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000">
                     <div className="flex flex-col items-center text-center space-y-3">
@@ -2218,21 +2236,21 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             {showConfetti && (
                 <div className="absolute inset-0 pointer-events-none z-[100] flex justify-center overflow-hidden">
                     {[...Array(20)].map((_, i) => (
-                        <div 
-                            key={i} 
+                        <div
+                            key={i}
                             className="absolute top-[-10px] w-2 h-2 bg-[#C9B075] rounded-full animate-confetti-fall"
-                            style={{ 
-                                left: `${Math.random() * 100}%`, 
+                            style={{
+                                left: `${Math.random() * 100}%`,
                                 animationDelay: `${Math.random() * 2}s`,
                                 opacity: Math.random()
-                            }} 
+                            }}
                         />
                     ))}
                 </div>
             )}
 
             <RankingTable players={players} title="🏆 실시간 통합 랭킹" />
-            
+
             {hasGroups && (
                 <>
                     <div className="h-px bg-white/5 mx-6 my-10" />
@@ -2242,13 +2260,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             )}
 
             <div className="flex items-center gap-2">
-                <button 
+                <button
                     onClick={copyMatchTable}
                     className="flex-1 py-4 bg-white/5 border border-white/10 text-white/60 text-[11px] font-black uppercase tracking-widest rounded-3xl hover:bg-white/10 transition-all flex items-center justify-center gap-2"
                 >
                     <span>📋 대진표 공유</span>
                 </button>
-                <button 
+                <button
                     onClick={copyFinalResults}
                     className="flex-1 py-4 bg-[#C9B075] text-black text-[11px] font-black uppercase tracking-widest rounded-3xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
                 >
@@ -2256,10 +2274,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </button>
             </div>
 
-            
+
             <div className="mt-12 bg-[#000000] border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                    <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" /></svg>
                 </div>
                 <div className="text-center space-y-2">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase block">Tournament Official Closure</span>
@@ -2268,7 +2286,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 {isAdmin ? (
-                    <button 
+                    <button
                         onClick={onFinalize}
                         disabled={isGenerating}
                         className="w-full py-5 bg-[#C9B075] text-black text-[13px] font-bold rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-none outline-none"
@@ -2278,11 +2296,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     </button>
                 ) : (
                     <div className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 opacity-60">
-                         <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">운영진 전용</span>
-                         <span className="text-[8px] text-white/20 font-bold uppercase">Staff will finalize the tournament soon</span>
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">운영진 전용</span>
+                        <span className="text-[8px] text-white/20 font-bold uppercase">Staff will finalize the tournament soon</span>
                     </div>
                 )}
-                
+
                 <div className="flex items-center justify-between px-2 pt-2 text-[10px] font-bold text-white/20 uppercase tracking-tighter">
                     <span>Immutable History</span>
                     <span>Admin Controls</span>
@@ -2303,7 +2321,7 @@ function WarningModal({ message, onClose }: { message: string, onClose: () => vo
                     <h3 className="text-xl font-black text-white italic tracking-tighter uppercase underline decoration-[#C9B075]/30 underline-offset-4">Warning</h3>
                     <p className="text-sm font-bold text-white/60 leading-relaxed whitespace-pre-wrap">{message}</p>
                 </div>
-                <button 
+                <button
                     onClick={onClose}
                     className="w-full py-4 bg-[#C9B075] text-black font-black rounded-[20px] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
                 >
@@ -2335,13 +2353,13 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                     <p className="text-base font-bold text-white/80 leading-relaxed px-2">{message}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 w-full">
-                    <button 
+                    <button
                         onClick={onCancel}
                         className="py-6 bg-white/10 text-white/60 font-black rounded-3xl active:scale-95 transition-all text-[14px] uppercase tracking-widest border border-white/5"
                     >
                         취소
                     </button>
-                    <button 
+                    <button
                         onClick={onConfirm}
                         className="py-6 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-3xl shadow-[0_10px_30px_rgba(239,68,68,0.4)] active:scale-95 transition-all text-[14px] uppercase tracking-widest border border-red-400/20"
                     >
