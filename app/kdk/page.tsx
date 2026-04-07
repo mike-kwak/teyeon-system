@@ -1421,40 +1421,35 @@ export default function KDKPage() {
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                     </button>
-                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
-                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
+                    <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
+                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
                 </div>
             </header>
 
             <div 
-                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-2xl px-5 py-2.5 flex items-center justify-between gap-4 shadow-xl backdrop-blur-md relative z-10"
+                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/60 border border-white/5 rounded-xl px-4 py-2 flex items-center justify-between gap-4 shadow-2xl backdrop-blur-md relative z-10"
             >
-                {/* SLIM BANNER: IDENTITY & STATUS */}
-                <div className="flex items-center gap-3 overflow-hidden min-w-0">
-                    <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest shrink-0 opacity-80">KDK Live</span>
-                    <input 
-                        value={sessionTitle} 
-                        onChange={(e) => setSessionTitle(e.target.value)}
-                        className="bg-transparent text-sm font-black text-white tracking-tight outline-none border-b border-transparent focus:border-[#C9B075]/20 transition-all truncate"
-                        placeholder="Session Name"
-                    />
+                {/* 1. IDENTITY SLOT (LEFT) */}
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">Session</span>
+                    <span className="text-[11px] font-bold text-white truncate max-w-[120px]">{sessionTitle || '260407_KDK_01'}</span>
                 </div>
 
-                {/* SLIM BANNER: RULES (COMPACT) */}
-                <div className="hidden xs:flex items-center gap-2 overflow-hidden px-4 border-x border-white/5 mx-2 min-w-0">
-                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest shrink-0">Rules</span>
-                    <span className="text-[10px] font-bold text-white/40 truncate italic max-w-[120px]">{matchRules || 'Standard'}</span>
+                {/* 2. RULES SLOT (CENTER) */}
+                <div className="hidden xs:flex items-center gap-2 border-x border-white/5 px-4 min-w-0">
+                    <span className="text-[10px]">📋</span>
+                    <span className="text-[10px] font-bold text-white/60 truncate uppercase tracking-tighter">1:1, No-Ad, Tie 3:3</span>
                 </div>
 
-                {/* SLIM BANNER: PRIZE & ACTION */}
+                {/* 3. FINANCIALS SLOT (RIGHT) */}
                 <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-1.5 bg-[#C9B075]/5 px-2.5 py-1 rounded-full border border-[#C9B075]/10">
-                        <span className="text-[10px]">🏆</span>
-                        <span className="text-[11px] font-black text-[#C9B075] tracking-tighter">{firstPrize.toLocaleString()}W</span>
+                    <div className="flex items-center gap-2 bg-[#C9B075]/10 px-2.5 py-1 rounded-full border border-[#C9B075]/20">
+                        <span className="text-[10px]">💰</span>
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-tight uppercase">Win: 10K / Pen: 3~5K</span>
                     </div>
                     <button 
                         onClick={() => setShowMemberEditModal(true)} 
-                        className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#C9B075] text-[10px] hover:bg-white/10 transition-all shadow-lg active:scale-90"
+                        className="text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90"
                         title="인원 수정"
                     >
                         ⚙️
@@ -1465,7 +1460,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
+                        <section style={{ marginTop: '24px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3">
                                 <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
