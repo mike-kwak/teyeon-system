@@ -1455,7 +1455,7 @@ export default function KDKPage() {
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     return (
-        <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
+        <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
                     <button
@@ -1475,49 +1475,52 @@ export default function KDKPage() {
             </header>
 
             <div
-                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-xl px-5 py-2.5 flex flex-col gap-1.5 shadow-2xl backdrop-blur-md relative z-10"
+                className="mx-4 mb-4 w-[calc(100%-32px)] bg-white/5 border border-white/10 rounded-2xl px-5 py-3 flex flex-col gap-2 shadow-2xl backdrop-blur-xl relative z-10"
             >
                 {/* LINE 1: SESSION & WIN/PEN */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">SESSION:</span>
-                        <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter">{sessionTitle || '260407_KDK_01'}</span>
+                        <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0">SESSION:</span>
+                        <span className="text-[10px] font-bold text-white/90 truncate uppercase tracking-tighter">{sessionTitle || '260407_KDK_01'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none">WIN:</span>
+                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none">WIN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">10K</span>
                         </div>
-                        <div className="mx-1 w-px h-2 bg-white/10" />
+                        <div className="mx-1.5 w-px h-2 bg-white/10" />
                         <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none">PEN:</span>
+                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none">PEN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">3~5K</span>
                         </div>
-                        <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
+                        <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
                     </div>
                 </div>
-
-                {/* LINE 2: RULES (DETAILED SLIM) */}
-                <div className="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
-                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">RULES:</span>
-                    <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate">
+                
+                {/* LINE 2: RULES */}
+                <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                    <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0">RULES:</span>
+                    <span className="text-[10px] font-bold text-white/70 tracking-tighter leading-tight italic uppercase truncate">
                         1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
                     </span>
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
+            <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section className="h-auto mb-8 pb-10" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
-                            <div className="flex items-center gap-3">
-                                <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
-                                {activeMatchIds.length > 0 && (
-                                    <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                        {activeMatchIds.length} LIVE
-                                    </span>
-                                )}
+                            <div className="flex flex-col mb-6">
+                                <div className="flex items-center gap-3 ml-4">
+                                    <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
+                                    {activeMatchIds.length > 0 && (
+                                        <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            {activeMatchIds.length} LIVE
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="mt-1 h-px w-32 ml-4 bg-gradient-to-r from-[#C9B075]/50 via-[#C9B075]/20 to-transparent" />
                             </div>
 
                             {activeMatchIds.length === 0 ? (
@@ -1541,26 +1544,26 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="bg-[#181824] rounded-[20px] p-2 border border-[#C9B075]/10 relative shadow-2xl flex flex-col justify-between h-full group">
+                                            <div key={mId} className="bg-white/5 rounded-[24px] p-2 border border-white/10 relative shadow-2xl flex flex-col justify-between h-full group backdrop-blur-md">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
-                                                    {/* TEAM A BLOCK (STRICT CENTERING - pt-12 FOR BADGE SPACE) */}
-                                                    <div className="relative bg-[#242436] rounded-[16px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full">
-                                                        {/* GROUP-MATCH ID BADGE (DOCKING: top-1, left-1) */}
-                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[10px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap border border-white/10`}>
+                                                    {/* TEAM A BLOCK */}
+                                                    <div className="relative bg-white/5 rounded-[18px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        {/* GROUP-MATCH ID BADGE (METALLIC GOLD MEDAL) */}
+                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(201,176,117,0.4)] z-10 whitespace-nowrap border border-white/20`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
-                                                        <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
+                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
                                                             {getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
 
                                                     {/* Central VS */}
-                                                    <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-40">vs</div>
+                                                    <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-60 drop-shadow-[0_0_5px_rgba(201,176,117,0.3)]">vs</div>
 
-                                                    {/* TEAM B BLOCK (STRICT SYMMETRY - pt-12 FOR UTILITY SPACE) */}
-                                                    <div className="relative bg-[#242436] rounded-[16px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full">
-                                                        {/* BLUE CANCEL UTILITY (DOCKING: top-1, right-1) */}
+                                                    {/* TEAM B BLOCK */}
+                                                    <div className="relative bg-white/5 rounded-[18px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        {/* BLUE CANCEL UTILITY */}
                                                         <button
                                                             type="button"
                                                             onClick={() => cancelMatch(mId)}
@@ -1569,19 +1572,19 @@ export default function KDKPage() {
                                                         >
                                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                         </button>
-                                                        <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
+                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
                                                             {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (REFINED OUTLINE STYLE) */}
+                                                {/* SCORE INPUT BUTTON (PREMIUM GOLD METALLIC) */}
                                                 <button
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-11 bg-white/5 border border-[#C9B075] hover:bg-[#C9B075]/10 active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.1)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-[#C9B075] uppercase tracking-[0.1em] shrink-0"
+                                                    className="w-full h-11 bg-gradient-to-r from-[#C9B075] to-[#B8860B] hover:scale-[1.02] active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.2)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-black uppercase tracking-[0.15em] shrink-0 border border-white/10"
                                                 >
-                                                    SCORE INPUT
+                                                    SCORE INPUT 🏆
                                                 </button>
                                             </div>
                                         );
@@ -1610,9 +1613,12 @@ export default function KDKPage() {
                                     if (groupMatches.length === 0) return null;
 
                                     return (
-                                        <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }}>
-                                            <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">WAITING LIST: GROUP {group}</h3>
-                                            <div className="grid grid-cols-1 gap-2 mt-6 px-4">
+                                        <div key={group} className="space-y-4">
+                                            <div className="flex flex-col mb-2">
+                                                <h3 className="text-[12px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.3em] uppercase px-4">WAITING LIST: GROUP {group}</h3>
+                                                <div className="mt-1 h-px w-24 ml-4 bg-gradient-to-r from-[#C9B075]/30 to-transparent" />
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2 mx-2">
                                                 {groupMatches.map((m) => {
                                                     const allMatchesInGroupSorted = matches.filter(mx => {
                                                         const p0 = mx.playerIds[0];
@@ -1729,16 +1735,16 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-24 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
+            <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     🔥 MATCHES
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     📊 RANKING
                 </button>
@@ -1786,18 +1792,18 @@ export default function KDKPage() {
             {activeMatchForScore && (
                 <div className="fixed inset-0 z-[200] flex items-end justify-center">
                     <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setShowScoreModal(null)}></div>
-                    <div className="relative w-full max-w-lg bg-[#14141F] border-t border-white/10 rounded-t-[40px] p-8 pb-10 shadow-2xl animate-in slide-in-from-bottom duration-300">
+                    <div className="relative w-full max-w-lg bg-white/5 backdrop-blur-2xl border-t border-white/20 rounded-t-[40px] p-8 pb-10 shadow-[0_-20px_100px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300">
                         <header className="flex flex-col items-center gap-2 mb-8 text-center px-4">
-                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Set Final Result</span>
-                            <div className="mt-2 py-2 px-6 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20">
-                                <h3 className="text-xl font-black italic text-white tracking-tight">🏆 WINNER SELECTION</h3>
+                            <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase">Set Final Result</span>
+                            <div className="mt-2 py-2 px-6 bg-[#C9B075]/20 rounded-2xl border border-[#C9B075]/30">
+                                <h3 className="text-xl font-black italic text-white tracking-tight uppercase">🏆 WINNER SELECTION</h3>
                             </div>
                         </header>
                         <div className="grid grid-cols-2 gap-8 mb-10">
                             {[0, 1].map(side => (
                                 <div key={side} className="flex flex-col gap-4">
                                     <span className="text-[10px] font-black text-white/40 uppercase tracking-widest text-center truncate">{getPlayerName(activeMatchForScore.playerIds[side * 2])} & {getPlayerName(activeMatchForScore.playerIds[side * 2 + 1])}</span>
-                                    <div className="text-5xl font-black text-[#C9B075] text-center mb-2">{side === 0 ? tempScores.s1 : tempScores.s2}</div>
+                                    <div className="text-5xl font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent text-center mb-2 drop-shadow-[0_0_15px_rgba(201,176,117,0.4)]">{side === 0 ? tempScores.s1 : tempScores.s2}</div>
                                     <div className="grid grid-cols-3 gap-2">
                                         {[0, 1, 2, 3, 4, 5, 6].map(n => (
                                             <button
@@ -1807,7 +1813,7 @@ export default function KDKPage() {
                                                     const val = Math.min(6, Math.max(0, n));
                                                     setTempScores(p => side === 0 ? ({ ...p, s1: val }) : ({ ...p, s2: val }));
                                                 }}
-                                                className={`h-12 rounded-xl text-lg font-black transition-all ${(side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#C9B075] text-black scale-105' : 'bg-white/5 text-white/30'}`}
+                                                className={`h-12 rounded-xl text-lg font-black transition-all ${(side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#C9B075] text-black scale-105 shadow-[0_0_15px_rgba(201,176,117,0.4)]' : 'bg-white/5 text-white/30 border border-white/5'}`}
                                             >
                                                 {n}
                                             </button>
@@ -1817,18 +1823,21 @@ export default function KDKPage() {
                             ))}
                         </div>
                         <div className="flex gap-4">
-                            <button onClick={() => setShowScoreModal(null)} className="flex-1 py-5 bg-white/5 border border-white/10 text-white font-black rounded-full uppercase text-xs tracking-widest">Cancel</button>
-                            <button disabled={tempScores.s1 === tempScores.s2} onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="flex-[2] py-5 bg-[#C9B075] text-black font-black rounded-full uppercase text-xs tracking-widest shadow-xl disabled:opacity-20 font-black">Confirm Score 🏆</button>
+                            <button onClick={() => setShowScoreModal(null)} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/60 font-black rounded-full uppercase text-xs tracking-widest active:scale-95 transition-all">Cancel</button>
+                            <button disabled={tempScores.s1 === tempScores.s2} onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="flex-[2] py-5 bg-[#C9B075] text-black font-black rounded-full uppercase text-xs tracking-widest shadow-xl disabled:opacity-20 active:scale-95 transition-all font-black border border-white/20">Confirm Score 🏆</button>
                         </div>
                     </div>
                 </div>
             )}
 
             {showMemberEditModal && (
-                <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex flex-col p-6 overflow-hidden">
-                    <header className="flex items-center justify-between mb-8">
-                        <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">참석자 수시 수정</h2>
-                        <button onClick={() => setShowMemberEditModal(false)} className="text-white/20 text-3xl">×</button>
+                <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-2xl flex flex-col p-6 overflow-hidden">
+                    <header className="flex items-center justify-between mb-8 border-b border-white/10 pb-6">
+                        <div className="flex flex-col">
+                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Live Management</span>
+                             <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">참석자 수시 수정</h2>
+                        </div>
+                        <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">×</button>
                     </header>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
                         <section className="space-y-4">
@@ -1925,11 +1934,11 @@ function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void })
 function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], configs: Record<string, AttendeeConfig>, onSave: (id: string, age: number, isWinner: boolean) => void, onClose: () => void }) {
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose}></div>
-            <div className="relative w-full max-w-md bg-[#1C1C28] border border-white/10 rounded-[40px] p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-8">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-white/5 border border-white/10 rounded-[40px] p-8 shadow-[0_20px_100px_rgba(0,0,0,0.8)] space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-8 backdrop-blur-2xl">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-1">Guest Registry</span>
+                        <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Guest Registry</span>
                         <h3 className="text-xl font-black italic text-white tracking-tighter uppercase">게스트 상세 정보</h3>
                     </div>
                     <button onClick={onClose} className="text-white/20 text-3xl">×</button>
@@ -1939,10 +1948,10 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                     {guests.map(g => {
                         const conf = configs[g.id] || {};
                         return (
-                            <div key={g.id} className="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                            <div key={g.id} className="bg-white/5 border border-white/10 rounded-3xl p-5 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm font-black text-white">{g.name}</span>
-                                    <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.2em] bg-[#C9B075]/10 px-2 py-1 rounded">Guest</span>
+                                    <span className="text-sm font-black text-white/90">{g.name}</span>
+                                    <span className="text-[8px] font-black bg-[#C9B075]/20 text-[#C9B075] uppercase tracking-[0.2em] border border-[#C9B075]/30 px-2 py-1 rounded-full">Guest</span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -1952,14 +1961,14 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                                             placeholder="나이"
                                             value={conf.age || ''}
                                             onChange={(e) => onSave(g.id, parseInt(e.target.value) || 0, !!conf.isWinner)}
-                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#C9B075]/50"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 transition-colors"
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Winner? (입상여부)</label>
                                         <button
                                             onClick={() => onSave(g.id, conf.age || 0, !conf.isWinner)}
-                                            className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all ${conf.isWinner ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
+                                            className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all active:scale-95 ${conf.isWinner ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
                                         >
                                             {conf.isWinner ? '🏆 YES (OB)' : 'NO (YB)'}
                                         </button>
@@ -1973,7 +1982,7 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
                 <div className="pt-4">
                     <button
                         onClick={onClose}
-                        className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
+                        className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-sm uppercase tracking-[0.2em] border border-white/20"
                     >
                         Save & Continue ➡️
                     </button>
@@ -2060,13 +2069,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         let performancePenalty = 0;
         if (isWinner) {
             performancePenalty = prizes.first || 10000;
-            note = `👑 우승 상물 (+${(performancePenalty / 1000).toFixed(0)}k)`;
+            note = `👑 우승 (+${(performancePenalty / 1000).toFixed(0)}k)`;
         } else if (isPenaltyTier) {
             performancePenalty = -(prizes.l2 || 5000);
-            note = `📉 패널티 (-${(Math.abs(performancePenalty) / 1000).toFixed(0)}k)`;
+            note = `📉 벌금 (-${(Math.abs(performancePenalty) / 1000).toFixed(0)}k)`;
         } else if (isFineTier) {
             performancePenalty = -(prizes.l1 || 3000);
-            note = `📉 하위권 벌금 (-${(Math.abs(performancePenalty) / 1000).toFixed(0)}k)`;
+            note = `📉 벌금 (-${(Math.abs(performancePenalty) / 1000).toFixed(0)}k)`;
         }
 
         if (p.is_guest) {
@@ -2113,14 +2122,17 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
     const RankingTable = ({ players, title }: { players: any[], title: string }) => (
         <section className="space-y-4 mb-8">
-            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase px-2 flex items-center justify-between">
-                <span>{title}</span>
-                <span className="text-white/20">{players.length} Players</span>
-            </h3>
-            <div className="bg-white/[0.03] border border-white/5 rounded-[32px] overflow-hidden overflow-x-auto">
+            <div className="flex flex-col mb-2">
+                <h3 className="text-[12px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.3em] uppercase px-4 flex items-center justify-between">
+                    <span>{title}</span>
+                    <span className="text-white/20 text-[9px]">{players.length} Players</span>
+                </h3>
+                <div className="mt-1 h-px w-24 ml-4 bg-gradient-to-r from-[#C9B075]/30 to-transparent" />
+            </div>
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[32px] overflow-hidden overflow-x-auto shadow-2xl">
                 <table className="min-w-[600px] w-full text-[10px] border-collapse">
                     <thead>
-                        <tr className="bg-white/5 text-white/40 font-black uppercase tracking-tighter text-[11px]">
+                        <tr className="bg-white/5 text-white/40 font-black uppercase tracking-tighter text-[11px] border-b border-white/5">
                             <th onClick={() => toggleSort('rk')} className="py-5 px-4 text-center w-10 cursor-pointer hover:text-white transition-colors">Rk {sortKey === 'rk' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th onClick={() => toggleSort('name')} className="py-5 px-2 text-left cursor-pointer hover:text-white transition-colors">Player {sortKey === 'name' && (sortDir === 'asc' ? '▴' : '▾')}</th>
                             <th className="py-5 px-1 text-center">Fine</th>
@@ -2144,8 +2156,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     </td>
                                     <td className="py-5 px-2">
                                         <div className="flex flex-col">
-                                            <span className={`font-bold ${isWinner ? 'text-[#C9B075] text-base' : 'text-white'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
-                                            {isWinner && <span className="text-[9px] font-black text-[#C9B075]/60 uppercase tracking-widest">Tournament MVP</span>}
+                                            <span className={`font-bold ${isWinner ? 'text-[#C9B075] text-base' : 'text-white/90'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
+                                            {isWinner && <span className="text-[9px] font-black text-[#C9B075]/60 uppercase tracking-widest leading-none mt-0.5">Tournament MVP</span>}
                                         </div>
                                     </td>
                                     <td className={`py-5 px-1 text-center font-black text-xs ${amount > 0 ? 'text-[#4ADE80]' : amount < 0 ? 'text-red-500' : 'text-white/20'}`}>
@@ -2159,7 +2171,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     <td className="py-5 px-1 text-center font-bold text-red-500/60">{p.losses}</td>
                                     <td className="py-5 px-1 text-center font-bold text-white/20">{p.games}</td>
                                     <td className="py-5 px-4 text-right font-black text-[10px] whitespace-nowrap">
-                                        <span className={`px-2 py-1 rounded-lg ${amount > 0 ? 'bg-[#C9B075]/10 text-[#C9B075]' : amount < 0 ? 'bg-red-500/10 text-red-500' : 'text-white/20'}`}>
+                                        <span className={`px-2 py-1 rounded-lg ${amount > 0 ? 'bg-[#C9B075]/20 text-[#C9B075] border border-[#C9B075]/30' : amount < 0 ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'text-white/20'}`}>
                                             {note || '-'}
                                         </span>
                                     </td>
@@ -2275,14 +2287,17 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             </div>
 
 
-            <div className="mt-12 bg-[#000000] border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="mt-12 bg-white/5 backdrop-blur-xl border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                     <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" /></svg>
                 </div>
                 <div className="text-center space-y-2">
-                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase block">Tournament Official Closure</span>
-                    <h4 className="text-xl font-black italic text-white tracking-tighter uppercase underline decoration-[#C9B075]/30 underline-offset-4">대회 결과 최종 확정 및 저장</h4>
-                    <p className="text-[10px] text-white/30 font-medium max-w-[200px] mx-auto leading-relaxed">이 버튼을 누르면 오늘의 경기 기록이 아카이브로 전송되며, 라이브 대진표가 종료됩니다.</p>
+                    <span className="text-[11px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase block">Tournament Official Closure</span>
+                    <h4 className="text-xl font-black italic text-white tracking-tighter uppercase relative">
+                        대회 결과 최종 확정 및 저장
+                        <div className="mt-1 h-0.5 w-16 mx-auto bg-gradient-to-r from-transparent via-[#C9B075]/50 to-transparent" />
+                    </h4>
+                    <p className="text-[10px] text-white/40 font-medium max-w-[200px] mx-auto leading-relaxed mt-4">이 버튼을 누르면 오늘의 경기 기록이 아카이브로 전송되며, 라이브 대진표가 종료됩니다.</p>
                 </div>
 
                 {isAdmin ? (
@@ -2312,18 +2327,18 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
 function WarningModal({ message, onClose }: { message: string, onClose: () => void }) {
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="w-full max-w-xs bg-[#000000] border border-white/10 rounded-[40px] p-8 shadow-2xl flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
-                <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="w-full max-w-xs bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 shadow-[0_20px_100px_rgba(0,0,0,0.8)] flex flex-col items-center text-center space-y-6 animate-in zoom-in-95 duration-300">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.2)]">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
                 <div className="space-y-2">
                     <h3 className="text-xl font-black text-white italic tracking-tighter uppercase underline decoration-[#C9B075]/30 underline-offset-4">Warning</h3>
-                    <p className="text-sm font-bold text-white/60 leading-relaxed whitespace-pre-wrap">{message}</p>
+                    <p className="text-sm font-bold text-white/70 leading-relaxed whitespace-pre-wrap px-2">{message}</p>
                 </div>
                 <button
                     onClick={onClose}
-                    className="w-full py-4 bg-[#C9B075] text-black font-black rounded-[20px] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
+                    className="w-full py-4 bg-[#C9B075] text-black font-black rounded-[20px] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest border border-white/20"
                 >
                     확인했습니다
                 </button>
@@ -2334,7 +2349,7 @@ function WarningModal({ message, onClose }: { message: string, onClose: () => vo
 
 function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300">
             <style jsx global>{`
                 @keyframes confetti-fall {
                     0% { transform: translateY(-10vh) rotate(0deg); }
@@ -2344,13 +2359,13 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                     animation: confetti-fall 4s linear forwards;
                 }
             `}</style>
-            <div className="w-full max-w-sm bg-black/80 border border-white/10 rounded-[40px] p-10 shadow-2xl flex flex-col items-center text-center space-y-8 animate-in zoom-in-95 duration-300 backdrop-blur-2xl">
-                <div className="w-24 h-24 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <div className="w-full max-w-sm bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[40px] p-10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] flex flex-col items-center text-center space-y-8 animate-in zoom-in-95 duration-300">
+                <div className="w-24 h-24 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.2)]">
                     <span className="text-5xl">⚠️</span>
                 </div>
                 <div className="space-y-3">
                     <h3 className="text-xl font-black text-red-500 italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
-                    <p className="text-base font-bold text-white/80 leading-relaxed px-2">{message}</p>
+                    <p className="text-base font-bold text-white/70 leading-relaxed px-2">{message}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 w-full">
                     <button
