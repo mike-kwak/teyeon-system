@@ -1420,7 +1420,7 @@ export default function KDKPage() {
             </header>
 
             <div 
-                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-6 shadow-2xl space-y-8 relative overflow-hidden"
+                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] p-8 shadow-2xl space-y-10 relative overflow-hidden"
                 style={{ width: 'calc(100% - 32px)' }}
             >
                 {/* 1. LAYER: DATE/SESSION */}
@@ -1451,14 +1451,14 @@ export default function KDKPage() {
                 {/* 3. LAYER: FINANCIALS */}
                 <div className="space-y-4">
                     <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Prizes & Penalties</span>
-                    <div className="bg-black/40 border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-xl">🏆</span>
-                            <span className="text-sm font-black text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</span>
+                    <div className="bg-black/40 border border-white/5 rounded-[28px] p-6 flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <span className="text-2xl">🏆</span>
+                            <span className="text-base font-black text-[#C9B075]">🥇 {firstPrize.toLocaleString()}원</span>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                            <span className="text-[11px] font-black text-red-400">📉 {bottom25Late.toLocaleString()}원 (Lower 50%)</span>
-                            <span className="text-[11px] font-black text-red-600">📉 {bottom25Penalty.toLocaleString()}원 (Lower 25%)</span>
+                        <div className="flex flex-col items-end gap-1.5 px-2">
+                            <span className="text-[12px] font-black text-red-400/90 whitespace-nowrap">📉 {bottom25Late.toLocaleString()}원 (L50)</span>
+                            <span className="text-[12px] font-black text-red-600/90 whitespace-nowrap">📉 {bottom25Penalty.toLocaleString()}원 (L25)</span>
                         </div>
                     </div>
                 </div>
@@ -1512,11 +1512,11 @@ export default function KDKPage() {
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
                                                     
                                                     {/* TEAM A BLOCK (STRICT CENTERING) */}
-                                                    <div className="relative bg-[#242436] rounded-[12px] h-[48px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <div className={`absolute top-0.5 left-0.5 px-1.5 py-0.2 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[7px] font-black flex items-center justify-center shadow z-10 whitespace-nowrap`}>
+                                                    <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        <div className={`absolute top-1 left-1 px-2 py-0.5 rounded-full ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-[8px] font-black flex items-center justify-center shadow-lg z-10 whitespace-nowrap`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
-                                                        <span className="text-white text-[10px] font-black text-center leading-tight relative z-0 truncate w-full px-1">
+                                                        <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2 mt-1">
                                                             {getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
@@ -1525,8 +1525,8 @@ export default function KDKPage() {
                                                     <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-40">vs</div>
 
                                                     {/* TEAM B BLOCK (STRICT CENTERING - NO BADGE) */}
-                                                    <div className="relative bg-[#242436] rounded-[12px] h-[48px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <span className="text-white text-[10px] font-black text-center leading-tight relative z-0 truncate w-full px-1">
+                                                    <div className="relative bg-[#242436] rounded-[16px] h-[72px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
                                                             {getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
@@ -1569,7 +1569,7 @@ export default function KDKPage() {
 
                                     return (
                                         <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }}>
-                                            <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">{group}조 대기 순번</h3>
+                                            <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">WAITING LIST: GROUP {group}</h3>
                                             <div className="grid grid-cols-1 gap-2 mt-6 px-4">
                                                 {groupMatches.map((m) => {
                                                     const allMatchesInGroupSorted = matches.filter(mx => {
@@ -1600,7 +1600,7 @@ export default function KDKPage() {
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-5 py-2.5 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap ${hasConflict ? 'bg-zinc-800 text-white/10 cursor-not-allowed' : 'bg-[#C9B075] text-black active:scale-95 hover:bg-[#B8860B]'}`}
+                                                                className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : 'bg-[#C9B075] text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
                                                             >
                                                                 투입 🚀
                                                             </button>
@@ -1659,7 +1659,7 @@ export default function KDKPage() {
                 )}
             </div>
 
-            <nav className="fixed bottom-20 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
+            <nav className="fixed bottom-24 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,1)] left-1/2 -translate-x-1/2 rounded-[28px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button 
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[22px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
