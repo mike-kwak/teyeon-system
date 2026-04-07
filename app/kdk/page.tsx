@@ -1506,10 +1506,10 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased">
+            <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased flex flex-col items-center">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="h-auto mb-24 pb-12" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
+                        <section className="h-auto mb-24 pb-12 w-full flex flex-col items-center" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col mb-6">
                                 <div className="flex items-center gap-3 ml-4">
                                     <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
@@ -1526,7 +1526,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                <div className="flex flex-col items-center gap-6 mt-4 w-full">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1544,7 +1544,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="bg-white/5 backdrop-blur-md border-t border-t-white/20 border-x border-white/5 border-b border-white/5 rounded-[32px] p-2 relative shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] flex flex-col justify-between h-full group">
+                                            <div key={mId} className="bg-white/10 backdrop-blur-lg border-t border-l border-white/20 border-r border-r-white/5 border-b border-b-white/5 rounded-[32px] p-4 relative shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col justify-between w-full max-w-[340px] h-auto group">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
@@ -1592,7 +1592,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div className="space-y-14 mb-24">
+                        <div className="space-y-24 mb-24 w-full flex flex-col items-center">
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1618,7 +1618,7 @@ export default function KDKPage() {
                                                 <h3 className="text-3xl font-black italic tracking-tighter uppercase text-white ml-4">WAITING LIST</h3>
                                                 <div className="mt-2 h-1.5 w-48 ml-4 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                             </div>
-                                            <div className="grid grid-cols-1 gap-2 mx-2">
+                                            <div className="flex flex-col items-center gap-4 mt-6 w-full">
                                                 {groupMatches.map((m) => {
                                                     const allMatchesInGroupSorted = matches.filter(mx => {
                                                         const p0 = mx.playerIds[0];
@@ -1634,7 +1634,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="bg-white/5 backdrop-blur-md border-t border-t-white/20 border-x border-white/5 border-b border-white/5 p-2 rounded-[32px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden">
+                                                        <div key={m.id} className="bg-white/10 backdrop-blur-lg border-t border-l border-white/20 border-r border-r-white/5 border-b border-b-white/5 p-4 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.7)] active:scale-98 transition-all relative group grid grid-cols-[60px_1fr_80px] items-center h-20 w-full max-w-[340px] overflow-hidden">
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1668,10 +1668,10 @@ export default function KDKPage() {
                         </div>
 
                         {matches.some(m => m.status === 'complete') && (
-                            <div className="space-y-12 pt-24">
+                            <div className="space-y-24 pt-24 w-full flex flex-col items-center">
                                 <h3 className="text-3xl font-black italic tracking-tighter uppercase text-white ml-4">COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-4 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent mb-8" />
-                                <div className="grid grid-cols-2 gap-3 pb-0">
+                                <div className="flex flex-col items-center gap-4 w-full mt-8">
                                     {matches.filter(m => m.status === 'complete').sort((a, b) => {
                                         const gA = a.groupName || 'A';
                                         const gB = b.groupName || 'A';
@@ -1686,7 +1686,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/5 backdrop-blur-sm border border-white/10 border-t-white/20 p-2 rounded-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group">
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/10 backdrop-blur-lg border-t border-l border-white/20 border-r border-r-white/5 border-b border-b-white/5 p-4 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col items-center gap-1 transition-all active:scale-98 relative w-full max-w-[340px] overflow-hidden group">
                                                 <div className="absolute top-1 left-1 px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
                                                     {m.groupName || 'A'}-G{gMatchNo}
                                                 </div>
