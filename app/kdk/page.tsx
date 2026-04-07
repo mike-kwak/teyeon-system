@@ -1480,17 +1480,17 @@ export default function KDKPage() {
                 {/* LINE 1: SESSION & WIN/PEN */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0">SESSION:</span>
-                        <span className="text-[10px] font-bold text-white/90 truncate uppercase tracking-tighter">{sessionTitle || '260407_KDK_01'}</span>
+                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">SESSION:</span>
+                        <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter">{sessionTitle || '260407_KDK_01'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none">WIN:</span>
+                            <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">WIN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">10K</span>
                         </div>
                         <div className="mx-1.5 w-px h-2 bg-white/10" />
                         <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none">PEN:</span>
+                            <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">PEN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">3~5K</span>
                         </div>
                         <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
@@ -1499,8 +1499,8 @@ export default function KDKPage() {
                 
                 {/* LINE 2: RULES */}
                 <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
-                    <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0">RULES:</span>
-                    <span className="text-[10px] font-bold text-white/70 tracking-tighter leading-tight italic uppercase truncate">
+                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">RULES:</span>
+                    <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate">
                         1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
                     </span>
                 </div>
@@ -1579,10 +1579,10 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (PREMIUM GOLD METALLIC) */}
+                                                {/* SCORE INPUT BUTTON (REFINED OUTLINE GOLD) */}
                                                 <button
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-11 bg-gradient-to-r from-[#C9B075] to-[#B8860B] hover:scale-[1.02] active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.2)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-black uppercase tracking-[0.15em] shrink-0 border border-white/10"
+                                                    className="w-full h-11 bg-transparent border border-[#C9B075]/50 hover:bg-[#C9B075]/10 active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.1)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-[#C9B075] uppercase tracking-[0.15em] shrink-0"
                                                 >
                                                     SCORE INPUT 🏆
                                                 </button>
@@ -1637,7 +1637,7 @@ export default function KDKPage() {
                                                         <div key={m.id} className="bg-[#181824] p-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
                                                             {/* G# Badge Column */}
                                                             <div className="flex items-center justify-center">
-                                                                <div className="w-9 h-9 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/30 shadow-lg shrink-0">
+                                                                <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
                                                                 </div>
                                                             </div>
@@ -1738,13 +1738,13 @@ export default function KDKPage() {
             <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-black font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-white font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     🔥 MATCHES
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-[#C9B075] text-black font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.1)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     📊 RANKING
                 </button>
@@ -2150,14 +2150,14 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
                             const isBottom = isPenaltyTier || isFineTier;
                             return (
-                                <tr key={p.id} className={`border-t border-white/5 last:border-0 hover:bg-white/[0.04] transition-all ${isWinner ? 'bg-[#C9B075]/5' : isBottom ? 'bg-red-500/[0.02]' : ''}`}>
-                                    <td className={`py-5 px-4 text-center font-black italic ${isWinner ? 'text-[#C9B075] text-lg' : isBottom ? 'text-red-500/40' : 'text-white/20'}`}>
+                                <tr key={p.id} className={`border-t border-white/5 last:border-0 hover:bg-white/[0.04] transition-all ${isWinner ? 'bg-[#C9B075]/10' : isBottom ? 'bg-red-500/[0.02]' : ''}`}>
+                                    <td className={`py-5 px-4 text-center font-black italic ${isWinner ? 'text-[#C9B075] text-lg [text-shadow:0_0_10px_rgba(201,176,117,0.5)]' : isBottom ? 'text-red-500/40' : 'text-white/20'}`}>
                                         {isWinner ? '👑' : players.findIndex((x: any) => x.id === p.id) + 1}
                                     </td>
                                     <td className="py-5 px-2">
                                         <div className="flex flex-col">
-                                            <span className={`font-bold ${isWinner ? 'text-[#C9B075] text-base' : 'text-white/90'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
-                                            {isWinner && <span className="text-[9px] font-black text-[#C9B075]/60 uppercase tracking-widest leading-none mt-0.5">Tournament MVP</span>}
+                                            <span className={`font-bold ${isWinner ? 'text-[#C9B075] text-base font-black' : 'text-white'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
+                                            {isWinner && <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none mt-0.5">Tournament MVP</span>}
                                         </div>
                                     </td>
                                     <td className={`py-5 px-1 text-center font-black text-xs ${amount > 0 ? 'text-[#4ADE80]' : amount < 0 ? 'text-red-500' : 'text-white/20'}`}>
