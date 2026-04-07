@@ -1532,11 +1532,11 @@ export default function KDKPage() {
 
                                                     {/* TEAM B BLOCK (STRICT SYMMETRY - pt-12 FOR UTILITY SPACE) */}
                                                     <div className="relative bg-[#242436] rounded-[16px] h-[72px] pt-12 flex flex-col items-center justify-center border border-white/5 w-full">
-                                                        {/* BLUE CANCEL UTILITY (DOCKING: top-1, right-1.5 - MIRRORING BADGE) */}
+                                                        {/* BLUE CANCEL UTILITY (DOCKING: top-0.5, right-1 - MIRRORING BADGE) */}
                                                         <button 
                                                             type="button"
                                                             onClick={() => cancelMatch(mId)}
-                                                            className="absolute top-1 right-1.5 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                            className="absolute top-0.5 right-1 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
                                                             title="웨이팅 리스트로 복귀"
                                                         >
                                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
