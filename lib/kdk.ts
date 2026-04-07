@@ -88,7 +88,9 @@ export function generateKdkMatches(
     const groupMedianAge = calculateMedianAge(groupPlayers);
 
     const lastRound = existingMatches.reduce((max, m) => Math.max(max, m.round || 0), 0);
-    const startTime = "18:00";
+    // Dynamic Start Time: Use the earliest player's start time as clinical "Round 1"
+    const earliestStartTime = groupPlayers.reduce((min, p) => p.times[0] < min ? p.times[0] : min, "23:59");
+    const startTime = earliestStartTime === "23:59" ? "19:00" : earliestStartTime;
     const durationArr = 25; 
 
     for (let r = lastRound + 1; r <= 30; r++) {
