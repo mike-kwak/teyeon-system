@@ -1513,13 +1513,13 @@ export default function KDKPage() {
                                                     ↩️
                                                 </button>
 
-                                                {/* REFRESH SCORE UTILITY [NEW] */}
+                                                {/* REFRESH SCORE UTILITY [FINAL FIX] */}
                                                 <button 
+                                                    type="button"
                                                     onClick={() => syncMatchScore(mId)}
-                                                    className="absolute top-1.5 right-1.5 w-5 h-5 bg-[#C9B075]/10 text-[#C9B075] rounded-md border border-[#C9B075]/20 flex items-center justify-center transition-all z-20 shadow-xl backdrop-blur-md active:scale-90 hover:bg-[#C9B075]/20"
-                                                    title="점수 동기화"
+                                                    className="absolute top-1 right-1 w-6 h-6 bg-[#C9B075]/10 text-[#C9B075] rounded-lg border border-[#C9B075]/20 flex items-center justify-center transition-all z-20 shadow-xl backdrop-blur-md active:scale-90 hover:bg-[#C9B075]/20 focus:outline-none"
                                                 >
-                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={spinningMatchId === mId ? 'animate-spin' : ''}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                 </button>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
@@ -1603,7 +1603,7 @@ export default function KDKPage() {
                                                                 <span className="text-[11px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex-1 flex items-center justify-center gap-6 text-center px-10">
+                                                            <div className="flex-1 flex items-center justify-center gap-6 text-center px-14">
                                                                 <span className="flex-1 text-white text-lg font-bold truncate leading-none">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                 <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-40">vs</span>
                                                                 <span className="flex-1 text-white text-lg font-bold truncate leading-none">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1641,8 +1641,8 @@ export default function KDKPage() {
 
                                         return (
                                             <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-2 rounded-xl shadow-xl flex flex-col items-center gap-1 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
-                                                {/* Group-Match ID Badge [NEW] */}
-                                                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[7px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
+                                                {/* Group-Match ID Badge [RESIZED] */}
+                                                <div className="absolute top-1 left-1 px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
                                                     {m.groupName || 'A'}-G{gMatchNo}
                                                 </div>
 
