@@ -1419,11 +1419,10 @@ export default function KDKPage() {
                 </div>
             </header>
 
-            <div className="mx-4 mb-8">
-                <div 
-                    className="bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-5 shadow-2xl space-y-6 relative overflow-hidden"
-                    style={{ width: 'calc(100% - 32px)' }}
-                >
+            <div 
+                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[32px] p-5 shadow-2xl space-y-6 relative overflow-hidden"
+                style={{ width: 'calc(100% - 32px)' }}
+            >
                     <div className="space-y-1 pl-10">
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-[0.4em]">Tournament Info</span>
@@ -1456,7 +1455,6 @@ export default function KDKPage() {
                         </div>
                     </div>
                 </div>
-            </div>
 
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
@@ -1564,7 +1562,7 @@ export default function KDKPage() {
                                     return (
                                         <div key={group} style={{ marginTop: '32px', marginBottom: '40px' }}>
                                             <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">{group}조 대기 순번</h3>
-                                            <div className="grid grid-cols-2 gap-3 mt-6 px-6">
+                                            <div className="grid grid-cols-1 gap-2 mt-6 px-4">
                                                 {groupMatches.map((m) => {
                                                     const allMatchesInGroupSorted = matches.filter(mx => {
                                                         const p0 = mx.playerIds[0];
@@ -1580,14 +1578,15 @@ export default function KDKPage() {
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
                                                     const hasConflict = busyPlayers.length > 0;
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] px-3 py-2 rounded-[20px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex flex-col justify-between h-14 overflow-hidden">
-                                                            <div className="absolute top-0.5 left-0.5 h-4 px-1.5 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20">
-                                                                <span className="text-[8px] font-black uppercase">G{matchNo}</span>
+                                                        <div key={m.id} className="bg-[#181824] px-6 py-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group flex items-center justify-between h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+                                                            <div className="absolute top-1 left-1 h-5 px-1.5 bg-[#C9B075]/20 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20 z-10">
+                                                                <span className="text-[9px] font-black uppercase">G{matchNo}</span>
                                                             </div>
 
-                                                            <div className="flex-1 flex flex-col items-center justify-center leading-tight gap-0">
-                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[0])} / {getPlayerName(m.playerIds[1])}</span>
-                                                                <span className="text-white text-sm font-black truncate w-full text-center">{getPlayerName(m.playerIds[2])} / {getPlayerName(m.playerIds[3])}</span>
+                                                            <div className="flex-1 flex items-center gap-4 text-center mt-2">
+                                                                <span className="flex-1 text-white text-base font-black truncate">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                                <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-40">vs</span>
+                                                                <span className="flex-1 text-white text-base font-black truncate">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
                                                             </div>
 
                                                             <button 
@@ -1614,11 +1613,11 @@ export default function KDKPage() {
                                     {matches.filter(m => m.status === 'complete').reverse().map(m => (
                                         <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-[#1a1a1a] border border-white/5 p-2 rounded-xl shadow-xl flex flex-col items-center gap-1 shadow-xl transition-all active:scale-98 relative overflow-hidden group">
                                             <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-0 w-full min-h-[32px]">
-                                                <span className="text-sm font-black text-white whitespace-nowrap truncate text-right leading-tight uppercase pr-1">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
+                                                <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase pr-1">{getPlayerName(m.playerIds[0])}<br/>{getPlayerName(m.playerIds[1])}</span>
                                                 <div className="flex flex-col items-center w-14">
                                                     <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
                                                 </div>
-                                                <span className="text-sm font-black text-white whitespace-nowrap truncate text-left leading-tight uppercase pl-1">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
+                                                <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-left leading-tight uppercase pl-1">{getPlayerName(m.playerIds[2])}<br/>{getPlayerName(m.playerIds[3])}</span>
                                             </div>
                                             <span className="text-[6px] font-black text-gray-300 uppercase tracking-widest pb-0.5 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
                                         </div>
