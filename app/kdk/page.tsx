@@ -1471,7 +1471,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
+                        <section className="h-auto mb-12" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3">
                                 <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
@@ -1507,7 +1507,23 @@ export default function KDKPage() {
                                                 {/* BLUE REFRESH SCORE UTILITY (MOVED TO TOP-RIGHT AS REQUESTED) */}
                                                 <button 
                                                     type="button"
-                                                    onClick={() => syncMatchScore(mId)}
+                                                    onClick={async () => {
+                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                                        setSpinningMatchId(mId);
+                                                        // RESTORE: Fetch all matches from Supabase for this session to ensure data parity
+                                                        const { data, error } = await supabase.from('matches').select('*').eq('session_id', sessionId);
+                                                        if (!error && data) {
+                                                            setMatches(prev => {
+                                                                const next = [...prev];
+                                                                data.forEach(dm => {
+                                                                    const idx = next.findIndex(x => x.id === dm.id);
+                                                                    if (idx !== -1) next[idx] = { ...next[idx], ...dm };
+                                                                });
+                                                                return next;
+                                                            });
+                                                        }
+                                                        setTimeout(() => setSpinningMatchId(null), 1000);
+                                                    }}
                                                     className="absolute top-2 right-1.5 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
                                                 >
                                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
@@ -1630,7 +1646,13 @@ export default function KDKPage() {
                             <div className="space-y-4 pt-8">
                                 <h3 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase">Completed Matches</h3>
                                 <div className="grid grid-cols-2 gap-3 pb-0">
-                                    {matches.filter(m => m.status === 'complete').reverse().map(m => {
+                                    {matches.filter(m => m.status === 'complete').sort((a,b) => {
+                                        const gA = a.groupName || 'A';
+                                        const gB = b.groupName || 'A';
+                                        if(gA !== gB) return gA.localeCompare(gB);
+                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === gA).sort((x,y) => (x.round || 0) - (y.round || 0) || x.id.localeCompare(y.id));
+                                        return groupMatchesSorted.findIndex(x => x.id === a.id) - groupMatchesSorted.findIndex(x => x.id === b.id);
+                                    }).map(m => {
                                         // Calculate group game number
                                         const groupMatchesSorted = matches.filter(mx => mx.groupName === (m.groupName || 'A')).sort((a,b) => {
                                             if(a.round !== b.round) return (a.round || 0) - (b.round || 0);
