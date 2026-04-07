@@ -1480,18 +1480,18 @@ export default function KDKPage() {
                 {/* LINE 1: SESSION & WIN/PEN */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">SESSION:</span>
-                        <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter">{sessionTitle || '260407_KDK_01'}</span>
+                        <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">SESSION:</span>
+                        <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter drop-shadow-sm">{sessionTitle || '260407_KDK_01'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">WIN:</span>
-                            <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">10K</span>
+                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">WIN:</span>
+                            <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">10K</span>
                         </div>
                         <div className="mx-1.5 w-px h-2 bg-white/10" />
                         <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">PEN:</span>
-                            <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">3~5K</span>
+                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">PEN:</span>
+                            <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">3~5K</span>
                         </div>
                         <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
                     </div>
@@ -1499,8 +1499,8 @@ export default function KDKPage() {
                 
                 {/* LINE 2: RULES */}
                 <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
-                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">RULES:</span>
-                    <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate">
+                    <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">RULES:</span>
+                    <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate drop-shadow-sm">
                         1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
                     </span>
                 </div>
@@ -1544,7 +1544,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="bg-white/5 rounded-[24px] p-2 border border-white/10 relative shadow-2xl flex flex-col justify-between h-full group backdrop-blur-md">
+                                            <div key={mId} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[32px] p-2 relative shadow-2xl flex flex-col justify-between h-full group">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
@@ -1579,12 +1579,12 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (REFINED OUTLINE GOLD) */}
+                                                {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
                                                 <button
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-11 bg-transparent border border-[#C9B075]/50 hover:bg-[#C9B075]/10 active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.1)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-[#C9B075] uppercase tracking-[0.15em] shrink-0"
+                                                    className="w-full h-12 bg-transparent border border-[#C9B075]/30 hover:bg-[#C9B075]/10 active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.1)] transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
                                                 >
-                                                    SCORE INPUT 🏆
+                                                    <span className="bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.2em] [text-shadow:0_0_10px_rgba(201,176,117,0.2)]">SCORE INPUT 🏆</span>
                                                 </button>
                                             </div>
                                         );
@@ -1634,7 +1634,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="bg-[#181824] p-3 rounded-[24px] border border-white/5 shadow-2xl active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+                                                        <div key={m.id} className="bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-[32px] shadow-2xl active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden">
                                                             {/* G# Badge Column */}
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
@@ -1738,13 +1738,13 @@ export default function KDKPage() {
             <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075] text-white font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     🔥 MATCHES
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.1)]' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     📊 RANKING
                 </button>
