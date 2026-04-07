@@ -1427,8 +1427,7 @@ export default function KDKPage() {
             </header>
 
             <div 
-                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] p-5 shadow-2xl relative max-w-none divide-y divide-white/5"
-                style={{ width: 'calc(100% - 32px)' }}
+                className="mx-4 mb-8 w-[calc(100%-32px)] bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] px-5 py-6 shadow-2xl relative max-w-none divide-y divide-white/5"
             >
                 {/* 1. TIER: IDENTITY (TOP) */}
                 <div className="pb-6 space-y-3">
@@ -1540,10 +1539,10 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (GOLD DOMINANCE) */}
+                                                {/* SCORE INPUT BUTTON (REFINED OUTLINE STYLE) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-11 !bg-[#C9B075] hover:bg-[#B8860B] active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.4)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black !text-black uppercase tracking-[0.1em] shrink-0"
+                                                    className="w-full h-11 bg-white/5 border border-[#C9B075] hover:bg-[#C9B075]/10 active:scale-95 shadow-[0_4px_20px_rgba(201,176,117,0.1)] transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-black text-[#C9B075] uppercase tracking-[0.1em] shrink-0"
                                                 >
                                                     SCORE INPUT
                                                 </button>
