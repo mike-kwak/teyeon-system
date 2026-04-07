@@ -1427,23 +1427,23 @@ export default function KDKPage() {
             </header>
 
             <div 
-                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/60 border border-white/5 rounded-xl px-4 py-2 flex items-center justify-between gap-4 shadow-2xl backdrop-blur-md relative z-10"
+                className="mx-4 mb-4 w-[calc(100%-32px)] bg-black/40 border border-white/5 rounded-xl px-4 py-1.5 flex items-center justify-between gap-4 shadow-2xl backdrop-blur-md relative z-10"
             >
                 {/* 1. IDENTITY SLOT (LEFT) */}
                 <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">Session</span>
-                    <span className="text-[11px] font-bold text-white truncate max-w-[120px]">{sessionTitle || '260407_KDK_01'}</span>
+                    <span className="text-[10px] font-bold text-white truncate max-w-[100px]">{sessionTitle || '260407_KDK_01'}</span>
                 </div>
 
                 {/* 2. RULES SLOT (CENTER) */}
-                <div className="hidden xs:flex items-center gap-2 border-x border-white/5 px-4 min-w-0">
+                <div className="flex items-center gap-2 border-x border-white/5 px-4 min-w-0">
                     <span className="text-[10px]">📋</span>
                     <span className="text-[10px] font-bold text-white/60 truncate uppercase tracking-tighter">1:1, No-Ad, Tie 3:3</span>
                 </div>
 
                 {/* 3. FINANCIALS SLOT (RIGHT) */}
                 <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2 bg-[#C9B075]/10 px-2.5 py-1 rounded-full border border-[#C9B075]/20">
+                    <div className="flex items-center gap-2">
                         <span className="text-[10px]">💰</span>
                         <span className="text-[10px] font-black text-[#C9B075] tracking-tight uppercase">Win: 10K / Pen: 3~5K</span>
                     </div>
@@ -1460,7 +1460,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section style={{ marginTop: '24px', position: 'relative', zIndex: 10 }}>
+                        <section style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3">
                                 <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
