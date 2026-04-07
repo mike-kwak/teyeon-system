@@ -896,7 +896,7 @@ export default function KDKPage() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar pb-40">
+                <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar" style={{ paddingBottom: '240px' }}>
                     
                     
 
@@ -968,7 +968,25 @@ export default function KDKPage() {
                         
                         <button 
                             onClick={handleStep1Confirm} 
-                            className="w-full py-2 bg-[#C9B075] text-black font-black text-sm rounded-full shadow-[0_10px_25px_rgba(201,176,117,0.4)] active:scale-95 flex items-center justify-center gap-2 pointer-events-auto transition-all border border-white/20"
+                            style={{
+                                width: '100%',
+                                padding: '8px 0',
+                                borderRadius: '999px',
+                                background: '#C9B075',
+                                color: '#000000',
+                                border: '1px solid rgba(255, 255, 255, 0.4)',
+                                fontSize: '14px',
+                                fontWeight: 1000,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                cursor: 'pointer',
+                                WebkitTextFillColor: '#000000',
+                                transition: 'all 0.15s',
+                                boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
+                            }}
+                            className="active:scale-95 pointer-events-auto"
                         >
                             참석자 확정 및 설정 ➡️
                         </button>
