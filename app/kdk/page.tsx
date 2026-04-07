@@ -1471,7 +1471,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar bg-black antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="h-auto mb-12" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
+                        <section className="h-auto mb-8 pb-10" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex items-center gap-3">
                                 <h2 className="text-2xl font-black text-white italic tracking-tighter ml-4 mb-4 uppercase opacity-100">NOW PLAYING</h2>
                                 {activeMatchIds.length > 0 && (
@@ -1510,8 +1510,14 @@ export default function KDKPage() {
                                                     onClick={async () => {
                                                         if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                                         setSpinningMatchId(mId);
-                                                        // RESTORE: Fetch all matches from Supabase for this session to ensure data parity
-                                                        const { data, error } = await supabase.from('matches').select('*').eq('session_id', sessionId);
+                                                        // RESTORE: Fetch all matches from Supabase for this session with explicit ordering
+                                                        const { data, error } = await supabase
+                                                            .from('matches')
+                                                            .select('*')
+                                                            .eq('session_id', sessionId)
+                                                            .order('groupName', { ascending: true })
+                                                            .order('round', { ascending: true })
+                                                            .order('id', { ascending: true });
                                                         if (!error && data) {
                                                             setMatches(prev => {
                                                                 const next = [...prev];
@@ -1531,10 +1537,10 @@ export default function KDKPage() {
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
                                                     
-                                                    {/* TEAM A BLOCK (STRICT CENTERING) */}
-                                                    <div className="relative bg-[#242436] rounded-[16px] h-[72px] pt-2 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        {/* GROUP-MATCH ID BADGE (MAGNIFIED: +15%, text-xs, font-black) */}
-                                                        <div className={`absolute top-2 left-1.5 px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-xs font-black flex items-center justify-center shadow-lg z-20 whitespace-nowrap`}>
+                                                    {/* TEAM A BLOCK (STRICT CENTERING - NO OVERFLOW HIDDEN FOR FLOATING BADGE) */}
+                                                    <div className="relative bg-[#242436] rounded-[16px] h-[72px] pt-4 flex flex-col items-center justify-center border border-white/5 w-full">
+                                                        {/* GROUP-MATCH ID BADGE (FLOATING CARDINAL OFFSET: top-[-6px], left-[-4px], font-black) */}
+                                                        <div className={`absolute top-[-6px] left-[-4px] px-2.5 py-0.5 rounded-md ${normalizedGroup === 'A' ? 'bg-[#facc15]' : 'bg-[#C9B075]'} text-black text-xs font-black flex items-center justify-center shadow-lg z-50 whitespace-nowrap border border-white/10`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
                                                         <span className="text-white text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2 mt-1">
