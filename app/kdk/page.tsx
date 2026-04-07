@@ -1414,13 +1414,20 @@ export default function KDKPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); window.location.reload(); }}
+                        className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/40 text-sm active:scale-90 transition-all hover:bg-white/10 hover:text-white"
+                        title="데이터 새로고침"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    </button>
                     <button onClick={copyMatchTable} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
                     <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
                 </div>
             </header>
 
             <div 
-                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] p-8 shadow-2xl space-y-10 relative overflow-hidden"
+                className="mx-4 mb-8 bg-gradient-to-br from-[#1E1E2E] to-[#14141F] border border-[#C9B075]/30 rounded-[48px] p-8 shadow-2xl space-y-10 relative max-w-none"
                 style={{ width: 'calc(100% - 32px)' }}
             >
                 {/* 1. LAYER: DATE/SESSION */}
@@ -1533,12 +1540,12 @@ export default function KDKPage() {
 
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (BRIGHT SPEC) */}
+                                                {/* SCORE INPUT BUTTON (RE-STYLED WHITE SPEC) */}
                                                 <button 
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-8 bg-[#1A1A2E] hover:bg-[#242436] active:scale-95 border border-[#C9B075]/30 shadow-xl transition-all rounded-lg flex items-center justify-center mt-2 text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] shrink-0"
+                                                    className="w-full h-10 bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 shadow-xl transition-all rounded-xl flex items-center justify-center mt-3 text-[11px] font-bold text-white uppercase tracking-[0.1em] shrink-0"
                                                 >
-                                                    SCORE
+                                                    SCORE INPUT
                                                 </button>
                                             </div>
                                         );
@@ -1600,7 +1607,8 @@ export default function KDKPage() {
                                                             <button 
                                                                 disabled={hasConflict}
                                                                 onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }} 
-                                                                className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : 'bg-[#C9B075] text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
+                                                                className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#C9B075] !text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
+                                                                style={{ backgroundColor: hasConflict ? undefined : '#C9B075', color: hasConflict ? undefined : '#000000' }}
                                                             >
                                                                 투입 🚀
                                                             </button>
