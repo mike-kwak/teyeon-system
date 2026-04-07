@@ -1509,7 +1509,7 @@ export default function KDKPage() {
             <div className="flex-1 px-6 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased">
                 {activeTab === 'MATCHES' ? (
                     <>
-                        <section className="h-auto mb-8 pb-10" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
+                        <section className="h-auto mb-16 pb-12" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col mb-6">
                                 <div className="flex items-center gap-3 ml-4">
                                     <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
@@ -1592,7 +1592,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div className="space-y-12">
+                        <div className="space-y-16 mb-16">
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1634,7 +1634,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-[32px] shadow-2xl active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden">
+                                                        <div key={m.id} className="bg-white/10 backdrop-blur-lg border border-white/20 p-3 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] active:scale-98 transition-all relative group grid grid-cols-[80px_1fr_100px] items-center h-20 overflow-hidden">
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
