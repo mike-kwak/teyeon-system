@@ -1507,7 +1507,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
+            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#121418' }}>
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section className="h-auto" style={{ marginTop: '0px', position: 'relative', zIndex: 10 }}>
@@ -1545,14 +1545,14 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', borderLeft: '1px solid rgba(255, 255, 255, 0.1)', borderRight: '1px solid rgba(0, 0, 0, 0.4)', borderBottom: '1px solid rgba(0, 0, 0, 0.4)', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.9), 0 0 20px rgba(255,255,255,0.03)' }}>
+                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 20px 40px rgba(0,0,0,0.7), 0 25px 50px -15px rgba(255,255,255,0.03)' }}>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
-                                                    <div className="relative bg-white/5 rounded-[18px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        {/* GROUP-MATCH ID BADGE (METALLIC GOLD MEDAL) */}
-                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(201,176,117,0.4)] z-10 whitespace-nowrap border border-white/20`}>
+                                                    <div className="relative bg-white/5 rounded-[18px] h-20 pt-12 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        {/* GROUP-MATCH ID BADGE (BRUSHED GOLD MEDAL) */}
+                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(142,122,74,0.2)] z-10 whitespace-nowrap border border-white/10`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
                                                         <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
@@ -1564,12 +1564,12 @@ export default function KDKPage() {
                                                     <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-60 drop-shadow-[0_0_5px_rgba(201,176,117,0.3)]">vs</div>
 
                                                     {/* TEAM B BLOCK */}
-                                                    <div className="relative bg-white/5 rounded-[18px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                    <div className="relative bg-white/5 rounded-[18px] h-20 pt-12 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
                                                         {/* BLUE ROLLBACK UTILITY (Symmetrical to Left Badge) */}
                                                         <button
                                                             type="button"
                                                             onClick={() => cancelMatch(mId)}
-                                                            className="absolute top-1 right-1 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                            className="absolute top-4 right-4 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
                                                             title="웨이팅 리스트로 복귀"
                                                         >
                                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
@@ -1584,10 +1584,10 @@ export default function KDKPage() {
                                                 {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
                                                 <button
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-12 bg-transparent border border-[#C9B075]/60 hover:bg-[#C9B075]/25 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
-                                                    style={{ background: 'linear-gradient(to right, rgba(201,176,117,0.15), transparent, rgba(201,176,117,0.15))', boxShadow: '0 0 25px rgba(201,176,117,0.5), inset 0 0 15px rgba(201,176,117,0.2)', filter: 'drop-shadow(0 0 15px rgba(201,176,117,0.6))' }}
+                                                    className="w-full h-12 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
+                                                    style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.3))' }}
                                                 >
-                                                    <span className="bg-gradient-to-r from-[#C9B075] via-[#FFEBB0] to-[#C9B075] bg-clip-text text-transparent text-[12px] font-black uppercase tracking-[0.25em] [text-shadow:0_0_20px_rgba(201,176,117,0.6)]">SCORE INPUT 🏆</span>
+                                                    <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[12px] font-black uppercase tracking-[0.25em] [text-shadow:0_0_15px_rgba(142,122,74,0.3)]">SCORE INPUT 🏆</span>
                                                 </button>
                                             </div>
                                         );
@@ -1637,9 +1637,9 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '18px', paddingBottom: '18px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', borderLeft: '4px solid #C9B075', borderRight: '1px solid rgba(0, 0, 0, 0.4)', borderBottom: '1px solid rgba(0, 0, 0, 0.4)', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.9), 0 0 20px rgba(255,255,255,0.03)', filter: 'drop-shadow(0 0 15px rgba(201,176,117,0.3))' }}>
+                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: '4px solid #8E7A4A', boxShadow: '0 20px 40px rgba(0,0,0,0.7), 0 25px 50px -15px rgba(255,255,255,0.03)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.2))' }}>
                                                             <div className="flex items-center justify-center">
-                                                                <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
+                                                                <div className="w-9 h-9 bg-gradient-to-br from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(142,122,74,0.2)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
                                                                 </div>
                                                             </div>
@@ -1654,8 +1654,8 @@ export default function KDKPage() {
                                                                 <button
                                                                     disabled={hasConflict}
                                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }}
-                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#C9B075] !text-black hover:bg-[#B8860B] shadow-[0_4px_20px_rgba(201,176,117,0.3)]'}`}
-                                                                    style={{ backgroundColor: hasConflict ? undefined : '#C9B075', color: hasConflict ? undefined : '#000000' }}
+                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#8E7A4A] !text-black hover:bg-[#72623B] shadow-[0_4px_15px_rgba(142,122,74,0.2)]'}`}
+                                                                    style={{ backgroundColor: hasConflict ? undefined : '#8E7A4A', color: hasConflict ? undefined : '#000000' }}
                                                                 >
                                                                     투입 🚀
                                                                 </button>
@@ -1689,7 +1689,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', borderLeft: '1px solid rgba(255, 255, 255, 0.1)', borderRight: '1px solid rgba(0, 0, 0, 0.4)', borderBottom: '1px solid rgba(0, 0, 0, 0.4)', boxShadow: '0 30px 60px -12px rgba(0,0,0,0.9), 0 0 20px rgba(255,255,255,0.03)' }}>
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 20px 40px rgba(0,0,0,0.7), 0 25px 50px -15px rgba(255,255,255,0.03)' }}>
                                                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '8px', width: '100%' }}>
                                                     <div className="px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase self-center">
                                                         {m.groupName || 'A'}-G{gMatchNo}
