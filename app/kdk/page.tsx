@@ -1545,7 +1545,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.07)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.1)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5), 0 30px 60px -15px rgba(0, 255, 255, 0.08)' }}>
+                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.12), transparent), rgba(255, 255, 255, 0.07)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.1)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5), 0 30px 60px -15px rgba(0, 255, 255, 0.08)' }}>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
@@ -1555,7 +1555,7 @@ export default function KDKPage() {
                                                         <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(142,122,74,0.2)] z-10 whitespace-nowrap border border-white/10`}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
-                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
+                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ textShadow: '0 4px 10px rgba(0,0,0,0.9)' }}>
                                                             {getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}
                                                         </span>
                                                     </div>
@@ -1574,7 +1574,7 @@ export default function KDKPage() {
                                                         >
                                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                         </button>
-                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
+                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ textShadow: '0 4px 10px rgba(0,0,0,0.9)' }}>
                                                             {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
                                                         </span>
                                                     </div>
@@ -1644,7 +1644,7 @@ export default function KDKPage() {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-center gap-4 text-center px-2">
+                                                            <div className="flex items-center justify-center gap-4 text-center px-2" style={{ textShadow: '0 4px 10px rgba(0,0,0,0.9)' }}>
                                                                 <span className="flex-1 text-white text-[17px] font-bold truncate leading-none">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
                                                                 <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0">vs</span>
                                                                 <span className="flex-1 text-white text-[17px] font-bold truncate leading-none">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
@@ -1694,7 +1694,7 @@ export default function KDKPage() {
                                                     <div className="px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase self-center">
                                                         {m.groupName || 'A'}-G{gMatchNo}
                                                     </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0px', textShadow: '0 4px 10px rgba(0,0,0,0.9)' }}>
                                                         <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase" style={{ flex: 1, paddingRight: '4px' }}>{getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}</span>
                                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '50px', flexShrink: 0 }}>
                                                             <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
