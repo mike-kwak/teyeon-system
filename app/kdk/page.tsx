@@ -2097,8 +2097,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1.9: Physical Separation Spacer (Rescue from Top Bar) */}
-                <div className="h-16 w-full pointer-events-none" />
+                {/* Step 1.10: Physical Separation Spacer (Refined to minimal h-4) */}
+                <div className="h-4 w-full pointer-events-none" />
 
                 {/* Step 1.9: Absolute Vertical Rescue (mt-4 pt-8 & ₩ Layout) */}
                 <div className="relative mt-4 pt-8 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
@@ -2174,8 +2174,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 <div className="text-right text-[12px] font-semibold text-white/10">{p.pa}</div>
                                 <div className="text-right font-black text-[12px] text-white/40">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
                                 <div className={`text-right font-black text-[12px] tracking-tighter ${amount < 0 ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
+                                    {amount !== 0 && <span className="text-[10px] mr-0.5 opacity-80 font-black italic">₩</span>}
                                     {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '0'}
-                                    {amount !== 0 && <span className="text-[9px] ml-0.5 opacity-40">₩</span>}
                                 </div>
                             </div>
                         );
