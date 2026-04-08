@@ -2153,66 +2153,99 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     const RankingTable = ({ players, title }: { players: any[], title: string }) => (
-        <section className="space-y-4 mb-8">
-            <div className="flex flex-col mb-2">
-                <h3 className="text-[12px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.3em] uppercase px-4 flex items-center justify-between">
+        <section className="space-y-2 mb-8">
+            <div className="flex flex-col mb-4">
+                <h3 className="text-[12px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.3em] uppercase px-1 flex items-center justify-between">
                     <span>{title}</span>
                     <span className="text-white/20 text-[9px]">{players.length} Players</span>
                 </h3>
-                <div className="mt-1 h-px w-24 ml-4 bg-gradient-to-r from-[#C9B075]/30 to-transparent" />
+                <div className="mt-1 h-px w-24 bg-gradient-to-r from-[#C9B075]/30 to-transparent" />
             </div>
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[32px] overflow-hidden overflow-x-auto shadow-2xl">
-                <table className="min-w-[600px] w-full text-[10px] border-collapse">
-                    <thead>
-                        <tr className="bg-white/5 text-white/40 font-black uppercase tracking-tighter text-[11px] border-b border-white/5">
-                            <th onClick={() => toggleSort('rk')} className="py-5 px-4 text-center w-10 cursor-pointer hover:text-white transition-colors">Rk {sortKey === 'rk' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th onClick={() => toggleSort('name')} className="py-5 px-2 text-left cursor-pointer hover:text-white transition-colors">Player {sortKey === 'name' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th className="py-5 px-1 text-center">Fine</th>
-                            <th onClick={() => toggleSort('diff')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">Diff {sortKey === 'diff' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th onClick={() => toggleSort('age')} className="py-5 px-1 text-center cursor-pointer hover:text-[#C9B075] transition-colors text-[#C9B075]/60">Age {sortKey === 'age' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th onClick={() => toggleSort('wins')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">W {sortKey === 'wins' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th onClick={() => toggleSort('losses')} className="py-5 px-1 text-center cursor-pointer hover:text-white transition-colors">L {sortKey === 'losses' && (sortDir === 'asc' ? '▴' : '▾')}</th>
-                            <th className="py-5 px-1 text-center">Gm</th>
-                            <th className="py-5 px-4 text-right">Note</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-[13px]">
-                        {getSortedPlayers(players).map((p) => {
-                            const originalIdx = players.findIndex((x: any) => x.id === p.id);
-                            const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
-                            const isBottom = isPenaltyTier || isFineTier;
-                            return (
-                                <tr key={p.id} className={`border-t border-white/5 last:border-0 hover:bg-white/[0.04] transition-all ${isWinner ? 'bg-[#C9B075]/10' : isBottom ? 'bg-red-500/[0.02]' : ''}`}>
-                                    <td className={`py-5 px-4 text-center font-black italic ${isWinner ? 'text-[#C9B075] text-lg [text-shadow:0_0_10px_rgba(201,176,117,0.5)]' : isBottom ? 'text-red-500/40' : 'text-white/20'}`}>
-                                        {isWinner ? '👑' : players.findIndex((x: any) => x.id === p.id) + 1}
-                                    </td>
-                                    <td className="py-5 px-2">
-                                        <div className="flex flex-col">
-                                            <span className={`font-bold ${isWinner ? 'text-[#C9B075] text-base font-black' : 'text-white'}`}>{p.name} {p.is_guest ? '(G)' : ''}</span>
-                                            {isWinner && <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none mt-0.5">Tournament MVP</span>}
-                                        </div>
-                                    </td>
-                                    <td className={`py-5 px-1 text-center font-black text-xs ${amount > 0 ? 'text-[#4ADE80]' : amount < 0 ? 'text-red-500' : 'text-white/20'}`}>
-                                        {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '-'}
-                                    </td>
-                                    <td className={`py-5 px-1 text-center font-black ${p.diff > 0 ? 'text-white' : 'text-white/40'}`}>
-                                        {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                    </td>
-                                    <td className="py-5 px-1 text-center font-bold text-white/40">{p.age || '-'}</td>
-                                    <td className="py-5 px-1 text-center font-bold text-[#4ADE80]">{p.wins}</td>
-                                    <td className="py-5 px-1 text-center font-bold text-red-500/60">{p.losses}</td>
-                                    <td className="py-5 px-1 text-center font-bold text-white/20">{p.games}</td>
-                                    <td className="py-5 px-4 text-right font-black text-[10px] whitespace-nowrap">
-                                        <span className={`px-2 py-1 rounded-lg ${amount > 0 ? 'bg-[#C9B075]/20 text-[#C9B075] border border-[#C9B075]/30' : amount < 0 ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'text-white/20'}`}>
-                                            {note || '-'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+
+            {/* Column Header */}
+            <div className="grid grid-cols-[2.5rem_1fr_3rem_3rem_2.5rem_2rem_2rem_3rem] gap-2 px-4 pb-1 text-[10px] font-black text-white/30 uppercase tracking-widest">
+                <span className="text-center">Rk</span>
+                <span>Player</span>
+                <span className="text-center">Fine</span>
+                <span className="text-center">Diff</span>
+                <span className="text-center">Age</span>
+                <span className="text-center">W</span>
+                <span className="text-center">L</span>
+                <span className="text-center">Gm</span>
             </div>
+
+            {getSortedPlayers(players).map((p) => {
+                const originalIdx = players.findIndex((x: any) => x.id === p.id);
+                const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
+                const isBottom = isPenaltyTier || isFineTier;
+
+                return (
+                    <div
+                        key={p.id}
+                        className="rounded-[20px] px-4 py-4 grid grid-cols-[2.5rem_1fr_3rem_3rem_2.5rem_2rem_2rem_3rem] gap-2 items-center transition-all"
+                        style={{
+                            background: isWinner
+                                ? 'rgba(201,176,117,0.08)'
+                                : isBottom
+                                    ? 'rgba(255,100,100,0.04)'
+                                    : 'rgba(255,255,255,0.04)',
+                            backdropFilter: 'blur(16px)',
+                            borderTop: isWinner
+                                ? '1px solid rgba(201,176,117,0.4)'
+                                : '1px solid rgba(255,255,255,0.07)',
+                            boxShadow: isWinner
+                                ? '0 4px 20px rgba(201,176,117,0.12), 0 0 0 1px rgba(201,176,117,0.15)'
+                                : '0 4px 12px rgba(0,0,0,0.3)',
+                        }}
+                    >
+                        {/* Rank */}
+                        <div className="text-center font-black text-lg" style={{
+                            color: isWinner ? '#C9B075' : isBottom ? 'rgba(255,120,120,0.5)' : 'rgba(255,255,255,0.2)',
+                            filter: isWinner ? 'drop-shadow(0 0 8px rgba(201,176,117,0.5))' : 'none'
+                        }}>
+                            {isWinner ? '👑' : originalIdx + 1}
+                        </div>
+
+                        {/* Player Name */}
+                        <div className="flex flex-col min-w-0">
+                            <span className="font-black truncate" style={{
+                                color: isWinner ? '#C9B075' : 'rgba(255,255,255,0.9)',
+                                fontSize: isWinner ? '15px' : '13px',
+                                filter: isWinner ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' : 'none'
+                            }}>
+                                {p.name}{p.is_guest ? ' (G)' : ''}
+                            </span>
+                            {isWinner && <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none mt-0.5 opacity-70">MVP</span>}
+                        </div>
+
+                        {/* Fine/Prize */}
+                        <div className="text-center font-black text-xs" style={{
+                            color: amount > 0 ? '#6ee7b7' : amount < 0 ? '#fca5a5' : 'rgba(255,255,255,0.2)'
+                        }}>
+                            {amount !== 0 ? `${amount > 0 ? '+' : ''}${(amount / 1000).toFixed(0)}k` : '-'}
+                        </div>
+
+                        {/* Diff */}
+                        <div className="text-center font-black text-sm" style={{
+                            color: p.diff > 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)'
+                        }}>
+                            {p.diff > 0 ? `+${p.diff}` : p.diff}
+                        </div>
+
+                        {/* Age */}
+                        <div className="text-center text-xs font-bold text-white/30">{p.age || '-'}</div>
+
+                        {/* Wins */}
+                        <div className="text-center text-xs font-black" style={{ color: '#6ee7b7' }}>{p.wins}</div>
+
+                        {/* Losses */}
+                        <div className="text-center text-xs font-black" style={{ color: '#fca5a5' }}>{p.losses}</div>
+
+                        {/* Games */}
+                        <div className="text-center text-xs font-bold text-white/25">{p.games}</div>
+                    </div>
+                );
+            })}
         </section>
     );
 
@@ -2222,7 +2255,6 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
 
-            // 1. Archival Snapshot (Ranking, Metadata, etc.)
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
 
@@ -2251,10 +2283,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             const { error: archiveError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
             if (archiveError) throw archiveError;
 
-            // 2. Celebration/Confirmation
             alert("🏆 토너먼트가 성공적으로 정산되었습니다!\n전체 경기와 최종 순위가 '심층 기록소'에 안전하게 보존됩니다.");
-
-            // 3. Final local cleanup
             actualReset();
         } catch (e: any) {
             console.error("Finalize Error:", e);
@@ -2263,7 +2292,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     return (
-        <div className="space-y-6 pb-40 relative overflow-hidden">
+        <div className="space-y-4 pb-32 relative overflow-hidden">
 
             {ceremonyMode && (
                 <div className="py-8 px-4 bg-gradient-to-b from-[#C9B075]/20 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000">
@@ -2297,13 +2326,14 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
             {hasGroups && (
                 <>
-                    <div className="h-px bg-white/5 mx-6 my-10" />
+                    <div className="h-px bg-white/5 mx-6 my-6" />
                     <RankingTable players={generatePlayerList('A')} title="🅰️ A조 순위" />
                     <RankingTable players={generatePlayerList('B')} title="🅱️ B조 순위" />
                 </>
             )}
 
-            <div className="flex items-center gap-2">
+            {/* Share Buttons */}
+            <div className="flex items-center gap-2 mt-2">
                 <button
                     onClick={copyMatchTable}
                     className="flex-1 py-4 bg-white/5 border border-white/10 text-white/60 text-[11px] font-black uppercase tracking-widest rounded-3xl hover:bg-white/10 transition-all flex items-center justify-center gap-2"
@@ -2318,40 +2348,36 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </button>
             </div>
 
-
-            <div className="mt-12 bg-white/5 backdrop-blur-xl border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" /></svg>
+            {/* Slim Closure Card */}
+            <div className="mt-6 rounded-[28px] p-6 flex flex-col gap-4" style={{
+                background: 'rgba(201,176,117,0.06)',
+                borderTop: '1px solid rgba(201,176,117,0.25)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.4)'
+            }}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-70">Tournament Closure</p>
+                        <h4 className="text-base font-black italic text-white tracking-tight uppercase mt-0.5">대회 결과 최종 확정</h4>
+                    </div>
+                    <span className="text-2xl">📅</span>
                 </div>
-                <div className="text-center space-y-2">
-                    <span className="text-[11px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase block">Tournament Official Closure</span>
-                    <h4 className="text-xl font-black italic text-white tracking-tighter uppercase relative">
-                        대회 결과 최종 확정 및 저장
-                        <div className="mt-1 h-0.5 w-16 mx-auto bg-gradient-to-r from-transparent via-[#C9B075]/50 to-transparent" />
-                    </h4>
-                    <p className="text-[10px] text-white/40 font-medium max-w-[200px] mx-auto leading-relaxed mt-4">이 버튼을 누르면 오늘의 경기 기록이 아카이브로 전송되며, 라이브 대진표가 종료됩니다.</p>
-                </div>
-
+                <p className="text-[10px] text-white/30 font-medium leading-relaxed">경기 기록이 아카이브로 전송되며, 라이브 대진표가 종료됩니다.</p>
                 {isAdmin ? (
                     <button
                         onClick={onFinalize}
                         disabled={isGenerating}
-                        className="w-full py-5 bg-[#C9B075] text-black text-[13px] font-bold rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-none outline-none"
+                        className="w-full py-4 text-black text-[13px] font-bold rounded-[20px] shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-none outline-none"
+                        style={{ background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)' }}
                     >
-                        <span>📅 공식 종료 및 데이터 보존 🚀</span>
-                        {isGenerating && <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>}
+                        <span>공식 종료 및 데이터 보존 🚀</span>
+                        {isGenerating && <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />}
                     </button>
                 ) : (
-                    <div className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-1 opacity-60">
+                    <div className="w-full py-4 bg-white/5 border border-white/10 rounded-[20px] flex flex-col items-center justify-center gap-1 opacity-50">
                         <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">운영진 전용</span>
                         <span className="text-[8px] text-white/20 font-bold uppercase">Staff will finalize the tournament soon</span>
                     </div>
                 )}
-
-                <div className="flex items-center justify-between px-2 pt-2 text-[10px] font-bold text-white/20 uppercase tracking-tighter">
-                    <span>Immutable History</span>
-                    <span>Admin Controls</span>
-                </div>
             </div>
         </div>
     );
