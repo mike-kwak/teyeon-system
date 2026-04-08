@@ -2030,6 +2030,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [activeRankingTab, setActiveRankingTab] = useState<'ALL' | 'A' | 'B'>('ALL');
 
+    const uniqueGroups = Array.from(new Set(players.map((p: any) => p.group).filter(Boolean)));
+    const showTabs = uniqueGroups.length > 1;
+
     const [showConfetti, setShowConfetti] = useState(false);
     useEffect(() => {
         if (ceremonyMode) {
@@ -2092,44 +2095,51 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-6">
-                {/* Podium Stage */}
-                <div className="grid grid-cols-3 gap-3 px-1 mb-10">
-                    {[1, 0, 2].map((idx) => {
-                        const p = top3[idx];
-                        if (!p) return <div key={idx} className="h-40 rounded-3xl bg-white/[0.02] border border-white/[0.05]" />;
-                        const originalIdx = players.findIndex((x: any) => x.id === p.id);
-                        const { amount } = calculateSettlement(p, originalIdx, players.length);
-                        const rankColors = [
-                            { border: 'border-[#C9B075]/40', bg: 'bg-[#C9B075]/10', text: 'text-[#C9B075]', label: '1ST', icon: '🏆' },
-                            { border: 'border-slate-400/30', bg: 'bg-slate-400/5', text: 'text-slate-300', label: '2ND', icon: '🥈' },
-                            { border: 'border-amber-700/30', bg: 'bg-amber-700/5', text: 'text-amber-500', label: '3RD', icon: '🥉' }
-                        ];
-                        const style = rankColors[idx];
-                        return (
-                            <div key={p.id} className={`relative flex flex-col items-center justify-center p-4 rounded-[32px] border ${style.border} ${style.bg} backdrop-blur-2xl transition-all shadow-[0_20px_60px_rgba(0,0,0,0.6)] ${idx === 0 ? 'scale-110 -translate-y-2 z-10' : 'scale-100'}`}>
-                                <div className={`text-[10px] font-black uppercase tracking-[0.2em] mb-2 ${style.text}`}>{style.label}</div>
-                                <span className="text-2xl mb-1">{style.icon}</span>
-                                <div className="text-[13px] font-black truncate w-full text-center px-1 mb-1 text-white">{p.name}</div>
-                                <div className={`text-[10px] font-black ${amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                    {amount !== 0 ? `${amount > 0 ? '+' : ''}${(amount / 1000).toFixed(0)}k` : '0k'}
+                {/* Luxury Glass Stage Podium */}
+                <div className="relative p-8 rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_30px_100px_rgba(0,0,0,0.6)] overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+                    <div className="grid grid-cols-3 gap-6 relative z-10 items-end">
+                        {[1, 0, 2].map((idx) => {
+                            const p = top3[idx];
+                            if (!p) return <div key={idx} className="h-24 rounded-2xl bg-white/[0.02] border border-white/5" />;
+                            const originalIdx = players.findIndex((x: any) => x.id === p.id);
+                            const { amount } = calculateSettlement(p, originalIdx, players.length);
+                            const rankStyles = [
+                                { label: '1ST', icon: '🏆', color: 'text-[#C9B075]', bg: 'bg-[#C9B075]/10', border: 'border-[#C9B075]/30', scale: 'scale-110 -translate-y-4 shadow-[0_0_40px_rgba(201,176,117,0.3)]' },
+                                { label: '2ND', icon: '🥈', color: 'text-slate-300', bg: 'bg-white/5', border: 'border-white/10', scale: 'scale-90 opacity-60' },
+                                { label: '3RD', icon: '🥉', color: 'text-amber-600', bg: 'bg-white/5', border: 'border-white/10', scale: 'scale-90 opacity-60' }
+                            ];
+                            const style = rankStyles[idx];
+                            const isFirst = idx === 0;
+
+                            return (
+                                <div key={p.id} className={`flex flex-col items-center transition-all duration-700 ${style.scale}`}>
+                                    <div className={`text-[9px] font-black uppercase tracking-[0.3em] mb-3 ${style.color}`}>{style.label}</div>
+                                    <div className={`w-16 h-16 rounded-full ${style.bg} border ${style.border} flex items-center justify-center text-3xl mb-4 relative ${isFirst ? 'shadow-[inset_0_0_15px_rgba(201,176,117,0.4)]' : 'shadow-inner'}`}>
+                                        {style.icon}
+                                        {isFirst && <div className="absolute -inset-1 rounded-full border border-[#C9B075]/20 animate-pulse"></div>}
+                                    </div>
+                                    <div className="text-[15px] font-black text-white text-center truncate w-full mb-1">{p.name}</div>
+                                    <div className={`text-[10px] font-black tracking-widest ${amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {amount !== 0 ? `${amount > 0 ? '+' : ''}${(amount / 1000).toFixed(0)}k` : '0k'}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
 
-                {/* 3D Material Ranking List */}
-                <div className="space-y-2.5">
-                    {/* Header: Optimized Density */}
-                    <div className="grid grid-cols-[2.2rem_1fr_2rem_1.8rem_1.8rem_2rem_2rem_2.2rem_4rem] gap-2 px-6 pb-2 text-[10px] font-black text-white/20 uppercase tracking-[0.2em] text-center border-b border-white/5">
-                        <span>RK</span>
+                {/* Precision Leaderboard List */}
+                <div className="space-y-1.5">
+                    <div className="grid grid-cols-[2rem_1fr_1.8rem_1.8rem_1.8rem_2rem_2rem_2.2rem_3.8rem] gap-2 px-6 pb-2 text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">
+                        <span className="text-center">RK</span>
                         <span className="text-left">PLAYER</span>
-                        <span>GM</span>
-                        <span>W</span>
-                        <span>L</span>
-                        <span>PF</span>
-                        <span>PA</span>
-                        <span>DIFF</span>
+                        <span className="text-right">GM</span>
+                        <span className="text-right">W</span>
+                        <span className="text-right">L</span>
+                        <span className="text-right">PF</span>
+                        <span className="text-right">PA</span>
+                        <span className="text-right">DIF</span>
                         <span className="text-right">FINE</span>
                     </div>
 
@@ -2137,22 +2147,20 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const originalIdx = players.findIndex((x: any) => x.id === p.id);
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
-                            <div key={p.id} className="rounded-2xl px-6 py-4 grid grid-cols-[2.2rem_1fr_2rem_1.8rem_1.8rem_2rem_2rem_2.2rem_4rem] gap-2 items-center transition-all animate-in slide-in-from-bottom-2 bg-white/[0.04] backdrop-blur-md border-t border-t-white/10 border-x border-x-white/5 border-b border-b-black/30 shadow-lg hover:bg-white/[0.08] active:scale-[0.98]">
-                                <div className="text-center font-black text-xs text-white/20">{originalIdx + 1}</div>
-                                <div className="flex flex-col min-w-0">
-                                    <span className="font-bold truncate text-left text-[14px] text-white/95 leading-tight">
-                                        {p.name}{p.is_guest ? <span className="text-[9px] opacity-30 ml-1">G</span> : ''}
-                                    </span>
+                            <div key={p.id} className="rounded-xl px-6 py-3 grid grid-cols-[2rem_1fr_1.8rem_1.8rem_1.8rem_2rem_2rem_2.2rem_3.8rem] gap-2 items-center bg-white/5 backdrop-blur-xl border border-white/5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] hover:bg-white/[0.08] transition-all">
+                                <div className="text-center font-black text-[10px] text-white/20">{originalIdx + 1}</div>
+                                <div className="text-left font-bold text-[13px] text-white/90 truncate pr-2">
+                                    {p.name}{p.is_guest && <span className="ml-1 text-[8px] opacity-30">G</span>}
                                 </div>
-                                <div className="text-center text-[11px] font-bold text-white/30">{p.games}</div>
-                                <div className="text-center text-[11px] font-black text-emerald-400/80">{p.wins}</div>
-                                <div className="text-center text-[11px] font-black text-rose-400/80">{p.losses}</div>
-                                <div className="text-center text-[11px] font-bold text-white/60">{p.pf}</div>
-                                <div className="text-center text-[11px] font-bold text-white/30">{p.pa}</div>
-                                <div className="text-center font-black text-[11px] text-white/50">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className="text-right text-[11px] font-bold text-white/30">{p.games}</div>
+                                <div className="text-right text-[11px] font-black text-white/60">{p.wins}</div>
+                                <div className="text-right text-[11px] font-black text-white/40">{p.losses}</div>
+                                <div className="text-right text-[11px] font-bold text-white/40">{p.pf}</div>
+                                <div className="text-right text-[11px] font-bold text-white/20">{p.pa}</div>
+                                <div className="text-right font-black text-[11px] text-white/50">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
                                 <div className={`text-right font-black text-[11px] ${amount < 0 ? 'text-rose-400' : 'text-emerald-400/60'}`}>
                                     {amount !== 0 ? `${amount > 0 ? '+' : ''}${(amount / 1000).toFixed(0)}k` : '-'}
-                                    {amount !== 0 && <span className="text-[9px] ml-0.5 opacity-50 font-medium">₩</span>}
+                                    {amount !== 0 && <span className="text-[8px] ml-0.5 opacity-40">₩</span>}
                                 </div>
                             </div>
                         );
@@ -2197,18 +2205,20 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             `}</style>
 
             {/* Sub-Tab Navigation Segmented Control */}
-            <div className="sticky top-0 z-50 py-2 bg-black/40 backdrop-blur-md -mx-4 px-4 border-b border-white/5 mb-4">
-                <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10 shadow-inner">
-                    {(['ALL', 'A', 'B'] as const).map((tab) => (
-                        <button key={tab} onClick={() => setActiveRankingTab(tab)} className={`flex-1 py-3 text-[11px] font-black transition-all rounded-xl relative ${activeRankingTab === tab ? 'text-black z-10' : 'text-white/40'}`}>
-                            {activeRankingTab === tab && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] rounded-xl -z-10 shadow-[0_0_15px_rgba(201,176,117,0.4)] animate-in fade-in zoom-in-95 duration-300" />
-                            )}
-                            {tab === 'ALL' ? '전체 보기' : `${tab}조 리더보드`}
-                        </button>
-                    ))}
+            {showTabs && (
+                <div className="sticky top-0 z-50 py-2 bg-black/40 backdrop-blur-md -mx-4 px-4 border-b border-white/5 mb-4">
+                    <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10 shadow-inner">
+                        {(['ALL', 'A', 'B'] as const).map((tab) => (
+                            <button key={tab} onClick={() => setActiveRankingTab(tab)} className={`flex-1 py-3 text-[11px] font-black transition-all rounded-xl relative ${activeRankingTab === tab ? 'text-black z-10' : 'text-white/40'}`}>
+                                {activeRankingTab === tab && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] rounded-xl -z-10 shadow-[0_0_15px_rgba(201,176,117,0.4)] animate-in fade-in zoom-in-95 duration-300" />
+                                )}
+                                {tab === 'ALL' ? '전체 보기' : `${tab}조 리더보드`}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {ceremonyMode && (
                 <div className="py-8 px-4 bg-gradient-to-b from-[#C9B075]/20 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000 mb-8 rounded-3xl shrink-0">
@@ -2237,19 +2247,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 <button onClick={copyFinalResults} className="flex-1 py-5 bg-[#C9B075] text-black text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">🏆 최종결과 공유</button>
             </div>
 
-            {/* Compact Finalize Bar */}
-            <div className="mt-12 mb-8 rounded-[32px] p-6 flex flex-col gap-4 shrink-0 transition-all" style={{ background: 'rgba(201,176,117,0.06)', border: '1px solid rgba(201,176,117,0.15)', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
-                <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-[#C9B075] tracking-widest uppercase mb-0.5">Archive Service</span>
-                        <h4 className="text-sm font-black italic text-white tracking-widest uppercase">Tournament Closure</h4>
-                    </div>
-                    <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-xl grayscale opacity-30 hover:grayscale-0 hover:opacity-100 transition-all cursor-help" title="결과를 최종 저장하고 앱을 초기화합니다.">🏁</div>
-                </div>
-                <button disabled={isGenerating} onClick={finalizeTournament} className="w-full py-4.5 bg-red-600/10 border border-red-600/30 text-red-500 font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-lg hover:bg-red-600/20 active:scale-95 transition-all flex items-center justify-center gap-3">
-                    <span className="opacity-70">🔒</span> 대회 결과 최종 확정
-                </button>
-            </div>
+            {/* Floating Premium Closure Button */}
+            <button
+                disabled={isGenerating}
+                onClick={finalizeTournament}
+                className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-4rem)] max-w-sm py-5 bg-black/90 backdrop-blur-2xl border border-[#C9B075]/40 text-[#C9B075] font-black rounded-full shadow-[0_30px_60px_rgba(0,0,0,0.8)] hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3 group px-8"
+            >
+                <span className="text-xl group-hover:rotate-12 transition-transform">🏁</span>
+                <span className="text-[12px] uppercase tracking-[0.3em]">Finalize Tournament</span>
+                <div className="ml-auto w-6 h-6 rounded-full border border-[#C9B075]/20 flex items-center justify-center text-[10px] opacity-40 cursor-help" title="결과를 최종 저장하고 앱을 초기화합니다.">?</div>
+            </button>
         </div>
     );
 }
