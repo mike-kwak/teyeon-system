@@ -2399,16 +2399,18 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                     <h3 className="text-xl font-black text-red-500 italic tracking-tighter uppercase underline decoration-white/10 underline-offset-8">{title}</h3>
                     <p className="text-base font-bold text-white/70 leading-relaxed px-2">{message}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 w-full">
+                <div className="grid grid-cols-2 gap-4 w-full" style={{ marginTop: '24px' }}>
                     <button
                         onClick={onCancel}
-                        className="py-6 bg-white/10 text-white/60 font-black rounded-3xl active:scale-95 transition-all text-[14px] uppercase tracking-widest border border-white/5"
+                        className="py-6 bg-white/10 text-white/60 font-black rounded-3xl active:scale-95 transition-all uppercase tracking-widest border border-white/5"
+                        style={{ fontSize: '21px' }}
                     >
                         취소
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="py-6 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-3xl shadow-[0_10px_30px_rgba(239,68,68,0.4)] active:scale-95 transition-all text-[14px] uppercase tracking-widest border border-red-400/20"
+                        className="py-6 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-3xl shadow-[0_10px_30px_rgba(239,68,68,0.4)] active:scale-95 transition-all uppercase tracking-widest border border-red-400/20"
+                        style={{ fontSize: '21px' }}
                     >
                         데이터 초기화
                     </button>
