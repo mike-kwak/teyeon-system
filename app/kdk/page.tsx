@@ -388,11 +388,53 @@ export default function KDKPage() {
 
             if (error) throw error;
             setAllMembers(data || []);
+            
+            // After fetching members, check for active session in DB
+            await syncActiveSession();
         } catch (err) {
             console.error("Fetch Members Error:", err);
             setIsMembersError(true);
         } finally {
             setIsMembersLoading(false);
+        }
+    };
+
+    const syncActiveSession = async () => {
+        try {
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+            
+            // Fetch matches that are NOT complete, or from a very recent session
+            const { data, error } = await supabase
+                .from('matches')
+                .select('*')
+                .eq('club_id', clubId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                // If we have matches, we are in Live Broadcast mode
+                const formattedMatches: Match[] = data.map(m => ({
+                    id: m.id,
+                    playerIds: m.playerIds || [],
+                    court: m.court,
+                    status: m.status,
+                    score1: m.score1,
+                    score2: m.score2,
+                    mode: m.mode || 'KDK',
+                    round: m.round,
+                    teams: m.teams,
+                    groupName: m.groupName
+                }));
+
+                setMatches(formattedMatches);
+                setSessionId(data[0].session_id || sessionId);
+                setSessionTitle(data[0].session_title || sessionTitle);
+                setStep(3); // Jump to Scoreboard
+                console.log("Live session detected and synced from Supabase");
+            }
+        } catch (err) {
+            console.error("Active session sync failure:", err);
         }
     };
 
@@ -1459,14 +1501,16 @@ export default function KDKPage() {
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowResetConfirm(true)}
-                        className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-                        title="전체 데이터 초기화"
-                    >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                        <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
-                    </button>
+                    {role === 'CEO' && (
+                        <button
+                            onClick={() => setShowResetConfirm(true)}
+                            className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                            title="전체 데이터 초기화"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1495,7 +1539,9 @@ export default function KDKPage() {
                             <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">PEN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">3~5K</span>
                         </div>
-                        <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
+                        {role === 'CEO' && (
+                            <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
+                        )}
                     </div>
                 </div>
 
@@ -1568,15 +1614,17 @@ export default function KDKPage() {
 
                                                     {/* TEAM B BLOCK */}
                                                     <div className="relative bg-white/5 rounded-[18px] h-[68px] pt-8 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => cancelMatch(mId)}
-                                                            className="absolute top-1 right-1 w-8 h-[22px] bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
-                                                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
-                                                            title="웨이팅 리스트로 복귀"
-                                                        >
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                                                        </button>
+                                                        {role === 'CEO' && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => cancelMatch(mId)}
+                                                                className="absolute top-1 right-1 w-8 h-[22px] bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                                style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
+                                                                title="웨이팅 리스트로 복귀"
+                                                            >
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                            </button>
+                                                        )}
                                                         <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                             {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
                                                         </span>
@@ -1585,13 +1633,19 @@ export default function KDKPage() {
                                                 </div>
 
                                                 {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
-                                                <button
-                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-12 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
-                                                    style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.3))' }}
-                                                >
-                                                    <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[12px] font-black uppercase tracking-[0.25em] [text-shadow:0_0_15px_rgba(142,122,74,0.3)]">SCORE INPUT 🏆</span>
-                                                </button>
+                                                {role === 'CEO' ? (
+                                                    <button
+                                                        onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
+                                                        className="w-full h-12 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
+                                                        style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.3))' }}
+                                                    >
+                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[12px] font-black uppercase tracking-[0.25em] [text-shadow:0_0_15px_rgba(142,122,74,0.3)]">SCORE INPUT 🏆</span>
+                                                    </button>
+                                                ) : (
+                                                    <div className="w-full h-12 bg-white/5 rounded-2xl flex items-center justify-center mt-3 border border-white/5">
+                                                        <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Live Streaming</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1655,12 +1709,12 @@ export default function KDKPage() {
 
                                                             <div className="flex items-center justify-end pr-2">
                                                                 <button
-                                                                    disabled={hasConflict}
+                                                                    disabled={hasConflict || role !== 'CEO'}
                                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }}
-                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#8E7A4A] !text-black hover:bg-[#72623B] shadow-[0_4px_15px_rgba(142,122,74,0.2)]'}`}
-                                                                    style={{ backgroundColor: hasConflict ? undefined : '#8E7A4A', color: hasConflict ? undefined : '#000000' }}
+                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict || role !== 'CEO' ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#8E7A4A] !text-black hover:bg-[#72623B] shadow-[0_4px_15px_rgba(142,122,74,0.2)]'}`}
+                                                                    style={{ backgroundColor: hasConflict || role !== 'CEO' ? undefined : '#8E7A4A', color: hasConflict || role !== 'CEO' ? undefined : '#000000' }}
                                                                 >
-                                                                    투입 🚀
+                                                                    {role === 'CEO' ? '투입 🚀' : '진행 대기'}
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -2259,21 +2313,23 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             </div>
 
             {/* Premium Floating Archive Button - Elevated above Navigation Tabs */}
-            <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100] animate-in slide-in-from-bottom-10 duration-700">
-                <button
-                    disabled={isGenerating}
-                    onClick={finalizeTournament}
-                    className="w-full h-20 text-black font-black rounded-[28px] uppercase text-2xl tracking-[0.2em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-4 py-2"
-                    style={{
-                        background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
-                        boxShadow: '0 20px 50px rgba(142,122,74,0.4), inset 0 0 25px rgba(255,255,255,0.3)'
-                    }}
-                >
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <span className="text-3xl drop-shadow-md">🏆</span>
-                    <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
-                </button>
-            </div>
+            {isAdmin && (
+                <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100] animate-in slide-in-from-bottom-10 duration-700">
+                    <button
+                        disabled={isGenerating}
+                        onClick={finalizeTournament}
+                        className="w-full h-20 text-black font-black rounded-[28px] uppercase text-2xl tracking-[0.2em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-4 py-2"
+                        style={{
+                            background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
+                            boxShadow: '0 20px 50px rgba(142,122,74,0.4), inset 0 0 25px rgba(255,255,255,0.3)'
+                        }}
+                    >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                        <span className="text-3xl drop-shadow-md">🏆</span>
+                        <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
