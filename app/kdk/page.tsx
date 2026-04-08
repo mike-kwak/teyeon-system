@@ -1507,7 +1507,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#121418' }}>
+            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section className="h-auto" style={{ marginTop: '0px', position: 'relative', zIndex: 10 }}>
@@ -1545,14 +1545,14 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(40px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9)' }}>
+                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
                                                     <div className="relative bg-white/5 rounded-[18px] h-[68px] pt-8 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
                                                         {/* GROUP-MATCH ID BADGE (BRUSHED GOLD MEDAL) */}
-                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black text-[10px] font-black flex items-center justify-center z-10 whitespace-nowrap border border-white/10`} style={{ boxShadow: '0 0 20px rgba(142,122,74,0.5)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}>
+                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black text-[10px] font-black flex items-center justify-center z-10 whitespace-nowrap border border-white/10`} style={{ height: '22px', boxShadow: '0 0 20px rgba(142,122,74,0.5)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}>
                                                             {normalizedGroup}·G{matchNo}
                                                         </div>
                                                         <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
@@ -1565,14 +1565,14 @@ export default function KDKPage() {
 
                                                     {/* TEAM B BLOCK */}
                                                     <div className="relative bg-white/5 rounded-[18px] h-[68px] pt-8 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        {/* BLUE ROLLBACK UTILITY (Symmetrical to Left Badge) */}
                                                         <button
                                                             type="button"
                                                             onClick={() => cancelMatch(mId)}
-                                                            className="absolute top-2 right-2 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                            className="absolute top-1 right-1 w-8 h-[22px] bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
                                                             title="웨이팅 리스트로 복귀"
                                                         >
-                                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                         </button>
                                                         <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                             {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
@@ -1595,7 +1595,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div style={{ marginTop: '64px' }}>
+                        <div style={{ marginTop: '32px' }}>
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1617,7 +1617,7 @@ export default function KDKPage() {
 
                                     return (
                                         <div key={group} className="space-y-3">
-                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '64px' }}>
+                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
                                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>WAITING LIST</h3>
                                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                             </div>
@@ -1637,7 +1637,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(40px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.2))' }}>
+                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.2))' }}>
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(142,122,74,0.2)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1671,7 +1671,7 @@ export default function KDKPage() {
                         </div>
 
                         {matches.some(m => m.status === 'complete') && (
-                            <div style={{ marginTop: '64px' }}>
+                            <div style={{ marginTop: '32px' }}>
                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" style={{ marginBottom: '16px' }} />
                                 <div className="grid grid-cols-2 gap-x-3 gap-y-5">
