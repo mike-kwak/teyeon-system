@@ -1507,7 +1507,7 @@ export default function KDKPage() {
                 </div>
             </div>
 
-            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased">
+            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#0a0b0e' }}>
                 {activeTab === 'MATCHES' ? (
                     <>
                         <section className="h-auto" style={{ marginTop: '0px', position: 'relative', zIndex: 10 }}>
@@ -1545,7 +1545,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group" style={{ background: 'linear-gradient(135deg, rgba(35,37,42,0.9), rgba(20,22,25,0.95))', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.05)', borderTop: '2px solid rgba(255,255,255,0.45)', boxShadow: '0 0 1px rgba(255,255,255,0.1), 0 20px 40px -10px rgba(255,255,255,0.06), 0 40px 80px -20px rgba(0,0,0,1)', transform: 'translateY(-6px)' }}>
+                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group" style={{ background: 'linear-gradient(135deg, rgba(40,42,48,0.95), rgba(20,22,26,0.98))', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.05)', borderTop: '2px solid rgba(255,255,255,0.4)', boxShadow: '0 30px 60px rgba(0,0,0,0.9), 0 0 1px rgba(255,255,255,0.1)', transform: 'perspective(1200px) rotateX(1.5deg) translateY(-10px)', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
@@ -1637,7 +1637,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '18px', paddingBottom: '18px', background: 'linear-gradient(135deg, rgba(30,33,38,0.95), rgba(15,17,20,0.98))', border: '1px solid rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.4)', borderLeft: '4px solid #C9B075', boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)', filter: 'drop-shadow(0 0 15px rgba(201,176,117,0.5))', transform: 'translateY(-4px)' }}>
+                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '18px', paddingBottom: '18px', background: 'linear-gradient(135deg, rgba(40,42,48,0.95), rgba(20,22,26,0.98))', border: '1px solid rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.4)', borderLeft: '4px solid #C9B075', boxShadow: '0 25px 50px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)', filter: 'drop-shadow(0 0 15px rgba(201,176,117,0.5))', transform: 'perspective(1200px) rotateX(1deg) translateY(-6px)', transition: 'all 0.4s ease' }}>
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1689,7 +1689,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'linear-gradient(135deg, rgba(30,33,38,0.95), rgba(15,17,20,0.98))', border: '1px solid rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.4)', boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)', transform: 'translateY(-4px)' }}>
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'linear-gradient(135deg, rgba(40,42,48,0.95), rgba(20,22,26,0.98))', border: '1px solid rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.4)', boxShadow: '0 25px 50px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)', transform: 'perspective(1200px) rotateX(1deg) translateY(-6px)', transition: 'all 0.4s ease' }}>
                                                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '8px', width: '100%' }}>
                                                     <div className="px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase self-center">
                                                         {m.groupName || 'A'}-G{gMatchNo}
