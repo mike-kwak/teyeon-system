@@ -2096,48 +2096,41 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         const others = sorted.slice(3);
 
         return (
-            <section className="space-y-6">
-                {/* Heroic Hall of Fame Glass Stage (High-End 3D Lighting) */}
-                <div className="relative min-h-[35vh] px-8 py-12 bg-white/[0.04] backdrop-blur-3xl border-b border-white/10 flex flex-col items-center justify-end" 
-                    style={{ boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -40px 100px rgba(0,0,0,0.5)' }}>
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-                    <div className="grid grid-cols-3 gap-8 relative z-10 items-end w-full max-w-lg mx-auto">
+            <section className="space-y-4">
+                {/* Precision Glass Stage (Normalized 40/30/30 Balance) */}
+                <div className="relative pt-6 pb-6 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end" 
+                    style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                    <div className="flex items-end justify-center gap-1 w-full px-6 max-w-lg mx-auto relative z-10">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
-                            if (!p) return <div key={idx} className="h-full rounded-[40px] bg-white/[0.01]" />;
-                            const originalIdx = players.findIndex((x: any) => x.id === p.id);
-                            const { amount } = calculateSettlement(p, originalIdx, players.length);
+                            if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[30%]'} h-2`} />;
                             const isFirst = idx === 0;
                             const isSecond = idx === 1;
-                            const isThird = idx === 2;
-
+                            const widthClass = isFirst ? 'w-[40%]' : 'w-[30%] opacity-60';
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
-                            const scaleClass = isFirst ? 'scale-[2.0] -translate-y-20 z-30' : 'scale-[1.5] -translate-y-6 opacity-70';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center rounded-[40px] p-1 transition-all duration-1000 ${scaleClass}`}>
-                                    {/* Gold Rim Border Trick for Winner */}
-                                    <div className={`p-[1.5px] rounded-full mb-5 relative ${isFirst ? 'bg-gradient-to-b from-[#E5D29B] via-[#C9B075] to-[#B8960C] shadow-[0_0_50px_rgba(201,176,117,0.5)]' : 'bg-white/10 shadow-lg'}`}>
-                                        <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-[#1A1C20] relative z-10`}>
-                                            {rankIcon}
-                                        </div>
-                                        {isFirst && <div className="absolute -inset-5 rounded-full animate-pulse blur-2xl opacity-30 bg-[#C9B075]" />}
+                                <div key={p.id} className={`flex flex-col items-center gap-2 ${widthClass} transition-all duration-500 ${isFirst ? 'z-20 -translate-y-1' : ''}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-10 h-10 border-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.2)]' : 'w-8 h-8 border-white/10 shadow-lg'}`}>
+                                        <span className={isFirst ? 'text-xl' : 'text-sm'}>{rankIcon}</span>
                                     </div>
-                                    <div className={`font-black text-white text-center truncate w-full mb-1 tracking-tighter drop-shadow-2xl ${isFirst ? 'text-2xl' : 'text-sm'}`}>{p.name}</div>
-                                    {amount !== 0 && (
-                                        <div className={`text-[10px] font-black tracking-widest px-3 py-1 rounded-full bg-black/60 shadow-lg border border-white/5 ${amount > 0 ? 'text-[#C9B075]' : 'text-rose-400'}`}>
-                                            {amount > 0 ? '+' : ''}{amount.toLocaleString()}
+                                    <div className="flex flex-col items-center gap-0 w-full px-2">
+                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter ${isFirst ? 'text-lg' : 'text-sm'}`}>{p.name}</div>
+                                        <div className="flex items-center gap-1 text-[10px] font-medium text-white/30 uppercase">
+                                            <span>{p.wins}승 {p.losses}패</span>
+                                            <span className="opacity-20">|</span>
+                                            <span className={p.diff > 0 ? 'text-[#C9B075]' : ''}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* High-Performance Senior Analyst Ranking List */}
-                <div className="space-y-5 px-4 py-12">
-                    <div className="grid grid-cols-[2.8rem_1fr_2.4rem_2.4rem_2.4rem_2.8rem_2.8rem_2.8rem_6.2rem] gap-3 px-8 pb-6 text-[11px] font-black text-white/20 uppercase tracking-[0.6em] border-b border-white/5">
+                {/* Luxury Data Report List (Mandatory 12px Logic) */}
+                <div className="flex-1 space-y-1 px-4">
+                    <div className="grid grid-cols-[2.2rem_1fr_2.2rem_1.6rem_1.6rem_2.2rem_2.2rem_2.4rem_5.2rem] gap-1.5 px-4 pb-2 text-[10px] font-bold text-white/30 tracking-tight border-b border-white/10 uppercase">
                         <span className="text-center">RK</span>
                         <span className="text-left">PLAYER</span>
                         <span className="text-right">GM</span>
@@ -2151,24 +2144,23 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x: any) => x.id === p.id);
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
-                        const hasFine = amount < 0;
                         return (
                             <div key={p.id}
-                                className="h-22 rounded-[40px] px-8 grid grid-cols-[2.8rem_1fr_2.4rem_2.4rem_2.4rem_2.8rem_2.8rem_2.8rem_6.2rem] gap-3 items-center transition-all bg-white/[0.03] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] group"
+                                className="h-12 rounded-xl px-4 grid grid-cols-[2.2rem_1fr_2.2rem_1.6rem_1.6rem_2.2rem_2.2rem_2.4rem_5.2rem] gap-1.5 items-center transition-all bg-white/[0.03] border border-white/5"
                             >
-                                <div className="text-center font-black text-[16px] text-white/10 group-hover:text-[#C9B075] transition-colors">{originalIdx + 1}</div>
-                                <div className="text-left font-bold text-[22px] text-white tracking-tighter truncate pr-2">
-                                    {p.name}{p.is_guest && <span className="ml-2 text-[11px] opacity-20 font-black">G</span>}
+                                <div className="text-center font-black text-[11px] text-white/10 italic">{originalIdx + 1}</div>
+                                <div className="text-left font-bold text-[13px] text-white tracking-tighter truncate pr-1">
+                                    {p.name}{p.is_guest && <span className="ml-1 text-[9px] opacity-20">G</span>}
                                 </div>
-                                <div className="text-right text-[15px] font-semibold text-white/10">{p.games}</div>
-                                <div className="text-right text-[15px] font-black text-white/90">{p.wins}</div>
-                                <div className="text-right text-[15px] font-black text-white/20">{p.losses}</div>
-                                <div className="text-right text-[15px] font-semibold text-white/30">{p.pf}</div>
-                                <div className="text-right text-[15px] font-semibold text-white/10">{p.pa}</div>
-                                <div className="text-right font-black text-[16px] text-white/50">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right font-black tracking-tighter ${hasFine ? 'text-[24px] text-rose-400' : amount > 0 ? 'text-[18px] text-[#C9B075]' : 'text-[15px] text-white/5'}`}>
+                                <div className="text-right text-[12px] font-semibold text-white/20">{p.games}</div>
+                                <div className="text-right text-[12px] font-black text-white/80">{p.wins}</div>
+                                <div className="text-right text-[12px] font-black text-white/30">{p.losses}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/40">{p.pf}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/20">{p.pa}</div>
+                                <div className="text-right font-black text-[12px] text-white/60">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right font-black text-[12px] tracking-tighter ${amount < 0 ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/10'}`}>
                                     {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '0'}
-                                    {amount !== 0 && <span className="text-[11px] ml-0.5 opacity-30">₩</span>}
+                                    {amount !== 0 && <span className="text-[9px] ml-0.5 opacity-40">₩</span>}
                                 </div>
                             </div>
                         );
@@ -2253,21 +2245,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
             </div>
 
-            {/* Heavy Executive Archive Anchor */}
-            <div className="mt-20 mb-64 px-8">
+            {/* Standalone Premium Archive Button (mb-10) */}
+            <div className="px-6 mb-10 mt-8">
                 <button
                     disabled={isGenerating}
                     onClick={finalizeTournament}
-                    className="w-full py-10 font-black rounded-[40px] text-black text-2xl uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex flex-col items-center justify-center gap-2 shadow-[0_30px_90px_rgba(184,150,12,0.6),inset_0_1px_1px_rgba(255,255,255,0.4)] relative border-t-2 border-[#E5D29B]/30 overflow-hidden"
-                    style={{ background: 'linear-gradient(145deg, #E5D29B 0%, #C9B075 45%, #B8960C 100%)' }}
+                    className="w-full h-14 font-black rounded-2xl text-black text-sm uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_15px_40px_rgba(184,150,12,0.4)] relative border-t border-white/30 overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg, #E5D29B 0%, #C9B075 40%, #B8960C 100%)' }}
                 >
-                    <div className="absolute inset-0 bg-white/10 mix-blend-overlay animate-pulse" />
-                    <div className="flex items-center gap-4 relative z-10 drop-shadow-lg">
-                        <span className="text-3xl">🗃️</span>
-                        <span className="italic">ARCHIVE RESULTS</span>
-                    </div>
-                    <div className="w-16 h-1 bg-black/20 rounded-full mt-2 relative z-10" />
-                    <span className="text-[10px] font-black opacity-40 tracking-[0.6em] relative z-10 mt-1">EXECUTIVE FINALIZATION</span>
+                    <span className="text-xl">🗃️</span>
+                    <span className="italic">ARCHIVE TOURNAMENT RESULTS</span>
                 </button>
             </div>
         </div>
