@@ -2097,42 +2097,41 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1.5: The Immortal Hall (1.5x Scale & Unified 'W' Icons) */}
-                <div className="relative pt-24 pb-12 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
+                {/* Step 1: Heroic Zenith Podium (Zero Clipping & 1.5x Massive Scale) */}
+                <div className="relative pt-24 pb-14 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-14 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-                    <div className="flex items-end justify-center gap-4 w-full px-6 max-w-2xl mx-auto relative z-10 overflow-visible">
+                    <div className="flex items-end justify-center gap-6 w-full px-6 max-w-3xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[30%]'} h-2`} />;
                             const isFirst = idx === 0;
                             const isSecond = idx === 1;
-                            const widthClass = isFirst ? 'w-[45%]' : 'w-[27.5%] opacity-60';
+                            const widthClass = isFirst ? 'w-[48%]' : 'w-[26%] opacity-60';
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center gap-6 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20 -translate-y-6' : ''}`}>
-                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border relative ${isFirst ? 'w-24 h-24 border-[#C9B075] shadow-[0_0_50px_rgba(201,176,117,0.5),inset_0_2px_2px_rgba(255,255,255,0.3)] text-6xl' : 'w-16 h-16 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] text-3xl'}`}>
-                                        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
+                                <div key={p.id} className={`flex flex-col items-center gap-8 ${widthClass} transition-all duration-1000 overflow-visible ${isFirst ? 'z-20 -translate-y-10' : ''}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border relative ${isFirst ? 'w-28 h-28 border-[#C9B075] shadow-[0_0_60px_rgba(201,176,117,0.5),inset_0_2px_2px_rgba(255,255,255,0.3)] text-7xl' : 'w-18 h-18 border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.2)] text-3xl'}`}>
+                                        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/10 to-transparent pointer-events-none" />
                                         {rankIcon}
                                     </div>
-                                    <div className="flex flex-col items-center gap-2 w-full px-2">
-                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-2xl ${isFirst ? 'text-3xl' : 'text-xl'}`}>{p.name}</div>
-                                        <div className={`flex items-center gap-2 font-black tracking-widest uppercase ${isFirst ? 'text-sm' : 'text-[10px]'}`}>
+                                    <div className="flex flex-col items-center gap-3 w-full px-2">
+                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-2xl ${isFirst ? 'text-4xl' : 'text-2xl'}`}>{p.name}</div>
+                                        <div className={`flex items-center gap-3 font-black tracking-[0.2em] uppercase ${isFirst ? 'text-base' : 'text-[11px]'}`}>
                                             <div className="flex items-center gap-1">
+                                                <span className="text-white/90">{p.wins}</span>
                                                 <span className="text-[#C9B075]">W</span>
-                                                <span className="text-white/80">{p.wins}</span>
                                             </div>
-                                            <span className="opacity-10">/</span>
                                             <div className="flex items-center gap-1">
-                                                <span className="text-white/20">L</span>
                                                 <span className="text-white/40">{p.losses}</span>
+                                                <span className="text-white/20">L</span>
                                             </div>
-                                            <span className="opacity-10">/</span>
+                                            <span className="opacity-20">/</span>
                                             <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white/20'}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                         </div>
                                         {isFirst && (
-                                            <div className="mt-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#C9B075]/20 to-transparent border border-[#C9B075]/30 animate-pulse shadow-[0_0_20px_rgba(201,176,117,0.2)]">
-                                                <span className="text-[#C9B075] font-black text-[11px] tracking-[0.2em]">🎁 10,000원</span>
+                                            <div className="mt-2 px-6 py-2 rounded-full bg-gradient-to-r from-[#C9B075]/20 to-transparent border border-[#C9B075]/40 animate-pulse shadow-[0_0_30px_rgba(201,176,117,0.3)]">
+                                                <span className="text-[#C9B075] font-black text-[13px] tracking-[0.3em]">🎁 10,000원</span>
                                             </div>
                                         )}
                                     </div>
