@@ -1476,8 +1476,8 @@ export default function KDKPage() {
             </header>
 
             <div
-                className="w-full border-y border-white/10 px-5 flex flex-col gap-3 relative z-10"
-                style={{ paddingTop: '24px', paddingBottom: '24px', marginBottom: '0px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(24px)', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}
+                className={`w-full px-5 flex flex-col gap-2 relative z-50 ${activeTab === 'RANKING' ? 'border-b border-white/5 pb-2 pt-2' : 'border-y border-white/10 py-6'}`}
+                style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(32px)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}
             >
                 {/* LINE 1: SESSION & WIN/PEN */}
                 <div className="flex items-center justify-between gap-4">
@@ -1499,13 +1499,15 @@ export default function KDKPage() {
                     </div>
                 </div>
 
-                {/* LINE 2: RULES */}
-                <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
-                    <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">RULES:</span>
-                    <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate drop-shadow-sm">
-                        1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
-                    </span>
-                </div>
+                {/* LINE 2: RULES (Only in Matches) */}
+                {activeTab === 'MATCHES' && (
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                        <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">RULES:</span>
+                        <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate drop-shadow-sm">
+                            1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
+                        </span>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
@@ -1714,7 +1716,7 @@ export default function KDKPage() {
                         )}
                     </>
                 ) : (
-                    <div className="flex-1 min-h-screen">
+                    <div className="flex-1">
                         <RankingView
                             sessionMatches={matches}
                             configs={attendeeConfigs}
@@ -2095,9 +2097,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-6">
-                {/* Unified Podium Stage */}
-                <div className="relative h-[28vh] p-6 rounded-[40px] overflow-hidden shrink-0 bg-gradient-to-b from-white/[0.08] to-transparent border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
-                    <div className="grid grid-cols-3 gap-3 relative z-10 items-end h-full">
+                {/* Ultra-Slim Podium Honor Stage */}
+                <div className="relative min-h-[18vh] px-4 py-4 bg-white/[0.01] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end">
+                    <div className="grid grid-cols-3 gap-2 relative z-10 items-end w-full max-w-sm">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className="h-full rounded-3xl bg-white/[0.02]" />;
@@ -2224,12 +2226,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 )}
 
                 {ceremonyMode && (
-                    <div className="py-8 px-4 bg-gradient-to-b from-[#C9B075]/20 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000 mb-8 rounded-3xl shrink-0">
-                        <div className="flex flex-col items-center text-center space-y-3">
-                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase">Official Results Announced</span>
-                            <h2 className="text-3xl font-bold italic text-white tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">🏆 FINAL STANDINGS</h2>
-                            <div className="h-0.5 w-12 bg-[#C9B075] rounded-full mx-auto" />
-                        </div>
+                    <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[90] px-4 py-1.5 bg-[#C9B075] rounded-full shadow-[0_10px_30px_rgba(201,176,117,0.4)] animate-in slide-in-from-top-4 duration-500">
+                        <span className="text-[9px] font-black text-black tracking-widest uppercase">🏆 Final Results Active</span>
                     </div>
                 )}
 
