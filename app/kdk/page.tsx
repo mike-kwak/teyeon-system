@@ -1844,7 +1844,7 @@ export default function KDKPage() {
                             ))}
                         </div>
 
-                        <div className="flex gap-4 px-4 mb-10 shrink-0">
+                        <div className="flex gap-4 px-4 mt-16 mb-8 shrink-0">
                             <button onClick={() => setShowScoreModal(null)} className="flex-1 h-20 bg-white/5 border border-white/5 text-white/30 font-black rounded-[24px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
                             <button 
                                 disabled={tempScores.s1 === tempScores.s2} 
