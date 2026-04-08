@@ -2097,30 +2097,35 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1: Podium Precision Surgery (Rescued Trophy & 1.3x Scale) */}
-                <div className="relative pt-16 pb-8 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10" 
+                {/* Step 1.4: True Heroic Podium Reconstruction (Zero Clipping & 1.4x Scale) */}
+                <div className="relative pt-20 pb-10 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-12" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-                    <div className="flex items-end justify-center gap-2 w-full px-6 max-w-lg mx-auto relative z-10 overflow-visible">
+                    <div className="flex items-end justify-center gap-3 w-full px-6 max-w-xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[30%]'} h-2`} />;
                             const isFirst = idx === 0;
                             const isSecond = idx === 1;
-                            const widthClass = isFirst ? 'w-[42%]' : 'w-[29%] opacity-60';
+                            const widthClass = isFirst ? 'w-[45%]' : 'w-[27.5%] opacity-60';
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center gap-4 ${widthClass} transition-all duration-500 overflow-visible ${isFirst ? 'z-20 -translate-y-3' : ''}`}>
-                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-16 h-16 border-[#C9B075] shadow-[0_0_30px_rgba(201,176,117,0.4)] text-4xl' : 'w-12 h-12 border-white/10 shadow-lg text-xl'}`}>
+                                <div key={p.id} className={`flex flex-col items-center gap-5 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20 -translate-y-4' : ''}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-20 h-20 border-[#C9B075] shadow-[0_0_40px_rgba(201,176,117,0.5)] text-5xl' : 'w-14 h-14 border-white/10 shadow-lg text-2xl'}`}>
                                         {rankIcon}
                                     </div>
-                                    <div className="flex flex-col items-center gap-1 w-full px-2">
-                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter ${isFirst ? 'text-xl' : 'text-lg'}`}>{p.name}</div>
-                                        <div className={`flex items-center gap-1 font-medium text-white/30 uppercase ${isFirst ? 'text-sm' : 'text-xs'}`}>
+                                    <div className="flex flex-col items-center gap-1.5 w-full px-2">
+                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-lg ${isFirst ? 'text-2xl' : 'text-xl'}`}>{p.name}</div>
+                                        <div className={`flex items-center gap-1.5 font-bold text-white/30 uppercase ${isFirst ? 'text-base' : 'text-sm'}`}>
                                             <span>{p.wins}승 {p.losses}패</span>
                                             <span className="opacity-20">|</span>
                                             <span className={p.diff > 0 ? 'text-[#C9B075]' : ''}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                         </div>
+                                        {isFirst && (
+                                            <div className="mt-1 px-3 py-1 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/20 animate-pulse">
+                                                <span className="text-[#C9B075] font-black text-xs tracking-widest">🎁 10,000원</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
