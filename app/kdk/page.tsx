@@ -2097,21 +2097,21 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Precision Glass Stage (Phase 1: Enforced 1.3x Scaling) */}
-                <div className="relative pt-12 pb-8 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-8" 
+                {/* Step 1: Podium Precision Surgery (Rescued Trophy & 1.3x Scale) */}
+                <div className="relative pt-16 pb-8 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-                    <div className="flex items-end justify-center gap-1 w-full px-6 max-w-lg mx-auto relative z-10 overflow-visible">
+                    <div className="flex items-end justify-center gap-2 w-full px-6 max-w-lg mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[30%]'} h-2`} />;
                             const isFirst = idx === 0;
                             const isSecond = idx === 1;
-                            const widthClass = isFirst ? 'w-[40%]' : 'w-[30%] opacity-60';
+                            const widthClass = isFirst ? 'w-[42%]' : 'w-[29%] opacity-60';
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center gap-3 ${widthClass} transition-all duration-500 overflow-visible ${isFirst ? 'z-20 -translate-y-2' : ''}`}>
-                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-14 h-14 border-[#C9B075] shadow-[0_0_20px_rgba(201,176,117,0.3)] text-3xl' : 'w-11 h-11 border-white/10 shadow-lg text-lg'}`}>
+                                <div key={p.id} className={`flex flex-col items-center gap-4 ${widthClass} transition-all duration-500 overflow-visible ${isFirst ? 'z-20 -translate-y-3' : ''}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-16 h-16 border-[#C9B075] shadow-[0_0_30px_rgba(201,176,117,0.4)] text-4xl' : 'w-12 h-12 border-white/10 shadow-lg text-xl'}`}>
                                         {rankIcon}
                                     </div>
                                     <div className="flex flex-col items-center gap-1 w-full px-2">
