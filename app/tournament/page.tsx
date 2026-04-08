@@ -1,374 +1,115 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { styled, keyframes } from '@/stitches.config';
-import { supabase } from '@/lib/supabase';
-import { Match, Player, calculateRankings, PlayerStats } from '@/lib/kdk';
-import { DataStateView } from '@/components/DataStateView';
-import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
+import { ArrowLeft, Flame, Trophy, Calendar, Settings } from 'lucide-react';
 
-const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'translateY(15px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
-});
-
-const glow = keyframes({
-  '0%': { boxShadow: '0 0 10px rgba(212, 175, 55, 0.2)' },
-  '50%': { boxShadow: '0 0 30px rgba(212, 175, 55, 0.5)' },
-  '100%': { boxShadow: '0 0 10px rgba(212, 175, 55, 0.2)' },
-});
-
-const Container = styled('main', {
-  display: 'flex',
-  flexDirection: 'column',
-  minHeight: '100dvh',
-  padding: '$8 $5',
-  maxWidth: '500px',
-  margin: '0 auto',
-  width: '100%',
-  backgroundColor: '$black',
-  paddingBottom: '250px',
-});
-
-const Header = styled('header', {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: '$8',
-});
-
-const Title = styled('h1', {
-  fontSize: '$2xl',
-  fontWeight: '$black',
-  letterSpacing: '$tight',
-  textTransform: 'uppercase',
-  fontStyle: 'italic',
-  color: '$white',
-});
-
-const TabContainer = styled('div', {
-  display: 'flex',
-  padding: '$1',
-  borderRadius: '$xl',
-  marginBottom: '$10',
-  background: 'rgba(255, 255, 255, 0.03)',
-  border: '1px solid rgba(255, 255, 255, 0.05)',
-  boxShadow: '$glass',
-});
-
-const TabButton = styled('button', {
-  flex: 1,
-  padding: '$4',
-  fontSize: '$xs',
-  fontWeight: '$black',
-  borderRadius: '$lg',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-  color: 'rgba(255, 255, 255, 0.3)',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-
-  variants: {
-    active: {
-      true: {
-        background: '$gold',
-        color: '$black',
-        boxShadow: '$goldGlow',
-        transform: 'scale(1.02)',
-      },
-      false: {
-        '&:hover': {
-          color: '$white',
-          background: 'rgba(255,255,255,0.05)',
-        },
-      },
-    },
-  },
-});
-
-const Card = styled('div', {
-  background: 'linear-gradient(135deg, $gray850, $black)',
-  borderRadius: '$xl',
-  padding: '$6',
-  borderGlow: 'rgba(212, 175, 55, 0.15)',
-  marginBottom: '$6',
-  position: 'relative',
-  overflow: 'hidden',
-  boxShadow: '$glass',
-  animation: `${fadeIn} 0.6s ease-out`,
-
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '2px',
-    background: 'linear-gradient(90deg, transparent, $gold, transparent)',
-    opacity: 0.3,
-  },
-
-  variants: {
-    highlight: {
-      gold: {
-        borderColor: '$gold',
-        animation: `${glow} 3s infinite ease-in-out`,
-      },
-    },
-  },
-});
-
-const MatchInfo = styled('div', {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '$6',
-});
-
-const CourtBadge = styled('span', {
-  fontSize: '9px',
-  fontWeight: '$black',
-  color: '$black',
-  letterSpacing: '$wider',
-  textTransform: 'uppercase',
-  background: '$gold',
-  padding: '$1 $4',
-  borderRadius: '$full',
-  boxShadow: '$gold',
-});
-
-const LiveStatus = styled('span', {
-  fontSize: '9px',
-  fontWeight: '$black',
-  color: '$error',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$1.5',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-
-  '&::before': {
-    content: '""',
-    width: '8px',
-    height: '8px',
-    background: '$error',
-    borderRadius: '50%',
-    boxShadow: '0 0 12px $error',
-    animation: 'pulse 1.5s infinite',
-  },
-});
-
-const TeamName = styled('p', {
-  fontSize: '20px',
-  fontWeight: '$black',
-  textAlign: 'center',
-  color: '$white',
-  margin: '$3 0',
-  letterSpacing: '$tight',
-});
-
-const VS = styled('div', {
-  fontSize: '11px',
-  fontWeight: '$black',
-  fontStyle: 'italic',
-  color: 'rgba(212, 175, 55, 0.4)',
-  letterSpacing: '$mega',
-  margin: '$4 0',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$5',
-
-  '&::before, &::after': {
-    content: '""',
-    flex: 1,
-    height: '1px',
-    background: 'rgba(212, 175, 55, 0.1)',
-  },
-});
-
-const RankingItem = styled('div', {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '$5 $6',
-  background: 'linear-gradient(90deg, $gray850, $black)',
-  borderRadius: '$xl',
-  borderGlow: 'rgba(255, 255, 255, 0.03)',
-  marginBottom: '$4',
-  transition: 'all 0.4s ease',
-  boxShadow: '$glass',
-
-  '&:hover': {
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-    background: 'linear-gradient(90deg, $gray800, $black)',
-    transform: 'translateX(4px)',
-    boxShadow: '$goldGlow',
-  },
-
-  variants: {
-    top: {
-      1: { borderGlow: '$gold', background: 'rgba(212, 175, 55, 0.05)' },
-      2: { borderGlow: 'rgba(255, 255, 255, 0.2)' },
-      3: { borderGlow: 'rgba(205, 127, 50, 0.3)' },
-    },
-  },
-});
-
-const RankNumber = styled('div', {
-  width: '42px',
-  height: '42px',
-  borderRadius: '$full',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '$lg',
-  fontWeight: '$black',
-  background: 'rgba(255, 255, 255, 0.05)',
-  color: '$gray400',
-
-  variants: {
-    top: {
-      1: { background: '$gold', color: '$black', boxShadow: '$goldGlow', fontSize: '24px' },
-      2: { background: '#E5E4E2', color: '$black' },
-      3: { background: '#CD7F32', color: '$black' },
-    },
-  },
-});
-
-export default function LivePage() {
-  const [activeTab, setActiveTab] = useState<'matches' | 'ranking'>('matches');
-  const [matches, setMatches] = useState<any[]>([]);
-  const [rankings, setRankings] = useState<PlayerStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  async function fetchData() {
-    try {
-      const { data: liveMatches, error: matchError } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('status', 'playing')
-        .order('court', { ascending: true });
-      
-      if (matchError) throw matchError;
-
-      setMatches(liveMatches || []);
-      setError(false);
-
-      const savedMatches = localStorage.getItem('teyeon_matches');
-      const savedPlayers = localStorage.getItem('teyeon_players');
-      
-      if (savedMatches && savedPlayers) {
-        const m: Match[] = JSON.parse(savedMatches);
-        const p: Player[] = JSON.parse(savedPlayers);
-        setRankings(calculateRankings(m, p));
-      } else {
-        setRankings([
-          { name: '곽민섭', wins: 55, losses: 12, ptsDiff: 142, matches: 67, rank: 1, isGuest: false },
-          { name: '가내현', wins: 42, losses: 18, ptsDiff: 120, matches: 60, rank: 2, isGuest: false },
-          { name: '강정호', wins: 38, losses: 22, ptsDiff: 98, matches: 60, rank: 3, isGuest: false },
-          { name: '김병식', wins: 35, losses: 25, ptsDiff: 85, matches: 60, rank: 4, isGuest: false },
-          { name: '구봉준', wins: 30, losses: 30, ptsDiff: 70, matches: 60, rank: 5, isGuest: false },
-        ]);
-      }
-    } catch (err) {
-      console.error("Fetch Error:", err);
-      // Only set error if we have no data at all
-      if (matches.length === 0 && rankings.length === 0) {
-        setError(true);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
+export default function TournamentPage() {
   return (
-    <Container>
-      <Header>
-        <Title style={{ fontFamily: 'var(--font-orbitron)', fontSize: '28px', fontWeight: 950 }}>Live <span style={{ color: '$goldGlint' }}>Circuit</span></Title>
-        <LiveStatus />
-      </Header>
+    <main className="min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-40 overflow-x-hidden">
+      
+      {/* Header Section */}
+      <header className="px-6 pt-8 pb-4 flex flex-col gap-6 sticky top-0 bg-[#0a0a0b]/80 backdrop-blur-xl z-[100] border-b border-white/5">
+        <div className="flex items-center justify-between">
+          <Link 
+            href="/"
+            className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-all text-white/60 hover:text-white"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 shadow-[0_0_15px_rgba(201,176,117,0.1)]">
+            <span className="w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
+            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase">Selection Hub</span>
+          </div>
+        </div>
 
-      <TabContainer>
-        <TabButton active={activeTab === 'matches'} onClick={() => setActiveTab('matches')} style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '12px' }}>대진표</TabButton>
-        <TabButton active={activeTab === 'ranking'} onClick={() => setActiveTab('ranking')} style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '12px' }}>실시간 랭킹</TabButton>
-      </TabContainer>
+        <div className="flex flex-col gap-1 px-2">
+          <h1 className="text-4xl font-black italic text-white tracking-tighter uppercase leading-none">SPECIAL MATCHES</h1>
+          <p className="text-[12px] font-bold text-white/30 tracking-widest uppercase mt-1">Select your optimized tournament protocol</p>
+        </div>
+      </header>
 
-      <DataStateView 
-        isLoading={loading && matches.length === 0} 
-        isError={error}
-        onRetry={fetchData}
-        loadingComponent={
-          <SkeletonGroup>
-            <Skeleton size="xl" />
-            <Skeleton size="lg" />
-            <Skeleton size="lg" />
-            <Skeleton size="lg" />
-          </SkeletonGroup>
-        }
-      >
-        {activeTab === 'matches' ? (
-          <section>
-            {matches.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
-                <div style={{ fontSize: '64px', marginBottom: '24px', filter: 'drop-shadow(0 0 10px $goldGlint)' }}>🏟️</div>
-                <p style={{ fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', fontSize: '12px', fontFamily: 'var(--font-rajdhani)' }}>Waiting for Next Session</p>
+      {/* Mode Selection Grid */}
+      <div className="px-6 pt-10 space-y-8 max-w-lg mx-auto w-full">
+        
+        {/* 1. Manual Mode (ACTIVE) */}
+        <Link href="/kdk" className="block group">
+          <div className="relative h-48 rounded-[48px] p-8 flex flex-col justify-between overflow-hidden bg-[#1A1C20] border-2 border-[#C9B075]/40 shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(201,176,117,0.05)] active:scale-95 transition-all cursor-pointer">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#C9B075]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            <div className="flex items-start justify-between relative z-10">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-3 py-1 bg-[#C9B075] text-black text-[9px] font-black rounded-full uppercase tracking-tighter shadow-[0_0_15px_rgba(201,176,117,0.3)]">Available Now</span>
+                </div>
+                <h2 className="text-3xl font-black italic text-white tracking-tight uppercase group-hover:text-[#C9B075] transition-colors">Manual Mode</h2>
+                <p className="text-[13px] font-bold text-[#C9B075]/80 leading-snug">수동 매칭 및 직접 점수 입력</p>
               </div>
-            ) : (
-              matches.map((m, idx) => (
-                <Card key={idx}>
-                  <MatchInfo>
-                    <CourtBadge style={{ fontFamily: 'var(--font-orbitron)' }}>COURT {(m.court || idx + 1).toString().padStart(2, '0')}</CourtBadge>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                       <span style={{ fontSize: '10px', fontWeight: 950, color: '$goldGlint', letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>LIVE DATA STREAM</span>
-                       <div style={{ width: '10px', height: '10px', background: '$error', borderRadius: '50%', boxShadow: '0 0 15px $error' }} />
-                    </div>
-                  </MatchInfo>
-                  <div style={{ padding: '16px 0' }}>
-                    <TeamName style={{ fontFamily: 'var(--font-rajdhani)', fontWeight: 950, fontSize: '22px' }}>{m.player_names?.slice(0, 2).join(' / ') || 'Elite Squad Alpha'}</TeamName>
-                    <VS style={{ fontFamily: 'var(--font-orbitron)', letterSpacing: '0.3em', color: '$goldGlint' }}>VS</VS>
-                    <TeamName style={{ fontFamily: 'var(--font-rajdhani)', fontWeight: 950, fontSize: '22px' }}>{m.player_names?.slice(2, 4).join(' / ') || 'Premium Squad Beta'}</TeamName>
-                  </div>
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px', display: 'flex', justifyContent: 'center' }}>
-                    <button style={{ color: '$gold', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)' }}>Detailed Analytics View</button>
-                  </div>
-                </Card>
-              ))
-            )}
-          </section>
-        ) : (
-          <section>
-            <div style={{ padding: '0 12px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: 950, color: '$goldGlint', letterSpacing: '0.5em', textTransform: 'uppercase', fontFamily: 'var(--font-rajdhani)' }}>Elite Standings</span>
+              <div className="w-16 h-16 bg-[#C9B075]/20 rounded-[28px] flex items-center justify-center border border-[#C9B075]/30 shadow-[inset_0_0_20px_rgba(201,176,117,0.1)] group-hover:scale-110 transition-transform">
+                <Settings size={32} className="text-[#C9B075]" />
+              </div>
             </div>
-            {rankings.map((s, idx) => (
-              <RankingItem key={idx} top={s.rank as any}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                  <RankNumber top={s.rank as any} style={{ fontFamily: 'var(--font-orbitron)' }}>{s.rank === 1 ? '👑' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : s.rank}</RankNumber>
-                  <div>
-                    <p style={{ fontSize: '18px', fontWeight: 950, color: '$white', letterSpacing: '-0.02em', fontFamily: 'var(--font-rajdhani)' }}>{s.name}</p>
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 800, marginTop: '2px', fontFamily: 'var(--font-rajdhani)' }}>{s.wins}W - {s.losses}L • DIFF {s.ptsDiff > 0 ? `+${s.ptsDiff}` : s.ptsDiff}</p>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '19px', fontWeight: 950, color: '$goldGlint', fontFamily: 'var(--font-orbitron)' }}>{s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0}%</p>
-                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)' }}>Efficiency</p>
-                </div>
-              </RankingItem>
-            ))}
-          </section>
-        )}
-      </DataStateView>
 
-      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.25 }}>
-        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint', textTransform: 'uppercase' }}>TEYEON MATCH ENGINE PRO STABLE</p>
-      </footer>
-    </Container>
+            <p className="text-[11px] font-medium text-white/40 leading-relaxed max-w-[260px] relative z-10">
+              사용자가 직접 대진표를 짜고<br />점수를 입력하는 자율 제어 시스템입니다.
+            </p>
+
+            <div className="absolute bottom-8 right-10 text-[#C9B075] font-black text-[14px] tracking-widest uppercase flex items-center gap-3 group-hover:translate-x-3 transition-transform">
+              PROTOCOL START <ArrowLeft size={16} className="rotate-180" />
+            </div>
+          </div>
+        </Link>
+
+        {/* 2. Monthly Match (COMING SOON) */}
+        <div className="relative h-48 rounded-[48px] p-8 flex flex-col justify-between overflow-hidden bg-white/[0.03] border border-white/5 opacity-50 grayscale">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center gap-2 px-10 text-center">
+            <span className="px-6 py-2 bg-[#C9B075]/20 border border-[#C9B075]/40 rounded-full text-[#C9B075] font-black text-[12px] tracking-[0.4em] uppercase italic shadow-[0_0_20px_rgba(201,176,117,0.2)]">Coming Soon</span>
+            <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-2">Expected Alpha Q2 2026</p>
+          </div>
+
+          <div className="flex items-start justify-between">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-3xl font-black italic text-white/40 tracking-tight uppercase">Monthly Match</h2>
+              <p className="text-[12px] font-bold text-white/20 leading-snug">테연 월례회 전용 자동 시스템</p>
+            </div>
+            <div className="w-16 h-16 bg-white/5 rounded-[28px] flex items-center justify-center border border-white/10 opacity-30">
+              <Calendar size={32} className="text-white" />
+            </div>
+          </div>
+
+          <p className="text-[11px] font-medium text-white/10 leading-relaxed max-w-[240px]">
+            테연 정기 월례회 전용<br />자동 대진 및 정산 시스템입니다.
+          </p>
+        </div>
+
+        {/* 3. Tournament Mode (COMING SOON) */}
+        <div className="relative h-48 rounded-[48px] p-8 flex flex-col justify-between overflow-hidden bg-white/[0.03] border border-white/5 opacity-50 grayscale">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center gap-2 px-10 text-center">
+            <span className="px-6 py-2 bg-[#C9B075]/20 border border-[#C9B075]/40 rounded-full text-[#C9B075] font-black text-[12px] tracking-[0.4em] uppercase italic shadow-[0_0_20px_rgba(201,176,117,0.2)]">Coming Soon</span>
+            <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-2">Under Development</p>
+          </div>
+
+          <div className="flex items-start justify-between">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-3xl font-black italic text-white/40 tracking-tight uppercase">Tournament</h2>
+              <p className="text-[12px] font-bold text-white/20 leading-snug">강력한 자동 토너먼트 빌더</p>
+            </div>
+            <div className="w-16 h-16 bg-white/5 rounded-[28px] flex items-center justify-center border border-white/10 opacity-30">
+              <Trophy size={32} className="text-white" />
+            </div>
+          </div>
+
+          <p className="text-[11px] font-medium text-white/10 leading-relaxed max-w-[240px]">
+            대진표 자동 생성부터<br />최종 우승자 선출까지 한 번에 관리합니다.
+          </p>
+        </div>
+
+      </div>
+
+      {/* Decorative Background Elements */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-[#C9B075]/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+      <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-[#C9B075]/3 rounded-full blur-[100px] -z-10 pointer-events-none" />
+
+    </main>
   );
 }
