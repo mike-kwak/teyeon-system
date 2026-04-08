@@ -2097,10 +2097,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Precision Glass Stage (Normalized 40/30/30 Balance) */}
-                <div className="relative pt-6 pb-6 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end" 
+                {/* Precision Glass Stage (Phase 1: Enforced 1.3x Scaling) */}
+                <div className="relative pt-12 pb-8 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-8" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-                    <div className="flex items-end justify-center gap-1 w-full px-6 max-w-lg mx-auto relative z-10">
+                    <div className="flex items-end justify-center gap-1 w-full px-6 max-w-lg mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[30%]'} h-2`} />;
@@ -2110,13 +2110,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center gap-2 ${widthClass} transition-all duration-500 ${isFirst ? 'z-20 -translate-y-1' : ''}`}>
-                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-10 h-10 border-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.2)]' : 'w-8 h-8 border-white/10 shadow-lg'}`}>
-                                        <span className={isFirst ? 'text-xl' : 'text-sm'}>{rankIcon}</span>
+                                <div key={p.id} className={`flex flex-col items-center gap-3 ${widthClass} transition-all duration-500 overflow-visible ${isFirst ? 'z-20 -translate-y-2' : ''}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-14 h-14 border-[#C9B075] shadow-[0_0_20px_rgba(201,176,117,0.3)] text-3xl' : 'w-11 h-11 border-white/10 shadow-lg text-lg'}`}>
+                                        {rankIcon}
                                     </div>
-                                    <div className="flex flex-col items-center gap-0 w-full px-2">
-                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter ${isFirst ? 'text-lg' : 'text-sm'}`}>{p.name}</div>
-                                        <div className="flex items-center gap-1 text-[10px] font-medium text-white/30 uppercase">
+                                    <div className="flex flex-col items-center gap-1 w-full px-2">
+                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter ${isFirst ? 'text-xl' : 'text-lg'}`}>{p.name}</div>
+                                        <div className={`flex items-center gap-1 font-medium text-white/30 uppercase ${isFirst ? 'text-sm' : 'text-xs'}`}>
                                             <span>{p.wins}승 {p.losses}패</span>
                                             <span className="opacity-20">|</span>
                                             <span className={p.diff > 0 ? 'text-[#C9B075]' : ''}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
