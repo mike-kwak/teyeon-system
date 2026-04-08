@@ -762,10 +762,10 @@ export default function KDKPage() {
     };
 
     const playerStats = useMemo(() => {
-        const res: Record<string, { wins: number, losses: number, diff: number, games: number }> = {};
+        const res: Record<string, { wins: number, losses: number, diff: number, games: number, pf: number, pa: number }> = {};
         matches?.filter(m => m?.status === 'complete')?.forEach(m => {
             m?.playerIds?.forEach((pid, idx) => {
-                if (!res[pid]) res[pid] = { wins: 0, losses: 0, diff: 0, games: 0 };
+                if (!res[pid]) res[pid] = { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 };
                 const isTeam1 = idx < 2;
                 const score1 = Number(m?.score1 || 0);
                 const score2 = Number(m?.score2 || 0);
@@ -773,6 +773,8 @@ export default function KDKPage() {
                 const d = isTeam1 ? (score1 - score2) : (score2 - score1);
 
                 res[pid].games += 1;
+                res[pid].pf += isTeam1 ? score1 : score2;
+                res[pid].pa += isTeam1 ? score2 : score1;
                 if (win) res[pid].wins += 1;
                 else res[pid].losses += 1;
                 res[pid].diff += d;
@@ -794,8 +796,7 @@ export default function KDKPage() {
                 name: m?.nickname || id,
                 is_guest: m?.is_guest || conf?.is_guest,
                 group: conf?.group || 'A',
-                age: conf?.age || 0,
-                ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0 })
+                ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
             };
         }).sort((a, b) => (b?.wins || 0) - (a?.wins || 0) || (b?.diff || 0) - (a?.diff || 0));
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
@@ -2153,7 +2154,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     const RankingTable = ({ players, title }: { players: any[], title: string }) => (
-        <section className="space-y-2 mb-8">
+        <section className="space-y-4 mb-8">
             <div className="flex flex-col mb-4">
                 <h3 className="text-[12px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.3em] uppercase px-1 flex items-center justify-between">
                     <span>{title}</span>
@@ -2162,90 +2163,96 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 <div className="mt-1 h-px w-24 bg-gradient-to-r from-[#C9B075]/30 to-transparent" />
             </div>
 
-            {/* Column Header */}
-            <div className="grid grid-cols-[2.5rem_1fr_3rem_3rem_2.5rem_2rem_2rem_3rem] gap-2 px-4 pb-1 text-[10px] font-black text-white/30 uppercase tracking-widest">
-                <span className="text-center">Rk</span>
-                <span>Player</span>
-                <span className="text-center">Fine</span>
-                <span className="text-center">Diff</span>
-                <span className="text-center">Age</span>
-                <span className="text-center">W</span>
-                <span className="text-center">L</span>
-                <span className="text-center">Gm</span>
+            {/* Column Header - Premium Data Order */}
+            <div className="grid grid-cols-[2.2rem_1fr_2rem_1.8rem_1.8rem_2rem_2rem_2.2rem_3.5rem] gap-2 px-4 pb-1 text-[10px] font-bold text-white/30 uppercase tracking-widest text-center">
+                <span>Rk</span>
+                <span className="text-left">Player</span>
+                <span>Gm</span>
+                <span>W</span>
+                <span>L</span>
+                <span>PF</span>
+                <span>PA</span>
+                <span>Diff</span>
+                <span className="text-right">Fine</span>
             </div>
 
-            {getSortedPlayers(players).map((p) => {
-                const originalIdx = players.findIndex((x: any) => x.id === p.id);
-                const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
-                const isBottom = isPenaltyTier || isFineTier;
+            <div className="space-y-3">
+                {getSortedPlayers(players).map((p) => {
+                    const originalIdx = players.findIndex((x: any) => x.id === p.id);
+                    const { amount, note, isWinner, isPenaltyTier, isFineTier } = calculateSettlement(p, originalIdx, players.length);
+                    const isBottom = isPenaltyTier || isFineTier;
 
-                return (
-                    <div
-                        key={p.id}
-                        className="rounded-[20px] px-4 py-4 grid grid-cols-[2.5rem_1fr_3rem_3rem_2.5rem_2rem_2rem_3rem] gap-2 items-center transition-all"
-                        style={{
-                            background: isWinner
-                                ? 'rgba(201,176,117,0.08)'
-                                : isBottom
-                                    ? 'rgba(255,100,100,0.04)'
-                                    : 'rgba(255,255,255,0.04)',
-                            backdropFilter: 'blur(16px)',
-                            borderTop: isWinner
-                                ? '1px solid rgba(201,176,117,0.4)'
-                                : '1px solid rgba(255,255,255,0.07)',
-                            boxShadow: isWinner
-                                ? '0 4px 20px rgba(201,176,117,0.12), 0 0 0 1px rgba(201,176,117,0.15)'
-                                : '0 4px 12px rgba(0,0,0,0.3)',
-                        }}
-                    >
-                        {/* Rank */}
-                        <div className="text-center font-black text-lg" style={{
-                            color: isWinner ? '#C9B075' : isBottom ? 'rgba(255,120,120,0.5)' : 'rgba(255,255,255,0.2)',
-                            filter: isWinner ? 'drop-shadow(0 0 8px rgba(201,176,117,0.5))' : 'none'
-                        }}>
-                            {isWinner ? '👑' : originalIdx + 1}
-                        </div>
-
-                        {/* Player Name */}
-                        <div className="flex flex-col min-w-0">
-                            <span className="font-black truncate" style={{
-                                color: isWinner ? '#C9B075' : 'rgba(255,255,255,0.9)',
-                                fontSize: isWinner ? '15px' : '13px',
-                                filter: isWinner ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' : 'none'
+                    return (
+                        <div
+                            key={p.id}
+                            className="rounded-[20px] px-4 py-4 grid grid-cols-[2.2rem_1fr_2rem_1.8rem_1.8rem_2rem_2rem_2.2rem_3.5rem] gap-2 items-center transition-all animate-in slide-in-from-bottom-2"
+                            style={{
+                                background: isWinner
+                                    ? 'rgba(201,176,117,0.1)'
+                                    : isBottom
+                                        ? 'rgba(255,100,100,0.04)'
+                                        : 'rgba(255,255,255,0.04)',
+                                backdropFilter: 'blur(16px)',
+                                borderTop: isWinner
+                                    ? '1px solid rgba(201,176,117,0.4)'
+                                    : '1px solid rgba(255,255,255,0.07)',
+                                boxShadow: isWinner
+                                    ? '0 4px 20px rgba(201,176,117,0.15), 0 0 0 1px rgba(201,176,117,0.2)'
+                                    : '0 4px 12px rgba(0,0,0,0.3)',
+                            }}
+                        >
+                            {/* Rank */}
+                            <div className="text-center font-black text-lg" style={{
+                                color: isWinner ? '#C9B075' : isBottom ? 'rgba(255,120,120,0.5)' : 'rgba(255,255,255,0.2)',
+                                filter: isWinner ? 'drop-shadow(0 0 8px rgba(201,176,117,0.5))' : 'none'
                             }}>
-                                {p.name}{p.is_guest ? ' (G)' : ''}
-                            </span>
-                            {isWinner && <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none mt-0.5 opacity-70">MVP</span>}
+                                {isWinner ? '👑' : originalIdx + 1}
+                            </div>
+
+                            {/* Player Name */}
+                            <div className="flex flex-col min-w-0">
+                                <span className="font-black truncate text-left" style={{
+                                    color: isWinner ? '#C9B075' : 'rgba(255,255,255,0.9)',
+                                    fontSize: isWinner ? '15px' : '13px',
+                                    filter: isWinner ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' : 'none'
+                                }}>
+                                    {p.name}{p.is_guest ? ' (G)' : ''}
+                                </span>
+                                {isWinner && <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none mt-0.5 opacity-70">MVP</span>}
+                            </div>
+
+                            {/* Games (GM) */}
+                            <div className="text-center text-xs font-bold text-white/30">{p.games}</div>
+
+                            {/* Wins (W) */}
+                            <div className="text-center text-xs font-black" style={{ color: '#6ee7b7' }}>{p.wins}</div>
+
+                            {/* Losses (L) */}
+                            <div className="text-center text-xs font-black" style={{ color: '#fca5a5' }}>{p.losses}</div>
+
+                            {/* PF (Points For) */}
+                            <div className="text-center text-[11px] font-bold text-white/60">{p.pf}</div>
+
+                            {/* PA (Points Against) */}
+                            <div className="text-center text-[11px] font-bold text-white/30">{p.pa}</div>
+
+                            {/* Point Diff */}
+                            <div className="text-center font-black text-xs" style={{
+                                color: p.diff > 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)'
+                            }}>
+                                {p.diff > 0 ? `+${p.diff}` : p.diff}
+                            </div>
+
+                            {/* Fine (Far Right) */}
+                            <div className="text-right font-black text-xs" style={{
+                                color: amount > 0 ? '#6ee7b7' : amount < 0 ? '#f87171' : 'rgba(255,255,255,0.2)'
+                            }}>
+                                {amount !== 0 ? `${amount > 0 ? '+' : ''}${(amount / 1000).toFixed(0)}k` : '-'}
+                            </div>
                         </div>
-
-                        {/* Fine/Prize */}
-                        <div className="text-center font-black text-xs" style={{
-                            color: amount > 0 ? '#6ee7b7' : amount < 0 ? '#fca5a5' : 'rgba(255,255,255,0.2)'
-                        }}>
-                            {amount !== 0 ? `${amount > 0 ? '+' : ''}${(amount / 1000).toFixed(0)}k` : '-'}
-                        </div>
-
-                        {/* Diff */}
-                        <div className="text-center font-black text-sm" style={{
-                            color: p.diff > 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)'
-                        }}>
-                            {p.diff > 0 ? `+${p.diff}` : p.diff}
-                        </div>
-
-                        {/* Age */}
-                        <div className="text-center text-xs font-bold text-white/30">{p.age || '-'}</div>
-
-                        {/* Wins */}
-                        <div className="text-center text-xs font-black" style={{ color: '#6ee7b7' }}>{p.wins}</div>
-
-                        {/* Losses */}
-                        <div className="text-center text-xs font-black" style={{ color: '#fca5a5' }}>{p.losses}</div>
-
-                        {/* Games */}
-                        <div className="text-center text-xs font-bold text-white/25">{p.games}</div>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </section>
     );
 
