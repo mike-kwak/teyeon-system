@@ -2128,10 +2128,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     </div>
                 </div>
 
-                {/* Luxury Data Report List (Mandatory 12px Logic) */}
                 <div className="flex-1 space-y-1 px-4">
-                    <div className="grid grid-cols-[2.2rem_1fr_2.2rem_1.6rem_1.6rem_2.2rem_2.2rem_2.4rem_5.2rem] gap-1.5 px-4 pb-2 text-[10px] font-bold text-white/30 tracking-tight border-b border-white/10 uppercase">
-                        <span className="text-center">RK</span>
+                    <div className="grid grid-cols-[1.8rem_1fr_1.4rem_1.2rem_1.2rem_1.6rem_1.6rem_1.8rem_4.5rem] gap-1 px-4 pb-2 text-[10px] font-bold text-white/20 tracking-tighter border-b border-white/5 uppercase">
+                        <span className="text-center italic">RK</span>
                         <span className="text-left">PLAYER</span>
                         <span className="text-right">GM</span>
                         <span className="text-right">W</span>
@@ -2146,19 +2145,19 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
                             <div key={p.id}
-                                className="h-12 rounded-xl px-4 grid grid-cols-[2.2rem_1fr_2.2rem_1.6rem_1.6rem_2.2rem_2.2rem_2.4rem_5.2rem] gap-1.5 items-center transition-all bg-white/[0.03] border border-white/5"
+                                className="h-12 rounded-xl px-4 grid grid-cols-[1.8rem_1fr_1.4rem_1.2rem_1.2rem_1.6rem_1.6rem_1.8rem_4.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-sm"
                             >
                                 <div className="text-center font-black text-[11px] text-white/10 italic">{originalIdx + 1}</div>
                                 <div className="text-left font-bold text-[13px] text-white tracking-tighter truncate pr-1">
-                                    {p.name}{p.is_guest && <span className="ml-1 text-[9px] opacity-20">G</span>}
+                                    {p.name}{p.is_guest && <span className="ml-1 text-[8px] opacity-20">G</span>}
                                 </div>
-                                <div className="text-right text-[12px] font-semibold text-white/20">{p.games}</div>
-                                <div className="text-right text-[12px] font-black text-white/80">{p.wins}</div>
-                                <div className="text-right text-[12px] font-black text-white/30">{p.losses}</div>
-                                <div className="text-right text-[12px] font-semibold text-white/40">{p.pf}</div>
-                                <div className="text-right text-[12px] font-semibold text-white/20">{p.pa}</div>
-                                <div className="text-right font-black text-[12px] text-white/60">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right font-black text-[12px] tracking-tighter ${amount < 0 ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/10'}`}>
+                                <div className="text-right text-[12px] font-semibold text-white/10">{p.games}</div>
+                                <div className="text-right text-[12px] font-black text-white/50">{p.wins}</div>
+                                <div className="text-right text-[12px] font-black text-white/20">{p.losses}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/30">{p.pf}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/10">{p.pa}</div>
+                                <div className="text-right font-black text-[12px] text-white/40">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right font-black text-[12px] tracking-tighter ${amount < 0 ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
                                     {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '0'}
                                     {amount !== 0 && <span className="text-[9px] ml-0.5 opacity-40">₩</span>}
                                 </div>
