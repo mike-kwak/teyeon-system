@@ -2097,10 +2097,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1.4: True Heroic Podium Reconstruction (Zero Clipping & 1.4x Scale) */}
-                <div className="relative pt-20 pb-10 bg-white/[0.02] backdrop-blur-2xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-12" 
+                {/* Step 1.5: The Immortal Hall (1.5x Scale & Unified 'W' Icons) */}
+                <div className="relative pt-24 pb-12 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-                    <div className="flex items-end justify-center gap-3 w-full px-6 max-w-xl mx-auto relative z-10 overflow-visible">
+                    <div className="flex items-end justify-center gap-4 w-full px-6 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[30%]'} h-2`} />;
@@ -2110,20 +2110,29 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center gap-5 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20 -translate-y-4' : ''}`}>
-                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border ${isFirst ? 'w-20 h-20 border-[#C9B075] shadow-[0_0_40px_rgba(201,176,117,0.5)] text-5xl' : 'w-14 h-14 border-white/10 shadow-lg text-2xl'}`}>
+                                <div key={p.id} className={`flex flex-col items-center gap-6 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20 -translate-y-6' : ''}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border relative ${isFirst ? 'w-24 h-24 border-[#C9B075] shadow-[0_0_50px_rgba(201,176,117,0.5),inset_0_2px_2px_rgba(255,255,255,0.3)] text-6xl' : 'w-16 h-16 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] text-3xl'}`}>
+                                        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
                                         {rankIcon}
                                     </div>
-                                    <div className="flex flex-col items-center gap-1.5 w-full px-2">
-                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-lg ${isFirst ? 'text-2xl' : 'text-xl'}`}>{p.name}</div>
-                                        <div className={`flex items-center gap-1.5 font-bold text-white/30 uppercase ${isFirst ? 'text-base' : 'text-sm'}`}>
-                                            <span>{p.wins}승 {p.losses}패</span>
-                                            <span className="opacity-20">|</span>
-                                            <span className={p.diff > 0 ? 'text-[#C9B075]' : ''}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
+                                    <div className="flex flex-col items-center gap-2 w-full px-2">
+                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-2xl ${isFirst ? 'text-3xl' : 'text-xl'}`}>{p.name}</div>
+                                        <div className={`flex items-center gap-2 font-black tracking-widest uppercase ${isFirst ? 'text-sm' : 'text-[10px]'}`}>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-[#C9B075]">W</span>
+                                                <span className="text-white/80">{p.wins}</span>
+                                            </div>
+                                            <span className="opacity-10">/</span>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-white/20">L</span>
+                                                <span className="text-white/40">{p.losses}</span>
+                                            </div>
+                                            <span className="opacity-10">/</span>
+                                            <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white/20'}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                         </div>
                                         {isFirst && (
-                                            <div className="mt-1 px-3 py-1 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/20 animate-pulse">
-                                                <span className="text-[#C9B075] font-black text-xs tracking-widest">🎁 10,000원</span>
+                                            <div className="mt-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#C9B075]/20 to-transparent border border-[#C9B075]/30 animate-pulse shadow-[0_0_20px_rgba(201,176,117,0.2)]">
+                                                <span className="text-[#C9B075] font-black text-[11px] tracking-[0.2em]">🎁 10,000원</span>
                                             </div>
                                         )}
                                     </div>
