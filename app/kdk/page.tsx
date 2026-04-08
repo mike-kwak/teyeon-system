@@ -2097,8 +2097,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1.7: Vertical Stabilization (pt-32 Headroom & ₩ Polish) */}
-                <div className="relative pt-32 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
+                {/* Step 1.8: Absolute Vertical Rescue (mt-10 pt-16 & ₩ Layout) */}
+                <div className="relative mt-10 pt-16 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                     <div className="flex items-end justify-center gap-4 w-full px-6 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
@@ -2131,7 +2131,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                         </div>
                                         {isFirst && (
                                             <div className="mt-1 px-3 py-1 rounded-full bg-gradient-to-r from-[#C9B075]/20 to-transparent border border-[#C9B075]/30 animate-pulse shadow-[0_0_15px_rgba(201,176,117,0.2)]">
-                                                <span className="text-[#C9B075] font-black text-[10px] tracking-[0.2rem]">🎁 10,000₩</span>
+                                                <span className="text-[#C9B075] font-black text-[10px] tracking-[0.2rem]">🎁 ₩10,000</span>
                                             </div>
                                         )}
                                     </div>
@@ -2164,7 +2164,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 <div className="text-left font-bold text-[13px] text-white tracking-tighter truncate pr-1">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[8px] opacity-20">G</span>}
                                 </div>
-                                <div className="text-right text-[12px] font-semibold text-white/10">{p.games}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/10">{p.wins + p.losses}</div>
                                 <div className="text-right text-[12px] font-black text-white/50">{p.wins}</div>
                                 <div className="text-right text-[12px] font-black text-white/20">{p.losses}</div>
                                 <div className="text-right text-[12px] font-semibold text-white/30">{p.pf}</div>
