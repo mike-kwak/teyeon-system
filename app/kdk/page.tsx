@@ -2097,12 +2097,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1.10: Physical Separation Spacer (Refined to minimal h-4) */}
+                {/* Step 1.11: Masterpiece Inner Rim & Separation */}
                 <div className="h-4 w-full pointer-events-none" />
 
-                {/* Step 1.9: Absolute Vertical Rescue (mt-4 pt-8 & ₩ Layout) */}
-                <div className="relative mt-4 pt-8 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
-                    style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                <div className="relative mt-4 pt-8 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]">
                     <div className="flex items-end justify-center gap-4 w-full px-6 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
@@ -2114,7 +2112,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
                             return (
                                 <div key={p.id} className={`flex flex-col items-center gap-5 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20' : ''}`}>
-                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border relative ${isFirst ? 'w-20 h-20 border-[#C9B075] shadow-[0_0_40px_rgba(201,176,117,0.4),inset_0_2px_2px_rgba(255,255,255,0.2)] text-5xl' : 'w-14 h-14 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] text-2xl'}`}>
+                                    <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border relative ${isFirst ? 'w-20 h-20 border-[#C9B075] shadow-[0_0_50px_-10px_rgba(201,176,117,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-5xl' : 'w-14 h-14 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] text-2xl'}`}>
                                         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
                                         {rankIcon}
                                     </div>
@@ -2133,8 +2131,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white/20'}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                         </div>
                                         {isFirst && (
-                                            <div className="mt-1 px-3 py-1 rounded-full bg-gradient-to-r from-[#C9B075]/20 to-transparent border border-[#C9B075]/30 animate-pulse shadow-[0_0_15px_rgba(201,176,117,0.2)]">
-                                                <span className="text-[#C9B075] font-black text-[10px] tracking-[0.2rem]">🎁 ₩10,000</span>
+                                            <div className="mt-1 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#c9b075] to-[#a68d53] shadow-[0_0_20px_rgba(201,176,117,0.3)] border border-white/20 overflow-hidden relative group">
+                                                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                                <span className="text-black font-black text-[11px] tracking-[0.1em] relative z-10 italic">🎁 ₩10,000</span>
                                             </div>
                                         )}
                                     </div>
@@ -2144,7 +2143,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     </div>
                 </div>
 
-                <div className="flex-1 space-y-1 px-4">
+                <div className="flex-1 space-y-1.5 px-4 pb-32">
                     <div className="grid grid-cols-[1.8rem_1fr_1.4rem_1.2rem_1.2rem_1.6rem_1.6rem_1.8rem_4.5rem] gap-1 px-4 pb-2 text-[10px] font-bold text-white/20 tracking-tighter border-b border-white/5 uppercase">
                         <span className="text-center italic">RK</span>
                         <span className="text-left">PLAYER</span>
@@ -2161,20 +2160,20 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
                             <div key={p.id}
-                                className="h-12 rounded-xl px-4 grid grid-cols-[1.8rem_1fr_1.4rem_1.2rem_1.2rem_1.6rem_1.6rem_1.8rem_4.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-sm"
+                                className="h-12 rounded-xl px-4 grid grid-cols-[1.8rem_1fr_1.4rem_1.2rem_1.2rem_1.6rem_1.6rem_1.8rem_4.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-white/[0.05] transition-all"
                             >
-                                <div className="text-center font-black text-[11px] text-white/10 italic">{originalIdx + 1}</div>
+                                <div className="text-center font-medium text-[11px] text-white/40 italic">{originalIdx + 1}</div>
                                 <div className="text-left font-bold text-[13px] text-white tracking-tighter truncate pr-1">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[8px] opacity-20">G</span>}
                                 </div>
-                                <div className="text-right text-[12px] font-semibold text-white/10">{p.wins + p.losses}</div>
-                                <div className="text-right text-[12px] font-black text-white/50">{p.wins}</div>
-                                <div className="text-right text-[12px] font-black text-white/20">{p.losses}</div>
-                                <div className="text-right text-[12px] font-semibold text-white/30">{p.pf}</div>
-                                <div className="text-right text-[12px] font-semibold text-white/10">{p.pa}</div>
-                                <div className="text-right font-black text-[12px] text-white/40">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right font-black text-[12px] tracking-tighter ${amount < 0 ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
-                                    {amount !== 0 && <span className="text-[10px] mr-0.5 opacity-80 font-black italic">₩</span>}
+                                <div className="text-right text-[12px] font-semibold text-white/5">{p.wins + p.losses}</div>
+                                <div className="text-right text-[12px] font-black text-white/40">{p.wins}</div>
+                                <div className="text-right text-[12px] font-black text-white/10">{p.losses}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/20">{p.pf}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/5">{p.pa}</div>
+                                <div className="text-right font-black text-[12px] text-white/30">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right font-black text-[12px] tracking-tighter ${amount < 0 ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.3)]' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
+                                    {amount !== 0 && <span className="text-[10px] mr-1 opacity-70 font-black italic">₩</span>}
                                     {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '0'}
                                 </div>
                             </div>
@@ -2224,12 +2223,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {showTabs && (
                     <div className="sticky top-0 z-50 py-2 bg-black/40 backdrop-blur-md -mx-4 px-4 border-b border-white/5 mb-4">
                         <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10 shadow-inner">
-                            {(['ALL', 'A', 'B'] as const).map((tab) => (
-                                <button key={tab} onClick={() => setActiveRankingTab(tab)} className={`flex-1 py-3 text-[11px] font-black transition-all rounded-xl relative ${activeRankingTab === tab ? 'text-black z-10' : 'text-white/40'}`}>
-                                    {activeRankingTab === tab && (
-                                        <div className="absolute inset-0 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] rounded-xl -z-10 shadow-[0_0_15px_rgba(201,176,117,0.4)] animate-in fade-in zoom-in-95 duration-300" />
-                                    )}
-                                    {tab === 'ALL' ? '전체 보기' : `${tab}조 리더보드`}
+                            {['ALL', 'A', 'B'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveRankingTab(tab as any)}
+                                    className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${activeRankingTab === tab ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'text-white/40 hover:text-white/60'}`}
+                                >
+                                    {tab === 'ALL' ? 'INTEGRATED' : `GROUP ${tab}`}
                                 </button>
                             ))}
                         </div>
@@ -2254,7 +2254,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="🅰️ A조 순위" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="🅱️ B조 순위" />}
 
-                <div className="flex items-center gap-3 mt-8 shrink-0">
+                <div className="flex items-center gap-3 mt-8 shrink-0 px-4 pb-32">
                     <button onClick={copyMatchTable} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-2">📋 대진표 공유</button>
                     <button onClick={copyFinalResults} className="flex-1 py-5 bg-[#C9B075] text-black text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">🏆 최종결과 공유</button>
                 </div>
