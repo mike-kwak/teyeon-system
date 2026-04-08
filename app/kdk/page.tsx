@@ -2097,8 +2097,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                {/* Step 1.8: Absolute Vertical Rescue (mt-10 pt-16 & ₩ Layout) */}
-                <div className="relative mt-10 pt-16 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
+                {/* Step 1.9: Physical Separation Spacer (Rescue from Top Bar) */}
+                <div className="h-16 w-full pointer-events-none" />
+
+                {/* Step 1.9: Absolute Vertical Rescue (mt-4 pt-8 & ₩ Layout) */}
+                <div className="relative mt-4 pt-8 pb-10 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
                     style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                     <div className="flex items-end justify-center gap-4 w-full px-6 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
@@ -2110,13 +2113,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center gap-5 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20 -translate-y-4' : ''}`}>
+                                <div key={p.id} className={`flex flex-col items-center gap-5 ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-20' : ''}`}>
                                     <div className={`flex items-center justify-center rounded-full bg-[#1A1C20] border relative ${isFirst ? 'w-20 h-20 border-[#C9B075] shadow-[0_0_40px_rgba(201,176,117,0.4),inset_0_2px_2px_rgba(255,255,255,0.2)] text-5xl' : 'w-14 h-14 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] text-2xl'}`}>
                                         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
                                         {rankIcon}
                                     </div>
                                     <div className="flex flex-col items-center gap-1.5 w-full px-2">
-                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-2xl ${isFirst ? 'text-2xl' : 'text-lg'}`}>{p.name}</div>
+                                        <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-2xl ${isFirst ? 'text-3xl' : 'text-lg'}`}>{p.name}</div>
                                         <div className="flex items-center gap-1.5 font-black tracking-widest uppercase text-[10px]">
                                             <div className="flex items-center gap-1">
                                                 <span className="text-white/40">{p.wins}</span>
