@@ -2285,9 +2285,9 @@ function CustomConfirmModal({ title, message, onConfirm, onCancel }: { title: st
                     <h3 className="text-2xl font-black text-red-500 italic tracking-tighter uppercase">{title}</h3>
                     <p className="text-base font-bold text-white/60 leading-relaxed px-2">{message}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 w-full mt-8">
-                    <button onClick={onCancel} className="py-6 bg-white/5 text-white/40 font-black rounded-3xl active:scale-95 transition-all uppercase tracking-widest border border-white/5 text-sm">취소</button>
-                    <button onClick={onConfirm} className="py-6 bg-red-600 text-white font-black rounded-3xl shadow-[0_20px_40px_rgba(220,38,38,0.4)] active:scale-95 transition-all uppercase tracking-widest border border-red-500/20 text-sm">데이터 초기화</button>
+                <div className="grid grid-cols-2 gap-4 w-full pt-4">
+                    <button onClick={onCancel} className="py-6 bg-white/5 text-white/60 font-black rounded-3xl active:scale-95 transition-all uppercase tracking-widest border border-white/10 text-sm">취소</button>
+                    <button onClick={onConfirm} className="py-6 bg-red-600 text-white font-black rounded-3xl shadow-[0_10px_30px_rgba(220,38,38,0.4)] active:scale-95 transition-all uppercase tracking-widest border border-red-500/20 text-sm">데이터 초기화</button>
                 </div>
             </div>
         </div>
