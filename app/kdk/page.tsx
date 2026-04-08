@@ -1475,7 +1475,7 @@ export default function KDKPage() {
             </header>
 
             <div
-                className="w-full mb-10 bg-white/5 border-y border-white/10 px-5 py-6 flex flex-col gap-3 shadow-2xl backdrop-blur-xl relative z-10"
+                className="w-full mb-10 bg-black/60 border-y border-white/10 px-5 py-6 flex flex-col gap-3 shadow-2xl backdrop-blur-xl relative z-10"
             >
                 {/* LINE 1: SESSION & WIN/PEN */}
                 <div className="flex items-center justify-between gap-4">
@@ -1544,7 +1544,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 rounded-[32px] p-2 relative shadow-2xl flex flex-col justify-between h-full group">
+                                            <div key={mId} className="bg-white/5 backdrop-blur-xl border border-white/10 border-t border-t-white/20 rounded-[32px] p-2 relative shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col justify-between h-full group">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
@@ -1592,7 +1592,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div className="mt-24 space-y-24">
+                        <div className="mt-32 space-y-32">
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1634,7 +1634,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 px-4 py-5 rounded-2xl shadow-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden">
+                                                        <div key={m.id} className="bg-white/5 backdrop-blur-xl border border-white/10 border-t border-t-white/20 px-4 py-7 rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden">
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1668,7 +1668,7 @@ export default function KDKPage() {
                         </div>
 
                         {matches.some(m => m.status === 'complete') && (
-                            <div className="mt-24">
+                            <div className="mt-32">
                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2">COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent mb-6" />
                                 <div className="grid grid-cols-2 gap-3">
@@ -1686,7 +1686,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/5 backdrop-blur-md border border-white/10 border-t-white/20 p-3 rounded-xl shadow-2xl flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group">
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="bg-white/5 backdrop-blur-xl border border-white/10 border-t border-t-white/20 p-3 rounded-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group">
                                                 <div className="absolute top-1 left-1 px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
                                                     {m.groupName || 'A'}-G{gMatchNo}
                                                 </div>
