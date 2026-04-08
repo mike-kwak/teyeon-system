@@ -2258,16 +2258,20 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 p-6 pt-10 bg-gradient-to-t from-black via-black/90 to-transparent backdrop-blur-xl z-[100]">
+            {/* Premium Floating Archive Button - Elevated above Navigation Tabs */}
+            <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100] animate-in slide-in-from-bottom-10 duration-700">
                 <button
                     disabled={isGenerating}
                     onClick={finalizeTournament}
-                    className="w-full h-20 py-6 font-black rounded-3xl text-black text-[12px] uppercase tracking-[0.4em] active:scale-[0.96] transition-all flex items-center justify-center gap-3 shadow-[0_20px_50px_rgba(201,176,117,0.3)] relative border-t border-white/40 overflow-hidden group italic"
-                    style={{ background: 'linear-gradient(135deg, #E5D29B 0%, #C9B075 50%, #B8960C 100%)' }}
+                    className="w-full h-20 text-black font-black rounded-[28px] uppercase text-2xl tracking-[0.2em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-4 py-2"
+                    style={{
+                        background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
+                        boxShadow: '0 20px 50px rgba(142,122,74,0.4), inset 0 0 25px rgba(255,255,255,0.3)'
+                    }}
                 >
-                    <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <span className="text-2xl drop-shadow-lg">🏆</span>
-                    {isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}
+                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                    <span className="text-3xl drop-shadow-md">🏆</span>
+                    <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
                 </button>
             </div>
         </div>
