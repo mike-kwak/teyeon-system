@@ -1790,34 +1790,34 @@ export default function KDKPage() {
             )}
 
             {activeMatchForScore && (
-                <div className="fixed inset-0 z-[200] flex items-end justify-center">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowScoreModal(null)}></div>
-                    <div className="relative w-full max-w-lg rounded-t-[40px] p-8 pb-12 animate-in slide-in-from-bottom duration-500" style={{ background: 'rgba(18, 20, 24, 0.9)', backdropFilter: 'blur(64px)', borderTop: '2px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 -50px 100px rgba(0,0,0,0.9)' }}>
-                        <header className="flex flex-col items-center gap-2 mb-10 text-center px-4">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setShowScoreModal(null)}></div>
+                    <div className="relative w-full max-w-lg rounded-[40px] p-8 pb-14 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto no-scrollbar" style={{ background: 'rgba(18, 20, 24, 0.95)', backdropFilter: 'blur(64px)', borderTop: '2px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 50px 100px rgba(0,0,0,0.9)' }}>
+                        <header className="flex flex-col items-center gap-2 mb-12 text-center px-4">
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase opacity-80">Match Protocol</span>
-                            <div className="mt-2 py-2.5 px-8 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20 shadow-[0_0_30px_rgba(201,176,117,0.1)]">
+                            <div className="mt-2 py-3 px-10 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20 shadow-[0_0_30px_rgba(201,176,117,0.1)]">
                                 <h3 className="text-xl font-black italic text-white tracking-tight uppercase flex items-center gap-3">
                                     <span className="text-[#C9B075]">🏆</span> WINNER SELECTION
                                 </h3>
                             </div>
                         </header>
 
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6 mb-12">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-8 mb-16">
                             {[0, 1].map(side => (
                                 <React.Fragment key={side}>
-                                    <div className="flex flex-col gap-6">
+                                    <div className="flex flex-col gap-10">
                                         <div className="flex flex-col items-center text-center px-2">
-                                            <span className="text-[11px] font-black text-white/90 uppercase tracking-widest leading-tight mb-1" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                            <span className="text-[20px] font-black text-white leading-tight mb-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                 {getPlayerName(activeMatchForScore.playerIds[side * 2])}<br />{getPlayerName(activeMatchForScore.playerIds[side * 2 + 1])}
                                             </span>
-                                            <div className="h-0.5 w-6 bg-[#C9B075]/30 rounded-full mt-2" />
+                                            <div className="h-0.5 w-10 bg-[#C9B075]/40 rounded-full mt-3" />
                                         </div>
 
-                                        <div className="text-6xl font-black bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent text-center mb-2" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
+                                        <div className="text-7xl font-black bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent text-center mb-4" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
                                             {side === 0 ? tempScores.s1 : tempScores.s2}
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-2 px-1">
+                                        <div className="grid grid-cols-3 gap-3 px-1">
                                             {[0, 1, 2, 3, 4, 5, 6].map(n => (
                                                 <button
                                                     key={n}
@@ -1826,12 +1826,12 @@ export default function KDKPage() {
                                                         const val = Math.min(6, Math.max(0, n));
                                                         setTempScores(p => side === 0 ? ({ ...p, s1: val }) : ({ ...p, s2: val }));
                                                     }}
-                                                    className="h-12 rounded-xl text-lg font-black transition-all active:scale-90"
+                                                    className="h-14 rounded-xl text-xl font-black transition-all active:scale-90"
                                                     style={{ 
-                                                        background: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                                                        color: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '#22d3ee' : 'rgba(255, 255, 255, 0.2)',
-                                                        border: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid transparent',
-                                                        boxShadow: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '0 0 15px rgba(34, 211, 238, 0.3)' : 'inset 0 1px 1px rgba(255, 255, 255, 0.1)'
+                                                        background: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'rgba(201, 176, 117, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                                        color: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '#C9B075' : 'rgba(255, 255, 255, 0.15)',
+                                                        border: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '1px solid rgba(201, 176, 117, 0.5)' : '1px solid transparent',
+                                                        boxShadow: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '0 0 20px rgba(201, 176, 117, 0.4)' : 'inset 0 1px 1px rgba(255, 255, 255, 0.1)'
                                                     }}
                                                 >
                                                     {n}
@@ -1839,20 +1839,20 @@ export default function KDKPage() {
                                             ))}
                                         </div>
                                     </div>
-                                    {side === 0 && <div className="w-px bg-white/10 my-4" />}
+                                    {side === 0 && <div className="w-px bg-white/10 my-6" />}
                                 </React.Fragment>
                             ))}
                         </div>
 
-                        <div className="flex gap-4 px-4">
-                            <button onClick={() => setShowScoreModal(null)} className="flex-1 py-5 bg-white/5 border border-white/5 text-white/30 font-black rounded-[20px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
+                        <div className="flex gap-4 px-4 mb-4">
+                            <button onClick={() => setShowScoreModal(null)} className="flex-1 py-6 bg-white/5 border border-white/5 text-white/30 font-black rounded-[24px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
                             <button 
                                 disabled={tempScores.s1 === tempScores.s2} 
                                 onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)} 
-                                className="flex-[2.5] py-5 text-black font-black rounded-[20px] uppercase text-[10px] tracking-[0.2em] shadow-xl disabled:opacity-20 active:scale-95 transition-all border border-white/20"
+                                className="flex-[2.5] py-6 text-black font-black rounded-[24px] uppercase text-[11px] tracking-[0.3em] shadow-xl disabled:opacity-20 active:scale-95 transition-all border border-white/20"
                                 style={{ 
                                     background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)', 
-                                    boxShadow: '0 0 20px rgba(142,122,74,0.3)' 
+                                    boxShadow: '0 10px 30px rgba(142,122,74,0.4)' 
                                 }}
                             >
                                 Confirm Score 🏆
