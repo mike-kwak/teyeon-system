@@ -2254,22 +2254,23 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="🅰️ A조 순위" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="🅱️ B조 순위" />}
 
-                <div className="flex items-center gap-3 mt-8 shrink-0 px-4 pb-32">
+                <div className="flex items-center gap-3 mt-8 shrink-0 px-4 pb-40">
                     <button onClick={copyMatchTable} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-2">📋 대진표 공유</button>
                     <button onClick={copyFinalResults} className="flex-1 py-5 bg-[#C9B075] text-black text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">🏆 최종결과 공유</button>
                 </div>
             </div>
 
-            {/* Standalone Premium Archive Button (mb-10) */}
-            <div className="px-6 mb-10 mt-8">
+            {/* Step 1.11: Masterpiece Gold Anchored Archive Button */}
+            <div className="fixed bottom-0 left-0 right-0 p-6 pt-10 bg-gradient-to-t from-black via-black/90 to-transparent backdrop-blur-xl z-[100]">
                 <button
                     disabled={isGenerating}
                     onClick={finalizeTournament}
-                    className="w-full h-14 font-black rounded-2xl text-black text-sm uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_15px_40px_rgba(184,150,12,0.4)] relative border-t border-white/30 overflow-hidden"
-                    style={{ background: 'linear-gradient(135deg, #E5D29B 0%, #C9B075 40%, #B8960C 100%)' }}
+                    className="w-full h-20 py-6 font-black rounded-3xl text-black text-[12px] uppercase tracking-[0.4em] active:scale-[0.96] transition-all flex items-center justify-center gap-3 shadow-[0_20px_50px_rgba(201,176,117,0.3)] relative border-t border-white/40 overflow-hidden group"
+                    style={{ background: 'linear-gradient(135deg, #E5D29B 0%, #C9B075 50%, #B8960C 100%)' }}
                 >
-                    <span className="text-xl">🗃️</span>
-                    <span className="italic">ARCHIVE TOURNAMENT RESULTS</span>
+                    <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                    <span className="text-2xl drop-shadow-lg">🗃️</span>
+                    <span className="italic drop-shadow-md">FINAL TOURNAMENT ARCHIVE</span>
                 </button>
             </div>
         </div>
