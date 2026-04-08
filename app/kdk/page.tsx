@@ -1792,8 +1792,8 @@ export default function KDKPage() {
             {activeMatchForScore && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setShowScoreModal(null)}></div>
-                    <div className="relative w-full max-w-lg rounded-[40px] p-8 pb-14 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto no-scrollbar" style={{ background: 'rgba(18, 20, 24, 0.95)', backdropFilter: 'blur(64px)', borderTop: '2px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 50px 100px rgba(0,0,0,0.9)' }}>
-                        <header className="flex flex-col items-center gap-2 mb-12 text-center px-4">
+                    <div className="relative w-full max-w-lg rounded-[40px] p-8 pb-10 animate-in fade-in zoom-in duration-300 max-h-[95vh] overflow-y-auto no-scrollbar flex flex-col justify-center" style={{ background: 'rgba(18, 20, 24, 0.95)', backdropFilter: 'blur(64px)', borderTop: '2px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 50px 100px rgba(0,0,0,0.9)' }}>
+                        <header className="flex flex-col items-center gap-2 mb-10 text-center px-4 shrink-0">
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase opacity-80">Match Protocol</span>
                             <div className="mt-2 py-3 px-10 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20 shadow-[0_0_30px_rgba(201,176,117,0.1)]">
                                 <h3 className="text-xl font-black italic text-white tracking-tight uppercase flex items-center gap-3">
@@ -1802,18 +1802,18 @@ export default function KDKPage() {
                             </div>
                         </header>
 
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-8 mb-16">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6 mb-12">
                             {[0, 1].map(side => (
                                 <React.Fragment key={side}>
                                     <div className="flex flex-col gap-10">
-                                        <div className="flex flex-col items-center text-center px-2">
-                                            <span className="text-[20px] font-black text-white leading-tight mb-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                        <div className="flex flex-col items-center text-center px-1">
+                                            <span className="text-3xl font-black text-white leading-[1.1] mb-2" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.8))' }}>
                                                 {getPlayerName(activeMatchForScore.playerIds[side * 2])}<br />{getPlayerName(activeMatchForScore.playerIds[side * 2 + 1])}
                                             </span>
-                                            <div className="h-0.5 w-10 bg-[#C9B075]/40 rounded-full mt-3" />
+                                            <div className="h-1 w-12 bg-[#C9B075] rounded-full mt-3 shadow-[0_0_10px_rgba(201,176,117,0.5)]" />
                                         </div>
 
-                                        <div className="text-7xl font-black bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent text-center mb-4" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
+                                        <div className="text-8xl font-black bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent text-center mb-4" style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' }}>
                                             {side === 0 ? tempScores.s1 : tempScores.s2}
                                         </div>
 
@@ -1839,20 +1839,20 @@ export default function KDKPage() {
                                             ))}
                                         </div>
                                     </div>
-                                    {side === 0 && <div className="w-px bg-white/10 my-6" />}
+                                    {side === 0 && <div className="w-px bg-white/10 my-4" />}
                                 </React.Fragment>
                             ))}
                         </div>
 
-                        <div className="flex gap-4 px-4 mb-4">
-                            <button onClick={() => setShowScoreModal(null)} className="flex-1 py-6 bg-white/5 border border-white/5 text-white/30 font-black rounded-[24px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
+                        <div className="flex gap-4 px-4 mb-10 shrink-0">
+                            <button onClick={() => setShowScoreModal(null)} className="flex-1 h-20 bg-white/5 border border-white/5 text-white/30 font-black rounded-[24px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
                             <button 
                                 disabled={tempScores.s1 === tempScores.s2} 
                                 onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)} 
-                                className="flex-[2.5] py-6 text-black font-black rounded-[24px] uppercase text-[11px] tracking-[0.3em] shadow-xl disabled:opacity-20 active:scale-95 transition-all border border-white/20"
+                                className="flex-[3] h-20 text-black font-black rounded-[24px] uppercase text-2xl tracking-[0.2em] shadow-xl disabled:opacity-20 active:scale-95 transition-all border border-white/20"
                                 style={{ 
                                     background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)', 
-                                    boxShadow: '0 10px 30px rgba(142,122,74,0.4)' 
+                                    boxShadow: '0 10px 40px rgba(142,122,74,0.5), inset 0 0 20px rgba(255,255,255,0.2)' 
                                 }}
                             >
                                 Confirm Score 🏆
