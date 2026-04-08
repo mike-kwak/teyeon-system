@@ -1476,7 +1476,7 @@ export default function KDKPage() {
 
             <div
                 className="w-full border-y border-white/10 px-5 flex flex-col gap-3 relative z-10"
-                style={{ paddingTop: '24px', paddingBottom: '24px', marginBottom: '8px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(24px)', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}
+                style={{ paddingTop: '24px', paddingBottom: '24px', marginBottom: '0px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(24px)', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}
             >
                 {/* LINE 1: SESSION & WIN/PEN */}
                 <div className="flex items-center justify-between gap-4">
@@ -1545,7 +1545,7 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.3)', boxShadow: '0 20px 50px rgba(255,255,255,0.04)' }}>
+                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group" style={{ background: 'linear-gradient(135deg, rgba(35,37,42,0.9), rgba(20,22,25,0.95))', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.05)', borderTop: '2px solid rgba(255,255,255,0.45)', boxShadow: '0 0 1px rgba(255,255,255,0.1), 0 20px 40px -10px rgba(255,255,255,0.06), 0 40px 80px -20px rgba(0,0,0,1)', transform: 'translateY(-6px)' }}>
 
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
@@ -1584,10 +1584,10 @@ export default function KDKPage() {
                                                 {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
                                                 <button
                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                    className="w-full h-12 bg-transparent border border-[#C9B075]/40 hover:bg-[#C9B075]/20 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
-                                                    style={{ background: 'linear-gradient(to right, rgba(201,176,117,0.1), transparent, rgba(201,176,117,0.1))', boxShadow: '0 0 15px rgba(201,176,117,0.3)', filter: 'drop-shadow(0 0 10px rgba(201,176,117,0.5))' }}
+                                                    className="w-full h-12 bg-transparent border border-[#C9B075]/60 hover:bg-[#C9B075]/25 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
+                                                    style={{ background: 'linear-gradient(to right, rgba(201,176,117,0.15), transparent, rgba(201,176,117,0.15))', boxShadow: '0 0 25px rgba(201,176,117,0.5), inset 0 0 15px rgba(201,176,117,0.2)', filter: 'drop-shadow(0 0 15px rgba(201,176,117,0.6))' }}
                                                 >
-                                                    <span className="bg-gradient-to-r from-[#C9B075] via-[#FFEBB0] to-[#C9B075] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.2em] [text-shadow:0_0_15px_rgba(201,176,117,0.4)]">SCORE INPUT 🏆</span>
+                                                    <span className="bg-gradient-to-r from-[#C9B075] via-[#FFEBB0] to-[#C9B075] bg-clip-text text-transparent text-[12px] font-black uppercase tracking-[0.25em] [text-shadow:0_0_20px_rgba(201,176,117,0.6)]">SCORE INPUT 🏆</span>
                                                 </button>
                                             </div>
                                         );
@@ -1637,7 +1637,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '18px', paddingBottom: '18px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.3)', borderLeft: '3px solid #C9B075', boxShadow: '0 20px 50px rgba(255,255,255,0.04)', filter: 'drop-shadow(0 0 10px rgba(201,176,117,0.4))' }}>
+                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '18px', paddingBottom: '18px', background: 'linear-gradient(135deg, rgba(30,33,38,0.95), rgba(15,17,20,0.98))', border: '1px solid rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.4)', borderLeft: '4px solid #C9B075', boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)', filter: 'drop-shadow(0 0 15px rgba(201,176,117,0.5))', transform: 'translateY(-4px)' }}>
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1689,7 +1689,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.3)', boxShadow: '0 20px 50px rgba(255,255,255,0.04)' }}>
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'linear-gradient(135deg, rgba(30,33,38,0.95), rgba(15,17,20,0.98))', border: '1px solid rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.4)', boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)', transform: 'translateY(-4px)' }}>
                                                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '8px', width: '100%' }}>
                                                     <div className="px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase self-center">
                                                         {m.groupName || 'A'}-G{gMatchNo}
