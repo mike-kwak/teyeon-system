@@ -34,72 +34,74 @@ export default function TournamentPage() {
         
         {/* 1. Manual Mode (ACTIVE) */}
         <Link href="/kdk" className="block group">
-          <div className="relative h-48 rounded-[48px] p-8 flex flex-col justify-between overflow-hidden bg-[#1A1C20] border-2 border-[#C9B075]/40 shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(201,176,117,0.05)] active:scale-95 transition-all cursor-pointer">
+          <div className="relative min-h-[180px] h-auto rounded-[40px] p-7 flex flex-col justify-between overflow-hidden bg-[#1A1C20] border-2 border-[#C9B075]/40 shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(201,176,117,0.05)] active:scale-95 transition-all cursor-pointer">
             <div className="absolute inset-0 bg-gradient-to-br from-[#C9B075]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
-            <div className="flex items-start justify-between relative z-10">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-3 py-1 bg-[#C9B075] text-black text-[9px] font-black rounded-full uppercase tracking-tighter shadow-[0_0_15px_rgba(201,176,117,0.3)]">Available Now</span>
+            <div className="flex items-start justify-between relative z-10 gap-4">
+              <div className="flex flex-col gap-1.5 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-[#C9B075] text-black text-[9px] font-black rounded-full uppercase tracking-tighter shadow-[0_0_15px_rgba(201,176,117,0.3)]">Available Now</span>
                 </div>
-                <h2 className="text-3xl font-black italic text-white tracking-tight uppercase group-hover:text-[#C9B075] transition-colors">Manual Mode</h2>
-                <p className="text-[13px] font-bold text-[#C9B075]/80 leading-snug">수동 매칭 및 직접 점수 입력</p>
+                <h2 className="text-[28px] font-black italic text-white tracking-tight uppercase group-hover:text-[#C9B075] transition-colors leading-none my-1">Manual Mode</h2>
+                <p className="text-[12px] font-bold text-[#C9B075]/80 leading-snug">수동 매칭 및 직접 점수 입력</p>
               </div>
-              <div className="w-16 h-16 bg-[#C9B075]/20 rounded-[28px] flex items-center justify-center border border-[#C9B075]/30 shadow-[inset_0_0_20px_rgba(201,176,117,0.1)] group-hover:scale-110 transition-transform">
-                <Settings size={32} className="text-[#C9B075]" />
+              <div className="w-14 h-14 shrink-0 bg-[#C9B075]/20 rounded-[24px] flex items-center justify-center border border-[#C9B075]/30 shadow-[inset_0_0_20px_rgba(201,176,117,0.1)] group-hover:scale-110 transition-transform">
+                <Settings size={28} className="text-[#C9B075]" />
               </div>
             </div>
 
-            <p className="text-[11px] font-medium text-white/40 leading-relaxed max-w-[260px] relative z-10">
-              사용자가 직접 대진표를 짜고<br />점수를 입력하는 자율 제어 시스템입니다.
-            </p>
+            <div className="mt-6 flex flex-col gap-4 relative z-10">
+              <p className="text-[11px] font-medium text-white/40 leading-relaxed max-w-[240px]">
+                사용자가 직접 대진표를 짜고<br />점수를 입력하는 자율 제어 시스템입니다.
+              </p>
 
-            <div className="absolute bottom-8 right-10 text-[#C9B075] font-black text-[14px] tracking-widest uppercase flex items-center gap-3 group-hover:translate-x-3 transition-transform">
-              PROTOCOL START <ArrowLeft size={16} className="rotate-180" />
+              <div className="flex justify-end items-center text-[#C9B075] font-black text-[13px] tracking-widest uppercase gap-3 group-hover:translate-x-2 transition-transform">
+                PROTOCOL START <ArrowLeft size={16} className="rotate-180" />
+              </div>
             </div>
           </div>
         </Link>
 
         {/* 2. Monthly Match (COMING SOON) */}
-        <div className="relative h-48 rounded-[48px] p-8 flex flex-col justify-between overflow-hidden bg-white/[0.03] border border-white/5 opacity-50 grayscale">
+        <div className="relative min-h-[180px] h-auto rounded-[40px] p-7 flex flex-col justify-between overflow-hidden bg-white/[0.03] border border-white/5 opacity-50 grayscale">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center gap-2 px-10 text-center">
             <span className="px-6 py-2 bg-[#C9B075]/20 border border-[#C9B075]/40 rounded-full text-[#C9B075] font-black text-[12px] tracking-[0.4em] uppercase italic shadow-[0_0_20px_rgba(201,176,117,0.2)]">Coming Soon</span>
             <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-2">Expected Alpha Q2 2026</p>
           </div>
 
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-3xl font-black italic text-white/40 tracking-tight uppercase">Monthly Match</h2>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <h2 className="text-[28px] font-black italic text-white/40 tracking-tight uppercase leading-none">Monthly Match</h2>
               <p className="text-[12px] font-bold text-white/20 leading-snug">테연 월례회 전용 자동 시스템</p>
             </div>
-            <div className="w-16 h-16 bg-white/5 rounded-[28px] flex items-center justify-center border border-white/10 opacity-30">
-              <Calendar size={32} className="text-white" />
+            <div className="w-14 h-14 shrink-0 bg-white/5 rounded-[24px] flex items-center justify-center border border-white/10 opacity-30">
+              <Calendar size={28} className="text-white" />
             </div>
           </div>
 
-          <p className="text-[11px] font-medium text-white/10 leading-relaxed max-w-[240px]">
+          <p className="text-[11px] font-medium text-white/10 leading-relaxed max-w-[240px] mt-6">
             테연 정기 월례회 전용<br />자동 대진 및 정산 시스템입니다.
           </p>
         </div>
 
         {/* 3. Tournament Mode (COMING SOON) */}
-        <div className="relative h-48 rounded-[48px] p-8 flex flex-col justify-between overflow-hidden bg-white/[0.03] border border-white/5 opacity-50 grayscale">
+        <div className="relative min-h-[180px] h-auto rounded-[40px] p-7 flex flex-col justify-between overflow-hidden bg-white/[0.03] border border-white/5 opacity-50 grayscale">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center gap-2 px-10 text-center">
             <span className="px-6 py-2 bg-[#C9B075]/20 border border-[#C9B075]/40 rounded-full text-[#C9B075] font-black text-[12px] tracking-[0.4em] uppercase italic shadow-[0_0_20px_rgba(201,176,117,0.2)]">Coming Soon</span>
             <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-2">Under Development</p>
           </div>
 
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-3xl font-black italic text-white/40 tracking-tight uppercase">Tournament</h2>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <h2 className="text-[28px] font-black italic text-white/40 tracking-tight uppercase leading-none">Tournament</h2>
               <p className="text-[12px] font-bold text-white/20 leading-snug">강력한 자동 토너먼트 빌더</p>
             </div>
-            <div className="w-16 h-16 bg-white/5 rounded-[28px] flex items-center justify-center border border-white/10 opacity-30">
-              <Trophy size={32} className="text-white" />
+            <div className="w-14 h-14 shrink-0 bg-white/5 rounded-[24px] flex items-center justify-center border border-white/10 opacity-30">
+              <Trophy size={28} className="text-white" />
             </div>
           </div>
 
-          <p className="text-[11px] font-medium text-white/10 leading-relaxed max-w-[240px]">
+          <p className="text-[11px] font-medium text-white/10 leading-relaxed max-w-[240px] mt-6">
             대진표 자동 생성부터<br />최종 우승자 선출까지 한 번에 관리합니다.
           </p>
         </div>
