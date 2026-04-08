@@ -1593,7 +1593,7 @@ export default function KDKPage() {
                                 </div>
                             )}
                         </section>
-                        <div style={{ marginTop: '128px' }}>
+                        <div style={{ marginTop: '64px' }}>
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -1615,7 +1615,7 @@ export default function KDKPage() {
 
                                     return (
                                         <div key={group} className="space-y-3">
-                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '128px' }}>
+                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '64px' }}>
                                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2">WAITING LIST</h3>
                                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                             </div>
@@ -1635,7 +1635,7 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="border border-white/10 rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '28px', paddingBottom: '28px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 60px -15px rgba(0,0,0,0.9)' }}>
+                                                        <div key={m.id} className="border border-white/10 rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '18px', paddingBottom: '18px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 60px -15px rgba(0,0,0,0.9)' }}>
                                                             <div className="flex items-center justify-center">
                                                                 <div className="w-9 h-9 bg-gradient-to-br from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(201,176,117,0.3)] shrink-0 border border-white/20">
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
@@ -1669,7 +1669,7 @@ export default function KDKPage() {
                         </div>
 
                         {matches.some(m => m.status === 'complete') && (
-                            <div style={{ marginTop: '128px' }}>
+                            <div style={{ marginTop: '64px' }}>
                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2">COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent mb-6" />
                                 <div className="grid grid-cols-2 gap-3">
@@ -1687,19 +1687,22 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="border border-white/10 rounded-xl flex flex-col items-center gap-1 transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 60px -15px rgba(0,0,0,0.9)' }}>
-                                                <div className="absolute top-1 left-1 px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase z-10">
-                                                    {m.groupName || 'A'}-G{gMatchNo}
-                                                </div>
-
-                                                <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-0 w-full min-h-[32px] pt-1.5">
-                                                    <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase pr-1">{getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}</span>
-                                                    <div className="flex flex-col items-center w-14">
-                                                        <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="border border-white/10 rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 60px -15px rgba(0,0,0,0.9)' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '8px', width: '100%' }}>
+                                                    <div className="px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase self-center">
+                                                        {m.groupName || 'A'}-G{gMatchNo}
                                                     </div>
-                                                    <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-left leading-tight uppercase pl-1">{getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0px' }}>
+                                                        <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase" style={{ flex: 1, paddingRight: '4px' }}>{getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}</span>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '50px', flexShrink: 0 }}>
+                                                            <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
+                                                        </div>
+                                                        <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-left leading-tight uppercase" style={{ flex: 1, paddingLeft: '4px' }}>{getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}</span>
+                                                    </div>
                                                 </div>
-                                                <span className="text-[6px] font-black text-gray-300 uppercase tracking-widest pb-0.5 opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
+                                                <div style={{ textAlign: 'center', marginTop: '4px' }}>
+                                                    <span className="text-[6px] font-black text-gray-300 uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
+                                                </div>
                                             </div>
                                         );
                                     })}
