@@ -2095,13 +2095,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-6">
-                {/* Premium 3D Glass Podium (Aggressive Sizing) */}
-                <div className="relative p-16 rounded-[60px] overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12), 0 40px_120px rgba(0,0,0,0.7)' }}>
+                {/* Premium 3D Glass Podium (Balanced Ratio: 35vh) */}
+                <div className="relative h-[35vh] p-6 rounded-[40px] overflow-hidden shrink-0" style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12), 0 20px 60px rgba(0,0,0,0.5)' }}>
                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-                    <div className="grid grid-cols-3 gap-8 relative z-10 items-end">
+                    <div className="grid grid-cols-3 gap-4 relative z-10 items-end h-full">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
-                            if (!p) return <div key={idx} className="h-64 rounded-[40px]" style={{ background: 'rgba(255,255,255,0.02)' }} />;
+                            if (!p) return <div key={idx} className="h-full rounded-3xl" style={{ background: 'rgba(255,255,255,0.02)' }} />;
                             const originalIdx = players.findIndex((x: any) => x.id === p.id);
                             const { amount } = calculateSettlement(p, originalIdx, players.length);
                             const isFirst = idx === 0;
@@ -2109,27 +2109,27 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const isThird = idx === 2;
 
                             const cardStyle = isFirst
-                                ? { background: 'rgba(201,176,117,0.12)', border: '1px solid rgba(201,176,117,0.35)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.25), 0 40px 80px rgba(201,176,117,0.3)' }
+                                ? { background: 'rgba(201,176,117,0.12)', border: '1px solid rgba(201,176,117,0.35)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.25), 0 20px 50px rgba(201,176,117,0.2)' }
                                 : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12)' };
 
                             const rankLabel = isFirst ? '1ST' : isSecond ? '2ND' : '3RD';
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
                             const rankColor = isFirst ? 'text-[#C9B075]' : isSecond ? 'text-slate-300' : 'text-amber-600/80';
-                            const scaleClass = isFirst ? 'scale-[1.4] -translate-y-16 shadow-[0_40px_80px_rgba(201,176,117,0.5)]' : 'scale-110 opacity-90';
+                            const scaleClass = isFirst ? 'scale-110 -translate-y-4 shadow-xl' : 'scale-95 opacity-80';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center rounded-[48px] p-8 transition-all duration-700 ${scaleClass}`} style={cardStyle}>
-                                    <div className={`text-[12px] font-black uppercase tracking-[0.5em] mb-6 ${rankColor}`}>{rankLabel}</div>
-                                    <div className={`w-28 h-28 rounded-full flex items-center justify-center text-5xl mb-6 relative`}
+                                <div key={p.id} className={`flex flex-col items-center rounded-3xl p-4 transition-all duration-700 ${scaleClass}`} style={cardStyle}>
+                                    <div className={`text-[10px] font-black uppercase tracking-[0.4em] mb-3 ${rankColor}`}>{rankLabel}</div>
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 relative`}
                                         style={isFirst
-                                            ? { background: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.4)', boxShadow: 'inset 0 0 40px rgba(201,176,117,0.4)' }
+                                            ? { background: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.4)', boxShadow: 'inset 0 0 20px rgba(201,176,117,0.3)' }
                                             : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                                         {rankIcon}
-                                        {isFirst && <div className="absolute -inset-3 rounded-full animate-pulse" style={{ border: '3px solid rgba(201,176,117,0.3)' }} />}
+                                        {isFirst && <div className="absolute -inset-2 rounded-full animate-pulse" style={{ border: '2px solid rgba(201,176,117,0.3)' }} />}
                                     </div>
-                                    <div className="text-[22px] font-black text-white text-center truncate w-full mb-3 leading-tight">{p.name}</div>
+                                    <div className={`font-black text-white text-center truncate w-full mb-1 leading-tight ${isFirst ? 'text-2xl' : 'text-lg'}`}>{p.name}</div>
                                     {amount !== 0 && (
-                                        <div className={`text-[13px] font-black tracking-widest ${amount > 0 ? 'text-[#C9B075]' : 'text-rose-400'}`}>
+                                        <div className={`text-[11px] font-black tracking-widest ${amount > 0 ? 'text-[#C9B075]' : 'text-rose-400'}`}>
                                             {amount > 0 ? '+' : ''}{amount.toLocaleString()}₩
                                         </div>
                                     )}
@@ -2139,9 +2139,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     </div>
                 </div>
 
-                {/* 3D Floating Glass Row Cards (Aggressive Spacing) */}
-                <div className="space-y-6">
-                    <div className="grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 px-6 pb-2 text-[11px] font-black text-white/20 uppercase tracking-[0.4em]">
+                {/* Professional Density Ranking List */}
+                <div className="space-y-2 pb-12">
+                    <div className="grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 px-5 pb-2 text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">
                         <span className="text-center">RK</span>
                         <span className="text-left">PLAYER</span>
                         <span className="text-right">GM</span>
@@ -2159,22 +2159,21 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const hasFine = amount < 0;
                         return (
                             <div key={p.id}
-                                className="rounded-[28px] px-8 py-8 grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 items-center transition-all hover:scale-[1.01] shadow-[0_15px_45px_rgba(0,0,0,0.5)]"
-                                style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.07)', borderTop: '1px solid rgba(255,255,255,0.12)' }}
+                                className="h-14 rounded-2xl px-5 grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 items-center transition-all bg-white/[0.04] backdrop-blur-xl border border-white/5 shadow-sm"
                             >
-                                <div className="text-center font-black text-[14px] text-white/30">{originalIdx + 1}</div>
-                                <div className="text-left font-bold text-[18px] text-white/95 truncate pr-1">
-                                    {p.name}{p.is_guest && <span className="ml-1 text-[10px] opacity-30">G</span>}
+                                <div className="text-center font-black text-[12px] text-white/30">{originalIdx + 1}</div>
+                                <div className="text-left font-bold text-[15px] text-white/90 truncate pr-1">
+                                    {p.name}{p.is_guest && <span className="ml-1 text-[9px] opacity-30">G</span>}
                                 </div>
-                                <div className="text-right text-[14px] font-semibold text-white/30">{p.games}</div>
-                                <div className="text-right text-[14px] font-black text-white/70">{p.wins}</div>
-                                <div className="text-right text-[14px] font-black text-white/35">{p.losses}</div>
-                                <div className="text-right text-[14px] font-semibold text-white/45">{p.pf}</div>
-                                <div className="text-right text-[14px] font-semibold text-white/25">{p.pa}</div>
-                                <div className="text-right font-black text-[14px] text-white/55">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right font-black text-[16px] ${hasFine ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/20'}`}>
+                                <div className="text-right text-[12px] font-semibold text-white/30">{p.games}</div>
+                                <div className="text-right text-[12px] font-black text-white/70">{p.wins}</div>
+                                <div className="text-right text-[12px] font-black text-white/35">{p.losses}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/45">{p.pf}</div>
+                                <div className="text-right text-[12px] font-semibold text-white/25">{p.pa}</div>
+                                <div className="text-right font-black text-[12px] text-white/55">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right font-black text-[13px] ${hasFine ? 'text-rose-400' : amount > 0 ? 'text-[#C9B075]' : 'text-white/20'}`}>
                                     {amount !== 0 ? `${amount > 0 ? '+' : ''}${amount.toLocaleString()}` : '-'}
-                                    {amount !== 0 && <span className="text-[10px] ml-0.5 opacity-60">₩</span>}
+                                    {amount !== 0 && <span className="text-[9px] ml-0.5 opacity-60">₩</span>}
                                 </div>
                             </div>
                         );
@@ -2209,7 +2208,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     return (
-        <div className="flex flex-col min-h-screen space-y-10 pb-[20vh] relative overflow-hidden px-4">
+        <div className="flex flex-col min-h-screen space-y-8 pb-32 relative overflow-hidden px-4">
             <style jsx global>{`
                 @keyframes confetti-fall {
                     0% { transform: translateY(-10vh) rotate(0deg); opacity:1; }
@@ -2218,15 +2217,15 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 .animate-confetti-fall { animation: confetti-fall 4.5s linear forwards; }
             `}</style>
             
-            <div className="flex-1 space-y-10">
+            <div className="flex-1 space-y-8">
                 {/* Sub-Tab Navigation Segmented Control */}
                 {showTabs && (
-                    <div className="sticky top-0 z-50 py-2 bg-black/40 backdrop-blur-md -mx-4 px-4 border-b border-white/5 mb-6">
-                        <div className="flex bg-white/5 rounded-[24px] p-1.5 border border-white/10 shadow-inner">
+                    <div className="sticky top-0 z-50 py-2 bg-black/40 backdrop-blur-md -mx-4 px-4 border-b border-white/5 mb-4">
+                        <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10 shadow-inner">
                             {(['ALL', 'A', 'B'] as const).map((tab) => (
-                                <button key={tab} onClick={() => setActiveRankingTab(tab)} className={`flex-1 py-4 text-[12px] font-black transition-all rounded-[18px] relative ${activeRankingTab === tab ? 'text-black z-10' : 'text-white/40'}`}>
+                                <button key={tab} onClick={() => setActiveRankingTab(tab)} className={`flex-1 py-3 text-[11px] font-black transition-all rounded-xl relative ${activeRankingTab === tab ? 'text-black z-10' : 'text-white/40'}`}>
                                     {activeRankingTab === tab && (
-                                        <div className="absolute inset-0 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] rounded-[18px] -z-10 shadow-[0_0_20px_rgba(201,176,117,0.5)] animate-in fade-in zoom-in-95 duration-300" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] rounded-xl -z-10 shadow-[0_0_15px_rgba(201,176,117,0.4)] animate-in fade-in zoom-in-95 duration-300" />
                                     )}
                                     {tab === 'ALL' ? '전체 보기' : `${tab}조 리더보드`}
                                 </button>
@@ -2236,11 +2235,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 )}
 
                 {ceremonyMode && (
-                    <div className="py-12 px-6 bg-gradient-to-b from-[#C9B075]/25 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000 mb-12 rounded-[40px] shrink-0">
-                        <div className="flex flex-col items-center text-center space-y-4">
-                            <span className="text-[12px] font-black text-[#C9B075] tracking-[0.6em] uppercase">Official Results Announced</span>
-                            <h2 className="text-4xl font-bold italic text-white tracking-tighter uppercase drop-shadow-[0_0_25px_rgba(212,175,55,0.5)]">🏆 FINAL STANDINGS</h2>
-                            <div className="h-1 w-16 bg-[#C9B075] rounded-full mx-auto" />
+                    <div className="py-8 px-4 bg-gradient-to-b from-[#C9B075]/20 to-transparent border-t-2 border-[#C9B075]/40 animate-in fade-in slide-in-from-top-4 duration-1000 mb-8 rounded-3xl shrink-0">
+                        <div className="flex flex-col items-center text-center space-y-3">
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase">Official Results Announced</span>
+                            <h2 className="text-3xl font-bold italic text-white tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">🏆 FINAL STANDINGS</h2>
+                            <div className="h-0.5 w-12 bg-[#C9B075] rounded-full mx-auto" />
                         </div>
                     </div>
                 )}
@@ -2257,21 +2256,21 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="🅰️ A조 순위" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="🅱️ B조 순위" />}
 
-                <div className="flex items-center gap-4 mt-12 shrink-0">
-                    <button onClick={copyMatchTable} className="flex-1 py-6 bg-white/5 border border-white/10 text-white/50 text-[12px] font-black uppercase tracking-widest rounded-[28px] hover:bg-white/10 transition-all flex items-center justify-center gap-2">📋 대진표 공유</button>
-                    <button onClick={copyFinalResults} className="flex-1 py-6 bg-[#C9B075] text-black text-[12px] font-black uppercase tracking-widest rounded-[28px] hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">🏆 최종결과 공유</button>
+                <div className="flex items-center gap-3 mt-8 shrink-0">
+                    <button onClick={copyMatchTable} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-2">📋 대진표 공유</button>
+                    <button onClick={copyFinalResults} className="flex-1 py-5 bg-[#C9B075] text-black text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">🏆 최종결과 공유</button>
                 </div>
             </div>
 
-            {/* Aggressive Margin Finalize Button (Anchor) */}
-            <div className="mt-20 mb-32 px-2">
+            {/* Sticky Balanced Finalize Button (Anchor) */}
+            <div className="sticky bottom-0 bg-black/80 backdrop-blur-2xl -mx-4 px-4 py-4 z-50 border-t border-white/5">
                 <button
                     disabled={isGenerating}
                     onClick={finalizeTournament}
-                    className="w-full py-7 font-black rounded-[32px] text-black text-2xl uppercase tracking-[0.3em] active:scale-[0.97] transition-all flex items-center justify-center gap-4 shadow-[0_30px_80px_rgba(201,176,117,0.45)]"
-                    style={{ background: 'linear-gradient(135deg, #E5D29B 0%, #C9B075 40%, #B8960C 100%)', boxShadow: '0 30px 80px rgba(201,176,117,0.45), inset 0 1px 1px rgba(255,255,255,0.5)' }}
+                    className="w-full py-6 font-black rounded-3xl text-black text-xl uppercase tracking-[0.2em] active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-[0_20px_60px_rgba(201,176,117,0.3)]"
+                    style={{ background: 'linear-gradient(135deg, #E5D29B 0%, #C9B075 40%, #B8960C 100%)' }}
                 >
-                    <span className="text-3xl">🏁</span>
+                    <span className="text-2xl">🏁</span>
                     <span>대회 결과 최종 확정</span>
                 </button>
             </div>
