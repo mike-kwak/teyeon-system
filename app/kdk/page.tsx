@@ -1793,7 +1793,7 @@ export default function KDKPage() {
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setShowScoreModal(null)}></div>
                     <div className="relative w-full max-w-lg rounded-[40px] p-8 pb-10 animate-in fade-in zoom-in duration-300 max-h-[95vh] overflow-y-auto no-scrollbar flex flex-col justify-center" style={{ background: 'rgba(18, 20, 24, 0.95)', backdropFilter: 'blur(64px)', borderTop: '2px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 50px 100px rgba(0,0,0,0.9)' }}>
-                        <header className="flex flex-col items-center gap-2 mb-10 text-center px-4 shrink-0">
+                        <header className="flex flex-col items-center gap-2 mb-10 text-center px-4 shrink-0" style={{ marginBottom: '8px' }}>
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase opacity-80">Match Protocol</span>
                             <div className="mt-2 py-3 px-10 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20 shadow-[0_0_30px_rgba(201,176,117,0.1)]">
                                 <h3 className="text-xl font-black italic text-white tracking-tight uppercase flex items-center gap-3">
@@ -1802,7 +1802,7 @@ export default function KDKPage() {
                             </div>
                         </header>
 
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6 mb-12">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6 mt-6 mb-6">
                             {[0, 1].map(side => (
                                 <React.Fragment key={side}>
                                     <div className="flex flex-col gap-10">
@@ -1844,7 +1844,7 @@ export default function KDKPage() {
                             ))}
                         </div>
 
-                        <div className="flex gap-4 px-4 mt-16 mb-8 shrink-0">
+                        <div className="flex gap-4 px-4 mt-8 mb-8 shrink-0">
                             <button onClick={() => setShowScoreModal(null)} className="flex-1 h-20 bg-white/5 border border-white/5 text-white/30 font-black rounded-[24px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
                             <button 
                                 disabled={tempScores.s1 === tempScores.s2} 
