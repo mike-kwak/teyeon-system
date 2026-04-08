@@ -1527,7 +1527,7 @@ export default function KDKPage() {
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
                                     {activeMatchIds.map((mId) => {
                                         const m = matches.find(x => x.id === mId);
                                         if (!m) return null;
@@ -1545,7 +1545,17 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="border border-white/10 rounded-[32px] p-2 relative flex flex-col justify-between h-full group" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 60px -15px rgba(0,0,0,0.9)' }}>
+                                            <div key={mId} className="border border-white/10 rounded-[32px] p-2 relative flex flex-col justify-between h-full group" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 30px 60px -15px rgba(0,0,0,0.9)', paddingTop: '48px' }}>
+                                                {/* BLUE CANCEL UTILITY - ROLLBACK */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => cancelMatch(mId)}
+                                                    className="absolute top-3 right-3 w-8 h-8 bg-blue-500/10 text-blue-500 rounded-xl border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-95 hover:bg-blue-500/20 focus:outline-none"
+                                                    title="웨이팅 리스트로 복귀"
+                                                >
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                </button>
+
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                     {/* TEAM A BLOCK */}
@@ -1564,15 +1574,6 @@ export default function KDKPage() {
 
                                                     {/* TEAM B BLOCK */}
                                                     <div className="relative bg-white/5 rounded-[18px] h-20 pt-10 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        {/* BLUE CANCEL UTILITY */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => cancelMatch(mId)}
-                                                            className="absolute top-1 right-1 w-7 h-7 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
-                                                            title="웨이팅 리스트로 복귀"
-                                                        >
-                                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                                                        </button>
                                                         <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2">
                                                             {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
                                                         </span>
@@ -1672,7 +1673,7 @@ export default function KDKPage() {
                             <div style={{ marginTop: '64px' }}>
                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2">COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent mb-6" />
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-5">
                                     {matches.filter(m => m.status === 'complete').sort((a, b) => {
                                         const gA = a.groupName || 'A';
                                         const gB = b.groupName || 'A';
