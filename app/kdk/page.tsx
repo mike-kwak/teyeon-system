@@ -2095,41 +2095,30 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-6">
-                {/* Premium 3D Glass Podium (Balanced Ratio: 35vh) */}
-                <div className="relative h-[35vh] p-6 rounded-[40px] overflow-hidden shrink-0" style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12), 0 20px 60px rgba(0,0,0,0.5)' }}>
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-                    <div className="grid grid-cols-3 gap-4 relative z-10 items-end h-full">
+                {/* Unified Podium Stage */}
+                <div className="relative h-[28vh] p-6 rounded-[40px] overflow-hidden shrink-0 bg-gradient-to-b from-white/[0.08] to-transparent border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+                    <div className="grid grid-cols-3 gap-3 relative z-10 items-end h-full">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
-                            if (!p) return <div key={idx} className="h-full rounded-3xl" style={{ background: 'rgba(255,255,255,0.02)' }} />;
+                            if (!p) return <div key={idx} className="h-full rounded-3xl bg-white/[0.02]" />;
                             const originalIdx = players.findIndex((x: any) => x.id === p.id);
                             const { amount } = calculateSettlement(p, originalIdx, players.length);
                             const isFirst = idx === 0;
                             const isSecond = idx === 1;
                             const isThird = idx === 2;
 
-                            const cardStyle = isFirst
-                                ? { background: 'rgba(201,176,117,0.12)', border: '1px solid rgba(201,176,117,0.35)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.25), 0 20px 50px rgba(201,176,117,0.2)' }
-                                : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.12)' };
-
-                            const rankLabel = isFirst ? '1ST' : isSecond ? '2ND' : '3RD';
                             const rankIcon = isFirst ? '🏆' : isSecond ? '🥈' : '🥉';
                             const rankColor = isFirst ? 'text-[#C9B075]' : isSecond ? 'text-slate-300' : 'text-amber-600/80';
-                            const scaleClass = isFirst ? 'scale-110 -translate-y-4 shadow-xl' : 'scale-95 opacity-80';
+                            const scaleClass = isFirst ? 'scale-110 -translate-y-2' : 'scale-90 opacity-70';
 
                             return (
-                                <div key={p.id} className={`flex flex-col items-center rounded-3xl p-4 transition-all duration-700 ${scaleClass}`} style={cardStyle}>
-                                    <div className={`text-[10px] font-black uppercase tracking-[0.4em] mb-3 ${rankColor}`}>{rankLabel}</div>
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 relative`}
-                                        style={isFirst
-                                            ? { background: 'rgba(201,176,117,0.15)', border: '1px solid rgba(201,176,117,0.4)', boxShadow: 'inset 0 0 20px rgba(201,176,117,0.3)' }
-                                            : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div key={p.id} className={`flex flex-col items-center rounded-3xl p-3 transition-all duration-700 ${scaleClass}`}>
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-2 bg-white/[0.05] border border-white/10`}>
                                         {rankIcon}
-                                        {isFirst && <div className="absolute -inset-2 rounded-full animate-pulse" style={{ border: '2px solid rgba(201,176,117,0.3)' }} />}
                                     </div>
-                                    <div className={`font-black text-white text-center truncate w-full mb-1 leading-tight ${isFirst ? 'text-2xl' : 'text-lg'}`}>{p.name}</div>
+                                    <div className="font-black text-white text-center truncate w-full text-[11px] mb-0.5">{p.name}</div>
                                     {amount !== 0 && (
-                                        <div className={`text-[11px] font-black tracking-widest ${amount > 0 ? 'text-[#C9B075]' : 'text-rose-400'}`}>
+                                        <div className={`text-[10px] font-black tracking-widest ${amount > 0 ? 'text-[#C9B075]' : 'text-rose-400'}`}>
                                             {amount > 0 ? '+' : ''}{amount.toLocaleString()}₩
                                         </div>
                                     )}
@@ -2140,8 +2129,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 {/* Professional Density Ranking List */}
-                <div className="space-y-2 pb-12">
-                    <div className="grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 px-5 pb-2 text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">
+                <div className="space-y-1 px-4 py-2">
+                    <div className="grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 px-5 pb-3 text-[9px] font-black text-white/30 uppercase tracking-[0.4em]">
                         <span className="text-center">RK</span>
                         <span className="text-left">PLAYER</span>
                         <span className="text-right">GM</span>
@@ -2159,7 +2148,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const hasFine = amount < 0;
                         return (
                             <div key={p.id}
-                                className="h-14 rounded-2xl px-5 grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 items-center transition-all bg-white/[0.04] backdrop-blur-xl border border-white/5 shadow-sm"
+                                className="h-14 rounded-2xl px-5 grid grid-cols-[2.2rem_1fr_2rem_2rem_2rem_2.4rem_2.4rem_2.6rem_4.6rem] gap-1.5 items-center transition-all bg-white/[0.04] border-y border-white/[0.02]"
                             >
                                 <div className="text-center font-black text-[12px] text-white/30">{originalIdx + 1}</div>
                                 <div className="text-left font-bold text-[15px] text-white/90 truncate pr-1">
@@ -2208,7 +2197,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     return (
-        <div className="flex flex-col min-h-screen space-y-8 pb-32 relative overflow-hidden px-4">
+        <div className="flex flex-col min-h-screen relative overflow-hidden">
             <style jsx global>{`
                 @keyframes confetti-fall {
                     0% { transform: translateY(-10vh) rotate(0deg); opacity:1; }
@@ -2217,7 +2206,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 .animate-confetti-fall { animation: confetti-fall 4.5s linear forwards; }
             `}</style>
             
-            <div className="flex-1 space-y-8">
+            <div className="flex-1">
                 {/* Sub-Tab Navigation Segmented Control */}
                 {showTabs && (
                     <div className="sticky top-0 z-50 py-2 bg-black/40 backdrop-blur-md -mx-4 px-4 border-b border-white/5 mb-4">
