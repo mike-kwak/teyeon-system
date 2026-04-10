@@ -1597,11 +1597,29 @@ export default function KDKPage() {
                                             <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
                                                 
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden relative">
-                                                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase truncate">MATCH {normalizedGroup}_G{matchNo}</span>
-                                                    <div className="flex items-center shrink-0">
-                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400 animate-spin-slow opacity-80"><path d="M23 4v6h-6"></path><path d="M21.5 15a9 9 0 1 0-2.1 4.3L23 14.5"></path></svg>
+                                                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.3em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                            GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
+                                                        </span>
+                                                        <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter shrink-0 italic">QUALIFYING</span>
                                                     </div>
+                                                    
+                                                    {role === 'CEO' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); if (window.navigator?.vibrate) window.navigator.vibrate(50); cancelMatch(mId); }}
+                                                            className="flex items-center justify-center w-6 h-6 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
+                                                            title="웨이팅 리스트로 복귀"
+                                                        >
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`text-white/30 group-hover/refresh:text-[#C9B075] group-active/refresh:text-[#C9B075] transition-colors ${spinningMatchId === mId ? 'animate-spin' : ''}`}>
+                                                                <path d="M21 2v6h-6"></path>
+                                                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                                                                <path d="M3 22v-6h6"></path>
+                                                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                                                            </svg>
+                                                        </button>
+                                                    )}
                                                 </div>
 
                                                 <div className="p-2 pt-1 flex flex-col gap-1.5">
@@ -1609,11 +1627,11 @@ export default function KDKPage() {
 
                                                         {/* TEAM A BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                            <div className="flex flex-col items-center justify-center w-full px-2">
-                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                            <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[0]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[0])}
                                                                 </span>
-                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[1]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[1])}
                                                                 </span>
                                                             </div>
@@ -1624,22 +1642,11 @@ export default function KDKPage() {
 
                                                         {/* TEAM B BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                            {role === 'CEO' && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => cancelMatch(mId)}
-                                                                    className="absolute top-1 right-1 w-6 h-[18px] bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
-                                                                    style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
-                                                                    title="웨이팅 리스트로 복귀"
-                                                                >
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                                                                </button>
-                                                            )}
-                                                            <div className="flex flex-col items-center justify-center w-full px-2">
-                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                            <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[2]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[2])}
                                                                 </span>
-                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[3]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[3])}
                                                                 </span>
                                                             </div>
@@ -1764,11 +1771,13 @@ export default function KDKPage() {
                                         return (
                                             <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[40px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden">
-                                                    <span className="text-[10px] font-black text-white/40 tracking-[0.2em] uppercase truncate">MATCH {(m.groupName || 'A')}_G{gMatchNo}</span>
-                                                    <div className="flex items-center shrink-0">
-                                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400 opacity-60"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold text-white/40 tracking-[0.3em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                                                            GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
+                                                        </span>
                                                     </div>
+                                                    <div className="h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
                                                 </div>
 
                                                 <div className="p-3 pt-2">
@@ -1787,8 +1796,8 @@ export default function KDKPage() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="pb-2 text-center opacity-30 group-hover:opacity-60 transition-opacity">
-                                                    <span className="text-[7px] font-black text-white uppercase tracking-[0.2em]">TAP TO EDIT ✎</span>
+                                                <div className="pb-3 text-center transition-all duration-300">
+                                                    <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em] group-hover:text-[#C9B075]/60 group-hover:tracking-[0.4em] transition-all">TAP TO EDIT ✎</span>
                                                 </div>
                                             </div>
                                         );
