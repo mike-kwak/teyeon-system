@@ -1594,58 +1594,77 @@ export default function KDKPage() {
                                         const normalizedGroup = m.groupName || 'A';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] p-2 relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
-
-                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
-
-                                                    {/* TEAM A BLOCK */}
-                                                    <div className="relative bg-white/5 rounded-[18px] h-[68px] pt-8 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        {/* GROUP-MATCH ID BADGE (BRUSHED GOLD MEDAL) */}
-                                                        <div className={`absolute top-1 left-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black text-[10px] font-black flex items-center justify-center z-10 whitespace-nowrap border border-white/10`} style={{ height: '22px', boxShadow: '0 0 20px rgba(142,122,74,0.5)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}>
-                                                            {normalizedGroup}·G{matchNo}
-                                                        </div>
-                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                            {getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}
-                                                        </span>
+                                            <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
+                                                
+                                                {/* SECTION HEADER BAR */}
+                                                <div className="flex items-center justify-between px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="text-[10px] font-black text-[#C9B075] tracking-widest uppercase truncate">{normalizedGroup}·G{matchNo}</span>
+                                                        <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter shrink-0 italic">PROTOCOL LIVE</span>
                                                     </div>
-
-                                                    {/* Central VS */}
-                                                    <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-60 drop-shadow-[0_0_5px_rgba(201,176,117,0.3)]">vs</div>
-
-                                                    {/* TEAM B BLOCK */}
-                                                    <div className="relative bg-white/5 rounded-[18px] h-[68px] pt-8 flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
-                                                        {role === 'CEO' && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => cancelMatch(mId)}
-                                                                className="absolute top-1 right-1 w-8 h-[22px] bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
-                                                                style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
-                                                                title="웨이팅 리스트로 복귀"
-                                                            >
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                                                            </button>
-                                                        )}
-                                                        <span className="text-white/90 text-[13px] font-black text-center leading-normal relative z-0 truncate w-full px-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                            {getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}
-                                                        </span>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white/30 animate-spin-slow"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                                                     </div>
-
                                                 </div>
 
-                                                {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
-                                                {role === 'CEO' ? (
-                                                    <button
-                                                        onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                        className="w-full h-12 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-2xl flex items-center justify-center mt-3 shrink-0"
-                                                        style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.3))' }}
-                                                    >
-                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[12px] font-black uppercase tracking-[0.25em] [text-shadow:0_0_15px_rgba(142,122,74,0.3)]">SCORE INPUT 🏆</span>
-                                                    </button>
-                                                ) : (
-                                                    <div className="w-full h-12 bg-white/5 rounded-2xl flex items-center justify-center mt-3 border border-white/5">
-                                                        <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Live Streaming</span>
+                                                <div className="p-2 pt-1 flex flex-col gap-1.5">
+                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
+
+                                                        {/* TEAM A BLOCK */}
+                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                            <div className="flex flex-col items-center justify-center w-full px-2">
+                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                    {getPlayerName(m.playerIds[0])}
+                                                                </span>
+                                                                <span className="text-white/60 font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 11px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                    {getPlayerName(m.playerIds[1])}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Central VS */}
+                                                        <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-60 drop-shadow-[0_0_5px_rgba(201,176,117,0.3)] shrink-0">vs</div>
+
+                                                        {/* TEAM B BLOCK */}
+                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                            {role === 'CEO' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => cancelMatch(mId)}
+                                                                    className="absolute top-1 right-1 w-6 h-[18px] bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 flex items-center justify-center transition-all z-30 active:scale-90 hover:bg-blue-500/20 focus:outline-none"
+                                                                    style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
+                                                                    title="웨이팅 리스트로 복귀"
+                                                                >
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={`pointer-events-none ${spinningMatchId === mId ? 'animate-spin' : ''}`}><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                                </button>
+                                                            )}
+                                                            <div className="flex flex-col items-center justify-center w-full px-2">
+                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                    {getPlayerName(m.playerIds[2])}
+                                                                </span>
+                                                                <span className="text-white/60 font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 11px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                    {getPlayerName(m.playerIds[3])}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
                                                     </div>
-                                                )}
+
+                                                    {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
+                                                    {role === 'CEO' ? (
+                                                        <button
+                                                            onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
+                                                            className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0"
+                                                            style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
+                                                        >
+                                                            <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE 🏆</span>
+                                                        </button>
+                                                    ) : (
+                                                        <div className="w-full h-11 bg-white/5 rounded-[14px] flex items-center justify-center border border-white/5">
+                                                            <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Live Broadcast</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -1746,21 +1765,35 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-xl transition-all active:scale-98 relative overflow-hidden group" style={{ transform: 'none', padding: '12px', background: 'rgba(255, 255, 255, 0.07)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.1)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5), 0 30px 60px -15px rgba(0, 255, 255, 0.08)' }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: '8px', width: '100%' }}>
-                                                    <div className="px-2 py-0.5 rounded-md bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-black border border-[#C9B075]/30 tracking-tighter uppercase self-center">
-                                                        {m.groupName || 'A'}-G{gMatchNo}
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[28px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
+                                                {/* SECTION HEADER BAR */}
+                                                <div className="flex items-center justify-between px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="text-[10px] font-black text-white/40 tracking-widest uppercase truncate">{m.groupName || 'A'}·G{gMatchNo}</span>
                                                     </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                        <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-right leading-tight uppercase" style={{ flex: 1, paddingRight: '4px' }}>{getPlayerName(m.playerIds[0])}<br />{getPlayerName(m.playerIds[1])}</span>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '50px', flexShrink: 0 }}>
-                                                            <span className="text-lg font-black text-[#C9B075]">{m.score1}:{m.score2}</span>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-tighter">CONFIRMED</span>
+                                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                                            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                                         </div>
-                                                        <span className="text-sm font-black text-white/60 whitespace-nowrap truncate text-left leading-tight uppercase" style={{ flex: 1, paddingLeft: '4px' }}>{getPlayerName(m.playerIds[2])}<br />{getPlayerName(m.playerIds[3])}</span>
                                                     </div>
                                                 </div>
-                                                <div style={{ textAlign: 'center', marginTop: '4px' }}>
-                                                    <span className="text-[6px] font-black text-gray-300 uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">Tap to edit</span>
+
+                                                <div className="p-3 pt-2">
+                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                                        <div className="flex flex-col items-center justify-center min-w-0">
+                                                            <span className="text-white/60 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 12px)' }}>{getPlayerName(m.playerIds[0])}</span>
+                                                            <span className="text-white/40 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(9px, 2.2vw, 11px)' }}>{getPlayerName(m.playerIds[1])}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center flex-shrink-0 px-2">
+                                                            <span className="text-lg font-black text-[#C9B075] leading-none">{m.score1}:{m.score2}</span>
+                                                            <span className="text-[6px] font-black text-white/20 uppercase mt-1">FINAL</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center justify-center min-w-0">
+                                                            <span className="text-white/60 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 12px)' }}>{getPlayerName(m.playerIds[2])}</span>
+                                                            <span className="text-white/40 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(9px, 2.2vw, 11px)' }}>{getPlayerName(m.playerIds[3])}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
