@@ -1597,19 +1597,16 @@ export default function KDKPage() {
                                             <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
                                                 
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                                                            GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
-                                                        </span>
-                                                        <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter shrink-0 italic">QUALIFYING</span>
-                                                    </div>
+                                                <div className="flex items-center justify-center px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
+                                                    <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                        GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
+                                                    </span>
                                                     
                                                     {role === 'CEO' && (
                                                         <button
                                                             type="button"
                                                             onClick={(e) => { e.stopPropagation(); if (window.navigator?.vibrate) window.navigator.vibrate(50); cancelMatch(mId); }}
-                                                            className="flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
+                                                            className="absolute right-2 flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
                                                             title="웨이팅 리스트로 복귀"
                                                         >
                                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`text-white/40 group-hover/refresh:text-[#C9B075] group-active/refresh:text-[#C9B075] transition-colors ${spinningMatchId === mId ? 'animate-spin' : ''}`}>
@@ -1780,7 +1777,7 @@ export default function KDKPage() {
                                                     <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
                                                 </div>
 
-                                                <div className="flex-1 flex items-center p-3">
+                                                <div className="flex-1 flex flex-col justify-center px-3 pt-4">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 w-full">
                                                         <div className="flex flex-col items-center justify-center min-w-0">
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[0])}</span>
