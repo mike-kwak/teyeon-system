@@ -1599,7 +1599,7 @@ export default function KDKPage() {
                                                 {/* SECTION HEADER BAR */}
                                                 <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.3em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                        <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                                                             GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
                                                         </span>
                                                         <span className="text-[8px] font-black text-white/10 uppercase tracking-tighter shrink-0 italic">QUALIFYING</span>
@@ -1609,14 +1609,12 @@ export default function KDKPage() {
                                                         <button
                                                             type="button"
                                                             onClick={(e) => { e.stopPropagation(); if (window.navigator?.vibrate) window.navigator.vibrate(50); cancelMatch(mId); }}
-                                                            className="flex items-center justify-center w-6 h-6 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
+                                                            className="flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
                                                             title="웨이팅 리스트로 복귀"
                                                         >
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`text-white/30 group-hover/refresh:text-[#C9B075] group-active/refresh:text-[#C9B075] transition-colors ${spinningMatchId === mId ? 'animate-spin' : ''}`}>
-                                                                <path d="M21 2v6h-6"></path>
-                                                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                                                                <path d="M3 22v-6h6"></path>
-                                                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`text-white/40 group-hover/refresh:text-[#C9B075] group-active/refresh:text-[#C9B075] transition-colors ${spinningMatchId === mId ? 'animate-spin' : ''}`}>
+                                                                <path d="M21 12a9 9 0 1 1-6.21-8.58"></path>
+                                                                <path d="M16 1h5v5"></path>
                                                             </svg>
                                                         </button>
                                                     )}
@@ -1628,10 +1626,10 @@ export default function KDKPage() {
                                                         {/* TEAM A BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
                                                             <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[0]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[0])}
                                                                 </span>
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[1]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[1])}
                                                                 </span>
                                                             </div>
@@ -1643,10 +1641,10 @@ export default function KDKPage() {
                                                         {/* TEAM B BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
                                                             <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[2]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[2])}
                                                                 </span>
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: getPlayerName(m.playerIds[3]).length > 6 ? '10px' : '14px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[3])}
                                                                 </span>
                                                             </div>
@@ -1724,10 +1722,14 @@ export default function KDKPage() {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-center gap-4 text-center px-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                <span className="flex-1 text-white text-[17px] font-bold truncate leading-none">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span>
+                                                            <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: (getPlayerName(m.playerIds[0]).includes('(G)') || getPlayerName(m.playerIds[1]).includes('(G)')) ? '14px' : '17px' }}>
+                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}
+                                                                </span>
                                                                 <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0">vs</span>
-                                                                <span className="flex-1 text-white text-[17px] font-bold truncate leading-none">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span>
+                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: (getPlayerName(m.playerIds[2]).includes('(G)') || getPlayerName(m.playerIds[3]).includes('(G)')) ? '14px' : '17px' }}>
+                                                                    {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
+                                                                </span>
                                                             </div>
 
                                                             <div className="flex items-center justify-end pr-2">
@@ -1771,28 +1773,26 @@ export default function KDKPage() {
                                         return (
                                             <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[40px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold text-white/40 tracking-[0.3em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
-                                                            GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
-                                                        </span>
-                                                    </div>
-                                                    <div className="h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
+                                                <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative">
+                                                    <span className="text-[10px] font-mono font-bold text-white/40 tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                                                        GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
+                                                    </span>
+                                                    <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
                                                 </div>
 
-                                                <div className="p-3 pt-2">
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                                <div className="flex-1 flex items-center p-3">
+                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 w-full">
                                                         <div className="flex flex-col items-center justify-center min-w-0">
-                                                            <span className="text-white/60 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 12px)' }}>{getPlayerName(m.playerIds[0])}</span>
-                                                            <span className="text-white/40 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(9px, 2.2vw, 11px)' }}>{getPlayerName(m.playerIds[1])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[0])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[1])}</span>
                                                         </div>
                                                         <div className="flex flex-col items-center flex-shrink-0 px-2">
                                                             <span className="text-lg font-black text-[#C9B075] leading-none">{m.score1}:{m.score2}</span>
                                                             <span className="text-[6px] font-black text-white/20 uppercase mt-1">FINAL</span>
                                                         </div>
                                                         <div className="flex flex-col items-center justify-center min-w-0">
-                                                            <span className="text-white/60 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 12px)' }}>{getPlayerName(m.playerIds[2])}</span>
-                                                            <span className="text-white/40 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(9px, 2.2vw, 11px)' }}>{getPlayerName(m.playerIds[3])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[2])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
