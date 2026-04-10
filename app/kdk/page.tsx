@@ -1617,7 +1617,7 @@ export default function KDKPage() {
                                                     )}
                                                 </div>
 
-                                                <div className="p-2 pt-1 flex flex-col gap-1.5">
+                                                <div className="p-2 flex flex-col justify-center flex-1 py-4">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                         {/* TEAM A BLOCK */}
@@ -1777,7 +1777,7 @@ export default function KDKPage() {
                                                     <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
                                                 </div>
 
-                                                <div className="flex-1 flex flex-col justify-center px-3 pt-4">
+                                                <div className="flex-1 flex flex-col justify-center px-3 py-4">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 w-full">
                                                         <div className="flex flex-col items-center justify-center min-w-0">
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[0])}</span>
