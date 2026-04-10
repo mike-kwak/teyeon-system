@@ -1597,13 +1597,10 @@ export default function KDKPage() {
                                             <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
                                                 
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-between px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden">
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span className="text-[10px] font-black text-[#C9B075] tracking-widest uppercase truncate">{normalizedGroup}·G{matchNo}</span>
-                                                        <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter shrink-0 italic">PROTOCOL LIVE</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 shrink-0">
-                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white/30 animate-spin-slow"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden relative">
+                                                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase truncate">MATCH {normalizedGroup}_G{matchNo}</span>
+                                                    <div className="flex items-center shrink-0">
+                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400 animate-spin-slow opacity-80"><path d="M23 4v6h-6"></path><path d="M21.5 15a9 9 0 1 0-2.1 4.3L23 14.5"></path></svg>
                                                     </div>
                                                 </div>
 
@@ -1616,7 +1613,7 @@ export default function KDKPage() {
                                                                 <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[0])}
                                                                 </span>
-                                                                <span className="text-white/60 font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 11px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[1])}
                                                                 </span>
                                                             </div>
@@ -1642,7 +1639,7 @@ export default function KDKPage() {
                                                                 <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[2])}
                                                                 </span>
-                                                                <span className="text-white/60 font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(10px, 2.5vw, 11px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-tight relative z-0 truncate w-full" style={{ fontSize: 'clamp(11px, 3vw, 13px)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds[3])}
                                                                 </span>
                                                             </div>
@@ -1765,17 +1762,12 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[28px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[40px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-between px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden">
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span className="text-[10px] font-black text-white/40 tracking-widest uppercase truncate">{m.groupName || 'A'}·G{gMatchNo}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-tighter">CONFIRMED</span>
-                                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                                                            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                        </div>
+                                                <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-white/5 border-b border-white/5 overflow-hidden">
+                                                    <span className="text-[10px] font-black text-white/40 tracking-[0.2em] uppercase truncate">MATCH {(m.groupName || 'A')}_G{gMatchNo}</span>
+                                                    <div className="flex items-center shrink-0">
+                                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400 opacity-60"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                                     </div>
                                                 </div>
 
@@ -1794,6 +1786,9 @@ export default function KDKPage() {
                                                             <span className="text-white/40 font-black text-center leading-tight truncate w-full" style={{ fontSize: 'clamp(9px, 2.2vw, 11px)' }}>{getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
+                                                </div>
+                                                <div className="pb-2 text-center opacity-30 group-hover:opacity-60 transition-opacity">
+                                                    <span className="text-[7px] font-black text-white uppercase tracking-[0.2em]">TAP TO EDIT ✎</span>
                                                 </div>
                                             </div>
                                         );
