@@ -2434,9 +2434,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 <div className="h-6" aria-hidden="true" />
 
                 <div className="flex-1 space-y-2 px-4 mb-10 relative z-0">
-                    <div className="grid grid-cols-[3.5rem_1fr_2rem_2.2rem_2rem_2.2rem_2.2rem_2.8rem_6.5rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
+                    <div className="grid grid-cols-[2.8rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_6.2rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
                         <span className="text-center opacity-60 whitespace-nowrap">순위</span>
-                        <span className="text-left pl-14 opacity-60 whitespace-nowrap">참가자</span>
+                        <span className="text-left pl-4 opacity-60 whitespace-nowrap">참가자</span>
                         <span className="text-right opacity-40 whitespace-nowrap">P</span>
                         <span className="text-right text-[#00e5ff] whitespace-nowrap">승</span>
                         <span className="text-right opacity-60 whitespace-nowrap">패</span>
@@ -2450,10 +2450,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
                             <div key={p.id}
-                                className="h-14 rounded-2xl px-4 grid grid-cols-[3.5rem_1fr_2rem_2.2rem_2rem_2.2rem_2.2rem_2.8rem_6.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
+                                className="h-14 rounded-2xl px-4 grid grid-cols-[2.8rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_6.2rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
                             >
                                 <div className="text-center font-bold text-[13px] text-white/30 italic group-hover:text-white/60 transition-colors">{originalIdx + 1}</div>
-                                <div className="text-left font-black text-[16px] text-white tracking-tighter truncate pl-14">
+                                <div className="text-left font-black text-[15.5px] text-white tracking-tighter truncate pl-4">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
                                 <div className="text-right text-[11px] font-black text-white/50">{p.wins + p.losses}</div>
