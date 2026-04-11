@@ -2384,7 +2384,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.3] -translate-y-10' : 'z-10 scale-95'}`}
+                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.12] -translate-y-6' : 'z-10 scale-95 translate-y-2'}`}
                                 >
                                     {isFirst && (
                                         <div className="absolute -inset-[3.5px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#F3E2B5] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_50px_rgba(201,176,117,0.5)]" />
@@ -2399,8 +2399,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             }
                                         `}>
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
-                                            <span className={`${isFirst ? 'text-6xl drop-shadow-[0_10px_20px_rgba(201,176,117,0.8)]' : 'text-3xl drop-shadow-xl'} select-none`}>
-                                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                                            <span className={`${isFirst ? 'text-6xl drop-shadow-[0_10px_20px_rgba(201,176,117,1)]' : 'text-3xl drop-shadow-xl'} select-none`}>
+                                                🏆
                                             </span>
                                         </div>
 
@@ -2409,17 +2409,17 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                                 {p.name}
                                             </div>
                                             
-                                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px] relative z-20">
+                                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[11px] relative z-20">
                                                 <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">{p.wins}</span>
-                                                    <span className="text-white">승</span>
+                                                    <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{p.wins}</span>
+                                                    <span className="text-white drop-shadow-[0_0_5px_rgba(0,0,0,1)]">승</span>
                                                 </div>
                                                 <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{p.losses}</span>
-                                                    <span className="text-white">패</span>
+                                                    <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">{p.losses}</span>
+                                                    <span className="text-white drop-shadow-[0_0_5px_rgba(0,0,0,1)]">패</span>
                                                 </div>
-                                                <span className="opacity-10">/</span>
-                                                <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white tracking-normal'}>
+                                                <span className="opacity-30">/</span>
+                                                <span className={p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.6)]' : 'text-white tracking-normal'}>
                                                     {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                 </span>
                                             </div>
@@ -2438,10 +2438,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 <div className="flex-1 space-y-2 px-4 pb-48">
-                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-4 text-[11px] font-black text-white/50 tracking-widest border-b border-white/10 uppercase italic">
-                        <span className="text-center">순위</span>
-                        <span className="text-left pl-2">참가자</span>
-                        <span className="text-right opacity-50">P</span>
+                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-4 text-[11px] font-black text-white/80 tracking-widest border-b border-white/20 uppercase italic">
+                        <span className="text-center opacity-60">순위</span>
+                        <span className="text-left pl-2 opacity-60">참가자</span>
+                        <span className="text-right opacity-40">P</span>
                         <span className="text-right">승</span>
                         <span className="text-right">패</span>
                         <span className="text-right">PF</span>
