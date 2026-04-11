@@ -2365,7 +2365,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                <div className="relative mt-12 pt-64 pb-16 overflow-visible mb-32">
+                <div className="relative mt-12 pt-48 pb-16 overflow-visible mb-24">
                     <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
@@ -2384,22 +2384,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.1] translate-y-4' : 'z-10 scale-95 translate-y-12'}`}
+                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-110 translate-y-0' : 'z-10 scale-90 translate-y-10'}`}
                                 >
-                                    {isFirst && (
-                                        <div className="absolute -inset-[3.5px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#F3E2B5] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_50px_rgba(201,176,117,0.5)]" />
-                                    )}
 
                                     <div className={glassStyles}>
                                         <div className={`
-                                            flex items-center justify-center rounded-full bg-[#0A0A0F] border relative -translate-y-1/2 overflow-visible
-                                            ${isFirst 
-                                                ? 'w-24 h-24 border-[#C9B075] shadow-[0_0_80px_-10px_rgba(201,176,117,1),inset_0_2px_6px_rgba(255,255,255,0.3)]' 
-                                                : 'w-16 h-16 border-white/10 shadow-2xl'
-                                            }
+                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative -translate-y-1/2 overflow-visible
+                                            ${isFirst ? 'w-20 h-20 shadow-2xl' : 'w-16 h-16 shadow-xl'}
                                         `}>
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
-                                            <span className={`${isFirst ? 'text-6xl drop-shadow-[0_10px_20px_rgba(201,176,117,1)]' : 'text-3xl drop-shadow-xl'} select-none`}>
+                                            <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] select-none`}>
                                                 🏆
                                             </span>
                                         </div>
@@ -2425,8 +2419,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             </div>
 
                                             {isFirst && (
-                                                <div className="mt-5 px-5 py-2 rounded-full bg-gradient-to-r from-[#C9B075] to-[#A89462] border border-white/30 overflow-hidden relative group scale-100 shadow-[0_10px_30px_rgba(201,176,117,0.4)]">
-                                                    <span className="text-black font-black text-[11px] tracking-[0.3em] relative z-10 italic uppercase">명예의 전당</span>
+                                                <div className="mt-5 px-5 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-md">
+                                                    <span className="text-white/60 font-bold text-[10px] tracking-[0.2em] italic uppercase">Hall of Fame</span>
                                                 </div>
                                             )}
                                         </div>
