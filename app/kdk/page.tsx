@@ -225,6 +225,9 @@ export default function KDKPage() {
         if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
 
         try {
+            // [CEO 현장 검증 로그]
+            alert("🚀 [현장 검증] 보낼 데이터 키: snapshot_data\n서버의 'snapshot_data' 그릇으로 데이터를 전송합니다.");
+
             setIsGenerating(true);
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
@@ -247,7 +250,7 @@ export default function KDKPage() {
                 title: sessionTitle || `Tournament ${dateStr}`,
                 date: dateStr,
                 ranking_data: rankingSnapshot,
-                match_snapshot: matches.map(m => ({
+                snapshot_data: matches.map(m => ({
                     ...m,
                     player_ids: m.playerIds || m.player_ids || [], // Ensure snake_case for DB
                     group_name: m.groupName || m.group_name || 'A'

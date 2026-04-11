@@ -119,7 +119,7 @@ export default function ArchivePage() {
                 player_metadata: {},
                 total_matches: 4,
                 total_rounds: 1,
-                match_snapshot: []
+                snapshot_data: []
             };
             await supabase.from('sessions_archive').upsert([sessionSnapshot]);
 
