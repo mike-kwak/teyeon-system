@@ -755,12 +755,15 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
-
+            // 1. Supabase Sync via RPC (v6.5 INFRA FORCE)
+            const { error: syncError } = await forceSyncRPC({
+                p_data: {
+                    match_id: matchId.toString(),
+                    status: 'waiting',
+                    score1: 0,
                     score2: 0
                 }
-            };
-            console.table(rpcPayload.p_data);
-            const { error: syncError } = await supabase.rpc('final_sync_v6_json', rpcPayload);
+            });
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
