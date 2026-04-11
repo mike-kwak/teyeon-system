@@ -2370,7 +2370,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         const others = sorted.slice(3);
 
         return (
-            <section className="space-y-4">
+            <section className="flex flex-col">
                 <div className="relative mt-24 mb-0">
                     <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
@@ -2431,7 +2431,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     </div>
                 </div>
 
-                <div className="flex-1 space-y-2 px-4 mt-16 mb-20 relative z-0">
+                <div className="h-24" aria-hidden="true" />
+
+                <div className="flex-1 space-y-2 px-4 mb-10 relative z-0">
                     <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
                         <span className="text-center opacity-60 whitespace-nowrap">순위</span>
                         <span className="text-left pl-2 opacity-60 whitespace-nowrap">참가자</span>
@@ -2544,6 +2546,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'ALL' && <RankingTable players={players} title="INTEGRATED LEADERBOARD" />}
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
+                
+                <div className="h-32" aria-hidden="true" />
 
                  <div className="flex flex-col gap-10 mt-48 mb-48 shrink-0 px-6 pb-48">
                     <button onClick={copyMatchTable} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
