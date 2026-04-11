@@ -2393,7 +2393,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     <div className={glassStyles}>
                                         {/* Grand Number Background */}
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-                                            <span className="text-[14rem] font-black text-white/[0.05] translate-y-8 tracking-tighter">
+                                            <span className="text-[14rem] font-black text-white/[0.03] translate-y-8 tracking-tighter">
                                                 {idx === 0 ? '1' : idx === 1 ? '2' : '3'}
                                             </span>
                                         </div>
@@ -2418,11 +2418,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             
                                             <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px]">
                                                 <div className="flex items-center gap-0.5">
-                                                    <span className="text-cyan-400">{p.wins}</span>
-                                                    <span className="text-cyan-400/40">승</span>
+                                                    <span className="text-blue-300 font-medium">{p.wins}</span>
+                                                    <span className="text-blue-300/40">승</span>
                                                 </div>
                                                 <div className="flex items-center gap-0.5">
-                                                    <span className="text-slate-400">{p.losses}</span>
+                                                    <span className="text-slate-400 font-medium">{p.losses}</span>
                                                     <span className="text-slate-400/40">패</span>
                                                 </div>
                                                 <span className="opacity-10">/</span>
@@ -2467,13 +2467,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 <div className="text-left font-black text-[15px] text-white tracking-tighter truncate pl-2">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
-                                <div className="text-right text-[11px] font-bold text-white/5">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-slate-500">{p.losses}</div>
-                                <div className="text-right text-[11px] font-bold text-white/20">{p.pf}</div>
-                                <div className="text-right text-[11px] font-bold text-white/10">{p.pa}</div>
-                                <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white/30 tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right font-black text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
+                                <div className="text-right text-[11px] font-bold text-white/50">{p.wins + p.losses}</div>
+                                <div className="text-right text-[13px] font-medium text-blue-300 drop-shadow-[0_0_8px_rgba(147,197,253,0.3)]">{p.wins}</div>
+                                <div className="text-right text-[13px] font-medium text-slate-400">{p.losses}</div>
+                                <div className="text-right text-[11px] font-medium text-white/60">{p.pf}</div>
+                                <div className="text-right text-[11px] font-medium text-white/40">{p.pa}</div>
+                                <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white/80 tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]' : amount > 0 ? 'text-[#C9B075] font-black' : 'text-white/10 font-bold'}`}>
                                     {amount !== 0 ? (
                                         <div className="flex items-center justify-end gap-0.5">
                                             <span className="text-[11px] font-black opacity-60 translate-y-[1px]">₩</span>
