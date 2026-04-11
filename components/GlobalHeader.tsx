@@ -112,6 +112,18 @@ const StatusDot = styled('div', {
 export default function GlobalHeader() {
   const { user, role, isLoading } = useAuth();
 
+  // [ROOT PURGE] Kill any lingering ghost code (v1.7+, Service Workers)
+  React.useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for(let registration of registrations) {
+          registration.unregister();
+          console.log("💀 GHOST PURGED: Service Worker Unregistered");
+        }
+      });
+    }
+  }, []);
+
   return (
     <HeaderContainer>
       <div className="flex items-center justify-between w-full px-6">
@@ -121,7 +133,7 @@ export default function GlobalHeader() {
             style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
           >
             TEYEON
-            <span className="ml-1 text-[8px] opacity-20 font-light lowercase tracking-normal">v3.5 (FORCE RECOVERY)</span>
+            <span className="ml-1 text-[8px] opacity-20 font-light lowercase tracking-normal">v4.0 (ROOT PURGE)</span>
           </span>
         </LogoLink>
 

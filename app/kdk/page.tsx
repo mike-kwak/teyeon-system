@@ -5,10 +5,16 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase as defaultSupabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import { RotateCw } from 'lucide-react';
+
+// [ROOT PURGE] Hardcoded Infrastructure for Emergency Bypass
+const SUPABASE_URL = 'https://wvhwpdgerjngmkhagxom.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2aHdwZGdlcmpuZ21raGFneG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNTIzODgsImV4cCI6MjA4OTkyODM4OH0.3F904LE0OM_HhFpqYFheJv34jcuiUD_hBohaz-RUUkc';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
@@ -71,7 +77,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v3.5 (FORCE RECOVERY)");
+        console.log("🚀 LATEST CODE LOADED: v4.0 (ROOT PURGE)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -882,9 +888,9 @@ export default function KDKPage() {
 
             // [DEBUG] Raw Fetch Inspection (Bypass Library)
             try {
-                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wvhwpdgerjngmkhagxom.supabase.co';
-                const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-                const debugUrl = `${supabaseUrl}/rest/v1/rpc/update_match_status_v3`;
+                const supabaseUrl = SUPABASE_URL;
+                const supabaseKey = SUPABASE_KEY;
+                const debugUrl = `${supabaseUrl}/rest/v1/rpc/final_match_sync_v4`;
                 
                 const debugRes = await fetch(debugUrl, {
                     method: 'POST',
@@ -913,8 +919,11 @@ export default function KDKPage() {
                 console.error("DEBUG FETCH CRITICAL ERROR:", debugErr);
             }
 
+            // [ROOT PURGE] Proof of Deployment Alert
+            alert("🛠️ ROOT PURGE: Calling final_match_sync_v4 on wvhwpdgerjngmkhagxom");
+
             // 3. DB Sync via RPC (Bypass schema cache error)
-            const { error: syncError } = await supabase.rpc('update_match_status_v3', {
+            const { error: syncError } = await supabase.rpc('final_match_sync_v4', {
                 p_match_id: matchId.toString(),
                 p_status: 'complete',
                 p_score1: numS1.toString(),
