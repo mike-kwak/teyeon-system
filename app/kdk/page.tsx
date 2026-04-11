@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
+import { RotateCw } from 'lucide-react';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
@@ -1598,9 +1599,12 @@ export default function KDKPage() {
                                                 
                                                 {/* SECTION HEADER BAR */}
                                                 <div className="flex items-center justify-center px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
-                                                    <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                                                        GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
-                                                    </span>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                            GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
+                                                        </span>
+                                                        <RotateCw className={`w-3 h-3 text-white/40 transition-colors group-hover/header:text-[#C9B075] ${spinningMatchId === mId ? 'animate-spin' : ''}`} />
+                                                    </div>
                                                     
                                                     {role === 'CEO' && (
                                                         <button
@@ -1609,15 +1613,12 @@ export default function KDKPage() {
                                                             className="absolute right-2 flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
                                                             title="웨이팅 리스트로 복귀"
                                                         >
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`text-white/40 group-hover/refresh:text-[#C9B075] group-active/refresh:text-[#C9B075] transition-colors ${spinningMatchId === mId ? 'animate-spin' : ''}`}>
-                                                                <path d="M21 12a9 9 0 1 1-6.21-8.58"></path>
-                                                                <path d="M16 1h5v5"></path>
-                                                            </svg>
+                                                            <div className="sr-only">Cancel Match</div>
                                                         </button>
                                                     )}
                                                 </div>
 
-                                                <div className="p-2 flex flex-col justify-center flex-1 py-4">
+                                                <div className="p-2 flex flex-col justify-center flex-1 py-8">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                         {/* TEAM A BLOCK */}
@@ -1720,12 +1721,20 @@ export default function KDKPage() {
                                                             </div>
 
                                                             <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: (getPlayerName(m.playerIds[0]).includes('(G)') || getPlayerName(m.playerIds[1]).includes('(G)')) ? '14px' : '17px' }}>
-                                                                    {getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}
+                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
+                                                                    {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
+                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                    /
+                                                                    {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
+                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
                                                                 </span>
                                                                 <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0">vs</span>
-                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: (getPlayerName(m.playerIds[2]).includes('(G)') || getPlayerName(m.playerIds[3]).includes('(G)')) ? '14px' : '17px' }}>
-                                                                    {getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}
+                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
+                                                                    {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
+                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                    /
+                                                                    {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
+                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
                                                                 </span>
                                                             </div>
 
@@ -1777,7 +1786,7 @@ export default function KDKPage() {
                                                     <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
                                                 </div>
 
-                                                <div className="flex-1 flex flex-col justify-center px-3 py-4">
+                                                <div className="flex-1 flex flex-col justify-center px-3 py-8">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 w-full">
                                                         <div className="flex flex-col items-center justify-center min-w-0">
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[0])}</span>
@@ -2192,7 +2201,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             const glassStyles = `
                                 bg-white/5 backdrop-blur-3xl rounded-[40px] 
                                 border-t border-t-white/30 border-l border-l-white/10
-                                shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1)]
+                                shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
                                 flex flex-col items-center pb-10 transition-all duration-700 relative
                             `;
                             
@@ -2206,20 +2215,27 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     )}
 
                                     <div className={glassStyles}>
-                                        <div className={`
-                                            flex items-center justify-center rounded-full bg-[#0A0A0F] border relative -translate-y-1/2
-                                            ${isFirst 
-                                                ? 'w-24 h-24 border-[#C9B075] shadow-[0_0_80px_-10px_rgba(201,176,117,1),inset_0_2px_6px_rgba(255,255,255,0.3)] text-6xl' 
-                                                : 'w-16 h-16 border-white/10 shadow-2xl text-3xl'
-                                            }
-                                        `}>
-                                            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60" />
-                                            <span className={isFirst ? 'drop-shadow-[0_0_25px_rgba(201,176,117,1)]' : ''}>
-                                                {isFirst ? '🏆' : isSecond ? '🥈' : '🥉'}
+                                        {/* Grand Number Background */}
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                                            <span className="text-[12rem] font-black text-white/[0.03] translate-y-4 tracking-tighter">
+                                                {idx === 0 ? '1' : idx === 1 ? '2' : '3'}
                                             </span>
                                         </div>
 
-                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 -mt-8">
+                                        <div className={`
+                                            flex items-center justify-center rounded-full bg-[#0A0A0F] border relative -translate-y-1/2 overflow-hidden
+                                            ${isFirst 
+                                                ? 'w-24 h-24 border-[#C9B075] shadow-[0_0_80px_-10px_rgba(201,176,117,1),inset_0_2px_6px_rgba(255,255,255,0.3)]' 
+                                                : 'w-16 h-16 border-white/10 shadow-2xl'
+                                            }
+                                        `}>
+                                            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60" />
+                                            <span className={`font-black tracking-tighter italic ${isFirst ? 'text-4xl text-[#C9B075]' : 'text-2xl text-white/20'}`}>
+                                                {idx === 0 ? '1' : idx === 1 ? '2' : '3'}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 -mt-8 relative z-10">
                                             <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
                                                 {p.name}
                                             </div>
@@ -2276,11 +2292,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
                                 <div className="text-right text-[11px] font-bold text-white/5">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-cyan-400/60">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-slate-500/80">{p.losses}</div>
+                                <div className="text-right text-[13px] font-black text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">{p.wins}</div>
+                                <div className="text-right text-[13px] font-black text-slate-500">{p.losses}</div>
                                 <div className="text-right text-[11px] font-bold text-white/20">{p.pf}</div>
                                 <div className="text-right text-[11px] font-bold text-white/10">{p.pa}</div>
-                                <div className="text-right font-black text-[13px] text-[#C9B075]/40">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white/30 tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
                                 <div className={`text-right font-black text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
                                     {amount !== 0 ? (
                                         <div className="flex items-center justify-end gap-0.5">
