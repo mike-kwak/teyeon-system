@@ -61,6 +61,18 @@ type UserRole = 'CEO' | 'Staff' | 'Member' | 'Guest';
 export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
+    useEffect(() => {
+        // Force unregister stale service workers
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+        console.clear();
+        console.log("🚀 LATEST CODE LOADED: v1.5 (RPC MODE)");
+    }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
     useEffect(() => {
@@ -2220,7 +2232,6 @@ export default function KDKPage() {
 function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void }) {
     const [hasSession, setHasSession] = useState(false);
     useEffect(() => {
-        console.log("DEBUG: Current Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
         const saved = localStorage.getItem('kdk_live_session');
         if (saved) setHasSession(true);
     }, []);
