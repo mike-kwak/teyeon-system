@@ -247,7 +247,11 @@ export default function KDKPage() {
                 title: sessionTitle || `Tournament ${dateStr}`,
                 date: dateStr,
                 ranking_data: rankingSnapshot,
-                match_snapshot: matches, // Save all matches for Atmosphere Replay
+                match_snapshot: matches.map(m => ({
+                    ...m,
+                    player_ids: m.playerIds || m.player_ids || [], // Ensure snake_case for DB
+                    group_name: m.groupName || m.group_name || 'A'
+                })),
                 player_metadata: attendeeConfigs,
                 total_matches: matches.length,
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
@@ -256,14 +260,21 @@ export default function KDKPage() {
             const { error: sessError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
             if (sessError) throw sessError;
 
-            // 2. Cleanup Live Data from Supabase
+            // 2. Success Celebration & Redirect
+            setShowToast(true); // Reuse Toast for Celebration
+            if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
+            
+            // Wait for visual feedback
+            await new Promise(r => setTimeout(r, 2000));
+
+            // 3. Cleanup Live Data from Supabase
             const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
             if (delError) console.error("Cleanup Error (Non-Fatal):", delError);
 
-            // 3. Clear Local State
+            // 4. Clear Local State
             actualReset();
 
-            // 4. Redirect to Archive Portal
+            // 5. Redirect to Archive Portal
             router.push(`/archive?session=${sessionId}`);
 
         } catch (err: any) {
@@ -2691,15 +2702,17 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     <button
                         disabled={isGenerating}
                         onClick={finalizeTournament}
-                        className="w-full h-12 text-black font-black rounded-2xl uppercase text-[13px] tracking-[0.35em] shadow-2xl active:scale-95 transition-all border border-white/30 relative overflow-hidden group flex items-center justify-center gap-4"
+                        className="w-full h-12 text-black font-black rounded-2xl uppercase text-[12px] tracking-[0.4em] shadow-[0_20px_50px_rgba(201,176,117,0.5)] active:scale-95 transition-all border-t border-white/40 border-l border-white/20 relative overflow-hidden group flex items-center justify-center gap-4"
                         style={{
-                            background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
-                            boxShadow: '0 10px 30px rgba(142,122,74,0.4), inset 0 0 10px rgba(255,255,255,0.3)'
+                            background: 'linear-gradient(135deg, #FFD700 0%, #C9B075 50%, #B8860B 100%)',
                         }}
                     >
-                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                        <span className="text-lg drop-shadow-md">🏆</span>
-                        <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
+                        <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        <span className="text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">✨</span>
+                        <span className="italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                            {isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}
+                        </span>
+                        <span className="text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">✨</span>
                     </button>
                 </div>
             )}
