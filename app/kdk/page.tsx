@@ -2365,7 +2365,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                <div className="relative mt-24 mb-24">
+                <div className="relative mt-24 mb-40">
                     <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
@@ -2435,7 +2435,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         <span className="text-right whitespace-nowrap">PF</span>
                         <span className="text-right whitespace-nowrap">PA</span>
                         <span className="text-right whitespace-nowrap">득실</span>
-                        <span className="text-right pr-2 whitespace-nowrap">정산</span>
+                        <span className="text-center pr-2 whitespace-nowrap text-[#C9B075]">정산</span>
                     </div>
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x: any) => x.id === p.id);
@@ -2454,9 +2454,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 <div className="text-right text-[11px] font-black text-white">{p.pf}</div>
                                 <div className="text-right text-[11px] font-black text-white/80">{p.pa}</div>
                                 <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
+                                <div className={`text-center text-[14px] tracking-tighter ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
                                     {amount !== 0 ? (
-                                        <div className="flex items-center justify-end gap-0.5">
+                                        <div className="flex items-center justify-center gap-0.5">
                                             <span className="text-[11px] font-black opacity-60 translate-y-[1px]">₩</span>
                                             <span>{`${amount > 0 ? '+' : ''}${amount.toLocaleString()}`}</span>
                                         </div>
@@ -2539,7 +2539,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
 
-                 <div className="flex flex-col gap-10 mt-32 mb-48 shrink-0 px-6 pb-48">
+                 <div className="flex flex-col gap-10 mt-48 mb-48 shrink-0 px-6 pb-48">
                     <button onClick={copyMatchTable} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
                         <span className="text-xl">📋</span>
                         대진표 공유
