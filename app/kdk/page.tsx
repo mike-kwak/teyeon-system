@@ -652,6 +652,7 @@ export default function KDKPage() {
             try {
                 const dbMatches = formattedMatches.map(m => ({
                     ...m,
+                    session_id: sessionId, // CRITICAL: Added missing session_id
                     club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
                     session_title: sessionTitle || 'Tournament',
                     player_names: m.playerIds.map(pid => getPlayerName(pid))
@@ -660,6 +661,7 @@ export default function KDKPage() {
                     p_matches: dbMatches
                 });
                 if (matchError) console.warn("Live Match Sync Error:", matchError);
+                else console.log("✅ Live Match Sync Success");
             } catch (err) {
                 console.error("Critical Sync Failure:", err);
             }
@@ -683,8 +685,17 @@ export default function KDKPage() {
 
         const nextActive = [...activeMatchIds, matchId];
         const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
+        
+        // 1. Local state update
         setActiveMatchIds(nextActive);
         setMatches(nextMatches);
+
+        // 2. DB Sync via RPC
+        await supabase.rpc('update_match_status', {
+            p_match_id: matchId,
+            p_status: 'playing',
+            p_court: nextCourt
+        });
     };
 
     const cancelMatch = async (matchId: string) => {
@@ -692,12 +703,11 @@ export default function KDKPage() {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
 
-            // 1. Supabase Sync (Update status to waiting and clear court)
-            const { error: syncError } = await supabase
-                .from('matches')
-                .update({ status: 'waiting', court: null })
-                .eq('id', matchId)
-                .eq('session_id', sessionId);
+            // 1. Supabase Sync via RPC (Bypass schema cache error)
+            const { error: syncError } = await supabase.rpc('update_match_status', {
+                p_match_id: matchId,
+                p_status: 'waiting'
+            });
 
             if (syncError) console.warn("Cancel match sync error:", syncError);
 
@@ -862,24 +872,21 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
-            // Critical check to see if match exists in live table to move it
-            const { data: liveRow } = await supabase.from('matches').select('id').eq('id', matchId).single();
+            // 3. DB Sync via RPC (Bypass schema cache error)
+            const { error: syncError } = await supabase.rpc('update_match_status', {
+                p_match_id: matchId,
+                p_status: 'complete',
+                p_score1: numS1,
+                p_score2: numS2
+            });
 
-            // UPSERT into Archive (prevents duplicates from concurrent submissions)
-            const { error: insError } = await supabase.from('matches_archive').upsert([archiveRecord], { onConflict: 'id' });
-
-            if (insError) {
-                console.error("Archive Insert Error:", insError);
-                // Enhanced Alert for debugging
-                alert(`아카이브 저장 실패: ${insError.message}\n상세: ${JSON.stringify(insError)}`);
-                throw insError;
+            if (syncError) {
+                console.error("Match result sync error:", syncError);
+                throw syncError;
             }
 
-            // Delete from Live if it was there
-            if (liveRow) {
-                const { error: delError } = await supabase.from('matches').delete().eq('id', matchId);
-                if (delError) console.warn("Live Delete Sync Error (Match archived but not deleted from live):", delError);
-            }
+            // [OPTIONAL] Archive into secondary table if needed, but the main matches table is now reliable via RPC
+            // For now, we only update the status. If you want separate archive table, we can keep using finalize_tournament.
 
             // Clear Score Buffer
             localStorage.removeItem(`kdk_score_buffer_${matchId}`);
