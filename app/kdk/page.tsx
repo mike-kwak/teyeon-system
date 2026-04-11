@@ -2434,15 +2434,15 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 <div className="h-6" aria-hidden="true" />
 
                 <div className="flex-1 space-y-2 px-4 mb-10 relative z-0">
-                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
+                    <div className="grid grid-cols-[3rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem_6.5rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
                         <span className="text-center opacity-60 whitespace-nowrap">순위</span>
-                        <span className="text-left pl-2 opacity-60 whitespace-nowrap">참가자</span>
+                        <span className="text-left pl-10 opacity-60 whitespace-nowrap">참가자</span>
                         <span className="text-right opacity-40 whitespace-nowrap">P</span>
-                        <span className="text-right whitespace-nowrap">승</span>
-                        <span className="text-right whitespace-nowrap">패</span>
-                        <span className="text-right whitespace-nowrap">PF</span>
-                        <span className="text-right whitespace-nowrap">PA</span>
-                        <span className="text-right whitespace-nowrap">득실</span>
+                        <span className="text-right text-[#00e5ff] whitespace-nowrap">승</span>
+                        <span className="text-right opacity-60 whitespace-nowrap">패</span>
+                        <span className="text-right opacity-60 whitespace-nowrap">PF</span>
+                        <span className="text-right opacity-60 whitespace-nowrap">PA</span>
+                        <span className="text-right text-[#00e5ff] whitespace-nowrap">득실</span>
                         <span className="text-center pr-2 whitespace-nowrap text-[#C9B075]">정산</span>
                     </div>
                     {others.map((p) => {
@@ -2450,18 +2450,20 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
                             <div key={p.id}
-                                className="h-14 rounded-2xl px-4 grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
+                                className="h-14 rounded-2xl px-4 grid grid-cols-[3rem_1fr_2.5rem_2.5rem_2.5rem_2.5rem_2.5rem_3rem_6.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
                             >
-                                <div className="text-center font-bold text-[11px] text-white/30 italic group-hover:text-white/60 transition-colors">{originalIdx + 1}</div>
-                                <div className="text-left font-black text-[15px] text-white tracking-tighter truncate pl-2">
+                                <div className="text-center font-bold text-[13px] text-white/30 italic group-hover:text-white/60 transition-colors">{originalIdx + 1}</div>
+                                <div className="text-left font-black text-[16px] text-white tracking-tighter truncate pl-10">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
-                                <div className="text-right text-[11px] font-black text-white/95">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-white/95">{p.losses}</div>
-                                <div className="text-right text-[11px] font-black text-white">{p.pf}</div>
-                                <div className="text-right text-[11px] font-black text-white/80">{p.pa}</div>
-                                <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className="text-right text-[11px] font-black text-white/60">{p.wins + p.losses}</div>
+                                <div className="text-right text-[15px] font-black text-[#00e5ff] drop-shadow-[0_0_15px_rgba(0,229,255,0.6)]">{p.wins}</div>
+                                <div className="text-right text-[13px] font-black text-white/70">{p.losses}</div>
+                                <div className="text-right text-[11px] font-black text-white/60">{p.pf}</div>
+                                <div className="text-right text-[11px] font-black text-white/60">{p.pa}</div>
+                                <div className={`text-right font-black text-[15px] text-[#00e5ff] drop-shadow-[0_0_12px_rgba(0,229,255,0.4)]`}>
+                                    {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                </div>
                                 <div className={`text-center text-[14px] tracking-tighter ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
                                     {amount !== 0 ? (
                                         <div className="flex items-center justify-center gap-0.5">
