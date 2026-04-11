@@ -947,7 +947,8 @@ export default function KDKPage() {
                 throw syncError;
             }
 
-            // 4. Force state sync & Immediate Reload
+            // 4. Immediate 'Invalidation' (Manual State Refresh before safety reload)
+            await syncActiveSession(); 
             window.location.reload();
 
             // Success: Trigger Toast instead of Alert
