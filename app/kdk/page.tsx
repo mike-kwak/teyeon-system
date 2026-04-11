@@ -2243,11 +2243,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px]">
                                                 <div className="flex items-center gap-0.5">
                                                     <span className="text-cyan-400">{p.wins}</span>
-                                                    <span className="text-cyan-400/40">W</span>
+                                                    <span className="text-cyan-400/40">승</span>
                                                 </div>
                                                 <div className="flex items-center gap-0.5">
                                                     <span className="text-slate-400">{p.losses}</span>
-                                                    <span className="text-slate-400/40">L</span>
+                                                    <span className="text-slate-400/40">패</span>
                                                 </div>
                                                 <span className="opacity-10">/</span>
                                                 <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white/30 tracking-normal'}>
@@ -2257,7 +2257,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
                                             {isFirst && (
                                                 <div className="mt-5 px-5 py-2 rounded-full bg-gradient-to-r from-[#C9B075] to-[#A89462] border border-white/30 overflow-hidden relative group scale-100 shadow-[0_10px_30px_rgba(201,176,117,0.4)]">
-                                                    <span className="text-black font-black text-[11px] tracking-[0.3em] relative z-10 italic uppercase">Champion</span>
+                                                    <span className="text-black font-black text-[11px] tracking-[0.3em] relative z-10 italic uppercase">명예의 전당</span>
                                                 </div>
                                             )}
                                         </div>
@@ -2270,15 +2270,15 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
                 <div className="flex-1 space-y-2 px-4 pb-48">
                     <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-3 text-[10px] font-black text-white/25 tracking-widest border-b border-white/5 uppercase italic">
-                        <span className="text-center">RK</span>
-                        <span className="text-left pl-2">ENTRY</span>
+                        <span className="text-center">순위</span>
+                        <span className="text-left pl-2">참가자</span>
                         <span className="text-right opacity-30">P</span>
-                        <span className="text-right">W</span>
-                        <span className="text-right">L</span>
+                        <span className="text-right">승</span>
+                        <span className="text-right">패</span>
                         <span className="text-right">PF</span>
                         <span className="text-right">PA</span>
-                        <span className="text-right">DIF</span>
-                        <span className="text-right pr-2">FINE</span>
+                        <span className="text-right">득실</span>
+                        <span className="text-right pr-2">정산</span>
                     </div>
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x: any) => x.id === p.id);
