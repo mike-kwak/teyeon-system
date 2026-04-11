@@ -2508,31 +2508,44 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     const finalizeTournament = async () => {
+        if (!sessionId) {
+            alert("세션 ID가 없어 저장할 수 없습니다. 대진표를 다시 생성해 주세요.");
+            return;
+        }
         if (!confirm("모든 경기를 정산하고 이번 대진표를 아카이브에 최종 저장하시겠습니까?")) return;
+        
+        setIsGenerating(true);
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
-            const rankingSnapshot = players.map((p: any) => {
+            
+            // 랭킹 데이터 스냅샷 생성
+            const rankingSnapshot = (players || []).map((p: any) => {
                 const member = (allMembers || []).find((x: any) => x?.id === p.id) || (tempGuests || []).find((x: any) => x?.id === p.id);
                 return { id: p.id, name: p.name, wins: p.wins || 0, losses: p.losses || 0, diff: p.diff || 0, avatar: member?.avatar_url || '' };
             });
+
             const { error: archiveError } = await supabase.rpc('finalize_tournament', {
                 p_session_id: sessionId,
                 p_title: sessionTitle || `Tournament ${dateStr}`,
                 p_date: dateStr,
                 p_ranking_data: rankingSnapshot,
-                p_player_metadata: configs,
-                p_total_matches: sessionMatches.length,
-                p_total_rounds: (sessionMatches.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1,
-                p_match_snapshot: sessionMatches
+                p_player_metadata: attendeeConfigs || configs,
+                p_total_matches: sessionMatches?.length || 0,
+                p_total_rounds: (sessionMatches?.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1,
+                p_match_snapshot: sessionMatches || []
             });
+
             if (archiveError) throw archiveError;
-            alert("🏆 토너먼트 정산 완료!");
+
+            alert("🏆 토너먼트 정산 및 아카이브 저장이 완료되었습니다!");
             actualReset();
         } catch (e: any) {
-            console.error(e);
-            alert("정산 오류가 발생했습니다.");
+            console.error("Archive Error:", e);
+            alert(`정산 오류가 발생했습니다: ${e.message || 'Unknown Error'}`);
+        } finally {
+            setIsGenerating(false);
         }
     };
 
