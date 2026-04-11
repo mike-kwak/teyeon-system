@@ -2181,9 +2181,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                <div className="h-8 w-full pointer-events-none" />
+                {/* HEADROOM EXPANSION FOR PODIUM */}
+                <div className="h-16 w-full pointer-events-none" />
 
-                <div className="relative mt-4 pt-10 pb-12 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-[48px] mx-2">
+                <div className="relative mt-4 pt-16 pb-12 bg-white/[0.02] backdrop-blur-3xl border-b border-white/5 flex flex-col items-center justify-end overflow-visible mb-10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-[48px] mx-2">
                     <div className="flex items-end justify-center gap-4 w-full px-6 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
@@ -2203,12 +2204,12 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                         <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-[0_4px_10px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-xl'}`}>{p.name}</div>
                                         <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px] text-white/50">
                                             <div className="flex items-center gap-1">
-                                                <span className="text-white/90">{p.wins}</span>
-                                                <span className="text-[#C9B075]">W</span>
+                                                <span className="text-cyan-400 opacity-90">{p.wins}</span>
+                                                <span className="text-cyan-400 opacity-40">W</span>
                                             </div>
                                             <div className="flex items-center gap-1">
-                                                <span>{p.losses}</span>
-                                                <span>L</span>
+                                                <span className="text-slate-400 opacity-90">{p.losses}</span>
+                                                <span className="text-slate-400 opacity-40">L</span>
                                             </div>
                                             <span className="opacity-10">/</span>
                                             <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white/30'}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
@@ -2236,7 +2237,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                         <span className="text-right">PF</span>
                         <span className="text-right">PA</span>
                         <span className="text-right">DIF</span>
-                        <span className="text-right pr-2">FINANCE</span>
+                        <span className="text-right pr-2">FINE</span>
                     </div>
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x: any) => x.id === p.id);
@@ -2250,12 +2251,12 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
                                 <div className="text-right text-[11px] font-bold text-white/5">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-white/80">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-white/10">{p.losses}</div>
+                                <div className="text-right text-[13px] font-black text-cyan-400/60">{p.wins}</div>
+                                <div className="text-right text-[13px] font-black text-slate-500/80">{p.losses}</div>
                                 <div className="text-right text-[11px] font-bold text-white/20">{p.pf}</div>
                                 <div className="text-right text-[11px] font-bold text-white/10">{p.pa}</div>
-                                <div className="text-right font-black text-[13px] text-white/40">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right font-black text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.3)]' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
+                                <div className="text-right font-black text-[13px] text-[#C9B075]/40">{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right font-black text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]' : amount > 0 ? 'text-[#C9B075]' : 'text-white/5'}`}>
                                     {amount !== 0 ? (
                                         <div className="flex items-center justify-end gap-0.5">
                                             <span className="text-[11px] font-black opacity-60 translate-y-[1px]">₩</span>
@@ -2340,26 +2341,26 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
 
-                <div className="flex items-center gap-3 mt-8 shrink-0 px-4 pb-48">
-                    <button onClick={copyMatchTable} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-2 italic">📋 대진표 공유</button>
-                    <button onClick={copyFinalResults} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-2 italic">🏆 최종결과 공유</button>
+                <div className="flex items-center gap-4 my-8 shrink-0 px-4 pb-48">
+                    <button onClick={copyMatchTable} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-4 italic shadow-lg">📋 대진표 공유</button>
+                    <button onClick={copyFinalResults} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-4 italic shadow-lg">🏆 최종결과 공유</button>
                 </div>
             </div>
 
-            {/* Premium Floating Archive Button - Elevated above Navigation Tabs */}
+            {/* Premium Floating Archive Button - Sleek Profile */}
             {isAdmin && (
                 <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100] animate-in slide-in-from-bottom-10 duration-700">
                     <button
                         disabled={isGenerating}
                         onClick={finalizeTournament}
-                        className="w-full h-20 text-black font-black rounded-[28px] uppercase text-2xl tracking-[0.2em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-4 py-2"
+                        className="w-full h-14 text-black font-black rounded-[22px] uppercase text-sm tracking-[0.25em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-4"
                         style={{
                             background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
-                            boxShadow: '0 20px 50px rgba(142,122,74,0.4), inset 0 0 25px rgba(255,255,255,0.3)'
+                            boxShadow: '0 15px 40px rgba(142,122,74,0.5), inset 0 0 15px rgba(255,255,255,0.3)'
                         }}
                     >
                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                        <span className="text-3xl drop-shadow-md">🏆</span>
+                        <span className="text-xl drop-shadow-md">🏆</span>
                         <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
                     </button>
                 </div>
