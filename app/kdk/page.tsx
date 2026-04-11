@@ -5,16 +5,10 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase as defaultSupabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
-import { RotateCw } from 'lucide-react';
-
-// [ROOT PURGE] Hardcoded Infrastructure for Emergency Bypass
-const SUPABASE_URL = 'https://wvhwpdgerjngmkhagxom.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2aHdwZGdlcmpuZ21raGFneG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNTIzODgsImV4cCI6MjA4OTkyODM4OH0.3F904LE0OM_HhFpqYFheJv34jcuiUD_hBohaz-RUUkc';
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+import { RotateCw, CheckCircle2 } from 'lucide-react';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
@@ -67,6 +61,8 @@ type UserRole = 'CEO' | 'Staff' | 'Member' | 'Guest';
 export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
+    const [showToast, setShowToast] = useState(false);
+
     useEffect(() => {
         // Force unregister stale service workers
         if ('serviceWorker' in navigator) {
@@ -77,7 +73,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v4.0 (ROOT PURGE)");
+        console.log("🚀 LATEST CODE LOADED: v5.0 (ULTIMATE STABLE)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -886,42 +882,6 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
-            // [DEBUG] Raw Fetch Inspection (Bypass Library)
-            try {
-                const supabaseUrl = SUPABASE_URL;
-                const supabaseKey = SUPABASE_KEY;
-                const debugUrl = `${supabaseUrl}/rest/v1/rpc/final_match_sync_v4`;
-                
-                const debugRes = await fetch(debugUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': `Bearer ${supabaseKey}`
-                    },
-                    body: JSON.stringify({
-                        p_match_id: matchId.toString(),
-                        p_status: 'complete',
-                        p_score1: numS1.toString(),
-                        p_score2: numS2.toString()
-                    })
-                });
-                
-                console.log("=== ROOT INSPECTION DEBUG ===");
-                console.log("URL:", debugUrl);
-                console.log("HTTP STATUS:", debugRes.status, debugRes.statusText);
-                if (debugRes.status !== 200 && debugRes.status !== 204) {
-                    const errorText = await debugRes.text();
-                    console.log("RAW ERROR MESSAGE:", errorText);
-                }
-                console.log("=============================");
-            } catch (debugErr) {
-                console.error("DEBUG FETCH CRITICAL ERROR:", debugErr);
-            }
-
-            // [ROOT PURGE] Proof of Deployment Alert
-            alert("🛠️ ROOT PURGE: Calling final_match_sync_v4 on wvhwpdgerjngmkhagxom");
-
             // 3. DB Sync via RPC (Bypass schema cache error)
             const { error: syncError } = await supabase.rpc('final_match_sync_v4', {
                 p_match_id: matchId.toString(),
@@ -934,6 +894,10 @@ export default function KDKPage() {
                 console.error("Match result sync error:", syncError);
                 throw syncError;
             }
+
+            // Success: Trigger Toast instead of Alert
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
 
             // [OPTIONAL] Archive into secondary table if needed, but the main matches table is now reliable via RPC
             // For now, we only update the status. If you want separate archive table, we can keep using finalize_tournament.
@@ -1887,7 +1851,15 @@ export default function KDKPage() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Central VS */}
+                                                        {/* Sleek Success Toast */}
+            {showToast && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
+                        <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
+                        <span className="text-[11px] font-black uppercase tracking-widest italic">결과가 안전하게 기록되었습니다</span>
+                    </div>
+                </div>
+            )}
                                                         <div className="font-black text-[8px] uppercase text-center italic opacity-60 shrink-0" style={{ color: groupColor, filter: `drop-shadow(0 0 5px ${groupColor}4D)` }}>vs</div>
 
                                                         {/* TEAM B BLOCK */}
