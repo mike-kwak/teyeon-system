@@ -34,7 +34,10 @@ export default function ArchivePage() {
             if (error) throw error;
             // Native filter by year/month from the 'date' string (YYYY-MM-DD or similar format, typically YYYY-MM)
             const filtered = (data || []).filter(s => {
-                const [y, m] = s.date.split('-');
+                if (!s.date || typeof s.date !== 'string') return false;
+                const parts = s.date.split('-');
+                if (parts.length < 2) return false;
+                const [y, m] = parts;
                 return y === year && parseInt(m).toString() === month;
             });
             setSessions(filtered);
@@ -95,7 +98,7 @@ export default function ArchivePage() {
                     players={selectedSession.ranking_data || []}
                     sessionTitle={selectedSession.title}
                     isArchive={true}
-                    matchSnapshot={selectedSession.match_snapshot || []}
+                    snapshot_data={selectedSession.snapshot_data || []}
                     onShareMatch={() => alert("Report shared!")}
                     onShareResult={() => alert("Champions shared!")}
                 />

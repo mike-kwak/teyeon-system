@@ -24,7 +24,7 @@ interface RankingTabProps {
     onFinalize?: () => void;
     isGenerating?: boolean;
     ceremonyMode?: boolean;
-    matchSnapshot?: any[];
+    snapshot_data?: any[];
 }
 
 export default function RankingTab({ 
@@ -38,13 +38,16 @@ export default function RankingTab({
     onFinalize,
     isGenerating,
     ceremonyMode = false,
-    matchSnapshot = []
+    snapshot_data = []
 }: RankingTabProps) {
     const [sortKey, setSortKey] = useState<string>('rk');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [activeRankingTab, setActiveRankingTab] = useState<'ALL' | 'A' | 'B'>('ALL');
+    
+    // Safety guard for players array
+    const playersList = players || [];
 
-    const uniqueGroups = Array.from(new Set(players.map((p) => p.group).filter(Boolean)));
+    const uniqueGroups = Array.from(new Set(playersList.map((p) => p.group).filter(Boolean)));
     const showTabs = uniqueGroups.length > 1;
 
     const [showConfetti, setShowConfetti] = useState(false);
@@ -82,7 +85,7 @@ export default function RankingTab({
     };
 
     const generatePlayerList = (filterGroup?: string) => {
-        return players.filter((p) => !filterGroup || p.group === filterGroup);
+        return playersList.filter((p) => !filterGroup || p.group === filterGroup);
     };
 
     const getSortedPlayers = (pList: any[]) => {
@@ -283,7 +286,7 @@ export default function RankingTab({
                     </button>
                 </div>
 
-                {isArchive && matchSnapshot && matchSnapshot.length > 0 && (
+                {isArchive && snapshot_data && snapshot_data.length > 0 && (
                     <section className="px-6 pb-20 space-y-10 animate-in fade-in slide-in-from-bottom-10 duration-1000">
                         <div className="flex items-center gap-4">
                             <div className="w-2 h-10 bg-[#C9B075] rounded-full shadow-[0_0_20px_rgba(201,176,117,0.4)]" />
@@ -294,7 +297,7 @@ export default function RankingTab({
                         </div>
 
                         <div className="grid grid-cols-1 gap-6">
-                            {matchSnapshot.map((m: any, idx: number) => {
+                            {snapshot_data.map((m: any, idx: number) => {
                                 const isB = (m.court || m.groupName) === 'B';
                                 const color = isB ? '#00e5ff' : '#C9B075';
                                 return (

@@ -138,16 +138,21 @@ export default function KDKPage() {
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     const [showRankingModal, setShowRankingModal] = useState(false);
     const [userRole, setUserRole] = useState<UserRole>('CEO');
+    const [allActiveSessions, setAllActiveSessions] = useState<{ id: string, title: string, matchCount: number, playerCount: number, lastActivity: string }[]>([]);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [showGateway, setShowGateway] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
 
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
 
-    const [showGuestDataModal, setShowGuestDataModal] = useState(false);
     const [showMemberEditModal, setShowMemberEditModal] = useState(false);
-    const [hasSkippedGuestInfo, setHasSkippedGuestInfo] = useState(false);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
+    const [isMembersError, setIsMembersError] = useState(false);
+    const [showCeremony, setShowCeremony] = useState(false);
+    const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
+    const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
 
     // --- [v7.0 ABSOLUTE] 12전 13기: 서버 굴복 및 로컬 강제 저장 통합 헬퍼 ---
     const absoluteSyncRPC = async (data: any) => {
@@ -200,12 +205,6 @@ export default function KDKPage() {
             }
         }
     };
-    const [isMembersError, setIsMembersError] = useState(false);
-    const [showCeremony, setShowCeremony] = useState(false);
-    const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
-    const [allActiveSessions, setAllActiveSessions] = useState<{ id: string, title: string, matchCount: number, playerCount: number, lastActivity: string }[]>([]);
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-    const [showGateway, setShowGateway] = useState(false);
 
     const allMatchesScored = useMemo(() => {
         return matches.length > 0 && matches.every(m => m.status === 'complete');
@@ -287,17 +286,6 @@ export default function KDKPage() {
         }
     };
 
-    const handleGuestDataSave = (id: string, age: number, isWinner: boolean) => {
-        setAttendeeConfigs(prev => ({
-            ...prev,
-            [id]: {
-                ...(prev[id] || { id, name: "Unknown", group: 'A', startTime: '19:00', endTime: '22:00' } as any),
-                age,
-                isWinner
-            }
-        }));
-    };
-
     const validateGroups = (): { ok: boolean; msg: string } => {
         const attendees = Array.from(selectedIds).map(id => {
             const config = attendeeConfigs[id];
@@ -342,7 +330,6 @@ export default function KDKPage() {
 
         // (The code below is maintained for semantic completeness, though reload() will execute immediately)
         setMatches([]);
-        setActiveMatchIds([]);
         setAttendeeConfigs({});
         setStep(1);
         setFixedPartners([]);
@@ -350,7 +337,6 @@ export default function KDKPage() {
         setShowResetConfirm(false);
         setSelectedIds(new Set());
         setTempGuests([]);
-        setHasSkippedGuestInfo(false);
         setShowCeremony(false);
         setActiveTab('MATCHES');
     };
@@ -941,18 +927,6 @@ export default function KDKPage() {
 
             // Deterministic Unique ID for Upsert (Session + Round + Court)
             const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
-            const archiveRecord = {
-                id: deterministicId,
-                score1: numS1,
-                score2: numS2,
-                player_names: pNames,
-                session_title: sessionTitle || 'Live Match',
-                session_id: sessionId,
-                match_date: matchDateStr,
-                round: matchToFinish.round,
-                court: matchToFinish.court,
-                player_ids: matchToFinish.playerIds
-            };
 
             // 3. DB Sync via RPC (v7.0 ABSOLUTE)
             const { error: syncError } = await absoluteSyncRPC({
@@ -1136,9 +1110,6 @@ export default function KDKPage() {
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
 
-
-
-
                 <header className="grid grid-cols-3 px-6 mb-1 items-center h-12">
                     <div className="flex items-center">
                         <ManualRecoveryButton
@@ -1177,8 +1148,6 @@ export default function KDKPage() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-6 py-2 no-scrollbar" style={{ paddingBottom: '240px' }}>
-
-
 
                     <DataStateView
                         isLoading={isMembersLoading}
@@ -1237,8 +1206,6 @@ export default function KDKPage() {
                         </section>
                     </DataStateView>
 
-
-
                 </div>
 
 
@@ -1292,7 +1259,6 @@ export default function KDKPage() {
     }
 
     // --- Step 2: Settings Dashboard ---
-    // FORCE_REBUILD_v28: 2026-04-07T12:35:00Z
     if (step === 2) {
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
@@ -1303,10 +1269,6 @@ export default function KDKPage() {
 
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
-
-
-
-
 
                 <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0">
                     <div className="flex items-center">
@@ -1336,7 +1298,6 @@ export default function KDKPage() {
                 </header>
 
                 <div className="px-6 space-y-12 max-w-lg mx-auto w-full">
-
 
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2">
@@ -1371,7 +1332,7 @@ export default function KDKPage() {
                                             {m.name}{m.is_guest ? ' (G)' : ''}
                                         </span>
 
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between' }}>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <button
@@ -1464,7 +1425,7 @@ export default function KDKPage() {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                                 {fixedPartners.map((pair, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '15px', fontWeight: 1000, color: '#FFFFFF' }}>
                                             <span>{getPlayerName(pair[0])}</span>
                                             <span style={{ color: '#C9B075', fontSize: '18px' }}>♥</span>
@@ -1503,18 +1464,18 @@ export default function KDKPage() {
                                 CONSTRAINTS
                             </h4>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{totalCourts}</span>
                                     <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
                                     <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
@@ -1528,33 +1489,33 @@ export default function KDKPage() {
                                 FINANCIALS
                             </h4>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#FACC15', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 1 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 2 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
@@ -1617,7 +1578,7 @@ export default function KDKPage() {
                     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                         <div style={{ background: '#1C1C1C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '32px', width: '100%', maxWidth: '400px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyBetween: 'space-between' }}>
                                 <div>
                                     <div style={{ fontSize: '11px', fontWeight: 900, color: '#C9B075', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
                                     <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>SELECT PARTNER</h3>
@@ -1640,7 +1601,7 @@ export default function KDKPage() {
                                                 }
                                             }}
                                             style={{
-                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                display: 'flex', alignItems: 'center', justifyBetween: 'space-between',
                                                 padding: '16px 20px',
                                                 borderRadius: '16px',
                                                 background: isSelected ? '#C9B075' : '#252525',
@@ -1871,13 +1832,14 @@ export default function KDKPage() {
                                         if (!m) return null;
 
                                         const allMatchesInGroupSorted = matches.filter(mx => {
-                                            const p0 = mx.playerIds[0];
-                                            const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                            const p0 = mx.playerIds?.[0];
+                                            if (!p0) return false;
+                                            const pGroup = attendeeConfigs[p0]?.group || (allMembers || []).find(x => x.id === p0)?.position || 'A';
                                             const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
                                             return nGroup === (m.groupName || 'A');
                                         }).sort((a, b) => {
                                             if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                            return a.id.localeCompare(b.id);
+                                            return (a.id || '').localeCompare(b.id || '');
                                         });
                                         const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
                                         const normalizedGroup = m.groupName || 'A';
@@ -1925,14 +1887,14 @@ export default function KDKPage() {
                                                         </div>
 
                                                         {/* Sleek Success Toast */}
-            {showToast && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
-                        <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
-                        <span className="text-[11px] font-black uppercase tracking-widest italic">결과가 안전하게 기록되었습니다</span>
-                    </div>
-                </div>
-            )}
+                                                        {showToast && (
+                                                            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                                                <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
+                                                                    <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
+                                                                    <span className="text-[11px] font-black uppercase tracking-widest italic">결과가 안전하게 기록되었습니다</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         <div className="font-black text-[8px] uppercase text-center italic opacity-60 shrink-0" style={{ color: groupColor, filter: `drop-shadow(0 0 5px ${groupColor}4D)` }}>vs</div>
 
                                                         {/* TEAM B BLOCK */}
@@ -2442,544 +2404,6 @@ function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], c
         </div>
     );
 }
-
-function RankingView({ sessionMatches, configs, prizes, allPlayers: players, allMembers, tempGuests, sessionId, sessionTitle, actualReset, copyMatchTable, copyFinalResults, ceremonyMode, onFinalize, isGenerating, isAdmin }: any) {
-    const [sortKey, setSortKey] = useState<string>('rk');
-    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-    const [activeRankingTab, setActiveRankingTab] = useState<'ALL' | 'A' | 'B'>('ALL');
-
-    const uniqueGroups = Array.from(new Set(players.map((p: any) => p.group).filter(Boolean)));
-    const showTabs = uniqueGroups.length > 1;
-
-    const [showConfetti, setShowConfetti] = useState(false);
-    useEffect(() => {
-        if (ceremonyMode) {
-            setShowConfetti(true);
-            const timer = setTimeout(() => setShowConfetti(false), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [ceremonyMode]);
-
-    const calculateSettlement = (p: any, idx: number, total: number) => {
-        let amount = 0;
-        const bottomHalfCount = Math.ceil(total / 2);
-        const penaltyCount = Math.ceil(bottomHalfCount / 2);
-        const isPenaltyTier = idx >= (total - penaltyCount);
-        const isFineTier = !isPenaltyTier && idx >= (total - bottomHalfCount);
-
-        let performancePenalty = 0;
-        if (idx === 0 && !p.is_guest) {
-            performancePenalty = prizes.first || 10000;
-        } else if (isPenaltyTier) {
-            performancePenalty = -(prizes.l2 || 5000);
-        } else if (isFineTier) {
-            performancePenalty = -(prizes.l1 || 3000);
-        }
-
-        if (p.is_guest) {
-            amount = -5000 + performancePenalty;
-        } else {
-            amount = performancePenalty;
-        }
-
-        return { amount, isPenaltyTier, isFineTier };
-    };
-
-    const generatePlayerList = (filterGroup?: string) => {
-        return players.filter((p: any) => !filterGroup || p.group === filterGroup);
-    };
-
-    const getSortedPlayers = (pList: any[]) => {
-        const sorted = [...(pList || [])].map((p, i) => ({ ...p, rk: i + 1 }));
-        return sorted.sort((a, b) => {
-            let valA = a[sortKey];
-            let valB = b[sortKey];
-            if (sortKey === 'rk') { valA = a.rk; valB = b.rk; }
-            if (valA < valB) return sortDir === 'asc' ? -1 : 1;
-            if (valA > valB) return sortDir === 'asc' ? 1 : -1;
-            return 0;
-        });
-    };
-
-    const RankingTable = ({ players: tablePlayers, title }: { players: any[], title: string }) => {
-        const sorted = getSortedPlayers(tablePlayers);
-        const top3 = sorted.slice(0, 3);
-        const others = sorted.slice(3);
-
-        return (
-            <section className="flex flex-col">
-                <div className="relative mt-24 mb-0">
-                    <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto relative z-10 overflow-visible">
-                        {[1, 0, 2].map((idx) => {
-                            const p = top3[idx];
-                            if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[28%]'} h-2`} />;
-                            const isFirst = idx === 0;
-                            const isSecond = idx === 1;
-                            const widthClass = isFirst ? 'w-[45%]' : 'w-[28%]';
-                            
-                            return (
-                                <div 
-                                    key={p.id} 
-                                    className={`relative ${widthClass} transition-all duration-700 flex flex-col justify-end`}
-                                >
-                                    <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-6 w-full relative">
-                                        <div className={`
-                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6
-                                            ${isFirst ? 'w-20 h-20 border-[#C9B075]/30' : 'w-16 h-16'}
-                                        `}>
-                                            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
-                                            <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none`}>
-                                                {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 relative z-10">
-                                            <div className={`font-bold text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
-                                                {p.name}
-                                            </div>
-                                            
-                                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[11px] relative z-20">
-                                                <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{p.wins}</span>
-                                                    <span className="text-white drop-shadow-[0_0_5px_rgba(0,0,0,1)]">승</span>
-                                                </div>
-                                                <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">{p.losses}</span>
-                                                    <span className="text-white drop-shadow-[0_0_5px_rgba(0,0,0,1)]">패</span>
-                                                </div>
-                                                <span className="opacity-30">/</span>
-                                                <span className={p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.6)]' : 'text-white tracking-normal'}>
-                                                    {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                                </span>
-                                            </div>
-
-                                            {isFirst && (
-                                                <div className="mt-5 px-6 py-2 rounded-full bg-[#C9B075] shadow-[0_4px_20px_rgba(201,176,117,0.4)]">
-                                                    <span className="text-black font-black text-[12px] tracking-widest italic uppercase">
-                                                        ₩{(prizes.first || 10000).toLocaleString()} PRIZE
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="h-6" aria-hidden="true" />
-
-                <div className="flex-1 space-y-2 px-4 mb-10 relative z-0">
-                    <div className="grid grid-cols-[2.8rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_6.2rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
-                        <span className="text-center opacity-60 whitespace-nowrap">순위</span>
-                        <span className="text-left pl-4 opacity-60 whitespace-nowrap">참가자</span>
-                        <span className="text-right opacity-40 whitespace-nowrap">P</span>
-                        <span className="text-right text-[#00e5ff] whitespace-nowrap">승</span>
-                        <span className="text-right opacity-60 whitespace-nowrap">패</span>
-                        <span className="text-right opacity-60 whitespace-nowrap">PF</span>
-                        <span className="text-right opacity-60 whitespace-nowrap">PA</span>
-                        <span className="text-right text-[#00e5ff] whitespace-nowrap">득실</span>
-                        <span className="text-center pr-2 whitespace-nowrap text-[#C9B075]">정산</span>
-                    </div>
-                    {others.map((p) => {
-                        const originalIdx = players.findIndex((x: any) => x.id === p.id);
-                        const { amount } = calculateSettlement(p, originalIdx, players.length);
-                        return (
-                            <div key={p.id}
-                                className="h-14 rounded-2xl px-4 grid grid-cols-[2.8rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_6.2rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
-                            >
-                                <div className="text-center font-bold text-[13px] text-white/30 italic group-hover:text-white/60 transition-colors">{originalIdx + 1}</div>
-                                <div className="text-left font-black text-[15.5px] text-white tracking-tighter truncate pl-4">
-                                    {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
-                                </div>
-                                <div className="text-right text-[11px] font-black text-white/50">{p.wins + p.losses}</div>
-                                <div className="text-right text-[15px] font-black text-[#00e5ff] drop-shadow-[0_0_15px_rgba(0,229,255,0.6)]">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-white/60">{p.losses}</div>
-                                <div className="text-right text-[11px] font-black text-white/50">{p.pf}</div>
-                                <div className="text-right text-[11px] font-black text-white/50">{p.pa}</div>
-                                <div className={`text-right font-black text-[15px] text-[#00e5ff] drop-shadow-[0_0_12px_rgba(0,229,255,0.4)]`}>
-                                    {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                </div>
-                                <div className={`text-center text-[14px] tracking-tighter ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
-                                    {amount !== 0 ? (
-                                        <div className="flex items-center justify-center gap-0.5">
-                                            <span className="text-[10px] font-black opacity-60 translate-y-[1px]">₩</span>
-                                            <span>{`${amount > 0 ? '+' : ''}${amount.toLocaleString()}`}</span>
-                                        </div>
-                                    ) : '0'}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </section>
-        );
-    };
-
-
-    return (
-        <div className="flex flex-col min-h-screen relative">
-            <style jsx global>{`
-                @keyframes confetti-fall {
-                    0% { transform: translateY(-10vh) rotate(0deg); opacity:1; }
-                    100% { transform: translateY(110vh) rotate(720deg); opacity:0; }
-                }
-                .animate-confetti-fall { animation: confetti-fall 4.5s linear forwards; }
-            `}</style>
-            
-            <div className="flex-1">
-                {showTabs && (
-                    <div className="sticky top-0 z-50 py-3 bg-black/60 backdrop-blur-xl -mx-4 px-4 border-b border-white/10 mb-4 shadow-2xl">
-                        <div className="flex bg-white/5 rounded-3xl p-1.5 border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)] max-w-sm mx-auto">
-                            {['ALL', 'A', 'B'].map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveRankingTab(tab as any)}
-                                    className={`flex-1 py-3 text-[11px] font-black rounded-2xl transition-all tracking-widest ${activeRankingTab === tab ? 'bg-gradient-to-r from-[#C9B075] to-[#A89462] text-black shadow-xl shadow-[#C9B075]/20' : 'text-white/40 hover:text-white/70'}`}
-                                >
-                                    {tab === 'ALL' ? 'INTEGRATED' : `GROUP ${tab}`}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {ceremonyMode && (
-                    <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[100] px-6 py-2 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] rounded-full shadow-[0_10px_40px_rgba(201,176,117,0.6)] animate-in slide-in-from-top-10 duration-700 border border-white/50">
-                        <span className="text-[10px] font-black text-black tracking-[0.2em] uppercase italic">🏆 CHAMPIONSHIP CELEBRATION</span>
-                    </div>
-                )}
-
-                {showConfetti && (
-                    <div className="absolute inset-x-0 top-0 pointer-events-none z-[100] h-screen overflow-hidden flex justify-center">
-                        {[...Array(30)].map((_, i) => (
-                            <div key={i} className="absolute top-[-20px] w-2.5 h-2.5 bg-[#C9B075] rounded-full animate-confetti-fall" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 4}s`, background: i % 2 === 0 ? '#C9B075' : '#E5D29B' }} />
-                        ))}
-                    </div>
-                )}
-
-                {activeRankingTab === 'ALL' && <RankingTable players={players} title="INTEGRATED LEADERBOARD" />}
-                {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
-                {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
-                
-                <div className="h-8" aria-hidden="true" />
-
-                 <div className="flex flex-col gap-10 mt-48 mb-48 shrink-0 px-6 pb-48">
-                    <button onClick={copyMatchTable} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
-                        <span className="text-xl">📋</span>
-                        대진표 공유
-                    </button>
-                    <button onClick={copyFinalResults} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
-                        <span className="text-xl">🏆</span>
-                        최종결과 공유
-                    </button>
-                </div>
-            </div>
-
-
-            {/* Premium Floating Archive Button - Sleek Profile */}
-            {isAdmin && (
-                <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100] animate-in slide-in-from-bottom-10 duration-700">
-                    <button
-                        disabled={isGenerating}
-                        onClick={onFinalize}
-                        className="w-full h-12 text-black font-black rounded-2xl uppercase text-[12px] tracking-[0.4em] shadow-[0_20px_50px_rgba(201,176,117,0.5)] active:scale-95 transition-all border-t border-white/40 border-l border-white/20 relative overflow-hidden group flex items-center justify-center gap-4"
-                        style={{
-                            background: 'linear-gradient(135deg, #FFD700 0%, #C9B075 50%, #B8860B 100%)',
-                        }}
-                    >
-                        <div className="absolute inset-0 bg-white/30 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                        <span className="text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">✨</span>
-                        <span className="italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                            {isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}
-                        </span>
-                        <span className="text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">✨</span>
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// --- Archive Components ---
-
-function ArchiveView({ isAdmin }: { isAdmin: boolean }) {
-    const [segment, setSegment] = useState<'RECORD' | 'TOTAL' | 'HALL'>('RECORD');
-    const [year, setYear] = useState('2026');
-    const [month, setMonth] = useState('4');
-    const [sessions, setSessions] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedSession, setSelectedSession] = useState<any | null>(null);
-
-    useEffect(() => {
-        fetchSessions();
-    }, [year, month]);
-
-    const fetchSessions = async () => {
-        setLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('sessions_archive')
-                .select('*')
-                .order('date', { ascending: false });
-            
-            if (error) throw error;
-            // Native filter by year/month from the 'date' string (YYYY-MM-DD)
-            const filtered = (data || []).filter(s => {
-                const [y, m] = s.date.split('-');
-                return y === year && parseInt(m).toString() === month;
-            });
-            setSessions(filtered);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (selectedSession) {
-        return <ArchiveDetailView session={selectedSession} onBack={() => setSelectedSession(null)} />;
-    }
-
-    return (
-        <div className="flex flex-col px-6 pt-4 pb-20 space-y-8 min-h-screen bg-[#14161a]">
-            {/* Header */}
-            <header className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase">경기 아카이브</h1>
-                {isAdmin && <span className="px-3 py-1 bg-red-600 rounded-lg text-[10px] font-black text-white italic">CEO</span>}
-            </header>
-
-            {/* Segments */}
-            <div className="flex bg-white/5 rounded-3xl p-1.5 border border-white/10 shadow-2xl">
-                {[
-                    { id: 'RECORD', label: '대회 기록' },
-                    { id: 'TOTAL', label: '전체 랭킹' },
-                    { id: 'HALL', label: '명예의 전당' }
-                ].map((s) => (
-                    <button
-                        key={s.id}
-                        onClick={() => setSegment(s.id as any)}
-                        className={`flex-1 py-4 text-[11px] font-black rounded-2xl transition-all tracking-widest ${segment === s.id ? 'bg-[#C9B075] text-black shadow-xl' : 'text-white/40'}`}
-                    >
-                        {s.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Filters */}
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Year</label>
-                    <select 
-                        value={year}
-                        onChange={(e) => setYear(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
-                    >
-                        <option value="2026">2026년</option>
-                        <option value="2025">2025년</option>
-                    </select>
-                </div>
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Month</label>
-                    <select 
-                        value={month}
-                        onChange={(e) => setMonth(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
-                    >
-                        {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={(i + 1).toString()}>{i + 1}월</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            {/* List */}
-            <div className="space-y-6">
-                {loading ? (
-                    <div className="py-20 flex justify-center"><PremiumSpinner /></div>
-                ) : sessions.length === 0 ? (
-                    <div className="py-20 text-center text-white/20 font-black uppercase tracking-widest border border-dashed border-white/10 rounded-[40px]">기록된 세션이 없습니다</div>
-                ) : (
-                    sessions.map((s, idx) => (
-                        <div 
-                            key={s.id}
-                            onClick={() => setSelectedSession(s)}
-                            className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8 relative overflow-hidden group cursor-pointer hover:bg-white/10 transition-all shadow-2xl active:scale-95"
-                        >
-                            <div className="flex items-center justify-between relative z-10">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#C9B075]/20 border border-[#C9B075]/40 flex items-center justify-center italic font-black text-[#C9B075]">{sessions.length - idx}</div>
-                                    <span className="text-xs font-black text-[#C9B075] tracking-widest uppercase">{s.date}</span>
-                                </div>
-                                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover:text-[#C9B075] transition-colors">→</div>
-                            </div>
-                            
-                            <div className="relative z-10">
-                                <h3 className="text-2xl font-black italic text-white tracking-tighter uppercase mb-2">{s.title || s.id}</h3>
-                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">{s.total_matches} MATCHES VERIFIED</p>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-        </div>
-    );
-}
-
-function ArchiveDetailView({ session, onBack }: { session: any, onBack: () => void }) {
-    const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
-
-    const getArchivedPlayerName = (id: string) => {
-        const metadata = session.player_metadata || {};
-        if (metadata[id]) return metadata[id].name || "???";
-        const ranking = session.ranking_data || [];
-        const found = ranking.find((r: any) => r.id === id);
-        return found ? found.name : "???";
-    };
-
-    return (
-        <div className="flex flex-col min-h-screen bg-[#14161a] pb-20 relative">
-            <header className="px-6 py-6 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#14161a]/80 backdrop-blur-xl z-[100]">
-                <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors">
-                    <span className="text-xl">←</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
-                </button>
-                <div className="text-center flex flex-col items-center">
-                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-[0.4em] mb-1">Session Data</span>
-                    <h2 className="text-lg font-black italic text-white tracking-tighter uppercase">{session.title}</h2>
-                </div>
-                <div className="w-10" />
-            </header>
-
-            <div className="px-6 py-10 space-y-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                {/* Atmosphere Replay Selection */}
-                <section className="space-y-10">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-2 h-10 bg-[#C9B075] rounded-full shadow-[0_0_15px_rgba(201,176,117,0.5)]" />
-                            <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">ATMOSPHERE REPLAY</h3>
-                        </div>
-                        <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">{session.snapshot_data?.length || 0} RECORDED EVENTS</span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        {(session.snapshot_data || []).map((m: any, idx: number) => {
-                            const isB = m.groupName === 'B';
-                            const color = isB ? '#00E5FF' : '#C9B075';
-                            return (
-                                <div key={idx} className="bg-white/5 border-t-2 border-white/20 rounded-[32px] p-1 overflow-hidden shadow-2xl transition-all hover:scale-[1.02]">
-                                    <div className="px-4 py-2 border-b border-white/5 bg-white/5 flex items-center justify-center">
-                                        <span className="text-[8px] font-black tracking-widest uppercase opacity-40" style={{ color }}>
-                                            GR {m.groupName || 'A'} • MATCH {(idx + 1).toString().padStart(2, '0')}
-                                        </span>
-                                    </div>
-                                    <div className="p-4 flex flex-col items-center gap-4">
-                                        <div className="flex items-center justify-between w-full gap-2">
-                                            <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
-                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[0])}</span>
-                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[1])}</span>
-                                            </div>
-                                            <div className="flex flex-col items-center shrink-0">
-                                                <span className="text-lg font-black text-white leading-none">{m.score1}:{m.score2}</span>
-                                                <span className="text-[6px] font-black text-[#C9B075] mt-1 tracking-widest uppercase">FINAL</span>
-                                            </div>
-                                            <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
-                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[2])}</span>
-                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[3])}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-
-                {/* Data Verification Table */}
-                <section className="space-y-10">
-                    <div className="flex items-center gap-4">
-                        <div className="w-2 h-10 bg-[#00E5FF] rounded-full shadow-[0_0_15px_rgba(0,229,255,0.5)]" />
-                        <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">DATA VERIFICATION</h3>
-                    </div>
-
-                    <div className="bg-[#1a1c20] border border-white/10 rounded-[40px] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
-                        <div className="overflow-x-auto no-scrollbar">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-white/5 border-b border-white/10">
-                                    <tr className="text-[11px] font-black text-white/40 uppercase tracking-widest">
-                                        <th className="px-8 py-7">RANK</th>
-                                        <th className="px-8 py-7">PLAYER</th>
-                                        <th className="px-8 py-7 text-center">W</th>
-                                        <th className="px-8 py-7 text-center">L</th>
-                                        <th className="px-8 py-7 text-center">DIFF</th>
-                                        <th className="px-8 py-7 text-right">ACTION</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-white divide-y divide-white/5">
-                                    {(session.ranking_data || []).sort((a: any, b: any) => (b.wins - a.wins) || (b.diff - a.diff)).map((p: any, idx: number) => (
-                                        <tr key={idx} onClick={() => setSelectedPlayer(p)} className="hover:bg-white/5 transition-all cursor-pointer group active:bg-[#C9B075]/10">
-                                            <td className="px-8 py-6">
-                                                <div className="flex items-center gap-3">
-                                                    <span className={`text-xl font-black italic ${idx < 3 ? 'text-[#C9B075]' : 'opacity-20'}`}>{(idx + 1).toString().padStart(2, '0')}</span>
-                                                    {idx === 0 && <span className="text-[10px]">👑</span>}
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-6 font-black text-base tracking-tight">{p.name}</td>
-                                            <td className="px-8 py-6 text-center font-black text-[#00E5FF] text-lg">{p.wins}</td>
-                                            <td className="px-8 py-6 text-center font-black text-white/30 text-lg">{p.losses}</td>
-                                            <td className={`px-8 py-6 text-center font-black text-lg ${p.diff > 0 ? 'text-[#C9B075]' : 'opacity-40'}`}>
-                                                {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                            </td>
-                                            <td className="px-8 py-6 text-right">
-                                                <button className="px-4 py-2 bg-white/5 rounded-xl text-[10px] font-black uppercase opacity-0 group-hover:opacity-100 transition-opacity border border-white/10 text-white/40 group-hover:text-white">Deep Insight</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            {/* Performance Modal Tooltip */}
-            {selectedPlayer && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-                    <div 
-                        onClick={() => setSelectedPlayer(null)}
-                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                    />
-                    <div className="relative w-full max-w-sm bg-[#1A1C20] border-t-2 border-[#C9B075]/30 rounded-[48px] p-10 flex flex-col items-center text-center shadow-[0_50px_100px_rgba(0,0,0,0.9)] animate-in zoom-in-95 duration-300">
-                        <div className="w-24 h-24 rounded-full bg-white/10 border-4 border-[#C9B075]/20 flex items-center justify-center text-4xl mb-6 shadow-[0_0_30px_rgba(201,176,117,0.1)]">👤</div>
-                        <h4 className="text-3xl font-black italic text-white tracking-tighter uppercase mb-2">{selectedPlayer.name}</h4>
-                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] mb-8 opacity-60">Performance Profile</span>
-                        
-                        <div className="grid grid-cols-2 gap-4 w-full mb-10">
-                            <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
-                                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-2">Win Rate</span>
-                                <span className="text-2xl font-black text-[#00E5FF]">{Math.round((selectedPlayer.wins / (selectedPlayer.wins + selectedPlayer.losses || 1)) * 100)}%</span>
-                            </div>
-                            <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
-                                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-2">Net Points</span>
-                                <span className="text-2xl font-black text-[#C9B075]">{selectedPlayer.diff > 0 ? `+${selectedPlayer.diff}` : selectedPlayer.diff}</span>
-                            </div>
-                        </div>
-                        
-                        <button 
-                            onClick={() => setSelectedPlayer(null)}
-                            className="w-full py-5 bg-white/5 border border-white/10 text-white font-black rounded-[24px] active:scale-95 transition-all text-xs uppercase tracking-widest"
-                        >
-                            CLOSE ANALYSIS
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// --- Warning Modals & Confirmers ---
 
 function WarningModal({ message, onClose }: { message: string, onClose: () => void }) {
     return (
