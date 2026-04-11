@@ -758,6 +758,9 @@ export default function KDKPage() {
             score1: 0,
             score2: 0
         });
+
+        // 3. Manual Invalidation (sync state from server)
+        await syncActiveSession();
     };
 
     const cancelMatch = async (matchId: string) => {
@@ -774,9 +777,12 @@ export default function KDKPage() {
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
-            // 2. Local State Update
+            // 2. Local State Update & Invalidation
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
             setActiveMatchIds(prev => prev.filter(id => id !== matchId));
+
+            // 3. Manual Invalidation (sync state from server)
+            await syncActiveSession();
 
             setTimeout(() => setSpinningMatchId(null), 500); // 0.5s Fast spin as requested
         } catch (err: any) {
