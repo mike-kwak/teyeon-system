@@ -2377,16 +2377,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} ${isFirst ? 'h-72' : 'h-52'} transition-all duration-700 flex flex-col justify-end`}
+                                    className={`relative ${widthClass} ${isFirst ? 'h-72' : 'h-48'} transition-all duration-700 flex flex-col justify-end`}
                                 >
                                     <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-10 w-full h-full relative">
                                         <div className={`
                                             flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6
-                                            ${isFirst ? 'w-20 h-20' : 'w-16 h-16'}
+                                            ${isFirst ? 'w-20 h-20 border-[#C9B075]/30' : 'w-16 h-16'}
                                         `}>
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
-                                            <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] select-none`}>
-                                                🏆
+                                            <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none`}>
+                                                {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
                                             </span>
                                         </div>
 
@@ -2411,8 +2411,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             </div>
 
                                             {isFirst && (
-                                                <div className="mt-5 px-5 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-md">
-                                                    <span className="text-white/60 font-bold text-[10px] tracking-[0.2em] italic uppercase">Hall of Fame</span>
+                                                <div className="mt-5 px-6 py-2 rounded-full bg-[#C9B075] shadow-[0_4px_20px_rgba(201,176,117,0.4)]">
+                                                    <span className="text-black font-black text-[12px] tracking-widest italic uppercase">
+                                                        ₩{(prizes.first || 10000).toLocaleString()} PRIZE
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>
@@ -2424,7 +2426,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 <div className="flex-1 space-y-2 px-4 pb-48">
-                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-4 text-[11px] font-black text-white tracking-widest border-b border-white/20 uppercase italic">
+                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-6 text-lg font-black text-white tracking-widest border-b border-white/20 uppercase italic">
                         <span className="text-center opacity-60">순위</span>
                         <span className="text-left pl-2 opacity-60">참가자</span>
                         <span className="text-right opacity-40">P</span>
