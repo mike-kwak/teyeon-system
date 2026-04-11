@@ -134,6 +134,9 @@ export default function KDKPage() {
     const [isMembersError, setIsMembersError] = useState(false);
     const [showCeremony, setShowCeremony] = useState(false);
     const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
+    const [allActiveSessions, setAllActiveSessions] = useState<{ id: string, title: string, matchCount: number, playerCount: number, lastActivity: string }[]>([]);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [showGateway, setShowGateway] = useState(false);
 
     const allMatchesScored = useMemo(() => {
         return matches.length > 0 && matches.every(m => m.status === 'complete');
@@ -404,7 +407,6 @@ export default function KDKPage() {
         try {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             
-            // Fetch matches that are NOT complete, or from a very recent session
             const { data, error } = await supabase
                 .from('matches')
                 .select('*')
@@ -414,28 +416,95 @@ export default function KDKPage() {
             if (error) throw error;
 
             if (data && data.length > 0) {
-                // If we have matches, we are in Live Broadcast mode
-                const formattedMatches: Match[] = data.map(m => ({
-                    id: m.id,
-                    playerIds: m.playerIds || [],
-                    court: m.court,
-                    status: m.status,
-                    score1: m.score1,
-                    score2: m.score2,
-                    mode: m.mode || 'KDK',
-                    round: m.round,
-                    teams: m.teams,
-                    groupName: m.groupName
+                // Group by session
+                const sessionsMap: Record<string, { id: string, title: string, matches: any[], players: Set<string>, lastActivity: string }> = {};
+                
+                data.forEach(m => {
+                    const sId = m.session_id || 'LEGACY';
+                    if (!sessionsMap[sId]) {
+                        sessionsMap[sId] = {
+                            id: sId,
+                            title: m.session_title || 'Unnamed Tournament',
+                            matches: [],
+                            players: new Set(),
+                            lastActivity: m.created_at
+                        };
+                    }
+                    sessionsMap[sId].matches.push(m);
+                    (m.playerIds || []).forEach((pid: string) => sessionsMap[sId].players.add(pid));
+                });
+
+                const sessionList = Object.values(sessionsMap).map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    matchCount: s.matches.length,
+                    playerCount: s.players.size,
+                    lastActivity: s.lastActivity
                 }));
 
-                setMatches(formattedMatches);
-                setSessionId(data[0].session_id || sessionId);
-                setSessionTitle(data[0].session_title || sessionTitle);
-                setStep(3); // Jump to Scoreboard
-                console.log("Live session detected and synced from Supabase");
+                setAllActiveSessions(sessionList);
+
+                // Gatekeeper Logic
+                if (!selectedSessionId) {
+                    if (sessionList.length === 1) {
+                        // Auto-entry if only one session
+                        const soleSession = sessionsMap[sessionList[0].id];
+                        setMatches(soleSession.matches.map(m => ({
+                            id: m.id,
+                            playerIds: m.playerIds || [],
+                            court: m.court,
+                            status: m.status,
+                            score1: m.score1,
+                            score2: m.score2,
+                            mode: m.mode || 'KDK',
+                            round: m.round,
+                            teams: m.teams,
+                            groupName: m.groupName
+                        })));
+                        setSessionId(soleSession.id);
+                        setSessionTitle(soleSession.title);
+                        setSelectedSessionId(soleSession.id);
+                        setStep(3);
+                    } else if (sessionList.length > 1) {
+                        setShowGateway(true);
+                    }
+                } else {
+                    // Refresh current session data if already selected
+                    const currentSession = sessionsMap[selectedSessionId];
+                    if (currentSession) {
+                        setMatches(currentSession.matches.map(m => ({
+                            id: m.id,
+                            playerIds: m.playerIds || [],
+                            court: m.court,
+                            status: m.status,
+                            score1: m.score1,
+                            score2: m.score2,
+                            mode: m.mode || 'KDK',
+                            round: m.round,
+                            teams: m.teams,
+                            groupName: m.groupName
+                        })));
+                    }
+                }
+            } else {
+                setAllActiveSessions([]);
+                setShowGateway(false);
             }
         } catch (err) {
             console.error("Active session sync failure:", err);
+        }
+    };
+
+    const enterSession = (sId: string) => {
+        const target = allActiveSessions.find(s => s.id === sId);
+        if (target) {
+            setSelectedSessionId(sId);
+            setShowGateway(false);
+            setSessionId(sId);
+            setSessionTitle(target.title);
+            setStep(3);
+            // Trigger a re-sync to get the full match data for this session
+            syncActiveSession();
         }
     };
 
@@ -1498,6 +1567,104 @@ export default function KDKPage() {
     // --- Step 3: Live Dashboard ---
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
+    if (showGateway && step === 3) {
+        return (
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900 opacity-50" />
+                
+                <header className="relative z-10 p-8 flex flex-col items-center text-center">
+                    <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase mb-4 animate-pulse">
+                        Live Court Gateway
+                    </span>
+                    <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-2xl">
+                        중계 세션 선택
+                    </h1>
+                    <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
+                </header>
+
+                <div className="relative z-10 flex-1 px-6 pb-20 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+                    {allActiveSessions.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center px-12 opacity-20 group">
+                            <div className="w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                <span className="text-4xl">📡</span>
+                            </div>
+                            <h2 className="text-lg font-black uppercase tracking-widest mb-2">No Active Matches</h2>
+                            <p className="text-[10px] font-medium leading-relaxed uppercase tracking-tighter max-w-xs">
+                                현재 진행 중인 공개 세션이 없습니다.<br />관리자가 경기를 생성하면 여기에 표시됩니다.
+                            </p>
+                        </div>
+                    ) : (
+                        allActiveSessions.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()).map((s, idx) => {
+                            const isLatest = idx === 0;
+                            return (
+                                <button
+                                    key={s.id}
+                                    onClick={() => enterSession(s.id)}
+                                    className={`
+                                        relative w-full rounded-[40px] p-8 text-left transition-all active:scale-[0.98] group overflow-hidden
+                                        bg-white/5 backdrop-blur-3xl border-t border-t-white/20 border-l border-l-white/10
+                                        shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
+                                        ${isLatest ? 'border-[#C9B075]/30' : ''}
+                                    `}
+                                >
+                                    {isLatest && (
+                                        <div className="absolute -inset-[3px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#C9B075]/10 to-transparent -z-10 opacity-40 blur-[4px]" />
+                                    )}
+
+                                    <div className="flex items-start justify-between mb-8">
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${isLatest ? 'text-[#C9B075]' : 'text-white/40'}`}>
+                                                {s.id.includes('KDK') ? '정기 KDK 매치' : '스페셜 매치'}
+                                            </span>
+                                            <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase group-hover:text-[#C9B075] transition-colors leading-none">
+                                                {s.title}
+                                            </h2>
+                                        </div>
+                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                                            <span className="text-[9px] font-black text-red-500/80 uppercase tracking-widest">LIVE</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-6">
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">참가 인원</span>
+                                            <span className="text-lg font-black text-white italic">{s.playerCount}<span className="text-[10px] ml-0.5 opacity-30">명</span></span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">진행 경기</span>
+                                            <span className="text-lg font-black text-white italic">{s.matchCount}<span className="text-[10px] ml-0.5 opacity-30">회</span></span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">상태</span>
+                                            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter mt-2">입장하기 ➡️</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Pulse Background */}
+                                    {isLatest && (
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-[#C9B075]/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                    )}
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+
+                {role === 'CEO' && (
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full px-8 pb-4">
+                        <button
+                            onClick={() => { setShowGateway(false); setStep(1); setSelectedSessionId(null); setMatches([]); setSessionId(""); setSessionTitle(""); }}
+                            className="w-full py-5 rounded-full bg-white/5 border border-white/10 text-white/40 font-black text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all hover:bg-white/10 hover:text-white"
+                        >
+                            + 새로운 대회 생성하기
+                        </button>
+                    </div>
+                )}
+            </main>
+        );
+    }
+
     return (
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
@@ -1510,6 +1677,15 @@ export default function KDKPage() {
                         >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                             <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                        </button>
+                    )}
+                    {allActiveSessions.length > 1 && (
+                        <button
+                            onClick={() => setShowGateway(true)}
+                            className="h-10 px-4 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/30 flex items-center gap-2 text-[#C9B075] hover:bg-[#C9B075]/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(201,176,117,0.1)]"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">다른 경기</span>
                         </button>
                     )}
                 </div>
