@@ -2438,10 +2438,10 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 <div className="flex-1 space-y-2 px-4 pb-48">
-                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-3 text-[10px] font-black text-white/25 tracking-widest border-b border-white/5 uppercase italic">
+                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-4 text-[11px] font-black text-white/50 tracking-widest border-b border-white/10 uppercase italic">
                         <span className="text-center">순위</span>
                         <span className="text-left pl-2">참가자</span>
-                        <span className="text-right opacity-30">P</span>
+                        <span className="text-right opacity-50">P</span>
                         <span className="text-right">승</span>
                         <span className="text-right">패</span>
                         <span className="text-right">PF</span>
@@ -2460,13 +2460,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 <div className="text-left font-black text-[15px] text-white tracking-tighter truncate pl-2">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
-                                <div className="text-right text-[11px] font-bold text-white/70">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-white drop-shadow-[0_0_10px_rgba(147,197,253,0.4)]">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-white">{p.losses}</div>
-                                <div className="text-right text-[11px] font-bold text-white/80">{p.pf}</div>
-                                <div className="text-right text-[11px] font-bold text-white/60">{p.pa}</div>
-                                <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white/90 tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
-                                <div className={`text-right text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]' : amount > 0 ? 'text-[#C9B075] font-black' : 'text-white/10 font-bold'}`}>
+                                <div className="text-right text-[11px] font-black text-white/80">{p.wins + p.losses}</div>
+                                <div className="text-right text-[13px] font-black text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]">{p.wins}</div>
+                                <div className="text-right text-[13px] font-black text-white/95">{p.losses}</div>
+                                <div className="text-right text-[11px] font-black text-white/90">{p.pf}</div>
+                                <div className="text-right text-[11px] font-black text-white/70">{p.pa}</div>
+                                <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
+                                <div className={`text-right text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
                                     {amount !== 0 ? (
                                         <div className="flex items-center justify-end gap-0.5">
                                             <span className="text-[11px] font-black opacity-60 translate-y-[1px]">₩</span>
@@ -2551,9 +2551,15 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
 
-                <div className="flex items-center gap-4 my-8 shrink-0 px-4 pb-48">
-                    <button onClick={copyMatchTable} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-4 italic shadow-lg">📋 대진표 공유</button>
-                    <button onClick={copyFinalResults} className="flex-1 py-5 bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-widest rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-4 italic shadow-lg">🏆 최종결과 공유</button>
+                 <div className="flex flex-col gap-6 my-20 shrink-0 px-6 pb-48">
+                    <button onClick={copyMatchTable} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
+                        <span className="text-xl">📋</span>
+                        대진표 공유
+                    </button>
+                    <button onClick={copyFinalResults} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
+                        <span className="text-xl">🏆</span>
+                        최종결과 공유
+                    </button>
                 </div>
             </div>
 
@@ -2564,7 +2570,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     <button
                         disabled={isGenerating}
                         onClick={finalizeTournament}
-                        className="w-full h-10 text-black font-black rounded-2xl uppercase text-[10px] tracking-[0.25em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-3"
+                        className="w-full h-12 text-black font-black rounded-2xl uppercase text-[13px] tracking-[0.35em] shadow-2xl active:scale-95 transition-all border border-white/30 relative overflow-hidden group flex items-center justify-center gap-4"
                         style={{
                             background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
                             boxShadow: '0 10px 30px rgba(142,122,74,0.4), inset 0 0 10px rgba(255,255,255,0.3)'
