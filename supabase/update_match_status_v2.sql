@@ -1,24 +1,49 @@
--- [RPC ULTIMATE FIX] update_match_status: JSONB 유니버설 버전 (v3.0)
--- 이 버전은 인자 개수나 순서에 상관없이 클라이언트의 요청 객체를 통째로 받아 처리합니다.
+-- [RPC FINAL FIX] update_match_status: 최종 호환성 패치 (v3.1)
+-- 모든 가능성을 고려하여 인자 순서와 데이터 타입을 최적화했습니다.
 
--- 1. 기존의 모든 중복 함수들 강제 삭제 (매개변수 조합별로 모두 삭제)
+-- 1. 기존의 모든 복잡한 형태의 함수들을 제거하여 깨끗하게 정리
+DROP FUNCTION IF EXISTS public.update_match_status(JSONB);
 DROP FUNCTION IF EXISTS public.update_match_status(TEXT, TEXT, INTEGER, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS public.update_match_status(TEXT, TEXT, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS public.update_match_status(TEXT, INTEGER, INTEGER, TEXT);
 
--- 2. 단일 JSONB 인자를 받는 유니버설 함수 생성 
--- 인자 이름을 'p_params'가 아닌 무명 혹은 일반적인 이름으로 설정하여 PostgREST 매칭 최적화
-CREATE OR REPLACE FUNCTION public.update_match_status(payload JSONB)
+-- 2. 버전 A: INTEGER 기반 (표준 정수 처리)
+CREATE OR REPLACE FUNCTION public.update_match_status(
+    p_match_id TEXT,
+    p_score1 INTEGER,
+    p_score2 INTEGER,
+    p_status TEXT
+)
 RETURNS VOID AS $$
 BEGIN
     UPDATE public.matches
     SET 
-        status = (payload->>'p_status')::TEXT,
-        score1 = (payload->>'p_score1')::INTEGER,
-        score2 = (payload->>'p_score2')::INTEGER
-    WHERE id = (payload->>'p_match_id')::TEXT;
+        status = p_status,
+        score1 = p_score1,
+        score2 = p_score2
+    WHERE id = p_match_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. 권한 부여
-GRANT EXECUTE ON FUNCTION public.update_match_status(JSONB) TO anon, authenticated, service_role;
+-- 3. 버전 B: NUMERIC 기반 (JS Number 호환성 강화)
+-- 웹에서 숫자가 실수 형태로 넘어올 경우를 대비한 오버로딩 함수입니다.
+CREATE OR REPLACE FUNCTION public.update_match_status(
+    p_match_id TEXT,
+    p_score1 NUMERIC,
+    p_score2 NUMERIC,
+    p_status TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE public.matches
+    SET 
+        status = p_status,
+        score1 = p_score1::INTEGER,
+        score2 = p_score2::INTEGER
+    WHERE id = p_match_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 4. 권한 부여 
+GRANT EXECUTE ON FUNCTION public.update_match_status(TEXT, INTEGER, INTEGER, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_match_status(TEXT, NUMERIC, NUMERIC, TEXT) TO anon, authenticated, service_role;
