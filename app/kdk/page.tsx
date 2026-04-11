@@ -1769,17 +1769,20 @@ export default function KDKPage() {
                                         });
                                         const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
                                         const normalizedGroup = m.groupName || 'A';
+                                        const isGroupB = normalizedGroup === 'B';
+                                        const groupColor = isGroupB ? '#00E5FF' : '#C9B075';
+                                        const cardGlow = isGroupB ? '0 0 15px rgba(0, 229, 255, 0.2)' : '0 0 15px rgba(201, 176, 117, 0.05)';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)' }}>
+                                            <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), ${cardGlow}` }}>
                                                 
                                                 {/* SECTION HEADER BAR */}
                                                 <div className="flex items-center justify-center px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold text-[#C9B075] tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                        <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ color: groupColor }}>
                                                             GROUP {normalizedGroup} • MATCH {matchNo.toString().padStart(2, '0')}
                                                         </span>
-                                                        <RotateCw className={`w-3 h-3 text-white/40 transition-colors group-hover/header:text-[#C9B075] ${spinningMatchId === mId ? 'animate-spin' : ''}`} />
+                                                        <RotateCw className={`w-3 h-3 transition-colors ${spinningMatchId === mId ? 'animate-spin' : 'opacity-40'}`} style={{ color: groupColor }} />
                                                     </div>
                                                     
                                                     {role === 'CEO' && (
@@ -1810,7 +1813,7 @@ export default function KDKPage() {
                                                         </div>
 
                                                         {/* Central VS */}
-                                                        <div className="text-[#C9B075] font-black text-[8px] uppercase text-center italic opacity-60 drop-shadow-[0_0_5px_rgba(201,176,117,0.3)] shrink-0">vs</div>
+                                                        <div className="font-black text-[8px] uppercase text-center italic opacity-60 shrink-0" style={{ color: groupColor, filter: `drop-shadow(0 0 5px ${groupColor}4D)` }}>vs</div>
 
                                                         {/* TEAM B BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
@@ -1867,11 +1870,14 @@ export default function KDKPage() {
 
                                     if (groupMatches.length === 0) return null;
 
+                                    const isB = group === 'B';
+                                    const col = isB ? '#00E5FF' : '#C9B075';
+
                                     return (
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
-                                                <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>WAITING LIST</h3>
-                                                <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                                <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
+                                                <div className="mt-2 h-1.5 w-48 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-2">
                                                 {groupMatches.map((m) => {
@@ -1889,9 +1895,9 @@ export default function KDKPage() {
                                                     const hasConflict = busyPlayers.length > 0;
 
                                                     return (
-                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 255, 0.03)', filter: 'drop-shadow(0 0 10px rgba(142,122,74,0.2))' }}>
+                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
                                                             <div className="flex items-center justify-center">
-                                                                <div className="w-9 h-9 bg-gradient-to-br from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] text-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(142,122,74,0.2)] shrink-0 border border-white/20">
+                                                                <div className="w-9 h-9 text-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
                                                                     <span className="text-[12px] font-black uppercase">G{matchNo}</span>
                                                                 </div>
                                                             </div>
@@ -1904,7 +1910,7 @@ export default function KDKPage() {
                                                                     {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
                                                                     {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
                                                                 </span>
-                                                                <span className="text-[#C9B075] text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0">vs</span>
+                                                                <span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0" style={{ color: col }}>vs</span>
                                                                 <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
                                                                     {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
                                                                     {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
@@ -1918,8 +1924,8 @@ export default function KDKPage() {
                                                                 <button
                                                                     disabled={hasConflict || role !== 'CEO'}
                                                                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }}
-                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict || role !== 'CEO' ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!bg-[#8E7A4A] !text-black hover:bg-[#72623B] shadow-[0_4px_15px_rgba(142,122,74,0.2)]'}`}
-                                                                    style={{ backgroundColor: hasConflict || role !== 'CEO' ? undefined : '#8E7A4A', color: hasConflict || role !== 'CEO' ? undefined : '#000000' }}
+                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict || role !== 'CEO' ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!text-black hover:opacity-90'}`}
+                                                                    style={{ backgroundColor: hasConflict || role !== 'CEO' ? undefined : col, color: hasConflict || role !== 'CEO' ? undefined : '#000000', boxShadow: hasConflict ? 'none' : `0 4px 15px ${col}66` }}
                                                                 >
                                                                     {role === 'CEO' ? '투입 🚀' : '진행 대기'}
                                                                 </button>
@@ -1956,7 +1962,7 @@ export default function KDKPage() {
                                             <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[40px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
                                                 {/* SECTION HEADER BAR */}
                                                 <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative">
-                                                    <span className="text-[10px] font-mono font-bold text-white/40 tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                                                    <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]" style={{ color: m.groupName === 'B' ? '#00E5FF' : '#C9B075' }}>
                                                         GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
                                                     </span>
                                                     <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
