@@ -123,7 +123,7 @@ export default function KDKPage() {
     const [showRankingModal, setShowRankingModal] = useState(false);
     const [userRole, setUserRole] = useState<UserRole>('CEO');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
+    const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING' | 'ARCHIVE'>('MATCHES');
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
 
@@ -178,6 +178,7 @@ export default function KDKPage() {
                 title: sessionTitle || `Tournament ${dateStr}`,
                 date: dateStr,
                 ranking_data: rankingSnapshot,
+                match_snapshot: matches, // Save all matches for Atmosphere Replay
                 player_metadata: attendeeConfigs,
                 total_matches: matches.length,
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
@@ -1734,7 +1735,7 @@ export default function KDKPage() {
             </div>
 
             <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
-                {activeTab === 'MATCHES' ? (
+                {activeTab === 'MATCHES' && (
                     <>
                         <section className="h-auto" style={{ marginTop: '0px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
@@ -1994,8 +1995,9 @@ export default function KDKPage() {
                             </div>
                         )}
                     </>
-                ) : (
-                    <div className="flex-1">
+                )}
+                {activeTab === 'RANKING' && (
+                    <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
                         <RankingView
                             sessionMatches={matches}
                             configs={attendeeConfigs}
@@ -2015,6 +2017,11 @@ export default function KDKPage() {
                         />
                     </div>
                 )}
+                {activeTab === 'ARCHIVE' && (
+                    <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                        <ArchiveView isAdmin={role === 'CEO'} />
+                    </div>
+                )}
             </div>
 
             <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
@@ -2029,6 +2036,12 @@ export default function KDKPage() {
                     className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
                     📊 RANKING
+                </button>
+                <button
+                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('ARCHIVE'); }}
+                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'ARCHIVE' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                >
+                    📂 ARCHIVE
                 </button>
             </nav>
 
@@ -2585,6 +2598,285 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         </div>
     );
 }
+
+// --- Archive Components ---
+
+function ArchiveView({ isAdmin }: { isAdmin: boolean }) {
+    const [segment, setSegment] = useState<'RECORD' | 'TOTAL' | 'HALL'>('RECORD');
+    const [year, setYear] = useState('2026');
+    const [month, setMonth] = useState('4');
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedSession, setSelectedSession] = useState<any | null>(null);
+
+    useEffect(() => {
+        fetchSessions();
+    }, [year, month]);
+
+    const fetchSessions = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('sessions_archive')
+                .select('*')
+                .order('date', { ascending: false });
+            
+            if (error) throw error;
+            // Native filter by year/month from the 'date' string (YYYY-MM-DD)
+            const filtered = (data || []).filter(s => {
+                const [y, m] = s.date.split('-');
+                return y === year && parseInt(m).toString() === month;
+            });
+            setSessions(filtered);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (selectedSession) {
+        return <ArchiveDetailView session={selectedSession} onBack={() => setSelectedSession(null)} />;
+    }
+
+    return (
+        <div className="flex flex-col px-6 pt-4 pb-20 space-y-8 min-h-screen bg-[#14161a]">
+            {/* Header */}
+            <header className="flex items-center justify-between mb-2">
+                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase">경기 아카이브</h1>
+                {isAdmin && <span className="px-3 py-1 bg-red-600 rounded-lg text-[10px] font-black text-white italic">CEO</span>}
+            </header>
+
+            {/* Segments */}
+            <div className="flex bg-white/5 rounded-3xl p-1.5 border border-white/10 shadow-2xl">
+                {[
+                    { id: 'RECORD', label: '대회 기록' },
+                    { id: 'TOTAL', label: '전체 랭킹' },
+                    { id: 'HALL', label: '명예의 전당' }
+                ].map((s) => (
+                    <button
+                        key={s.id}
+                        onClick={() => setSegment(s.id as any)}
+                        className={`flex-1 py-4 text-[11px] font-black rounded-2xl transition-all tracking-widest ${segment === s.id ? 'bg-[#C9B075] text-black shadow-xl' : 'text-white/40'}`}
+                    >
+                        {s.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Filters */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Year</label>
+                    <select 
+                        value={year}
+                        onChange={(e) => setYear(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
+                    >
+                        <option value="2026">2026년</option>
+                        <option value="2025">2025년</option>
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Month</label>
+                    <select 
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
+                    >
+                        {Array.from({ length: 12 }, (_, i) => (
+                            <option key={i + 1} value={(i + 1).toString()}>{i + 1}월</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* List */}
+            <div className="space-y-6">
+                {loading ? (
+                    <div className="py-20 flex justify-center"><PremiumSpinner /></div>
+                ) : sessions.length === 0 ? (
+                    <div className="py-20 text-center text-white/20 font-black uppercase tracking-widest border border-dashed border-white/10 rounded-[40px]">기록된 세션이 없습니다</div>
+                ) : (
+                    sessions.map((s, idx) => (
+                        <div 
+                            key={s.id}
+                            onClick={() => setSelectedSession(s)}
+                            className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8 relative overflow-hidden group cursor-pointer hover:bg-white/10 transition-all shadow-2xl active:scale-95"
+                        >
+                            <div className="flex items-center justify-between relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-[#C9B075]/20 border border-[#C9B075]/40 flex items-center justify-center italic font-black text-[#C9B075]">{sessions.length - idx}</div>
+                                    <span className="text-xs font-black text-[#C9B075] tracking-widest uppercase">{s.date}</span>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover:text-[#C9B075] transition-colors">→</div>
+                            </div>
+                            
+                            <div className="relative z-10">
+                                <h3 className="text-2xl font-black italic text-white tracking-tighter uppercase mb-2">{s.title || s.id}</h3>
+                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">{s.total_matches} MATCHES VERIFIED</p>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ArchiveDetailView({ session, onBack }: { session: any, onBack: () => void }) {
+    const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
+
+    const getArchivedPlayerName = (id: string) => {
+        const metadata = session.player_metadata || {};
+        if (metadata[id]) return metadata[id].name || "???";
+        const ranking = session.ranking_data || [];
+        const found = ranking.find((r: any) => r.id === id);
+        return found ? found.name : "???";
+    };
+
+    return (
+        <div className="flex flex-col min-h-screen bg-[#14161a] pb-20 relative">
+            <header className="px-6 py-6 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#14161a]/80 backdrop-blur-xl z-[100]">
+                <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors">
+                    <span className="text-xl">←</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+                </button>
+                <div className="text-center flex flex-col items-center">
+                    <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-[0.4em] mb-1">Session Data</span>
+                    <h2 className="text-lg font-black italic text-white tracking-tighter uppercase">{session.title}</h2>
+                </div>
+                <div className="w-10" />
+            </header>
+
+            <div className="px-6 py-10 space-y-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                {/* Atmosphere Replay Selection */}
+                <section className="space-y-10">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-2 h-10 bg-[#C9B075] rounded-full shadow-[0_0_15px_rgba(201,176,117,0.5)]" />
+                            <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">ATMOSPHERE REPLAY</h3>
+                        </div>
+                        <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">{session.match_snapshot?.length || 0} RECORDED EVENTS</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        {(session.match_snapshot || []).map((m: any, idx: number) => {
+                            const isB = m.groupName === 'B';
+                            const color = isB ? '#00E5FF' : '#C9B075';
+                            return (
+                                <div key={idx} className="bg-white/5 border-t-2 border-white/20 rounded-[32px] p-1 overflow-hidden shadow-2xl transition-all hover:scale-[1.02]">
+                                    <div className="px-4 py-2 border-b border-white/5 bg-white/5 flex items-center justify-center">
+                                        <span className="text-[8px] font-black tracking-widest uppercase opacity-40" style={{ color }}>
+                                            GR {m.groupName || 'A'} • MATCH {(idx + 1).toString().padStart(2, '0')}
+                                        </span>
+                                    </div>
+                                    <div className="p-4 flex flex-col items-center gap-4">
+                                        <div className="flex items-center justify-between w-full gap-2">
+                                            <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[0])}</span>
+                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[1])}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center shrink-0">
+                                                <span className="text-lg font-black text-white leading-none">{m.score1}:{m.score2}</span>
+                                                <span className="text-[6px] font-black text-[#C9B075] mt-1 tracking-widest uppercase">FINAL</span>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[2])}</span>
+                                                <span className="text-[11px] font-bold text-white truncate w-full text-center">{getArchivedPlayerName(m.playerIds[3])}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+
+                {/* Data Verification Table */}
+                <section className="space-y-10">
+                    <div className="flex items-center gap-4">
+                        <div className="w-2 h-10 bg-[#00E5FF] rounded-full shadow-[0_0_15px_rgba(0,229,255,0.5)]" />
+                        <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">DATA VERIFICATION</h3>
+                    </div>
+
+                    <div className="bg-[#1a1c20] border border-white/10 rounded-[40px] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
+                        <div className="overflow-x-auto no-scrollbar">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-white/5 border-b border-white/10">
+                                    <tr className="text-[11px] font-black text-white/40 uppercase tracking-widest">
+                                        <th className="px-8 py-7">RANK</th>
+                                        <th className="px-8 py-7">PLAYER</th>
+                                        <th className="px-8 py-7 text-center">W</th>
+                                        <th className="px-8 py-7 text-center">L</th>
+                                        <th className="px-8 py-7 text-center">DIFF</th>
+                                        <th className="px-8 py-7 text-right">ACTION</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-white divide-y divide-white/5">
+                                    {(session.ranking_data || []).sort((a: any, b: any) => (b.wins - a.wins) || (b.diff - a.diff)).map((p: any, idx: number) => (
+                                        <tr key={idx} onClick={() => setSelectedPlayer(p)} className="hover:bg-white/5 transition-all cursor-pointer group active:bg-[#C9B075]/10">
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`text-xl font-black italic ${idx < 3 ? 'text-[#C9B075]' : 'opacity-20'}`}>{(idx + 1).toString().padStart(2, '0')}</span>
+                                                    {idx === 0 && <span className="text-[10px]">👑</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 font-black text-base tracking-tight">{p.name}</td>
+                                            <td className="px-8 py-6 text-center font-black text-[#00E5FF] text-lg">{p.wins}</td>
+                                            <td className="px-8 py-6 text-center font-black text-white/30 text-lg">{p.losses}</td>
+                                            <td className={`px-8 py-6 text-center font-black text-lg ${p.diff > 0 ? 'text-[#C9B075]' : 'opacity-40'}`}>
+                                                {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <button className="px-4 py-2 bg-white/5 rounded-xl text-[10px] font-black uppercase opacity-0 group-hover:opacity-100 transition-opacity border border-white/10 text-white/40 group-hover:text-white">Deep Insight</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            {/* Performance Modal Tooltip */}
+            {selectedPlayer && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                    <div 
+                        onClick={() => setSelectedPlayer(null)}
+                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                    />
+                    <div className="relative w-full max-w-sm bg-[#1A1C20] border-t-2 border-[#C9B075]/30 rounded-[48px] p-10 flex flex-col items-center text-center shadow-[0_50px_100px_rgba(0,0,0,0.9)] animate-in zoom-in-95 duration-300">
+                        <div className="w-24 h-24 rounded-full bg-white/10 border-4 border-[#C9B075]/20 flex items-center justify-center text-4xl mb-6 shadow-[0_0_30px_rgba(201,176,117,0.1)]">👤</div>
+                        <h4 className="text-3xl font-black italic text-white tracking-tighter uppercase mb-2">{selectedPlayer.name}</h4>
+                        <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] mb-8 opacity-60">Performance Profile</span>
+                        
+                        <div className="grid grid-cols-2 gap-4 w-full mb-10">
+                            <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
+                                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-2">Win Rate</span>
+                                <span className="text-2xl font-black text-[#00E5FF]">{Math.round((selectedPlayer.wins / (selectedPlayer.wins + selectedPlayer.losses || 1)) * 100)}%</span>
+                            </div>
+                            <div className="bg-white/5 rounded-3xl p-6 border border-white/5">
+                                <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-2">Net Points</span>
+                                <span className="text-2xl font-black text-[#C9B075]">{selectedPlayer.diff > 0 ? `+${selectedPlayer.diff}` : selectedPlayer.diff}</span>
+                            </div>
+                        </div>
+                        
+                        <button 
+                            onClick={() => setSelectedPlayer(null)}
+                            className="w-full py-5 bg-white/5 border border-white/10 text-white font-black rounded-[24px] active:scale-95 transition-all text-xs uppercase tracking-widest"
+                        >
+                            CLOSE ANALYSIS
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// --- Warning Modals & Confirmers ---
 
 function WarningModal({ message, onClose }: { message: string, onClose: () => void }) {
     return (
