@@ -2365,32 +2365,24 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                <div className="relative mt-12 pt-48 pb-16 overflow-visible mb-24">
+                <div className="relative mt-24 mb-24">
                     <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
                             if (!p) return <div key={idx} className={`${idx === 0 ? 'w-[40%]' : 'w-[28%]'} h-2`} />;
                             const isFirst = idx === 0;
                             const isSecond = idx === 1;
-                            
                             const widthClass = isFirst ? 'w-[45%]' : 'w-[28%]';
-                            const glassStyles = `
-                                bg-white/5 backdrop-blur-3xl rounded-[40px] 
-                                border-t border-t-white/30 border-l border-l-white/10
-                                shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
-                                flex flex-col items-center pt-24 pb-10 transition-all duration-700 relative
-                            `;
                             
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-110 translate-y-0' : 'z-10 scale-90 translate-y-10'}`}
+                                    className={`relative ${widthClass} ${isFirst ? 'h-72' : 'h-52'} transition-all duration-700 flex flex-col justify-end`}
                                 >
-
-                                    <div className={glassStyles}>
+                                    <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-10 w-full h-full relative">
                                         <div className={`
-                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative -translate-y-1/2 overflow-visible
-                                            ${isFirst ? 'w-20 h-20 shadow-2xl' : 'w-16 h-16 shadow-xl'}
+                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6
+                                            ${isFirst ? 'w-20 h-20' : 'w-16 h-16'}
                                         `}>
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
                                             <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] select-none`}>
