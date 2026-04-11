@@ -2365,7 +2365,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
 
         return (
             <section className="space-y-4">
-                <div className="relative mt-12 pt-52 pb-16 overflow-visible mb-28">
+                <div className="relative mt-12 pt-64 pb-16 overflow-visible mb-32">
                     <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto relative z-10 overflow-visible">
                         {[1, 0, 2].map((idx) => {
                             const p = top3[idx];
@@ -2384,7 +2384,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.12] translate-y-0' : 'z-10 scale-95 translate-y-8'}`}
+                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.1] translate-y-4' : 'z-10 scale-95 translate-y-12'}`}
                                 >
                                     {isFirst && (
                                         <div className="absolute -inset-[3.5px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#F3E2B5] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_50px_rgba(201,176,117,0.5)]" />
@@ -2438,7 +2438,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 <div className="flex-1 space-y-2 px-4 pb-48">
-                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-4 text-[11px] font-black text-white/90 tracking-widest border-b border-white/20 uppercase italic">
+                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-4 text-[11px] font-black text-white tracking-widest border-b border-white/20 uppercase italic">
                         <span className="text-center opacity-60">순위</span>
                         <span className="text-left pl-2 opacity-60">참가자</span>
                         <span className="text-right opacity-40">P</span>
@@ -2507,7 +2507,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
     };
 
     return (
-        <div className="flex flex-col min-h-screen relative overflow-hidden">
+        <div className="flex flex-col min-h-screen relative">
             <style jsx global>{`
                 @keyframes confetti-fall {
                     0% { transform: translateY(-10vh) rotate(0deg); opacity:1; }
