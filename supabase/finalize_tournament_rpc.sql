@@ -1,6 +1,10 @@
--- [RPC] finalize_tournament: 대회 종료 시 데이터를 아카이브 테이블로 저장하는 함수
--- 이 함수는 세션 요약 정보(`sessions_archive`)를 생성하거나 업데이트합니다.
+-- [FIX] finalize_tournament RPC: 중복 함수 오류 해결 버전
 
+-- 1. 기존에 존재할 수 있는 동일한 시그니처의 함수 삭제
+-- (PostgreSQL의 함수 오버로딩으로 인한 'not unique' 에러 방지)
+DROP FUNCTION IF EXISTS public.finalize_tournament(TEXT, TEXT, DATE, JSONB, JSONB, INTEGER, INTEGER, JSONB);
+
+-- 2. 아카이브 저장 함수 생성
 CREATE OR REPLACE FUNCTION public.finalize_tournament(
     p_session_id TEXT,
     p_title TEXT,
@@ -47,5 +51,5 @@ BEGIN
 END;
 $$;
 
--- 권한 부여
-GRANT EXECUTE ON FUNCTION public.finalize_tournament TO anon, authenticated, service_role;
+-- 3. 권한 부여 (매개변수 형식을 명시하여 'not unique' 오류 해결)
+GRANT EXECUTE ON FUNCTION public.finalize_tournament(TEXT, TEXT, DATE, JSONB, JSONB, INTEGER, INTEGER, JSONB) TO anon, authenticated, service_role;
