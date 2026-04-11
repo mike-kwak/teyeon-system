@@ -261,11 +261,11 @@ export default function KDKPage() {
             if (sessError) throw sessError;
 
             // 2. Success Celebration & Redirect
-            setShowToast(true); // Reuse Toast for Celebration
+            setShowArchiveSuccess(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
             
             // Wait for visual feedback
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 3500));
 
             // 3. Cleanup Live Data from Supabase
             const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
@@ -2327,6 +2327,29 @@ export default function KDKPage() {
                     onClose={() => setShowWarning(false)}
                 />
             )}
+            {showArchiveSuccess && (
+                <div className="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center animate-in fade-in duration-1000">
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#C9B075]/20 via-transparent to-transparent" />
+                    <div className="relative z-10 flex flex-col items-center text-center px-12 space-y-8">
+                        <div className="w-32 h-32 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/40 flex items-center justify-center animate-bounce shadow-[0_0_50px_rgba(201,176,117,0.3)]">
+                            <span className="text-6xl drop-shadow-2xl">🏆</span>
+                        </div>
+                        <div className="space-y-4">
+                            <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter drop-shadow-2xl">
+                                Championship<br />Archived
+                            </h2>
+                            <p className="text-[#C9B075] text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">
+                                대회가 명예의 전당에 박제되었습니다
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-ping" style={{ animationDelay: `${i * 0.2}s` }} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
@@ -2594,47 +2617,6 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
         );
     };
 
-    const finalizeTournament = async () => {
-        if (!sessionId) {
-            alert("세션 ID가 없어 저장할 수 없습니다. 대진표를 다시 생성해 주세요.");
-            return;
-        }
-        if (!confirm("모든 경기를 정산하고 이번 대진표를 아카이브에 최종 저장하시겠습니까?")) return;
-        
-        setIsGenerating(true);
-        try {
-            if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
-            const today = new Date();
-            const dateStr = today.toISOString().split('T')[0];
-            
-            // 랭킹 데이터 스냅샷 생성
-            const rankingSnapshot = (players || []).map((p: any) => {
-                const member = (allMembers || []).find((x: any) => x?.id === p.id) || (tempGuests || []).find((x: any) => x?.id === p.id);
-                return { id: p.id, name: p.name, wins: p.wins || 0, losses: p.losses || 0, diff: p.diff || 0, avatar: member?.avatar_url || '' };
-            });
-
-            const { error: archiveError } = await supabase.rpc('finalize_tournament', {
-                p_session_id: sessionId,
-                p_title: sessionTitle || `Tournament ${dateStr}`,
-                p_date: dateStr,
-                p_ranking_data: rankingSnapshot,
-                p_player_metadata: attendeeConfigs || configs,
-                p_total_matches: sessionMatches?.length || 0,
-                p_total_rounds: (sessionMatches?.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1,
-                p_match_snapshot: sessionMatches || []
-            });
-
-            if (archiveError) throw archiveError;
-
-            alert("🏆 토너먼트 정산 및 아카이브 저장이 완료되었습니다!");
-            actualReset();
-        } catch (e: any) {
-            console.error("Archive Error:", e);
-            alert(`정산 오류가 발생했습니다: ${e.message || 'Unknown Error'}`);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
 
     return (
         <div className="flex flex-col min-h-screen relative">
@@ -2701,7 +2683,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100] animate-in slide-in-from-bottom-10 duration-700">
                     <button
                         disabled={isGenerating}
-                        onClick={finalizeTournament}
+                        onClick={onFinalize}
                         className="w-full h-12 text-black font-black rounded-2xl uppercase text-[12px] tracking-[0.4em] shadow-[0_20px_50px_rgba(201,176,117,0.5)] active:scale-95 transition-all border-t border-white/40 border-l border-white/20 relative overflow-hidden group flex items-center justify-center gap-4"
                         style={{
                             background: 'linear-gradient(135deg, #FFD700 0%, #C9B075 50%, #B8860B 100%)',
