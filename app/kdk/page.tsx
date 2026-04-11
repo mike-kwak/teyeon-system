@@ -73,7 +73,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v5.0 (ULTIMATE STABLE)");
+        console.log("🚀 LATEST CODE LOADED: v5.0 (FINAL STABLE)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -699,12 +699,15 @@ export default function KDKPage() {
         setActiveMatchIds(nextActive);
         setMatches(nextMatches);
 
-        // 2. DB Sync via RPC
-        await supabase.rpc('update_match_status', {
-            p_match_id: matchId,
+        // 2. DB Sync via RPC (v5 Stable Unified)
+        const rpcPayload = {
+            p_match_id: matchId.toString(),
             p_status: 'playing',
-            p_court: nextCourt
-        });
+            p_score1: '0',
+            p_score2: '0'
+        };
+        console.log("📡 FINAL RPC PAYLOAD (START):", rpcPayload);
+        await supabase.rpc('final_sync_v5_stable', rpcPayload);
     };
 
     const cancelMatch = async (matchId: string) => {
@@ -712,12 +715,15 @@ export default function KDKPage() {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
 
-            // 1. Supabase Sync via RPC (Bypass schema cache error)
-            const { error: syncError } = await supabase.rpc('update_match_status', {
-                p_match_id: matchId,
+            // 1. Supabase Sync via RPC (v5 Stable Unified)
+            const rpcPayload = {
+                p_match_id: matchId.toString(),
                 p_status: 'waiting',
-                p_court: null // Explicitly nullify court on cancel
-            });
+                p_score1: '0',
+                p_score2: '0'
+            };
+            console.log("📡 FINAL RPC PAYLOAD (CANCEL):", rpcPayload);
+            const { error: syncError } = await supabase.rpc('final_sync_v5_stable', rpcPayload);
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
@@ -882,13 +888,15 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
-            // 3. DB Sync via RPC (Bypass schema cache error)
-            const { error: syncError } = await supabase.rpc('final_match_sync_v4', {
+            // 3. DB Sync via RPC (v5 Stable Unified)
+            const rpcPayload = {
                 p_match_id: matchId.toString(),
                 p_status: 'complete',
                 p_score1: numS1.toString(),
                 p_score2: numS2.toString()
-            });
+            };
+            console.log("📡 FINAL RPC PAYLOAD (FINISH):", rpcPayload);
+            const { error: syncError } = await supabase.rpc('final_sync_v5_stable', rpcPayload);
 
             if (syncError) {
                 console.error("Match result sync error:", syncError);
