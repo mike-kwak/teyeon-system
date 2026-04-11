@@ -337,7 +337,7 @@ export default function RankingTab({
             </div>
 
             {!isArchive && isAdmin && (
-                <div className="fixed bottom-[125px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100]">
+                <div className="fixed bottom-[145px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100]">
                     <button
                         disabled={isGenerating}
                         onClick={onFinalize}
