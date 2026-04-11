@@ -1,28 +1,24 @@
--- [RPC HOTFIX] update_match_status: 인자 순서 정렬 버전 (v2.1)
--- PostgREST의 알파벳 순서 매칭 이슈를 해결하기 위해 인자 순서를 조정했습니다.
+-- [RPC ULTIMATE FIX] update_match_status: JSONB 유니버설 버전 (v3.0)
+-- 이 버전은 인자 개수나 순서에 상관없이 클라이언트의 요청 객체를 통째로 받아 처리합니다.
 
--- 1. 기존 오버로딩 함수들 모두 삭제 (충돌 방지)
+-- 1. 기존의 모든 중복 함수들 강제 삭제 (매개변수 조합별로 모두 삭제)
 DROP FUNCTION IF EXISTS public.update_match_status(TEXT, TEXT, INTEGER, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS public.update_match_status(TEXT, TEXT, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS public.update_match_status(TEXT, INTEGER, INTEGER, TEXT);
 
--- 2. 신규 함수 생성 (인자 순서를 알파벳 순으로 배치: match_id -> score1 -> score2 -> status)
-CREATE OR REPLACE FUNCTION public.update_match_status(
-    p_match_id TEXT,
-    p_score1 INTEGER,
-    p_score2 INTEGER,
-    p_status TEXT
-)
+-- 2. 단일 JSONB 인자를 받는 유니버설 함수 생성 
+-- 인자 이름을 'p_params'가 아닌 무명 혹은 일반적인 이름으로 설정하여 PostgREST 매칭 최적화
+CREATE OR REPLACE FUNCTION public.update_match_status(payload JSONB)
 RETURNS VOID AS $$
 BEGIN
     UPDATE public.matches
     SET 
-        status = p_status,
-        score1 = p_score1,
-        score2 = p_score2
-    WHERE id = p_match_id;
+        status = (payload->>'p_status')::TEXT,
+        score1 = (payload->>'p_score1')::INTEGER,
+        score2 = (payload->>'p_score2')::INTEGER
+    WHERE id = (payload->>'p_match_id')::TEXT;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 3. 권한 부여
-GRANT EXECUTE ON FUNCTION public.update_match_status(TEXT, INTEGER, INTEGER, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_match_status(JSONB) TO anon, authenticated, service_role;
