@@ -644,7 +644,9 @@ export default function KDKPage() {
                     session_title: sessionTitle || 'Tournament',
                     player_names: m.playerIds.map(pid => getPlayerName(pid))
                 }));
-                const { error: matchError } = await supabase.from('matches').insert(dbMatches);
+                const { error: matchError } = await supabase.rpc('sync_tournament_matches', {
+                    p_matches: dbMatches
+                });
                 if (matchError) console.warn("Live Match Sync Error:", matchError);
             } catch (err) {
                 console.error("Critical Sync Failure:", err);
