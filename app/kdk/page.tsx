@@ -2404,6 +2404,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             </span>
                                         </div>
 
+                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 relative z-10">
                                             <div className={`font-bold text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
                                                 {p.name}
                                             </div>
