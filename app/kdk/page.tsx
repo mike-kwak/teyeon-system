@@ -73,7 +73,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v6.0 (JSON ULTIMATE)");
+        console.log("🚀 LATEST CODE LOADED: v6.5 (INFRA FORCE)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -148,6 +148,47 @@ export default function KDKPage() {
     const [showMemberEditModal, setShowMemberEditModal] = useState(false);
     const [hasSkippedGuestInfo, setHasSkippedGuestInfo] = useState(false);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
+
+    // --- [v6.5 INFRA FORCE] SDK-Bypassing Direct REST RPC Helper ---
+    const forceSyncRPC = async (payload: any) => {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        
+        // 1. Project ID Identification (CEO Verification)
+        const projectId = supabaseUrl.split('//')[1]?.split('.')[0] || 'Unknown';
+        console.log(`🏙️ [INFRA CHECK] TARGET PROJECT ID: ${projectId}`);
+        
+        // 2. Data Integrity Visualization
+        console.log("📊 [INFRA CHECK] OUTGOING PAYLOAD:");
+        console.table(payload.p_data);
+
+        try {
+            const endpoint = `${supabaseUrl}/rest/v1/rpc/final_sync_v6_json`;
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'x-client-info': 'teyeon-force-v6.5'
+                },
+                body: JSON.stringify({
+                    ...payload,
+                    p_dummy: `force_${Date.now()}` // Bypass engine cache
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errText}`);
+            }
+            console.log("✅ [INFRA CHECK] RPC DIRECT HIT SUCCESS");
+            return { error: null };
+        } catch (err: any) {
+            console.error("❌ [INFRA CHECK] RPC DIRECT HIT FAILED:", err);
+            return { error: err };
+        }
+    };
     const [isMembersError, setIsMembersError] = useState(false);
     const [showCeremony, setShowCeremony] = useState(false);
     const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
@@ -699,17 +740,15 @@ export default function KDKPage() {
         setActiveMatchIds(nextActive);
         setMatches(nextMatches);
 
-        // 2. DB Sync via RPC (v6 JSON ULTIMATE)
-        const rpcPayload = {
+        // 2. DB Sync via RPC (v6.5 INFRA FORCE)
+        await forceSyncRPC({
             p_data: {
                 match_id: matchId.toString(),
                 status: 'playing',
                 score1: 0,
                 score2: 0
             }
-        };
-        console.table(rpcPayload.p_data);
-        await supabase.rpc('final_sync_v6_json', rpcPayload);
+        });
     };
 
     const cancelMatch = async (matchId: string) => {
@@ -717,12 +756,6 @@ export default function KDKPage() {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
 
-            // 1. Supabase Sync via RPC (v6 JSON ULTIMATE)
-            const rpcPayload = {
-                p_data: {
-                    match_id: matchId.toString(),
-                    status: 'waiting',
-                    score1: 0,
                     score2: 0
                 }
             };
@@ -892,17 +925,15 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
-            // 3. DB Sync via RPC (v6 JSON ULTIMATE)
-            const rpcPayload = {
+            // 3. DB Sync via RPC (v6.5 INFRA FORCE)
+            const { error: syncError } = await forceSyncRPC({
                 p_data: {
                     match_id: matchId.toString(),
                     status: 'complete',
                     score1: numS1,
                     score2: numS2
                 }
-            };
-            console.table(rpcPayload.p_data);
-            const { error: syncError } = await supabase.rpc('final_sync_v6_json', rpcPayload);
+            });
             
             if (syncError) {
                 console.error("Match result sync error:", syncError);
@@ -912,7 +943,7 @@ export default function KDKPage() {
             // [CAUTION] Hard purge cache and service worker
             setTimeout(() => {
                 window.location.reload();
-            }, 1000);
+            }, 1500);
 
             // Success: Trigger Toast instead of Alert
             setShowToast(true);
