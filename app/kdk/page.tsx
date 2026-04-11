@@ -921,9 +921,8 @@ export default function KDKPage() {
 
             // Deterministic Unique ID for Upsert (Session + Round + Court)
             const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
-
             const archiveRecord = {
-                id: deterministicId, // Use deterministic ID for upsert
+                id: deterministicId,
                 score1: numS1,
                 score2: numS2,
                 player_names: pNames,
@@ -935,10 +934,12 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
-                    status: 'complete',
-                    score1: numS1,
-                    score2: numS2
-                }
+            // 3. DB Sync via RPC (v7.0 ABSOLUTE)
+            const { error: syncError } = await absoluteSyncRPC({
+                match_id: matchId.toString(),
+                status: 'complete',
+                score1: numS1,
+                score2: numS2
             });
             
             if (syncError) {
