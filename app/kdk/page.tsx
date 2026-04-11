@@ -71,7 +71,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v1.5 (RPC MODE)");
+        console.log("🚀 LATEST CODE LOADED: v1.7 (RESILIENT SYNC)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -660,8 +660,15 @@ export default function KDKPage() {
                 const { error: matchError } = await supabase.rpc('sync_tournament_matches', {
                     p_matches: dbMatches
                 });
-                if (matchError) console.warn("Live Match Sync Error:", matchError);
-                else console.log("✅ Live Match Sync Success");
+                if (matchError) {
+                    console.error("❌ Live Match Sync Error:", matchError);
+                    // Detailed logging for debugging
+                    if (matchError.message?.includes('uuid')) {
+                        console.warn("UUID Mismatch detected. Please apply the SQL migration to change 'matches.id' to TEXT.");
+                    }
+                } else {
+                    console.log("✅ Live Match Sync Success");
+                }
             } catch (err) {
                 console.error("Critical Sync Failure:", err);
             }
@@ -706,10 +713,11 @@ export default function KDKPage() {
             // 1. Supabase Sync via RPC (Bypass schema cache error)
             const { error: syncError } = await supabase.rpc('update_match_status', {
                 p_match_id: matchId,
-                p_status: 'waiting'
+                p_status: 'waiting',
+                p_court: null // Explicitly nullify court on cancel
             });
 
-            if (syncError) console.warn("Cancel match sync error:", syncError);
+            if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
             // 2. Local State Update
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));

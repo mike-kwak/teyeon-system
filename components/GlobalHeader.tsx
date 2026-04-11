@@ -121,7 +121,7 @@ export default function GlobalHeader() {
             style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
           >
             TEYEON
-            <span className="ml-1 text-[8px] opacity-20 font-light lowercase tracking-normal">v1.5</span>
+            <span className="ml-1 text-[8px] opacity-20 font-light lowercase tracking-normal">v1.6</span>
           </span>
         </LogoLink>
 
