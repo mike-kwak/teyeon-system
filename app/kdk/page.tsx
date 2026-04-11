@@ -2490,7 +2490,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
             });
             const sessionRecord = {
                 id: sessionId, title: sessionTitle || `Tournament ${dateStr}`, date: dateStr, ranking_data: rankingSnapshot, player_metadata: configs,
-                total_matches: sessionMatches.length, total_rounds: (sessionMatches.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1
+                total_matches: sessionMatches.length, total_rounds: (sessionMatches.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1,
+                match_snapshot: sessionMatches
             };
             const { error: archiveError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
             if (archiveError) throw archiveError;
