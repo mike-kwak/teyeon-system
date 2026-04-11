@@ -881,7 +881,7 @@ export default function KDKPage() {
             };
 
             // 3. DB Sync via RPC (Bypass schema cache error)
-            const { error: syncError } = await supabase.rpc('update_match_status', {
+            const { error: syncError } = await supabase.rpc('update_match_status_v3', {
                 p_match_id: matchId,
                 p_status: 'complete',
                 p_score1: numS1,
