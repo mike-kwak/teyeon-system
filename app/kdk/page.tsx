@@ -2218,6 +2218,7 @@ export default function KDKPage() {
 function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void }) {
     const [hasSession, setHasSession] = useState(false);
     useEffect(() => {
+        console.log("DEBUG: Current Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
         const saved = localStorage.getItem('kdk_live_session');
         if (saved) setHasSession(true);
     }, []);
@@ -2488,12 +2489,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 const member = (allMembers || []).find((x: any) => x?.id === p.id) || (tempGuests || []).find((x: any) => x?.id === p.id);
                 return { id: p.id, name: p.name, wins: p.wins || 0, losses: p.losses || 0, diff: p.diff || 0, avatar: member?.avatar_url || '' };
             });
-            const sessionRecord = {
-                id: sessionId, title: sessionTitle || `Tournament ${dateStr}`, date: dateStr, ranking_data: rankingSnapshot, player_metadata: configs,
-                total_matches: sessionMatches.length, total_rounds: (sessionMatches.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1,
-                match_snapshot: sessionMatches
-            };
-            const { error: archiveError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
+            const { error: archiveError } = await supabase.rpc('finalize_tournament', {
+                p_session_id: sessionId,
+                p_title: sessionTitle || `Tournament ${dateStr}`,
+                p_date: dateStr,
+                p_ranking_data: rankingSnapshot,
+                p_player_metadata: configs,
+                p_total_matches: sessionMatches.length,
+                p_total_rounds: (sessionMatches.length > 0) ? Math.max(...sessionMatches.map((m: any) => m.round || 1)) : 1,
+                p_match_snapshot: sessionMatches
+            });
             if (archiveError) throw archiveError;
             alert("🏆 토너먼트 정산 완료!");
             actualReset();
