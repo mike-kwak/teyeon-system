@@ -880,6 +880,39 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
+            // [DEBUG] Raw Fetch Inspection (Bypass Library)
+            try {
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wvhwpdgerjngmkhagxom.supabase.co';
+                const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+                const debugUrl = `${supabaseUrl}/rest/v1/rpc/update_match_status_v3`;
+                
+                const debugRes = await fetch(debugUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`
+                    },
+                    body: JSON.stringify({
+                        p_match_id: matchId,
+                        p_status: 'complete',
+                        p_score1: numS1,
+                        p_score2: numS2
+                    })
+                });
+                
+                console.log("=== ROOT INSPECTION DEBUG ===");
+                console.log("URL:", debugUrl);
+                console.log("HTTP STATUS:", debugRes.status, debugRes.statusText);
+                if (debugRes.status !== 200 && debugRes.status !== 204) {
+                    const errorText = await debugRes.text();
+                    console.log("RAW ERROR MESSAGE:", errorText);
+                }
+                console.log("=============================");
+            } catch (debugErr) {
+                console.error("DEBUG FETCH CRITICAL ERROR:", debugErr);
+            }
+
             // 3. DB Sync via RPC (Bypass schema cache error)
             const { error: syncError } = await supabase.rpc('update_match_status_v3', {
                 p_match_id: matchId,
