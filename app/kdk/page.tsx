@@ -521,7 +521,7 @@ export default function KDKPage() {
                         const soleSession = sessionsMap[sessionList[0].id];
                         setMatches(soleSession.matches.map(m => ({
                             id: m.id,
-                            playerIds: m.playerIds || [],
+                            playerIds: m.player_ids || m.playerIds || [], // Fix: Map DB snake_case to state camelCase
                             court: m.court,
                             status: m.status,
                             score1: m.score1,
@@ -529,7 +529,7 @@ export default function KDKPage() {
                             mode: m.mode || 'KDK',
                             round: m.round,
                             teams: m.teams,
-                            groupName: m.groupName
+                            groupName: m.group_name || m.groupName // Support both snake/camel
                         })));
                         setSessionId(soleSession.id);
                         setSessionTitle(soleSession.title);
@@ -544,7 +544,7 @@ export default function KDKPage() {
                     if (currentSession) {
                         setMatches(currentSession.matches.map(m => ({
                             id: m.id,
-                            playerIds: m.playerIds || [],
+                            playerIds: m.player_ids || m.playerIds || [], // Fix: Map DB snake_case to state camelCase
                             court: m.court,
                             status: m.status,
                             score1: m.score1,
@@ -552,7 +552,7 @@ export default function KDKPage() {
                             mode: m.mode || 'KDK',
                             round: m.round,
                             teams: m.teams,
-                            groupName: m.groupName
+                            groupName: m.group_name || m.groupName // Support both snake/camel
                         })));
                     }
                 }
@@ -947,10 +947,8 @@ export default function KDKPage() {
                 throw syncError;
             }
 
-            // [CAUTION] Hard purge cache and service worker
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            // 4. Force state sync & Immediate Reload
+            window.location.reload();
 
             // Success: Trigger Toast instead of Alert
             setShowToast(true);

@@ -22,7 +22,7 @@ RETURNS VOID AS $$
 BEGIN
     INSERT INTO public.matches (
         id, club_id, session_id, session_title, round, court, 
-        player_ids, player_names, score1, score2, status, mode
+        player_ids, player_names, score1, score2, status, mode, group_name
     )
     SELECT 
         (m->>'id')::TEXT,
@@ -37,7 +37,8 @@ BEGIN
         COALESCE((m->>'score1')::INTEGER, 0),
         COALESCE((m->>'score2')::INTEGER, 0),
         COALESCE((m->>'status')::TEXT, 'waiting'),
-        COALESCE((m->>'mode')::TEXT, 'KDK')
+        COALESCE((m->>'mode')::TEXT, 'KDK'),
+        COALESCE(m->>'groupName', m->>'group_name')
     FROM JSONB_ARRAY_ELEMENTS(p_matches) AS m
     ON CONFLICT (id) DO UPDATE SET
         status = EXCLUDED.status,
@@ -45,7 +46,8 @@ BEGIN
         score1 = EXCLUDED.score1,
         score2 = EXCLUDED.score2,
         player_names = EXCLUDED.player_names,
-        player_ids = EXCLUDED.player_ids;
+        player_ids = EXCLUDED.player_ids,
+        group_name = EXCLUDED.group_name;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
