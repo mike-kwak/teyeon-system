@@ -2378,7 +2378,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 bg-white/5 backdrop-blur-3xl rounded-[40px] 
                                 border-t border-t-white/30 border-l border-l-white/10
                                 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
-                                flex flex-col items-center pt-14 pb-10 transition-all duration-700 relative
+                                flex flex-col items-center pt-20 pb-10 transition-all duration-700 relative
                             `;
                             
                             return (
@@ -2387,7 +2387,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.3] -translate-y-10' : 'z-10 opacity-70 scale-95'}`}
                                 >
                                     {isFirst && (
-                                        <div className="absolute -inset-[3px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#E5D29B] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_30px_rgba(201,176,117,0.4)]" />
+                                        <div className="absolute -inset-[3.5px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#F3E2B5] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_50px_rgba(201,176,117,0.5)]" />
                                     )}
 
                                     <div className={glassStyles}>
@@ -2409,14 +2409,14 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                                 {p.name}
                                             </div>
                                             
-                                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px]">
+                                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px] relative z-20">
                                                 <div className="flex items-center gap-0.5">
                                                     <span className="text-white drop-shadow-[0_0_8px_rgba(147,197,253,0.5)]">{p.wins}</span>
-                                                    <span className="text-blue-300">승</span>
+                                                    <span className="text-white">승</span>
                                                 </div>
                                                 <div className="flex items-center gap-0.5">
                                                     <span className="text-white">{p.losses}</span>
-                                                    <span className="text-slate-400">패</span>
+                                                    <span className="text-white">패</span>
                                                 </div>
                                                 <span className="opacity-10">/</span>
                                                 <span className={p.diff > 0 ? 'text-[#C9B075]' : 'text-white tracking-normal'}>
@@ -2461,8 +2461,8 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
                                 <div className="text-right text-[11px] font-bold text-white/70">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-blue-300 drop-shadow-[0_0_10px_rgba(147,197,253,0.4)]">{p.wins}</div>
-                                <div className="text-right text-[13px] font-black text-slate-400">{p.losses}</div>
+                                <div className="text-right text-[13px] font-black text-white drop-shadow-[0_0_10px_rgba(147,197,253,0.4)]">{p.wins}</div>
+                                <div className="text-right text-[13px] font-black text-white">{p.losses}</div>
                                 <div className="text-right text-[11px] font-bold text-white/80">{p.pf}</div>
                                 <div className="text-right text-[11px] font-bold text-white/60">{p.pa}</div>
                                 <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white/90 tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
@@ -2564,14 +2564,14 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                     <button
                         disabled={isGenerating}
                         onClick={finalizeTournament}
-                        className="w-full h-14 text-black font-black rounded-[22px] uppercase text-sm tracking-[0.25em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-4"
+                        className="w-full h-10 text-black font-black rounded-2xl uppercase text-[10px] tracking-[0.25em] shadow-2xl active:scale-95 transition-all border border-white/20 relative overflow-hidden group flex items-center justify-center gap-3"
                         style={{
                             background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
-                            boxShadow: '0 15px 40px rgba(142,122,74,0.5), inset 0 0 15px rgba(255,255,255,0.3)'
+                            boxShadow: '0 10px 30px rgba(142,122,74,0.4), inset 0 0 10px rgba(255,255,255,0.3)'
                         }}
                     >
                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                        <span className="text-xl drop-shadow-md">🏆</span>
+                        <span className="text-lg drop-shadow-md">🏆</span>
                         <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
                     </button>
                 </div>
