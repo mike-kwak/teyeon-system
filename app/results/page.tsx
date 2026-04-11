@@ -1,328 +1,160 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { styled, keyframes } from '@/stitches.config';
 import { supabase } from '@/lib/supabase';
-
-const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'translateY(15px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
-});
-
-const Container = styled('main', {
-  display: 'flex',
-  flexDirection: 'column',
-  minHeight: '100dvh',
-  padding: '$8 $5',
-  maxWidth: '500px',
-  margin: '0 auto',
-  width: '100%',
-  backgroundColor: '$black',
-  paddingBottom: '110px',
-});
-
-const Header = styled('header', {
-  display: 'flex',
-  flexDirection: 'column',
-  marginBottom: '$10',
-});
-
-const Title = styled('h1', {
-  fontSize: '32px',
-  fontWeight: '$black',
-  letterSpacing: '$tight',
-  color: '$white',
-  textTransform: 'uppercase',
-  lineHeight: '0.9',
-  marginBottom: '$2',
-  fontStyle: 'italic',
-});
-
-const Subtitle = styled('p', {
-  fontSize: '10px',
-  fontWeight: '$black',
-  color: 'rgba(212, 175, 55, 0.4)',
-  letterSpacing: '$mega',
-  textTransform: 'uppercase',
-});
-
-const FilterStack = styled('div', {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '$5',
-  marginBottom: '$10',
-});
-
-const SearchInput = styled('div', {
-  background: 'linear-gradient(135deg, $gray900, $black)',
-  borderGlow: 'rgba(255, 255, 255, 0.03)',
-  borderRadius: '$xl',
-  padding: '$5 $6',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$4',
-  color: 'rgba(255, 255, 255, 0.3)',
-  fontSize: '$sm',
-  boxShadow: '$glass',
-});
-
-const TabRow = styled('div', {
-  display: 'flex',
-  gap: '$3',
-  overflowX: 'auto',
-  pb: '$4',
-  '&::-webkit-scrollbar': { display: 'none' },
-});
-
-const TabItem = styled('button', {
-  whiteSpace: 'nowrap',
-  padding: '$2 $6',
-  borderRadius: '$full',
-  fontSize: '9px',
-  fontWeight: '$black',
-  letterSpacing: '$wider',
-  textTransform: 'uppercase',
-  border: '1px solid rgba(255, 255, 255, 0.05)',
-  background: 'rgba(255, 255, 255, 0.03)',
-  color: 'rgba(255, 255, 255, 0.3)',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-
-  variants: {
-    active: {
-      true: {
-        background: '$gold',
-        color: '$black',
-        borderColor: '$gold',
-        boxShadow: '$goldGlow',
-        transform: 'scale(1.05)',
-      },
-    },
-  },
-});
-
-const MonthDivider = styled('div', {
-  fontSize: '11px',
-  fontWeight: '$black',
-  color: '$gold',
-  letterSpacing: '$mega',
-  textTransform: 'uppercase',
-  margin: '$8 0 $4 $2',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$5',
-  opacity: 0.8,
-
-  '&::after': {
-    content: '""',
-    flex: 1,
-    height: '1px',
-    background: 'linear-gradient(90deg, rgba(212, 175, 55, 0.2), transparent)',
-  },
-});
-
-const MatchCard = styled('div', {
-  background: 'linear-gradient(135deg, $gray850, $black)',
-  borderRadius: '$xl',
-  padding: '$6',
-  borderGlow: 'rgba(255, 255, 255, 0.02)',
-  marginBottom: '$5',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  animation: `${fadeIn} 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)`,
-  position: 'relative',
-  boxShadow: '$glass',
-  transition: 'all 0.4s ease',
-
-  '&:hover': {
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    background: 'linear-gradient(135deg, $gray800, $black)',
-    transform: 'translateX(4px)',
-    boxShadow: '$goldGlow',
-  },
-});
-
-const DateBox = styled('div', {
-  textAlign: 'center',
-  minWidth: '50px',
-  borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-  paddingRight: '$4',
-});
-
-const Day = styled('p', {
-  fontSize: '24px',
-  fontWeight: '$black',
-  lineHeight: '1',
-  color: '$white',
-});
-
-const Month = styled('p', {
-  fontSize: '9px',
-  fontWeight: '$black',
-  color: '$gold',
-  textTransform: 'uppercase',
-  marginTop: '$1',
-});
-
-const MatchDetails = styled('div', {
-  flex: 1,
-  padding: '0 $6',
-});
-
-const Players = styled('p', {
-  fontSize: '16px',
-  fontWeight: '$black',
-  color: '$white',
-  marginBottom: '$1',
-  letterSpacing: '$tight',
-});
-
-const TournamentName = styled('p', {
-  fontSize: '9px',
-  fontWeight: '$bold',
-  color: 'rgba(255, 255, 255, 0.3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-});
-
-const ScoreBox = styled('div', {
-  textAlign: 'right',
-});
-
-const Score = styled('p', {
-  fontSize: '22px',
-  fontWeight: '$black',
-  color: '$white',
-  letterSpacing: '$tight',
-
-  variants: {
-    won: {
-      true: { color: '$gold', textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' },
-    },
-  },
-});
+import RankingTab from '@/components/RankingTab';
+import PremiumSpinner from '@/components/PremiumSpinner';
+import { DataStateView } from '@/components/DataStateView';
 
 export default function ArchivePage() {
-  const [matches, setMatches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedSession, setSelectedSession] = useState<any | null>(null);
+    const [yearFilter, setYearFilter] = useState('2026');
+    const [monthFilter, setMonthFilter] = useState((new Date().getMonth() + 1).toString());
 
-  useEffect(() => {
-    fetchArchive();
-  }, []);
+    useEffect(() => {
+        fetchSessions();
+    }, []);
 
-  async function fetchArchive() {
-    try {
-      const { data, error } = await supabase
-        .from('matches_archive')
-        .select('*')
-        .order('match_date', { ascending: false });
-      
-      if (error) throw error;
-      setMatches(data || []);
-    } catch (err) {
-      console.error("Archive Fetch Error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Container style={{ paddingBottom: '250px' }}>
-      <Header>
-        <Title style={{ fontFamily: 'var(--font-orbitron)', fontSize: '28px', fontWeight: 950 }}>The <span style={{ color: '$goldGlint' }}>Archive</span></Title>
-        <Subtitle>Surface: Elite Grass | Legacy 2026</Subtitle>
-      </Header>
-
-      <FilterStack>
-        <SearchInput style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '14px' }}>
-          <span style={{ fontSize: '18px' }}>🔍</span>
-          <span style={{ opacity: 0.5 }}>Search championship records...</span>
-        </SearchInput>
-        <TabRow>
-          <TabItem active style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>All Matches</TabItem>
-          <TabItem style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Championships</TabItem>
-          <TabItem style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Executive Series</TabItem>
-          <TabItem style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Open Trials</TabItem>
-        </TabRow>
-      </FilterStack>
-
-      <section>
-        <MonthDivider style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '12px' }}>Current Session: April 2026</MonthDivider>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.5 }}>
-            <p style={{ fontWeight: 950, letterSpacing: '0.5em', fontSize: '12px', fontFamily: 'var(--font-rajdhani)' }}>SYNCHRONIZING RECORDS...</p>
-          </div>
-        ) : matches.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
-            <div style={{ fontSize: '64px', marginBottom: '24px', filter: 'drop-shadow(0 0 10px $goldGlint)' }}>🏺</div>
-            <p style={{ fontWeight: 950, letterSpacing: '0.4em', fontSize: '12px', fontFamily: 'var(--font-rajdhani)' }}>NO ARCHIVED MATCHES DETECTED</p>
-          </div>
-        ) : (
-          matches.map((m, idx) => {
-            const date = new Date(m.match_date || Date.now());
-            const day = date.getDate().toString().padStart(2, '0');
-            const month = date.toLocaleString('en-US', { month: 'short' });
+    const fetchSessions = async () => {
+        try {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('sessions_archive')
+                .select('*')
+                .order('date', { ascending: false });
             
-            return (
-              <MatchCard key={idx}>
-                <DateBox>
-                  <Day style={{ fontFamily: 'var(--font-orbitron)' }}>{day}</Day>
-                  <Month style={{ fontFamily: 'var(--font-rajdhani)' }}>{month}</Month>
-                </DateBox>
-                <MatchDetails>
-                  <Players style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '18px', fontWeight: 950 }}>{m.player_names?.join(' / ') || 'Tournament Match'}</Players>
-                  <TournamentName>{m.session_title || 'TEYEON OPEN ELITE'}</TournamentName>
-                </MatchDetails>
-                <ScoreBox>
-                  <Score won={true} style={{ fontFamily: 'var(--font-orbitron)' }}>{m.score1} {m.score2}</Score>
-                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                    <div style={{ width: '4px', height: '4px', background: '$goldGlint', borderRadius: '100px' }} />
-                    <div style={{ width: '4px', height: '4px', background: '$goldGlint', borderRadius: '100px' }} />
-                    <div style={{ width: '4px', height: '4px', background: 'rgba(255,255,255,0.15)', borderRadius: '100px' }} />
-                  </div>
-                </ScoreBox>
-              </MatchCard>
-            );
-          })
-        )}
+            if (error) throw error;
+            setSessions(data || []);
+        } catch (err) {
+            console.error("Fetch Archive Error:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        {!loading && matches.length === 0 && (
-          <>
-            <MonthDivider style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '12px' }}>Legacy: March 2026</MonthDivider>
-            <MatchCard>
-              <DateBox>
-                <Day style={{ fontFamily: 'var(--font-orbitron)' }}>28</Day>
-                <Month style={{ fontFamily: 'var(--font-rajdhani)' }}>Mar</Month>
-              </DateBox>
-              <MatchDetails>
-                <Players style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '18px', fontWeight: 950 }}>Kwak M.S / Marcus V.</Players>
-                <TournamentName>Teyeon Spring Championship</TournamentName>
-              </MatchDetails>
-              <ScoreBox>
-                <Score won={true} style={{ fontFamily: 'var(--font-orbitron)' }}>6 3</Score>
-              </ScoreBox>
-            </MatchCard>
-            <MatchCard>
-              <DateBox>
-                <Day style={{ fontFamily: 'var(--font-orbitron)' }}>15</Day>
-                <Month style={{ fontFamily: 'var(--font-rajdhani)' }}>Mar</Month>
-              </DateBox>
-              <MatchDetails>
-                <Players style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '18px', fontWeight: 950 }}>Carlos A. / Alex R.</Players>
-                <TournamentName>Club Ranking Invitational</TournamentName>
-              </MatchDetails>
-              <ScoreBox>
-                <Score style={{ fontFamily: 'var(--font-orbitron)' }}>4 6</Score>
-              </ScoreBox>
-            </MatchCard>
-          </>
-        )}
-      </section>
+    const filteredSessions = sessions.filter(s => {
+        const [y, m] = s.date.split('-');
+        return y === yearFilter && parseInt(m).toString() === monthFilter;
+    });
 
-      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.25 }}>
-        <p style={{ fontSize: '11px', fontWeight: 950, letterSpacing: '0.5em', color: '$goldGlint', textTransform: 'uppercase' }}>TEYEON HISTORY ANALYTICS STABLE</p>
-      </footer>
-    </Container>
-  );
+    if (selectedSession) {
+        return (
+            <div className="min-h-screen bg-black text-white pb-32">
+                <header className="px-6 py-6 flex items-center gap-4 border-b border-white/10">
+                    <button 
+                        onClick={() => setSelectedSession(null)}
+                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+                    >
+                        ←
+                    </button>
+                    <h1 className="text-xl font-black italic tracking-tighter uppercase">Archive Report</h1>
+                </header>
+                
+                <RankingTab 
+                    players={selectedSession.ranking_data || []}
+                    sessionTitle={selectedSession.title}
+                    isArchive={true}
+                    matchSnapshot={selectedSession.match_snapshot || []}
+                    onShareMatch={() => alert("Report shared!")}
+                    onShareResult={() => alert("Champions shared!")}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <main className="min-h-screen bg-black text-white font-sans p-6 pb-32">
+            <header className="mb-10 flex flex-col items-center text-center">
+                <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase mb-4">
+                    Teyeon Records
+                </span>
+                <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase">
+                    Archive Portal
+                </h1>
+                <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
+            </header>
+
+            {/* Filter Section */}
+            <section className="mb-10 space-y-4">
+                <div className="flex gap-3 overflow-x-auto no-scrollbar py-2">
+                    {['2025', '2026', '2027'].map(year => (
+                        <button
+                            key={year}
+                            onClick={() => setYearFilter(year)}
+                            className={`px-6 py-2 rounded-full text-[11px] font-black tracking-widest transition-all ${year === yearFilter ? 'bg-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'bg-white/5 text-white/30 border border-white/10'}`}
+                        >
+                            {year}
+                        </button>
+                    ))}
+                </div>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                    {Array.from({ length: 12 }, (_, i) => (i + 1).toString()).map(month => (
+                        <button
+                            key={month}
+                            onClick={() => setMonthFilter(month)}
+                            className={`min-w-[50px] h-10 rounded-xl text-[11px] font-black flex items-center justify-center transition-all ${month === monthFilter ? 'bg-white/10 text-[#C9B075] border border-[#C9B075]/30' : 'bg-white/5 text-white/20 border border-white/5'}`}
+                        >
+                            {month}월
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* Session List */}
+            <div className="space-y-4">
+                {loading ? (
+                    <div className="py-20 flex flex-col items-center opacity-30">
+                        <PremiumSpinner />
+                        <span className="mt-4 text-[10px] font-black tracking-[0.3em] uppercase">Recalling History...</span>
+                    </div>
+                ) : filteredSessions.length === 0 ? (
+                    <div className="py-20 flex flex-col items-center text-center opacity-20">
+                        <span className="text-4xl mb-4">🏺</span>
+                        <h3 className="text-lg font-black uppercase tracking-widest">No Records Found</h3>
+                        <p className="text-[10px] font-medium uppercase mt-2">이 기간에 기록된 토너먼트 세션이 없습니다.</p>
+                    </div>
+                ) : (
+                    filteredSessions.map((session) => (
+                        <div 
+                            key={session.id}
+                            onClick={() => setSelectedSession(session)}
+                            className="relative group cursor-pointer overflow-hidden rounded-[30px] bg-white/[0.03] border border-white/5 p-6 transition-all hover:bg-white/[0.08] active:scale-[0.98] shadow-2xl"
+                        >
+                            <div className="absolute top-0 right-0 p-4">
+                                <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-40">Verified Match</span>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-black text-white/30 tracking-[0.2em] uppercase">{session.date}</span>
+                                <h3 className="text-xl font-black italic text-white uppercase tracking-tighter group-hover:text-[#C9B075] transition-colors">
+                                    {session.title}
+                                </h3>
+                                <div className="mt-4 flex items-center gap-4 text-white/40">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Matches:</span>
+                                        <span className="text-[11px] font-bold text-white/60">{session.total_matches || 0}</span>
+                                    </div>
+                                    <div className="w-px h-2 bg-white/10" />
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Ranked:</span>
+                                        <span className="text-[11px] font-bold text-white/60">{session.ranking_data?.length || 0} 명</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="absolute bottom-0 right-0 p-6 translate-x-4 translate-y-4 opacity-0 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
+                                <div className="w-10 h-10 rounded-full bg-[#C9B075] flex items-center justify-center text-black font-black text-xl shadow-lg">
+                                    →
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <footer className="mt-20 py-10 flex flex-col items-center opacity-20 text-center border-t border-white/5">
+                <p className="text-[8px] font-black text-[#C9B075] tracking-[0.5em] uppercase">Teyeon Historical Archives • Stable Build 2026</p>
+            </footer>
+        </main>
+    );
 }

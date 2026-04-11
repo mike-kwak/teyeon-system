@@ -45,8 +45,8 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-[12px] left-1/2 -translate-x-1/2 z-50 h-[68px] w-[94%] max-w-[420px] bg-[#121212]/95 backdrop-blur-2xl border border-white/10 px-2 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.9)] rounded-[24px] transition-all duration-300">
-      <div className="w-full mx-auto flex justify-around items-center h-full px-2">
+    <nav className="fixed bottom-[12px] left-1/2 -translate-x-1/2 z-50 h-[68px] w-[96%] max-w-[420px] bg-black/80 backdrop-blur-3xl border border-white/10 px-1 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.9)] rounded-[28px] transition-all duration-300">
+      <div className="w-full mx-auto flex justify-between items-center h-full px-4">
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path !== '/' && pathname?.startsWith(item.path));
           return (
@@ -54,24 +54,24 @@ export default function BottomNav() {
               key={item.path} 
               href={item.path}
               onClick={(e) => handleGuestClick(e, item.label)}
-              className={`relative flex flex-col items-center justify-center flex-1 h-full transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 active:scale-95'} ${!user && item.label !== 'MAIN' ? 'opacity-40' : ''}`}
+              className={`relative flex flex-col items-center justify-center flex-1 h-full transition-all duration-300 ${isActive ? 'scale-105' : 'hover:scale-105 opacity-40'} ${!user && item.label !== 'MAIN' ? 'opacity-20' : ''}`}
             >
               <div 
                 className={`mb-1 transition-all duration-300 ${
-                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_12px_rgba(239,223,180,0.8)]' : 'text-white/30'
+                  isActive ? 'text-[#EFDFB4] drop-shadow-[0_0_12px_rgba(239,223,180,0.8)]' : 'text-white'
                 }`}
               >
-                <item.icon size={22} strokeWidth={isActive ? 2 : 1.5} />
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
               </div>
               <span 
-                className={`text-[9px] font-black tracking-[0.1em] transition-all duration-300 uppercase ${
+                className={`text-[8px] font-black tracking-[0.2em] transition-all duration-300 uppercase ${
                   isActive ? 'text-[#EFDFB4]' : 'text-white/40'
                 }`}
               >
                 {item.label}
               </span>
               {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 bg-[#EFDFB4] rounded-full shadow-[0_0_8px_#EFDFB4]" />
+                <div className="absolute -bottom-1 w-1.5 h-1.5 bg-[#EFDFB4] rounded-full shadow-[0_0_10px_#EFDFB4] animate-in fade-in zoom-in duration-500" />
               )}
             </Link>
           );

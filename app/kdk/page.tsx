@@ -12,6 +12,8 @@ import { RotateCw } from 'lucide-react';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
+import RankingTab from '@/components/RankingTab';
+
 
 // --- Types & Interfaces ---
 interface Member {
@@ -123,7 +125,8 @@ export default function KDKPage() {
     const [showRankingModal, setShowRankingModal] = useState(false);
     const [userRole, setUserRole] = useState<UserRole>('CEO');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING' | 'ARCHIVE'>('MATCHES');
+    const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
+
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
 
@@ -1998,30 +2001,21 @@ export default function KDKPage() {
                 )}
                 {activeTab === 'RANKING' && (
                     <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
-                        <RankingView
-                            sessionMatches={matches}
-                            configs={attendeeConfigs}
-                            allPlayers={allPlayersInRanking}
-                            allMembers={allMembers}
-                            tempGuests={tempGuests}
-                            sessionId={sessionId}
+                        <RankingTab
+                            players={allPlayersInRanking}
                             sessionTitle={sessionTitle}
-                            actualReset={actualReset}
-                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }}
-                            copyMatchTable={execCopySchedule}
-                            copyFinalResults={copyFinalResults}
-                            ceremonyMode={showCeremony}
+                            isArchive={false}
+                            isAdmin={role === 'CEO'}
+                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
+                            onShareMatch={execCopySchedule}
+                            onShareResult={copyFinalResults}
                             onFinalize={handleFinalArchive}
                             isGenerating={isGenerating}
-                            isAdmin={role === 'CEO'}
+                            ceremonyMode={showCeremony}
                         />
                     </div>
                 )}
-                {activeTab === 'ARCHIVE' && (
-                    <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
-                        <ArchiveView isAdmin={role === 'CEO'} />
-                    </div>
-                )}
+
             </div>
 
             <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
@@ -2037,12 +2031,7 @@ export default function KDKPage() {
                 >
                     📊 RANKING
                 </button>
-                <button
-                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('ARCHIVE'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'ARCHIVE' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
-                >
-                    📂 ARCHIVE
-                </button>
+
             </nav>
 
 
@@ -2064,21 +2053,17 @@ export default function KDKPage() {
                         <button onClick={() => setShowRankingModal(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-xl text-white">×</button>
                     </header>
                     <div className="flex-1 overflow-y-auto p-4">
-                        <RankingView
-                            sessionMatches={matches}
-                            configs={attendeeConfigs}
-                            allPlayers={allPlayersInRanking}
-                            allMembers={allMembers}
-                            tempGuests={tempGuests}
-                            sessionId={sessionId}
+                        <RankingTab
+                            players={allPlayersInRanking}
                             sessionTitle={sessionTitle}
-                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty, account: accountInfo }}
-                            copyMatchTable={execCopySchedule}
-                            copyFinalResults={copyFinalResults}
-                            ceremonyMode={showCeremony}
+                            isArchive={false}
+                            isAdmin={role === 'CEO'}
+                            prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
+                            onShareMatch={execCopySchedule}
+                            onShareResult={copyFinalResults}
                             onFinalize={handleFinalArchive}
                             isGenerating={isGenerating}
-                            isAdmin={role === 'CEO'}
+                            ceremonyMode={showCeremony}
                         />
                     </div>
                 </div>
