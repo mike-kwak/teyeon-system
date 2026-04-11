@@ -2377,9 +2377,9 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} ${isFirst ? 'h-72' : 'h-48'} transition-all duration-700 flex flex-col justify-end`}
+                                    className={`relative ${widthClass} transition-all duration-700 flex flex-col justify-end`}
                                 >
-                                    <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-10 w-full h-full relative">
+                                    <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-6 w-full relative">
                                         <div className={`
                                             flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6
                                             ${isFirst ? 'w-20 h-20 border-[#C9B075]/30' : 'w-16 h-16'}
@@ -2426,16 +2426,16 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 </div>
 
                 <div className="flex-1 space-y-2 px-4 pb-48">
-                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-6 text-lg font-black text-white tracking-widest border-b border-white/20 uppercase italic">
-                        <span className="text-center opacity-60">순위</span>
-                        <span className="text-left pl-2 opacity-60">참가자</span>
-                        <span className="text-right opacity-40">P</span>
-                        <span className="text-right">승</span>
-                        <span className="text-right">패</span>
-                        <span className="text-right">PF</span>
-                        <span className="text-right">PA</span>
-                        <span className="text-right">득실</span>
-                        <span className="text-right pr-2">정산</span>
+                    <div className="grid grid-cols-[2rem_1fr_1.5rem_1.5rem_1.5rem_1.8rem_1.8rem_2rem_5.5rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
+                        <span className="text-center opacity-60 whitespace-nowrap">순위</span>
+                        <span className="text-left pl-2 opacity-60 whitespace-nowrap">참가자</span>
+                        <span className="text-right opacity-40 whitespace-nowrap">P</span>
+                        <span className="text-right whitespace-nowrap">승</span>
+                        <span className="text-right whitespace-nowrap">패</span>
+                        <span className="text-right whitespace-nowrap">PF</span>
+                        <span className="text-right whitespace-nowrap">PA</span>
+                        <span className="text-right whitespace-nowrap">득실</span>
+                        <span className="text-right pr-2 whitespace-nowrap">정산</span>
                     </div>
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x: any) => x.id === p.id);
@@ -2539,12 +2539,12 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
 
-                 <div className="flex flex-col gap-6 my-20 shrink-0 px-6 pb-48">
+                 <div className="flex flex-col gap-10 mt-32 mb-48 shrink-0 px-6 pb-48">
                     <button onClick={copyMatchTable} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
                         <span className="text-xl">📋</span>
                         대진표 공유
                     </button>
-                    <button onClick={copyFinalResults} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
+                    <button onClick={copyFinalResults} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[14px] font-black uppercase tracking-[0.3em] rounded-[30px] hover:bg-white/10 transition-all flex items-center justify-center gap-8 italic shadow-2xl">
                         <span className="text-xl">🏆</span>
                         최종결과 공유
                     </button>
