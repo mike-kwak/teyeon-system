@@ -2378,13 +2378,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 bg-white/5 backdrop-blur-3xl rounded-[40px] 
                                 border-t border-t-white/30 border-l border-l-white/10
                                 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
-                                flex flex-col items-center pt-20 pb-10 transition-all duration-700 relative
+                                flex flex-col items-center pt-24 pb-10 transition-all duration-700 relative
                             `;
                             
                             return (
                                 <div 
                                     key={p.id} 
-                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.3] -translate-y-10' : 'z-10 opacity-70 scale-95'}`}
+                                    className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.3] -translate-y-10' : 'z-10 scale-95'}`}
                                 >
                                     {isFirst && (
                                         <div className="absolute -inset-[3.5px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#F3E2B5] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_50px_rgba(201,176,117,0.5)]" />
@@ -2404,18 +2404,17 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             </span>
                                         </div>
 
-                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 relative z-10">
-                                            <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
+                                            <div className={`font-bold text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
                                                 {p.name}
                                             </div>
                                             
                                             <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[10px] relative z-20">
                                                 <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_8px_rgba(147,197,253,0.5)]">{p.wins}</span>
+                                                    <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">{p.wins}</span>
                                                     <span className="text-white">승</span>
                                                 </div>
                                                 <div className="flex items-center gap-0.5">
-                                                    <span className="text-white">{p.losses}</span>
+                                                    <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{p.losses}</span>
                                                     <span className="text-white">패</span>
                                                 </div>
                                                 <span className="opacity-10">/</span>
@@ -2460,11 +2459,11 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 <div className="text-left font-black text-[15px] text-white tracking-tighter truncate pl-2">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
-                                <div className="text-right text-[11px] font-black text-white/80">{p.wins + p.losses}</div>
-                                <div className="text-right text-[13px] font-black text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]">{p.wins}</div>
+                                <div className="text-right text-[11px] font-black text-white/95">{p.wins + p.losses}</div>
+                                <div className="text-right text-[13px] font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">{p.wins}</div>
                                 <div className="text-right text-[13px] font-black text-white/95">{p.losses}</div>
-                                <div className="text-right text-[11px] font-black text-white/90">{p.pf}</div>
-                                <div className="text-right text-[11px] font-black text-white/70">{p.pa}</div>
+                                <div className="text-right text-[11px] font-black text-white">{p.pf}</div>
+                                <div className="text-right text-[11px] font-black text-white/80">{p.pa}</div>
                                 <div className={`text-right font-black text-[13px] ${p.diff > 0 ? 'text-[#C9B075] drop-shadow-[0_0_8px_rgba(201,176,117,0.3)]' : 'text-white tracking-normal'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</div>
                                 <div className={`text-right text-[14px] tracking-tighter pr-1 ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
                                     {amount !== 0 ? (
