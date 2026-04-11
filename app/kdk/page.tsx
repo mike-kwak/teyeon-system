@@ -73,7 +73,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v5.0 (FINAL STABLE)");
+        console.log("🚀 LATEST CODE LOADED: v6.0 (JSON ULTIMATE)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -699,15 +699,17 @@ export default function KDKPage() {
         setActiveMatchIds(nextActive);
         setMatches(nextMatches);
 
-        // 2. DB Sync via RPC (v5 Stable Unified)
+        // 2. DB Sync via RPC (v6 JSON ULTIMATE)
         const rpcPayload = {
-            p_match_id: matchId.toString(),
-            p_status: 'playing',
-            p_score1: '0',
-            p_score2: '0'
+            p_data: {
+                match_id: matchId.toString(),
+                status: 'playing',
+                score1: 0,
+                score2: 0
+            }
         };
-        console.log("📡 FINAL RPC PAYLOAD (START):", rpcPayload);
-        await supabase.rpc('final_sync_v5_stable', rpcPayload);
+        console.table(rpcPayload.p_data);
+        await supabase.rpc('final_sync_v6_json', rpcPayload);
     };
 
     const cancelMatch = async (matchId: string) => {
@@ -715,15 +717,17 @@ export default function KDKPage() {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
 
-            // 1. Supabase Sync via RPC (v5 Stable Unified)
+            // 1. Supabase Sync via RPC (v6 JSON ULTIMATE)
             const rpcPayload = {
-                p_match_id: matchId.toString(),
-                p_status: 'waiting',
-                p_score1: '0',
-                p_score2: '0'
+                p_data: {
+                    match_id: matchId.toString(),
+                    status: 'waiting',
+                    score1: 0,
+                    score2: 0
+                }
             };
-            console.log("📡 FINAL RPC PAYLOAD (CANCEL):", rpcPayload);
-            const { error: syncError } = await supabase.rpc('final_sync_v5_stable', rpcPayload);
+            console.table(rpcPayload.p_data);
+            const { error: syncError } = await supabase.rpc('final_sync_v6_json', rpcPayload);
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
@@ -888,20 +892,27 @@ export default function KDKPage() {
                 player_ids: matchToFinish.playerIds
             };
 
-            // 3. DB Sync via RPC (v5 Stable Unified)
+            // 3. DB Sync via RPC (v6 JSON ULTIMATE)
             const rpcPayload = {
-                p_match_id: matchId.toString(),
-                p_status: 'complete',
-                p_score1: numS1.toString(),
-                p_score2: numS2.toString()
+                p_data: {
+                    match_id: matchId.toString(),
+                    status: 'complete',
+                    score1: numS1,
+                    score2: numS2
+                }
             };
-            console.log("📡 FINAL RPC PAYLOAD (FINISH):", rpcPayload);
-            const { error: syncError } = await supabase.rpc('final_sync_v5_stable', rpcPayload);
-
+            console.table(rpcPayload.p_data);
+            const { error: syncError } = await supabase.rpc('final_sync_v6_json', rpcPayload);
+            
             if (syncError) {
                 console.error("Match result sync error:", syncError);
                 throw syncError;
             }
+
+            // [CAUTION] Hard purge cache and service worker
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
 
             // Success: Trigger Toast instead of Alert
             setShowToast(true);
