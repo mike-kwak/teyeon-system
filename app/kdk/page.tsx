@@ -2378,7 +2378,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                 bg-white/5 backdrop-blur-3xl rounded-[40px] 
                                 border-t border-t-white/30 border-l border-l-white/10
                                 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
-                                flex flex-col items-center pb-10 transition-all duration-700 relative
+                                flex flex-col items-center pt-10 pb-10 transition-all duration-700 relative
                             `;
                             
                             return (
@@ -2387,13 +2387,13 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                     className={`relative ${widthClass} transition-all duration-700 overflow-visible ${isFirst ? 'z-30 scale-[1.3] -translate-y-10' : 'z-10 opacity-70 scale-95'}`}
                                 >
                                     {isFirst && (
-                                        <div className="absolute -inset-[3px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#C9B075]/40 to-transparent -z-10 opacity-100 blur-[2px]" />
+                                        <div className="absolute -inset-[3px] rounded-[42px] bg-gradient-to-b from-[#C9B075] via-[#E5D29B] to-[#C9B075] -z-10 opacity-100 blur-[3px] shadow-[0_0_30px_rgba(201,176,117,0.4)]" />
                                     )}
 
                                     <div className={glassStyles}>
                                         {/* Grand Number Background */}
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-                                            <span className="text-[12rem] font-black text-white/[0.03] translate-y-4 tracking-tighter">
+                                            <span className="text-[14rem] font-black text-white/[0.05] translate-y-8 tracking-tighter">
                                                 {idx === 0 ? '1' : idx === 1 ? '2' : '3'}
                                             </span>
                                         </div>
@@ -2411,7 +2411,7 @@ function RankingView({ sessionMatches, configs, prizes, allPlayers: players, all
                                             </span>
                                         </div>
 
-                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 -mt-8 relative z-10">
+                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 relative z-10">
                                             <div className={`font-black text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
                                                 {p.name}
                                             </div>
