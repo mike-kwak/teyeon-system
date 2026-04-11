@@ -975,9 +975,6 @@ export default function KDKPage() {
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
 
-            // [OPTIONAL] Archive into secondary table if needed, but the main matches table is now reliable via RPC
-            // For now, we only update the status. If you want separate archive table, we can keep using finalize_tournament.
-
             // Clear Score Buffer
             localStorage.removeItem(`kdk_score_buffer_${matchId}`);
         } catch (err: any) {
@@ -2863,11 +2860,11 @@ function ArchiveDetailView({ session, onBack }: { session: any, onBack: () => vo
                             <div className="w-2 h-10 bg-[#C9B075] rounded-full shadow-[0_0_15px_rgba(201,176,117,0.5)]" />
                             <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">ATMOSPHERE REPLAY</h3>
                         </div>
-                        <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">{session.match_snapshot?.length || 0} RECORDED EVENTS</span>
+                        <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">{session.snapshot_data?.length || 0} RECORDED EVENTS</span>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
-                        {(session.match_snapshot || []).map((m: any, idx: number) => {
+                        {(session.snapshot_data || []).map((m: any, idx: number) => {
                             const isB = m.groupName === 'B';
                             const color = isB ? '#00E5FF' : '#C9B075';
                             return (
