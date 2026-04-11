@@ -71,7 +71,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v1.7 (RESILIENT SYNC)");
+        console.log("🚀 LATEST CODE LOADED: v3.5 (FORCE RECOVERY)");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -894,10 +894,10 @@ export default function KDKPage() {
                         'Authorization': `Bearer ${supabaseKey}`
                     },
                     body: JSON.stringify({
-                        p_match_id: matchId,
+                        p_match_id: matchId.toString(),
                         p_status: 'complete',
-                        p_score1: numS1,
-                        p_score2: numS2
+                        p_score1: numS1.toString(),
+                        p_score2: numS2.toString()
                     })
                 });
                 
@@ -915,10 +915,10 @@ export default function KDKPage() {
 
             // 3. DB Sync via RPC (Bypass schema cache error)
             const { error: syncError } = await supabase.rpc('update_match_status_v3', {
-                p_match_id: matchId,
+                p_match_id: matchId.toString(),
                 p_status: 'complete',
-                p_score1: numS1,
-                p_score2: numS2
+                p_score1: numS1.toString(),
+                p_score2: numS2.toString()
             });
 
             if (syncError) {
