@@ -42,6 +42,40 @@ export default function SpecialMatchPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [isOptimizing, setIsOptimizing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
+    const [activeMatchTab, setActiveMatchTab] = useState<'NOW' | 'WAITING' | 'COMPLETED'>('NOW');
+    const [penaltyAmount, setPenaltyAmount] = useState(5000); // Default penalty on loss
+
+    const playerStats = useMemo(() => {
+        const stats: Record<string, { id: string, name: string, wins: number, losses: number, diff: number, penalty: number }> = {};
+        
+        // Initialize for all selected players
+        Array.from(selectedIds).forEach(id => {
+            const m = [...allMembers, ...tempGuests].find(x => x.id === id);
+            stats[id] = { id, name: m?.nickname || "Unknown", wins: 0, losses: 0, diff: 0, penalty: 0 };
+        });
+
+        matchQueue.filter(m => m.status === 'complete').forEach(m => {
+            const s1 = m.score1 || 0;
+            const s2 = m.score2 || 0;
+
+            m.playerIds.forEach((pid, idx) => {
+                if (!stats[pid]) return;
+                const isTeam1 = idx < 2;
+                const win = isTeam1 ? (s1 > s2) : (s2 > s1);
+                
+                if (win) {
+                    stats[pid].wins++;
+                } else {
+                    stats[pid].losses++;
+                    stats[pid].penalty += penaltyAmount;
+                }
+                stats[pid].diff += isTeam1 ? (s1 - s2) : (s2 - s1);
+            });
+        });
+
+        return Object.values(stats).sort((a, b) => b.wins - a.wins || b.diff - a.diff);
+    }, [matchQueue, selectedIds, allMembers, tempGuests, penaltyAmount]);
 
     useEffect(() => {
         fetchMembers();
@@ -57,6 +91,9 @@ export default function SpecialMatchPage() {
                     setSessionTitle(data.sessionTitle);
                     setSelectedIds(new Set(data.selectedIds || []));
                     setTempGuests(data.tempGuests || []);
+                    if (data.matches && data.matches.length > 0) {
+                        setStep(3); // Jump to Live if session is active
+                    }
                 }
             } catch (e) { console.error(e); }
         }
@@ -182,13 +219,14 @@ export default function SpecialMatchPage() {
                 session_id: sessionId,
                 club_id: clubId,
                 session_title: sessionTitle,
+                status: m.status || 'waiting', // Default to waiting
                 player_names: m.playerIds.map(pid => getPlayerName(pid))
             }));
 
             const { error } = await supabase.rpc('sync_tournament_matches', { p_matches: dbMatches });
             if (error) throw error;
 
-            // Save to LocalStorage for Gatekeeper
+            // Save to LocalStorage
             const sessionData = {
                 sessionId,
                 sessionTitle,
@@ -198,8 +236,8 @@ export default function SpecialMatchPage() {
             };
             localStorage.setItem('special_live_session', JSON.stringify(sessionData));
 
-            setStep(2); // Stay on drafting page which now acts as Live Court
-            alert("스페셜 세션이 동기화되었습니다! 🚀");
+            setStep(3); // Go to Live Dashboard
+            alert("커스텀 라이브 세션이 시작되었습니다! 📡");
         } catch (err: any) {
             alert("동기화 실패: " + err.message);
         } finally {
@@ -210,6 +248,30 @@ export default function SpecialMatchPage() {
     const getPlayerName = (id: string) => {
         const m = [...allMembers, ...tempGuests].find(x => x.id === id);
         return m?.nickname || "Unknown";
+    };
+
+    const handleStartMatch = async (matchId: string) => {
+        const nextQueue = matchQueue.map(m => 
+            m.id === matchId ? { ...m, status: 'live' as const } : m
+        );
+        setMatchQueue(nextQueue);
+        
+        // Push update to DB
+        try {
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+            const target = nextQueue.find(m => m.id === matchId)!;
+            const dbMatch = {
+                ...target,
+                session_id: sessionId,
+                club_id: clubId,
+                status: 'live',
+                session_title: sessionTitle,
+                player_names: target.playerIds.map(pid => getPlayerName(pid))
+            };
+            await supabase.rpc('sync_tournament_matches', { p_matches: [dbMatch] });
+        } catch (e) {
+            console.error("Sync Error:", e);
+        }
     };
 
     const updateMatchScore = async (matchId: string, s1: number, s2: number) => {
@@ -269,12 +331,12 @@ export default function SpecialMatchPage() {
                 title: sessionTitle,
                 date: new Date().toISOString().split('T')[0],
                 club_id: clubId,
-                type: 'SPECIAL',
+                type: 'CUSTOM', // User Requirement: Keep as CUSTOM
                 snapshot_data: matchQueue.map(m => ({
                     ...m,
                     player_names: m.playerIds.map(pid => getPlayerName(pid))
                 })),
-                ranking_data: Object.values(stats).sort((a,b) => b.wins - a.wins || b.diff - a.diff).map((s, i) => ({ ...s, rank: i + 1 })),
+                ranking_data: playerStats, // Use calculated stats
                 player_metadata: Array.from(selectedIds).reduce((acc, id) => {
                     const m = [...allMembers, ...tempGuests].find(x => x.id === id);
                     acc[id] = { name: m?.nickname, avatar: m?.avatar_url };
@@ -441,31 +503,256 @@ export default function SpecialMatchPage() {
         );
     }
 
+    if (step === 3) {
+        return (
+            <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto relative pb-40 overflow-hidden">
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#C9B075]/5 rounded-full blur-[120px] -z-10" />
+                
+                {/* Header */}
+                <header className="px-6 pt-12 pb-6 flex flex-col items-center text-center relative z-10">
+                    <motion.div 
+                        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-4"
+                    >
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.4em] uppercase">Special Live Dashboard</span>
+                    </motion.div>
+                    <h1 className="text-3xl font-black italic text-white tracking-tighter uppercase mb-2">{sessionTitle}</h1>
+                    <div className="flex items-center gap-2 opacity-30">
+                        <Calendar size={12} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">{new Date().toISOString().split('T')[0]}</span>
+                    </div>
+                </header>
+
+                {/* Primary Tabs */}
+                <nav className="px-6 mb-8 relative z-10">
+                    <div className="flex bg-white/5 p-1.5 rounded-[24px] border border-white/5 backdrop-blur-xl shadow-2xl">
+                        {(['MATCHES', 'RANKING'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => {
+                                    setActiveTab(tab);
+                                    if (window.navigator?.vibrate) window.navigator.vibrate(10);
+                                }}
+                                className={`flex-1 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-[#C9B075] text-black shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+
+                <div className="flex-1 px-6 overflow-y-auto no-scrollbar relative z-10">
+                    {activeTab === 'MATCHES' ? (
+                        <>
+                            {/* Sub-tabs for matches */}
+                            <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
+                                {(['NOW', 'WAITING', 'COMPLETED'] as const).map(sub => {
+                                    const count = matchQueue.filter(m => 
+                                        sub === 'NOW' ? m.status === 'live' : 
+                                        sub === 'WAITING' ? m.status === 'waiting' : 
+                                        m.status === 'complete'
+                                    ).length;
+                                    
+                                    return (
+                                        <button
+                                            key={sub}
+                                            onClick={() => setActiveMatchTab(sub)}
+                                            className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeMatchTab === sub ? 'bg-white text-black border-white' : 'bg-white/5 text-white/30 border-white/5'}`}
+                                        >
+                                            {sub} <span className="ml-1 opacity-40 font-mono text-[10px]">({count})</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Match List */}
+                            <div className="space-y-4">
+                                {matchQueue.filter(m => 
+                                    activeMatchTab === 'NOW' ? m.status === 'live' : 
+                                    activeMatchTab === 'WAITING' ? m.status === 'waiting' : 
+                                    m.status === 'complete'
+                                ).length === 0 ? (
+                                    <div className="py-32 flex flex-col items-center justify-center text-white/5 border border-dashed border-white/5 rounded-[40px]">
+                                        <LayoutGrid size={48} className="mb-4 opacity-10" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.3em]">No Matches in Pipeline</span>
+                                    </div>
+                                ) : (
+                                    matchQueue.filter(m => 
+                                        activeMatchTab === 'NOW' ? m.status === 'live' : 
+                                        activeMatchTab === 'WAITING' ? m.status === 'waiting' : 
+                                        m.status === 'complete'
+                                    ).map((m, idx) => (
+                                        <motion.div 
+                                            layout key={m.id}
+                                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                                            className={`relative rounded-[32px] p-8 overflow-hidden transition-all border-t ${m.status === 'live' ? 'bg-[#1A1A1A] border-white/20 shadow-[0_20px_50px_rgba(201,176,117,0.1)]' : 'bg-white/[0.03] border-white/5'}`}
+                                        >
+                                            {m.status === 'live' && <div className="absolute top-0 right-0 w-32 h-32 bg-[#C9B075]/10 blur-3xl -z-10" />}
+                                            
+                                            <div className="flex items-center justify-between mb-8">
+                                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] italic">Round {m.round || idx + 1}</span>
+                                                {m.status === 'live' && (
+                                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[9px] font-black tracking-widest uppercase border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                                                        <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                                                        LIVE
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 mb-8">
+                                                <div className="space-y-2 text-center">
+                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[0])}</div>
+                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[1])}</div>
+                                                </div>
+                                                <div className="flex flex-col items-center gap-1">
+                                                    {m.status === 'complete' ? (
+                                                        <div className="flex gap-2 text-3xl font-black italic">
+                                                            <span className={m.score1! > m.score2! ? 'text-[#C9B075]' : 'text-white/20'}>{m.score1}</span>
+                                                            <span className="text-white/10">:</span>
+                                                            <span className={m.score2! > m.score1! ? 'text-[#C9B075]' : 'text-white/20'}>{m.score2}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[#C9B075] font-black italic text-xl opacity-20">VS</span>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-2 text-center">
+                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[2])}</div>
+                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[3])}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-6 border-t border-white/5">
+                                                {m.status === 'waiting' && isAdmin && (
+                                                    <button 
+                                                        onClick={() => handleStartMatch(m.id)}
+                                                        className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] border border-white/10 transition-all active:scale-95"
+                                                    >
+                                                        투입하기 🚀
+                                                    </button>
+                                                )}
+                                                {m.status === 'live' && isAdmin && (
+                                                    <button 
+                                                        onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }}
+                                                        className="w-full py-4 bg-[#C9B075] text-black font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
+                                                    >
+                                                        결과 입력 🏆
+                                                    </button>
+                                                )}
+                                                {m.status === 'complete' && (
+                                                    <div className="text-center text-[10px] font-black text-[#C9B075] uppercase tracking-widest flex items-center justify-center gap-2 italic">
+                                                        <CheckCircle2 size={12} className="text-emerald-500" /> OFFICIAL RECORDED
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="p-8 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/20 rounded-[32px] flex items-center justify-between shadow-2xl">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-black text-red-400 tracking-[0.3em] uppercase">Loss Penalty</span>
+                                    <div className="text-2xl font-black text-white italic tracking-tighter uppercase">벌금 정산 현황</div>
+                                </div>
+                                <span className="text-xl font-black text-[#C9B075] font-mono">₩{penaltyAmount.toLocaleString()}</span>
+                            </div>
+
+                            <div className="bg-[#1A1A1A]/80 backdrop-blur-3xl rounded-[40px] overflow-hidden border border-white/5 shadow-2xl">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-white/5">
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/30 uppercase tracking-widest">Player</th>
+                                            <th className="px-4 py-5 text-[10px] font-black text-white/30 uppercase tracking-widest text-center">W - L</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-[#C9B075] uppercase tracking-widest text-right">Fine</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {playerStats.map((s, idx) => (
+                                            <tr key={s.id} className="group hover:bg-white/5 transition-colors">
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <span className={`text-[10px] font-black font-mono ${idx < 3 ? 'text-[#C9B075]' : 'text-white/10'}`}>{(idx+1).toString().padStart(2, '0')}</span>
+                                                        <span className="font-black text-lg text-white group-hover:text-[#C9B075] transition-colors">{s.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-6 text-center">
+                                                    <span className="text-sm font-black text-white/90 italic tracking-widest">
+                                                        <span className="text-emerald-500">{s.wins}</span>
+                                                        <span className="mx-1 text-white/10">/</span>
+                                                        <span className="text-red-500">{s.losses}</span>
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right font-black text-xl text-[#C9B075] italic tracking-tighter">
+                                                    ₩{s.penalty.toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer Controls */}
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-6">
+                    <div className="bg-black/60 backdrop-blur-3xl border border-white/10 p-2.5 rounded-full shadow-[0_30px_100px_rgba(0,0,0,0.8)] flex gap-3">
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setStep(2)}
+                                className="w-16 h-16 bg-white/5 hover:bg-white/10 text-[#C9B075] rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/10"
+                                title="Add Matches"
+                            >
+                                <Plus size={24} strokeWidth={3} />
+                            </button>
+                        )}
+                        <button
+                            disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')}
+                            onClick={handleFinalArchive}
+                            className="flex-1 h-16 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-black rounded-full flex items-center justify-center gap-4 shadow-[0_10px_40px_rgba(201,176,117,0.4)] active:scale-95 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-20 disabled:grayscale"
+                        >
+                            <Save size={20} />
+                            <span>최종 아카이브 전송</span>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        );
+    }
+
     const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#121212] text-white font-sans w-full max-w-[480px] mx-auto pb-40">
-            <header className="fixed top-0 w-full max-w-[480px] z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center px-6 justify-between">
-                <button onClick={() => setStep(1)} className="p-2 bg-white/5 rounded-full text-white/40"><Plus className="rotate-45" size={20} /></button>
+        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-40 relative">
+            {/* Header */}
+            <header className="fixed top-0 w-full max-w-[480px] z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5 h-20 flex items-center px-8 justify-between">
+                <button onClick={() => setStep(1)} className="p-3 bg-white/5 rounded-full text-white/40 hover:text-white transition-colors"><Plus className="rotate-45" size={20} /></button>
                 <div className="text-center flex flex-col">
-                    <span className="text-[10px] font-black text-[#C9B075] tracking-widest uppercase">Custom Mode</span>
-                    <h1 className="text-xl font-black italic tracking-tighter text-white uppercase">{sessionTitle}</h1>
+                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-1">Custom Builder</span>
+                    <h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px]">{sessionTitle || '새로운 세션'}</h1>
                 </div>
-                <button onClick={() => setShowResetConfirm(true)} className="p-2 bg-red-500/10 rounded-full text-red-500"><Trash2 size={18} /></button>
+                <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-full text-red-500 hover:bg-red-500/20 transition-all"><Trash2 size={18} /></button>
             </header>
 
-            <div className="mt-20 px-6 space-y-8">
+            <div className="mt-28 px-8 space-y-12">
                 {/* Player Bank */}
                 <section>
-                    <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase mb-4 px-1">Selected Players</h3>
+                    <div className="flex items-center justify-between mb-6 px-1">
+                        <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
+                        <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{selectedMembers.length} Available</span>
+                    </div>
                     <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
                         {selectedMembers.map(m => (
                             <button
                                 key={m.id}
                                 onClick={() => addToDraft(m.id)}
                                 disabled={draftSlots.includes(m.id)}
-                                className={`shrink-0 h-14 px-5 rounded-2xl font-bold transition-all border
-                                ${draftSlots.includes(m.id) ? 'bg-white/5 border-white/5 text-white/10 opacity-30 select-none' : 'bg-[#1A1A1A] border-white/10 text-white/80 active:scale-95'}`}
+                                className={`shrink-0 h-16 px-6 rounded-2xl font-black text-sm tracking-tight transition-all border
+                                ${draftSlots.includes(m.id) ? 'bg-white/5 border-white/5 text-white/5 opacity-20' : 'bg-[#1A1A1A] border-white/10 text-white/80 active:scale-95 hover:border-[#C9B075]/30'}`}
                             >
                                 {m.nickname}
                             </button>
@@ -474,36 +761,40 @@ export default function SpecialMatchPage() {
                 </section>
 
                 {/* Drafting Slots */}
-                <section className="bg-[#1A1A1A] rounded-[32px] p-6 border border-white/5 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-5"><LayoutGrid size={60} /></div>
-                    <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase mb-6 text-center">Match Construction</h3>
+                <section className="bg-[#1A1A1A] rounded-[40px] p-8 border border-white/5 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#C9B075]/5 rounded-full blur-3xl group-hover:bg-[#C9B075]/10 transition-all" />
+                    <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-8 text-center opacity-40">Match Construction</h3>
                     
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                        <div className="space-y-3">
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+                        <div className="space-y-4">
                             {[0, 1].map(i => (
-                                <div key={i} onClick={() => removeFromDraft(i)} className="h-16 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center cursor-pointer relative overflow-hidden group">
+                                <div key={i} onClick={() => removeFromDraft(i)} className="h-24 rounded-[28px] bg-black/40 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group/slot hover:border-[#C9B075]/30 transition-all">
                                     {draftSlots[i] ? (
-                                        <>
-                                            <span className="font-black text-white">{getPlayerName(draftSlots[i]!)}</span>
-                                            <div className="absolute inset-0 bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-red-500 text-[8px] font-bold">REMOVE</div>
-                                        </>
+                                        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
+                                            <span className="font-black text-white text-lg tracking-tighter">{getPlayerName(draftSlots[i]!)}</span>
+                                            <div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/20 opacity-0 group-hover/slot:opacity-100 transition-opacity text-red-500 text-[8px] font-black uppercase text-center tracking-widest">REMOVE</div>
+                                        </motion.div>
                                     ) : (
-                                        <span className="text-white/10 text-xs font-black uppercase">P{i+1}</span>
+                                        <Plus className="text-white/5 group-hover/slot:text-[#C9B075]/20 transition-colors" size={28} />
                                     )}
                                 </div>
                             ))}
                         </div>
-                        <div className="text-[#C9B075] font-black italic text-xl opacity-30">VS</div>
-                        <div className="space-y-3">
+                        <div className="flex flex-col items-center gap-2">
+                             <div className="w-px h-12 bg-gradient-to-b from-transparent via-[#C9B075]/20 to-transparent" />
+                             <span className="text-[#C9B075] font-black italic text-3xl opacity-10 tracking-widest">VS</span>
+                             <div className="w-px h-12 bg-gradient-to-t from-transparent via-[#C9B075]/20 to-transparent" />
+                        </div>
+                        <div className="space-y-4">
                             {[2, 3].map(i => (
-                                <div key={i} onClick={() => removeFromDraft(i)} className="h-16 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center cursor-pointer relative overflow-hidden group">
+                                <div key={i} onClick={() => removeFromDraft(i)} className="h-24 rounded-[28px] bg-black/40 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group/slot hover:border-[#C9B075]/30 transition-all">
                                     {draftSlots[i] ? (
-                                        <>
-                                            <span className="font-black text-white">{getPlayerName(draftSlots[i]!)}</span>
-                                            <div className="absolute inset-0 bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-red-500 text-[8px] font-bold">REMOVE</div>
-                                        </>
+                                        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
+                                            <span className="font-black text-white text-lg tracking-tighter">{getPlayerName(draftSlots[i]!)}</span>
+                                            <div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/20 opacity-0 group-hover/slot:opacity-100 transition-opacity text-red-500 text-[8px] font-black uppercase text-center tracking-widest">REMOVE</div>
+                                        </motion.div>
                                     ) : (
-                                        <span className="text-white/10 text-xs font-black uppercase">P{i+1}</span>
+                                        <Plus className="text-white/5 group-hover/slot:text-[#C9B075]/20 transition-colors" size={28} />
                                     )}
                                 </div>
                             ))}
@@ -512,202 +803,85 @@ export default function SpecialMatchPage() {
 
                     <button
                         onClick={addMatchToQueue}
-                        className="w-full mt-8 py-4 bg-[#C9B075] text-black font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                        disabled={draftSlots.includes(null)}
+                        className="w-full mt-12 py-5 bg-[#C9B075] text-black font-black rounded-[20px] shadow-[0_15px_30px_rgba(201,176,117,0.2)] active:scale-95 transition-all text-[11px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 disabled:opacity-20 disabled:grayscale"
                     >
-                        <Plus size={18} strokeWidth={3} /> Add Match
+                        <Plus size={18} strokeWidth={4} /> Add To Current Queue
                     </button>
                 </section>
 
                 {/* Match Queue with Reorder */}
-                <section>
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Match Queue</h3>
-                        <div className="flex items-center gap-2">
+                <section className="pb-32">
+                    <div className="flex items-center justify-between mb-8 px-1">
+                        <div className="flex flex-col">
+                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase mb-1">Draft Sequence</h3>
+                            <p className="text-[9px] font-bold text-white/20 uppercase">Drag to Reorder Rounds</p>
+                        </div>
+                        <div className="flex items-center gap-3">
                             <AnimatePresence>
                                 {isOptimizing && (
                                     <motion.span 
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        className="text-[10px] font-black text-[#C9B075] italic animate-pulse"
+                                        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                        className="text-[9px] font-black text-[#C9B075] italic tracking-widest animate-pulse"
                                     >
-                                        커스텀 대진 최적화 중...
+                                        최적화 중...
                                     </motion.span>
                                 )}
                             </AnimatePresence>
-                            <span className="text-[10px] font-bold text-white/20 uppercase">{matchQueue.length} Matches</span>
+                            <span className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-black text-white/40 uppercase tracking-widest">{matchQueue.length} Matches</span>
                         </div>
                     </div>
 
-                    <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-3">
-                        <AnimatePresence>
-                            {matchQueue.map((m) => (
-                                <Reorder.Item
-                                    key={m.id}
+                    <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-4">
+                        <AnimatePresence mode="popLayout">
+                            {matchQueue.map((m, idx) => (
+                                <Reorder.Item 
+                                    key={m.id} 
                                     value={m}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    className="bg-[#1A1A1A] border border-white/5 rounded-2xl p-4 flex items-center gap-4 group active:cursor-grabbing"
+                                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                                    className="bg-white/5 border border-white/5 p-6 rounded-[24px] flex items-center gap-6 cursor-grab active:cursor-grabbing hover:bg-white/[0.08] transition-all group"
                                 >
-                                    <div className="text-white/10 group-hover:text-[#C9B075]/40 transition-colors"><GripVertical size={20} /></div>
-                                    <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                                        <div className="text-right flex flex-col min-w-0">
-                                            <span className="font-bold text-sm truncate">{getPlayerName(m.playerIds[0])}</span>
-                                            <span className="font-bold text-sm truncate">{getPlayerName(m.playerIds[1])}</span>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] font-black text-[#C9B075] italic">R</span>
+                                        <span className="text-xl font-black text-white italic tracking-tighter">{(idx+1)}</span>
+                                    </div>
+                                    <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-center">
+                                        <div className="text-[13px] font-black text-white/90 leading-tight">
+                                            <div className="truncate">{getPlayerName(m.playerIds[0])}</div>
+                                            <div className="truncate">{getPlayerName(m.playerIds[1])}</div>
                                         </div>
-                                        <div className="flex flex-col items-center gap-1">
-                                            {m.status === 'complete' ? (
-                                                <div className="bg-[#C9B075] text-black px-2 py-0.5 rounded-lg text-[10px] font-black">
-                                                    {m.score1}:{m.score2}
-                                                </div>
-                                            ) : (
-                                                <div className="text-[8px] font-black text-[#C9B075]/40 italic uppercase">vs</div>
-                                            )}
-                                        </div>
-                                        <div className="text-left flex flex-col min-w-0">
-                                            <span className="font-bold text-sm truncate">{getPlayerName(m.playerIds[2])}</span>
-                                            <span className="font-bold text-sm truncate">{getPlayerName(m.playerIds[3])}</span>
+                                        <div className="text-[10px] font-black text-[#C9B075] opacity-20 italic">VS</div>
+                                        <div className="text-[13px] font-black text-white/90 leading-tight">
+                                            <div className="truncate">{getPlayerName(m.playerIds[2])}</div>
+                                            <div className="truncate">{getPlayerName(m.playerIds[3])}</div>
                                         </div>
                                     </div>
-                                    
-                                    {m.status !== 'complete' ? (
-                                        <button 
-                                            onClick={() => {
-                                                setTempScores({ s1: 0, s2: 0 });
-                                                setActiveMatchForScore(m);
-                                            }}
-                                            className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black hover:bg-white/10 transition-all uppercase"
-                                        >
-                                            Score
-                                        </button>
-                                    ) : (
-                                        <button 
-                                            onClick={() => {
-                                                setTempScores({ s1: m.score1 || 0, s2: m.score2 || 0 });
-                                                setActiveMatchForScore(m);
-                                            }}
-                                            className="p-2 text-[#C9B075] opacity-40 hover:opacity-100"
-                                        >
-                                            <Trophy size={16} />
-                                        </button>
-                                    )}
-                                    <button onClick={() => removeMatchFromQueue(m.id)} className="p-2 text-white/5 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                    <button onClick={() => removeMatchFromQueue(m.id)} className="p-3 text-white/10 hover:text-red-500 transition-colors bg-white/5 rounded-2xl"><Trash2 size={18} /></button>
                                 </Reorder.Item>
                             ))}
                         </AnimatePresence>
                     </Reorder.Group>
                     
                     {matchQueue.length === 0 && (
-                        <div className="py-20 border-2 border-dashed border-white/5 rounded-[32px] flex flex-col items-center justify-center text-white/10">
-                            <Plus size={40} className="mb-2 opacity-5" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">No matches drafted</span>
+                        <div className="py-24 border-2 border-dashed border-white/5 rounded-[40px] flex flex-col items-center justify-center text-white/5 group">
+                            <Plus size={48} className="mb-4 opacity-5 group-hover:opacity-20 transition-opacity" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em]">Empty Canvas — Build Your Match</span>
                         </div>
                     )}
                 </section>
             </div>
 
-            {/* Scoring Modal */}
-            <AnimatePresence>
-                {activeMatchForScore && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/85 backdrop-blur-md" 
-                            onClick={() => setActiveMatchForScore(null)} 
-                        />
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                            className="relative w-full max-w-lg rounded-[40px] p-8 pb-10 flex flex-col bg-[#121418] border-t-2 border-white/20 shadow-2xl"
-                        >
-                            <header className="flex flex-col items-center gap-2 text-center mb-10">
-                                <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase opacity-80">Score Input</span>
-                                <h3 className="text-xl font-black italic text-white tracking-tight uppercase">Custom Match Result</h3>
-                            </header>
-
-                            <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6 mb-8">
-                                {[0, 1].map(side => (
-                                    <React.Fragment key={side}>
-                                        <div className="flex flex-col gap-6">
-                                            <div className="flex flex-col items-center text-center">
-                                                <span className="text-xl font-black text-white leading-tight">
-                                                    {getPlayerName(activeMatchForScore.playerIds[side * 2])}<br />
-                                                    {getPlayerName(activeMatchForScore.playerIds[side * 2 + 1])}
-                                                </span>
-                                            </div>
-
-                                            <div className="text-7xl font-black text-[#C9B075] text-center">
-                                                {side === 0 ? tempScores.s1 : tempScores.s2}
-                                            </div>
-
-                                            <div className="grid grid-cols-4 gap-2">
-                                                {[0, 1, 2, 3, 4, 5, 6].map(n => (
-                                                    <button
-                                                        key={n}
-                                                        onClick={() => setTempScores(p => side === 0 ? ({ ...p, s1: n }) : ({ ...p, s2: n }))}
-                                                        className={`h-12 rounded-lg font-black transition-all ${ (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'bg-[#C9B075] text-black shadow-[0_0_15px_#C9B07588]' : 'bg-white/5 text-white/20' }`}
-                                                    >
-                                                        {n}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        {side === 0 && <div className="w-px bg-white/10 my-4" />}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-
-                            <div className="flex gap-4">
-                                <button onClick={() => setActiveMatchForScore(null)} className="flex-1 h-16 bg-white/5 text-white/30 font-black rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Cancel</button>
-                                <button
-                                    disabled={tempScores.s1 === tempScores.s2}
-                                    onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)}
-                                    className="flex-[3] h-16 bg-[#C9B075] text-black font-black rounded-2xl uppercase text-lg tracking-widest shadow-xl disabled:opacity-20 active:scale-95 transition-all"
-                                >
-                                    Confirm Score 🏆
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
             {/* Float Command Bar */}
-            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-6 flex gap-3">
-                {matchQueue.length > 0 && matchQueue.every(m => m.status === 'complete') ? (
-                    <button
-                        disabled={isSubmitting}
-                        onClick={handleFinalArchive}
-                        className="w-full h-20 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-full flex items-center justify-center gap-4 shadow-[0_20px_50px_rgba(201,176,117,0.3)] active:scale-95 transition-all uppercase tracking-[0.2em] border border-white/20 animate-pulse"
-                    >
-                        <Save size={24} />
-                        <span>FINALIZE & ARCHIVE 🏆</span>
-                    </button>
-                ) : (
-                    <button
-                        disabled={isSubmitting || matchQueue.length === 0}
-                        onClick={startSpecialSession}
-                        className="w-full h-20 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-full flex items-center justify-center gap-4 shadow-[0_20px_50px_rgba(201,176,117,0.3)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.2em] border border-white/20"
-                    >
-                        <Play fill="black" size={24} />
-                        <span>SYNC & CONTINUE 🚀</span>
-                    </button>
-                )}
+            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-6">
+                <button
+                    disabled={isSubmitting || matchQueue.length === 0}
+                    onClick={startSpecialSession}
+                    className="w-full h-20 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-black rounded-full flex items-center justify-center gap-4 shadow-[0_20px_60px_rgba(201,176,117,0.4)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.3em] border border-white/20 text-sm italic"
+                >
+                    <Play fill="black" size={20} />
+                    <span>SYNC & START LIVE COURT 🏁</span>
+                </button>
             </div>
-
-            {showArchiveSuccess && (
-                <div className="fixed inset-0 z-[5000] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in duration-1000">
-                    <div className="relative z-10 flex flex-col items-center text-center px-12 space-y-8">
-                        <div className="w-40 h-40 rounded-full bg-[#C9B075]/10 border-2 border-[#C9B075]/50 flex items-center justify-center animate-bounce shadow-[0_0_80px_rgba(201,176,117,0.5)]">
-                            <Trophy size={80} className="text-[#C9B075]" />
-                        </div>
-                        <div className="space-y-4">
-                            <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">Custom Mode<br />Archived</h2>
-                            <p className="text-[#C9B075] text-[10px] font-black uppercase tracking-[0.6em] animate-pulse">커스텀 모드 박제 완료</p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {showResetConfirm && (
                 <CustomConfirmModal
