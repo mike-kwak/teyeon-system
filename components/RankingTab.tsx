@@ -301,7 +301,7 @@ export default function RankingTab({
                                 const isB = (m.court || m.groupName) === 'B';
                                 const color = isB ? '#00e5ff' : '#C9B075';
                                 return (
-                                    <div key={idx} className="bg-white/[0.03] border-t-2 border-white/20 rounded-[36px] overflow-hidden shadow-2xl relative group">
+                                    <div key={idx} className="bg-white/[0.03] border-t-2 border-white/20 rounded-[24px] overflow-hidden shadow-2xl relative group">
                                         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.02] to-transparent pointer-events-none" />
                                         <div className="px-6 py-3 border-b border-white/5 bg-white/5 flex items-center justify-between">
                                             <span className="text-[10px] font-black tracking-[0.3em] uppercase opacity-40 italic" style={{ color }}>

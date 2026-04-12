@@ -1255,7 +1255,7 @@ export default function KDKPage() {
 
                 <div className="fixed bottom-[120px] left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-[70] pointer-events-none">
                     <div className="relative">
-                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#121212] via-[#121212]/80 to-transparent backdrop-blur-md rounded-[40px] -z-10" />
+                        <div className="absolute inset-x-0 -inset-y-4 bg-gradient-to-t from-[#121212] via-[#121212]/80 to-transparent backdrop-blur-md rounded-[24px] -z-10" />
 
                         <button
                             onClick={handleStep1Confirm}
@@ -1718,7 +1718,7 @@ export default function KDKPage() {
                                     key={s.id}
                                     onClick={() => enterSession(s.id)}
                                     className={`
-                                        relative w-full rounded-[40px] p-8 text-left transition-all active:scale-[0.98] group overflow-hidden
+                                        relative w-full rounded-[24px] p-8 text-left transition-all active:scale-[0.98] group overflow-hidden
                                         bg-white/5 backdrop-blur-3xl border-t border-t-white/20 border-l border-l-white/10
                                         shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)]
                                         ${isLatest ? 'border-[#C9B075]/30' : ''}
@@ -2085,7 +2085,7 @@ export default function KDKPage() {
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
                                         return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[40px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
+                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[24px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
                                                 {/* SECTION HEADER BAR */}
                                                 <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative">
                                                     <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]" style={{ color: m.groupName === 'B' ? '#00E5FF' : '#C9B075' }}>

@@ -506,7 +506,7 @@ export default function ArchivePage() {
                         )}
 
                         {activeDetailTab === 'RANKING' && (
-                            <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-2">
+                            <div className="bg-white/[0.03] border border-white/5 rounded-[24px] p-2">
                                 {(() => {
                                     const rankingData = sessionDetail?.ranking_data?.length 
                                         ? sessionDetail.ranking_data 
@@ -578,13 +578,31 @@ export default function ArchivePage() {
                 ) : (
                     /* Session List Level 2 */
                     <div className="animate-in slide-in-from-bottom duration-500">
-                        <section className="bg-white/[0.03] border border-white/5 rounded-[40px] p-6 mb-8 flex gap-4">
-                            <div className="flex-1 space-y-1"><span className="text-[8px] font-black text-white/20 uppercase tracking-widest pl-1">Year</span><select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black text-white focus:border-[#D4AF37] outline-none">{[2026,2025,2024].map(y=><option key={y} value={y}>{y}년</option>)}</select></div>
-                            <div className="flex-1 space-y-1"><span className="text-[8px] font-black text-white/20 uppercase tracking-widest pl-1">Month</span><select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black text-white focus:border-[#D4AF37] outline-none">{[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}</select></div>
+                        <section className="bg-white/[0.03] border border-white/5 rounded-[24px] p-6 mb-12 flex gap-4">
+                            <div className="flex-1 space-y-1">
+                                <span className="text-[8px] font-black text-white/20 uppercase tracking-widest pl-1">Year</span>
+                                <select 
+                                    value={selectedYear} 
+                                    onChange={e=>setSelectedYear(Number(e.target.value))} 
+                                    className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black text-white focus:border-[#D4AF37] outline-none appearance-none"
+                                >
+                                    {[2026,2025,2024].map(y=><option key={y} value={y} className="bg-[#1C1C28] text-white">{y}년</option>)}
+                                </select>
+                            </div>
+                            <div className="flex-1 space-y-1">
+                                <span className="text-[8px] font-black text-white/20 uppercase tracking-widest pl-1">Month</span>
+                                <select 
+                                    value={selectedMonth} 
+                                    onChange={e=>setSelectedMonth(Number(e.target.value))} 
+                                    className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black text-white focus:border-[#D4AF37] outline-none appearance-none"
+                                >
+                                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m} className="bg-[#1C1C28] text-white">{m}월</option>)}
+                                </select>
+                            </div>
                         </section>
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             {sessions.length > 0 ? sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => selectSession(s.id)} className="bg-[#12121A] border border-white/5 rounded-[40px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
+                                <div key={s.id} onClick={() => selectSession(s.id)} className="bg-[#12121A] border border-white/5 rounded-[24px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="flex items-center gap-3">
                                             <span className="w-8 h-8 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-[10px] font-black italic">{index+1}</span>
@@ -647,7 +665,7 @@ export default function ArchivePage() {
                     <p className="text-[9px] font-black text-[#D4AF37] text-center uppercase tracking-[0.3em] italic">⭐ Ranking Order: Points {'>'} Rate {'>'} Diff</p>
                 </header>
 
-                <div className="bg-white/[0.03] border border-white/10 rounded-[45px] overflow-hidden shadow-2xl">
+                <div className="bg-white/[0.03] border border-white/10 rounded-[24px] overflow-hidden shadow-2xl">
                     <table className="w-full text-left">
                         <thead className="text-[8px] font-black text-white/20 uppercase tracking-widest">
                             <tr className="border-b border-white/5"><th className="px-6 py-6">Rank</th><th className="px-2 py-6">Player</th><th className="px-2 py-6 text-center">Score</th><th className="px-4 py-6 text-right">Diff</th></tr>

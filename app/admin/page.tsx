@@ -312,7 +312,7 @@ export default function AdminPage() {
             {(['ADMIN', 'MEMBER', 'GUEST'] as const).map(roleKey => (
                 <div key={roleKey} className="mb-12 last:mb-0">
                     <h4 className="text-[10px] font-black text-[#D4AF37] tracking-[0.2em] uppercase mb-4 px-2">{roleKey} VIEW SEQUENCE</h4>
-                    <div className="bg-white/[0.02] rounded-[40px] p-2 space-y-1.5 border border-white/5 text-sm">
+                    <div className="bg-white/[0.02] rounded-[24px] p-2 space-y-1.5 border border-white/5 text-sm">
                         {(appConfig?.menu_order?.[roleKey] || []).map((itemId, idx) => {
                              const lowerId = itemId.toLowerCase();
                              const reg = FEATURE_REGISTRY[lowerId] || FEATURE_REGISTRY[itemId] || { label: itemId, icon: '⚙️' };
@@ -354,7 +354,7 @@ export default function AdminPage() {
         {activeTab === 'history' && (
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             {role !== 'CEO' ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white/[0.02] rounded-[40px] border border-white/5 mx-2">
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white/[0.02] rounded-[24px] border border-white/5 mx-2">
                 <span className="text-5xl opacity-20 grayscale">🔒</span>
                 <div className="leading-tight">
                     <p className="text-sm font-black text-[#D4AF37] uppercase tracking-tighter shadow-sm mb-1">CEO EXCLUSIVE VAULT</p>

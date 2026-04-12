@@ -270,17 +270,17 @@ export default function ArchivePage() {
             {segment === 'RECORD' && (
                 <>
                     {/* Filters */}
-                    <div className="grid grid-cols-2 gap-4 shrink-0">
+                    <div className="grid grid-cols-2 gap-4 shrink-0 bg-white/[0.03] border border-white/5 rounded-[24px] p-6 mb-12">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Year</label>
                             <select 
                                 value={year}
                                 onChange={(e) => setYear(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
+                                className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
                             >
-                                <option value="2027">2027년</option>
-                                <option value="2026">2026년</option>
-                                <option value="2025">2025년</option>
+                                <option value="2027" className="bg-[#1C1C28] text-white">2027년</option>
+                                <option value="2026" className="bg-[#1C1C28] text-white">2026년</option>
+                                <option value="2025" className="bg-[#1C1C28] text-white">2025년</option>
                             </select>
                         </div>
                         <div className="space-y-2">
@@ -288,10 +288,10 @@ export default function ArchivePage() {
                             <select 
                                 value={month}
                                 onChange={(e) => setMonth(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
+                                className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 appearance-none text-center"
                             >
                                 {Array.from({ length: 12 }, (_, i) => (
-                                    <option key={i + 1} value={(i + 1).toString()}>{i + 1}월</option>
+                                    <option key={i + 1} value={(i + 1).toString()} className="bg-[#1C1C28] text-white">{i + 1}월</option>
                                 ))}
                             </select>
                         </div>
@@ -302,13 +302,13 @@ export default function ArchivePage() {
                         {loading ? (
                             <div className="py-20 flex justify-center"><PremiumSpinner /></div>
                         ) : sessions.length === 0 ? (
-                            <div className="py-20 text-center text-white/20 font-black uppercase tracking-widest border border-dashed border-white/10 rounded-[40px]">기록된 세션이 없습니다</div>
+                            <div className="py-20 text-center text-white/20 font-black uppercase tracking-widest border border-dashed border-white/10 rounded-[24px]">기록된 세션이 없습니다</div>
                         ) : (
                             sessions.map((s, idx) => (
                                 <div 
                                     key={s.id}
                                     onClick={() => setSelectedSession(s)}
-                                    className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8 relative overflow-hidden group cursor-pointer hover:bg-white/10 transition-all shadow-2xl active:scale-95"
+                                    className="bg-white/5 border border-white/10 rounded-[24px] p-8 space-y-8 relative overflow-hidden group cursor-pointer hover:bg-white/10 transition-all shadow-2xl active:scale-95"
                                 >
                                     <div className="flex items-center justify-between relative z-10 mb-6">
                                         <div className="flex items-center gap-3">
