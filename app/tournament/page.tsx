@@ -37,13 +37,12 @@ export default function TournamentPage() {
       <div className="px-6 pt-10 space-y-8 max-w-lg mx-auto w-full">
         
         {/* 1. Manual Mode (ACTIVE) */}
-        <Link href={isAdmin ? "/tournament/manual" : "#"} className={`block group ${!isAdmin ? 'cursor-not-allowed' : ''}`}>
-          <div className={`relative min-h-[180px] h-auto rounded-[28px] p-8 flex flex-col justify-between overflow-hidden transition-all ${isAdmin ? 'bg-[#1A1C20] border-2 border-[#C9B075]/40 shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(201,176,117,0.05)] active:scale-95' : 'bg-white/[0.02] border border-white/5 opacity-60'}`}>
+        <Link href="/tournament/manual" className="block group">
+          <div className={`relative min-h-[180px] h-auto rounded-[28px] p-8 flex flex-col justify-between overflow-hidden transition-all bg-[#1A1C20] border-2 border-[#C9B075]/40 shadow-[0_20px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(201,176,117,0.05)] active:scale-95`}>
             {!isAdmin && (
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-black/60 rounded-full border border-white/10">
-                        <Lock size={14} className="text-[#C9B075]" />
-                        <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Administrator Only</span>
+                <div className="absolute top-6 right-8 z-50">
+                    <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">View Mode</span>
                     </div>
                 </div>
             )}

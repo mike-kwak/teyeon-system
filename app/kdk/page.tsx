@@ -62,6 +62,18 @@ export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
     const [showToast, setShowToast] = useState(false);
+    const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
+
+    // [v12.0] 개방형 권한 시스템: Admin 여부 판별
+    const isAdmin = role === 'CEO' || role === 'Staff' || role === 'ADMIN';
+
+    // 권한 제한 알림 헬퍼
+    const triggerAccessDenied = (msg: string = "관리자만 대진을 생성/수정할 수 있습니다.") => {
+        setToastMsg(msg);
+        setShowToast(true);
+        if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+        setTimeout(() => setShowToast(false), 3000);
+    };
 
     useEffect(() => {
         // Force unregister stale service workers
@@ -76,26 +88,15 @@ export default function KDKPage() {
         console.log("🏁 TEYEON SYSTEM v5.1 STABLE: ALL SYSTEMS GO");
     }, []);
 
-    // --- RBAC Protection: KDK is for Staff+ ---
+    // [v12.0] REDIRECT REMOVED: Guests can now view the portal
+    /* 
     useEffect(() => {
         if (role === 'GUEST') {
             alert("정회원 이상만 이용 가능한 메뉴입니다. 대시보드로 이동합니다.");
             router.push('/');
         }
     }, [role, router]);
-
-    if (role === 'GUEST') {
-        return (
-            <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-8 z-[1000]">
-                <div style={{ width: '80px', height: '80px', borderRadius: '100px', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
-                    <span style={{ fontSize: '32px' }}>🔒</span>
-                </div>
-                <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#fff', fontStyle: 'italic', letterSpacing: '-0.02em', textTransform: 'uppercase', marginBottom: '8px' }}>Access Restricted</h2>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.3)', textAlign: 'center', lineHeight: '1.6', maxWidth: '240px' }}>{getRestrictionMessage('kdk')}</p>
-                <button onClick={() => router.push('/')} style={{ marginTop: '32px', padding: '16px 32px', background: 'rgba(255, 255, 255, 0.05)', color: '#fff', fontSize: '11px', fontWeight: 900, borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Back to Dashboard</button>
-            </div>
-        );
-    }
+    */
 
     const [step, setStep] = useState(1);
     const [allMembers, setAllMembers] = useState<Member[]>([]);
@@ -1324,14 +1325,25 @@ export default function KDKPage() {
                         </button>
                     </div>
 
-                    <div className="text-center flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
-                        <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
+                    <div className="text-center flex flex-col items-center gap-2">
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
+                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
+                        </div>
+                        {isAdmin && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_5px_15px_rgba(201,176,117,0.3)] animate-in fade-in zoom-in duration-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                                <span className="text-[9px] font-black text-black uppercase tracking-widest leading-none">CEO MODE</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end">
                         <button
-                            onClick={() => setShowResetConfirm(true)}
+                            onClick={() => {
+                                if (!isAdmin) return triggerAccessDenied();
+                                setShowResetConfirm(true);
+                            }}
                             className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
                             title="전체 데이터 초기화"
                         >
@@ -1592,7 +1604,10 @@ export default function KDKPage() {
                     <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
                         <button
                             disabled={isGenerating}
-                            onClick={generateKDK}
+                            onClick={() => {
+                                if (!isAdmin) return triggerAccessDenied();
+                                generateKDK();
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '8px 0',
@@ -1768,13 +1783,21 @@ export default function KDKPage() {
                     )}
                 </div>
 
-                {role === 'CEO' && (
+                { (allActiveSessions.length === 0 || isAdmin) && (
                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full px-8 pb-4">
                         <button
-                            onClick={() => { setShowGateway(false); setStep(1); setSelectedSessionId(null); setMatches([]); setSessionId(""); setSessionTitle(""); }}
+                            onClick={() => { 
+                                if (!isAdmin) return triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
+                                setShowGateway(false); 
+                                setStep(1); 
+                                setSelectedSessionId(null); 
+                                setMatches([]); 
+                                setSessionId(""); 
+                                setSessionTitle(""); 
+                            }}
                             className="w-full py-5 rounded-full bg-white/5 border border-white/10 text-white/40 font-black text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                         >
-                            + 새로운 대회 생성하기
+                            {isAdmin ? '+ 새로운 대회 생성하기' : '준비 된 경기가 없습니다'}
                         </button>
                     </div>
                 )}
@@ -1784,9 +1807,17 @@ export default function KDKPage() {
 
     return (
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
-            <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-12">
+            <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100]">
                 <div className="flex items-center gap-2">
-                    {role === 'CEO' && (
+                    {isAdmin && (
+                        <div className="flex items-center gap-2 mr-2">
+                             <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_8px_20px_rgba(201,176,117,0.3)] border border-white/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                                <span className="text-[9px] font-[1000] text-black uppercase tracking-widest leading-none">ADMIN MODE</span>
+                            </div>
+                        </div>
+                    )}
+                    {isAdmin && (
                         <button
                             onClick={() => setShowResetConfirm(true)}
                             className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
@@ -1833,7 +1864,7 @@ export default function KDKPage() {
                             <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">PEN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">3~5K</span>
                         </div>
-                        {role === 'CEO' && (
+                        {isAdmin && (
                             <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
                         )}
                     </div>
@@ -1932,10 +1963,12 @@ export default function KDKPage() {
 
                                                         {/* Sleek Success Toast */}
                                                         {showToast && (
-                                                            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                                                <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
-                                                                    <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
-                                                                    <span className="text-[11px] font-black uppercase tracking-widest italic">결과가 안전하게 기록되었습니다</span>
+                                                            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300 w-[90%] max-w-sm">
+                                                                <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center justify-center gap-3 backdrop-blur-xl">
+                                                                    <div className="w-4 h-4 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
+                                                                        <CheckCircle2 className={`w-3 h-3 ${toastMsg.includes('관리자') ? 'text-red-400' : 'text-[#4ADE80]'}`} />
+                                                                    </div>
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest italic text-center">{toastMsg}</span>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -1956,19 +1989,18 @@ export default function KDKPage() {
                                                     </div>
 
                                                     {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
-                                                    {role === 'CEO' ? (
-                                                        <button
-                                                            onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); setShowScoreModal(mId); }}
-                                                            className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0"
-                                                            style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
-                                                        >
-                                                            <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE 🏆</span>
-                                                        </button>
-                                                    ) : (
-                                                        <div className="w-full h-11 bg-white/5 rounded-[14px] flex items-center justify-center border border-white/5">
-                                                            <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">Live Broadcast</span>
-                                                        </div>
-                                                    )}
+                                                    <button
+                                                        onClick={() => { 
+                                                            if (!isAdmin) return triggerAccessDenied("결과는 관리자만 입력할 수 있습니다.");
+                                                            if (window.navigator?.vibrate) window.navigator.vibrate(50); 
+                                                            setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); 
+                                                            setShowScoreModal(mId); 
+                                                        }}
+                                                        className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0"
+                                                        style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
+                                                    >
+                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">{isAdmin ? 'INPUT SCORE 🏆' : 'LIVE BROADCAST 📡'}</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         );
@@ -2048,12 +2080,15 @@ export default function KDKPage() {
 
                                                             <div className="flex items-center justify-end pr-2">
                                                                 <button
-                                                                    disabled={hasConflict || role !== 'CEO'}
-                                                                    onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); startMatch(m.id); }}
-                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict || role !== 'CEO' ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!text-black hover:opacity-90'}`}
-                                                                    style={{ backgroundColor: hasConflict || role !== 'CEO' ? undefined : col, color: hasConflict || role !== 'CEO' ? undefined : '#000000', boxShadow: hasConflict ? 'none' : `0 4px 15px ${col}66` }}
+                                                                    onClick={() => { 
+                                                                        if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
+                                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50); 
+                                                                        startMatch(m.id); 
+                                                                    }}
+                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!text-black hover:opacity-90'}`}
+                                                                    style={{ backgroundColor: hasConflict && isAdmin ? undefined : col, color: hasConflict && isAdmin ? undefined : '#000000', boxShadow: hasConflict && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
                                                                 >
-                                                                    {role === 'CEO' ? '투입 🚀' : '진행 대기'}
+                                                                    {isAdmin ? '투입 🚀' : '진행 대기'}
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -2127,7 +2162,7 @@ export default function KDKPage() {
                             players={allPlayersInRanking}
                             sessionTitle={sessionTitle}
                             isArchive={false}
-                            isAdmin={role === 'CEO'}
+                            isAdmin={isAdmin}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
                             onShareMatch={execCopySchedule}
                             onShareResult={copyFinalResults}

@@ -29,8 +29,6 @@ interface DraftMatch {
 export default function ManualMatchLab() {
     const router = useRouter();
     const { role, user } = useAuth();
-    const isAdmin = role === 'CEO' || role === 'ADMIN';
-
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
@@ -42,11 +40,23 @@ export default function ManualMatchLab() {
     const [nextCourt, setNextCourt] = useState(1);
     const [sessionTitle, setSessionTitle] = useState("");
 
+    // [v12.0] 개방형 권한 시스템
+    const isAdmin = role === 'CEO' || role === 'Staff' || role === 'ADMIN';
+
+    // 권한 제한 알림 헬퍼
+    const triggerAccessDenied = () => {
+        alert("관리자만 매치를 생성하거나 프로토콜을 시작할 수 있습니다.");
+        if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+    };
+
+    // [v12.0] REDIRECT REMOVED: Guests can now view the lab
+    /*
     useEffect(() => {
         if (!isAdmin && !isLoading) {
             router.push('/tournament');
         }
     }, [isAdmin, isLoading, router]);
+    */
 
     useEffect(() => {
         fetchMembers();
@@ -71,11 +81,10 @@ export default function ManualMatchLab() {
     };
 
     const toggleMember = (id: string) => {
+        if (!isAdmin) return triggerAccessDenied();
         const next = new Set(selectedIds);
         if (next.has(id)) {
             next.delete(id);
-            // Also remove from teams if already there? (Actually, let's keep it simple: 
-            // you must unpair them first if you want to remove from selection)
         } else {
             next.add(id);
         }
@@ -83,6 +92,7 @@ export default function ManualMatchLab() {
     };
 
     const addToPair = (id: string) => {
+        if (!isAdmin) return triggerAccessDenied();
         if (currentPair.includes(id)) {
             setCurrentPair(prev => prev.filter(p => p !== id));
             return;
@@ -92,16 +102,19 @@ export default function ManualMatchLab() {
     };
 
     const finalizeTeam = () => {
+        if (!isAdmin) return triggerAccessDenied();
         if (currentPair.length !== 2) return;
         setTeams(prev => [...prev, { players: [...currentPair] }]);
         setCurrentPair([]);
     };
 
     const removeTeam = (index: number) => {
+        if (!isAdmin) return triggerAccessDenied();
         setTeams(prev => prev.filter((_, i) => i !== index));
     };
 
     const createMatch = (teamAIdx: number, teamBIdx: number) => {
+        if (!isAdmin) return triggerAccessDenied();
         const teamA = teams[teamAIdx];
         const teamB = teams[teamBIdx];
         
@@ -119,6 +132,7 @@ export default function ManualMatchLab() {
     };
 
     const removeMatch = (mId: string) => {
+        if (!isAdmin) return triggerAccessDenied();
         const match = matches.find(m => m.id === mId);
         if (!match) return;
         
@@ -133,6 +147,7 @@ export default function ManualMatchLab() {
     };
 
     const startProtocol = async () => {
+        if (!isAdmin) return triggerAccessDenied();
         if (matches.length === 0) return;
         
         const id = crypto.randomUUID();
@@ -157,9 +172,6 @@ export default function ManualMatchLab() {
             setIsLoading(true);
             const { error } = await supabase.from('matches').insert(formattedMatches);
             if (error) throw error;
-            
-            // Sync current session to localstorage if needed for broadcaster consistency
-            // but the broadaster now reads from Supabase, so it should be fine.
             router.push('/kdk');
         } catch (err) {
             console.error(err);
@@ -183,9 +195,17 @@ export default function ManualMatchLab() {
                     >
                         <ArrowLeft size={20} />
                     </Link>
-                    <div className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20">
-                        <Zap size={14} className="text-[#C9B075]" />
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase">Manual Lab</span>
+                    <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_5px_15px_rgba(201,176,117,0.3)] mr-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                                <span className="text-[9px] font-black text-black uppercase tracking-widest leading-none">ADMIN MODE</span>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20">
+                            <Zap size={14} className="text-[#C9B075]" />
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase">Manual Lab</span>
+                        </div>
                     </div>
                 </div>
 

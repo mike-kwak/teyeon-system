@@ -357,20 +357,27 @@ export default function RankingTab({
                 )}
             </div>
 
-            {!isArchive && isAdmin && (
+            {!isArchive && (
                 <div className="fixed bottom-[145px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100]">
                     <button
                         disabled={isGenerating}
-                        onClick={onFinalize}
-                        className="w-full h-14 text-black font-black rounded-2xl uppercase text-[13px] tracking-[0.35em] shadow-2xl active:scale-95 transition-all border border-white/30 relative overflow-hidden group flex items-center justify-center gap-4"
+                        onClick={() => {
+                            if (!isAdmin) {
+                                alert("관리자만 아카이브를 확정할 수 있습니다.");
+                                return;
+                            }
+                            onFinalize?.();
+                        }}
+                        className={`w-full h-14 text-black font-black rounded-2xl uppercase text-[13px] tracking-[0.35em] shadow-2xl active:scale-95 transition-all border border-white/30 relative overflow-hidden group flex items-center justify-center gap-4 ${!isAdmin ? 'opacity-40 grayscale' : ''}`}
                         style={{
-                            background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
-                            boxShadow: '0 10px 30px rgba(142,122,74,0.4), inset 0 0 10px rgba(255,255,255,0.3)'
+                            background: isAdmin ? 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)' : 'rgba(255,255,255,0.1)',
+                            boxShadow: isAdmin ? '0 10px 30px rgba(142,122,74,0.4), inset 0 0 10px rgba(255,255,255,0.3)' : 'none',
+                            color: isAdmin ? '#000' : 'rgba(255,255,255,0.5)'
                         }}
                     >
-                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                        <span className="text-xl drop-shadow-md">🏆</span>
-                        <span className="italic">{isGenerating ? 'ARCHIVING...' : 'FINAL TOURNAMENT ARCHIVE'}</span>
+                        {isAdmin && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />}
+                        <span className="text-xl drop-shadow-md">{isAdmin ? '🏆' : '🔒'}</span>
+                        <span className="italic">{isGenerating ? 'ARCHIVING...' : (isAdmin ? 'FINAL TOURNAMENT ARCHIVE' : 'ADMINS ONLY')}</span>
                     </button>
                 </div>
             )}
