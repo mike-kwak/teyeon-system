@@ -159,6 +159,27 @@ export default function SpecialMatchPage() {
         setMatchQueue(prev => prev.filter(m => m.id !== id));
     };
 
+    const startSpecialSession = async () => {
+        if (matchQueue.length === 0) {
+            alert("최소 1개 이상의 대진이 필요합니다.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+            const dbMatches = matchQueue.map((m, idx) => ({
+                ...m,
+                round: idx + 1,
+                session_id: sessionId,
+                club_id: clubId,
+                session_title: sessionTitle,
+                player_names: m.playerIds.map(pid => getPlayerName(pid))
+            }));
+
+            const { error } = await supabase.rpc('sync_tournament_matches', { p_matches: dbMatches });
+            if (error) throw error;
+
             // Save to LocalStorage for Gatekeeper
             const sessionData = {
                 sessionId,
@@ -176,6 +197,11 @@ export default function SpecialMatchPage() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const getPlayerName = (id: string) => {
+        const m = [...allMembers, ...tempGuests].find(x => x.id === id);
+        return m?.nickname || "Unknown";
     };
 
     const updateMatchScore = async (matchId: string, s1: number, s2: number) => {
