@@ -1055,16 +1055,22 @@ export default function KDKPage() {
 
         return participantIds.map(id => {
             const m = (allMembers || []).find(x => x?.id === id) || (tempGuests || []).find(x => x?.id === id);
-            const conf = attendeeConfigs?.[id] || { name: m?.nickname || id, group: 'A', is_guest: m?.is_guest };
+            const conf = attendeeConfigs?.[id] || { name: m?.nickname || id, group: 'A', is_guest: m?.is_guest, age: m?.age || 99 };
             return {
                 id,
                 name: m?.nickname || id,
                 is_guest: m?.is_guest || conf?.is_guest,
                 group: conf?.group || 'A',
+                age: conf.age || m?.age || 99,
                 ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
             };
-        }).sort((a, b) => (b?.wins || 0) - (a?.wins || 0) || (b?.diff || 0) - (a?.diff || 0));
+        }).sort((a, b) => 
+            (b?.wins || 0) - (a?.wins || 0) || 
+            (b?.diff || 0) - (a?.diff || 0) || 
+            ((a?.age || 99) - (b?.age || 99))
+        );
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
+
 
     const execCopySchedule = () => {
         if (!matches || matches.length === 0) {

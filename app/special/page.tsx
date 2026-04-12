@@ -3,12 +3,14 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { Member, Match } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
+import RankingTab from '@/components/RankingTab';
+
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
 import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles } from 'lucide-react';
@@ -44,15 +46,23 @@ export default function SpecialMatchPage() {
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
     const [activeMatchTab, setActiveMatchTab] = useState<'NOW' | 'WAITING' | 'COMPLETED'>('NOW');
-    const [penaltyAmount, setPenaltyAmount] = useState(5000); // Default penalty on loss
+    
+    // Financial Tier System (Aligned with KDK)
+    const [firstPrize, setFirstPrize] = useState(10000);
+    const [bottom25Late, setBottom25Late] = useState(3000);
+    const [bottom25Penalty, setBottom25Penalty] = useState(5000);
+    const [accountInfo, setAccountInfo] = useState("정산 계좌를 입력하세요");
+    
+    // Attendee Configuration (Aligned with KDK for Age sorting)
+    const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, any>>({});
 
     const playerStats = useMemo(() => {
-        const stats: Record<string, { id: string, name: string, wins: number, losses: number, diff: number, penalty: number }> = {};
+        const stats: Record<string, { id: string, name: string, wins: number, losses: number, diff: number, pf: number, pa: number }> = {};
         
         // Initialize for all selected players
         Array.from(selectedIds).forEach(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
-            stats[id] = { id, name: m?.nickname || "Unknown", wins: 0, losses: 0, diff: 0, penalty: 0 };
+            stats[id] = { id, name: m?.nickname || "Unknown", wins: 0, losses: 0, diff: 0, pf: 0, pa: 0 };
         });
 
         matchQueue.filter(m => m.status === 'complete').forEach(m => {
@@ -68,14 +78,34 @@ export default function SpecialMatchPage() {
                     stats[pid].wins++;
                 } else {
                     stats[pid].losses++;
-                    stats[pid].penalty += penaltyAmount;
                 }
                 stats[pid].diff += isTeam1 ? (s1 - s2) : (s2 - s1);
+                stats[pid].pf += isTeam1 ? s1 : s2;
+                stats[pid].pa += isTeam1 ? s2 : s1;
             });
         });
 
-        return Object.values(stats).sort((a, b) => b.wins - a.wins || b.diff - a.diff);
-    }, [matchQueue, selectedIds, allMembers, tempGuests, penaltyAmount]);
+        return stats;
+    }, [matchQueue, selectedIds, allMembers, tempGuests]);
+
+    const allPlayersInRanking = useMemo(() => {
+        return Array.from(selectedIds).map(id => {
+            const m = [...allMembers, ...tempGuests].find(x => x.id === id);
+            const conf = attendeeConfigs[id] || { age: m?.age || 99 };
+            return {
+                id,
+                name: m?.nickname || "Unknown",
+                is_guest: !!m?.is_guest,
+                age: conf.age || m?.age || 99,
+                ...(playerStats[id] || { wins: 0, losses: 0, diff: 0, pf: 0, pa: 0 })
+            };
+        }).sort((a, b) => 
+            (b.wins - a.wins) || 
+            (b.diff - a.diff) || 
+            ((a.age || 99) - (b.age || 99))
+        );
+    }, [playerStats, selectedIds, allMembers, tempGuests, attendeeConfigs]);
+
 
     useEffect(() => {
         fetchMembers();
@@ -91,6 +121,12 @@ export default function SpecialMatchPage() {
                     setSessionTitle(data.sessionTitle);
                     setSelectedIds(new Set(data.selectedIds || []));
                     setTempGuests(data.tempGuests || []);
+                    if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs);
+                    if (data.prizes) {
+                        setFirstPrize(data.prizes.firstPrize);
+                        setBottom25Late(data.prizes.bottom25Late);
+                        setBottom25Penalty(data.prizes.bottom25Penalty);
+                    }
                     if (data.matches && data.matches.length > 0) {
                         setStep(3); // Jump to Live if session is active
                     }
@@ -114,8 +150,23 @@ export default function SpecialMatchPage() {
 
     const toggleMember = (id: string) => {
         const next = new Set(selectedIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+            const member = allMembers.find(m => m.id === id);
+            if (member && !attendeeConfigs[id]) {
+                setAttendeeConfigs(prev => ({
+                    ...prev,
+                    [id]: {
+                        id,
+                        name: member.nickname,
+                        age: member.age || 99,
+                        isWinner: (member.achievements || '').includes('우승')
+                    }
+                }));
+            }
+        }
         setSelectedIds(next);
     };
 
@@ -232,7 +283,9 @@ export default function SpecialMatchPage() {
                 sessionTitle,
                 matches: matchQueue,
                 selectedIds: Array.from(selectedIds),
-                tempGuests
+                tempGuests,
+                attendeeConfigs,
+                prizes: { firstPrize, bottom25Late, bottom25Penalty }
             };
             localStorage.setItem('special_live_session', JSON.stringify(sessionData));
 
@@ -331,18 +384,24 @@ export default function SpecialMatchPage() {
                 title: sessionTitle,
                 date: new Date().toISOString().split('T')[0],
                 club_id: clubId,
-                type: 'CUSTOM', // User Requirement: Keep as CUSTOM
+                type: 'CUSTOM',
                 snapshot_data: matchQueue.map(m => ({
                     ...m,
                     player_names: m.playerIds.map(pid => getPlayerName(pid))
                 })),
-                ranking_data: playerStats, // Use calculated stats
+                ranking_data: allPlayersInRanking, // Use pre-sorted players with age
+                prizes: { firstPrize, bottom25Late, bottom25Penalty },
                 player_metadata: Array.from(selectedIds).reduce((acc, id) => {
                     const m = [...allMembers, ...tempGuests].find(x => x.id === id);
-                    acc[id] = { name: m?.nickname, avatar: m?.avatar_url };
+                    acc[id] = { 
+                        name: m?.nickname, 
+                        avatar: m?.avatar_url,
+                        age: attendeeConfigs[id]?.age || m?.age || 99
+                    };
                     return acc;
                 }, {} as any)
             };
+
 
             const { error } = await supabase.from('teyeon_archive_v1').insert([{ id: sessionId, raw_data: archiveData }]);
             if (error) throw error;
@@ -653,49 +712,20 @@ export default function SpecialMatchPage() {
                         </>
                     ) : (
                         <div className="space-y-6">
-                            <div className="p-8 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/20 rounded-[32px] flex items-center justify-between shadow-2xl">
-                                <div className="space-y-1">
-                                    <span className="text-[10px] font-black text-red-400 tracking-[0.3em] uppercase">Loss Penalty</span>
-                                    <div className="text-2xl font-black text-white italic tracking-tighter uppercase">벌금 정산 현황</div>
-                                </div>
-                                <span className="text-xl font-black text-[#C9B075] font-mono">₩{penaltyAmount.toLocaleString()}</span>
-                            </div>
-
-                            <div className="bg-[#1A1A1A]/80 backdrop-blur-3xl rounded-[40px] overflow-hidden border border-white/5 shadow-2xl">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="bg-white/5">
-                                            <th className="px-8 py-5 text-[10px] font-black text-white/30 uppercase tracking-widest">Player</th>
-                                            <th className="px-4 py-5 text-[10px] font-black text-white/30 uppercase tracking-widest text-center">W - L</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-[#C9B075] uppercase tracking-widest text-right">Fine</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/5">
-                                        {playerStats.map((s, idx) => (
-                                            <tr key={s.id} className="group hover:bg-white/5 transition-colors">
-                                                <td className="px-8 py-6">
-                                                    <div className="flex items-center gap-4">
-                                                        <span className={`text-[10px] font-black font-mono ${idx < 3 ? 'text-[#C9B075]' : 'text-white/10'}`}>{(idx+1).toString().padStart(2, '0')}</span>
-                                                        <span className="font-black text-lg text-white group-hover:text-[#C9B075] transition-colors">{s.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-6 text-center">
-                                                    <span className="text-sm font-black text-white/90 italic tracking-widest">
-                                                        <span className="text-emerald-500">{s.wins}</span>
-                                                        <span className="mx-1 text-white/10">/</span>
-                                                        <span className="text-red-500">{s.losses}</span>
-                                                    </span>
-                                                </td>
-                                                <td className="px-8 py-6 text-right font-black text-xl text-[#C9B075] italic tracking-tighter">
-                                                    ₩{s.penalty.toLocaleString()}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                             <RankingTab
+                                players={allPlayersInRanking}
+                                sessionTitle={sessionTitle}
+                                isArchive={false}
+                                isAdmin={isAdmin}
+                                prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
+                                onShareMatch={() => alert("커스텀 대진표가 클립보드에 복사되었습니다.")}
+                                onShareResult={() => alert("최종 결과가 클립보드에 복사되었습니다.")}
+                                onFinalize={handleFinalArchive}
+                                isGenerating={isSubmitting}
+                            />
                         </div>
                     )}
+
                 </div>
 
                 {/* Footer Controls */}
@@ -738,7 +768,50 @@ export default function SpecialMatchPage() {
                 <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-full text-red-500 hover:bg-red-500/20 transition-all"><Trash2 size={18} /></button>
             </header>
 
-            <div className="mt-28 px-8 space-y-12">
+            <div className="mt-28 px-8 space-y-12 pb-40">
+                {/* Financial Standards Section (Aligned with KDK) */}
+                <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 space-y-4">
+                    <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-4 text-center">Financial Standards</h3>
+                    
+                    <div className="grid grid-cols-1 gap-4">
+                        {/* Prize */}
+                        <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
+                            <span className="text-[12px] font-black text-white/60">WINNER PRIZE</span>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> - </button>
+                                <span className="text-lg font-black text-[#C9B075] font-mono w-16 text-center">{(firstPrize/1000).toFixed(0)}K</span>
+                                <button onClick={() => setFirstPrize(p => p + 5000)} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> + </button>
+                            </div>
+                        </div>
+
+                        {/* Fine Tier 1 */}
+                        <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
+                            <div className="flex flex-col">
+                                <span className="text-[12px] font-black text-white/60 uppercase">Fine Tier 1</span>
+                                <span className="text-[8px] font-bold text-white/20 uppercase">Bottom 25%~50%</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> - </button>
+                                <span className="text-lg font-black text-white/90 font-mono w-16 text-center">{(bottom25Late/1000).toFixed(0)}K</span>
+                                <button onClick={() => setBottom25Late(p => p + 1000)} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> + </button>
+                            </div>
+                        </div>
+
+                         {/* Fine Tier 2 */}
+                         <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
+                            <div className="flex flex-col">
+                                <span className="text-[12px] font-black text-rose-500 uppercase">Penalty Tier 2</span>
+                                <span className="text-[8px] font-bold text-white/20 uppercase">Bottom 0%~25%</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> - </button>
+                                <span className="text-lg font-black text-rose-500 font-mono w-16 text-center">{(bottom25Penalty/1000).toFixed(0)}K</span>
+                                <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> + </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {/* Player Bank */}
                 <section>
                     <div className="flex items-center justify-between mb-6 px-1">
