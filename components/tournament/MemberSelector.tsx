@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Member } from '@/lib/tournament_types';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton } from '@/components/Skeleton';
-import { ManualRecoveryButton } from './Modals';
+import { CustomRecoveryButton } from './Modals';
 
 interface MemberSelectorProps {
     allMembers: Member[];
@@ -54,7 +54,7 @@ export default function MemberSelector({
         <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
             <header className="grid grid-cols-3 px-6 mb-1 items-center h-12">
                 <div className="flex items-center">
-                    <ManualRecoveryButton onRestore={onRestore} sessionKey={sessionKey} />
+                    <CustomRecoveryButton onRestore={onRestore} sessionKey={sessionKey} />
                 </div>
 
                 <div className="text-center flex flex-col items-center">

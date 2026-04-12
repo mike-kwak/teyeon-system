@@ -11,7 +11,7 @@ import {
   Trophy, 
   Swords, 
   Megaphone, 
-  Flame, 
+  Layout, 
   CircleDollarSign, 
   Cpu, 
   Settings 
@@ -36,7 +36,7 @@ export default function Home() {
   const menuItems = [
     { label: '클럽 공지', icon: <Megaphone size={36} strokeWidth={1.5} />, path: '/notice', comingSoon: false },
     { label: '멤버 프로필', icon: <Users size={36} strokeWidth={1.5} />, path: '/members', comingSoon: false },
-    { label: '스페셜 매치', icon: <Flame size={36} strokeWidth={1.5} />, path: '/special', comingSoon: false },
+    { label: '커스텀 모드', icon: <Layout size={36} strokeWidth={1.5} />, path: '/special', comingSoon: false },
     { label: '대전 생성', icon: <Swords size={36} strokeWidth={1.5} />, path: '/kdk', comingSoon: false },
     { label: '클럽 재무', icon: <CircleDollarSign size={36} strokeWidth={1.5} />, path: '/finance', comingSoon: true },
     { label: 'AI 시드 예측', icon: <Cpu size={36} strokeWidth={1.5} />, path: '/prediction', comingSoon: true },

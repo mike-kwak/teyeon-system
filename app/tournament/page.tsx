@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Trophy, Calendar, Settings, Lock } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Layout, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function TournamentPage() {
@@ -56,17 +56,17 @@ export default function TournamentPage() {
                     {isAdmin ? 'Lab Active' : 'Restricted'}
                   </span>
                 </div>
-                <h2 className={`text-[28px] font-black italic tracking-tight uppercase transition-colors leading-none my-1 ${isAdmin ? 'text-white group-hover:text-[#C9B075]' : 'text-white/40'}`}>Manual Mode</h2>
-                <p className={`text-[12px] font-bold leading-snug ${isAdmin ? 'text-[#C9B075]/80' : 'text-white/20'}`}>수동 매칭 및 직접 점수 입력</p>
+                <h2 className={`text-[28px] font-black italic tracking-tight uppercase transition-colors leading-none my-1 ${isAdmin ? 'text-white group-hover:text-[#C9B075]' : 'text-white/40'}`}>Custom Mode</h2>
+                <p className={`text-[12px] font-bold leading-snug ${isAdmin ? 'text-[#C9B075]/80' : 'text-white/20'}`}>커스텀 매칭 및 자유로운 대진 설계</p>
               </div>
               <div className={`w-14 h-14 shrink-0 rounded-[20px] flex items-center justify-center border transition-transform mt-1 ${isAdmin ? 'bg-[#C9B075]/20 border-[#C9B075]/30 group-hover:scale-110 shadow-[inset_0_0_20px_rgba(201,176,117,0.1)]' : 'bg-white/5 border-white/10'}`}>
-                <Settings size={28} className={isAdmin ? 'text-[#C9B075]' : 'text-white/20'} />
+                <Layout size={28} className={isAdmin ? 'text-[#C9B075]' : 'text-white/20'} />
               </div>
             </div>
 
             <div className="mt-8 flex flex-col gap-5 relative z-10">
               <p className={`text-[11px] font-medium leading-relaxed max-w-[240px] ${isAdmin ? 'text-white/40' : 'text-white/10'}`}>
-                사용자가 직접 대진표를 짜고<br />점수를 입력하는 자율 제어 시스템입니다.
+                사용자가 직접 대진표를 설계하고<br />자율적으로 경기를 제어하는 시스템입니다.
               </p>
 
               <div className={`flex justify-end items-center font-black text-[13px] tracking-widest uppercase gap-3 transition-transform ${isAdmin ? 'text-[#C9B075] group-hover:translate-x-2' : 'text-white/10'}`}>

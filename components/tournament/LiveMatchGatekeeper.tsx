@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Flame, X } from 'lucide-react';
+import { Swords, Layout, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface LiveMatchGatekeeperProps {
@@ -61,8 +61,8 @@ export default function LiveMatchGatekeeper({ isOpen, onClose }: LiveMatchGateke
                                     <Swords size={28} />
                                 </div>
                                 <div className="text-left">
-                                    <h4 className="font-black text-lg text-white group-hover:text-[#C9B075] transition-colors">KDK MODE</h4>
-                                    <p className="text-[10px] font-bold text-white/40 tracking-wider uppercase">자동 대진 및 랭킹 관리</p>
+                                    <h4 className="font-black text-lg text-white group-hover:text-[#C9B075] transition-colors uppercase">KDK 자동 모드</h4>
+                                    <p className="text-[10px] font-bold text-white/40 tracking-wider uppercase">Auto Matchmaking & Ranking</p>
                                 </div>
                                 <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[#C9B075] animate-pulse" />
                             </button>
@@ -72,11 +72,11 @@ export default function LiveMatchGatekeeper({ isOpen, onClose }: LiveMatchGateke
                                 className="w-full group relative flex items-center gap-6 p-6 rounded-[28px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-[#EF4444]/30 transition-all active:scale-[0.98]"
                             >
                                 <div className="w-14 h-14 rounded-2xl bg-[#EF4444]/10 flex items-center justify-center text-[#EF4444] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(239,68,68,0.1)]">
-                                    <Flame size={28} />
+                                    <Layout size={28} />
                                 </div>
                                 <div className="text-left">
-                                    <h4 className="font-black text-lg text-white group-hover:text-[#EF4444] transition-colors">SPECIAL MATCH</h4>
-                                    <p className="text-[10px] font-bold text-white/40 tracking-wider uppercase">100% 매뉴얼 자유 대진</p>
+                                    <h4 className="font-black text-lg text-white group-hover:text-[#EF4444] transition-colors uppercase">커스텀 대진 모드</h4>
+                                    <p className="text-[10px] font-bold text-white/40 tracking-wider uppercase">100% 커스텀 자유 대진</p>
                                 </div>
                                 <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[#EF4444] animate-pulse" />
                             </button>

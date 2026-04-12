@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Users, Zap, Hash, Play, Trash2, Plus, UserPlus } from 'lucide-react';
+import { ArrowLeft, Users, Layout, Hash, Play, Trash2, Plus, UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import PremiumSpinner from '@/components/PremiumSpinner';
@@ -203,14 +203,14 @@ export default function ManualMatchLab() {
                             </div>
                         )}
                         <div className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20">
-                            <Zap size={14} className="text-[#C9B075]" />
-                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase">Manual Lab</span>
+                            <Layout size={14} className="text-[#C9B075]" />
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.2em] uppercase">Custom Lab</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-1 px-2">
-                    <h1 className="text-4xl font-black italic text-white tracking-tighter uppercase leading-none">MANUAL DRAFT</h1>
+                    <h1 className="text-4xl font-black italic text-white tracking-tighter uppercase leading-none">CUSTOM DRAFT</h1>
                     <input 
                         value={sessionTitle}
                         onChange={(e) => setSessionTitle(e.target.value)}

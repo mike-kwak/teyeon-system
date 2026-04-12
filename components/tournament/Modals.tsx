@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 
-// --- Manual Recovery Button ---
-export function ManualRecoveryButton({ onRestore, sessionKey = 'kdk_live_session' }: { onRestore: (data: any) => void, sessionKey?: string }) {
+// --- Custom Recovery Button ---
+export function CustomRecoveryButton({ onRestore, sessionKey = 'kdk_live_session' }: { onRestore: (data: any) => void, sessionKey?: string }) {
     const [hasSession, setHasSession] = useState(false);
     useEffect(() => {
         const saved = localStorage.getItem(sessionKey);
@@ -27,7 +27,7 @@ export function ManualRecoveryButton({ onRestore, sessionKey = 'kdk_live_session
             className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/40 uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all active:scale-95 group whitespace-nowrap"
         >
             <span className="text-[12px] group-hover:scale-110 transition-transform grayscale group-hover:grayscale-0">📂</span>
-            <span>이전 데이터 불러오기</span>
+            <span>커스텀 데이터 불러오기</span>
         </button>
     );
 }

@@ -11,7 +11,7 @@ import { Member, Match } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, Swords as SwordsIcon, Save } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save } from 'lucide-react';
 
 export default function SpecialMatchPage() {
     const router = useRouter();
@@ -40,6 +40,7 @@ export default function SpecialMatchPage() {
     const [warningMsg, setWarningMsg] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
+    const [isOptimizing, setIsOptimizing] = useState(false);
 
     useEffect(() => {
         fetchMembers();
@@ -118,6 +119,12 @@ export default function SpecialMatchPage() {
         }
         findNextAvailableTitle();
         setStep(2);
+    };
+
+    const handleReorder = (newOrder: Match[]) => {
+        setMatchQueue(newOrder);
+        setIsOptimizing(true);
+        setTimeout(() => setIsOptimizing(false), 800);
     };
 
     const addToDraft = (id: string) => {
@@ -298,7 +305,7 @@ export default function SpecialMatchPage() {
                 selectedIds={selectedIds}
                 isMembersLoading={isMembersLoading}
                 isMembersError={isMembersError}
-                title="스페셜 매치"
+                title="커스텀 모드"
                 onToggle={toggleMember}
                 onAddGuest={(name) => {
                     const guest: Member = { id: `g-${Date.now()}`, nickname: name, is_guest: true };
@@ -330,7 +337,7 @@ export default function SpecialMatchPage() {
             <header className="fixed top-0 w-full max-w-[480px] z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 h-16 flex items-center px-6 justify-between">
                 <button onClick={() => setStep(1)} className="p-2 bg-white/5 rounded-full text-white/40"><Plus className="rotate-45" size={20} /></button>
                 <div className="text-center flex flex-col">
-                    <span className="text-[10px] font-black text-[#C9B075] tracking-widest uppercase">Special Match</span>
+                    <span className="text-[10px] font-black text-[#C9B075] tracking-widest uppercase">Custom Mode</span>
                     <h1 className="text-xl font-black italic tracking-tighter text-white uppercase">{sessionTitle}</h1>
                 </div>
                 <button onClick={() => setShowResetConfirm(true)} className="p-2 bg-red-500/10 rounded-full text-red-500"><Trash2 size={18} /></button>
@@ -357,7 +364,7 @@ export default function SpecialMatchPage() {
 
                 {/* Drafting Slots */}
                 <section className="bg-[#1A1A1A] rounded-[32px] p-6 border border-white/5 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-5"><Swords size={60} /></div>
+                    <div className="absolute top-0 right-0 p-4 opacity-5"><LayoutGrid size={60} /></div>
                     <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase mb-6 text-center">Match Construction</h3>
                     
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
@@ -404,10 +411,24 @@ export default function SpecialMatchPage() {
                 <section>
                     <div className="flex items-center justify-between mb-4 px-1">
                         <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Match Queue</h3>
-                        <span className="text-[10px] font-bold text-white/20 uppercase">{matchQueue.length} Matches</span>
+                        <div className="flex items-center gap-2">
+                            <AnimatePresence>
+                                {isOptimizing && (
+                                    <motion.span 
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        className="text-[10px] font-black text-[#C9B075] italic animate-pulse"
+                                    >
+                                        커스텀 대진 최적화 중...
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
+                            <span className="text-[10px] font-bold text-white/20 uppercase">{matchQueue.length} Matches</span>
+                        </div>
                     </div>
 
-                    <Reorder.Group axis="y" values={matchQueue} onReorder={setMatchQueue} className="space-y-3">
+                    <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-3">
                         <AnimatePresence>
                             {matchQueue.map((m) => (
                                 <Reorder.Item
@@ -490,7 +511,7 @@ export default function SpecialMatchPage() {
                         >
                             <header className="flex flex-col items-center gap-2 text-center mb-10">
                                 <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase opacity-80">Score Input</span>
-                                <h3 className="text-xl font-black italic text-white tracking-tight uppercase">Manual Match Result</h3>
+                                <h3 className="text-xl font-black italic text-white tracking-tight uppercase">Custom Match Result</h3>
                             </header>
 
                             <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6 mb-8">
@@ -570,8 +591,8 @@ export default function SpecialMatchPage() {
                             <Trophy size={80} className="text-[#C9B075]" />
                         </div>
                         <div className="space-y-4">
-                            <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">Special Match<br />Archived</h2>
-                            <p className="text-[#C9B075] text-[10px] font-black uppercase tracking-[0.6em] animate-pulse">명예의 전당 박제 완료</p>
+                            <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">Custom Mode<br />Archived</h2>
+                            <p className="text-[#C9B075] text-[10px] font-black uppercase tracking-[0.6em] animate-pulse">커스텀 모드 박제 완료</p>
                         </div>
                     </div>
                 </div>
@@ -594,17 +615,3 @@ export default function SpecialMatchPage() {
     );
 }
 
-function Swords({ size, color = "currentColor" }: { size: number, color?: string }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" />
-            <line x1="13" y1="19" x2="19" y2="13" />
-            <line x1="16" y1="16" x2="20" y2="20" />
-            <line x1="19" y1="21" x2="20" y2="20" />
-            <polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5" />
-            <line x1="5" y1="14" x2="9" y2="18" />
-            <line x1="7" y1="17" x2="4" y2="20" />
-            <line x1="3" y1="21" x2="4" y2="20" />
-        </svg>
-    );
-}
