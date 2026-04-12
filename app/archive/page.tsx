@@ -150,14 +150,22 @@ export default function ArchivePage() {
             const isLocal = !!record.failover || !!record.isLocal;
             
             matches.forEach((m: any) => {
+                const pIds = m.player_ids || m.playerIds || [];
+                const meta = raw.player_metadata || {};
+                
+                // v11: Identity Resolution - 1. Snapshot Names -> 2. Metadata Fallback -> 3. Unknown
+                const resolvedNames = (m.player_names && m.player_names.length === 4 && !m.player_names.includes('Unknown'))
+                    ? m.player_names
+                    : pIds.map((pid: string) => meta[pid]?.name || 'Unknown');
+
                 reconstructedMatches.push({
                     ...m,
                     session_id: record.id,
                     session_title: `${raw.title}${isLocal ? ' (로컬 저장됨)' : ''}`,
                     match_date: raw.date,
                     isLocal,
-                    player_names: m.playerIds?.map((pid: string) => pid),
-                    player_ids: m.playerIds || m.player_ids || []
+                    player_names: resolvedNames,
+                    player_ids: pIds
                 });
             });
         });

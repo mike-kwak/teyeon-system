@@ -310,26 +310,44 @@ export default function RankingTab({
                                             <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Archive ID: #{idx + 101}</span>
                                         </div>
                                         <div className="p-8 flex flex-col items-center gap-6">
-                                            <div className="flex items-center justify-between w-full relative">
-                                                <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-                                                    <span className="text-sm font-black text-white/90 truncate w-full text-center tracking-tighter">{m.p1_name || m.playerNames?.[0] || 'Unknown'}</span>
-                                                    <span className="text-sm font-black text-white/90 truncate w-full text-center tracking-tighter">{m.p2_name || m.playerNames?.[1] || 'Unknown'}</span>
-                                                </div>
-                                                
-                                                <div className="flex flex-col items-center shrink-0 px-8 relative">
-                                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/10 group-hover:bg-[#C9B075]/20 transition-colors" />
-                                                    <div className="bg-black/40 backdrop-blur-xl px-5 py-2 rounded-2xl border border-white/10 relative z-10">
-                                                        <span className="text-3xl font-black text-white tracking-tighter tabular-nums drop-shadow-xl">
-                                                            {m.s1 || m.score1 !== undefined ? m.score1 : '0'}:{m.s2 || m.score2 !== undefined ? m.score2 : '0'}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                            {/* v11: Identity Resolution - 박멸 Unknown */}
+                                            {(() => {
+                                                const pIds = m.player_ids || m.playerIds || [];
+                                                // Resolve names via: 
+                                                // 1. Explicit snapshot names
+                                                // 2. Current players list (ranking)
+                                                // 3. Fallback logic
+                                                const resolveName = (idx: number) => {
+                                                    if (m.player_names?.[idx] && m.player_names[idx] !== 'Unknown' && m.player_names[idx] !== '?') return m.player_names[idx];
+                                                    if (m.playerNames?.[idx] && m.playerNames[idx] !== 'Unknown' && m.playerNames[idx] !== '?') return m.playerNames[idx];
+                                                    const pid = pIds[idx];
+                                                    const found = playersList.find(p => p.id === pid);
+                                                    return found?.name || 'Unknown';
+                                                };
 
-                                                <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-                                                    <span className="text-sm font-black text-white/90 truncate w-full text-center tracking-tighter">{m.p3_name || m.playerNames?.[2] || 'Unknown'}</span>
-                                                    <span className="text-sm font-black text-white/90 truncate w-full text-center tracking-tighter">{m.p4_name || m.playerNames?.[3] || 'Unknown'}</span>
-                                                </div>
-                                            </div>
+                                                return (
+                                                    <div className="flex items-center justify-between w-full relative">
+                                                        <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                                                            <span className="text-[13px] font-black text-white/90 truncate w-full text-center tracking-tighter drop-shadow-sm">{resolveName(0)}</span>
+                                                            <span className="text-[13px] font-black text-white/90 truncate w-full text-center tracking-tighter drop-shadow-sm">{resolveName(1)}</span>
+                                                        </div>
+                                                        
+                                                        <div className="flex flex-col items-center shrink-0 px-8 relative">
+                                                            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/10 group-hover:bg-[#C9B075]/20 transition-colors" />
+                                                            <div className="bg-black/60 backdrop-blur-3xl px-6 py-3 rounded-2xl border border-white/10 relative z-10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                                                                <span className="text-3xl font-[1000] text-white tracking-tighter tabular-nums drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                                                                    {m.score1 !== undefined ? m.score1 : (m.s1 || '0')}:{m.score2 !== undefined ? m.score2 : (m.s2 || '0')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                                                            <span className="text-[13px] font-black text-white/90 truncate w-full text-center tracking-tighter drop-shadow-sm">{resolveName(2)}</span>
+                                                            <span className="text-[13px] font-black text-white/90 truncate w-full text-center tracking-tighter drop-shadow-sm">{resolveName(3)}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 );
