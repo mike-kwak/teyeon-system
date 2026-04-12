@@ -663,7 +663,7 @@ export default function SpecialMatchPage() {
                                             {m.status === 'live' && <div className="absolute top-0 right-0 w-32 h-32 bg-[#C9B075]/10 blur-3xl -z-10" />}
                                             
                                             <div className="flex items-center justify-between mb-8">
-                                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] italic">Round {m.round || idx + 1}</span>
+                                                <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] italic">GAME {m.round || idx + 1}</span>
                                                 {m.status === 'live' && (
                                                     <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[9px] font-black tracking-widest uppercase border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                                                         <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
@@ -769,7 +769,7 @@ export default function SpecialMatchPage() {
     const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-40 relative">
+        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-52 relative">
             {/* Header */}
             <header className="fixed top-0 w-full max-w-[480px] z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5 h-20 flex items-center px-8 justify-between">
                 <button onClick={() => setStep(1)} className="p-3 bg-white/5 rounded-full text-white/40 hover:text-white transition-colors"><Plus className="rotate-45" size={20} /></button>
@@ -889,9 +889,9 @@ export default function SpecialMatchPage() {
                     <button
                         onClick={addMatchToQueue}
                         disabled={draftSlots.includes(null)}
-                        className="w-full mt-12 py-5 bg-[#C9B075] text-black font-black rounded-[20px] shadow-[0_15px_30px_rgba(201,176,117,0.2)] active:scale-95 transition-all text-[11px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 disabled:opacity-20 disabled:grayscale"
+                        className="w-full mt-12 py-5 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-[1000] rounded-[24px] shadow-[0_15px_40px_rgba(201,176,117,0.3)] active:scale-95 transition-all text-[12px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 disabled:opacity-20 disabled:grayscale"
                     >
-                        <Plus size={18} strokeWidth={4} /> Add To Current Queue
+                        <Plus size={20} strokeWidth={4} /> Add To Current Queue
                     </button>
                 </section>
 
@@ -908,9 +908,9 @@ export default function SpecialMatchPage() {
                                     setStep(3);
                                     if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                 }}
-                                className="px-6 py-3 bg-[#C9B075] text-black text-[11px] font-[1000] rounded-full uppercase tracking-widest shadow-[0_10px_30px_rgba(201,176,117,0.4)] active:scale-90 transition-all italic flex items-center gap-2"
+                                className="px-8 py-4 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black text-[12px] font-[1000] rounded-full uppercase tracking-widest shadow-[0_10px_30px_rgba(201,176,117,0.4)] active:scale-90 transition-all italic flex items-center gap-2"
                             >
-                                Start Live Court <Plus size={14} strokeWidth={4} />
+                                Start Live Court <Play size={14} fill="black" />
                             </button>
                         )}
                     </div>
@@ -940,7 +940,7 @@ export default function SpecialMatchPage() {
                                     className="bg-white/5 border border-white/5 p-6 rounded-[24px] flex items-center gap-6 cursor-grab active:cursor-grabbing hover:bg-white/[0.08] transition-all group"
                                 >
                                     <div className="flex flex-col items-center">
-                                        <span className="text-[10px] font-black text-[#C9B075] italic">R</span>
+                                        <span className="text-[10px] font-black text-[#C9B075] italic">G</span>
                                         <span className="text-xl font-black text-white italic tracking-tighter">{(idx+1)}</span>
                                     </div>
                                     <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-center">
