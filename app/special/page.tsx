@@ -1046,7 +1046,6 @@ export default function SpecialMatchPage() {
                     title="전체 데이터 초기화"
                     message="현재 진행 중인 모든 대진과 설정이 삭제됩니다. 정말 초기화하시겠습니까?"
                     confirmText="예, 초기화합니다"
-                    cancelText="취소"
                     onConfirm={() => {
                         setMatchQueue([]);
                         setSelectedIds(new Set());
