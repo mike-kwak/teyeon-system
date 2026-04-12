@@ -822,18 +822,28 @@ export default function SpecialMatchPage() {
     const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-64 relative">
-            {/* Header */}
-            <header className="fixed top-0 w-full max-w-[480px] z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5 h-20 flex items-center px-8 justify-between">
-                <button onClick={() => setStep(1)} className="p-3 bg-white/5 rounded-full text-white/40 hover:text-white transition-colors"><Plus className="rotate-45" size={20} /></button>
+        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-96 relative">
+            {/* Header (Integrated with Flow or Higher Z-Index) */}
+            <header className="fixed top-0 w-full max-w-[480px] z-[70] bg-black/80 backdrop-blur-3xl border-b border-white/10 h-24 flex items-center px-8 justify-between shadow-2xl">
+                <button 
+                    onClick={() => setStep(1)} 
+                    className="p-3 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all active:scale-95 border border-white/5"
+                >
+                    <Plus className="rotate-45" size={20} />
+                </button>
                 <div className="text-center flex flex-col">
-                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-1">Custom Builder</span>
-                    <h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px]">{sessionTitle || '새로운 세션'}</h1>
+                    <span className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.5em] uppercase mb-1 drop-shadow-sm">Custom Protocol</span>
+                    <h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] drop-shadow-2xl">{sessionTitle || 'New Session'}</h1>
                 </div>
-                <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-full text-red-500 hover:bg-red-500/20 transition-all"><Trash2 size={18} /></button>
+                <button 
+                    onClick={() => setShowResetConfirm(true)} 
+                    className="p-3 bg-red-500/10 rounded-2xl text-red-500 hover:bg-red-500/20 transition-all border border-red-500/20 active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                >
+                    <Trash2 size={18} />
+                </button>
             </header>
 
-            <div className="mt-32 px-8 space-y-12 pb-40">
+            <div className="mt-40 px-8 space-y-12 pb-40">
                 {/* Financial Standards Section (Aligned with KDK) */}
                 <section className="bg-[#0A0A0A]/80 backdrop-blur-3xl border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl">
                     <h3 className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.4em] uppercase mb-4 text-center">Financial Protocol</h3>
@@ -883,14 +893,14 @@ export default function SpecialMatchPage() {
                         <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
                         <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{selectedMembers.length} Available</span>
                     </div>
-                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+                    <div className="flex gap-3 overflow-x-auto pb-6 no-scrollbar mask-grad-right">
                         {selectedMembers.map(m => (
                             <button
                                 key={m.id}
                                 onClick={() => addToDraft(m.id)}
                                 disabled={draftSlots.includes(m.id)}
-                                className={`shrink-0 h-16 px-6 rounded-2xl font-black text-sm tracking-tight transition-all border
-                                ${draftSlots.includes(m.id) ? 'bg-white/5 border-white/5 text-white/5 opacity-20' : 'bg-[#1A1A1A] border-white/10 text-white/80 active:scale-95 hover:border-[#C9B075]/30'}`}
+                                className={`shrink-0 h-14 px-6 rounded-2xl font-[1000] text-sm tracking-tight transition-all border shadow-lg
+                                ${draftSlots.includes(m.id) ? 'bg-white/5 border-white/5 text-white/5' : 'bg-[#1C1C1E] border-white/10 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}
                             >
                                 {m.nickname}
                             </button>
@@ -989,9 +999,9 @@ export default function SpecialMatchPage() {
                                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                                     className="bg-white/5 border border-white/5 p-6 rounded-[24px] flex items-center justify-between gap-4 cursor-grab active:cursor-grabbing hover:bg-white/[0.08] transition-all group relative overflow-hidden"
                                 >
-                                    <div className="flex flex-col items-center justify-center bg-[#C9B075]/10 rounded-2xl w-14 h-14 shrink-0 border border-[#C9B075]/10">
-                                        <span className="text-[9px] font-black text-[#C9B075] italic leading-none mb-1">G</span>
-                                        <span className="text-xl font-black text-white italic tracking-tighter leading-none">{(idx+1)}</span>
+                                    <div className="flex items-center justify-center bg-[#C9B075]/10 rounded-xl px-4 h-10 shrink-0 border border-[#C9B075]/20 gap-1.5 shadow-inner">
+                                        <span className="text-[11px] font-[1000] text-[#C9B075] italic tracking-tighter">G</span>
+                                        <span className="text-[15px] font-[1000] text-white italic tracking-tighter">{(idx+1)}</span>
                                     </div>
 
                                     <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
