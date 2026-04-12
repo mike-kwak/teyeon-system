@@ -251,13 +251,54 @@ export default function KDKPage() {
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
             };
 
-            alert("🚀 신규 테이블 [tournament_records_final]로 직접 전송합니다");
-
-            const { error: sessError } = await supabase
-                .from('tournament_records_final')
-                .upsert([{ id: sessionId, raw_data: rawDataPayload }]);
+            alert("🚀 [v8.0 SURVIVAL] 신규 테이블로 직접 통신을 시작합니다.");
             
-            if (sessError) throw sessError;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+            const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final?cache_bust=${Date.now()}`;
+
+            let sessError = null;
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Prefer': 'resolution=merge-duplicates' // Upsert behavior
+                    },
+                    body: JSON.stringify({ id: sessionId, raw_data: rawDataPayload })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errText}`);
+                }
+                console.log("✅ [v8.0] SERVER ARCHIVE SUCCESS");
+            } catch (err: any) {
+                console.error("❌ [v8.0] SERVER REJECTED, ACTIVATING SURVIVAL FAILOVER:", err);
+                
+                // 오프라인/캐시 에러 시 로컬 브라우저에 강제 박제
+                try {
+                    const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+                    const failoverItem = {
+                        id: sessionId,
+                        raw_data: rawDataPayload,
+                        failover: true,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    // 중복 제거 후 추가
+                    const filtered = failovers.filter((f: any) => f.id !== sessionId);
+                    filtered.push(failoverItem);
+                    localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
+                    
+                    alert("⚠️ 서버 연결이 원활하지 않아 [로컬 저장소]에 안전하게 박제했습니다. (아카이브에서 확인 가능)");
+                } catch (localErr) {
+                    console.error("CRITICAL: LocalStorage failed", localErr);
+                    throw err; // 로컬도 실패하면 진짜 에러
+                }
+            }
 
             // 2. Success Celebration & Redirect
             setShowArchiveSuccess(true);

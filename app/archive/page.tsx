@@ -71,19 +71,32 @@ export default function ArchivePage() {
 
         if (error) throw error;
         
-        // v7: Reconstruction of flat match array from tournament_records_final
+        // v8: Merge with LocalStorage Failover Data
+        const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+        const combinedData = [...(data || [])];
+        
+        failovers.forEach((f: any) => {
+            if (!combinedData.find(d => d.id === f.id)) {
+                combinedData.push(f);
+            }
+        });
+
+        // v7: Reconstruction of flat match array
         const reconstructedMatches: any[] = [];
-        (data || []).forEach(record => {
+        combinedData.forEach(record => {
             const raw = record.raw_data || {};
             const matches = raw.snapshot_data || [];
+            const isLocal = !!record.failover;
+            
             matches.forEach((m: any) => {
                 reconstructedMatches.push({
                     ...m,
                     session_id: record.id,
-                    session_title: raw.title,
+                    session_title: `${raw.title}${isLocal ? ' (로컬 저장됨)' : ''}`,
                     match_date: raw.date,
+                    isLocal,
                     // Map snake_case from DB snapshot if needed
-                    player_names: m.playerIds?.map((pid: string) => pid), // simplified for leaderboard logic
+                    player_names: m.playerIds?.map((pid: string) => pid),
                     player_ids: m.playerIds || m.player_ids || []
                 });
             });
@@ -103,9 +116,19 @@ export default function ArchivePage() {
     setActiveDetailTab('MATCHES');
     try {
         const { data } = await supabase.from('tournament_records_final').select('raw_data').eq('id', id).single();
-        setSessionDetail(data?.raw_data || null);
+        if (data) {
+            setSessionDetail(data.raw_data || null);
+        } else {
+            // Check Local Failover
+            const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+            const local = failovers.find((f: any) => f.id === id);
+            setSessionDetail(local?.raw_data || null);
+        }
     } catch {
-        setSessionDetail(null);
+        // Final fallback to Local Failover on Error
+        const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+        const local = failovers.find((f: any) => f.id === id);
+        setSessionDetail(local?.raw_data || null);
     }
   }
 

@@ -29,15 +29,27 @@ export default function ArchivePage() {
             const { data, error } = await supabase
                 .from('tournament_records_final')
                 .select('*')
-                .order('created_at', { ascending: false });
-            
             if (error) throw error;
             
-            // v7: Flatten raw_data for UI compatibility
-            const flattened = (data || []).map(item => ({
-                id: item.id,
-                ...(item.raw_data || {})
-            }));
+            // v8: Merge with LocalStorage Failover Data
+            const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+            const combinedData = [...(data || [])];
+            failovers.forEach((f: any) => {
+                if (!combinedData.find(d => d.id === f.id)) {
+                    combinedData.push({ ...f, isLocal: true });
+                }
+            });
+
+            // v7: Flatten for UI compatibility
+            const flattened = combinedData.map(item => {
+                const raw = item.raw_data || {};
+                return {
+                    id: item.id,
+                    ...raw,
+                    title: `${raw.title}${item.isLocal ? ' (로컬)' : ''}`,
+                    isLocal: !!item.isLocal
+                };
+            });
 
             // Native filter by year/month from the 'date' string
             const filtered = (flattened || []).filter(s => {
