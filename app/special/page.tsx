@@ -453,34 +453,29 @@ export default function SpecialMatchPage() {
                     <motion.button
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
                         onClick={() => { setSelectedMode('CUSTOM'); setStep(1); }}
-                        className="w-full group relative overflow-hidden rounded-[32px] p-8 text-left bg-[#1A1C20] border-2 border-[#C9B075]/40 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+                        className="w-full group relative overflow-hidden rounded-[32px] h-[160px] text-left border-2 border-[#C9B075]/40 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
                     >
+                        {/* Background Image */}
+                        <div 
+                            className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700"
+                            style={{ backgroundImage: 'url("/brain/d480949b-af88-4b89-95c1-d020c66a33ad/luxury_tennis_special_match_bg_1776010591068.png")' }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent" />
+
                         {/* Shimmer Effect */}
                         <motion.div 
                             className="absolute inset-0 bg-gradient-to-r from-transparent via-[#C9B075]/10 to-transparent skew-x-12"
                             animate={{ x: ['-100%', '200%'] }}
                             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                         />
-                        {/* Sparkle Particles */}
-                        <div className="absolute inset-0 pointer-events-none">
-                            {[...Array(6)].map((_, i) => (
-                                <motion.div 
-                                    key={i}
-                                    className="absolute w-1 h-1 bg-[#C9B075] rounded-full"
-                                    animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 0.5] }}
-                                    transition={{ duration: 2 + Math.random(), repeat: Infinity, delay: Math.random() * 2 }}
-                                    style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%` }}
-                                />
-                            ))}
-                        </div>
 
-                        <div className="relative z-10 flex items-center justify-between">
-                            <div className="space-y-2">
-                                <h3 className="text-2xl font-black italic text-white tracking-tight group-hover:text-[#C9B075] transition-colors uppercase">스페셜 매치</h3>
-                                <p className="text-[11px] font-bold text-[#C9B075]/60 leading-tight uppercase tracking-widest">100% 자율 매칭 및 실시간 스페셜 매치 대진 설계</p>
+                        <div className="relative z-10 flex items-center justify-between px-8">
+                            <div className="space-y-1">
+                                <h3 className="text-2xl font-black italic text-[#C9B075] tracking-tight uppercase">커스텀 모드</h3>
+                                <p className="text-[10px] font-bold text-white/60 leading-tight uppercase tracking-widest">실시간 자율 대진 설계</p>
                             </div>
-                            <div className="w-16 h-16 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(201,176,117,0.2)]">
-                                <LayoutGrid size={32} />
+                            <div className="w-14 h-14 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(201,176,117,0.2)]">
+                                <LayoutGrid size={28} />
                             </div>
                         </div>
                     </motion.button>
@@ -489,15 +484,22 @@ export default function SpecialMatchPage() {
                     <motion.button
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
                         onClick={() => { setSelectedMode('MONTHLY'); setStep(1); }}
-                        className="w-full group relative overflow-hidden rounded-[32px] p-8 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 hover:border-white/20 transition-all active:scale-[0.98]"
+                        className="w-full group relative overflow-hidden rounded-[32px] h-[160px] text-left border border-white/10 hover:border-[#C9B075]/40 transition-all active:scale-[0.98] shadow-xl"
                     >
-                        <div className="relative z-10 flex items-center justify-between">
-                            <div className="space-y-2">
+                        {/* Background Image */}
+                        <div 
+                            className="absolute inset-0 bg-cover bg-center grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-60 transition-all duration-700"
+                            style={{ backgroundImage: 'url("/brain/d480949b-af88-4b89-95c1-d020c66a33ad/luxury_club_management_texture_1776010630008.png")' }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
+
+                        <div className="relative z-10 flex items-center justify-between px-8">
+                            <div className="space-y-1">
                                 <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">월례회 모드</h3>
-                                <p className="text-[11px] font-bold text-white/30 leading-tight uppercase tracking-widest">자동 대진 엔진 및 클럽 정산 최적화</p>
+                                <p className="text-[10px] font-bold text-white/30 leading-tight uppercase tracking-widest">자동 매칭 및 클럽 정산 최적화</p>
                             </div>
-                            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 transition-transform">
-                                <Calendar size={32} />
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 group-hover:text-white transition-all">
+                                <Calendar size={28} />
                             </div>
                         </div>
                     </motion.button>
@@ -506,19 +508,27 @@ export default function SpecialMatchPage() {
                     <motion.button
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}
                         onClick={() => { setSelectedMode('TOURNAMENT'); setStep(1); }}
-                        className="w-full group relative overflow-hidden rounded-[32px] p-8 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 hover:border-white/20 transition-all active:scale-[0.98]"
+                        className="w-full group relative overflow-hidden rounded-[32px] h-[160px] text-left border border-white/10 hover:border-[#C9B075]/40 transition-all active:scale-[0.98] shadow-xl"
                     >
-                        <div className="relative z-10 flex items-center justify-between">
-                            <div className="space-y-2">
+                        {/* Background Image */}
+                        <div 
+                            className="absolute inset-0 bg-cover bg-center grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-60 transition-all duration-700"
+                            style={{ backgroundImage: 'url("/brain/d480949b-af88-4b89-95c1-d020c66a33ad/kdk_strategic_engine_bg_1776010611021.png")' }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
+
+                        <div className="relative z-10 flex items-center justify-between px-8">
+                            <div className="space-y-1">
                                 <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">토너먼트</h3>
-                                <p className="text-[11px] font-bold text-white/30 leading-tight uppercase tracking-widest">강력한 스페셜 매치 빌더 및 챔피언 추적</p>
+                                <p className="text-[10px] font-bold text-white/30 leading-tight uppercase tracking-widest">강력한 자동 대진 빌더</p>
                             </div>
-                            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 transition-transform">
-                                <Trophy size={32} />
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 group-hover:text-white transition-all">
+                                <Trophy size={28} />
                             </div>
                         </div>
                     </motion.button>
                 </div>
+
 
                 <div className="mt-12 text-center opacity-20 flex flex-col items-center">
                     <span className="text-[10px] font-black uppercase tracking-[0.5em] italic">TEYEON PRESTIGE PROTOCOL</span>
