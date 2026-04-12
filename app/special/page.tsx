@@ -889,7 +889,7 @@ export default function SpecialMatchPage() {
                 </button>
             </header>
 
-            <div className="mt-40 px-8 space-y-12 pb-40">
+            <div className="mt-52 px-8 space-y-12 pb-[300px]">
                 {/* Financial Standards Section (Aligned with KDK) */}
                 <section className="bg-[#0A0A0A]/80 backdrop-blur-3xl border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl">
                     <h3 className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.4em] uppercase mb-4 text-center">Financial Protocol</h3>
@@ -998,7 +998,7 @@ export default function SpecialMatchPage() {
                     <button
                         onClick={addMatchToQueue}
                         disabled={draftSlots.includes(null)}
-                        className="w-full mt-12 py-5 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-[1000] rounded-[24px] shadow-[0_15px_40px_rgba(201,176,117,0.3)] active:scale-95 transition-all text-[12px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 disabled:opacity-20 disabled:grayscale"
+                        className="w-full mt-10 py-5 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-[1000] rounded-[24px] shadow-[0_15px_40px_rgba(201,176,117,0.4)] active:scale-95 transition-all text-[13px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 disabled:opacity-20 disabled:grayscale border-2 border-white/20"
                     >
                         <Plus size={20} strokeWidth={4} /> Add To Current Queue
                     </button>
@@ -1084,14 +1084,14 @@ export default function SpecialMatchPage() {
                 </section>
             </div>
 
-            {/* Float Command Bar */}
-            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-6">
+            {/* Float Command Bar (KDK Style Gold Bar) */}
+            <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-8 z-[100]">
                 <button
                     disabled={isSubmitting || matchQueue.length === 0}
                     onClick={startSpecialSession}
-                    className="w-full h-20 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-black rounded-full flex items-center justify-center gap-4 shadow-[0_20px_60px_rgba(201,176,117,0.4)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.3em] border border-white/20 text-sm italic"
+                    className="w-full h-20 bg-gradient-to-r from-[#C9B075] via-[#F3E5AB] to-[#C9B075] text-black font-[1000] rounded-[24px] flex items-center justify-center gap-4 shadow-[0_20px_60px_rgba(201,176,117,0.5)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.4em] border-2 border-white/30 text-[13px] italic"
                 >
-                    <Play fill="black" size={20} />
+                    <Play fill="black" size={24} />
                     <span>SYNC & START LIVE COURT 🏁</span>
                 </button>
             </div>
