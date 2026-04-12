@@ -156,6 +156,57 @@ export default function KDKPage() {
     const [isMembersError, setIsMembersError] = useState(false);
     const [showCeremony, setShowCeremony] = useState(false);
     const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
+    const [isCheckingTitle, setIsCheckingTitle] = useState(false);
+
+    // [v14.0] 제목 중복 방지: 자동으로 다음 번호(KDK_02 등)를 찾는 헬퍼
+    const findNextAvailableTitle = async () => {
+        const d = new Date();
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const prefix = `${yy}${mm}${dd}_KDK_`;
+        
+        try {
+            setIsCheckingTitle(true);
+            // 1. 로컬 스토리지 확인
+            const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+            const localTitles = failovers.map((f: any) => f.raw_data?.title || '');
+            
+            // 2. 서버 아카이브 확인 (최근 20개만)
+            const { data: serverData } = await supabase
+                .from('teyeon_archive_v1')
+                .select('raw_data')
+                .order('created_at', { ascending: false })
+                .limit(20);
+            const serverTitles = (serverData || []).map(d => d.raw_data?.title || '');
+            
+            // 3. 현재 진행 중인 세션들 확인
+            const activeTitles = allActiveSessions.map(s => s.title);
+            
+            const allTitles = [...localTitles, ...serverTitles, ...activeTitles];
+            
+            let maxSuffix = 0;
+            const regex = new RegExp(`^${prefix}(\\d{2})$`);
+            
+            allTitles.forEach(t => {
+                const match = t.match(regex);
+                if (match) {
+                    const suffix = parseInt(match[1]);
+                    if (suffix > maxSuffix) maxSuffix = suffix;
+                }
+            });
+            
+            const nextTitle = `${prefix}${String(maxSuffix + 1).padStart(2, '0')}`;
+            if (step === 1 || sessionTitle.endsWith('_KDK_01')) {
+                setSessionTitle(nextTitle);
+                console.log(`🏷️ Next available title suggested: ${nextTitle}`);
+            }
+        } catch (err) {
+            console.error("Failed to find next title:", err);
+        } finally {
+            setIsCheckingTitle(false);
+        }
+    };
 
     // --- [v7.0 ABSOLUTE] 12전 13기: 서버 굴복 및 로컬 강제 저장 통합 헬퍼 ---
     const absoluteSyncRPC = async (data: any) => {
@@ -297,12 +348,16 @@ export default function KDKPage() {
                     body: JSON.stringify({ id: sessionId, raw_data: rawDataPayload })
                 });
 
-                if (!response.ok) throw new Error("Server Rejected");
-                console.log("✅ [v10.0] SERVER ARCHIVE SUCCESS");
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error(`❌ [v14.0] SERVER REJECTED (${response.status}):`, errText);
+                    throw new Error(`Server Rejected: ${errText}`);
+                }
+                console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
             } catch (err: any) {
-                console.error("❌ [v10.0] SERVER FAILED, PROCEEDING WITH LOCAL ARCHIVE:", err);
+                console.error("❌ [v14.0] CRITICAL SYNC ERROR:", err);
                 // [v10.0] CEO Request: Specific wording
-                alert("서버 통신 지연으로 기기에 임시 저장되었습니다. 아카이브에서 확인 가능합니다.");
+                alert(`서버 통신 지연으로 기기에 임시 저장되었습니다. (${err.message})\n아카이브에서 확인 가능합니다.`);
             }
 
             // [v10.0] Championship Celebration (금색 가루 뿌리기)
@@ -418,6 +473,11 @@ export default function KDKPage() {
     useEffect(() => {
         fetchMembers();
         restoreSession();
+        
+        // [v14.0] 초기 구동 시 제목 중복 체크
+        setTimeout(() => {
+            findNextAvailableTitle();
+        }, 1500);
 
         // Migrate all 18:00 configs to 19:00
         setAttendeeConfigs(prev => {
