@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Medal, User, LoaderPinwheel } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import LiveMatchGatekeeper from './tournament/LiveMatchGatekeeper';
 
 const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) => (
   <svg 
@@ -32,9 +34,41 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, setSystemMessage } = useAuth();
+  const [showGatekeeper, setShowGatekeeper] = React.useState(false);
+
+  const handleLiveCourtClick = (e: React.MouseEvent) => {
+    if (!user) {
+      e.preventDefault();
+      setSystemMessage('로그인이 필요한 메뉴입니다. 카카오 계정으로 로그인해 주세요.');
+      setTimeout(() => setSystemMessage(null), 3000);
+      return;
+    }
+
+    // [v14.0] Gatekeeper Logic: Check for active sessions
+    const kdkActive = localStorage.getItem('kdk_live_session');
+    const specialActive = localStorage.getItem('special_live_session');
+
+    if (kdkActive && specialActive) {
+      e.preventDefault();
+      setShowGatekeeper(true);
+    } else if (specialActive) {
+      e.preventDefault();
+      router.push('/special');
+    } else {
+      // Default to KDK (or standard Live Court)
+      // router.push('/kdk'); 
+      // Naturally follows the <Link href="/kdk"> if we don't preventDefault
+    }
+  };
 
   const handleGuestClick = (e: React.MouseEvent, itemLabel: string) => {
+    if (itemLabel === 'LIVE COURT') {
+        handleLiveCourtClick(e);
+        return;
+    }
+    
     if (!user && itemLabel !== 'MAIN') {
       e.preventDefault();
       setSystemMessage('로그인이 필요한 메뉴입니다. 카카오 계정으로 로그인해 주세요.');
@@ -77,6 +111,11 @@ export default function BottomNav() {
           );
         })}
       </div>
+
+      <LiveMatchGatekeeper 
+        isOpen={showGatekeeper} 
+        onClose={() => setShowGatekeeper(false)} 
+      />
     </nav>
   );
 }
