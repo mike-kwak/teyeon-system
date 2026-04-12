@@ -148,6 +148,9 @@ export default function KDKPage() {
     const [warningMsg, setWarningMsg] = useState("");
 
     const [showMemberEditModal, setShowMemberEditModal] = useState(false);
+    const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
+    const [showConfetti, setShowConfetti] = useState(false);
+    const [celebrationMode, setCelebrationMode] = useState(false);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
     const [isMembersError, setIsMembersError] = useState(false);
     const [showCeremony, setShowCeremony] = useState(false);
@@ -286,20 +289,21 @@ export default function KDKPage() {
                 });
 
                 if (!response.ok) throw new Error("Server Rejected");
-                
-                // 성공 시 로컬 failover 데이터에서 해당 건 제거 또는 상태 변경 (Optional)
                 console.log("✅ [v10.0] SERVER ARCHIVE SUCCESS");
             } catch (err: any) {
                 console.error("❌ [v10.0] SERVER FAILED, PROCEEDING WITH LOCAL ARCHIVE:", err);
-                alert("⚠️ 서버 통신 지연으로 기기에 임시 저장되었습니다. 아카이브에서 확인 가능합니다.");
+                // [v10.0] CEO Request: Specific wording
+                alert("서버 통신 지연으로 기기에 임시 저장되었습니다. 아카이브에서 확인 가능합니다.");
             }
 
-            // 2. Success Celebration (무조건 실행)
+            // [v10.0] Championship Celebration (금색 가루 뿌리기)
             setShowArchiveSuccess(true);
+            setShowConfetti(true);
+            setCelebrationMode(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
             
-            // Celebration Delay
-            await new Promise(r => setTimeout(r, 3500));
+            // Celebration Delay for pure satisfaction
+            await new Promise(r => setTimeout(r, 4500));
 
             // 3. Cleanup Live Data from Supabase
             const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
@@ -2323,22 +2327,44 @@ export default function KDKPage() {
             )}
             {showArchiveSuccess && (
                 <div className="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center animate-in fade-in duration-1000">
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#C9B075]/20 via-transparent to-transparent" />
+                    {/* [v10.0] Golden Confetti Sprinkling */}
+                    <div className="absolute inset-0 pointer-events-none z-[5001] overflow-hidden">
+                        {[...Array(50)].map((_, i) => (
+                            <div 
+                                key={i} 
+                                className="absolute top-[-20px] w-2 h-2 rounded-full animate-bounce" 
+                                style={{ 
+                                    left: `${Math.random() * 100}%`, 
+                                    animation: `falling ${2 + Math.random() * 3}s linear infinite`,
+                                    background: i % 2 === 0 ? '#C9B075' : '#E5D29B',
+                                    opacity: Math.random(),
+                                    transform: `scale(${0.5 + Math.random()})`
+                                }} 
+                            />
+                        ))}
+                    </div>
+                    <style jsx>{`
+                        @keyframes falling {
+                            0% { transform: translateY(-10vh) rotate(0deg); }
+                            100% { transform: translateY(110vh) rotate(720deg); }
+                        }
+                    `}</style>
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#C9B075]/30 via-transparent to-transparent" />
                     <div className="relative z-10 flex flex-col items-center text-center px-12 space-y-8">
-                        <div className="w-32 h-32 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/40 flex items-center justify-center animate-bounce shadow-[0_0_50px_rgba(201,176,117,0.3)]">
-                            <span className="text-6xl drop-shadow-2xl">🏆</span>
+                        <div className="w-40 h-40 rounded-full bg-[#C9B075]/10 border-2 border-[#C9B075]/50 flex items-center justify-center animate-bounce shadow-[0_0_80px_rgba(201,176,117,0.5)]">
+                            <span className="text-8xl drop-shadow-2xl">🏆</span>
                         </div>
                         <div className="space-y-4">
-                            <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter drop-shadow-2xl">
+                            <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(201,176,117,0.8)]">
                                 Championship<br />Archived
                             </h2>
-                            <p className="text-[#C9B075] text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">
+                            <p className="text-[#C9B075] text-xs font-black uppercase tracking-[0.6em] animate-pulse">
                                 대회가 명예의 전당에 박제되었습니다
                             </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             {[...Array(5)].map((_, i) => (
-                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#C9B075] animate-ping" style={{ animationDelay: `${i * 0.2}s` }} />
+                                <div key={i} className="w-2 h-2 rounded-full bg-[#C9B075] animate-ping" style={{ animationDelay: `${i * 0.2}s` }} />
                             ))}
                         </div>
                     </div>

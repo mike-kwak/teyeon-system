@@ -104,7 +104,7 @@ export default function ArchivePage() {
         combinedData.forEach(record => {
             const raw = record.raw_data || {};
             const matches = raw.snapshot_data || [];
-            const isLocal = !!record.failover;
+            const isLocal = !!record.failover || !!record.isLocal;
             
             matches.forEach((m: any) => {
                 reconstructedMatches.push({
