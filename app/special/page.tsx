@@ -11,14 +11,15 @@ import { Member, Match } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles } from 'lucide-react';
 
 export default function SpecialMatchPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
     const isAdmin = role === 'CEO' || role === 'Staff' || role === 'ADMIN';
 
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(0);
+    const [selectedMode, setSelectedMode] = useState<string | null>(null);
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [tempGuests, setTempGuests] = useState<Member[]>([]);
@@ -297,6 +298,115 @@ export default function SpecialMatchPage() {
         }
     };
 
+    if (step === 0) {
+        return (
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto pb-20 overflow-hidden relative">
+                {/* Background Shimmer Elements */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#C9B075]/5 rounded-full blur-[120px] -z-10" />
+                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#C9B075]/3 rounded-full blur-[100px] -z-10" />
+
+                <header className="px-8 pt-20 pb-12 flex flex-col items-center text-center">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-6"
+                    >
+                        < Sparkles size={14} className="text-[#C9B075]" />
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase">Selection Protocol</span>
+                    </motion.div>
+                    <motion.h1 
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                        className="text-4xl font-black italic text-white tracking-tighter uppercase leading-tight"
+                    >
+                        어떤 게임을<br />진행하시겠습니까?
+                    </h1 >
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                        className="text-[12px] font-bold text-white/30 tracking-[0.2em] uppercase mt-4"
+                    >
+                        Choose your strategic mode to begin
+                    </motion.p>
+                </header>
+
+                <div className="px-8 space-y-6">
+                    {/* 1. Custom Mode - THE PREMIUM CHOICE */}
+                    <motion.button
+                        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+                        onClick={() => { setSelectedMode('CUSTOM'); setStep(1); }}
+                        className="w-full group relative overflow-hidden rounded-[32px] p-8 text-left bg-[#1A1C20] border-2 border-[#C9B075]/40 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+                    >
+                        {/* Shimmer Effect */}
+                        <motion.div 
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#C9B075]/10 to-transparent skew-x-12"
+                            animate={{ x: ['-100%', '200%'] }}
+                            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        />
+                        {/* Sparkle Particles */}
+                        <div className="absolute inset-0 pointer-events-none">
+                            {[...Array(6)].map((_, i) => (
+                                <motion.div 
+                                    key={i}
+                                    className="absolute w-1 h-1 bg-[#C9B075] rounded-full"
+                                    animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 0.5] }}
+                                    transition={{ duration: 2 + Math.random(), repeat: Infinity, delay: Math.random() * 2 }}
+                                    style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%` }}
+                                />
+                            ))}
+                        </div>
+
+                        <div className="relative z-10 flex items-center justify-between">
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black italic text-white tracking-tight group-hover:text-[#C9B075] transition-colors uppercase">커스텀 모드</h3>
+                                <p className="text-[11px] font-bold text-[#C9B075]/60 leading-tight uppercase tracking-widest">100% 자율 매칭 및 실시간 대진 설계</p>
+                            </div>
+                            <div className="w-16 h-16 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(201,176,117,0.2)]">
+                                <LayoutGrid size={32} />
+                            </div>
+                        </div>
+                    </motion.button>
+
+                    {/* 2. Monthly Match */}
+                    <motion.button
+                        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
+                        onClick={() => { setSelectedMode('MONTHLY'); setStep(1); }}
+                        className="w-full group relative overflow-hidden rounded-[32px] p-8 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 hover:border-white/20 transition-all active:scale-[0.98]"
+                    >
+                        <div className="relative z-10 flex items-center justify-between">
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">월례회 모드</h3>
+                                <p className="text-[11px] font-bold text-white/30 leading-tight uppercase tracking-widest">자동 대진 엔진 및 클럽 정산 최적화</p>
+                            </div>
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 transition-transform">
+                                <Calendar size={32} />
+                            </div>
+                        </div>
+                    </motion.button>
+
+                    {/* 3. Tournament Match */}
+                    <motion.button
+                        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}
+                        onClick={() => { setSelectedMode('TOURNAMENT'); setStep(1); }}
+                        className="w-full group relative overflow-hidden rounded-[32px] p-8 text-left bg-white/[0.03] border border-white/5 hover:bg-white/5 hover:border-white/20 transition-all active:scale-[0.98]"
+                    >
+                        <div className="relative z-10 flex items-center justify-between">
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">토너먼트</h3>
+                                <p className="text-[11px] font-bold text-white/30 leading-tight uppercase tracking-widest">강력한 대진 빌더 및 챔피언 추적</p>
+                            </div>
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 transition-transform">
+                                <Trophy size={32} />
+                            </div>
+                        </div>
+                    </motion.button>
+                </div>
+
+                <div className="mt-12 text-center opacity-20 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase tracking-[0.5em] italic">TEYEON PRESTIGE PROTOCOL</span>
+                    <div className="w-12 h-[1px] bg-white/30 mt-4" />
+                </div>
+            </main>
+        );
+    }
+
     if (step === 1) {
         return (
             <MemberSelector
@@ -325,6 +435,7 @@ export default function SpecialMatchPage() {
                     setTempGuests(data.tempGuests || []);
                     setStep(2);
                 }}
+                onBack={() => setStep(0)}
                 sessionKey="special_live_session"
             />
         );

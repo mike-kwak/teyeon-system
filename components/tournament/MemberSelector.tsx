@@ -22,6 +22,7 @@ interface MemberSelectorProps {
     onConfirm: () => void;
     onReset: () => void;
     onRestore: (data: any) => void;
+    onBack?: () => void;
 }
 
 export default function MemberSelector({
@@ -38,7 +39,8 @@ export default function MemberSelector({
     onFetchMembers,
     onConfirm,
     onReset,
-    onRestore
+    onRestore,
+    onBack
 }: MemberSelectorProps) {
     const [showGuestInput, setShowGuestInput] = useState(false);
     const [newGuestName, setNewGuestName] = useState("");
@@ -53,7 +55,15 @@ export default function MemberSelector({
     return (
         <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
             <header className="grid grid-cols-3 px-6 mb-1 items-center h-12">
-                <div className="flex items-center">
+                <div className="flex items-center gap-4">
+                    {onBack && (
+                        <button 
+                            onClick={onBack}
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 active:scale-90 transition-all"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg>
+                        </button>
+                    )}
                     <CustomRecoveryButton onRestore={onRestore} sessionKey={sessionKey} />
                 </div>
 
