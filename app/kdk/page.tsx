@@ -155,7 +155,6 @@ export default function KDKPage() {
     const [isMembersError, setIsMembersError] = useState(false);
     const [showCeremony, setShowCeremony] = useState(false);
     const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
-    const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
 
     // --- [v7.0 ABSOLUTE] 12전 13기: 서버 굴복 및 로컬 강제 저장 통합 헬퍼 ---
     const absoluteSyncRPC = async (data: any) => {
