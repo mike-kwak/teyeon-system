@@ -23,6 +23,9 @@ export default function ArchivePage() {
   const [rankingFilter, setRankingFilter] = useState<'WEEK' | 'MONTH' | 'YEAR' | 'ALL'>('MONTH');
   
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [isSyncing, setIsSyncing] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -38,7 +41,47 @@ export default function ArchivePage() {
     checkUser();
     fetchArchives();
     fetchMembers();
+    runLocalMigration();
   }, [selectedYear, selectedMonth]);
+
+  // v11: Migration for Unknown names in local failsafe
+  function runLocalMigration() {
+    try {
+        const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+        let changed = false;
+        
+        const migrated = failovers.map((f: any) => {
+            const raw = f.raw_data || {};
+            const meta = raw.player_metadata || {};
+            const snap = raw.snapshot_data || [];
+            
+            let itemChanged = false;
+            const fixedSnap = snap.map((m: any) => {
+                const pIds = m.player_ids || m.playerIds || [];
+                // If names missing or contain Unknown/?, fix them
+                if (!m.player_names || m.player_names.some((n:string) => !n || n === 'Unknown' || n === '?')) {
+                    const fixedNames = pIds.map((id: string) => meta[id]?.name || 'Unknown');
+                    itemChanged = true;
+                    return { ...m, player_names: fixedNames };
+                }
+                return m;
+            });
+            
+            if (itemChanged) {
+                changed = true;
+                return { ...f, raw_data: { ...raw, snapshot_data: fixedSnap } };
+            }
+            return f;
+        });
+        
+        if (changed) {
+            localStorage.setItem('kdk_archive_failover', JSON.stringify(migrated));
+            console.log("🛠️ v11: Local Data Identity Migration Complete");
+        }
+    } catch (e) {
+        console.error("Migration failed", e);
+    }
+  }
 
   // Handle Deep Linking from Live Dashboard
   useEffect(() => {
@@ -123,26 +166,61 @@ export default function ArchivePage() {
     }
   }
 
-  async function selectSession(id: string) {
-    if (window.navigator?.vibrate) window.navigator.vibrate(50);
-    setSelectedSessionId(id);
-    setActiveDetailTab('MATCHES');
+  // v11: Sync Local Record to Cloud
+  async function syncLocalRecord(id: string) {
+    if (isSyncing) return;
+    setIsSyncing(id);
     try {
-        const { data } = await supabase.from('tournament_records_final').select('raw_data').eq('id', id).single();
-        if (data) {
-            setSessionDetail(data.raw_data || null);
-        } else {
-            // Check Local Failover
-            const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-            const local = failovers.find((f: any) => f.id === id);
-            setSessionDetail(local?.raw_data || null);
-        }
-    } catch {
-        // Final fallback to Local Failover on Error
         const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-        const local = failovers.find((f: any) => f.id === id);
-        setSessionDetail(local?.raw_data || null);
+        const record = failovers.find((f: any) => f.id === id);
+        if (!record) throw new Error("Record not found locally");
+
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({ id: record.id, raw_data: record.raw_data })
+        });
+
+        if (!response.ok) throw new Error("Server Sync Failed");
+
+        // Success: Remove from local and refresh
+        const filtered = failovers.filter((f: any) => f.id !== id);
+        localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
+        
+        // Celebration!
+        setShowConfetti(true);
+        setShowArchiveSuccess(true);
+        if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
+        
+        setTimeout(() => {
+            fetchArchives();
+            setShowArchiveSuccess(false);
+            setShowConfetti(false);
+        }, 3500);
+
+    } catch (err: any) {
+        alert("동기화 실패: " + err.message);
+    } finally {
+        setIsSyncing(null);
     }
+  }
+
+  // v11: Delete Local Record
+  function deleteLocalRecord(id: string) {
+    if (!confirm("⚠️ 이 로컬 기록을 완전히 삭제하시겠습니까? (서버에 업로드되지 않은 데이터입니다)")) return;
+    const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+    const filtered = failovers.filter((f: any) => f.id !== id);
+    localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
+    fetchArchives();
   }
 
   async function seedDemoData() {
@@ -386,19 +464,34 @@ export default function ArchivePage() {
                                     <div key={round} className="space-y-4">
                                         <h3 className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase text-center flex items-center gap-4"><span className="h-px flex-1 bg-white/5"></span>Round 0{round}<span className="h-px flex-1 bg-white/5"></span></h3>
                                         {selectedSession.matches.filter((m:any) => (m.round||1) === round).map((m:any, idx:number) => {
-                                            const n = m.player_names || ["?","?","?","?"];
-                                            const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                            return (
-                                                <div key={m.id} className="bg-white/[0.03] border border-white/5 rounded-[30px] p-5 relative">
-                                                    <span className="absolute top-4 left-6 text-[7px] font-black text-white/10 uppercase tracking-widest">Court {m.court || idx + 1}</span>
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 pt-4">
-                                                        <div className="text-center flex flex-col gap-1 items-center"><span className={`text-xs font-black truncate w-20 ${s1 > s2 ? 'text-[#D4AF37]' : 'opacity-30'}`}>{n[0]}</span><span className={`text-xs font-black truncate w-20 ${s1 > s2 ? 'text-[#D4AF37]' : 'opacity-30'}`}>{n[1]}</span></div>
-                                                        <div className="bg-black/80 border border-white/10 px-5 py-2 rounded-2xl font-black italic text-lg">{s1} : {s2}</div>
-                                                        <div className="text-center flex flex-col gap-1 items-center"><span className={`text-xs font-black truncate w-20 ${s2 > s1 ? 'text-[#D4AF37]' : 'opacity-30'}`}>{n[2]}</span><span className={`text-xs font-black truncate w-20 ${s2 > s1 ? 'text-[#D4AF37]' : 'opacity-30'}`}>{n[3]}</span></div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                             let n = m.player_names || ["?","?","?","?"];
+                                             // [v11 Fallback Logic] 박멸: Unknown 이름 자동 복구
+                                             if (n.some((name:string) => !name || name === 'Unknown' || name === '?')) {
+                                                const pIds = m.player_ids || m.playerIds || [];
+                                                const meta = sessionDetail?.player_metadata || {};
+                                                n = pIds.map((pid: string) => meta[pid]?.name || 'Unknown');
+                                             }
+                                             const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                             return (
+                                                 <div key={m.id} className="bg-white/[0.03] border border-white/5 rounded-[30px] p-6 relative group hover:bg-white/[0.05] transition-all">
+                                                     <span className="absolute top-4 left-6 text-[8px] font-black text-[#D4AF37]/40 uppercase tracking-widest">Court 0{m.court || idx + 1}</span>
+                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 pt-6">
+                                                         <div className="text-center flex flex-col gap-2 items-center">
+                                                            <span className={`text-sm font-black truncate w-24 ${s1 > s2 ? 'text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]' : 'text-white/40'}`}>{n[0]}</span>
+                                                            <span className={`text-sm font-black truncate w-24 ${s1 > s2 ? 'text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]' : 'text-white/40'}`}>{n[1]}</span>
+                                                         </div>
+                                                         <div className="flex flex-col items-center gap-1">
+                                                            <div className="bg-black/80 border border-white/10 px-6 py-3 rounded-2xl font-[1000] italic text-2xl tracking-tighter shadow-xl">{s1} : {s2}</div>
+                                                            {m.isLocal && <span className="text-[7px] font-black text-[#D4AF37] uppercase animate-pulse">Offline Data</span>}
+                                                         </div>
+                                                         <div className="text-center flex flex-col gap-2 items-center">
+                                                            <span className={`text-sm font-black truncate w-24 ${s2 > s1 ? 'text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]' : 'text-white/40'}`}>{n[2]}</span>
+                                                            <span className={`text-sm font-black truncate w-24 ${s2 > s1 ? 'text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]' : 'text-white/40'}`}>{n[3]}</span>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             );
+                                         })}
                                     </div>
                                 ))}
                             </div>
@@ -484,12 +577,48 @@ export default function ArchivePage() {
                         <div className="space-y-4">
                             {sessions.length > 0 ? sessions.map((s, index) => (
                                 <div key={s.id} onClick={() => selectSession(s.id)} className="bg-[#12121A] border border-white/5 rounded-[40px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <div className="flex items-center gap-3"><span className="w-8 h-8 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-[10px] font-black italic">{index+1}</span><span className="text-[10px] font-black text-[#D4AF37] tracking-widest">{s.date}</span></div>
-                                        <span className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/20 transition-all border border-white/5 group-hover:bg-[#D4AF37] group-hover:text-black">→</span>
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-8 h-8 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-[10px] font-black italic">{index+1}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-[#D4AF37] tracking-widest leading-none">{s.date}</span>
+                                                {s.matches[0]?.isLocal && (
+                                                    <span className="text-[7px] font-black text-white/30 uppercase mt-1">Pending Cloud Sync</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {s.matches[0]?.isLocal && (
+                                                <>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); syncLocalRecord(s.id); }}
+                                                        disabled={isSyncing === s.id}
+                                                        className="w-10 h-10 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black transition-all shadow-[0_0_15px_rgba(212,175,55,0.2)]"
+                                                    >
+                                                        {isSyncing === s.id ? (
+                                                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                        ) : (
+                                                            <span className="text-lg">☁️</span>
+                                                        )}
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); deleteLocalRecord(s.id); }}
+                                                        className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                                                    >
+                                                        <span className="text-lg">🗑️</span>
+                                                    </button>
+                                                </>
+                                            )}
+                                            <span className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/20 transition-all border border-white/5 group-hover:bg-[#D4AF37] group-hover:text-black">→</span>
+                                        </div>
                                     </div>
-                                    <h4 className="text-lg font-black text-white italic uppercase mb-2">{s.title}</h4>
+                                    <h4 className="text-xl font-[1000] text-white italic uppercase mb-2 tracking-tighter">{s.title}</h4>
                                     <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{s.matchCount} Matches Verified</span>
+                                    
+                                    {/* Local Indicator Bar */}
+                                    {s.matches[0]?.isLocal && (
+                                        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.4)] opacity-50" />
+                                    )}
                                 </div>
                             )) : <div className="py-20 text-center opacity-30 italic font-black uppercase text-[10px] tracking-widest">No entries for this period</div>}
                         </div>
@@ -580,6 +709,52 @@ export default function ArchivePage() {
       {isAdmin && mainTab === 'RECORDS' && (
         <div className="p-8 opacity-20 hover:opacity-100 transition-opacity flex flex-col items-center">
             <button onClick={seedDemoData} disabled={isSeeding} className="px-6 py-3 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full text-[9px] font-black text-[#D4AF37] tracking-[0.3em] uppercase active:scale-95">{isSeeding ? 'SEEDING...' : '🔧 ADMIN: SEED DEMO DATA'}</button>
+        </div>
+      )}
+      
+      {/* v11: Championship Celebration Overlay */}
+      {showArchiveSuccess && (
+        <div className="fixed inset-0 z-[5000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in duration-1000">
+            <div className="absolute inset-0 pointer-events-none z-[5001] overflow-hidden">
+                {[...Array(50)].map((_, i) => (
+                    <div 
+                        key={i} 
+                        className="absolute top-[-20px] w-2 h-2 rounded-full" 
+                        style={{ 
+                            left: `${Math.random() * 100}%`, 
+                            animation: `falling ${2 + Math.random() * 3}s linear infinite`,
+                            background: i % 2 === 0 ? '#D4AF37' : '#E5C167',
+                            opacity: Math.random(),
+                            transform: `scale(${0.5 + Math.random()})`
+                        }} 
+                    />
+                ))}
+            </div>
+            <style jsx>{`
+                @keyframes falling {
+                    0% { transform: translateY(-10vh) rotate(0deg); }
+                    100% { transform: translateY(110vh) rotate(720deg); }
+                }
+            `}</style>
+            
+            <div className="relative z-[5002] flex flex-col items-center text-center px-12 space-y-8">
+                <div className="w-48 h-48 rounded-full bg-[#D4AF37]/10 border-2 border-[#D4AF37]/50 flex items-center justify-center animate-bounce shadow-[0_0_100px_rgba(212,175,55,0.4)]">
+                    <span className="text-9xl drop-shadow-2xl">🏆</span>
+                </div>
+                <div className="space-y-4">
+                    <h2 className="text-6xl font-[1000] italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(212,175,55,0.6)] leading-tight">
+                        Championship<br />Synchronized
+                    </h2>
+                    <p className="text-[#D4AF37] text-sm font-black uppercase tracking-[0.7em] animate-pulse">
+                        구름 위 명예의 전당에 안착했습니다
+                    </p>
+                </div>
+                <div className="flex gap-4">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="w-3 h-3 rounded-full bg-[#D4AF37] animate-ping" style={{ animationDelay: `${i * 0.2}s` }} />
+                    ))}
+                </div>
+            </div>
         </div>
       )}
     </main>

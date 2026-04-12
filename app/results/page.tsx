@@ -15,13 +15,50 @@ export default function ArchivePage() {
     const [month, setMonth] = useState((new Date().getMonth() + 1).toString());
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState<string | null>(null);
+    const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
     useEffect(() => {
         if (segment === 'RECORD') {
             fetchSessions();
+            runLocalMigration();
         }
     }, [year, month, segment]);
+
+    // v11: Migration for Unknown names in local failsafe
+    function runLocalMigration() {
+        try {
+            const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+            let changed = false;
+            const migrated = failovers.map((f: any) => {
+                const raw = f.raw_data || {};
+                const meta = raw.player_metadata || {};
+                const snap = raw.snapshot_data || [];
+                let itemChanged = false;
+                const fixedSnap = snap.map((m: any) => {
+                    const pIds = m.player_ids || m.playerIds || [];
+                    if (!m.player_names || m.player_names.some((n:string) => !n || n === 'Unknown' || n === '?')) {
+                        const fixedNames = pIds.map((id: string) => meta[id]?.name || 'Unknown');
+                        itemChanged = true;
+                        return { ...m, player_names: fixedNames };
+                    }
+                    return m;
+                });
+                if (itemChanged) {
+                    changed = true;
+                    return { ...f, raw_data: { ...raw, snapshot_data: fixedSnap } };
+                }
+                return f;
+            });
+            if (changed) {
+                localStorage.setItem('kdk_archive_failover', JSON.stringify(migrated));
+                console.log("🛠️ v11 [Results]: Local Migration Complete");
+            }
+        } catch (e) {
+            console.error("Migration failed", e);
+        }
+    }
 
     const fetchSessions = async () => {
         setLoading(true);
@@ -118,6 +155,61 @@ export default function ArchivePage() {
             console.error(err);
             alert('수정 실패');
         }
+    };
+
+    // v11: Sync Local Record to Cloud
+    const syncLocalRecord = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isSyncing) return;
+        setIsSyncing(id);
+        try {
+            const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+            const record = failovers.find((f: any) => f.id === id);
+            if (!record) throw new Error("Record not found locally");
+
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+            const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify({ id: record.id, raw_data: record.raw_data })
+            });
+
+            if (!response.ok) throw new Error("Server Sync Failed");
+
+            const filtered = failovers.filter((f: any) => f.id !== id);
+            localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
+            
+            setShowArchiveSuccess(true);
+            if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
+            
+            setTimeout(() => {
+                fetchSessions();
+                setShowArchiveSuccess(false);
+            }, 3500);
+
+        } catch (err: any) {
+            alert("동기화 실패: " + err.message);
+        } finally {
+            setIsSyncing(null);
+        }
+    };
+
+    // v11: Delete Local Record
+    const deleteLocalRecord = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("⚠️ 이 로컬 기록을 완전히 삭제하시겠습니까? (서버에 업로드되지 않은 데이터입니다)")) return;
+        const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+        const filtered = failovers.filter((f: any) => f.id !== id);
+        localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
+        fetchSessions();
     };
 
     if (selectedSession) {
@@ -218,21 +310,45 @@ export default function ArchivePage() {
                                     onClick={() => setSelectedSession(s)}
                                     className="bg-white/5 border border-white/10 rounded-[40px] p-8 space-y-8 relative overflow-hidden group cursor-pointer hover:bg-white/10 transition-all shadow-2xl active:scale-95"
                                 >
-                                    <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex items-center justify-between relative z-10 mb-6">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-[#C9B075]/20 border border-[#C9B075]/40 flex items-center justify-center italic font-black text-[#C9B075]">{(sessions.length - idx).toString()}</div>
-                                            <span className="text-xs font-black text-[#C9B075] tracking-widest uppercase">{s.date}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-black text-[#C9B075] tracking-widest uppercase leading-none">{s.date}</span>
+                                                {s.isLocal && <span className="text-[7px] font-black text-white/30 uppercase mt-1">Pending Sync</span>}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {isAdmin && (
-                                                <div className="flex items-center gap-2">
-                                                    <button onClick={(e) => handleEdit(s.id, s.title, e)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:bg-white/20 hover:text-white transition-colors">✏️</button>
-                                                    <button onClick={(e) => handleDelete(s.id, e)} className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500/50 hover:bg-red-500/20 text-xs hover:text-red-500 transition-colors">🗑️</button>
+                                            {s.isLocal ? (
+                                                <div className="flex items-center gap-2 mr-2">
+                                                    <button 
+                                                        onClick={(e) => syncLocalRecord(s.id, e)}
+                                                        disabled={isSyncing === s.id}
+                                                        className="w-10 h-10 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075] hover:text-black transition-all"
+                                                    >
+                                                        {isSyncing === s.id ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : '☁️'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => deleteLocalRecord(s.id, e)}
+                                                        className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                                                    >
+                                                        🗑️
+                                                    </button>
                                                 </div>
+                                            ) : (
+                                                isAdmin && (
+                                                    <div className="flex items-center gap-2 mr-2">
+                                                        <button onClick={(e) => handleEdit(s.id, s.title, e)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:bg-white/20 hover:text-white transition-colors">✏️</button>
+                                                        <button onClick={(e) => handleDelete(s.id, e)} className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500/50 hover:bg-red-500/20 text-xs hover:text-red-500 transition-colors">🗑️</button>
+                                                    </div>
+                                                )
                                             )}
-                                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover:text-[#C9B075] transition-colors ml-2">→</div>
+                                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover:text-[#C9B075] transition-colors">→</div>
                                         </div>
                                     </div>
+                                    
+                                    {/* Local Indicator Bar */}
+                                    {s.isLocal && <div className="absolute top-0 left-0 w-1 h-full bg-[#C9B075] opacity-50 shadow-[0_0_15px_rgba(201,176,117,0.5)]" />}
                                     
                                     <div className="relative z-10">
                                         <h3 className="text-2xl font-black italic text-white tracking-tighter uppercase mb-2">{s.title || s.id}</h3>
@@ -248,8 +364,47 @@ export default function ArchivePage() {
             {(segment === 'TOTAL' || segment === 'HALL') && (
                 <div className="py-32 flex flex-col items-center justify-center opacity-30 text-center flex-1">
                     <span className="text-4xl mb-4">🚧</span>
-                    <h3 className="text-lg font-black uppercase tracking-widest text-[#C9B075]">UNDER CONSTRUCTION</h3>
-                    <p className="text-[10px] uppercase font-bold tracking-[0.2em] mt-2">이 기능은 업데이트 예정입니다</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Coming Soon</p>
+                </div>
+            )}
+
+            {/* v11: Celebration Overlay */}
+            {showArchiveSuccess && (
+                <div className="fixed inset-0 z-[5000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in duration-1000">
+                    <div className="absolute inset-0 pointer-events-none z-[5001] overflow-hidden">
+                        {[...Array(50)].map((_, i) => (
+                            <div 
+                                key={i} 
+                                className="absolute top-[-20px] w-2 h-2 rounded-full" 
+                                style={{ 
+                                    left: `${Math.random() * 100}%`, 
+                                    animation: `falling ${2 + Math.random() * 3}s linear infinite`,
+                                    background: i % 2 === 0 ? '#C9B075' : '#E5C167',
+                                    opacity: Math.random(),
+                                    transform: `scale(${0.5 + Math.random()})`
+                                }} 
+                            />
+                        ))}
+                    </div>
+                    <style jsx>{`
+                        @keyframes falling {
+                            0% { transform: translateY(-10vh) rotate(0deg); }
+                            100% { transform: translateY(110vh) rotate(720deg); }
+                        }
+                    `}</style>
+                    <div className="relative z-[5002] flex flex-col items-center text-center px-12 space-y-8">
+                        <div className="w-48 h-48 rounded-full bg-[#C9B075]/10 border-2 border-[#C9B075]/50 flex items-center justify-center animate-bounce shadow-[0_0_100px_rgba(201,176,117,0.4)]">
+                            <span className="text-9xl drop-shadow-2xl">🏆</span>
+                        </div>
+                        <div className="space-y-4">
+                            <h2 className="text-6xl font-[1000] italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(201,176,117,0.6)] leading-tight">
+                                Championship<br />Synchronized
+                            </h2>
+                            <p className="text-[#C9B075] text-sm font-black uppercase tracking-[0.7em] animate-pulse">
+                                구름 위 명예의 전당에 안착했습니다
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

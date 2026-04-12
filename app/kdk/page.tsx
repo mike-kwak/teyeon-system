@@ -244,11 +244,20 @@ export default function KDKPage() {
                 title: sessionTitle || `Tournament ${dateStr}`,
                 date: dateStr,
                 ranking_data: rankingSnapshot,
-                snapshot_data: matches.map(m => ({
-                    ...m,
-                    player_ids: m.playerIds || [], 
-                    group_name: m.groupName || 'A'
-                })),
+                snapshot_data: matches.map(m => {
+                    const pNames = m.playerIds.map(pid => getPlayerName(pid));
+                    const pAvatars = m.playerIds.map(pid => {
+                        const mem = (allMembers || []).find(x => x?.id === pid) || (tempGuests || []).find(x => x?.id === pid);
+                        return mem?.avatar_url || '';
+                    });
+                    return {
+                        ...m,
+                        player_ids: m.playerIds || [], 
+                        player_names: pNames,
+                        player_avatars: pAvatars,
+                        group_name: m.groupName || 'A'
+                    };
+                }),
                 player_metadata: attendeeConfigs,
                 total_matches: matches.length,
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
