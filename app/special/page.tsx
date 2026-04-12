@@ -263,7 +263,6 @@ export default function SpecialMatchPage() {
             return;
         }
 
-        setIsSubmitting(true);
         try {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             const dbMatches = matchQueue.map((m, idx) => ({
@@ -272,14 +271,19 @@ export default function SpecialMatchPage() {
                 session_id: sessionId,
                 club_id: clubId,
                 session_title: sessionTitle,
-                status: m.status || 'waiting', // Default to waiting
+                status: m.status || 'waiting', 
                 player_names: m.playerIds.map(pid => getPlayerName(pid))
             }));
 
             const { error } = await supabase.rpc('sync_tournament_matches', { p_matches: dbMatches });
-            if (error) throw error;
-
-            // Save to LocalStorage
+            if (error) {
+                console.error("DB Sync Warning:", error.message);
+                // Proceed anyway after logging, but maybe show a subtle warning inside Live Court
+            }
+        } catch (err: any) {
+            console.error("Sync Logic Failure (Proceeding with Local Session):", err.message);
+        } finally {
+            // Save to LocalStorage Always
             const sessionData = {
                 sessionId,
                 sessionTitle,
@@ -291,11 +295,7 @@ export default function SpecialMatchPage() {
             };
             localStorage.setItem('special_live_session', JSON.stringify(sessionData));
 
-            setStep(3); // Go to Live Dashboard
-            alert("스페셜 매치 라이브 세션이 시작되었습니다! 📡");
-        } catch (err: any) {
-            alert("동기화 실패: " + err.message);
-        } finally {
+            setStep(3); 
             setIsSubmitting(false);
         }
     };
@@ -771,7 +771,7 @@ export default function SpecialMatchPage() {
     const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
 
     return (
-        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-52 relative">
+        <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto pb-64 relative">
             {/* Header */}
             <header className="fixed top-0 w-full max-w-[480px] z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5 h-20 flex items-center px-8 justify-between">
                 <button onClick={() => setStep(1)} className="p-3 bg-white/5 rounded-full text-white/40 hover:text-white transition-colors"><Plus className="rotate-45" size={20} /></button>
@@ -782,7 +782,7 @@ export default function SpecialMatchPage() {
                 <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-full text-red-500 hover:bg-red-500/20 transition-all"><Trash2 size={18} /></button>
             </header>
 
-            <div className="mt-28 px-8 space-y-12 pb-40">
+            <div className="mt-32 px-8 space-y-12 pb-40">
                 {/* Financial Standards Section (Aligned with KDK) */}
                 <section className="bg-[#0A0A0A]/80 backdrop-blur-3xl border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl">
                     <h3 className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.4em] uppercase mb-4 text-center">Financial Protocol</h3>
@@ -936,24 +936,33 @@ export default function SpecialMatchPage() {
                                     key={m.id} 
                                     value={m}
                                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                                    className="bg-white/5 border border-white/5 p-6 rounded-[24px] flex items-center gap-6 cursor-grab active:cursor-grabbing hover:bg-white/[0.08] transition-all group"
+                                    className="bg-white/5 border border-white/5 p-6 rounded-[24px] flex items-center justify-between gap-4 cursor-grab active:cursor-grabbing hover:bg-white/[0.08] transition-all group relative overflow-hidden"
                                 >
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[10px] font-black text-[#C9B075] italic">G</span>
-                                        <span className="text-xl font-black text-white italic tracking-tighter">{(idx+1)}</span>
+                                    <div className="flex flex-col items-center justify-center bg-[#C9B075]/10 rounded-2xl w-14 h-14 shrink-0 border border-[#C9B075]/10">
+                                        <span className="text-[9px] font-black text-[#C9B075] italic leading-none mb-1">G</span>
+                                        <span className="text-xl font-black text-white italic tracking-tighter leading-none">{(idx+1)}</span>
                                     </div>
-                                    <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-4 text-center">
-                                        <div className="text-[13px] font-black text-white/90 leading-tight">
-                                            <div className="truncate">{getPlayerName(m.playerIds[0])}</div>
-                                            <div className="truncate">{getPlayerName(m.playerIds[1])}</div>
+
+                                    <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                        <div className="flex flex-col gap-1 text-right pr-2">
+                                            <span className="text-[14px] font-[1000] text-white tracking-tighter truncate">{getPlayerName(m.playerIds[0])}</span>
+                                            <span className="text-[14px] font-[1000] text-white tracking-tighter truncate">{getPlayerName(m.playerIds[1])}</span>
                                         </div>
-                                        <div className="text-[10px] font-black text-[#C9B075] opacity-20 italic">VS</div>
-                                        <div className="text-[13px] font-black text-white/90 leading-tight">
-                                            <div className="truncate">{getPlayerName(m.playerIds[2])}</div>
-                                            <div className="truncate">{getPlayerName(m.playerIds[3])}</div>
+                                        <div className="px-2">
+                                            <span className="text-[10px] font-black text-[#C9B075] opacity-30 italic">VS</span>
+                                        </div>
+                                        <div className="flex flex-col gap-1 text-left pl-2">
+                                            <span className="text-[14px] font-[1000] text-white tracking-tighter truncate">{getPlayerName(m.playerIds[2])}</span>
+                                            <span className="text-[14px] font-[1000] text-white tracking-tighter truncate">{getPlayerName(m.playerIds[3])}</span>
                                         </div>
                                     </div>
-                                    <button onClick={() => removeMatchFromQueue(m.id)} className="p-3 text-white/10 hover:text-red-500 transition-colors bg-white/5 rounded-2xl"><Trash2 size={18} /></button>
+
+                                    <button 
+                                        onClick={() => removeMatchFromQueue(m.id)} 
+                                        className="p-3 text-white/5 hover:text-red-500 transition-colors bg-white/5 rounded-2xl shrink-0"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </Reorder.Item>
                             ))}
                         </AnimatePresence>
