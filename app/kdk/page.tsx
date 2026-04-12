@@ -27,7 +27,7 @@ export default function KDKPage() {
     const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
 
     // [v12.0] 개방형 권한 시스템: Admin 여부 판별
-    const isAdmin = role === 'CEO' || role === 'Staff' || role === 'ADMIN';
+    const isAdmin = role === 'CEO' || role === 'ADMIN';
 
     // 권한 제한 알림 헬퍼
     const triggerAccessDenied = (msg: string = "관리자만 대진을 생성/수정할 수 있습니다.") => {

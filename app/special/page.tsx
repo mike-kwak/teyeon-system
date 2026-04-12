@@ -18,7 +18,7 @@ import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Sav
 export default function SpecialMatchPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
-    const isAdmin = role === 'CEO' || role === 'Staff' || role === 'ADMIN';
+    const isAdmin = role === 'CEO' || role === 'ADMIN';
 
     const [step, setStep] = useState(0);
     const [selectedMode, setSelectedMode] = useState<string | null>(null);
@@ -92,12 +92,14 @@ export default function SpecialMatchPage() {
         return Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
             const conf = attendeeConfigs[id] || { age: m?.age || 99 };
+            const { id: statsId, name: statsName, ...restStats } = playerStats[id] || { id, name: m?.nickname || "Unknown", wins: 0, losses: 0, diff: 0, pf: 0, pa: 0 };
+            
             return {
-                id,
-                name: m?.nickname || "Unknown",
+                id: statsId,
+                name: statsName,
+                ...restStats,
                 is_guest: !!m?.is_guest,
-                age: conf.age || m?.age || 99,
-                ...(playerStats[id] || { wins: 0, losses: 0, diff: 0, pf: 0, pa: 0 })
+                age: conf.age || m?.age || 99
             };
         }).sort((a, b) => 
             (b.wins - a.wins) || 
@@ -305,7 +307,7 @@ export default function SpecialMatchPage() {
 
     const handleStartMatch = async (matchId: string) => {
         const nextQueue = matchQueue.map(m => 
-            m.id === matchId ? { ...m, status: 'live' as const } : m
+            m.id === matchId ? { ...m, status: 'playing' as const } : m
         );
         setMatchQueue(nextQueue);
         
@@ -317,7 +319,7 @@ export default function SpecialMatchPage() {
                 ...target,
                 session_id: sessionId,
                 club_id: clubId,
-                status: 'live',
+                status: 'playing',
                 session_title: sessionTitle,
                 player_names: target.playerIds.map(pid => getPlayerName(pid))
             };
@@ -621,7 +623,7 @@ export default function SpecialMatchPage() {
                             <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
                                 {(['NOW', 'WAITING', 'COMPLETED'] as const).map(sub => {
                                     const count = matchQueue.filter(m => 
-                                        sub === 'NOW' ? m.status === 'live' : 
+                                        sub === 'NOW' ? m.status === 'playing' : 
                                         sub === 'WAITING' ? m.status === 'waiting' : 
                                         m.status === 'complete'
                                     ).length;
@@ -641,7 +643,7 @@ export default function SpecialMatchPage() {
                             {/* Match List */}
                             <div className="space-y-4">
                                 {matchQueue.filter(m => 
-                                    activeMatchTab === 'NOW' ? m.status === 'live' : 
+                                    activeMatchTab === 'NOW' ? m.status === 'playing' : 
                                     activeMatchTab === 'WAITING' ? m.status === 'waiting' : 
                                     m.status === 'complete'
                                 ).length === 0 ? (
@@ -651,20 +653,20 @@ export default function SpecialMatchPage() {
                                     </div>
                                 ) : (
                                     matchQueue.filter(m => 
-                                        activeMatchTab === 'NOW' ? m.status === 'live' : 
+                                        activeMatchTab === 'NOW' ? m.status === 'playing' : 
                                         activeMatchTab === 'WAITING' ? m.status === 'waiting' : 
                                         m.status === 'complete'
                                     ).map((m, idx) => (
                                         <motion.div 
                                             layout key={m.id}
                                             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                                            className={`relative rounded-[32px] p-8 overflow-hidden transition-all border-t ${m.status === 'live' ? 'bg-[#1A1A1A] border-white/20 shadow-[0_20px_50px_rgba(201,176,117,0.1)]' : 'bg-white/[0.03] border-white/5'}`}
+                                            className={`relative rounded-[32px] p-8 overflow-hidden transition-all border-t ${m.status === 'playing' ? 'bg-[#1A1A1A] border-white/20 shadow-[0_20px_50px_rgba(201,176,117,0.1)]' : 'bg-white/[0.03] border-white/5'}`}
                                         >
-                                            {m.status === 'live' && <div className="absolute top-0 right-0 w-32 h-32 bg-[#C9B075]/10 blur-3xl -z-10" />}
+                                            {m.status === 'playing' && <div className="absolute top-0 right-0 w-32 h-32 bg-[#C9B075]/10 blur-3xl -z-10" />}
                                             
                                             <div className="flex items-center justify-between mb-8">
                                                 <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] italic">GAME {m.round || idx + 1}</span>
-                                                {m.status === 'live' && (
+                                                {m.status === 'playing' && (
                                                     <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[9px] font-black tracking-widest uppercase border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                                                         <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
                                                         LIVE
@@ -703,7 +705,7 @@ export default function SpecialMatchPage() {
                                                         투입하기 🚀
                                                     </button>
                                                 )}
-                                                {m.status === 'live' && isAdmin && (
+                                                {m.status === 'playing' && isAdmin && (
                                                     <button 
                                                         onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }}
                                                         className="w-full py-4 bg-[#C9B075] text-black font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
@@ -900,7 +902,19 @@ export default function SpecialMatchPage() {
                     <div className="flex items-center justify-between mb-8 px-1">
                         <div className="flex flex-col">
                              <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase group-hover:tracking-[0.5em] transition-all">Draft Sequence</h3>
-                             <span className="text-[16px] font-black text-white italic tracking-tighter mt-1">{matchQueue.length} Matches Planned</span>
+                             <div className="flex items-center gap-3 mt-1">
+                                <span className="text-[16px] font-black text-white italic tracking-tighter">{matchQueue.length} Matches Planned</span>
+                                <AnimatePresence>
+                                    {isOptimizing && (
+                                        <motion.span 
+                                            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
+                                            className="text-[9px] font-black text-[#C9B075] italic tracking-widest animate-pulse"
+                                        >
+                                            • 최적화 중...
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
+                             </div>
                         </div>
                         {matchQueue.length > 0 && (
                             <button 
@@ -913,21 +927,6 @@ export default function SpecialMatchPage() {
                                 Start Live Court <Play size={14} fill="black" />
                             </button>
                         )}
-                    </div>
-
-                        <div className="flex items-center gap-3">
-                            <AnimatePresence>
-                                {isOptimizing && (
-                                    <motion.span 
-                                        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                        className="text-[9px] font-black text-[#C9B075] italic tracking-widest animate-pulse"
-                                    >
-                                        최적화 중...
-                                    </motion.span>
-                                )}
-                            </AnimatePresence>
-                            <span className="px-3 py-1 bg-white/5 rounded-full text-[10px] font-black text-white/40 uppercase tracking-widest">{matchQueue.length} Matches</span>
-                        </div>
                     </div>
 
                     <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-4">

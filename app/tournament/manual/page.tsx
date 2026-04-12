@@ -41,7 +41,7 @@ export default function ManualMatchLab() {
     const [sessionTitle, setSessionTitle] = useState("");
 
     // [v12.0] 개방형 권한 시스템
-    const isAdmin = role === 'CEO' || role === 'Staff' || role === 'ADMIN';
+    const isAdmin = role === 'CEO' || role === 'ADMIN';
 
     // 권한 제한 알림 헬퍼
     const triggerAccessDenied = () => {

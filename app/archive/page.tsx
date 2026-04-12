@@ -93,7 +93,7 @@ export default function ArchivePage() {
     const sessionFromUrl = searchParams.get('session');
     if (sessionFromUrl) {
         setTimeout(() => {
-            selectSession(sessionFromUrl);
+            setSelectedSessionId(sessionFromUrl);
             setActiveDetailTab('RANKING'); // Auto-focus on Ranking for one-stop deep links
         }, 500); // Give a little buffer for archives to load
     }
@@ -636,7 +636,7 @@ export default function ArchivePage() {
                         </section>
                         <div className="space-y-6">
                             {sessions.length > 0 ? sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => selectSession(s.id)} className="bg-[#12121A] border border-white/5 rounded-[24px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
+                                <div key={s.id} onClick={() => setSelectedSessionId(s.id)} className="bg-[#12121A] border border-white/5 rounded-[24px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="flex items-center gap-3">
                                             <span className="w-8 h-8 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-[10px] font-black italic">{index+1}</span>
