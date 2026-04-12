@@ -237,14 +237,13 @@ export default function KDKPage() {
                 };
             });
 
-            const sessionRecord = {
-                id: sessionId,
+            const rawDataPayload = {
                 title: sessionTitle || `Tournament ${dateStr}`,
                 date: dateStr,
                 ranking_data: rankingSnapshot,
                 snapshot_data: matches.map(m => ({
                     ...m,
-                    player_ids: m.playerIds || [], // Map to snake_case for DB
+                    player_ids: m.playerIds || [], 
                     group_name: m.groupName || 'A'
                 })),
                 player_metadata: attendeeConfigs,
@@ -252,7 +251,12 @@ export default function KDKPage() {
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
             };
 
-            const { error: sessError } = await supabase.from('sessions_archive').upsert([sessionRecord]);
+            alert("🚀 신규 테이블 [tournament_records_final]로 직접 전송합니다");
+
+            const { error: sessError } = await supabase
+                .from('tournament_records_final')
+                .upsert([{ id: sessionId, raw_data: rawDataPayload }]);
+            
             if (sessError) throw sessError;
 
             // 2. Success Celebration & Redirect

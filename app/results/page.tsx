@@ -27,13 +27,20 @@ export default function ArchivePage() {
         setLoading(true);
         try {
             const { data, error } = await supabase
-                .from('sessions_archive')
+                .from('tournament_records_final')
                 .select('*')
-                .order('date', { ascending: false });
+                .order('created_at', { ascending: false });
             
             if (error) throw error;
-            // Native filter by year/month from the 'date' string (YYYY-MM-DD or similar format, typically YYYY-MM)
-            const filtered = (data || []).filter(s => {
+            
+            // v7: Flatten raw_data for UI compatibility
+            const flattened = (data || []).map(item => ({
+                id: item.id,
+                ...(item.raw_data || {})
+            }));
+
+            // Native filter by year/month from the 'date' string
+            const filtered = (flattened || []).filter(s => {
                 if (!s.date || typeof s.date !== 'string') return false;
                 const parts = s.date.split('-');
                 if (parts.length < 2) return false;
@@ -52,7 +59,7 @@ export default function ArchivePage() {
         e.stopPropagation();
         if (!confirm('정말 이 아카이브 기록을 영구 삭제하시겠습니까?')) return;
         try {
-            const { error } = await supabase.from('sessions_archive').delete().eq('id', id);
+            const { error } = await supabase.from('tournament_records_final').delete().eq('id', id);
             if (error) throw error;
             alert('삭제되었습니다.');
             fetchSessions();
@@ -67,7 +74,17 @@ export default function ArchivePage() {
         const newTitle = prompt('새로운 대회 이름을 입력하세요:', currentTitle);
         if (!newTitle || newTitle === currentTitle) return;
         try {
-            const { error } = await supabase.from('sessions_archive').update({ title: newTitle }).eq('id', id);
+            const session = sessions.find(s => s.id === id);
+            if (!session) return;
+            
+            const updatedRawData = { ...session, title: newTitle };
+            delete updatedRawData.id; // Ensure ID isn't duplicated in JSONB if not desired
+
+            const { error } = await supabase
+                .from('tournament_records_final')
+                .update({ raw_data: updatedRawData })
+                .eq('id', id);
+
             if (error) throw error;
             fetchSessions();
         } catch(err) {

@@ -65,12 +65,31 @@ export default function ArchivePage() {
     try {
         setLoading(true);
         const { data, error } = await supabase
-            .from('matches_archive')
+            .from('tournament_records_final')
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setArchives(data || []);
+        
+        // v7: Reconstruction of flat match array from tournament_records_final
+        const reconstructedMatches: any[] = [];
+        (data || []).forEach(record => {
+            const raw = record.raw_data || {};
+            const matches = raw.snapshot_data || [];
+            matches.forEach((m: any) => {
+                reconstructedMatches.push({
+                    ...m,
+                    session_id: record.id,
+                    session_title: raw.title,
+                    match_date: raw.date,
+                    // Map snake_case from DB snapshot if needed
+                    player_names: m.playerIds?.map((pid: string) => pid), // simplified for leaderboard logic
+                    player_ids: m.playerIds || m.player_ids || []
+                });
+            });
+        });
+
+        setArchives(reconstructedMatches);
     } catch (err: any) {
         console.error("Archive Fetch Error:", err);
     } finally {
@@ -83,8 +102,8 @@ export default function ArchivePage() {
     setSelectedSessionId(id);
     setActiveDetailTab('MATCHES');
     try {
-        const { data } = await supabase.from('sessions_archive').select('*').eq('id', id).single();
-        setSessionDetail(data || null);
+        const { data } = await supabase.from('tournament_records_final').select('raw_data').eq('id', id).single();
+        setSessionDetail(data?.raw_data || null);
     } catch {
         setSessionDetail(null);
     }
@@ -159,8 +178,8 @@ export default function ArchivePage() {
     if (!confirm(`[${title}] 전체 대진 기록을 삭제하시겠습니까?`)) return;
 
     try {
-        await supabase.from('matches_archive').delete().eq('session_id', sessionId);
-        await supabase.from('sessions_archive').delete().eq('id', sessionId);
+        const { error } = await supabase.from('tournament_records_final').delete().eq('id', sessionId);
+        if (error) throw error;
         alert("성공적으로 삭제되었습니다.");
         fetchArchives();
     } catch (err: any) {
