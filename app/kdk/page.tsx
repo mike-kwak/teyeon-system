@@ -73,7 +73,7 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🚀 LATEST CODE LOADED: v7.0 (ABSOLUTE)");
+        console.log("🏁 TEYEON SYSTEM v5.1 STABLE: ALL SYSTEMS GO");
     }, []);
 
     // --- RBAC Protection: KDK is for Staff+ ---
@@ -160,12 +160,6 @@ export default function KDKPage() {
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
         
         // 1. 현장 DB ID 경보 (CEO Verification)
-        const projectId = supabaseUrl.split('//')[1]?.split('.')[0] || 'Unknown';
-        if (typeof window !== 'undefined' && !window.localStorage.getItem('hide_db_alert')) {
-            alert(`🚨 [운명의 기로] 현재 접속 DB ID: ${projectId}\n대시보드 주소와 다르면 즉시 중단하십시오.`);
-            window.localStorage.setItem('hide_db_alert', 'true');
-        }
-        
         console.log(`🏙️ [ABSOLUTE] TARGET PROJECT ID: ${projectId}`);
         console.table(data);
 
@@ -224,9 +218,7 @@ export default function KDKPage() {
         if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
 
         try {
-            // [CEO 현장 검증 로그]
-            alert("🚀 [현장 검증] 보낼 데이터 키: snapshot_data\n서버의 'snapshot_data' 그릇으로 데이터를 전송합니다.");
-
+            // [CEO 현장 검증 로직 가동]
             setIsGenerating(true);
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
@@ -2344,65 +2336,6 @@ function ManualRecoveryButton({ onRestore }: { onRestore: (data: any) => void })
     );
 }
 
-function GuestDataModal({ guests, configs, onSave, onClose }: { guests: any[], configs: Record<string, AttendeeConfig>, onSave: (id: string, age: number, isWinner: boolean) => void, onClose: () => void }) {
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose}></div>
-            <div className="relative w-full max-w-md bg-white/5 border border-white/10 rounded-[40px] p-8 shadow-[0_20px_100px_rgba(0,0,0,0.8)] space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-8 backdrop-blur-2xl">
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Guest Registry</span>
-                        <h3 className="text-xl font-black italic text-white tracking-tighter uppercase">게스트 상세 정보</h3>
-                    </div>
-                    <button onClick={onClose} className="text-white/20 text-3xl">×</button>
-                </div>
-
-                <div className="space-y-4">
-                    {guests.map(g => {
-                        const conf = configs[g.id] || {};
-                        return (
-                            <div key={g.id} className="bg-white/5 border border-white/10 rounded-3xl p-5 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-black text-white/90">{g.name}</span>
-                                    <span className="text-[8px] font-black bg-[#C9B075]/20 text-[#C9B075] uppercase tracking-[0.2em] border border-[#C9B075]/30 px-2 py-1 rounded-full">Guest</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Age (나이)</label>
-                                        <input
-                                            type="number"
-                                            placeholder="나이"
-                                            value={conf.age || ''}
-                                            onChange={(e) => onSave(g.id, parseInt(e.target.value) || 0, !!conf.isWinner)}
-                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm font-black text-white outline-none focus:border-[#C9B075]/50 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Winner? (입상여부)</label>
-                                        <button
-                                            onClick={() => onSave(g.id, conf.age || 0, !conf.isWinner)}
-                                            className={`w-full py-3 rounded-xl border font-black text-[10px] tracking-widest transition-all active:scale-95 ${conf.isWinner ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg shadow-[#C9B075]/20' : 'bg-white/5 border-white/10 text-white/20'}`}
-                                        >
-                                            {conf.isWinner ? '🏆 YES (OB)' : 'NO (YB)'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                <div className="pt-4">
-                    <button
-                        onClick={onClose}
-                        className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-black rounded-2xl shadow-2xl active:scale-95 transition-all text-sm uppercase tracking-[0.2em] border border-white/20"
-                    >
-                        Save & Continue ➡️
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
 }
 
 function WarningModal({ message, onClose }: { message: string, onClose: () => void }) {
