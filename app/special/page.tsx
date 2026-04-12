@@ -310,7 +310,7 @@ export default function SpecialMatchPage() {
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                         className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-6"
                     >
-                        < Sparkles size={14} className="text-[#C9B075]" />
+                        <Sparkles size={14} className="text-[#C9B075]" />
                         <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase">Selection Protocol</span>
                     </motion.div>
                     <motion.h1 
@@ -318,7 +318,7 @@ export default function SpecialMatchPage() {
                         className="text-4xl font-black italic text-white tracking-tighter uppercase leading-tight"
                     >
                         어떤 게임을<br />진행하시겠습니까?
-                    </h1 >
+                    </motion.h1>
                     <motion.p 
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                         className="text-[12px] font-bold text-white/30 tracking-[0.2em] uppercase mt-4"
