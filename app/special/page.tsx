@@ -13,7 +13,7 @@ import RankingTab from '@/components/RankingTab';
 
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw } from 'lucide-react';
 
 export default function SpecialMatchPage() {
     const router = useRouter();
@@ -421,6 +421,20 @@ export default function SpecialMatchPage() {
         }
     };
 
+    const execCopySchedule = () => {
+        const text = `[${sessionTitle}] 스페셜 매치 대진표\n` + 
+            matchQueue.map((m, i) => `G${i+1}: ${getPlayerName(m.playerIds[0])}, ${getPlayerName(m.playerIds[1])} vs ${getPlayerName(m.playerIds[2])}, ${getPlayerName(m.playerIds[3])}`).join('\n');
+        navigator.clipboard.writeText(text);
+        alert("대진표가 클립보드에 복사되었습니다. 📋");
+    };
+
+    const copyFinalResults = () => {
+        const text = `[${sessionTitle}] 스페셜 매치 최종 결과\n` + 
+            allPlayersInRanking.map((p, i) => `${i+1}위: ${p.name} (${p.wins}승 ${p.losses}패, 득실 ${p.diff})`).join('\n');
+        navigator.clipboard.writeText(text);
+        alert("최종 결과가 클립보드에 복사되었습니다. 🏆");
+    };
+
     if (step === 0) {
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto pb-20 overflow-hidden relative">
@@ -578,29 +592,69 @@ export default function SpecialMatchPage() {
 
     if (step === 3) {
         return (
-            <main className="flex flex-col min-h-screen bg-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto relative pb-40 overflow-hidden">
-                {/* Background Glow */}
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#C9B075]/5 rounded-full blur-[120px] -z-10" />
-                
-                {/* Header */}
-                <header className="px-6 pt-12 pb-6 flex flex-col items-center text-center relative z-10">
-                    <motion.div 
-                        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-2 px-4 py-1.5 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-4"
-                    >
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                        <span className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.4em] uppercase">Special Live Dashboard</span>
-                    </motion.div>
-                    <h1 className="text-3xl font-black italic text-white tracking-tighter uppercase mb-2">{sessionTitle}</h1>
-                    <div className="flex items-center gap-2 opacity-30">
-                        <Calendar size={12} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">{new Date().toISOString().split('T')[0]}</span>
+            <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full max-w-[480px] mx-auto relative pb-60 overflow-hidden" style={{ paddingBottom: "160px" }}>
+                {/* Header (KDK Cockpit Style) */}
+                <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100]">
+                    <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_8px_20px_rgba(201,176,117,0.3)] border border-white/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                                <span className="text-[9px] font-[1000] text-black uppercase tracking-widest leading-none">ADMIN MODE</span>
+                            </div>
+                        )}
+                        {isAdmin && (
+                            <button
+                                onClick={() => setShowResetConfirm(true)}
+                                className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                                title="전체 데이터 초기화"
+                            >
+                                <RotateCw size={12} className="group-hover:rotate-180 transition-transform duration-500" />
+                                <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button onClick={execCopySchedule} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
+                        <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
                     </div>
                 </header>
 
-                {/* Primary Tabs */}
-                <nav className="px-6 mb-8 relative z-10">
-                    <div className="flex bg-[#1A1A1A]/60 p-1.5 rounded-[24px] border border-white/5 backdrop-blur-xl shadow-2xl">
+                {/* Session Info Bar (KDK Style) */}
+                <div 
+                    className={`w-full px-5 flex flex-col gap-2 relative z-50 ${activeTab === 'RANKING' ? 'border-b border-white/5 pb-2 pt-2' : 'border-y border-white/10 py-6'}`}
+                    style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(32px)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}
+                >
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0">SESSION:</span>
+                            <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter">{sessionTitle}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none">WIN:</span>
+                                <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">{(firstPrize/1000).toFixed(0)}K</span>
+                            </div>
+                            <div className="mx-1.5 w-px h-2 bg-white/10" />
+                            <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none text-red-500">PEN:</span>
+                                <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">{(bottom25Penalty/1000).toFixed(0)}K</span>
+                            </div>
+                        </div>
+                    </div>
+                    {activeTab === 'MATCHES' && (
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0">DATE:</span>
+                            <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate">
+                                {new Date().toISOString().split('T')[0]}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Primary Nav Tabs (KDK Style) */}
+                <nav className="px-6 my-6 relative z-10 w-full flex justify-center">
+                    <div className="flex bg-[#1A1A1A]/60 p-1.5 rounded-[24px] border border-white/5 backdrop-blur-xl shadow-2xl w-full">
                         {(['MATCHES', 'RANKING'] as const).map(tab => (
                             <button
                                 key={tab}
@@ -616,11 +670,11 @@ export default function SpecialMatchPage() {
                     </div>
                 </nav>
 
-                <div className="flex-1 px-6 overflow-y-auto no-scrollbar relative z-10">
+                <div className="flex-1 px-4 overflow-y-auto no-scrollbar relative z-10" style={{ background: '#14161a' }}>
                     {activeTab === 'MATCHES' ? (
                         <>
-                            {/* Sub-tabs for matches */}
-                            <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
+                            {/* Sub-tabs for matches (Consistent spacing) */}
+                            <div className="flex gap-4 mb-6 pt-4 px-2 overflow-x-auto no-scrollbar scroll-smooth">
                                 {(['NOW', 'WAITING', 'COMPLETED'] as const).map(sub => {
                                     const count = matchQueue.filter(m => 
                                         sub === 'NOW' ? m.status === 'playing' : 
@@ -632,24 +686,24 @@ export default function SpecialMatchPage() {
                                         <button
                                             key={sub}
                                             onClick={() => setActiveMatchTab(sub)}
-                                            className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeMatchTab === sub ? 'bg-white text-black border-white' : 'bg-white/5 text-white/30 border-white/5'}`}
+                                            className={`flex items-center gap-2 px-6 py-3 rounded-full text-[10px] font-[1000] uppercase tracking-widest whitespace-nowrap transition-all border ${activeMatchTab === sub ? 'bg-white text-black border-white shadow-[0_5px_15px_rgba(255,255,255,0.2)]' : 'bg-white/5 text-white/30 border-white/5'}`}
                                         >
-                                            {sub} <span className="ml-1 opacity-40 font-mono text-[10px]">({count})</span>
+                                            {sub} <span className={`font-mono text-[11px] ${activeMatchTab === sub ? 'text-black/40' : 'text-white/20'}`}>({count})</span>
                                         </button>
                                     );
                                 })}
                             </div>
 
-                            {/* Match List */}
-                            <div className="space-y-4">
+                            {/* Match List (Refined Card UI) */}
+                            <div className="space-y-4 px-2">
                                 {matchQueue.filter(m => 
                                     activeMatchTab === 'NOW' ? m.status === 'playing' : 
                                     activeMatchTab === 'WAITING' ? m.status === 'waiting' : 
                                     m.status === 'complete'
                                 ).length === 0 ? (
                                     <div className="py-32 flex flex-col items-center justify-center text-white/5 border border-dashed border-white/5 rounded-[40px]">
-                                        <LayoutGrid size={48} className="mb-4 opacity-10" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.3em]">No Matches in Pipeline</span>
+                                        <LayoutGrid size={48} className="mb-4 opacity-5" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">No Matches in Pipeline</span>
                                     </div>
                                 ) : (
                                     matchQueue.filter(m => 
@@ -659,15 +713,13 @@ export default function SpecialMatchPage() {
                                     ).map((m, idx) => (
                                         <motion.div 
                                             layout key={m.id}
-                                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                                            className={`relative rounded-[32px] p-8 overflow-hidden transition-all border-t ${m.status === 'playing' ? 'bg-[#1A1A1A] border-white/20 shadow-[0_20px_50px_rgba(201,176,117,0.1)]' : 'bg-white/[0.03] border-white/5'}`}
+                                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                            className={`relative rounded-[32px] p-8 overflow-hidden transition-all border ${m.status === 'playing' ? 'bg-[#1C1E22] border-[#C9B075]/30 shadow-[0_20px_50px_rgba(0,0,0,0.5)]' : 'bg-[#1A1C1F] border-white/5'}`}
                                         >
-                                            {m.status === 'playing' && <div className="absolute top-0 right-0 w-32 h-32 bg-[#C9B075]/10 blur-3xl -z-10" />}
-                                            
                                             <div className="flex items-center justify-between mb-8">
-                                                <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] italic">GAME {m.round || idx + 1}</span>
+                                                <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-[0.3em] italic">G{m.round || idx + 1}</span>
                                                 {m.status === 'playing' && (
-                                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[9px] font-black tracking-widest uppercase border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[9px] font-black tracking-widest uppercase border border-red-500/20">
                                                         <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
                                                         LIVE
                                                     </div>
@@ -675,24 +727,24 @@ export default function SpecialMatchPage() {
                                             </div>
 
                                             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 mb-8">
-                                                <div className="space-y-2 text-center">
-                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[0])}</div>
-                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[1])}</div>
+                                                <div className="space-y-3">
+                                                    <div className="text-lg font-black text-white truncate text-right">{getPlayerName(m.playerIds[0])}</div>
+                                                    <div className="text-lg font-black text-white truncate text-right">{getPlayerName(m.playerIds[1])}</div>
                                                 </div>
                                                 <div className="flex flex-col items-center gap-1">
                                                     {m.status === 'complete' ? (
-                                                        <div className="flex gap-2 text-3xl font-black italic">
+                                                        <div className="flex gap-2 text-3xl font-[1000] italic">
                                                             <span className={m.score1! > m.score2! ? 'text-[#C9B075]' : 'text-white/20'}>{m.score1}</span>
-                                                            <span className="text-white/10">:</span>
+                                                            <span className="text-white/5">:</span>
                                                             <span className={m.score2! > m.score1! ? 'text-[#C9B075]' : 'text-white/20'}>{m.score2}</span>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-[#C9B075] font-black italic text-xl opacity-20">VS</span>
+                                                        <span className="text-[#C9B075] font-black italic text-xl opacity-20 px-2">VS</span>
                                                     )}
                                                 </div>
-                                                <div className="space-y-2 text-center">
-                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[2])}</div>
-                                                    <div className="text-base font-black text-white truncate">{getPlayerName(m.playerIds[3])}</div>
+                                                <div className="space-y-3">
+                                                    <div className="text-lg font-black text-white truncate text-left">{getPlayerName(m.playerIds[2])}</div>
+                                                    <div className="text-lg font-black text-white truncate text-left">{getPlayerName(m.playerIds[3])}</div>
                                                 </div>
                                             </div>
 
@@ -708,14 +760,14 @@ export default function SpecialMatchPage() {
                                                 {m.status === 'playing' && isAdmin && (
                                                     <button 
                                                         onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }}
-                                                        className="w-full py-4 bg-[#C9B075] text-black font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
+                                                        className="w-full py-4 bg-gradient-to-r from-[#C9B075] to-[#E5D29B] text-black font-black rounded-2xl text-[11px] uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg"
                                                     >
                                                         결과 입력 🏆
                                                     </button>
                                                 )}
                                                 {m.status === 'complete' && (
-                                                    <div className="text-center text-[10px] font-black text-[#C9B075] uppercase tracking-widest flex items-center justify-center gap-2 italic">
-                                                        <CheckCircle2 size={12} className="text-emerald-500" /> OFFICIAL RECORDED
+                                                    <div className="text-center text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] flex items-center justify-center gap-2 italic opacity-60">
+                                                        <CheckCircle2 size={12} className="text-[#C9B075]" /> RECORDED
                                                     </div>
                                                 )}
                                             </div>
@@ -725,30 +777,29 @@ export default function SpecialMatchPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-0 px-2 pt-4">
                              <RankingTab
                                 players={allPlayersInRanking}
                                 sessionTitle={sessionTitle}
                                 isArchive={false}
                                 isAdmin={isAdmin}
                                 prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
-                                onShareMatch={() => alert("스페셜 매치 대진표가 클립보드에 복사되었습니다.")}
-                                onShareResult={() => alert("최종 결과가 클립보드에 복사되었습니다.")}
+                                onShareMatch={execCopySchedule}
+                                onShareResult={copyFinalResults}
                                 onFinalize={handleFinalArchive}
                                 isGenerating={isSubmitting}
                             />
                         </div>
                     )}
-
                 </div>
 
                 {/* Footer Controls */}
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-6">
-                    <div className="bg-black/60 backdrop-blur-3xl border border-white/10 p-2.5 rounded-full shadow-[0_30px_100px_rgba(0,0,0,0.8)] flex gap-3">
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-8 z-[100]">
+                    <div className="bg-[#0A0A0A]/80 backdrop-blur-3xl border border-white/10 p-2.5 rounded-full shadow-[0_35px_100px_rgba(0,0,0,0.9)] flex gap-3">
                         {isAdmin && (
                             <button 
                                 onClick={() => setStep(2)}
-                                className="w-16 h-16 bg-white/5 hover:bg-white/10 text-[#C9B075] rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/10"
+                                className="w-16 h-16 bg-white/5 hover:bg-white/10 text-[#C9B075] rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/10 shadow-inner"
                                 title="Add Matches"
                             >
                                 <Plus size={24} strokeWidth={3} />
@@ -757,9 +808,9 @@ export default function SpecialMatchPage() {
                         <button
                             disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')}
                             onClick={handleFinalArchive}
-                            className="flex-1 h-16 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-black rounded-full flex items-center justify-center gap-4 shadow-[0_10px_40px_rgba(201,176,117,0.4)] active:scale-95 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-20 disabled:grayscale"
+                            className="flex-1 h-16 bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] text-black font-[1000] rounded-full flex items-center justify-center gap-4 shadow-[0_10px_40px_rgba(201,176,117,0.4)] active:scale-95 transition-all uppercase tracking-[0.3em] text-[11px] disabled:opacity-20 disabled:grayscale"
                         >
-                            <Save size={20} />
+                            <Save size={18} />
                             <span>최종 아카이브 전송</span>
                         </button>
                     </div>
@@ -989,15 +1040,21 @@ export default function SpecialMatchPage() {
                 </button>
             </div>
 
+            {/* Reset Confirmation Modal */}
             {showResetConfirm && (
                 <CustomConfirmModal
-                    title="초기화 확인"
-                    message="현재 대진 구성을 모두 초기화하시겠습니까?"
+                    title="전체 데이터 초기화"
+                    message="현재 진행 중인 모든 대진과 설정이 삭제됩니다. 정말 초기화하시겠습니까?"
+                    confirmText="예, 초기화합니다"
+                    cancelText="취소"
                     onConfirm={() => {
                         setMatchQueue([]);
+                        setSelectedIds(new Set());
+                        setTempGuests([]);
                         setDraftSlots([null, null, null, null]);
                         setShowResetConfirm(false);
                         localStorage.removeItem('special_live_session');
+                        setStep(0); // Return to mode selection
                     }}
                     onCancel={() => setShowResetConfirm(false)}
                 />
