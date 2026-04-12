@@ -436,16 +436,18 @@ export default function SpecialMatchPage() {
                     </motion.div>
                     <motion.h1 
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                        className="text-4xl font-black italic text-white tracking-tighter uppercase leading-tight"
+                        className="text-[42px] font-[900] italic text-white tracking-[-0.05em] uppercase leading-none"
+                        style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
                     >
-                        어떤 게임을<br />진행하시겠습니까?
+                        SPECIAL MATCHES
                     </motion.h1>
                     <motion.p 
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                        className="text-[12px] font-bold text-white/30 tracking-[0.2em] uppercase mt-4"
+                        className="text-[11px] font-black text-white/30 tracking-[0.2em] uppercase mt-3"
                     >
-                        Choose your strategic mode to begin
+                        SELECT YOUR OPTIMIZED TOURNAMENT PROTOCOL
                     </motion.p>
+
                 </header>
 
                 <div className="px-8 space-y-6">
@@ -471,8 +473,8 @@ export default function SpecialMatchPage() {
 
                         <div className="relative z-10 flex items-center justify-between px-8">
                             <div className="space-y-1">
-                                <h3 className="text-2xl font-black italic text-[#C9B075] tracking-tight uppercase">커스텀 모드</h3>
-                                <p className="text-[10px] font-bold text-white/60 leading-tight uppercase tracking-widest">실시간 자율 대진 설계</p>
+                                <h3 className="text-[28px] font-[900] italic text-[#C9B075] tracking-tight uppercase leading-none">MANUAL MODE</h3>
+                                <p className="text-[11px] font-bold text-white/60 leading-tight tracking-tight mt-1">수동 매칭 및 직접 점수 입력</p>
                             </div>
                             <div className="w-14 h-14 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(201,176,117,0.2)]">
                                 <LayoutGrid size={28} />
@@ -495,8 +497,8 @@ export default function SpecialMatchPage() {
 
                         <div className="relative z-10 flex items-center justify-between px-8">
                             <div className="space-y-1">
-                                <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">월례회 모드</h3>
-                                <p className="text-[10px] font-bold text-white/30 leading-tight uppercase tracking-widest">자동 매칭 및 클럽 정산 최적화</p>
+                                <h3 className="text-[28px] font-[900] italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase leading-none">MONTHLY MATCH</h3>
+                                <p className="text-[11px] font-bold text-white/30 leading-tight tracking-tight mt-1">테연 월례회 전용 자동 시스템</p>
                             </div>
                             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 group-hover:text-white transition-all">
                                 <Calendar size={28} />
@@ -519,9 +521,10 @@ export default function SpecialMatchPage() {
 
                         <div className="relative z-10 flex items-center justify-between px-8">
                             <div className="space-y-1">
-                                <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">토너먼트</h3>
-                                <p className="text-[10px] font-bold text-white/30 leading-tight uppercase tracking-widest">강력한 자동 대진 빌더</p>
+                                <h3 className="text-[28px] font-[900] italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase leading-none">TOURNAMENT</h3>
+                                <p className="text-[11px] font-bold text-white/30 leading-tight tracking-tight mt-1">강력한 자동 토너먼트 빌더</p>
                             </div>
+
                             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 group-hover:text-white transition-all">
                                 <Trophy size={28} />
                             </div>
