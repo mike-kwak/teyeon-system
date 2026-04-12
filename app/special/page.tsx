@@ -290,7 +290,7 @@ export default function SpecialMatchPage() {
             localStorage.setItem('special_live_session', JSON.stringify(sessionData));
 
             setStep(3); // Go to Live Dashboard
-            alert("커스텀 라이브 세션이 시작되었습니다! 📡");
+            alert("스페셜 매치 라이브 세션이 시작되었습니다! 📡");
         } catch (err: any) {
             alert("동기화 실패: " + err.message);
         } finally {
@@ -476,8 +476,8 @@ export default function SpecialMatchPage() {
 
                         <div className="relative z-10 flex items-center justify-between">
                             <div className="space-y-2">
-                                <h3 className="text-2xl font-black italic text-white tracking-tight group-hover:text-[#C9B075] transition-colors uppercase">커스텀 모드</h3>
-                                <p className="text-[11px] font-bold text-[#C9B075]/60 leading-tight uppercase tracking-widest">100% 자율 매칭 및 실시간 대진 설계</p>
+                                <h3 className="text-2xl font-black italic text-white tracking-tight group-hover:text-[#C9B075] transition-colors uppercase">스페셜 매치</h3>
+                                <p className="text-[11px] font-bold text-[#C9B075]/60 leading-tight uppercase tracking-widest">100% 자율 매칭 및 실시간 스페셜 매치 대진 설계</p>
                             </div>
                             <div className="w-16 h-16 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(201,176,117,0.2)]">
                                 <LayoutGrid size={32} />
@@ -511,7 +511,7 @@ export default function SpecialMatchPage() {
                         <div className="relative z-10 flex items-center justify-between">
                             <div className="space-y-2">
                                 <h3 className="text-2xl font-black italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase">토너먼트</h3>
-                                <p className="text-[11px] font-bold text-white/30 leading-tight uppercase tracking-widest">강력한 대진 빌더 및 챔피언 추적</p>
+                                <p className="text-[11px] font-bold text-white/30 leading-tight uppercase tracking-widest">강력한 스페셜 매치 빌더 및 챔피언 추적</p>
                             </div>
                             <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 transition-transform">
                                 <Trophy size={32} />
@@ -536,7 +536,7 @@ export default function SpecialMatchPage() {
                 selectedIds={selectedIds}
                 isMembersLoading={isMembersLoading}
                 isMembersError={isMembersError}
-                title="커스텀 모드"
+                title="스페셜 매치"
                 onToggle={toggleMember}
                 onAddGuest={(name) => {
                     const guest: Member = { id: `g-${Date.now()}`, nickname: name, is_guest: true };
@@ -718,7 +718,7 @@ export default function SpecialMatchPage() {
                                 isArchive={false}
                                 isAdmin={isAdmin}
                                 prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
-                                onShareMatch={() => alert("커스텀 대진표가 클립보드에 복사되었습니다.")}
+                                onShareMatch={() => alert("스페셜 매치 대진표가 클립보드에 복사되었습니다.")}
                                 onShareResult={() => alert("최종 결과가 클립보드에 복사되었습니다.")}
                                 onFinalize={handleFinalArchive}
                                 isGenerating={isSubmitting}

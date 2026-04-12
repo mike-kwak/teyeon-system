@@ -75,9 +75,10 @@ export default function LiveMatchGatekeeper({ isOpen, onClose }: LiveMatchGateke
                                     <Layout size={28} />
                                 </div>
                                 <div className="text-left">
-                                    <h4 className="font-black text-lg text-white group-hover:text-[#EF4444] transition-colors uppercase">커스텀 대진 모드</h4>
-                                    <p className="text-[10px] font-bold text-white/40 tracking-wider uppercase">100% 커스텀 자유 대진</p>
+                                    <h4 className="font-black text-lg text-white group-hover:text-[#EF4444] transition-colors uppercase">스페셜 매치</h4>
+                                    <p className="text-[10px] font-bold text-white/40 tracking-wider uppercase">100% 자율 매칭 및 실시간 대진 설계</p>
                                 </div>
+
                                 <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[#EF4444] animate-pulse" />
                             </button>
                         </div>
