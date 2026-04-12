@@ -28,6 +28,8 @@ export default function ArchivePage() {
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [showSyncToast, setShowSyncToast] = useState(false);
+  const [syncToastMsg, setSyncToastMsg] = useState("서버 동기화 완료");
 
   const CEO_EMAIL = process.env.NEXT_PUBLIC_CEO_EMAIL || 'cws786@nate.com';
   const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',');
@@ -39,7 +41,10 @@ export default function ArchivePage() {
 
   useEffect(() => {
     checkUser();
-    fetchArchives();
+    fetchArchives().then(() => {
+        // v12: Auto-sync on refresh
+        autoSyncLocalRecords();
+    });
     fetchMembers();
     runLocalMigration();
   }, [selectedYear, selectedMonth]);
@@ -174,9 +179,20 @@ export default function ArchivePage() {
     }
   }
 
-  // v11: Sync Local Record to Cloud
-  async function syncLocalRecord(id: string) {
-    if (isSyncing) return;
+  // v12: Auto-sync background task
+  async function autoSyncLocalRecords() {
+    const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+    if (failovers.length === 0) return;
+    
+    console.log(`☁️ Trace: Found ${failovers.length} local records. Attempting background sync...`);
+    for (const f of failovers) {
+        await syncLocalRecord(f.id, true);
+    }
+  }
+
+  // v11: Sync Local Record to Cloud (v12: Added isSilent & Toast)
+  async function syncLocalRecord(id: string, isSilent: boolean = false) {
+    if (isSyncing === id) return;
     setIsSyncing(id);
     try {
         const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
@@ -198,25 +214,43 @@ export default function ArchivePage() {
             body: JSON.stringify({ id: record.id, raw_data: record.raw_data })
         });
 
-        if (!response.ok) throw new Error("Server Sync Failed");
+        if (!response.ok) {
+            // [CEO Req] Specific log for server table/cache issues
+            console.warn(`Retry Sync: Server still not recognizing table [tournament_records_final] (Status: ${response.status})`);
+            throw new Error(`Server Sync Failed (${response.status})`);
+        }
 
         // Success: Remove from local and refresh
-        const filtered = failovers.filter((f: any) => f.id !== id);
+        const freshFailovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+        const filtered = freshFailovers.filter((f: any) => f.id !== id);
         localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
         
-        // Celebration!
-        setShowConfetti(true);
-        setShowArchiveSuccess(true);
-        if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
-        
-        setTimeout(() => {
+        // Immediate UI Update: remove cloud icon visually
+        setArchives(prev => prev.map(a => a.session_id === id ? { ...a, isLocal: false } : a));
+
+        // Toast Feedback
+        setSyncToastMsg("서버 동기화 완료");
+        setShowSyncToast(true);
+        setTimeout(() => setShowSyncToast(false), 3000);
+
+        if (!isSilent) {
+            // Celebration for manual sync!
+            setShowConfetti(true);
+            setShowArchiveSuccess(true);
+            if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200]);
+            
+            setTimeout(() => {
+                fetchArchives();
+                setShowArchiveSuccess(false);
+                setShowConfetti(false);
+            }, 3500);
+        } else {
+            // Background sync just refreshes silently
             fetchArchives();
-            setShowArchiveSuccess(false);
-            setShowConfetti(false);
-        }, 3500);
+        }
 
     } catch (err: any) {
-        alert("동기화 실패: " + err.message);
+        if (!isSilent) alert("동기화 실패: " + err.message);
     } finally {
         setIsSyncing(null);
     }
@@ -783,6 +817,21 @@ export default function ArchivePage() {
             </div>
         </div>
       )}
+      {/* v12: Sync Success Toast */}
+      {showSyncToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[6000] animate-in fade-in slide-in-from-bottom-4 duration-500 w-[90%] max-w-sm">
+            <div className="bg-[#1C1C1E] border border-[#D4AF37]/40 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-center gap-4 backdrop-blur-2xl">
+                <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
+                    <span className="text-lg">☁️</span>
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest leading-none mb-1">Status: Online</span>
+                    <span className="text-[11px] font-[1000] uppercase tracking-wider italic text-white/90">{syncToastMsg}</span>
+                </div>
+            </div>
+        </div>
+      )}
+
     </main>
   );
 }
