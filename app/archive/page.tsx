@@ -113,7 +113,7 @@ export default function ArchivePage() {
     try {
         setLoading(true);
         const { data, error } = await supabase
-            .from('tournament_records_final')
+            .from('teyeon_archive_v1')
             .select('*')
             .order('created_at', { ascending: false });
 
@@ -201,7 +201,7 @@ export default function ArchivePage() {
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-        const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
+        const endpoint = `${supabaseUrl}/rest/v1/teyeon_archive_v1`;
 
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -216,7 +216,7 @@ export default function ArchivePage() {
 
         if (!response.ok) {
             // [CEO Req] Specific log for server table/cache issues
-            console.warn(`Retry Sync: Server still not recognizing table [tournament_records_final] (Status: ${response.status})`);
+            console.warn(`Retry Sync: Server still not recognizing table [teyeon_archive_v1] (Status: ${response.status})`);
             throw new Error(`Server Sync Failed (${response.status})`);
         }
 
@@ -296,7 +296,7 @@ export default function ArchivePage() {
                 total_rounds: 1,
                 snapshot_data: []
             };
-            await supabase.from('tournament_records_final').upsert([{ id: sess.id, raw_data: sessionSnapshot }]);
+            await supabase.from('teyeon_archive_v1').upsert([{ id: sess.id, raw_data: sessionSnapshot }]);
 
             // Matches
             for (let r = 1; r <= 4; r++) {
@@ -334,7 +334,7 @@ export default function ArchivePage() {
     if (!confirm(`[${title}] 전체 대진 기록을 삭제하시겠습니까?`)) return;
 
     try {
-        const { error } = await supabase.from('tournament_records_final').delete().eq('id', sessionId);
+        const { error } = await supabase.from('teyeon_archive_v1').delete().eq('id', sessionId);
         if (error) throw error;
         alert("성공적으로 삭제되었습니다.");
         fetchArchives();

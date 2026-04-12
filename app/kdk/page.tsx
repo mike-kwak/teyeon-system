@@ -282,7 +282,7 @@ export default function KDKPage() {
 
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-            const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
+            const endpoint = `${supabaseUrl}/rest/v1/teyeon_archive_v1`;
 
             try {
                 const response = await fetch(endpoint, {

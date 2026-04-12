@@ -64,7 +64,7 @@ export default function ArchivePage() {
         setLoading(true);
         try {
             const { data, error } = await supabase
-                .from('tournament_records_final')
+                .from('teyeon_archive_v1')
                 .select('*')
             if (error) throw error;
             
@@ -123,7 +123,7 @@ export default function ArchivePage() {
         e.stopPropagation();
         if (!confirm('정말 이 아카이브 기록을 영구 삭제하시겠습니까?')) return;
         try {
-            const { error } = await supabase.from('tournament_records_final').delete().eq('id', id);
+            const { error } = await supabase.from('teyeon_archive_v1').delete().eq('id', id);
             if (error) throw error;
             alert('삭제되었습니다.');
             fetchSessions();
@@ -145,7 +145,7 @@ export default function ArchivePage() {
             delete updatedRawData.id; // Ensure ID isn't duplicated in JSONB if not desired
 
             const { error } = await supabase
-                .from('tournament_records_final')
+                .from('teyeon_archive_v1')
                 .update({ raw_data: updatedRawData })
                 .eq('id', id);
 
@@ -169,7 +169,7 @@ export default function ArchivePage() {
 
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-            const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
+            const endpoint = `${supabaseUrl}/rest/v1/teyeon_archive_v1`;
 
             const response = await fetch(endpoint, {
                 method: 'POST',
