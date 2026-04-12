@@ -31,9 +31,20 @@ export default function ArchivePage() {
                 .select('*')
             if (error) throw error;
             
+            processSessions(data || []);
+
+        } catch (e) {
+            console.error('Fetch Archive Error (Server):', e);
+            // v9: Failover to local data on server error
+            processSessions([]);
+        } finally {
+            setLoading(false);
+        }
+
+        function processSessions(serverData: any[]) {
             // v8: Merge with LocalStorage Failover Data
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-            const combinedData = [...(data || [])];
+            const combinedData = [...serverData];
             failovers.forEach((f: any) => {
                 if (!combinedData.find(d => d.id === f.id)) {
                     combinedData.push({ ...f, isLocal: true });
@@ -60,10 +71,6 @@ export default function ArchivePage() {
                 return y === year && parseInt(m).toString() === month;
             });
             setSessions(filtered);
-        } catch (e) {
-            console.error('Fetch Archive Error:', e);
-        } finally {
-            setLoading(false);
         }
     };
 

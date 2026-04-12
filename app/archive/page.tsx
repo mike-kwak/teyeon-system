@@ -72,8 +72,19 @@ export default function ArchivePage() {
         if (error) throw error;
         
         // v8: Merge with LocalStorage Failover Data
+        processCombinedData(data || []);
+
+    } catch (err: any) {
+        console.error("Archive Fetch Error (Server):", err);
+        // v9: Even if server fails (404/400), try to show local data
+        processCombinedData([]);
+    } finally {
+        setLoading(false);
+    }
+
+    function processCombinedData(serverData: any[]) {
         const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-        const combinedData = [...(data || [])];
+        const combinedData = [...serverData];
         
         failovers.forEach((f: any) => {
             if (!combinedData.find(d => d.id === f.id)) {
@@ -95,7 +106,6 @@ export default function ArchivePage() {
                     session_title: `${raw.title}${isLocal ? ' (로컬 저장됨)' : ''}`,
                     match_date: raw.date,
                     isLocal,
-                    // Map snake_case from DB snapshot if needed
                     player_names: m.playerIds?.map((pid: string) => pid),
                     player_ids: m.playerIds || m.player_ids || []
                 });
@@ -103,10 +113,6 @@ export default function ArchivePage() {
         });
 
         setArchives(reconstructedMatches);
-    } catch (err: any) {
-        console.error("Archive Fetch Error:", err);
-    } finally {
-        setLoading(false);
     }
   }
 
@@ -163,7 +169,7 @@ export default function ArchivePage() {
                 total_rounds: 1,
                 snapshot_data: []
             };
-            await supabase.from('sessions_archive').upsert([sessionSnapshot]);
+            await supabase.from('tournament_records_final').upsert([{ id: sess.id, raw_data: sessionSnapshot }]);
 
             // Matches
             for (let r = 1; r <= 4; r++) {

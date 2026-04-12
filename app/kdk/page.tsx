@@ -255,7 +255,7 @@ export default function KDKPage() {
             
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-            const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final?cache_bust=${Date.now()}`;
+            const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
 
             let sessError = null;
             try {
@@ -265,7 +265,8 @@ export default function KDKPage() {
                         'Content-Type': 'application/json',
                         'apikey': supabaseKey,
                         'Authorization': `Bearer ${supabaseKey}`,
-                        'Prefer': 'resolution=merge-duplicates' // Upsert behavior
+                        'Prefer': 'resolution=merge-duplicates', // Upsert behavior
+                        'Cache-Control': 'no-cache'
                     },
                     body: JSON.stringify({ id: sessionId, raw_data: rawDataPayload })
                 });
