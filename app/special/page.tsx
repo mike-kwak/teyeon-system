@@ -451,33 +451,33 @@ export default function SpecialMatchPage() {
                 </header>
 
                 <div className="px-8 space-y-6">
-                    {/* 1. Custom Mode - THE PREMIUM CHOICE */}
+                    {/* 1. MANUAL MODE - THE CUSTOM CHOICE */}
                     <motion.button
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
                         onClick={() => { setSelectedMode('CUSTOM'); setStep(1); }}
-                        className="w-full group relative overflow-hidden rounded-[32px] h-[160px] text-left border-2 border-[#C9B075]/40 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+                        className="w-full group relative overflow-hidden rounded-[40px] h-[170px] text-left border-2 border-[#C9B075]/30 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-[0_25px_60px_rgba(0,0,0,0.8)] bg-[#0A0A0A]/80 backdrop-blur-2xl"
                     >
-                        {/* Background Image */}
+                        {/* Background Image with Deep Overlay */}
                         <div 
-                            className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700"
+                            className="absolute inset-0 bg-cover bg-center grayscale opacity-10 group-hover:scale-110 group-hover:opacity-30 transition-all duration-1000"
                             style={{ backgroundImage: 'url("/brain/d480949b-af88-4b89-95c1-d020c66a33ad/luxury_tennis_special_match_bg_1776010591068.png")' }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
                         {/* Shimmer Effect */}
                         <motion.div 
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#C9B075]/10 to-transparent skew-x-12"
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#C9B075]/5 to-transparent skew-x-12"
                             animate={{ x: ['-100%', '200%'] }}
-                            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                         />
 
-                        <div className="relative z-10 flex items-center justify-between px-8">
-                            <div className="space-y-1">
-                                <h3 className="text-[28px] font-[900] italic text-[#C9B075] tracking-tight uppercase leading-none">MANUAL MODE</h3>
-                                <p className="text-[11px] font-bold text-white/60 leading-tight tracking-tight mt-1">수동 매칭 및 직접 점수 입력</p>
+                        <div className="relative z-10 h-full flex items-center justify-between px-10">
+                            <div className="flex-1 pr-4 space-y-2">
+                                <h3 className="text-[32px] font-[1000] italic text-[#C9B075] tracking-tight uppercase leading-none drop-shadow-2xl">MANUAL MODE</h3>
+                                <p className="text-[12px] font-black text-white/50 leading-snug tracking-tight">수동 매칭 및 직접 점수 입력</p>
                             </div>
-                            <div className="w-14 h-14 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(201,176,117,0.2)]">
-                                <LayoutGrid size={28} />
+                            <div className="w-16 h-16 shrink-0 rounded-[24px] bg-[#C9B075]/10 border border-[#C9B075]/20 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform shadow-[inset_0_0_20px_rgba(201,176,117,0.1)]">
+                                <LayoutGrid size={32} strokeWidth={2.5} />
                             </div>
                         </div>
                     </motion.button>
@@ -486,22 +486,22 @@ export default function SpecialMatchPage() {
                     <motion.button
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
                         onClick={() => { setSelectedMode('MONTHLY'); setStep(1); }}
-                        className="w-full group relative overflow-hidden rounded-[32px] h-[160px] text-left border border-white/10 hover:border-[#C9B075]/40 transition-all active:scale-[0.98] shadow-xl"
+                        className="w-full group relative overflow-hidden rounded-[40px] h-[170px] text-left border border-white/10 hover:border-[#C9B075]/40 transition-all active:scale-[0.98] shadow-2xl bg-[#0A0A0A]/80 backdrop-blur-2xl"
                     >
                         {/* Background Image */}
                         <div 
-                            className="absolute inset-0 bg-cover bg-center grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-60 transition-all duration-700"
+                            className="absolute inset-0 bg-cover bg-center grayscale opacity-10 group-hover:grayscale-0 group-hover:opacity-30 transition-all duration-1000"
                             style={{ backgroundImage: 'url("/brain/d480949b-af88-4b89-95c1-d020c66a33ad/luxury_club_management_texture_1776010630008.png")' }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
-                        <div className="relative z-10 flex items-center justify-between px-8">
-                            <div className="space-y-1">
-                                <h3 className="text-[28px] font-[900] italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase leading-none">MONTHLY MATCH</h3>
-                                <p className="text-[11px] font-bold text-white/30 leading-tight tracking-tight mt-1">테연 월례회 전용 자동 시스템</p>
+                        <div className="relative z-10 h-full flex items-center justify-between px-10">
+                            <div className="flex-1 pr-4 space-y-2">
+                                <h3 className="text-[32px] font-[1000] italic text-white group-hover:text-white transition-colors uppercase leading-none">MONTHLY MATCH</h3>
+                                <p className="text-[12px] font-black text-white/30 leading-snug tracking-tight">테연 월례회 전용 자동 시스템</p>
                             </div>
-                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 group-hover:text-white transition-all">
-                                <Calendar size={28} />
+                            <div className="w-16 h-16 shrink-0 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover:scale-110 group-hover:text-white group-hover:bg-[#C9B075]/10 group-hover:border-[#C9B075]/20 transition-all">
+                                <Calendar size={32} />
                             </div>
                         </div>
                     </motion.button>
@@ -510,23 +510,22 @@ export default function SpecialMatchPage() {
                     <motion.button
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}
                         onClick={() => { setSelectedMode('TOURNAMENT'); setStep(1); }}
-                        className="w-full group relative overflow-hidden rounded-[32px] h-[160px] text-left border border-white/10 hover:border-[#C9B075]/40 transition-all active:scale-[0.98] shadow-xl"
+                        className="w-full group relative overflow-hidden rounded-[40px] h-[170px] text-left border border-white/10 hover:border-[#C9B075]/40 transition-all active:scale-[0.98] shadow-2xl bg-[#0A0A0A]/80 backdrop-blur-2xl"
                     >
                         {/* Background Image */}
                         <div 
-                            className="absolute inset-0 bg-cover bg-center grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-60 transition-all duration-700"
+                            className="absolute inset-0 bg-cover bg-center grayscale opacity-10 group-hover:grayscale-0 group-hover:opacity-30 transition-all duration-1000"
                             style={{ backgroundImage: 'url("/brain/d480949b-af88-4b89-95c1-d020c66a33ad/kdk_strategic_engine_bg_1776010611021.png")' }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
-                        <div className="relative z-10 flex items-center justify-between px-8">
-                            <div className="space-y-1">
-                                <h3 className="text-[28px] font-[900] italic text-white/80 tracking-tight group-hover:text-white transition-colors uppercase leading-none">TOURNAMENT</h3>
-                                <p className="text-[11px] font-bold text-white/30 leading-tight tracking-tight mt-1">강력한 자동 토너먼트 빌더</p>
+                        <div className="relative z-10 h-full flex items-center justify-between px-10">
+                            <div className="flex-1 pr-4 space-y-2">
+                                <h3 className="text-[32px] font-[1000] italic text-white group-hover:text-white transition-colors uppercase leading-none">TOURNAMENT</h3>
+                                <p className="text-[12px] font-black text-white/30 leading-snug tracking-tight">강력한 자동 토너먼트 빌더</p>
                             </div>
-
-                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:scale-110 group-hover:text-white transition-all">
-                                <Trophy size={28} />
+                            <div className="w-16 h-16 shrink-0 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover:scale-110 group-hover:text-white transition-all">
+                                <Trophy size={32} />
                             </div>
                         </div>
                     </motion.button>
@@ -599,7 +598,7 @@ export default function SpecialMatchPage() {
 
                 {/* Primary Tabs */}
                 <nav className="px-6 mb-8 relative z-10">
-                    <div className="flex bg-white/5 p-1.5 rounded-[24px] border border-white/5 backdrop-blur-xl shadow-2xl">
+                    <div className="flex bg-[#1A1A1A]/60 p-1.5 rounded-[24px] border border-white/5 backdrop-blur-xl shadow-2xl">
                         {(['MATCHES', 'RANKING'] as const).map(tab => (
                             <button
                                 key={tab}
@@ -607,7 +606,7 @@ export default function SpecialMatchPage() {
                                     setActiveTab(tab);
                                     if (window.navigator?.vibrate) window.navigator.vibrate(10);
                                 }}
-                                className={`flex-1 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-[#C9B075] text-black shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                                className={`flex-1 py-3.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === tab ? 'bg-[#C9B075] text-black shadow-[0_10px_20px_rgba(201,176,117,0.3)]' : 'text-white/40 hover:text-white/60'}`}
                             >
                                 {tab}
                             </button>
@@ -783,43 +782,43 @@ export default function SpecialMatchPage() {
 
             <div className="mt-28 px-8 space-y-12 pb-40">
                 {/* Financial Standards Section (Aligned with KDK) */}
-                <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 space-y-4">
-                    <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-4 text-center">Financial Standards</h3>
+                <section className="bg-[#0A0A0A]/80 backdrop-blur-3xl border border-[#C9B075]/20 rounded-[40px] p-8 space-y-6 shadow-2xl">
+                    <h3 className="text-[10px] font-[1000] text-[#C9B075] tracking-[0.4em] uppercase mb-4 text-center">Financial Protocol</h3>
                     
                     <div className="grid grid-cols-1 gap-4">
                         {/* Prize */}
-                        <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
-                            <span className="text-[12px] font-black text-white/60">WINNER PRIZE</span>
+                        <div className="flex items-center justify-between bg-white/5 p-5 rounded-[24px] border border-white/5">
+                            <span className="text-[12px] font-black text-white/60 uppercase tracking-widest">Winner Prize</span>
                             <div className="flex items-center gap-4">
-                                <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> - </button>
-                                <span className="text-lg font-black text-[#C9B075] font-mono w-16 text-center">{(firstPrize/1000).toFixed(0)}K</span>
-                                <button onClick={() => setFirstPrize(p => p + 5000)} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> + </button>
+                                <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-10 h-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center font-bold hover:bg-white/10 transition-colors"> - </button>
+                                <span className="text-xl font-black text-[#C9B075] font-mono w-20 text-center">{(firstPrize/1000).toFixed(0)}K</span>
+                                <button onClick={() => setFirstPrize(p => p + 5000)} className="w-10 h-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center font-bold hover:bg-white/10 transition-colors"> + </button>
                             </div>
                         </div>
 
                         {/* Fine Tier 1 */}
-                        <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
+                        <div className="flex items-center justify-between bg-white/5 p-5 rounded-[24px] border border-white/5">
                             <div className="flex flex-col">
-                                <span className="text-[12px] font-black text-white/60 uppercase">Fine Tier 1</span>
-                                <span className="text-[8px] font-bold text-white/20 uppercase">Bottom 25%~50%</span>
+                                <span className="text-[12px] font-black text-white/60 uppercase tracking-widest">Fine Tier 1</span>
+                                <span className="text-[9px] font-bold text-white/20 uppercase">Bottom 25%~50%</span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> - </button>
-                                <span className="text-lg font-black text-white/90 font-mono w-16 text-center">{(bottom25Late/1000).toFixed(0)}K</span>
-                                <button onClick={() => setBottom25Late(p => p + 1000)} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> + </button>
+                                <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-10 h-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center font-bold hover:bg-white/10 transition-colors"> - </button>
+                                <span className="text-xl font-black text-white font-mono w-20 text-center">{(bottom25Late/1000).toFixed(0)}K</span>
+                                <button onClick={() => setBottom25Late(p => p + 1000)} className="w-10 h-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center font-bold hover:bg-white/10 transition-colors"> + </button>
                             </div>
                         </div>
 
                          {/* Fine Tier 2 */}
-                         <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
+                         <div className="flex items-center justify-between bg-white/5 p-5 rounded-[24px] border border-white/5">
                             <div className="flex flex-col">
-                                <span className="text-[12px] font-black text-rose-500 uppercase">Penalty Tier 2</span>
-                                <span className="text-[8px] font-bold text-white/20 uppercase">Bottom 0%~25%</span>
+                                <span className="text-[12px] font-black text-rose-500 uppercase tracking-widest">Penalty Tier 2</span>
+                                <span className="text-[9px] font-bold text-white/20 uppercase">Bottom 0%~25%</span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> - </button>
-                                <span className="text-lg font-black text-rose-500 font-mono w-16 text-center">{(bottom25Penalty/1000).toFixed(0)}K</span>
-                                <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-8 h-8 rounded-lg bg-white/5 text-white/40 flex items-center justify-center font-bold"> + </button>
+                                <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-10 h-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center font-bold hover:bg-white/10 transition-colors"> - </button>
+                                <span className="text-xl font-black text-rose-500 font-mono w-20 text-center">{(bottom25Penalty/1000).toFixed(0)}K</span>
+                                <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-10 h-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center font-bold hover:bg-white/10 transition-colors"> + </button>
                             </div>
                         </div>
                     </div>
@@ -897,12 +896,25 @@ export default function SpecialMatchPage() {
                 </section>
 
                 {/* Match Queue with Reorder */}
-                <section className="pb-32">
+                <section className="pb-40">
                     <div className="flex items-center justify-between mb-8 px-1">
                         <div className="flex flex-col">
-                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase mb-1">Draft Sequence</h3>
-                            <p className="text-[9px] font-bold text-white/20 uppercase">Drag to Reorder Rounds</p>
+                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase group-hover:tracking-[0.5em] transition-all">Draft Sequence</h3>
+                             <span className="text-[16px] font-black text-white italic tracking-tighter mt-1">{matchQueue.length} Matches Planned</span>
                         </div>
+                        {matchQueue.length > 0 && (
+                            <button 
+                                onClick={() => {
+                                    setStep(3);
+                                    if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                }}
+                                className="px-6 py-3 bg-[#C9B075] text-black text-[11px] font-[1000] rounded-full uppercase tracking-widest shadow-[0_10px_30px_rgba(201,176,117,0.4)] active:scale-90 transition-all italic flex items-center gap-2"
+                            >
+                                Start Live Court <Plus size={14} strokeWidth={4} />
+                            </button>
+                        )}
+                    </div>
+
                         <div className="flex items-center gap-3">
                             <AnimatePresence>
                                 {isOptimizing && (
