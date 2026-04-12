@@ -251,13 +251,27 @@ export default function KDKPage() {
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
             };
 
-            alert("🚀 [v8.0 SURVIVAL] 신규 테이블로 직접 통신을 시작합니다.");
-            
+            // [v10.0 SAVE OR DIE] 통신 전 로컬에 즉시 박제 (Safety First)
+            try {
+                const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+                const failoverItem = {
+                    id: sessionId,
+                    raw_data: rawDataPayload,
+                    failover: true, // 서버 확인 전까지는 임시 상태
+                    created_at: new Date().toISOString()
+                };
+                const filtered = failovers.filter((f: any) => f.id !== sessionId);
+                filtered.push(failoverItem);
+                localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
+                console.warn("🛡️ [v10.0] PRE-EMPTIVE LOCAL BACKUP SECURED");
+            } catch (err) {
+                console.error("Local backup failed", err);
+            }
+
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
             const endpoint = `${supabaseUrl}/rest/v1/tournament_records_final`;
 
-            let sessError = null;
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
@@ -265,47 +279,26 @@ export default function KDKPage() {
                         'Content-Type': 'application/json',
                         'apikey': supabaseKey,
                         'Authorization': `Bearer ${supabaseKey}`,
-                        'Prefer': 'resolution=merge-duplicates', // Upsert behavior
+                        'Prefer': 'resolution=merge-duplicates',
                         'Cache-Control': 'no-cache'
                     },
                     body: JSON.stringify({ id: sessionId, raw_data: rawDataPayload })
                 });
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errText}`);
-                }
-                console.log("✅ [v8.0] SERVER ARCHIVE SUCCESS");
-            } catch (err: any) {
-                console.error("❌ [v8.0] SERVER REJECTED, ACTIVATING SURVIVAL FAILOVER:", err);
+                if (!response.ok) throw new Error("Server Rejected");
                 
-                // 오프라인/캐시 에러 시 로컬 브라우저에 강제 박제
-                try {
-                    const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-                    const failoverItem = {
-                        id: sessionId,
-                        raw_data: rawDataPayload,
-                        failover: true,
-                        created_at: new Date().toISOString()
-                    };
-                    
-                    // 중복 제거 후 추가
-                    const filtered = failovers.filter((f: any) => f.id !== sessionId);
-                    filtered.push(failoverItem);
-                    localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
-                    
-                    alert("⚠️ 서버 연결이 원활하지 않아 [로컬 저장소]에 안전하게 박제했습니다. (아카이브에서 확인 가능)");
-                } catch (localErr) {
-                    console.error("CRITICAL: LocalStorage failed", localErr);
-                    throw err; // 로컬도 실패하면 진짜 에러
-                }
+                // 성공 시 로컬 failover 데이터에서 해당 건 제거 또는 상태 변경 (Optional)
+                console.log("✅ [v10.0] SERVER ARCHIVE SUCCESS");
+            } catch (err: any) {
+                console.error("❌ [v10.0] SERVER FAILED, PROCEEDING WITH LOCAL ARCHIVE:", err);
+                alert("⚠️ 서버 통신 지연으로 기기에 임시 저장되었습니다. 아카이브에서 확인 가능합니다.");
             }
 
-            // 2. Success Celebration & Redirect
+            // 2. Success Celebration (무조건 실행)
             setShowArchiveSuccess(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
             
-            // Wait for visual feedback
+            // Celebration Delay
             await new Promise(r => setTimeout(r, 3500));
 
             // 3. Cleanup Live Data from Supabase

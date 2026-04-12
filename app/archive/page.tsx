@@ -82,13 +82,20 @@ export default function ArchivePage() {
         setLoading(false);
     }
 
-    function processCombinedData(serverData: any[]) {
+    function processCombinedData(data: any[]) {
+        // v8: Merge with LocalStorage Failover Data (v10: Prioritize local at the top)
         const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-        const combinedData = [...serverData];
+        const combinedData: any[] = [];
         
+        // v10: Add locals first to push them to the top
         failovers.forEach((f: any) => {
-            if (!combinedData.find(d => d.id === f.id)) {
-                combinedData.push(f);
+            combinedData.push({ ...f, isLocal: true });
+        });
+
+        // v10: Add server data, avoiding duplicates
+        (data || []).forEach((d: any) => {
+            if (!combinedData.find(f => f.id === d.id)) {
+                combinedData.push(d);
             }
         });
 

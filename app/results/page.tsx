@@ -42,23 +42,31 @@ export default function ArchivePage() {
         }
 
         function processSessions(serverData: any[]) {
-            // v8: Merge with LocalStorage Failover Data
+            // v8: Merge with LocalStorage Failover Data (v10: Prioritize local at the top)
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-            const combinedData = [...serverData];
+            const combinedData: any[] = [];
+            
+            // v10: Locals first
             failovers.forEach((f: any) => {
-                if (!combinedData.find(d => d.id === f.id)) {
-                    combinedData.push({ ...f, isLocal: true });
+                combinedData.push({ ...f, isLocal: true });
+            });
+
+            // v10: Add servers, avoid duplicates
+            serverData.forEach((d: any) => {
+                if (!combinedData.find(f => f.id === d.id)) {
+                    combinedData.push(d);
                 }
             });
 
             // v7: Flatten for UI compatibility
             const flattened = combinedData.map(item => {
                 const raw = item.raw_data || {};
+                const isLocal = !!item.isLocal || !!item.failover;
                 return {
                     id: item.id,
                     ...raw,
-                    title: `${raw.title}${item.isLocal ? ' (로컬)' : ''}`,
-                    isLocal: !!item.isLocal
+                    title: `${raw.title}${isLocal ? ' (로컬)' : ''}`,
+                    isLocal
                 };
             });
 
