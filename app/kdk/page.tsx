@@ -851,8 +851,8 @@ export default function KDKPage() {
                     court: m.court || 1,
                     player_ids: m.playerIds || [],
                     // player_names, mode, group_name 등은 Supabase 스키마 캐시 지연 시 에러 폭탄이 되므로 전송 제외
-                    score1: m.score1 || 0,
-                    score2: m.score2 || 0,
+                    score1: m.score1 ?? 1,
+                    score2: m.score2 ?? 1,
                     status: m.status || 'waiting'
                 }));
 
@@ -957,7 +957,7 @@ export default function KDKPage() {
             // 1. Supabase Sync via Native Update (RPC 우회)
             const { error: syncError } = await supabase
                 .from('matches')
-                .update({ status: 'waiting', court: null, score1: 0, score2: 0 })
+                .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
                 .eq('id', String(matchId));
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
@@ -1056,8 +1056,8 @@ export default function KDKPage() {
                     status: 'waiting',
                     mode: 'KDK',
                     round: km.round,
-                    score1: 0,
-                    score2: 0
+                    score1: 1,
+                    score2: 1
                 };
             }) as any;
 
