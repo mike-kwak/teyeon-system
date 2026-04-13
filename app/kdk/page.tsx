@@ -403,32 +403,30 @@ export default function KDKPage() {
 
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-    const resetSession = () => {
+    const resetSession = async () => {
+        // --- 0. Delete active matches from DB (Prevents ghost resurrection) ---
+        const targetSessionId = selectedSessionId || sessionId;
+        if (targetSessionId) {
+            try {
+                await supabase.from('matches').delete().eq('session_id', targetSessionId);
+            } catch (err) {
+                console.error("DB reset error:", err);
+            }
+        }
+
         // --- 1. Immediate Storage Purge ---
         localStorage.removeItem('kdk_live_session');
 
         // --- 2. Brutal Page Refresh (Ensures 100% state cleanup) ---
-        window.location.reload();
-
-        // (The code below is maintained for semantic completeness, though reload() will execute immediately)
-        setMatches([]);
-        setAttendeeConfigs({});
-        setStep(1);
-        setFixedPartners([]);
-        setFixedTeamMode(false);
-        setShowResetConfirm(false);
-        setSelectedIds(new Set());
-        setTempGuests([]);
-        setShowCeremony(false);
-        setActiveTab('MATCHES');
+        window.location.href = window.location.pathname;
     };
 
     const confirmReset = () => {
         setShowResetConfirm(true);
     };
 
-    const actualReset = () => {
-        resetSession();
+    const actualReset = async () => {
+        await resetSession();
     };
 
 
