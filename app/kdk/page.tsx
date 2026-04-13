@@ -481,11 +481,29 @@ export default function KDKPage() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
 
+        // [v25.0] Realtime Match Synchronization
+        const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+        const matchesChannel = supabase.channel('public:matches')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `club_id=eq.${clubId}` }, (payload) => {
+                console.log('🔄 Realtime match update received!', payload);
+                syncActiveSession(); // Re-fetch the matches natively
+            })
+            .subscribe();
+
         return () => {
             clearInterval(timer);
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            supabase.removeChannel(matchesChannel);
         };
     }, []);
+
+    // [v25.0] Guest Access Auto Router
+    useEffect(() => {
+        if (!isAdmin && step < 3) {
+            setStep(3);
+            if (!selectedSessionId) setShowGateway(true);
+        }
+    }, [isAdmin, step, selectedSessionId]);
 
     // Save to LocalStorage
     useEffect(() => {
@@ -618,6 +636,7 @@ export default function KDKPage() {
                         setStep(3);
                     } else if (sessionList.length > 1) {
                         setShowGateway(true);
+                        setStep(3);
                     }
                 } else {
                     // Refresh current session data if already selected
@@ -640,6 +659,10 @@ export default function KDKPage() {
             } else {
                 setAllActiveSessions([]);
                 setShowGateway(false);
+                if (!isAdmin) {
+                    setShowGateway(true);
+                    setStep(3);
+                }
             }
         } catch (err) {
             console.error("Active session sync failure:", err);
