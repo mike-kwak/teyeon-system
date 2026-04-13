@@ -139,31 +139,22 @@ export function generateKdkMatches(
         });
 
         const tryPickFixed = (round: number, pool: Player[]) => {
-            // Find all possible fixed pairs that are available in the current pool
-            const possiblePairs = fixedPartners.filter(([idA, idB]) => {
-                return pool.some(p => p.id === idA) && pool.some(p => p.id === idB);
-            });
-
-            if (possiblePairs.length === 0) return null;
-
-            // Filter out pairs that have already played together if fixedTeamMode is FALSE
-            const eligiblePairs = possiblePairs.filter(pair => {
-                if (fixedTeamMode) return true; // Always eligible
-                const count = pairCounts[pair.sort().join('-')] || 0;
-                return count === 0; // Only play once!
-            });
-
-            if (eligiblePairs.length === 0) return null;
-
-            // Sort eligible pairs by their total match counts to ensure fair rotation
-            eligiblePairs.sort((pairA, pairB) => {
-                const countA = pairCounts[pairA.sort().join('-')] || 0;
-                const countB = pairCounts[pairB.sort().join('-')] || 0;
-                return countA - countB;
-            });
-
-            const bestPair = eligiblePairs[0];
-            return [pool.find(p => p.id === bestPair[0])!, pool.find(p => p.id === bestPair[1])!];
+            if (pool.length < 2) return null;
+            const topPlayer = pool[0]; // 휴식/투입 우선순위 1위
+            const fixedMatch = fixedPartners.find(pair => pair.includes(topPlayer.id));
+            if (!fixedMatch) return null;
+            
+            const partnerId = fixedMatch[0] === topPlayer.id ? fixedMatch[1] : fixedMatch[0];
+            const partner = pool.find(p => p.id === partnerId);
+            if (!partner) return null; // 파트너가 현재 풀에 없거나 이미 투입됨
+            
+            // 고정 팀 모드가 아니면 중복 결합 방지
+            if (!fixedTeamMode) {
+                const pairKey = [topPlayer.id, partner.id].sort().join('-');
+                if ((pairCounts[pairKey] || 0) > 0) return null;
+            }
+            
+            return [topPlayer, partner];
         };
 
         const fixedPair = tryPickFixed(r, currentPool);

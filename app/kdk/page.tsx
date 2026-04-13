@@ -1837,6 +1837,19 @@ export default function KDKPage() {
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
             <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100]">
                 <div className="flex items-center gap-2">
+                    {/* BACK BUTTON for Step 3 */}
+                    {isAdmin && (
+                        <button 
+                            onClick={() => {
+                                if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                setStep(2);
+                            }}
+                            className="mr-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white transition-all active:scale-95"
+                            title="경기 설정으로 돌아가기"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                        </button>
+                    )}
                     {isAdmin && (
                         <div className="flex items-center gap-2 mr-2">
                              <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_8px_20px_rgba(201,176,117,0.3)] border border-white/20">
@@ -2153,12 +2166,12 @@ export default function KDKPage() {
                                         const gA = a.groupName || 'A';
                                         const gB = b.groupName || 'A';
                                         if (gA !== gB) return gA.localeCompare(gB);
-                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === gA).sort((x, y) => (x.round || 0) - (y.round || 0) || x.id.localeCompare(y.id));
+                                        const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === gA).sort((x, y) => (x.round || 0) - (y.round || 0) || String(x.id).localeCompare(String(y.id)));
                                         return groupMatchesSorted.findIndex(x => x.id === a.id) - groupMatchesSorted.findIndex(x => x.id === b.id);
                                     }).map(m => {
-                                        const groupMatchesSorted = matches.filter(mx => mx.groupName === (m.groupName || 'A')).sort((a, b) => {
+                                        const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === (m.groupName || 'A')).sort((a, b) => {
                                             if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                            return a.id.localeCompare(b.id);
+                                            return String(a.id).localeCompare(String(b.id));
                                         });
                                         const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
@@ -2178,9 +2191,9 @@ export default function KDKPage() {
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[0])}</span>
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[1])}</span>
                                                         </div>
-                                                        <div className="flex flex-col items-center flex-shrink-0 px-2">
-                                                            <span className="text-lg font-black text-[#C9B075] leading-none">{m.score1}:{m.score2}</span>
-                                                            <span className="text-[6px] font-black text-white/20 uppercase mt-1">FINAL</span>
+                                                        <div className="flex flex-col items-center flex-shrink-0 px-2 justify-center">
+                                                            <span className="text-[36px] tracking-widest font-black text-[#C9B075] leading-none mb-1 shadow-black drop-shadow-2xl">{m.score1}:{m.score2}</span>
+                                                            <span className="text-[8px] font-black text-[#10B981] uppercase mt-1 tracking-widest">FINAL WIN</span>
                                                         </div>
                                                         <div className="flex flex-col items-center justify-center min-w-0">
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[2])}</span>
