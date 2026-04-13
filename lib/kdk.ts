@@ -193,14 +193,14 @@ export function generateKdkMatches(
                 const oppositePool = remaining.filter(p => isOB(p, groupMedianAge) !== p1p2OB);
                 if (oppositePool.length >= 2) {
                     p3 = oppositePool[0];
-                    p4 = oppositePool[1];
+                    p4 = oppositePool.slice(1).find(p => !partnerHistory[p3.id].has(p.id)) || oppositePool[1];
                 } else {
                     p3 = remaining[0];
-                    p4 = remaining[1];
+                    p4 = remaining.slice(1).find(p => !partnerHistory[p3.id].has(p.id)) || remaining[1];
                 }
             } else {
                 p3 = remaining[0];
-                p4 = remaining[1];
+                p4 = remaining.slice(1).find(p => !partnerHistory[p3.id].has(p.id)) || remaining[1];
             }
         }
 
