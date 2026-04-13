@@ -924,13 +924,13 @@ export default function KDKPage() {
             // Local state update
             setMatches(nextMatches);
 
-            // DB Sync via RPC (v7.0 ABSOLUTE)
-            await absoluteSyncRPC({
-                match_id: matchId.toString(),
-                status: 'playing',
-                score1: 0,
-                score2: 0
-            });
+            // DB Sync via Native Update (RPC 우회)
+            const { error: updateError } = await supabase
+                .from('matches')
+                .update({ status: 'playing', court: nextCourt })
+                .eq('id', String(matchId));
+                
+            if (updateError) throw updateError;
 
             // Manual Invalidation (sync state from server)
             await syncActiveSession();
@@ -948,13 +948,11 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
-            // 1. Supabase Sync via RPC (v7.0 ABSOLUTE)
-            const { error: syncError } = await absoluteSyncRPC({
-                match_id: matchId.toString(),
-                status: 'waiting',
-                score1: 0,
-                score2: 0
-            });
+            // 1. Supabase Sync via Native Update (RPC 우회)
+            const { error: syncError } = await supabase
+                .from('matches')
+                .update({ status: 'waiting', court: null, score1: 0, score2: 0 })
+                .eq('id', String(matchId));
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
@@ -1106,13 +1104,11 @@ export default function KDKPage() {
             // Deterministic Unique ID for Upsert (Session + Round + Court)
             const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
 
-            // 3. DB Sync via RPC (v7.0 ABSOLUTE)
-            const { error: syncError } = await absoluteSyncRPC({
-                match_id: matchId.toString(),
-                status: 'complete',
-                score1: numS1,
-                score2: numS2
-            });
+            // 3. DB Sync via Native Update (RPC 우회)
+            const { error: syncError } = await supabase
+                .from('matches')
+                .update({ status: 'complete', score1: numS1, score2: numS2 })
+                .eq('id', String(matchId));
             
             if (syncError) {
                 console.error("Match result sync error:", syncError);
