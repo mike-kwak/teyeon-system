@@ -1892,6 +1892,20 @@ export default function KDKPage() {
                             <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">PEN:</span>
                             <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">3~5K</span>
                         </div>
+                        <button 
+                            onClick={async () => {
+                                if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                const btn = document.getElementById('manual-sync-btn');
+                                if (btn) btn.style.transform = 'rotate(360deg)';
+                                await syncActiveSession();
+                                setTimeout(() => { if (btn) btn.style.transform = 'rotate(0deg)'; }, 500);
+                            }}
+                            title="강제 새로고침"
+                            className="ml-2 w-6 h-6 flex items-center justify-center text-[10px] bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
+                            id="manual-sync-btn"
+                        >
+                            🔄
+                        </button>
                         {isAdmin && (
                             <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
                         )}
