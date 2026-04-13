@@ -84,7 +84,7 @@ export default function KDKPage() {
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
     const [genMode, setGenMode] = useState<KDKConcept>('RANDOM');
-    const [totalCourts, setTotalCourts] = useState(2);
+    const [totalCourts, setTotalCourts] = useState(99); // [v17.0] 무제한 코트 지원 (CEO 지시)
     const [matchTime, setMatchTime] = useState(30);
     const [fixedPartners, setFixedPartners] = useState<[string, string][]>([]);
     const [fixedTeamMode, setFixedTeamMode] = useState(false);
@@ -830,15 +830,8 @@ export default function KDKPage() {
             return;
         }
 
-        // 1. Court Limit Check
-        const playingMatches = matches.filter(m => m.status === 'playing');
-        if (playingMatches.length >= totalCourts) {
-            setToastMsg(`모든 코트(${totalCourts}개)가 사용 중입니다`);
-            setShowToast(true);
-            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
-            setTimeout(() => setShowToast(false), 3000);
-            return;
-        }
+        // 1. Court Limit Check REMOVED (CEO: "코트 수는 무제한이라 생각하면 돼")
+        // No check against totalCourts here anymore.
 
         // 2. Participant Conflict Check
         const conflictPlayers = (targetMatch.playerIds || []).filter(pid => busyPlayerIds.has(pid));
