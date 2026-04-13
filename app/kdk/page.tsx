@@ -850,6 +850,9 @@ export default function KDKPage() {
         try {
             setIsStartingMatch(true);
 
+            // [v19.0] Required for court number allocation
+            const playingMatches = matches.filter(m => m.status === 'playing');
+
             // Find lowest available court number
             const inUseCourts = playingMatches.map(m => m.court || 0);
             let nextCourt = 1;
@@ -2007,7 +2010,7 @@ export default function KDKPage() {
                                                         return nGroup === group;
                                                     }).sort((a, b) => {
                                                         if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                                        return a.id.localeCompare(m.id);
+                                                        return a.id.localeCompare(b.id);
                                                     });
                                                     const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
                                                     const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
