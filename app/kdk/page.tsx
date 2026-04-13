@@ -835,16 +835,28 @@ export default function KDKPage() {
 
             // ENABLE DB SAVE (Sync Live Matches)
             try {
+                // DB 테이블에 바로 매핑되도록 snake_case 키로 정제
                 const dbMatches = formattedMatches.map(m => ({
-                    ...m,
-                    session_id: sessionId, // CRITICAL: Added missing session_id
+                    id: String(m.id),
                     club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
+                    session_id: sessionId,
                     session_title: sessionTitle || 'Tournament',
-                    player_names: m.playerIds.map(pid => getPlayerName(pid))
+                    round: m.round || 1,
+                    court: m.court || 1,
+                    player_ids: m.playerIds || [],
+                    player_names: m.playerIds.map(pid => getPlayerName(pid)),
+                    score1: m.score1 || 0,
+                    score2: m.score2 || 0,
+                    status: m.status || 'waiting',
+                    mode: m.mode || 'KDK',
+                    group_name: m.groupName || 'A'
                 }));
-                const { error: matchError } = await supabase.rpc('sync_tournament_matches', {
-                    p_matches: dbMatches
-                });
+
+                // RPC 우회: 테이블 직접 다중 Upsert (강력하고 확실함)
+                const { error: matchError } = await supabase
+                    .from('matches')
+                    .upsert(dbMatches, { onConflict: 'id' });
+                
                 if (matchError) {
                     console.error("❌ Live Match Sync Error:", matchError);
                     alert(`🚨 DB 저장 실패! 아내 폰에 안 뜨는 원인입니다!\n에러 내용: ${matchError.message || JSON.stringify(matchError)}\n\n(이 팝업을 찍어서 알려주세요)`);
