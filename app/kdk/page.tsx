@@ -61,6 +61,12 @@ export default function KDKPage() {
     */
 
     const [step, setStep] = useState(1);
+    const [syncTick, setSyncTick] = useState(0);
+
+    // [v25.0] React Stale Closure Resolution for Realtime Sync
+    useEffect(() => {
+        if (syncTick > 0) syncActiveSession();
+    }, [syncTick]);
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [tempGuests, setTempGuests] = useState<Member[]>([]);
@@ -486,7 +492,7 @@ export default function KDKPage() {
         const matchesChannel = supabase.channel('public:matches')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `club_id=eq.${clubId}` }, (payload) => {
                 console.log('🔄 Realtime match update received!', payload);
-                syncActiveSession(); // Re-fetch the matches natively
+                setSyncTick(prev => prev + 1); // Trigger latest closure sync
             })
             .subscribe();
 
@@ -2284,7 +2290,14 @@ export default function KDKPage() {
                                                     onClick={() => {
                                                         if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                                         const val = Math.min(6, Math.max(0, n));
-                                                        setTempScores(p => side === 0 ? ({ ...p, s1: val }) : ({ ...p, s2: val }));
+                                                        const nextScores = side === 0 ? ({ ...tempScores, s1: val }) : ({ ...tempScores, s2: val });
+                                                        setTempScores(nextScores);
+                                                        
+                                                        // 🚀 Live Score Broadcasting (관중에게 타이핑과 동시에 점수 전송)
+                                                        supabase.from('matches')
+                                                            .update({ score1: nextScores.s1, score2: nextScores.s2 })
+                                                            .eq('id', activeMatchForScore.id)
+                                                            .then();
                                                     }}
                                                     className="h-14 rounded-xl text-xl font-black transition-all active:scale-90"
                                                     style={{
