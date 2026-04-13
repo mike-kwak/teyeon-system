@@ -140,21 +140,26 @@ export function generateKdkMatches(
 
         const tryPickFixed = (round: number, pool: Player[]) => {
             if (pool.length < 2) return null;
-            const topPlayer = pool[0]; // 휴식/투입 우선순위 1위
-            const fixedMatch = fixedPartners.find(pair => pair.includes(topPlayer.id));
-            if (!fixedMatch) return null;
             
-            const partnerId = fixedMatch[0] === topPlayer.id ? fixedMatch[1] : fixedMatch[0];
-            const partner = pool.find(p => p.id === partnerId);
-            if (!partner) return null; // 파트너가 현재 풀에 없거나 이미 투입됨
-            
-            // 고정 팀 모드가 아니면 중복 결합 방지
-            if (!fixedTeamMode) {
-                const pairKey = [topPlayer.id, partner.id].sort().join('-');
-                if ((pairCounts[pairKey] || 0) > 0) return null;
+            // 휴식 우선순위(pool은 이미 정렬되어 있음)대로 스캔하여, 
+            // 가장 많이 쉰 사람부터 본인의 고정 파트너가 현재 풀에 있는지 확인합니다.
+            for (const p of pool) {
+                const myFixedPairs = fixedPartners.filter(pair => pair.includes(p.id));
+                for (const fixedMatch of myFixedPairs) {
+                    const partnerId = fixedMatch[0] === p.id ? fixedMatch[1] : fixedMatch[0];
+                    const partner = pool.find(x => x.id === partnerId);
+                    
+                    if (partner) {
+                        // 고정 팀 모드가 아니면 중복 결합 방지
+                        if (!fixedTeamMode) {
+                            const pairKey = [p.id, partner.id].sort().join('-');
+                            if ((pairCounts[pairKey] || 0) > 0) continue; // 다음 고정 조건으로 패스
+                        }
+                        return [p, partner];
+                    }
+                }
             }
-            
-            return [topPlayer, partner];
+            return null;
         };
 
         const fixedPair = tryPickFixed(r, currentPool);
