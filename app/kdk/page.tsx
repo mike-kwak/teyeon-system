@@ -702,10 +702,13 @@ export default function KDKPage() {
 
 
     const getPlayerName = (id: string) => {
+        if (!id) return "";
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
-        if (!m) return "???";
-        // User Requirement: Use Real Names (stored as nickname) strictly. No nicknames/aliases.
-        const name = m?.nickname || attendeeConfigs?.[id]?.name || "???";
+        
+        // CEO Requirement: No "???"! Use empty string or placeholders that don't look broken.
+        const name = m?.nickname || attendeeConfigs?.[id]?.name || "";
+        if (!name) return "━"; // Use a sleek dash instead of ???
+        
         const isGuest = m?.is_guest || attendeeConfigs?.[id]?.is_guest;
         return isGuest ? `${name} (G)` : name;
     };
@@ -1058,9 +1061,9 @@ export default function KDKPage() {
                 throw syncError;
             }
 
-            // 4. Immediate 'Invalidation' (Manual State Refresh before safety reload)
+            // 4. Immediate 'Invalidation' (Manual State Refresh)
             await syncActiveSession(); 
-            window.location.reload();
+            // window.location.reload(); // [DELETED] No more hard reloads for premium UX
 
             // Success: Trigger Toast instead of Alert
             setShowToast(true);
@@ -1914,13 +1917,13 @@ export default function KDKPage() {
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
 
                                                         {/* TEAM A BLOCK */}
-                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
                                                             <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
                                                                 <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds[0])}
+                                                                    {getPlayerName(m.playerIds?.[0]) || " "}
                                                                 </span>
                                                                 <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds[1])}
+                                                                    {getPlayerName(m.playerIds?.[1]) || " "}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1939,13 +1942,13 @@ export default function KDKPage() {
                                                         <div className="font-black text-[8px] uppercase text-center italic opacity-60 shrink-0" style={{ color: groupColor, filter: `drop-shadow(0 0 5px ${groupColor}4D)` }}>vs</div>
 
                                                         {/* TEAM B BLOCK */}
-                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden">
+                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
                                                             <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
                                                                 <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds[2])}
+                                                                    {getPlayerName(m.playerIds?.[2]) || " "}
                                                                 </span>
                                                                 <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds[3])}
+                                                                    {getPlayerName(m.playerIds?.[3]) || " "}
                                                                 </span>
                                                             </div>
                                                         </div>
