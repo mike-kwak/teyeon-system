@@ -835,7 +835,7 @@ export default function KDKPage() {
 
             // ENABLE DB SAVE (Sync Live Matches)
             try {
-                // DB 테이블에 바로 매핑되도록 snake_case 키로 정제
+                // DB 테이블에 바로 매핑되도록 snake_case 키로 정제 (캐시 에러를 막기 위해 최신 컬럼은 제외)
                 const dbMatches = formattedMatches.map(m => ({
                     id: String(m.id),
                     club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
@@ -844,12 +844,10 @@ export default function KDKPage() {
                     round: m.round || 1,
                     court: m.court || 1,
                     player_ids: m.playerIds || [],
-                    player_names: m.playerIds.map(pid => getPlayerName(pid)),
+                    // player_names, mode, group_name 등은 Supabase 스키마 캐시 지연 시 에러 폭탄이 되므로 전송 제외
                     score1: m.score1 || 0,
                     score2: m.score2 || 0,
-                    status: m.status || 'waiting',
-                    mode: m.mode || 'KDK',
-                    group_name: m.groupName || 'A'
+                    status: m.status || 'waiting'
                 }));
 
                 // RPC 우회: 테이블 직접 다중 Upsert (강력하고 확실함)
