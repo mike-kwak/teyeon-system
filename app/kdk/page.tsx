@@ -2178,8 +2178,8 @@ export default function KDKPage() {
                                         return (
                                             <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[24px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative">
-                                                    <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]" style={{ color: m.groupName === 'B' ? '#00E5FF' : '#C9B075' }}>
+                                                <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.02] border-b border-white/5 overflow-hidden relative">
+                                                    <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate" style={{ color: m.groupName === 'B' ? 'rgba(0, 229, 255, 0.4)' : 'rgba(201, 176, 117, 0.5)' }}>
                                                         GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
                                                     </span>
                                                     <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
@@ -2192,8 +2192,8 @@ export default function KDKPage() {
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[1])}</span>
                                                         </div>
                                                         <div className="flex flex-col items-center flex-shrink-0 px-2 justify-center">
-                                                            <span className="text-[36px] tracking-widest font-black text-[#C9B075] leading-none mb-1 shadow-black drop-shadow-2xl">{m.score1}:{m.score2}</span>
-                                                            <span className="text-[8px] font-black text-[#10B981] uppercase mt-1 tracking-widest">FINAL WIN</span>
+                                                            <span className="text-[36px] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{m.score1}:{m.score2}</span>
+                                                            <span className="text-[8px] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
                                                         </div>
                                                         <div className="flex flex-col items-center justify-center min-w-0">
                                                             <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[2])}</span>
