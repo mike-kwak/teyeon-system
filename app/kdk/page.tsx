@@ -26,8 +26,8 @@ export default function KDKPage() {
     const [showToast, setShowToast] = useState(false);
     const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
 
-    // [v12.0] 개방형 권한 시스템: Admin 여부 판별
-    const isAdmin = role === 'CEO' || role === 'ADMIN';
+    // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (STAFF 포함)
+    const isAdmin = role === 'CEO' || role === 'ADMIN' || role === 'STAFF';
 
     // 권한 제한 알림 헬퍼
     const triggerAccessDenied = (msg: string = "관리자만 대진을 생성/수정할 수 있습니다.") => {
@@ -1310,9 +1310,9 @@ export default function KDKPage() {
                     <div className="flex items-center">
                         <button
                             onClick={() => setStep(1)}
-                            className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-95 transition-all text-white/60 hover:text-white"
+                            className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 active:scale-95 transition-all text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.1)]"
                         >
-                            <span className="text-xl">←</span>
+                            <span className="text-xl leading-none -mt-0.5">←</span>
                         </button>
                     </div>
 
@@ -1591,37 +1591,38 @@ export default function KDKPage() {
 
 
 
-                <div style={{ position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '450px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
-                    <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
-                        <button
-                            disabled={isGenerating}
-                            onClick={() => {
-                                if (!isAdmin) return triggerAccessDenied();
-                                generateKDK();
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '8px 0',
-                                borderRadius: '999px',
-                                background: isGenerating ? '#1A1A1A' : '#C9B075',
-                                color: '#000000',
-                                border: '1px solid rgba(255, 255, 255, 0.4)',
-                                fontSize: '14px',
-                                fontWeight: 1000,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                cursor: isGenerating ? 'not-allowed' : 'pointer',
-                                WebkitTextFillColor: '#000000',
-                                transition: 'all 0.15s',
-                                boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
-                            }}
-                        >
-                            {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
-                        </button>
+                {isAdmin && (
+                    <div style={{ position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '450px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                        <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
+                            <button
+                                disabled={isGenerating}
+                                onClick={() => {
+                                    generateKDK();
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 0',
+                                    borderRadius: '999px',
+                                    background: isGenerating ? '#1A1A1A' : '#C9B075',
+                                    color: '#000000',
+                                    border: '1px solid rgba(255, 255, 255, 0.4)',
+                                    fontSize: '14px',
+                                    fontWeight: 1000,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    cursor: isGenerating ? 'not-allowed' : 'pointer',
+                                    WebkitTextFillColor: '#000000',
+                                    transition: 'all 0.15s',
+                                    boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
+                                }}
+                            >
+                                {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
 
                 {partnerSelectSource && (
@@ -1979,10 +1980,9 @@ export default function KDKPage() {
 
                                                     </div>
 
-                                                    {/* SCORE INPUT BUTTON (REFINED METALLIC OUTLINE) */}
+                                                    {/* SCORE INPUT BUTTON (OPEN TO ALL FOR FAST OPERATION) */}
                                                     <button
                                                         onClick={() => { 
-                                                            if (!isAdmin) return triggerAccessDenied("결과는 관리자만 입력할 수 있습니다.");
                                                             if (window.navigator?.vibrate) window.navigator.vibrate(50); 
                                                             setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); 
                                                             setShowScoreModal(mId); 
@@ -1990,7 +1990,7 @@ export default function KDKPage() {
                                                         className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0"
                                                         style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
                                                     >
-                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">{isAdmin ? 'INPUT SCORE 🏆' : 'LIVE BROADCAST 📡'}</span>
+                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE 🏆</span>
                                                     </button>
                                                 </div>
                                             </div>
