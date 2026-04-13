@@ -225,7 +225,7 @@ export function generateKdkMatches(
         partnerHistory[p4.id].add(p3.id);
 
         allMatches.push({
-          id: `match-${r}-${courtNum}-${Math.random().toString(36).substr(2, 5)}`,
+          id: crypto.randomUUID(),
           group: groupName,
           round: r,
           court: courtNum,
