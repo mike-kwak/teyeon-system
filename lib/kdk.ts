@@ -129,18 +129,35 @@ export function generateKdkMatches(
         // 2. Event Fixed (Round 1 Only)
         // 3. Concept/History Based (Standard KDK)
 
+        // [v6.0] Pair Count Tracker for rotating multiple fixed partners
+        const pairCounts: Record<string, number> = {};
+        allMatches.forEach(m => {
+            const team1Key = [...m.playerIds.slice(0, 2)].sort().join('-');
+            const team2Key = [...m.playerIds.slice(2, 4)].sort().join('-');
+            pairCounts[team1Key] = (pairCounts[team1Key] || 0) + 1;
+            pairCounts[team2Key] = (pairCounts[team2Key] || 0) + 1;
+        });
+
         const tryPickFixed = (round: number, pool: Player[]) => {
-            for (const [idA, idB] of fixedPartners) {
-                const indexA = pool.findIndex(p => p.id === idA);
-                const indexB = pool.findIndex(p => p.id === idB);
-                if (indexA !== -1 && indexB !== -1) {
-                    // Strictly Round 1 for "Event Fixed", or any round for "Team Mode"
-                    if (fixedTeamMode || round === 1) {
-                        return [pool[indexA], pool[indexB]];
-                    }
-                }
-            }
-            return null;
+            // Find all possible fixed pairs that are available in the current pool
+            const possiblePairs = fixedPartners.filter(([idA, idB]) => {
+                return pool.some(p => p.id === idA) && pool.some(p => p.id === idB);
+            });
+
+            if (possiblePairs.length === 0) return null;
+
+            // Strictly Round 1 for "Event Fixed", or any round for "Team Mode"
+            if (!fixedTeamMode && round > 1) return null;
+
+            // Sort possible pairs by their total match counts to ensure fair rotation
+            possiblePairs.sort((pairA, pairB) => {
+                const countA = pairCounts[pairA.sort().join('-')] || 0;
+                const countB = pairCounts[pairB.sort().join('-')] || 0;
+                return countA - countB;
+            });
+
+            const bestPair = possiblePairs[0];
+            return [pool.find(p => p.id === bestPair[0])!, pool.find(p => p.id === bestPair[1])!];
         };
 
         const fixedPair = tryPickFixed(r, currentPool);

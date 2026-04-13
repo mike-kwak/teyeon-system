@@ -806,6 +806,16 @@ export default function KDKPage() {
     };
 
     const startMatch = async (matchId: string) => {
+        // [v8.0] Safety Guard: Prevent redundant entry
+        const targetMatch = matches.find(m => m.id === matchId);
+        if (targetMatch?.status === 'playing') {
+            setToastMsg("이미 활성화된 경기입니다");
+            setShowToast(true);
+            if (window.navigator?.vibrate) window.navigator.vibrate([50, 50]);
+            setTimeout(() => setShowToast(false), 3000);
+            return;
+        }
+
         // Find lowest available court number
         const inUseCourts = matches.filter(m => m.status === 'playing').map(m => m.court || 0);
         let nextCourt = 1;
@@ -1223,7 +1233,9 @@ export default function KDKPage() {
             return { id, name: m?.nickname || 'Unknown', is_guest: !!m?.is_guest };
         });
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
-        const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id) && !fixedPartners.flat().includes(m.id));
+        const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => 
+            selectedIds.has(m.id) && (partnerSelectSource === 'NEW' ? true : m.id !== partnerSelectSource)
+        );
 
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
