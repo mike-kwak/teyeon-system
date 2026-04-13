@@ -847,15 +847,16 @@ export default function KDKPage() {
                 });
                 if (matchError) {
                     console.error("❌ Live Match Sync Error:", matchError);
-                    // Detailed logging for debugging
+                    alert(`🚨 DB 저장 실패! 아내 폰에 안 뜨는 원인입니다!\n에러 내용: ${matchError.message || JSON.stringify(matchError)}\n\n(이 팝업을 찍어서 알려주세요)`);
                     if (matchError.message?.includes('uuid')) {
                         console.warn("UUID Mismatch detected. Please apply the SQL migration to change 'matches.id' to TEXT.");
                     }
                 } else {
                     console.log("✅ Live Match Sync Success");
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Critical Sync Failure:", err);
+                alert(`🚨 DB 통신 중대한 에러!\n${err.message}`);
             }
 
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // 딩-동!
