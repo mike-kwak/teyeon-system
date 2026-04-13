@@ -80,7 +80,10 @@ export default function KDKPage() {
         return `${yy}${mm}${dd}_KDK_01`;
     });
     const [matches, setMatches] = useState<Match[]>([]);
-    const [activeMatchIds, setActiveMatchIds] = useState<string[]>([]);
+    // [v18.0] Derived state: activeMatchIds is now reactive from matches.
+    const activeMatchIds = useMemo(() => {
+        return matches.filter(m => m.status === 'playing').map(m => m.id);
+    }, [matches]);
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
     const [genMode, setGenMode] = useState<KDKConcept>('RANDOM');
@@ -852,11 +855,9 @@ export default function KDKPage() {
             let nextCourt = 1;
             while (inUseCourts.includes(nextCourt)) nextCourt++;
 
-            const nextActive = [...activeMatchIds, matchId];
             const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
             
             // Local state update
-            setActiveMatchIds(nextActive);
             setMatches(nextMatches);
 
             // DB Sync via RPC (v7.0 ABSOLUTE)
@@ -893,9 +894,8 @@ export default function KDKPage() {
 
             if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
-            // 2. Local State Update & Invalidation
+            // 2. Local State Update & Invalidation (Removed setActiveMatchIds)
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
-            setActiveMatchIds(prev => prev.filter(id => id !== matchId));
 
             // 3. Manual Invalidation (sync state from server)
             await syncActiveSession();
@@ -1028,9 +1028,7 @@ export default function KDKPage() {
 
             // 2. Local state update for immediate feedback (MUST HAVE playerIds for UI)
             const nextMatches = matches.map(m => m.id === matchId ? finishedMatchData : m);
-            const nextActive = activeMatchIds.filter(id => id !== matchId);
             setMatches(nextMatches);
-            setActiveMatchIds(nextActive);
             setShowScoreModal(null);
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
 
