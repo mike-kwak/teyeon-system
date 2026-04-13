@@ -119,6 +119,17 @@ export default function KDKPage() {
     const [showCeremony, setShowCeremony] = useState(false);
     const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
     const [isCheckingTitle, setIsCheckingTitle] = useState(false);
+    const [isStartingMatch, setIsStartingMatch] = useState(false);
+
+    // [v16.0] Real-time participation tracker
+    const busyPlayerIds = useMemo(() => {
+        const playing = matches.filter(m => m.status === 'playing');
+        const ids = new Set<string>();
+        playing.forEach(m => {
+            (m.playerIds || []).forEach(pid => ids.add(pid));
+        });
+        return ids;
+    }, [matches]);
 
     // [v14.0] 제목 중복 방지: 자동으로 다음 번호(KDK_02 등)를 찾는 헬퍼
     const findNextAvailableTitle = async () => {
@@ -806,38 +817,73 @@ export default function KDKPage() {
     };
 
     const startMatch = async (matchId: string) => {
-        // [v8.0] Safety Guard: Prevent redundant entry
+        if (isStartingMatch) return;
+
+        // [v8.0] Safety Guard: Prevent redundant entry & enforce court limits
         const targetMatch = matches.find(m => m.id === matchId);
-        if (targetMatch?.status === 'playing') {
+        if (!targetMatch) return;
+        
+        if (targetMatch.status === 'playing') {
             setToastMsg("이미 활성화된 경기입니다");
             setShowToast(true);
-            if (window.navigator?.vibrate) window.navigator.vibrate([50, 50]);
             setTimeout(() => setShowToast(false), 3000);
             return;
         }
 
-        // Find lowest available court number
-        const inUseCourts = matches.filter(m => m.status === 'playing').map(m => m.court || 0);
-        let nextCourt = 1;
-        while (inUseCourts.includes(nextCourt)) nextCourt++;
+        // 1. Court Limit Check
+        const playingMatches = matches.filter(m => m.status === 'playing');
+        if (playingMatches.length >= totalCourts) {
+            setToastMsg(`모든 코트(${totalCourts}개)가 사용 중입니다`);
+            setShowToast(true);
+            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+            setTimeout(() => setShowToast(false), 3000);
+            return;
+        }
 
-        const nextActive = [...activeMatchIds, matchId];
-        const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
-        
-        // 1. Local state update
-        setActiveMatchIds(nextActive);
-        setMatches(nextMatches);
+        // 2. Participant Conflict Check
+        const conflictPlayers = (targetMatch.playerIds || []).filter(pid => busyPlayerIds.has(pid));
+        if (conflictPlayers.length > 0) {
+            const names = conflictPlayers.map(pid => getPlayerName(pid)).join(', ');
+            setToastMsg(`참여자 중복: ${names} 선수가 이미 경기 중입니다`);
+            setShowToast(true);
+            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+            setTimeout(() => setShowToast(false), 3000);
+            return;
+        }
 
-        // 2. DB Sync via RPC (v7.0 ABSOLUTE)
-        await absoluteSyncRPC({
-            match_id: matchId.toString(),
-            status: 'playing',
-            score1: 0,
-            score2: 0
-        });
+        try {
+            setIsStartingMatch(true);
 
-        // 3. Manual Invalidation (sync state from server)
-        await syncActiveSession();
+            // Find lowest available court number
+            const inUseCourts = playingMatches.map(m => m.court || 0);
+            let nextCourt = 1;
+            while (inUseCourts.includes(nextCourt)) nextCourt++;
+
+            const nextActive = [...activeMatchIds, matchId];
+            const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
+            
+            // Local state update
+            setActiveMatchIds(nextActive);
+            setMatches(nextMatches);
+
+            // DB Sync via RPC (v7.0 ABSOLUTE)
+            await absoluteSyncRPC({
+                match_id: matchId.toString(),
+                status: 'playing',
+                score1: 0,
+                score2: 0
+            });
+
+            // Manual Invalidation (sync state from server)
+            await syncActiveSession();
+        } catch (err) {
+            console.error("Start Match Error:", err);
+            setToastMsg("경기 투입 중 오류가 발생했습니다");
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+        } finally {
+            setIsStartingMatch(false);
+        }
     };
 
     const cancelMatch = async (matchId: string) => {
@@ -1186,7 +1232,6 @@ export default function KDKPage() {
         return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
     }
 
-    const busyPlayerIds = new Set(matches.filter(m => m.status === 'playing').flatMap(m => m.playerIds || []));
 
     // --- Step 1: Attendee Selection (Refactored to MemberSelector) ---
     if (step === 1) {
@@ -2007,13 +2052,15 @@ export default function KDKPage() {
                                                                 <button
                                                                     onClick={() => { 
                                                                         if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
+                                                                        if (isStartingMatch || hasConflict) return;
                                                                         if (window.navigator?.vibrate) window.navigator.vibrate(50); 
                                                                         startMatch(m.id); 
                                                                     }}
-                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${hasConflict && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed' : '!text-black hover:opacity-90'}`}
-                                                                    style={{ backgroundColor: hasConflict && isAdmin ? undefined : col, color: hasConflict && isAdmin ? undefined : '#000000', boxShadow: hasConflict && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
+                                                                    disabled={isStartingMatch || hasConflict}
+                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
+                                                                    style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
                                                                 >
-                                                                    {isAdmin ? '투입 🚀' : '진행 대기'}
+                                                                    {isStartingMatch ? '...처리중' : hasConflict ? '참여불가 🚫' : (isAdmin ? '투입 🚀' : '진행 대기')}
                                                                 </button>
                                                             </div>
                                                         </div>
