@@ -275,7 +275,7 @@ export default function RankingTab({
                 
                 <div className="h-8" aria-hidden="true" />
 
-                 <div className="flex flex-col gap-6 mt-32 mb-48 px-6">
+                 <div className="flex flex-col gap-6 mt-32 mb-96 px-6">
                     <button onClick={onShareMatch} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[12px] font-black uppercase tracking-[0.3em] rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic">
                         <span className="text-lg">📋</span>
                         {isArchive ? 'SHARE REPORT' : '대진표 공유'}
