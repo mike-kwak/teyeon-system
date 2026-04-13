@@ -774,6 +774,30 @@ export default function KDKPage() {
 
             const kdkMatches = generateKdkMatches(attendees, groupCourtMap, targetGames, genMode, fixedPartners, fixedTeamMode);
 
+            // [v20.0] Validation: Check if all fixed partners were honored
+            if (fixedPartners.length > 0 && !fixedTeamMode) {
+                const unfulfilledPairs = fixedPartners.filter(([idA, idB]) => {
+                    const nameA = attendees.find(a => a.id === idA)?.name;
+                    const nameB = attendees.find(a => a.id === idB)?.name;
+                    if (!nameA || !nameB) return false;
+                    
+                    const matchedCount = kdkMatches.filter(m => {
+                        const t1 = m.team1.includes(nameA) && m.team1.includes(nameB);
+                        const t2 = m.team2.includes(nameA) && m.team2.includes(nameB);
+                        return t1 || t2;
+                    }).length;
+
+                    return matchedCount === 0;
+                });
+
+                if (unfulfilledPairs.length > 0) {
+                    setTimeout(() => {
+                        setWarningMsg("고정 파트너가 너무 많아 100% 매칭이 불가능합니다.\\n일부 대진은 수동으로 조정해 주세요.");
+                        setShowWarning(true);
+                    }, 500);
+                }
+            }
+
             // Convert KdkMatch to internal Match
             const formattedMatches: Match[] = kdkMatches.map(km => ({
                 id: km.id,

@@ -146,17 +146,23 @@ export function generateKdkMatches(
 
             if (possiblePairs.length === 0) return null;
 
-            // Strictly Round 1 for "Event Fixed", or any round for "Team Mode"
-            if (!fixedTeamMode && round > 1) return null;
+            // Filter out pairs that have already played together if fixedTeamMode is FALSE
+            const eligiblePairs = possiblePairs.filter(pair => {
+                if (fixedTeamMode) return true; // Always eligible
+                const count = pairCounts[pair.sort().join('-')] || 0;
+                return count === 0; // Only play once!
+            });
 
-            // Sort possible pairs by their total match counts to ensure fair rotation
-            possiblePairs.sort((pairA, pairB) => {
+            if (eligiblePairs.length === 0) return null;
+
+            // Sort eligible pairs by their total match counts to ensure fair rotation
+            eligiblePairs.sort((pairA, pairB) => {
                 const countA = pairCounts[pairA.sort().join('-')] || 0;
                 const countB = pairCounts[pairB.sort().join('-')] || 0;
                 return countA - countB;
             });
 
-            const bestPair = possiblePairs[0];
+            const bestPair = eligiblePairs[0];
             return [pool.find(p => p.id === bestPair[0])!, pool.find(p => p.id === bestPair[1])!];
         };
 
