@@ -1986,9 +1986,16 @@ export default function KDKPage() {
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
-                                    {activeMatchIds.map((mId) => {
-                                        const m = matches.find(x => x.id === mId);
-                                        if (!m) return null;
+                                    {activeMatchIds
+                                        .map(mId => ({ id: mId, match: matches.find(x => x.id === mId) }))
+                                        .filter(x => x.match)
+                                        .sort((a, b) => {
+                                            // Sort by Round first, then by ID (consistent with Match No calculation)
+                                            if (a.match!.round !== b.match!.round) return (a.match!.round || 0) - (b.match!.round || 0);
+                                            return (a.match!.id || '').localeCompare(b.match!.id || '');
+                                        })
+                                        .map(({ id: mId, match: m }) => {
+                                            if (!m) return null;
 
                                         const allMatchesInGroupSorted = matches.filter(mx => {
                                             const p0 = mx.playerIds?.[0];
@@ -2047,12 +2054,12 @@ export default function KDKPage() {
 
                                                         {/* Sleek Success Toast */}
                                                         {showToast && (
-                                                            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300 w-[90%] max-w-sm">
+                                                            <div className="fixed bottom-[115px] left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300 w-[90%] max-w-sm">
                                                                 <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center justify-center gap-3 backdrop-blur-xl">
                                                                     <div className="w-4 h-4 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
                                                                         <CheckCircle2 className={`w-3 h-3 ${toastMsg.includes('관리자') ? 'text-red-400' : 'text-[#4ADE80]'}`} />
                                                                     </div>
-                                                                    <span className="text-[10px] font-black uppercase tracking-widest italic text-center">{toastMsg}</span>
+                                                                    <span className="text-[11px] font-black uppercase tracking-widest italic text-center">{toastMsg}</span>
                                                                 </div>
                                                             </div>
                                                         )}

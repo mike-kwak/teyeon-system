@@ -192,7 +192,7 @@ export default function RankingTab({
                         <span className="text-right opacity-40">PF</span>
                         <span className="text-right opacity-40">PA</span>
                         <span className="text-right text-[#00e5ff]">+/-</span>
-                        <span className="text-center text-[#C9B075]">SETTLE</span>
+                        <span className="text-center text-[#C9B075]">FINE</span>
                     </div>
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x) => x.id === p.id);
@@ -211,7 +211,7 @@ export default function RankingTab({
                                         )}
                                     </div>
                                 </div>
-                                <div className="text-left font-black text-[15.5px] text-white tracking-tighter truncate pl-2">
+                                <div className="text-left font-black text-[15px] text-white tracking-tighter leading-tight truncate pl-2">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
                                 <div className="text-right text-[11px] font-black text-white/50">{p.wins + p.losses}</div>
@@ -297,13 +297,13 @@ export default function RankingTab({
                 
                 <div className="h-8" aria-hidden="true" />
 
-                 <div className="flex flex-col gap-6 mt-32 mb-96 px-6">
-                    <button onClick={onShareMatch} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[12px] font-black uppercase tracking-[0.3em] rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic">
-                        <span className="text-lg">📋</span>
+                 <div className="flex flex-col gap-6 mt-32 mb-40 px-6 pb-[250px]">
+                    <button onClick={onShareMatch} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[13px] font-black uppercase tracking-[0.3em] rounded-[28px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic shadow-lg active:scale-95 shadow-black/20">
+                        <span className="text-xl">📋</span>
                         {isArchive ? 'SHARE REPORT' : '대진표 공유'}
                     </button>
-                    <button onClick={onShareResult} className="w-full py-6 bg-white/5 border border-white/10 text-white text-[12px] font-black uppercase tracking-[0.3em] rounded-[24px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic">
-                        <span className="text-lg">🏆</span>
+                    <button onClick={onShareResult} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[13px] font-black uppercase tracking-[0.3em] rounded-[28px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic shadow-lg active:scale-95 shadow-black/20">
+                        <span className="text-xl">🏆</span>
                         {isArchive ? 'SHARE CHAMPIONS' : '최종결과 공유'}
                     </button>
                 </div>

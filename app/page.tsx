@@ -149,7 +149,7 @@ export default function Home() {
 
       {/* Toast Notification */}
       {(toast || systemMessage) && (
-        <div className="fixed bottom-[130px] left-1/2 -translate-x-1/2 w-[90vw] max-w-[380px] p-[16px] bg-[#E8E137] text-black font-black text-center rounded-xl z-[2000] shadow-[0_20px_50px_rgba(0,0,0,0.8)] font-['Rajdhani',sans-serif] tracking-wider text-[14px]">
+        <div className="fixed bottom-[115px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] p-[16px] bg-[#E8E137] text-black font-black text-center rounded-xl z-[2000] shadow-[0_20px_50px_rgba(0,0,0,0.8)] font-['Rajdhani',sans-serif] tracking-wider text-[14px]">
           {toast || systemMessage}
         </div>
       )}
