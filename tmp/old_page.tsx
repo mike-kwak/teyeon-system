@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,13 +24,13 @@ export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
     const [showToast, setShowToast] = useState(false);
-    const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
+    const [toastMsg, setToastMsg] = useState("寃곌낵媛 ?덉쟾?섍쾶 湲곕줉?섏뿀?듬땲??);
 
-    // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (STAFF 포함)
+    // [v12.0] 媛쒕갑??沅뚰븳 ?쒖뒪?? Admin ?щ? ?먮퀎 (STAFF ?ы븿)
     const isAdmin = role === 'CEO' || role === 'ADMIN' || role === 'STAFF';
 
-    // 권한 제한 알림 헬퍼
-    const triggerAccessDenied = (msg: string = "관리자만 대진을 생성/수정할 수 있습니다.") => {
+    // 沅뚰븳 ?쒗븳 ?뚮┝ ?ы띁
+    const triggerAccessDenied = (msg: string = "愿由ъ옄留??吏꾩쓣 ?앹꽦/?섏젙?????덉뒿?덈떎.") => {
         setToastMsg(msg);
         setShowToast(true);
         if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
@@ -47,14 +47,14 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("🏁 TEYEON SYSTEM v5.1 STABLE: ALL SYSTEMS GO");
+        console.log("?뢾 TEYEON SYSTEM v5.1 STABLE: ALL SYSTEMS GO");
     }, []);
 
     // [v12.0] REDIRECT REMOVED: Guests can now view the portal
     /* 
     useEffect(() => {
         if (role === 'GUEST') {
-            alert("정회원 이상만 이용 가능한 메뉴입니다. 대시보드로 이동합니다.");
+            alert("?뺥쉶???댁긽留??댁슜 媛?ν븳 硫붾돱?낅땲?? ??쒕낫?쒕줈 ?대룞?⑸땲??");
             router.push('/');
         }
     }, [role, router]);
@@ -93,18 +93,18 @@ export default function KDKPage() {
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
     const [genMode, setGenMode] = useState<KDKConcept>('RANDOM');
-    const [totalCourts, setTotalCourts] = useState(99); // [v17.0] 무제한 코트 지원 (CEO 지시)
+    const [totalCourts, setTotalCourts] = useState(99); // [v17.0] 臾댁젣??肄뷀듃 吏??(CEO 吏??
     const [matchTime, setMatchTime] = useState(30);
     const [fixedPartners, setFixedPartners] = useState<[string, string][]>([]);
     const [fixedTeamMode, setFixedTeamMode] = useState(false);
     const [partnerSelectSource, setPartnerSelectSource] = useState<string | null>(null);
     const [targetGames, setTargetGames] = useState(4);
-    const [matchRules, setMatchRules] = useState("1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승");
+    const [matchRules, setMatchRules] = useState("1:1 ?쒖옉, ?몄뿉?? ???3:3 ?쒖옉 7?ъ씤???좎듅");
 
     const [firstPrize, setFirstPrize] = useState(10000);
     const [bottom25Late, setBottom25Late] = useState(3000);
     const [bottom25Penalty, setBottom25Penalty] = useState(5000);
-    const [accountInfo, setAccountInfo] = useState("카카오뱅크 3333-01-5235337 (곽민섭)");
+    const [accountInfo, setAccountInfo] = useState("移댁뭅?ㅻ콉??3333-01-5235337 (怨쎈???");
     const [currentTime, setCurrentTime] = useState("");
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
@@ -140,7 +140,7 @@ export default function KDKPage() {
         return ids;
     }, [matches]);
 
-    // [v14.0] 제목 중복 방지: 자동으로 다음 번호(KDK_02 등)를 찾는 헬퍼
+    // [v14.0] ?쒕ぉ 以묐났 諛⑹?: ?먮룞?쇰줈 ?ㅼ쓬 踰덊샇(KDK_02 ??瑜?李얜뒗 ?ы띁
     const findNextAvailableTitle = async () => {
         const d = new Date();
         const yy = String(d.getFullYear()).slice(-2);
@@ -150,11 +150,11 @@ export default function KDKPage() {
         
         try {
             setIsCheckingTitle(true);
-            // 1. 로컬 스토리지 확인
+            // 1. 濡쒖뺄 ?ㅽ넗由ъ? ?뺤씤
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
             const localTitles = failovers.map((f: any) => f.raw_data?.title || '');
             
-            // 2. 서버 아카이브 확인 (최근 20개만)
+            // 2. ?쒕쾭 ?꾩뭅?대툕 ?뺤씤 (理쒓렐 20媛쒕쭔)
             const { data: serverData } = await supabase
                 .from('teyeon_archive_v1')
                 .select('raw_data')
@@ -162,7 +162,7 @@ export default function KDKPage() {
                 .limit(20);
             const serverTitles = (serverData || []).map(d => d.raw_data?.title || '');
             
-            // 3. 현재 진행 중인 세션들 확인
+            // 3. ?꾩옱 吏꾪뻾 以묒씤 ?몄뀡???뺤씤
             const activeTitles = allActiveSessions.map(s => s.title);
             
             const allTitles = [...localTitles, ...serverTitles, ...activeTitles];
@@ -181,7 +181,7 @@ export default function KDKPage() {
             const nextTitle = `${prefix}${String(maxSuffix + 1).padStart(2, '0')}`;
             if (step === 1 || sessionTitle.endsWith('_KDK_01')) {
                 setSessionTitle(nextTitle);
-                console.log(`🏷️ Next available title suggested: ${nextTitle}`);
+                console.log(`?뤇截?Next available title suggested: ${nextTitle}`);
             }
         } catch (err) {
             console.error("Failed to find next title:", err);
@@ -190,14 +190,14 @@ export default function KDKPage() {
         }
     };
 
-    // --- [v7.0 ABSOLUTE] 12전 13기: 서버 굴복 및 로컬 강제 저장 통합 헬퍼 ---
+    // --- [v7.0 ABSOLUTE] 12??13湲? ?쒕쾭 援대났 諛?濡쒖뺄 媛뺤젣 ????듯빀 ?ы띁 ---
     const absoluteSyncRPC = async (data: any) => {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
         
-        // 1. 현장 DB ID 경보 (CEO Verification)
+        // 1. ?꾩옣 DB ID 寃쎈낫 (CEO Verification)
         const projectId = supabaseUrl.split('//')[1]?.split('.')[0] || 'Unknown';
-        console.log(`🏙️ [ABSOLUTE] TARGET PROJECT ID: ${projectId}`);
+        console.log(`?룞截?[ABSOLUTE] TARGET PROJECT ID: ${projectId}`);
         console.table(data);
 
         try {
@@ -208,28 +208,28 @@ export default function KDKPage() {
                     'Content-Type': 'application/json',
                     'apikey': supabaseKey,
                     'Authorization': `Bearer ${supabaseKey}`,
-                    'Prefer': 'params=single-object', // 마법의 헤더: JSON 전체를 단일 인자로 매핑
+                    'Prefer': 'params=single-object', // 留덈쾿???ㅻ뜑: JSON ?꾩껜瑜??⑥씪 ?몄옄濡?留ㅽ븨
                     'x-client-info': 'teyeon-absolute-v7.0'
                 },
-                body: JSON.stringify(data) // 래핑 없이 순수 객체 전송
+                body: JSON.stringify(data) // ?섑븨 ?놁씠 ?쒖닔 媛앹껜 ?꾩넚
             });
 
             if (!response.ok) {
                 const errText = await response.text();
                 throw new Error(`HTTP ${response.status}: ${errText}`);
             }
-            console.log("✅ [ABSOLUTE] SERVER SYNC SUCCESS");
+            console.log("??[ABSOLUTE] SERVER SYNC SUCCESS");
             return { error: null };
         } catch (err: any) {
-            console.error("❌ [ABSOLUTE] SERVER SYNC FAILED, FORCING LOCAL SAVE:", err);
+            console.error("??[ABSOLUTE] SERVER SYNC FAILED, FORCING LOCAL SAVE:", err);
             
-            // 3. '12전 13기' 로컬 강제 저장 (Offline First)
+            // 3. '12??13湲? 濡쒖뺄 媛뺤젣 ???(Offline First)
             try {
                 const queue = JSON.parse(localStorage.getItem('teyeon_offline_sync_queue') || '[]');
                 queue.push({ ...data, timestamp: new Date().toISOString() });
                 localStorage.setItem('teyeon_offline_sync_queue', JSON.stringify(queue));
-                console.warn("🛡️ [ABSOLUTE] DATA SECURED IN LOCAL STORAGE");
-                return { error: null }; // 성공으로 간주하여 화면 진행
+                console.warn("?썳截?[ABSOLUTE] DATA SECURED IN LOCAL STORAGE");
+                return { error: null }; // ?깃났?쇰줈 媛꾩＜?섏뿬 ?붾㈃ 吏꾪뻾
             } catch (localErr) {
                 console.error("CRITICAL: Local storage save failed", localErr);
                 return { error: err };
@@ -252,10 +252,10 @@ export default function KDKPage() {
 
     // Stage 2: Official Archive & Shutdown (Admin Only)
     const handleFinalArchive = async () => {
-        if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
+        if (!confirm("?룇 ??뚮? 怨듭떇?곸쑝濡?醫낅즺?섍퀬 '?ъ링 湲곕줉????諛뺤젣?섏떆寃좎뒿?덇퉴?\n(?쇱씠釉??곗씠?곌? ??젣?섍퀬 ?꾩뭅?대툕 ?ы꽭濡?利됱떆 ?대룞?⑸땲??)")) return;
 
         try {
-            // [CEO 현장 검증 로직 가동]
+            // [CEO ?꾩옣 寃利?濡쒖쭅 媛??
             setIsGenerating(true);
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
@@ -296,19 +296,19 @@ export default function KDKPage() {
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
             };
 
-            // [v10.0 SAVE OR DIE] 통신 전 로컬에 즉시 박제 (Safety First)
+            // [v10.0 SAVE OR DIE] ?듭떊 ??濡쒖뺄??利됱떆 諛뺤젣 (Safety First)
             try {
                 const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
                 const failoverItem = {
                     id: sessionId,
                     raw_data: rawDataPayload,
-                    failover: true, // 서버 확인 전까지는 임시 상태
+                    failover: true, // ?쒕쾭 ?뺤씤 ?꾧퉴吏???꾩떆 ?곹깭
                     created_at: new Date().toISOString()
                 };
                 const filtered = failovers.filter((f: any) => f.id !== sessionId);
                 filtered.push(failoverItem);
                 localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
-                console.warn("🛡️ [v10.0] PRE-EMPTIVE LOCAL BACKUP SECURED");
+                console.warn("?썳截?[v10.0] PRE-EMPTIVE LOCAL BACKUP SECURED");
             } catch (err) {
                 console.error("Local backup failed", err);
             }
@@ -332,17 +332,17 @@ export default function KDKPage() {
 
                 if (!response.ok) {
                     const errText = await response.text();
-                    console.error(`❌ [v14.0] SERVER REJECTED (${response.status}):`, errText);
+                    console.error(`??[v14.0] SERVER REJECTED (${response.status}):`, errText);
                     throw new Error(`Server Rejected: ${errText}`);
                 }
-                console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
+                console.log("??[v14.0] SERVER ARCHIVE SUCCESS");
             } catch (err: any) {
-                console.error("❌ [v14.0] CRITICAL SYNC ERROR:", err);
+                console.error("??[v14.0] CRITICAL SYNC ERROR:", err);
                 // [v10.0] CEO Request: Specific wording
-                alert(`서버 통신 지연으로 기기에 임시 저장되었습니다. (${err.message})\n아카이브에서 확인 가능합니다.`);
+                alert(`?쒕쾭 ?듭떊 吏?곗쑝濡?湲곌린???꾩떆 ??λ릺?덉뒿?덈떎. (${err.message})\n?꾩뭅?대툕?먯꽌 ?뺤씤 媛?ν빀?덈떎.`);
             }
 
-            // [v10.0] Championship Celebration (금색 가루 뿌리기)
+            // [v10.0] Championship Celebration (湲덉깋 媛猷?肉뚮━湲?
             setShowArchiveSuccess(true);
             setShowConfetti(true);
             setCelebrationMode(true);
@@ -362,7 +362,7 @@ export default function KDKPage() {
             router.push(`/archive?session=${sessionId}`);
 
         } catch (err: any) {
-            alert("공식 종료 실패: " + err.message);
+            alert("怨듭떇 醫낅즺 ?ㅽ뙣: " + err.message);
         } finally {
             setIsGenerating(false);
         }
@@ -379,13 +379,13 @@ export default function KDKPage() {
         const countB = attendees.filter(g => g === 'B').length;
 
         if (countA > 0 && countA < 4) {
-            return { ok: false, msg: "A조 인원이 부족합니다 (최소 4명 필요)" };
+            return { ok: false, msg: "A議??몄썝??遺議깊빀?덈떎 (理쒖냼 4紐??꾩슂)" };
         }
         if (countB > 0 && countB < 4) {
-            return { ok: false, msg: "B조 인원이 부족합니다 (최소 4명 필요)" };
+            return { ok: false, msg: "B議??몄썝??遺議깊빀?덈떎 (理쒖냼 4紐??꾩슂)" };
         }
         if (countA === 0 && countB === 0) {
-            return { ok: false, msg: "최소 1명 이상의 참석자가 필요합니다" };
+            return { ok: false, msg: "理쒖냼 1紐??댁긽??李몄꽍?먭? ?꾩슂?⑸땲?? };
         }
 
         return { ok: true, msg: "" };
@@ -454,7 +454,7 @@ export default function KDKPage() {
         fetchMembers();
         restoreSession();
         
-        // [v14.0] 초기 구동 시 제목 중복 체크
+        // [v14.0] 珥덇린 援щ룞 ???쒕ぉ 以묐났 泥댄겕
         setTimeout(() => {
             findNextAvailableTitle();
         }, 1500);
@@ -485,22 +485,14 @@ export default function KDKPage() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
 
-        // [v32.1] Robust Session-Scoped Realtime Subscription
-        const targetSid = sessionId || selectedSessionId;
-        const matchesChannel = supabase.channel(`sync-kdk-${targetSid || 'global'}`)
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'matches', 
-                filter: targetSid ? `session_id=eq.${targetSid}` : `club_id=eq.${clubId}` 
-            }, (payload) => {
-                console.log('📡 Realtime update received:', payload);
-                setSyncTick(prev => prev + 1);
+        // [v25.0] Realtime Match Synchronization
+        const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+        const matchesChannel = supabase.channel('public:matches')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `club_id=eq.${clubId}` }, (payload) => {
+                console.log('?봽 Realtime match update received!', payload);
+                setSyncTick(prev => prev + 1); // Trigger latest closure sync
             })
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') console.log('✅ Realtime Subscribed');
-                if (status === 'CHANNEL_ERROR') console.error('❌ Realtime Subscription Failed');
-            });
+            .subscribe();
 
         return () => {
             clearInterval(timer);
@@ -703,9 +695,9 @@ export default function KDKPage() {
             // Auto-populate attendee config if member has data
             const member = allMembers.find(m => m.id === id);
             if (member && !attendeeConfigs[id]) {
-                const isAwardWinner = (member.achievements || '').includes('우승') ||
-                    (member.achievements || '').includes('준우승') ||
-                    (member.achievements || '').includes('입상');
+                const isAwardWinner = (member.achievements || '').includes('?곗듅') ||
+                    (member.achievements || '').includes('以?곗듅') ||
+                    (member.achievements || '').includes('?낆긽');
 
                 setAttendeeConfigs(prev => ({
                     ...prev,
@@ -738,15 +730,14 @@ export default function KDKPage() {
 
     const getPlayerName = (id: string) => {
         if (!id) return "";
-        if (allMembers.length === 0) return "로딩 중...";
+        if (allMembers.length === 0) return "濡쒕뵫 以?..";
         
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
         
         const name = m?.nickname || attendeeConfigs?.[id]?.name || "";
-        if (!name) return "로딩 중..."; 
+        if (!name) return "濡쒕뵫 以?.."; 
         
-        // [v32.1] Explicitly check for guest status based on ID prefix or database flag
-        const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || (attendeeConfigs?.[id]?.is_guest === true);
+        const isGuest = m?.is_guest || attendeeConfigs?.[id]?.is_guest;
         return isGuest ? `${name} (G)` : name;
     };
 
@@ -804,13 +795,13 @@ export default function KDKPage() {
         const countB = selectedAttendees.filter(a => a.group === 'B').length;
 
         if (countA < 4) {
-            setWarningMsg("A조 인원이 부족합니다 (최소 4명 필요)");
+            setWarningMsg("A議??몄썝??遺議깊빀?덈떎 (理쒖냼 4紐??꾩슂)");
             setShowWarning(true);
             return;
         }
 
         if (countB > 0 && countB < 4) {
-            setWarningMsg("B조 인원이 부족합니다 (최소 4명 필요)");
+            setWarningMsg("B議??몄썝??遺議깊빀?덈떎 (理쒖냼 4紐??꾩슂)");
             setShowWarning(true);
             return;
         }
@@ -858,7 +849,7 @@ export default function KDKPage() {
 
                 if (unfulfilledPairs.length > 0) {
                     setTimeout(() => {
-                        setWarningMsg("고정 파트너가 너무 많아 100% 매칭이 불가능합니다.\\n일부 대진은 수동으로 조정해 주세요.");
+                        setWarningMsg("怨좎젙 ?뚰듃?덇? ?덈Т 留롮븘 100% 留ㅼ묶??遺덇??ν빀?덈떎.\\n?쇰? ?吏꾩? ?섎룞?쇰줈 議곗젙??二쇱꽭??");
                         setShowWarning(true);
                     }, 500);
                 }
@@ -878,7 +869,7 @@ export default function KDKPage() {
 
             // ENABLE DB SAVE (Sync Live Matches)
             try {
-                // DB 테이블에 바로 매핑되도록 snake_case 키로 정제 (캐시 에러를 막기 위해 최신 컬럼은 제외)
+                // DB ?뚯씠釉붿뿉 諛붾줈 留ㅽ븨?섎룄濡?snake_case ?ㅻ줈 ?뺤젣 (罹먯떆 ?먮윭瑜?留됯린 ?꾪빐 理쒖떊 而щ읆? ?쒖쇅)
                 const dbMatches = formattedMatches.map(m => ({
                     id: String(m.id),
                     club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
@@ -887,37 +878,37 @@ export default function KDKPage() {
                     round: m.round || 1,
                     court: m.court || 1,
                     player_ids: m.playerIds || [],
-                    // player_names, mode, group_name 등은 Supabase 스키마 캐시 지연 시 에러 폭탄이 되므로 전송 제외
+                    // player_names, mode, group_name ?깆? Supabase ?ㅽ궎留?罹먯떆 吏?????먮윭 ??깂???섎?濡??꾩넚 ?쒖쇅
                     score1: m.score1 ?? 1,
                     score2: m.score2 ?? 1,
                     status: m.status || 'waiting'
                 }));
 
-                // RPC 우회: 테이블 직접 다중 Upsert (강력하고 확실함)
+                // RPC ?고쉶: ?뚯씠釉?吏곸젒 ?ㅼ쨷 Upsert (媛뺣젰?섍퀬 ?뺤떎??
                 const { error: matchError } = await supabase
                     .from('matches')
                     .upsert(dbMatches, { onConflict: 'id' });
                 
                 if (matchError) {
-                    console.error("❌ Live Match Sync Error:", matchError);
-                    alert(`🚨 DB 저장 실패! 아내 폰에 안 뜨는 원인입니다!\n에러 내용: ${matchError.message || JSON.stringify(matchError)}\n\n(이 팝업을 찍어서 알려주세요)`);
+                    console.error("??Live Match Sync Error:", matchError);
+                    alert(`?슚 DB ????ㅽ뙣! ?꾨궡 ?곗뿉 ???⑤뒗 ?먯씤?낅땲??\n?먮윭 ?댁슜: ${matchError.message || JSON.stringify(matchError)}\n\n(???앹뾽??李띿뼱???뚮젮二쇱꽭??`);
                     if (matchError.message?.includes('uuid')) {
                         console.warn("UUID Mismatch detected. Please apply the SQL migration to change 'matches.id' to TEXT.");
                     }
                 } else {
-                    console.log("✅ Live Match Sync Success");
+                    console.log("??Live Match Sync Success");
                 }
             } catch (err: any) {
                 console.error("Critical Sync Failure:", err);
-                alert(`🚨 DB 통신 중대한 에러!\n${err.message}`);
+                alert(`?슚 DB ?듭떊 以묐????먮윭!\n${err.message}`);
             }
 
-            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // 딩-동!
+            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // ????
             setMatches(formattedMatches);
             setStep(3);
         } catch (err: any) {
             console.error(err);
-            alert("대진 생성 실패: " + err.message);
+            alert("?吏??앹꽦 ?ㅽ뙣: " + err.message);
         } finally {
             setIsGenerating(false);
         }
@@ -931,20 +922,20 @@ export default function KDKPage() {
         if (!targetMatch) return;
         
         if (targetMatch.status === 'playing') {
-            setToastMsg("이미 활성화된 경기입니다");
+            setToastMsg("?대? ?쒖꽦?붾맂 寃쎄린?낅땲??);
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
             return;
         }
 
-        // 1. Court Limit Check REMOVED (CEO: "코트 수는 무제한이라 생각하면 돼")
+        // 1. Court Limit Check REMOVED (CEO: "肄뷀듃 ?섎뒗 臾댁젣?쒖씠???앷컖?섎㈃ ??)
         // No check against totalCourts here anymore.
 
         // 2. Participant Conflict Check
         const conflictPlayers = (targetMatch.playerIds || []).filter(pid => busyPlayerIds.has(pid));
         if (conflictPlayers.length > 0) {
             const names = conflictPlayers.map(pid => getPlayerName(pid)).join(', ');
-            setToastMsg(`참여자 중복: ${names} 선수가 이미 경기 중입니다`);
+            setToastMsg(`李몄뿬??以묐났: ${names} ?좎닔媛 ?대? 寃쎄린 以묒엯?덈떎`);
             setShowToast(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
             setTimeout(() => setShowToast(false), 3000);
@@ -967,7 +958,7 @@ export default function KDKPage() {
             // Local state update
             setMatches(nextMatches);
 
-            // DB Sync via Native Update (RPC 우회)
+            // DB Sync via Native Update (RPC ?고쉶)
             const { error: updateError } = await supabase
                 .from('matches')
                 .update({ status: 'playing', court: nextCourt })
@@ -979,7 +970,7 @@ export default function KDKPage() {
             await syncActiveSession();
         } catch (err) {
             console.error("Start Match Error:", err);
-            setToastMsg("경기 투입 중 오류가 발생했습니다");
+            setToastMsg("寃쎄린 ?ъ엯 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎");
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
         } finally {
@@ -991,13 +982,13 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
-            // 1. Supabase Sync via Native Update (RPC 우회)
+            // 1. Supabase Sync via Native Update (RPC ?고쉶)
             const { error: syncError } = await supabase
                 .from('matches')
                 .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
                 .eq('id', String(matchId));
 
-            if (syncError) console.error("❌ Cancel match sync error:", syncError);
+            if (syncError) console.error("??Cancel match sync error:", syncError);
 
             // 2. Local State Update & Invalidation (Removed setActiveMatchIds)
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
@@ -1009,12 +1000,12 @@ export default function KDKPage() {
         } catch (err: any) {
             console.error("Cancel match error:", err);
             setSpinningMatchId(null);
-            alert("경기 취소 중 오류가 발생했습니다: " + err.message);
+            alert("寃쎄린 痍⑥냼 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎: " + err.message);
         }
     };
 
     const updateMatchCourt = (matchId: string) => {
-        const courtStr = prompt("변경할 코트 번호를 입력하세요", "1");
+        const courtStr = prompt("蹂寃쏀븷 肄뷀듃 踰덊샇瑜??낅젰?섏꽭??, "1");
         if (courtStr === null) return;
         const courtNum = parseInt(courtStr) || 1;
         setMatches(prev => prev.map(m => m.id === matchId ? { ...m, court: courtNum } : m));
@@ -1101,7 +1092,7 @@ export default function KDKPage() {
             setMatches(formattedMatches);
             setShowMemberEditModal(false);
         } catch (err: any) {
-            alert("대진 재구성 실패: " + err.message);
+            alert("?吏??ш뎄???ㅽ뙣: " + err.message);
         } finally {
             setIsGenerating(false);
         }
@@ -1147,7 +1138,7 @@ export default function KDKPage() {
             // Deterministic Unique ID for Upsert (Session + Round + Court)
             const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
 
-            // 3. DB Sync via Native Update (RPC 우회)
+            // 3. DB Sync via Native Update (RPC ?고쉶)
             const { error: syncError } = await supabase
                 .from('matches')
                 .update({ status: 'complete', score1: numS1, score2: numS2 })
@@ -1170,7 +1161,7 @@ export default function KDKPage() {
             localStorage.removeItem(`kdk_score_buffer_${matchId}`);
         } catch (err: any) {
             console.error("Critical Finish Match Failure:", err);
-            alert("경기 결과 저장에 실패했습니다: " + (err.message || "Unknown error"));
+            alert("寃쎄린 寃곌낵 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎: " + (err.message || "Unknown error"));
             // We do NOT revert local state here to avoid confusion, 
             // the user can retry or check the archive later.
         }
@@ -1225,29 +1216,29 @@ export default function KDKPage() {
 
     const execCopySchedule = () => {
         if (!matches || matches.length === 0) {
-            alert("데이터를 불러오는 중입니다...");
+            alert("?곗씠?곕? 遺덈윭?ㅻ뒗 以묒엯?덈떎...");
             return;
         }
 
         // [v3.2 - FINAL REQUESTED TEMPLATE]
-        let text = `📌 오늘의 대진표: ${sessionTitle || 'Live Tournament'}\n`;
-        text += `⚖️ 규칙: ${matchRules || '1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승'}\n`;
-        text += `💰 상벌금: 우승 ${firstPrize.toLocaleString()} / 벌금 ${bottom25Late.toLocaleString()} / 벌금 ${bottom25Penalty.toLocaleString()}\n`;
-        text += `━━━━━━━━━━━━━━\n`;
+        let text = `?뱦 ?ㅻ뒛???吏꾪몴: ${sessionTitle || 'Live Tournament'}\n`;
+        text += `?뽳툘 洹쒖튃: ${matchRules || '1:1 ?쒖옉, ?몄뿉?? ???3:3 ?쒖옉 7?ъ씤???좎듅'}\n`;
+        text += `?뮥 ?곷쾶湲? ?곗듅 ${firstPrize.toLocaleString()} / 踰뚭툑 ${bottom25Late.toLocaleString()} / 踰뚭툑 ${bottom25Penalty.toLocaleString()}\n`;
+        text += `?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺\n`;
 
         const uniqueGroups = [...new Set(matches.map(m => m.groupName || 'A'))].sort();
         const hasMultipleGroups = uniqueGroups.length > 1;
 
         uniqueGroups.forEach(group => {
             if (hasMultipleGroups) {
-                text += `\n📍 '${group}'조 대진표\n`;
+                text += `\n?뱧 '${group}'議??吏꾪몴\n`;
             }
 
             const groupMatches = matches.filter(m => (m.groupName || 'A') === group);
             const rounds = [...new Set(groupMatches.map(m => m.round || 1))].sort((a, b) => a - b);
 
             rounds.forEach(r => {
-                text += `\n📍 ${r}라운드\n`;
+                text += `\n?뱧 ${r}?쇱슫??n`;
                 const roundMatches = groupMatches.filter(m => m.round === r).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
                 roundMatches.forEach(m => {
                     const teamA = `${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])}`;
@@ -1258,30 +1249,30 @@ export default function KDKPage() {
             });
 
             if (hasMultipleGroups) {
-                text += `\n━━━━━━━━━━━━━━\n`;
+                text += `\n?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺\n`;
             }
         });
 
         text = text.trim();
         if (!hasMultipleGroups) {
-            text += `\n━━━━━━━━━━━━━━`;
+            text += `\n?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺`;
         }
-        text += `\n※ 상세 결과 확인: https://teyeon-system.vercel.app/kdk`;
+        text += `\n???곸꽭 寃곌낵 ?뺤씤: https://teyeon-system.vercel.app/kdk`;
 
-        console.log("Copied Match Schedule v3.2 (No Courts, No '지각')");
+        console.log("Copied Match Schedule v3.2 (No Courts, No '吏媛?)");
         navigator.clipboard.writeText(text);
-        alert("실시간 대진표가 클립보드에 복사되었습니다! ✅");
+        alert("?ㅼ떆媛??吏꾪몴媛 ?대┰蹂대뱶??蹂듭궗?섏뿀?듬땲?? ??);
     };
 
     const copyFinalResults = () => {
         if (!matches || matches.length === 0) {
-            alert("데이터를 불러오는 중입니다...");
+            alert("?곗씠?곕? 遺덈윭?ㅻ뒗 以묒엯?덈떎...");
             return;
         }
 
-        let text = `🏆 오늘의 최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
-        text += `🏦 계좌: ${accountInfo}\n`;
-        text += `━━━━━━━━━━━━━━\n\n`;
+        let text = `?룇 ?ㅻ뒛??理쒖쥌 寃곌낵: ${sessionTitle || 'Live Tournament'}\n`;
+        text += `?룱 怨꾩쥖: ${accountInfo}\n`;
+        text += `?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺\n\n`;
 
         const sortedPlayers = [...allPlayersInRanking];
         const totalCount = sortedPlayers.length;
@@ -1293,30 +1284,30 @@ export default function KDKPage() {
 
         sortedPlayers.forEach((p, i) => {
             const originalRank = i + 1;
-            let rankPrefix = (originalRank === 1) ? '🥇 ' : (originalRank === 2) ? '🥈 ' : (originalRank === 3) ? '🥉 ' : `${originalRank}위 `;
+            let rankPrefix = (originalRank === 1) ? '?쪍 ' : (originalRank === 2) ? '?쪎 ' : (originalRank === 3) ? '?쪏 ' : `${originalRank}??`;
 
             const isPenaltyTier = i >= (totalCount - penaltyCount);
             const isFineTier = !isPenaltyTier && i >= (totalCount - bottomHalfCount);
 
             let prizePenaltyText = '';
             if (originalRank === 1 && !p.is_guest) {
-                prizePenaltyText = ` [💰 +${firstPrize.toLocaleString()}원]`;
+                prizePenaltyText = ` [?뮥 +${firstPrize.toLocaleString()}??`;
             } else if (isPenaltyTier) {
-                prizePenaltyText = ` [💸 -${bottom25Penalty.toLocaleString()}원]`;
+                prizePenaltyText = ` [?뮯 -${bottom25Penalty.toLocaleString()}??`;
             } else if (isFineTier) {
-                prizePenaltyText = ` [💸 -${bottom25Late.toLocaleString()}원]`;
+                prizePenaltyText = ` [?뮯 -${bottom25Late.toLocaleString()}??`;
             } else {
-                prizePenaltyText = ` [0원]`;
+                prizePenaltyText = ` [0??`;
             }
 
-            text += `${rankPrefix}${p.name}${p.is_guest ? ' (G)' : ''}: ${p.wins}승 ${p.losses}패${prizePenaltyText}\n`;
+            text += `${rankPrefix}${p.name}${p.is_guest ? ' (G)' : ''}: ${p.wins}??${p.losses}??{prizePenaltyText}\n`;
         });
 
-        text += `\n━━━━━━━━━━━━━━\n`;
-        text += `※ 전체 아카이브 확인: https://teyeon-system.vercel.app/archive?session=${sessionId}`;
+        text += `\n?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺?곣봺\n`;
+        text += `???꾩껜 ?꾩뭅?대툕 ?뺤씤: https://teyeon-system.vercel.app/archive?session=${sessionId}`;
 
         navigator.clipboard.writeText(text);
-        alert("최종 결과 및 정산 현황이 복사되었습니다! ✅");
+        alert("理쒖쥌 寃곌낵 諛??뺤궛 ?꾪솴??蹂듭궗?섏뿀?듬땲?? ??);
     };
 
     function addMinutesToTime(time: string, mins: number) {
@@ -1386,14 +1377,14 @@ export default function KDKPage() {
                             onClick={() => setStep(1)}
                             className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 active:scale-95 transition-all text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.1)]"
                         >
-                            <span className="text-xl leading-none -mt-0.5">←</span>
+                            <span className="text-xl leading-none -mt-0.5">??/span>
                         </button>
                     </div>
 
                     <div className="text-center flex flex-col items-center gap-2">
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
-                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
+                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">寃쎄린 ?吏??ㅼ젙</h1>
                         </div>
                         {isAdmin && (
                             <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_5px_15px_rgba(201,176,117,0.3)] animate-in fade-in zoom-in duration-500">
@@ -1410,10 +1401,10 @@ export default function KDKPage() {
                                 setShowResetConfirm(true);
                             }}
                             className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
-                            title="전체 데이터 초기화"
+                            title="?꾩껜 ?곗씠??珥덇린??
                         >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[9px] font-black uppercase tracking-tighter">초기화</span>
+                            <span className="text-[9px] font-black uppercase tracking-tighter">珥덇린??/span>
                         </button>
                     </div>
                 </header>
@@ -1430,7 +1421,7 @@ export default function KDKPage() {
                             value={sessionTitle}
                             onChange={(e) => setSessionTitle(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#C9B075]/50 focus:bg-white/[0.08] transition-all outline-none"
-                            placeholder="Ex: 2026-03-27 테연 정기전"
+                            placeholder="Ex: 2026-03-27 ?뚯뿰 ?뺢린??
                         />
                     </section>
 
@@ -1459,7 +1450,7 @@ export default function KDKPage() {
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
                                                     style={{ width: '32px', height: '32px', borderRadius: '10px', border: config.isLate ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.1)', background: config.isLate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' }}
-                                                >🕒</button>
+                                                >?븩</button>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#0A0A0A', borderRadius: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                                                     <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>
                                                         {timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}
@@ -1513,7 +1504,7 @@ export default function KDKPage() {
                                             transition: 'all 0.15s'
                                         }}
                                     >
-                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
+                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '?낆긽/鍮꾩엯?? : 'MBTI'}
                                     </button>
                                 ))}
                             </div>
@@ -1549,10 +1540,10 @@ export default function KDKPage() {
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '15px', fontWeight: 1000, color: '#FFFFFF' }}>
                                             <span>{getPlayerName(pair[0])}</span>
-                                            <span style={{ color: '#C9B075', fontSize: '18px' }}>♥</span>
+                                            <span style={{ color: '#C9B075', fontSize: '18px' }}>??/span>
                                             <span>{getPlayerName(pair[1])}</span>
                                         </div>
-                                        <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
+                                        <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">횞</button>
                                     </div>
                                 ))}
                                 <button
@@ -1588,7 +1579,7 @@ export default function KDKPage() {
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{totalCourts}</span>
                                     <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -1597,7 +1588,7 @@ export default function KDKPage() {
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
                                     <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -1613,7 +1604,7 @@ export default function KDKPage() {
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -1625,7 +1616,7 @@ export default function KDKPage() {
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -1637,7 +1628,7 @@ export default function KDKPage() {
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -1654,7 +1645,7 @@ export default function KDKPage() {
                                 value={matchRules}
                                 onChange={(e) => setMatchRules(e.target.value)}
                                 style={{ width: '100%', background: '#141414', border: '1px solid #333', borderRadius: '16px', padding: '16px', fontSize: '14px', fontWeight: 600, color: '#E5E7EB', minHeight: '120px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
-                                placeholder="토너먼트 규칙을 입력하세요..."
+                                placeholder="?좊꼫癒쇳듃 洹쒖튃???낅젰?섏꽭??.."
                             />
                         </div>
                     </section>
@@ -1692,7 +1683,7 @@ export default function KDKPage() {
                                     boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
                                 }}
                             >
-                                {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
+                                {isGenerating ? 'GENERATE...' : '理쒖쥌 ?吏??먮룞 ?앹꽦! ??'}
                             </button>
                         </div>
                     </div>
@@ -1708,7 +1699,7 @@ export default function KDKPage() {
                                     <div style={{ fontSize: '11px', fontWeight: 900, color: '#C9B075', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
                                     <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>SELECT PARTNER</h3>
                                 </div>
-                                <button onClick={() => setPartnerSelectSource(null)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
+                                <button onClick={() => setPartnerSelectSource(null)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>횞</button>
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto' }}>
@@ -1746,7 +1737,7 @@ export default function KDKPage() {
                             </div>
 
                             <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>
-                                {partnerSelectSource === 'NEW' ? '첫 번째 플레이어를 선택하세요' : (allMembers.find(x => x.id === partnerSelectSource)?.nickname + (allMembers.find(x => x.id === partnerSelectSource)?.is_guest ? ' (G)' : '')) + '의 파트너를 선택하세요'}
+                                {partnerSelectSource === 'NEW' ? '泥?踰덉㎏ ?뚮젅?댁뼱瑜??좏깮?섏꽭?? : (allMembers.find(x => x.id === partnerSelectSource)?.nickname + (allMembers.find(x => x.id === partnerSelectSource)?.is_guest ? ' (G)' : '')) + '???뚰듃?덈? ?좏깮?섏꽭??}
                             </p>
                         </div>
                     </div>
@@ -1775,7 +1766,7 @@ export default function KDKPage() {
                         Live Court Gateway
                     </span>
                     <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-2xl">
-                        중계 세션 선택
+                        以묎퀎 ?몄뀡 ?좏깮
                     </h1>
                     <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
                 </header>
@@ -1784,11 +1775,11 @@ export default function KDKPage() {
                     {allActiveSessions.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center px-12 opacity-20 group">
                             <div className="w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <span className="text-4xl">📡</span>
+                                <span className="text-4xl">?뱻</span>
                             </div>
                             <h2 className="text-lg font-black uppercase tracking-widest mb-2">No Active Matches</h2>
                             <p className="text-[10px] font-medium leading-relaxed uppercase tracking-tighter max-w-xs">
-                                현재 진행 중인 공개 세션이 없습니다.<br />관리자가 경기를 생성하면 여기에 표시됩니다.
+                                ?꾩옱 吏꾪뻾 以묒씤 怨듦컻 ?몄뀡???놁뒿?덈떎.<br />愿由ъ옄媛 寃쎄린瑜??앹꽦?섎㈃ ?ш린???쒖떆?⑸땲??
                             </p>
                         </div>
                     ) : (
@@ -1812,7 +1803,7 @@ export default function KDKPage() {
                                     <div className="flex items-start justify-between mb-8">
                                         <div className="flex flex-col gap-1">
                                             <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${isLatest ? 'text-[#C9B075]' : 'text-white/40'}`}>
-                                                {s.id.includes('KDK') ? '정기 KDK 매치' : '스페셜 매치'}
+                                                {s.id.includes('KDK') ? '?뺢린 KDK 留ㅼ튂' : '?ㅽ럹??留ㅼ튂'}
                                             </span>
                                             <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase group-hover:text-[#C9B075] transition-colors leading-none">
                                                 {s.title}
@@ -1826,16 +1817,16 @@ export default function KDKPage() {
 
                                     <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-6">
                                         <div className="flex flex-col">
-                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">참가 인원</span>
-                                            <span className="text-lg font-black text-white italic">{s.playerCount}<span className="text-[10px] ml-0.5 opacity-30">명</span></span>
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">李멸? ?몄썝</span>
+                                            <span className="text-lg font-black text-white italic">{s.playerCount}<span className="text-[10px] ml-0.5 opacity-30">紐?/span></span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">진행 경기</span>
-                                            <span className="text-lg font-black text-white italic">{s.matchCount}<span className="text-[10px] ml-0.5 opacity-30">회</span></span>
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">吏꾪뻾 寃쎄린</span>
+                                            <span className="text-lg font-black text-white italic">{s.matchCount}<span className="text-[10px] ml-0.5 opacity-30">??/span></span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">상태</span>
-                                            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter mt-2">입장하기 ➡️</span>
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">?곹깭</span>
+                                            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter mt-2">?낆옣?섍린 ?∽툘</span>
                                         </div>
                                     </div>
 
@@ -1853,7 +1844,7 @@ export default function KDKPage() {
                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full px-8 pb-4">
                         <button
                             onClick={() => { 
-                                if (!isAdmin) return triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
+                                if (!isAdmin) return triggerAccessDenied("?덈줈??寃쎄린??愿由ъ옄留??앹꽦 媛?ν빀?덈떎.");
                                 setShowGateway(false); 
                                 setStep(1); 
                                 setSelectedSessionId(null); 
@@ -1863,7 +1854,7 @@ export default function KDKPage() {
                             }}
                             className="w-full py-5 rounded-full bg-white/5 border border-white/10 text-white/40 font-black text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                         >
-                            {isAdmin ? '+ 새로운 대회 생성하기' : '준비 된 경기가 없습니다'}
+                            {isAdmin ? '+ ?덈줈??????앹꽦?섍린' : '以鍮???寃쎄린媛 ?놁뒿?덈떎'}
                         </button>
                     </div>
                 )}
@@ -1883,7 +1874,7 @@ export default function KDKPage() {
                                 setStep(2);
                             }}
                             className="mr-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white transition-all active:scale-95"
-                            title="경기 설정으로 돌아가기"
+                            title="寃쎄린 ?ㅼ젙?쇰줈 ?뚯븘媛湲?
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
                         </button>
@@ -1900,10 +1891,10 @@ export default function KDKPage() {
                         <button
                             onClick={() => setShowResetConfirm(true)}
                             className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-                            title="전체 데이터 초기화"
+                            title="?꾩껜 ?곗씠??珥덇린??
                         >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">珥덇린??/span>
                         </button>
                     )}
                     {allActiveSessions.length > 1 && (
@@ -1912,14 +1903,14 @@ export default function KDKPage() {
                             className="h-10 px-4 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/30 flex items-center gap-2 text-[#C9B075] hover:bg-[#C9B075]/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(201,176,117,0.1)]"
                         >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">다른 경기</span>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">?ㅻⅨ 寃쎄린</span>
                         </button>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button onClick={execCopySchedule} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
-                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
+                    <button onClick={execCopySchedule} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="?吏꾪몴 怨듭쑀">?뱥</button>
+                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="寃곌낵 蹂닿퀬">?룇</button>
                 </div>
             </header>
 
@@ -1951,14 +1942,14 @@ export default function KDKPage() {
                                 await syncActiveSession();
                                 setTimeout(() => { if (btn) btn.style.transform = 'rotate(0deg)'; }, 500);
                             }}
-                            title="강제 새로고침"
+                            title="媛뺤젣 ?덈줈怨좎묠"
                             className="ml-2 w-6 h-6 flex items-center justify-center text-[10px] bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
                             id="manual-sync-btn"
                         >
-                            🔄
+                            ?봽
                         </button>
                         {isAdmin && (
-                            <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
+                            <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">?숋툘</button>
                         )}
                     </div>
                 </div>
@@ -1968,7 +1959,7 @@ export default function KDKPage() {
                     <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
                         <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">RULES:</span>
                         <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate drop-shadow-sm">
-                            1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
+                            1:1 ?쒖옉, ?몄뿉?? ???3:3 (7?ъ씤???좎듅)
                         </span>
                     </div>
                 )}
@@ -2029,7 +2020,7 @@ export default function KDKPage() {
                                                 <div className="flex items-center justify-center px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ color: groupColor }}>
-                                                            ROUND {m.round} • {normalizedGroup}조 • {matchNo}경기
+                                                            GROUP {normalizedGroup} ??MATCH {matchNo.toString().padStart(2, '0')}
                                                         </span>
                                                         <RotateCw className={`w-3 h-3 transition-colors ${spinningMatchId === mId ? 'animate-spin' : 'opacity-40'}`} style={{ color: groupColor }} />
                                                     </div>
@@ -2039,7 +2030,7 @@ export default function KDKPage() {
                                                             type="button"
                                                             onClick={(e) => { e.stopPropagation(); if (window.navigator?.vibrate) window.navigator.vibrate(50); cancelMatch(mId); }}
                                                             className="absolute right-2 flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
-                                                            title="웨이팅 리스트로 복귀"
+                                                            title="?⑥씠??由ъ뒪?몃줈 蹂듦?"
                                                         >
                                                             <div className="sr-only">Cancel Match</div>
                                                         </button>
@@ -2066,7 +2057,7 @@ export default function KDKPage() {
                                                             <div className="fixed bottom-[115px] left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300 w-[90%] max-w-sm">
                                                                 <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center justify-center gap-3 backdrop-blur-xl">
                                                                     <div className="w-4 h-4 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
-                                                                        <CheckCircle2 className={`w-3 h-3 ${toastMsg.includes('관리자') ? 'text-red-400' : 'text-[#4ADE80]'}`} />
+                                                                        <CheckCircle2 className={`w-3 h-3 ${toastMsg.includes('愿由ъ옄') ? 'text-red-400' : 'text-[#4ADE80]'}`} />
                                                                     </div>
                                                                     <span className="text-[11px] font-black uppercase tracking-widest italic text-center">{toastMsg}</span>
                                                                 </div>
@@ -2098,7 +2089,7 @@ export default function KDKPage() {
                                                         className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0"
                                                         style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
                                                     >
-                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE 🏆</span>
+                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE ?룇</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -2154,9 +2145,8 @@ export default function KDKPage() {
                                                     return (
                                                         <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
                                                             <div className="flex items-center justify-center">
-                                                                <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
-                                                                    <span className="text-[8px] font-black leading-none opacity-40">R{m.round}</span>
-                                                                    <span className="text-[12px] font-[1000] leading-none uppercase">G{matchNo}</span>
+                                                                <div className="w-9 h-9 text-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
+                                                                    <span className="text-[12px] font-black uppercase">G{matchNo}</span>
                                                                 </div>
                                                             </div>
 
@@ -2181,7 +2171,7 @@ export default function KDKPage() {
                                                             <div className="flex items-center justify-end pr-2">
                                                                 <button
                                                                     onClick={() => { 
-                                                                        if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
+                                                                        if (!isAdmin) return triggerAccessDenied("寃쎄린 ?ъ엯? 愿由ъ옄留??쒖뼱?????덉뒿?덈떎.");
                                                                         if (isStartingMatch || hasConflict) return;
                                                                         if (window.navigator?.vibrate) window.navigator.vibrate(50); 
                                                                         startMatch(m.id); 
@@ -2190,7 +2180,7 @@ export default function KDKPage() {
                                                                     className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
                                                                     style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
                                                                 >
-                                                                    {isStartingMatch ? '...처리중' : hasConflict ? '참여불가 🚫' : (isAdmin ? '투입 🚀' : '진행 대기')}
+                                                                    {isStartingMatch ? '...泥섎━以? : hasConflict ? '李몄뿬遺덇? ?슟' : (isAdmin ? '?ъ엯 ??' : '吏꾪뻾 ?湲?)}
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -2226,20 +2216,20 @@ export default function KDKPage() {
                                                 {/* SECTION HEADER BAR */}
                                                 <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.02] border-b border-white/5 overflow-hidden relative">
                                                     <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate" style={{ color: m.groupName === 'B' ? 'rgba(0, 229, 255, 0.4)' : 'rgba(201, 176, 117, 0.5)' }}>
-                                                        GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
+                                                        GROUP {(m.groupName || 'A')} ??MATCH {gMatchNo.toString().padStart(2, '0')}
                                                     </span>
                                                     <button 
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (!isAdmin) return triggerAccessDenied();
-                                                            if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\\n(점수가 1:1로 초기화되며 랭킹에서 임시 제외됩니다.)")) {
+                                                            if (window.confirm("??寃쎄린瑜??ㅼ떆 '吏꾪뻾 以?ONGOING)' ?곹깭濡??섎룎由ъ떆寃좎뒿?덇퉴?\\n(?먯닔媛 1:1濡?珥덇린?붾릺硫???궧?먯꽌 ?꾩떆 ?쒖쇅?⑸땲??)")) {
                                                                 supabase.from('matches').update({ status: 'playing', score1: 1, score2: 1 }).eq('id', m.id).then(() => {
                                                                     setSyncTick(t => t + 1);
                                                                 });
                                                             }
                                                         }}
                                                         className="absolute right-3 hover:bg-white/10 p-1.5 rounded-full transition-all text-white/40 hover:text-[#10B981] z-20"
-                                                        title="경기 다시 진행"
+                                                        title="寃쎄린 ?ㅼ떆 吏꾪뻾"
                                                     >
                                                         <RotateCw size={12} strokeWidth={3} />
                                                     </button>
@@ -2262,7 +2252,7 @@ export default function KDKPage() {
                                                     </div>
                                                 </div>
                                                 <div className="pb-3 text-center transition-all duration-300">
-                                                    <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em] group-hover:text-[#C9B075]/60 group-hover:tracking-[0.4em] transition-all">TAP TO EDIT ✎</span>
+                                                    <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em] group-hover:text-[#C9B075]/60 group-hover:tracking-[0.4em] transition-all">TAP TO EDIT ??/span>
                                                 </div>
                                             </div>
                                         );
@@ -2296,13 +2286,13 @@ export default function KDKPage() {
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
-                    🔥 MATCHES
+                    ?뵦 MATCHES
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
                     className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
-                    📊 RANKING
+                    ?뱤 RANKING
                 </button>
 
             </nav>
@@ -2314,7 +2304,7 @@ export default function KDKPage() {
                         onClick={handleStartCeremony}
                         className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-bold rounded-full shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
                     >
-                        <span>🏆 즉시 순위 및 축하 화면 보러가기</span>
+                        <span>?룇 利됱떆 ?쒖쐞 諛?異뺥븯 ?붾㈃ 蹂대윭媛湲?/span>
                     </button>
                 </div>
             )}
@@ -2323,7 +2313,7 @@ export default function KDKPage() {
                 <div className="fixed inset-0 z-[100] flex flex-col bg-black/98 backdrop-blur-2xl">
                     <header className="p-6 border-b border-white/5 flex items-center justify-between bg-[#14141F]">
                         <h2 className="text-xl font-black italic tracking-tighter text-white">LIVE LEADERBOARD</h2>
-                        <button onClick={() => setShowRankingModal(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-xl text-white">×</button>
+                        <button onClick={() => setShowRankingModal(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-xl text-white">횞</button>
                     </header>
                     <div className="flex-1 overflow-y-auto p-4">
                         <RankingTab
@@ -2350,7 +2340,7 @@ export default function KDKPage() {
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase opacity-80">Match Protocol</span>
                             <div className="mt-2 py-3 px-10 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20 shadow-[0_0_30px_rgba(201,176,117,0.1)]">
                                 <h3 className="text-xl font-black italic text-white tracking-tight uppercase flex items-center gap-3">
-                                    <span className="text-[#C9B075]">🏆</span> WINNER SELECTION
+                                    <span className="text-[#C9B075]">?룇</span> WINNER SELECTION
                                 </h3>
                             </div>
                         </header>
@@ -2380,7 +2370,7 @@ export default function KDKPage() {
                                                         const nextScores = side === 0 ? ({ ...tempScores, s1: val }) : ({ ...tempScores, s2: val });
                                                         setTempScores(nextScores);
                                                         
-                                                        // 🚀 Live Score Broadcasting (관중에게 타이핑과 동시에 점수 전송)
+                                                        // ?? Live Score Broadcasting (愿以묒뿉寃???댄븨怨??숈떆???먯닔 ?꾩넚)
                                                         supabase.from('matches')
                                                             .update({ score1: nextScores.s1, score2: nextScores.s2 })
                                                             .eq('id', activeMatchForScore.id)
@@ -2415,7 +2405,7 @@ export default function KDKPage() {
                                     boxShadow: '0 10px 40px rgba(142,122,74,0.5), inset 0 0 20px rgba(255,255,255,0.2)'
                                 }}
                             >
-                                Confirm Score 🏆
+                                Confirm Score ?룇
                             </button>
                         </div>
                     </div>
@@ -2427,9 +2417,9 @@ export default function KDKPage() {
                     <header className="flex items-center justify-between mb-8 border-b border-white/10 pb-6">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Live Management</span>
-                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">참석자 수시 수정</h2>
+                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">李몄꽍???섏떆 ?섏젙</h2>
                         </div>
-                        <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">×</button>
+                        <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">횞</button>
                     </header>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
                         <section className="space-y-4">
@@ -2443,7 +2433,7 @@ export default function KDKPage() {
                                             key={m.id}
                                             onClick={() => {
                                                 if (isBusy) {
-                                                    alert("현재 경기 중인 선수는 기권 처리할 수 없습니다. 경기가 끝난 후 조정해 주세요.");
+                                                    alert("?꾩옱 寃쎄린 以묒씤 ?좎닔??湲곌텒 泥섎━?????놁뒿?덈떎. 寃쎄린媛 ?앸궃 ??議곗젙??二쇱꽭??");
                                                     return;
                                                 }
                                                 toggleMember(m.id);
@@ -2462,7 +2452,7 @@ export default function KDKPage() {
                             </div>
                         </section>
                         <p className="text-[10px] font-bold text-white/30 leading-relaxed uppercase tracking-widest text-center italic">
-                            💡 선수를 추가하거나 제거하면, <br />아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
+                            ?뮕 ?좎닔瑜?異붽??섍굅???쒓굅?섎㈃, <br />?꾩쭅 ?ъ엯?섏? ?딆? 紐⑤뱺 ?먮룞 ?吏꾩씠 ?ㅼ떆 ?앹꽦?⑸땲??
                         </p>
                     </div>
                     <div className="mt-8">
@@ -2471,7 +2461,7 @@ export default function KDKPage() {
                             onClick={handleMemberEditConfirm}
                             className={`w-full py-5 rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#C9B075] text-black'}`}
                         >
-                            {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
+                            {isGenerating ? '?吏??ш뎄??以?..' : '?뮶 ?ㅼ떆媛??몄썝 蹂寃쎌궗???곸슜'}
                         </button>
                     </div>
                 </div>
@@ -2479,8 +2469,8 @@ export default function KDKPage() {
 
             {showResetConfirm && (
                 <CustomConfirmModal
-                    title="대진표 초기화"
-                    message="현재 진행 중인 모든 대진과 선택된 멤버 정보를 삭제하고 처음부터 다시 시작하시겠습니까?"
+                    title="?吏꾪몴 珥덇린??
+                    message="?꾩옱 吏꾪뻾 以묒씤 紐⑤뱺 ?吏꾧낵 ?좏깮??硫ㅻ쾭 ?뺣낫瑜???젣?섍퀬 泥섏쓬遺???ㅼ떆 ?쒖옉?섏떆寃좎뒿?덇퉴?"
                     onConfirm={actualReset}
                     onCancel={() => setShowResetConfirm(false)}
                 />
@@ -2518,15 +2508,14 @@ export default function KDKPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-[#C9B075]/30 via-transparent to-transparent" />
                     <div className="relative z-10 flex flex-col items-center text-center px-12 space-y-8">
                         <div className="w-40 h-40 rounded-full bg-[#C9B075]/10 border-2 border-[#C9B075]/50 flex items-center justify-center animate-bounce shadow-[0_0_80px_rgba(201,176,117,0.5)]">
-                            <span className="text-8xl drop-shadow-2xl">🏆</span>
+                            <span className="text-8xl drop-shadow-2xl">?룇</span>
                         </div>
                         <div className="space-y-4">
                             <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(201,176,117,0.8)]">
                                 Championship<br />Archived
                             </h2>
                             <p className="text-[#C9B075] text-xs font-black uppercase tracking-[0.6em] animate-pulse">
-                                대회가 명예의 전당에 박제되었습니다
-                            </p>
+                                ??뚭? 紐낆삁???꾨떦??諛뺤젣?섏뿀?듬땲??                            </p>
                         </div>
                         <div className="flex gap-3">
                             {[...Array(5)].map((_, i) => (
