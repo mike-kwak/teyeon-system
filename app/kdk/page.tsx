@@ -109,7 +109,7 @@ export default function KDKPage() {
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     const [showRankingModal, setShowRankingModal] = useState(false);
-    const [userRole, setUserRole] = useState<UserRole>('CEO');
+    const [userRole, setUserRole] = useState<UserRole>('GUEST');
     const [allActiveSessions, setAllActiveSessions] = useState<{ id: string, title: string, matchCount: number, playerCount: number, lastActivity: string }[]>([]);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const [showGateway, setShowGateway] = useState(false);

@@ -163,8 +163,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      setRole('MEMBER');
-      if (typeof window !== 'undefined') localStorage.setItem('teyeon_last_known_role', 'MEMBER');
+      setRole('GUEST');
+      if (typeof window !== 'undefined') localStorage.setItem('teyeon_last_known_role', 'GUEST');
       setIsPendingMatching(false);
       setIsLoading(false);
     } catch (err) {
@@ -177,10 +177,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('[Auth/DirectSync] Network failure, using cached role:', cachedRole);
           setRole(cachedRole);
         } else {
-          setRole('MEMBER');
+          setRole('GUEST');
         }
       } else {
-        setRole('MEMBER');
+        setRole('GUEST');
       }
       setIsLoading(false);
     }
