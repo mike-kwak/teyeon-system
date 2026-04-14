@@ -104,7 +104,17 @@ export default function Home() {
                     </span>
                   )}
                   <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
-                    {item.icon}
+                    {item.label === '멤버 프로필' && user ? (
+                      <ProfileAvatar 
+                        src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                        alt="My Profile" 
+                        size={60} 
+                        className="rounded-full border-2 border-[#C9B075] shadow-[0_0_20px_rgba(201,176,117,0.4)]"
+                        fallbackIcon={item.icon}
+                      />
+                    ) : (
+                      item.icon
+                    )}
                   </div>
                   <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
                     {item.label}
