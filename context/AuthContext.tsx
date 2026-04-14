@@ -157,12 +157,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      setRole('GUEST');
+      setRole('MEMBER');
       setIsPendingMatching(false);
       setIsLoading(false);
     } catch (err) {
       console.error('[Auth/DirectSync] Critical Failure Path:', err);
-      setRole('GUEST');
+      setRole('MEMBER');
       setIsLoading(false);
     }
   };

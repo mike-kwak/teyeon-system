@@ -730,11 +730,13 @@ export default function KDKPage() {
 
     const getPlayerName = (id: string) => {
         if (!id) return "";
+        if (allMembers.length === 0) return "로딩 중...";
+        
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
         
         // CEO Requirement: No "???"! Use empty string or placeholders that don't look broken.
         const name = m?.nickname || attendeeConfigs?.[id]?.name || "";
-        if (!name) return "━"; // Use a sleek dash instead of ???
+        if (!name) return "로딩 중..."; // Use loading instead of ??? or ━ to prevent layout panic
         
         const isGuest = m?.is_guest || attendeeConfigs?.[id]?.is_guest;
         return isGuest ? `${name} (G)` : name;
@@ -2004,11 +2006,11 @@ export default function KDKPage() {
 
                                                         {/* TEAM A BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                                                            <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-0.5 min-w-0">
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds?.[0]) || " "}
                                                                 </span>
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds?.[1]) || " "}
                                                                 </span>
                                                             </div>
@@ -2029,11 +2031,11 @@ export default function KDKPage() {
 
                                                         {/* TEAM B BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                                                            <div className="flex flex-col items-center justify-center w-full px-2 gap-0.5 min-w-0">
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-0.5 min-w-0">
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds?.[2]) || " "}
                                                                 </span>
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink" style={{ fontSize: '13px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                     {getPlayerName(m.playerIds?.[3]) || " "}
                                                                 </span>
                                                             </div>
@@ -2180,22 +2182,36 @@ export default function KDKPage() {
                                                     <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate" style={{ color: m.groupName === 'B' ? 'rgba(0, 229, 255, 0.4)' : 'rgba(201, 176, 117, 0.5)' }}>
                                                         GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
                                                     </span>
-                                                    <div className="absolute right-4 h-2 w-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 opacity-40 shrink-0" />
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (!isAdmin) return triggerAccessDenied();
+                                                            if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\\n(점수가 1:1로 초기화되며 랭킹에서 임시 제외됩니다.)")) {
+                                                                supabase.from('matches').update({ status: 'playing', score1: 1, score2: 1 }).eq('id', m.id).then(() => {
+                                                                    setSyncTick(t => t + 1);
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="absolute right-3 hover:bg-white/10 p-1.5 rounded-full transition-all text-white/40 hover:text-[#10B981] z-20"
+                                                        title="경기 다시 진행"
+                                                    >
+                                                        <RotateCw size={12} strokeWidth={3} />
+                                                    </button>
                                                 </div>
 
-                                                <div className="flex-1 flex flex-col justify-center px-3 py-8">
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 w-full">
+                                                <div className="flex-1 flex flex-col justify-center px-1 py-4 sm:px-3 sm:py-8">
+                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 w-full">
                                                         <div className="flex flex-col items-center justify-center min-w-0">
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[0])}</span>
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[1])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[0])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[1])}</span>
                                                         </div>
-                                                        <div className="flex flex-col items-center flex-shrink-0 px-2 justify-center">
-                                                            <span className="text-[36px] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{m.score1}:{m.score2}</span>
-                                                            <span className="text-[8px] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
+                                                        <div className="flex flex-col items-center flex-shrink-0 px-1 sm:px-2 justify-center">
+                                                            <span className="text-[clamp(24px,6vw,36px)] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{m.score1}:{m.score2}</span>
+                                                            <span className="text-[clamp(6px,2vw,8px)] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
                                                         </div>
                                                         <div className="flex flex-col items-center justify-center min-w-0">
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[2])}</span>
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full" style={{ fontSize: '12px' }}>{getPlayerName(m.playerIds[3])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[2])}</span>
+                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[3])}</span>
                                                         </div>
                                                     </div>
                                                 </div>
