@@ -734,12 +734,40 @@ export default function KDKPage() {
         
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
         
-        // CEO Requirement: No "???"! Use empty string or placeholders that don't look broken.
         const name = m?.nickname || attendeeConfigs?.[id]?.name || "";
-        if (!name) return "로딩 중..."; // Use loading instead of ??? or ━ to prevent layout panic
+        if (!name) return "로딩 중..."; 
         
         const isGuest = m?.is_guest || attendeeConfigs?.[id]?.is_guest;
         return isGuest ? `${name} (G)` : name;
+    };
+
+    const getPlayerAvatar = (id: string) => {
+        if (!id) return "";
+        const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
+        return m?.avatar_url || "";
+    };
+
+    const PlayerAvatar = ({ id, size = 20 }: { id: string, size?: number }) => {
+        const url = getPlayerAvatar(id);
+        return (
+            <div 
+                className="rounded-full overflow-hidden bg-white/10 flex-shrink-0 border border-white/10" 
+                style={{ width: `${size}px`, height: `${size}px` }}
+            >
+                {url ? (
+                    <img 
+                        src={url} 
+                        alt="p" 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => { (e.target as any).style.display = 'none'; }}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center opacity-30">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width={size*0.6} height={size*0.6}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     const generateKDK = async () => {
@@ -1173,6 +1201,7 @@ export default function KDKPage() {
                 id,
                 name: m?.nickname || id,
                 is_guest: m?.is_guest || conf?.is_guest,
+                avatar: m?.avatar_url || '',
                 group: conf?.group || 'A',
                 age: conf.age || m?.age || 99,
                 ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
@@ -2006,13 +2035,19 @@ export default function KDKPage() {
 
                                                         {/* TEAM A BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-0.5 min-w-0">
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[0]) || " "}
-                                                                </span>
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[1]) || " "}
-                                                                </span>
+                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1.5 min-w-0">
+                                                                <div className="flex items-center gap-1.5 w-full justify-center">
+                                                                    <PlayerAvatar id={m.playerIds?.[0]} size={16} />
+                                                                    <span className="text-white font-black leading-none relative z-0 truncate flex-1 text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                        {getPlayerName(m.playerIds?.[0]) || " "}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 w-full justify-center">
+                                                                    <PlayerAvatar id={m.playerIds?.[1]} size={16} />
+                                                                    <span className="text-white font-black leading-none relative z-0 truncate flex-1 text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                        {getPlayerName(m.playerIds?.[1]) || " "}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         </div>
 
@@ -2031,13 +2066,19 @@ export default function KDKPage() {
 
                                                         {/* TEAM B BLOCK */}
                                                         <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-0.5 min-w-0">
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[2]) || " "}
-                                                                </span>
-                                                                <span className="text-white font-black text-center leading-none relative z-0 truncate w-full flex-shrink text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[3]) || " "}
-                                                                </span>
+                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1.5 min-w-0">
+                                                                <div className="flex items-center gap-1.5 w-full justify-center">
+                                                                    <PlayerAvatar id={m.playerIds?.[2]} size={16} />
+                                                                    <span className="text-white font-black leading-none relative z-0 truncate flex-1 text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                        {getPlayerName(m.playerIds?.[2]) || " "}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 w-full justify-center">
+                                                                    <PlayerAvatar id={m.playerIds?.[3]} size={16} />
+                                                                    <span className="text-white font-black leading-none relative z-0 truncate flex-1 text-[clamp(11px,3.5vw,13px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                        {getPlayerName(m.playerIds?.[3]) || " "}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         </div>
 
@@ -2114,22 +2155,38 @@ export default function KDKPage() {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
-                                                                    {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                    /
-                                                                    {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                </span>
-                                                                <span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0" style={{ color: col }}>vs</span>
-                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
-                                                                    {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                    /
-                                                                    {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                </span>
+                                                            <div className="flex items-center justify-center gap-3 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                <div className="flex-1 flex flex-col items-center justify-center gap-1 min-w-0">
+                                                                    <div className="flex items-center gap-1 justify-center w-full">
+                                                                        <PlayerAvatar id={m.playerIds[0]} size={14} />
+                                                                        <span className="text-white font-bold truncate leading-none text-[15px]">
+                                                                            {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 justify-center w-full">
+                                                                        <PlayerAvatar id={m.playerIds[1]} size={14} />
+                                                                        <span className="text-white font-bold truncate leading-none text-[15px]">
+                                                                            {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <span className="text-[9px] font-black uppercase italic tracking-widest opacity-20 shrink-0" style={{ color: col }}>vs</span>
+                                                                
+                                                                <div className="flex-1 flex flex-col items-center justify-center gap-1 min-w-0">
+                                                                    <div className="flex items-center gap-1 justify-center w-full">
+                                                                        <PlayerAvatar id={m.playerIds[2]} size={14} />
+                                                                        <span className="text-white font-bold truncate leading-none text-[15px]">
+                                                                            {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 justify-center w-full">
+                                                                        <PlayerAvatar id={m.playerIds[3]} size={14} />
+                                                                        <span className="text-white font-bold truncate leading-none text-[15px]">
+                                                                            {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
                                                             <div className="flex items-center justify-end pr-2">
@@ -2201,17 +2258,29 @@ export default function KDKPage() {
 
                                                 <div className="flex-1 flex flex-col justify-center px-1 py-4 sm:px-3 sm:py-8">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 w-full">
-                                                        <div className="flex flex-col items-center justify-center min-w-0">
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[0])}</span>
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[1])}</span>
+                                                        <div className="flex flex-col items-center justify-center min-w-0 gap-1.5">
+                                                            <div className="flex items-center gap-1 justify-center w-full">
+                                                                <PlayerAvatar id={m.playerIds[0]} size={14} />
+                                                                <span className="text-white/70 font-black leading-tight truncate flex-1 text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[0])}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1 justify-center w-full">
+                                                                <PlayerAvatar id={m.playerIds[1]} size={14} />
+                                                                <span className="text-white/70 font-black leading-tight truncate flex-1 text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[1])}</span>
+                                                            </div>
                                                         </div>
                                                         <div className="flex flex-col items-center flex-shrink-0 px-1 sm:px-2 justify-center">
                                                             <span className="text-[clamp(24px,6vw,36px)] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{m.score1}:{m.score2}</span>
                                                             <span className="text-[clamp(6px,2vw,8px)] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
                                                         </div>
-                                                        <div className="flex flex-col items-center justify-center min-w-0">
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[2])}</span>
-                                                            <span className="text-white/70 font-black text-center leading-tight truncate w-full text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[3])}</span>
+                                                        <div className="flex flex-col items-center justify-center min-w-0 gap-1.5">
+                                                            <div className="flex items-center gap-1 justify-center w-full">
+                                                                <PlayerAvatar id={m.playerIds[2]} size={14} />
+                                                                <span className="text-white/70 font-black leading-tight truncate flex-1 text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[2])}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1 justify-center w-full">
+                                                                <PlayerAvatar id={m.playerIds[3]} size={14} />
+                                                                <span className="text-white/70 font-black leading-tight truncate flex-1 text-[clamp(10px,3vw,12px)]">{getPlayerName(m.playerIds[3])}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

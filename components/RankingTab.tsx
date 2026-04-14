@@ -11,6 +11,7 @@ interface Player {
     group?: 'A' | 'B';
     rk?: number;
     is_guest?: boolean;
+    avatar?: string;
 }
 
 interface RankingTabProps {
@@ -123,13 +124,24 @@ export default function RankingTab({
                                 >
                                     <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-6 w-full relative">
                                         <div className={`
-                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6
-                                            ${isFirst ? 'w-20 h-20 border-[#C9B075]/30' : 'w-16 h-16'}
+                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6 overflow-hidden
+                                            ${isFirst ? 'w-20 h-20 border-[#C9B075]/40' : 'w-16 h-16'}
                                         `}>
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
-                                            <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none`}>
-                                                {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
-                                            </span>
+                                            {p.avatar ? (
+                                                <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none text-white/10`}>
+                                                    {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
+                                                </span>
+                                            )}
+                                            
+                                            {/* Badge for Rank Emoji */}
+                                            {p.avatar && (
+                                                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-black/80 rounded-full flex items-center justify-center border border-white/20 text-xs">
+                                                    {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-col items-center gap-2.5 w-full px-4 relative z-10">
@@ -170,26 +182,36 @@ export default function RankingTab({
                 <div className="h-6" aria-hidden="true" />
 
                 <div className="flex-1 space-y-2 px-4 mb-32 relative z-0">
-                    <div className="grid grid-cols-[2.8rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_6.2rem] gap-1 px-4 pb-10 text-[13px] font-black text-white tracking-widest border-b border-white/20 uppercase italic overflow-visible">
-                        <span className="text-center opacity-60 whitespace-nowrap">순위</span>
-                        <span className="text-left pl-4 opacity-60 whitespace-nowrap">참가자</span>
-                        <span className="text-right opacity-40 whitespace-nowrap">P</span>
-                        <span className="text-right text-[#00e5ff] whitespace-nowrap">승</span>
-                        <span className="text-right opacity-60 whitespace-nowrap">패</span>
-                        <span className="text-right opacity-60 whitespace-nowrap">PF</span>
-                        <span className="text-right opacity-60 whitespace-nowrap">PA</span>
-                        <span className="text-right text-[#00e5ff] whitespace-nowrap">득실</span>
-                        <span className="text-center pr-2 whitespace-nowrap text-[#C9B075]">정산</span>
+                    <div className="grid grid-cols-[2rem_2.5rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_5.5rem] gap-1 px-4 pb-6 text-[11px] font-black text-white/40 tracking-widest border-b border-white/10 uppercase italic overflow-visible">
+                        <span className="text-center opacity-60">#</span>
+                        <span className="text-center opacity-0">IMG</span>
+                        <span className="text-left pl-2 opacity-60">PLAYER</span>
+                        <span className="text-right opacity-40">P</span>
+                        <span className="text-right text-[#00e5ff]">W</span>
+                        <span className="text-right opacity-60">L</span>
+                        <span className="text-right opacity-40">PF</span>
+                        <span className="text-right opacity-40">PA</span>
+                        <span className="text-right text-[#00e5ff]">+/-</span>
+                        <span className="text-center text-[#C9B075]">SETTLE</span>
                     </div>
                     {others.map((p) => {
                         const originalIdx = players.findIndex((x) => x.id === p.id);
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
                             <div key={p.id}
-                                className="h-14 rounded-2xl px-4 grid grid-cols-[2.8rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_6.2rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
+                                className="h-14 rounded-2xl px-4 grid grid-cols-[2rem_2.5rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_5.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
                             >
                                 <div className="text-center font-bold text-[13px] text-white/30 italic group-hover:text-white/60 transition-colors">{originalIdx + 1}</div>
-                                <div className="text-left font-black text-[15.5px] text-white tracking-tighter truncate pl-4">
+                                <div className="flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
+                                        {p.avatar ? (
+                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white/10"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="text-left font-black text-[15.5px] text-white tracking-tighter truncate pl-2">
                                     {p.name}{p.is_guest && <span className="ml-1 text-[9px] text-[#C9B075]/40 italic">G</span>}
                                 </div>
                                 <div className="text-right text-[11px] font-black text-white/50">{p.wins + p.losses}</div>
