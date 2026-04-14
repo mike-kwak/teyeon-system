@@ -115,6 +115,10 @@ export default function KDKPage() {
     const [showGateway, setShowGateway] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
+    
+    // [v32.2] Sync Integrity States
+    const [syncStatus, setSyncStatus] = useState<'IDLE' | 'HEALTHY' | 'ERROR'>('IDLE');
+    const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
@@ -625,14 +629,14 @@ export default function KDKPage() {
 
                 setAllActiveSessions(sessionList);
 
-                // Gatekeeper Logic
+                // Gatekeeper Logic: ALWAYS trust the server over local state for active sessions
                 if (!selectedSessionId) {
                     if (sessionList.length === 1) {
                         // Auto-entry if only one session
                         const soleSession = sessionsMap[sessionList[0].id];
                         setMatches(soleSession.matches.map(m => ({
                             id: m.id,
-                            playerIds: m.player_ids || m.playerIds || [], // Fix: Map DB snake_case to state camelCase
+                            playerIds: m.player_ids || m.playerIds || [],
                             court: m.court,
                             status: m.status,
                             score1: m.score1,
@@ -640,7 +644,7 @@ export default function KDKPage() {
                             mode: m.mode || 'KDK',
                             round: m.round,
                             teams: m.teams,
-                            groupName: m.group_name || m.groupName // Support both snake/camel
+                            groupName: m.group_name || m.groupName || 'A'
                         })));
                         setSessionId(soleSession.id);
                         setSessionTitle(soleSession.title);
@@ -654,9 +658,10 @@ export default function KDKPage() {
                     // Refresh current session data if already selected
                     const currentSession = sessionsMap[selectedSessionId];
                     if (currentSession) {
+                        // [v32.2] CRITICAL: Hard Overwrite local state with Server Truth
                         setMatches(currentSession.matches.map(m => ({
                             id: m.id,
-                            playerIds: m.player_ids || m.playerIds || [], // Fix: Map DB snake_case to state camelCase
+                            playerIds: m.player_ids || m.playerIds || [],
                             court: m.court,
                             status: m.status,
                             score1: m.score1,
@@ -664,10 +669,16 @@ export default function KDKPage() {
                             mode: m.mode || 'KDK',
                             round: m.round,
                             teams: m.teams,
-                            groupName: m.group_name || m.groupName // Support both snake/camel
+                            groupName: m.group_name || m.groupName || 'A'
                         })));
+                        // Also sync Title in case it was changed
+                        if (currentSession.title !== sessionTitle) {
+                            setSessionTitle(currentSession.title);
+                        }
                     }
                 }
+                setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                setSyncStatus('HEALTHY');
             } else {
                 setAllActiveSessions([]);
                 setShowGateway(false);
@@ -1915,6 +1926,27 @@ export default function KDKPage() {
                             <span className="text-[10px] font-black uppercase tracking-tighter">다른 경기</span>
                         </button>
                     )}
+
+                    {/* [v32.2] Sync Status UI */}
+                    <div className="flex items-center gap-3 ml-auto pr-2">
+                        <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[7px] font-black uppercase tracking-widest opacity-30">Server Sync</span>
+                                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`} />
+                            </div>
+                            <span className="text-[9px] font-mono font-bold opacity-40 leading-none">{lastSyncTime || 'Wait..'}</span>
+                        </div>
+                        <button 
+                            onClick={() => {
+                                if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                setSyncTick(prev => prev + 1);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40 transition-all active:scale-90"
+                            title="서버 데이터 강제 동기화"
+                        >
+                            <RotateCw className={`w-3.5 h-3.5`} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
