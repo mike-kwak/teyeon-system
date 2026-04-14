@@ -2136,66 +2136,81 @@ export default function KDKPage() {
                                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
                                                 <div className="mt-2 h-1.5 w-48 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
-                                            <div className="flex flex-col gap-2">
-                                                {groupMatches.map((m) => {
-                                                    const allMatchesInGroupSorted = matches.filter(mx => {
-                                                        const p0 = mx.playerIds[0];
-                                                        const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
-                                                        const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
-                                                        return nGroup === group;
-                                                    }).sort((a, b) => {
-                                                        if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                                        return a.id.localeCompare(b.id);
-                                                    });
-                                                    const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
-                                                    const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
-                                                    const hasConflict = busyPlayers.length > 0;
-
-                                                    return (
-                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
-                                                            <div className="flex items-center justify-center">
-                                                                <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
-                                                                    <span className="text-[8px] font-black leading-none opacity-40">R{m.round}</span>
-                                                                    <span className="text-[12px] font-[1000] leading-none uppercase">G{matchNo}</span>
+                                            <div className="flex flex-col gap-6">
+                                                {(() => {
+                                                    const roundsInGroup = [...new Set(groupMatches.map(m => m.round || 1))].sort((a, b) => a - b);
+                                                    return roundsInGroup.map(roundNum => {
+                                                        const matchesInRound = groupMatches.filter(m => (m.round || 1) === roundNum);
+                                                        return (
+                                                            <div key={roundNum} className="space-y-3">
+                                                                <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
+                                                                    <div className="h-[1px] w-4" style={{ background: col }} />
+                                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
+                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
                                                                 </div>
-                                                            </div>
+                                                                {matchesInRound.map((m) => {
+                                                                    const allMatchesInGroupSorted = matches.filter(mx => {
+                                                                        const p0 = mx.playerIds[0];
+                                                                        const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
+                                                                        const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                                                        return nGroup === group;
+                                                                    }).sort((a, b) => {
+                                                                        if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                                                        return a.id.localeCompare(b.id);
+                                                                    });
+                                                                    const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
+                                                                    const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
+                                                                    const hasConflict = busyPlayers.length > 0;
 
-                                                            <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
-                                                                    {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                    /
-                                                                    {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                </span>
-                                                                <span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0" style={{ color: col }}>vs</span>
-                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
-                                                                    {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                    /
-                                                                    {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
-                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
-                                                                </span>
-                                                            </div>
+                                                                    return (
+                                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
+                                                                            <div className="flex items-center justify-center">
+                                                                                <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
+                                                                                    <span className="text-[8px] font-black leading-none opacity-40">R{m.round}</span>
+                                                                                    <span className="text-[12px] font-[1000] leading-none uppercase">G{matchNo}</span>
+                                                                                </div>
+                                                                            </div>
 
-                                                            <div className="flex items-center justify-end pr-2">
-                                                                <button
-                                                                    onClick={() => { 
-                                                                        if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
-                                                                        if (isStartingMatch || hasConflict) return;
-                                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50); 
-                                                                        startMatch(m.id); 
-                                                                    }}
-                                                                    disabled={isStartingMatch || hasConflict}
-                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
-                                                                    style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
-                                                                >
-                                                                    {isStartingMatch ? '...처리중' : hasConflict ? '참여불가 🚫' : (isAdmin ? '투입 🚀' : '진행 대기')}
-                                                                </button>
+                                                                            <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
+                                                                                    {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                    /
+                                                                                    {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                </span>
+                                                                                <span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0" style={{ color: col }}>vs</span>
+                                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
+                                                                                    {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                    /
+                                                                                    {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                </span>
+                                                                            </div>
+
+                                                                            <div className="flex items-center justify-end pr-2">
+                                                                                <button
+                                                                                    onClick={() => { 
+                                                                                        if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
+                                                                                        if (isStartingMatch || hasConflict) return;
+                                                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50); 
+                                                                                        startMatch(m.id); 
+                                                                                    }}
+                                                                                    disabled={isStartingMatch || hasConflict}
+                                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
+                                                                                    style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
+                                                                                >
+                                                                                    {isStartingMatch ? '...처리중' : hasConflict ? '참여불가 🚫' : (isAdmin ? '투입 🚀' : '진행 대기')}
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        );
+                                                    });
+                                                })()}
                                             </div>
                                         </div>
                                     );
