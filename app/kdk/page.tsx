@@ -2195,7 +2195,8 @@ export default function KDKPage() {
                                                                     const hasConflict = busyPlayers.length > 0;
 
                                                                     return (
-                                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[50px_1fr_80px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '16px', paddingRight: '16px', paddingTop: '24px', paddingBottom: '24px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
+                                                                    return (
+                                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[45px_1fr_75px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '12px', paddingRight: '12px', paddingTop: '22px', paddingBottom: '22px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
                                                                             <div className="flex items-center justify-center">
                                                                                 <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
                                                                                     <span className="text-[8px] font-black leading-none opacity-40">R{m.round}</span>
@@ -2203,25 +2204,25 @@ export default function KDKPage() {
                                                                                 </div>
                                                                             </div>
 
-                                                                            <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
+                                                                            <div className="flex items-center justify-center gap-2 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
+                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px]">
                                                                                     {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
                                                                                     /
                                                                                     {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
                                                                                 </span>
-                                                                                <span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 shrink-0" style={{ color: col }}>vs</span>
-                                                                                <span className="flex-1 text-white font-bold truncate leading-none" style={{ fontSize: '17px' }}>
+                                                                                <span className="text-[8px] font-black uppercase italic tracking-tighter opacity-20 shrink-0" style={{ color: col }}>vs</span>
+                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px]">
                                                                                     {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
                                                                                     /
                                                                                     {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[10px] ml-1 text-[#C9B075]/60 italic">(G)</span>}
+                                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
                                                                                 </span>
                                                                             </div>
 
-                                                                            <div className="flex items-center justify-end pr-2">
+                                                                            <div className="flex items-center justify-end">
                                                                                 <button
                                                                                     onClick={() => { 
                                                                                         if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
@@ -2230,10 +2231,10 @@ export default function KDKPage() {
                                                                                         startMatch(m.id); 
                                                                                     }}
                                                                                     disabled={isStartingMatch || hasConflict}
-                                                                                    className={`px-6 py-3.5 rounded-2xl text-[13px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
+                                                                                    className={`px-4 py-3 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
                                                                                     style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
                                                                                 >
-                                                                                    {isStartingMatch ? '...처리중' : hasConflict ? '참여불가 🚫' : (isAdmin ? '투입 🚀' : '진행 대기')}
+                                                                                    {isStartingMatch ? '...' : hasConflict ? '🚫' : (isAdmin ? '투입' : '대기')}
                                                                                 </button>
                                                                             </div>
                                                                         </div>
