@@ -2195,7 +2195,6 @@ export default function KDKPage() {
                                                                     const hasConflict = busyPlayers.length > 0;
 
                                                                     return (
-                                                                    return (
                                                                         <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[45px_1fr_75px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '12px', paddingRight: '12px', paddingTop: '22px', paddingBottom: '22px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
                                                                             <div className="flex items-center justify-center">
                                                                                 <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
