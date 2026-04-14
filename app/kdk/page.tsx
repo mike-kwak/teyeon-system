@@ -2009,7 +2009,7 @@ export default function KDKPage() {
             <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
                 {activeTab === 'MATCHES' && (
                     <>
-                        <section className="h-auto" style={{ marginTop: '0px', position: 'relative', zIndex: 10 }}>
+                        <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                 <div className="flex items-center gap-3 ml-2">
                                     <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
@@ -2055,10 +2055,10 @@ export default function KDKPage() {
                                         const cardGlow = isGroupB ? '0 0 15px rgba(0, 229, 255, 0.2)' : '0 0 15px rgba(201, 176, 117, 0.05)';
 
                                         return (
-                                            <div key={mId} className="rounded-[32px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), ${cardGlow}` }}>
+                                            <div key={mId} className="rounded-2xl relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), ${cardGlow}`, overflow: 'hidden' }}>
                                                 
                                                 {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-center px-4 py-2 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
+                                                <div className="flex items-center justify-center px-4 py-3 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ color: groupColor }}>
                                                             ROUND {m.round} • {normalizedGroup}조 • {matchNo}경기
