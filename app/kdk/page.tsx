@@ -507,7 +507,7 @@ export default function KDKPage() {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             supabase.removeChannel(matchesChannel);
         };
-    }, []);
+    }, [sessionId, selectedSessionId]);
 
     // [v25.0] Guest Access Auto Router
     useEffect(() => {
