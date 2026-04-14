@@ -153,25 +153,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
         setRole(finalRole);
+        
+        // Cache role for offline resilience
+        if (typeof window !== 'undefined') {
+           localStorage.setItem('teyeon_last_known_role', finalRole);
+        }
+
         setIsLoading(false);
         return;
       }
 
       setRole('MEMBER');
+      if (typeof window !== 'undefined') localStorage.setItem('teyeon_last_known_role', 'MEMBER');
       setIsPendingMatching(false);
       setIsLoading(false);
     } catch (err) {
       console.error('[Auth/DirectSync] Critical Failure Path:', err);
-      setRole('MEMBER');
+      
+      // Attempt to recover from cache on failure
+      if (typeof window !== 'undefined') {
+        const cachedRole = localStorage.getItem('teyeon_last_known_role') as UserRole;
+        if (cachedRole) {
+          console.warn('[Auth/DirectSync] Network failure, using cached role:', cachedRole);
+          setRole(cachedRole);
+        } else {
+          setRole('MEMBER');
+        }
+      } else {
+        setRole('MEMBER');
+      }
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
     // Safety Force Resolve (Prevents "Syncing..." hang)
+    // Increased to 15s to allow for multiple exponential retries in poor LTE conditions
     const safetyTimeout = setTimeout(() => {
-        setIsLoading(false);
-    }, 5000);
+        if (isLoading) {
+            console.warn('[Auth] Safety timeout reached. Forcing resolve with cached state.');
+            const cachedRole = typeof window !== 'undefined' ? localStorage.getItem('teyeon_last_known_role') as UserRole : null;
+            if (cachedRole && role === 'GUEST') setRole(cachedRole);
+            setIsLoading(false);
+        }
+    }, 15000);
 
     const init = async (retryCount = 0) => {
       try {
@@ -189,12 +214,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err) {
         console.warn(`[Supabase Auth] Init failed... retry: ${retryCount}`, err);
-        if (retryCount < 2) {
-          setSystemMessage('연결이 잠시 지연되고 있습니다. 다시 시도 중...');
-          setTimeout(() => init(retryCount + 1), 2000);
+        if (retryCount < 5) {
+          setSystemMessage(`연결이 지연되고 있습니다... 재시도 중 (${retryCount + 1}/5)`);
+          const backoff = Math.min(2000 * Math.pow(1.5, retryCount), 8000);
+          setTimeout(() => init(retryCount + 1), backoff);
         } else {
-          setSystemMessage('네트워크 요청이 만료되었습니다. 캐시 데이터로 표시합니다.');
-          if (!user) setIsLoading(false); // Only disable loading if we truly have no cache
+          setSystemMessage('네트워크 요청이 만료되었습니다. 이전 저장된 정보를 표시합니다.');
+          if (!user) setIsLoading(false); 
         }
       }
     };
@@ -344,7 +370,7 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (isLoading) {
             timeoutId = setTimeout(() => {
                 setIsLoadTimeout(true);
-            }, 10000); // 10 second timeout for network issues
+            }, 12000); // Wait 12s before showing delay warning
         } else {
             setIsLoadTimeout(false);
         }

@@ -1,7 +1,7 @@
 export async function withRetry<T>(
   asyncFn: () => Promise<T> | PromiseLike<T>,
-  retries = 5,
-  delayMs = 1500,
+  retries = 8,
+  delayMs = 2000,
   timeoutMs = 120000
 ): Promise<T> {
   // Enforces a rigid localized timeout per execution

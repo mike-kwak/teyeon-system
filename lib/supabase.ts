@@ -55,9 +55,11 @@ export const supabase = createBrowserClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storageKey: 'teyeon_auth_session',
+      flowType: 'pkce',
     },
     cookieOptions: {
-      maxAge: 30 * 24 * 60 * 60, // 30 Days
+      maxAge: 60 * 60 * 24 * 30, // 30 Days (Standard Persistence)
       path: '/',
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production'
