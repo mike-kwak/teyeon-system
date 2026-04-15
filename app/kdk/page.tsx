@@ -2446,13 +2446,9 @@ export default function KDKPage() {
                                                         if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                                         const val = Math.min(6, Math.max(0, n));
                                                         const nextScores = side === 0 ? ({ ...tempScores, s1: val }) : ({ ...tempScores, s2: val });
+                                                        // [v34.0] Local-Only Score Editing (Broadcasting removed for stability)
+                                                        // Only Confirm Score button will commit to DB
                                                         setTempScores(nextScores);
-                                                        
-                                                        // 🚀 Live Score Broadcasting (관중에게 타이핑과 동시에 점수 전송)
-                                                        supabase.from('matches')
-                                                            .update({ score1: nextScores.s1, score2: nextScores.s2 })
-                                                            .eq('id', activeMatchForScore.id)
-                                                            .then();
                                                     }}
                                                     className="h-14 rounded-xl text-xl font-black transition-all active:scale-90"
                                                     style={{
