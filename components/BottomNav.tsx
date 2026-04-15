@@ -79,7 +79,8 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-[15px] left-1/2 -translate-x-1/2 z-50 h-[100px] w-[96%] max-w-[420px] bg-black/80 backdrop-blur-3xl border border-white/10 px-1 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.9)] rounded-[32px] transition-all duration-300">
+    <>
+      <nav className="fixed bottom-[15px] left-1/2 -translate-x-1/2 z-50 h-[100px] w-[96%] max-w-[420px] bg-black/80 backdrop-blur-3xl border border-white/10 px-1 flex justify-around items-center shadow-[0_20px_50px_rgba(0,0,0,0.9)] rounded-[32px] transition-all duration-300">
       <div className="w-full mx-auto flex justify-between items-center h-full px-4">
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path !== '/' && pathname?.startsWith(item.path));
@@ -111,11 +112,11 @@ export default function BottomNav() {
           );
         })}
       </div>
-
+    </nav>
       <LiveMatchGatekeeper 
         isOpen={showGatekeeper} 
         onClose={() => setShowGatekeeper(false)} 
       />
-    </nav>
+    </>
   );
 }
