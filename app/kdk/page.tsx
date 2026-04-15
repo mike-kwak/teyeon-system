@@ -489,21 +489,28 @@ export default function KDKPage() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
 
-        // [v32.1] Robust Session-Scoped Realtime Subscription
-        const targetSid = sessionId || selectedSessionId;
-        const matchesChannel = supabase.channel(`sync-kdk-${targetSid || 'global'}`)
+        // [v33.0] Club-Scoped Realtime Subscription (Simplification for Global Sync)
+        const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+        const currentSid = sessionId || selectedSessionId;
+
+        const matchesChannel = supabase.channel(`sync-kdk-club-${clubId}`)
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'matches', 
-                filter: targetSid ? `session_id=eq.${targetSid}` : `club_id=eq.${clubId}` 
-            }, (payload) => {
-                console.log('📡 Realtime update received:', payload);
-                setSyncTick(prev => prev + 1);
+                filter: `club_id=eq.${clubId}` 
+            }, (payload: any) => {
+                const updatedSessionId = payload.new?.session_id || payload.old?.session_id;
+                
+                // [CRITICAL] 남들 핸드폰(게스트 등)에도 즉시 동기화되도록 세션 ID 대조 후 Tick 트리거
+                // 현재 세션이 선택되지 않았거나(Gatway 모드), 세션 ID가 일치하는 경우에만 동기화
+                if (!currentSid || updatedSessionId === currentSid) {
+                    console.log('📡 Realtime update valid for session:', updatedSessionId);
+                    setSyncTick(prev => prev + 1);
+                }
             })
             .subscribe((status) => {
-                if (status === 'SUBSCRIBED') console.log('✅ Realtime Subscribed');
-                if (status === 'CHANNEL_ERROR') console.error('❌ Realtime Subscription Failed');
+                if (status === 'SUBSCRIBED') console.log('✅ Realtime [Club-Wide] Subscribed');
             });
 
         return () => {
