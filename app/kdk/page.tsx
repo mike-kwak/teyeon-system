@@ -627,14 +627,18 @@ export default function KDKPage() {
                     lastActivity: s.lastActivity
                 }));
 
-                setAllActiveSessions(sessionList);
+                setAllActiveSessions(prev => {
+                    const nextJson = JSON.stringify(sessionList);
+                    if (JSON.stringify(prev) === nextJson) return prev;
+                    return sessionList;
+                });
 
                 // Gatekeeper Logic: ALWAYS trust the server over local state for active sessions
                 if (!selectedSessionId) {
                     if (sessionList.length === 1) {
                         // Auto-entry if only one session
                         const soleSession = sessionsMap[sessionList[0].id];
-                        setMatches(soleSession.matches.map(m => ({
+                        const mappedMatches = soleSession.matches.map(m => ({
                             id: m.id,
                             playerIds: m.player_ids || m.playerIds || [],
                             court: m.court,
@@ -645,7 +649,12 @@ export default function KDKPage() {
                             round: m.round,
                             teams: m.teams,
                             groupName: m.group_name || m.groupName || 'A'
-                        })));
+                        }));
+                        setMatches(prev => {
+                            const nextJson = JSON.stringify(mappedMatches);
+                            if (JSON.stringify(prev) === nextJson) return prev;
+                            return mappedMatches;
+                        });
                         setSessionId(soleSession.id);
                         setSessionTitle(soleSession.title);
                         setSelectedSessionId(soleSession.id);
@@ -659,7 +668,7 @@ export default function KDKPage() {
                     const currentSession = sessionsMap[selectedSessionId];
                     if (currentSession) {
                         // [v32.2] CRITICAL: Hard Overwrite local state with Server Truth
-                        setMatches(currentSession.matches.map(m => ({
+                        const refreshingMatches = currentSession.matches.map(m => ({
                             id: m.id,
                             playerIds: m.player_ids || m.playerIds || [],
                             court: m.court,
@@ -670,7 +679,12 @@ export default function KDKPage() {
                             round: m.round,
                             teams: m.teams,
                             groupName: m.group_name || m.groupName || 'A'
-                        })));
+                        }));
+                        setMatches(prev => {
+                            const nextJson = JSON.stringify(refreshingMatches);
+                            if (JSON.stringify(prev) === nextJson) return prev;
+                            return refreshingMatches;
+                        });
                         // Also sync Title in case it was changed
                         if (currentSession.title !== sessionTitle) {
                             setSessionTitle(currentSession.title);
