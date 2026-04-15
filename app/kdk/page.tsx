@@ -1251,7 +1251,7 @@ export default function KDKPage() {
         }).sort((a, b) => 
             (b?.wins || 0) - (a?.wins || 0) || 
             (b?.diff || 0) - (a?.diff || 0) || 
-            (b?.age || 0) - (a?.age || 0)
+            (a?.age || 999) - (b?.age || 999)
         );
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
