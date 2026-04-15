@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import { RotateCw, CheckCircle2 } from 'lucide-react';
+import MatchCard from '@/components/tournament/MatchCard';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
@@ -1250,7 +1251,7 @@ export default function KDKPage() {
         }).sort((a, b) => 
             (b?.wins || 0) - (a?.wins || 0) || 
             (b?.diff || 0) - (a?.diff || 0) || 
-            ((a?.age || 99) - (b?.age || 99))
+            (b?.age || 0) - (a?.age || 0)
         );
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
@@ -2076,85 +2077,22 @@ export default function KDKPage() {
                                         const cardGlow = isGroupB ? '0 0 15px rgba(0, 229, 255, 0.2)' : '0 0 15px rgba(201, 176, 117, 0.05)';
 
                                         return (
-                                            <div key={mId} className="rounded-2xl relative flex flex-col justify-between h-full group transition-all" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), ${cardGlow}`, overflow: 'hidden' }}>
-                                                
-                                                {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-center px-4 py-3 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ color: groupColor }}>
-                                                            ROUND {m.round} • {normalizedGroup}조 • {matchNo}경기
-                                                        </span>
-                                                        <RotateCw className={`w-3 h-3 transition-colors ${spinningMatchId === mId ? 'animate-spin' : 'opacity-40'}`} style={{ color: groupColor }} />
-                                                    </div>
-                                                    
-                                                    {role === 'CEO' && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => { e.stopPropagation(); if (window.navigator?.vibrate) window.navigator.vibrate(50); cancelMatch(mId); }}
-                                                            className="absolute right-2 flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
-                                                            title="웨이팅 리스트로 복귀"
-                                                        >
-                                                            <div className="sr-only">Cancel Match</div>
-                                                        </button>
-                                                    )}
-                                                </div>
-
-                                                <div className="p-2 flex flex-col justify-center flex-1 py-8">
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
-
-                                                        {/* TEAM A BLOCK */}
-                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
-                                                                <span className="text-white font-black leading-none relative z-0 truncate w-full text-center text-[clamp(12px,4vw,15px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[0]) || " "}
-                                                                </span>
-                                                                <span className="text-white font-black leading-none relative z-0 truncate w-full text-center text-[clamp(12px,4vw,15px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[1]) || " "}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Sleek Success Toast */}
-                                                        {showToast && (
-                                                            <div className="fixed bottom-[115px] left-1/2 -translate-x-1/2 z-[2000] animate-in fade-in slide-in-from-bottom-4 duration-300 w-[90%] max-w-sm">
-                                                                <div className="bg-[#1C1C1E] border border-[#D4AF37]/30 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center justify-center gap-3 backdrop-blur-xl">
-                                                                    <div className="w-4 h-4 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
-                                                                        <CheckCircle2 className={`w-3 h-3 ${toastMsg.includes('관리자') ? 'text-red-400' : 'text-[#4ADE80]'}`} />
-                                                                    </div>
-                                                                    <span className="text-[11px] font-black uppercase tracking-widest italic text-center">{toastMsg}</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        <div className="font-black text-[8px] uppercase text-center italic opacity-60 shrink-0" style={{ color: groupColor, filter: `drop-shadow(0 0 5px ${groupColor}4D)` }}>vs</div>
-
-                                                        {/* TEAM B BLOCK */}
-                                                        <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                                                            <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
-                                                                <span className="text-white font-black leading-none relative z-0 truncate w-full text-center text-[clamp(12px,4vw,15px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[2]) || " "}
-                                                                </span>
-                                                                <span className="text-white font-black leading-none relative z-0 truncate w-full text-center text-[clamp(12px,4vw,15px)]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                    {getPlayerName(m.playerIds?.[3]) || " "}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                    </div>
-
-                                                    {/* SCORE INPUT BUTTON (OPEN TO ALL FOR FAST OPERATION) */}
-                                                    <button
-                                                        onClick={() => { 
-                                                            if (window.navigator?.vibrate) window.navigator.vibrate(50); 
-                                                            setTempScores({ s1: m.score1 ?? 1, s2: m.score2 ?? 1 }); 
-                                                            setShowScoreModal(mId); 
-                                                        }}
-                                                        className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0"
-                                                        style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
-                                                    >
-                                                        <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE 🏆</span>
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            <MatchCard 
+                                                key={mId}
+                                                match={m}
+                                                isAdmin={isAdmin}
+                                                role={role}
+                                                getPlayerName={getPlayerName}
+                                                matchNo={matchNo}
+                                                spinningMatchId={spinningMatchId}
+                                                onCancel={(id) => cancelMatch(id)}
+                                                onInputScore={(id, s1, s2) => {
+                                                    setTempScores({ s1, s2 });
+                                                    setShowScoreModal(id);
+                                                }}
+                                                showToast={showToast}
+                                                toastMsg={toastMsg}
+                                            />
                                         );
                                     })}
                                 </div>

@@ -22,7 +22,7 @@ export default function LiveMatchGatekeeper({ isOpen, onClose }: LiveMatchGateke
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[3000] flex items-center justify-center p-6">
+                <div className="fixed inset-0 z-[3000] flex flex-col justify-center items-center p-6 sm:pb-0 pb-[80px]">
                     <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
