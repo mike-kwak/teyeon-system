@@ -2018,13 +2018,13 @@ export default function KDKPage() {
                         <button 
                             onClick={() => {
                                 if (window.navigator?.vibrate) window.navigator.vibrate(50);
-                                if (isLegacySync && syncErrorMsg) {
-                                    alert(`⚠️ 동기화 경고: ${syncErrorMsg}\n\n다른 기기(아내분 폰 등)에서 이름이 '로딩 중'으로 뜬다면 Supabase SQL Editor에서 이전 가이드해 드린 SQL 명령을 실행하셔야 합니다.`);
+                                if (isLegacySync) {
+                                    alert(`⚠️ 동기화 알림 (Legacy Mode)\n\n현재 과거 데이터 혹은 서버 캐시 지연으로 인해 이름 동기화가 제한적입니다.\n\n해결방법: [최종 대진 자동 생성!] 버튼을 한 번 눌러서 새로운 대진표를 생성하시면 즉시 모든 기기에서 이름이 정상으로 복구됩니다.`);
                                 }
                                 setSyncTick(prev => prev + 1);
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 transition-all active:scale-90 ${isLegacySync ? 'text-yellow-500 border-yellow-500/30' : 'text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40'}`}
-                            title={isLegacySync ? "동기화 지연 해결방법 보기" : "서버 데이터 강제 동기화"}
+                            title={isLegacySync ? "동기화 해결방법 보기" : "서버 데이터 강제 동기화"}
                         >
                             {isLegacySync ? <span className="text-xs">⚠️</span> : <RotateCw className={`w-3.5 h-3.5`} />}
                         </button>
