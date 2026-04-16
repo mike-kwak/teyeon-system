@@ -676,10 +676,11 @@ export default function KDKPage() {
                     // Refresh current session data if already selected
                     const currentSession = sessionsMap[selectedSessionId];
                     if (currentSession) {
-                        // [v32.2] CRITICAL: Hard Overwrite local state with Server Truth
+                        // [v34.1] Read extended metadata from Server Truth
                         const refreshingMatches = currentSession.matches.map(m => ({
                             id: m.id,
                             playerIds: m.player_ids || m.playerIds || [],
+                            playerNames: m.player_names || m.playerNames || [],
                             court: m.court,
                             status: m.status,
                             score1: m.score1,
@@ -689,6 +690,33 @@ export default function KDKPage() {
                             teams: m.teams,
                             groupName: m.group_name || m.groupName || 'A'
                         }));
+
+                        // [v34.1] GUEST RECOVERY: Re-materialize tempGuests from match data if names are missing locally
+                        const guestMappings: Record<string, string> = {};
+                        refreshingMatches.forEach(rm => {
+                            rm.playerIds.forEach((pid, idx) => {
+                                if (pid?.startsWith('g-')) {
+                                    const rawName = rm.playerNames?.[idx] || "";
+                                    const cleanName = rawName.replace(' (G)', '').replace(' g', '');
+                                    if (cleanName) guestMappings[pid] = cleanName;
+                                }
+                            });
+                        });
+
+                        if (Object.keys(guestMappings).length > 0) {
+                            setTempGuests(prev => {
+                                const next = [...prev];
+                                let changed = false;
+                                Object.entries(guestMappings).forEach(([gid, gname]) => {
+                                    if (!next.some(p => p.id === gid)) {
+                                        next.push({ id: gid, nickname: gname, is_guest: true });
+                                        changed = true;
+                                    }
+                                });
+                                return changed ? next : prev;
+                            });
+                        }
+
                         setMatches(prev => {
                             const nextJson = JSON.stringify(refreshingMatches);
                             if (JSON.stringify(prev) === nextJson) return prev;
@@ -776,11 +804,11 @@ export default function KDKPage() {
         
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
         
-        const name = m?.nickname || attendeeConfigs?.[id]?.name || "";
+        const name = m?.nickname || (m as any)?.name || attendeeConfigs?.[id]?.name || "";
         if (!name) return "로딩 중..."; 
         
-        // [v32.1] Explicitly check for guest status based on ID prefix or database flag
-        const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || (attendeeConfigs?.[id]?.is_guest === true);
+        // [v34.1] More robust guest detection (support server-synced metadata)
+        const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || ((m as any)?.isGuest === true) || (attendeeConfigs?.[id]?.is_guest === true);
         return isGuest ? `${name} (G)` : name;
     };
 
@@ -920,8 +948,10 @@ export default function KDKPage() {
                     session_title: sessionTitle || 'Tournament',
                     round: m.round || 1,
                     court: m.court || 1,
-                    player_ids: m.playerIds || [],
-                    // player_names, mode, group_name 등은 Supabase 스키마 캐시 지연 시 에러 폭탄이 되므로 전송 제외
+                    // [v34.1] CRITICAL FIX: To fix 'Loading...' on other phones, we MUST sync names & metadata 
+                    player_names: m.playerIds?.map(pid => getPlayerName(pid)) || [],
+                    mode: m.mode || 'KDK',
+                    group_name: m.groupName || 'A',
                     score1: m.score1 ?? 1,
                     score2: m.score2 ?? 1,
                     status: m.status || 'waiting'

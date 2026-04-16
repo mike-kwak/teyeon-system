@@ -26,6 +26,7 @@ export type AttendeeConfig = {
 export interface Match {
     id: string;
     playerIds: string[];
+    playerNames?: string[]; // Server-side mapping for guests & spectators
     court: number | null;
     status: 'waiting' | 'playing' | 'complete';
     score1?: number;
