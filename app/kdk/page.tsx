@@ -30,6 +30,7 @@ export default function KDKPage() {
 
     // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (STAFF 포함)
     const isAdmin = role === 'CEO' || role === 'ADMIN' || role === 'STAFF';
+    const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
     // 권한 제한 알림 헬퍼
     const triggerAccessDenied = (msg: string = "관리자만 대진을 생성/수정할 수 있습니다.") => {
@@ -612,7 +613,6 @@ export default function KDKPage() {
 
     const syncActiveSession = async () => {
         try {
-            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             
             const { data, error } = await supabase
                 .from('matches')
@@ -979,7 +979,7 @@ export default function KDKPage() {
             try {
                 const fullDbMatches = formattedMatches.map(m => ({
                     id: String(m.id),
-                    club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
+                    club_id: clubId,
                     session_id: sessionId,
                     session_title: sessionTitle || 'Tournament',
                     round: m.round || 1,
@@ -1104,7 +1104,7 @@ export default function KDKPage() {
             setIsGenerating(true);
             const fullDbMatches = matches.map(m => ({
                 id: String(m.id),
-                club_id: clubId || process.env.NEXT_PUBLIC_CLUB_ID,
+                club_id: clubId,
                 session_id: sessionId,
                 session_title: sessionTitle || 'Tournament',
                 round: m.round || 1,
