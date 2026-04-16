@@ -3,20 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import RankingRow from './tournament/RankingRow';
 
-interface Player {
-    id: string;
-    name: string;
-    wins: number;
-    losses: number;
-    diff: number;
-    group?: 'A' | 'B';
-    rk?: number;
-    is_guest?: boolean;
-    avatar?: string;
-}
+import { RankedPlayer } from '@/lib/tournament_types';
 
 interface RankingTabProps {
-    players: Player[];
+    players: RankedPlayer[];
     sessionTitle?: string;
     isArchive?: boolean;
     isAdmin?: boolean;
@@ -102,8 +92,10 @@ export default function RankingTab({
         });
     };
 
-    const RankingTable = ({ players: tablePlayers, title }: { players: any[], title: string }) => {
-        const sorted = getSortedPlayers(tablePlayers);
+    const RankingTable = ({ players: tablePlayers, title }: { players: RankedPlayer[], title: string }) => {
+        // [v34.0] Since useRanking hook now handles deterministic sorting and trends,
+        // we simply map the ranks based on the provided array order.
+        const sorted = tablePlayers.map((p, i) => ({ ...p, rk: i + 1 }));
         const top3 = sorted.slice(0, 3);
         const others = sorted.slice(3);
 
