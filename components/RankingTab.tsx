@@ -175,7 +175,7 @@ export default function RankingTab({
                 <div className="h-6" aria-hidden="true" />
 
                 <div className="flex-1 space-y-2 px-4 mb-32 relative z-0">
-                    <div className="grid grid-cols-[2rem_2.5rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_5.5rem] gap-1 px-4 pb-6 text-[11px] font-black text-white/40 tracking-widest border-b border-white/10 uppercase italic overflow-visible">
+                    <div className="grid grid-cols-[2rem_2.2rem_1fr_1.5rem_1.5rem_1.5rem_1.7rem_1.7rem_2rem_5.2rem] gap-1 px-4 pb-6 text-[11px] font-black text-white/40 tracking-widest border-b border-white/10 uppercase italic overflow-visible">
                         <span className="text-center opacity-60">#</span>
                         <span className="text-center opacity-0">IMG</span>
                         <span className="text-left pl-2 opacity-60">PLAYER</span>

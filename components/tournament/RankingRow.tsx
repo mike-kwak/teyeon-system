@@ -17,7 +17,7 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
 
     return (
         <div 
-            className="h-14 rounded-2xl px-4 grid grid-cols-[2.5rem_2.5rem_1fr_1.8rem_2rem_1.8rem_2rem_2rem_2.5rem_5.5rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
+            className="h-14 rounded-2xl px-4 grid grid-cols-[2rem_2.2rem_1fr_1.5rem_1.5rem_1.5rem_1.7rem_1.7rem_2rem_5.2rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
         >
             <div className="flex flex-col items-center justify-center gap-0.5">
                 <span className="font-bold text-[13px] text-white/30 italic group-hover:text-white/60 transition-colors uppercase leading-none">
