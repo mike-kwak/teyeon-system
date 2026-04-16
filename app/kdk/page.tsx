@@ -847,7 +847,7 @@ export default function KDKPage() {
             }
         }
 
-        if (!name) return "로딩 중..."; 
+        if (!name) return id; // [v34.7] Return ID instead of "Loading..." to prevent metadata pollution 
         
         // [v34.1] More robust guest detection
         const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || ((m as any)?.isGuest === true) || (attendeeConfigs?.[id]?.is_guest === true);
