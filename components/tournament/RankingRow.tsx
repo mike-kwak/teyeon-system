@@ -40,10 +40,10 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
                 </div>
             </div>
 
-            <div className="text-left font-black text-[15px] text-white tracking-tighter leading-tight truncate pl-2 flex items-center gap-1.5">
-                {player.name}
+            <div className="text-left font-black text-[15px] text-white tracking-tighter leading-tight pl-2 flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{player.name}</span>
                 {player.is_guest && (
-                    <span className="text-[8px] font-black text-[#C9B075] italic bg-[#C9B075]/10 px-1.5 py-0.5 rounded-full border border-[#C9B075]/20 tracking-tighter uppercase">
+                    <span className="text-[8px] font-black text-[#C9B075] italic bg-[#C9B075]/10 px-1.5 py-0.5 rounded-full border border-[#C9B075]/20 tracking-tighter uppercase shrink-0">
                         GUEST
                     </span>
                 )}

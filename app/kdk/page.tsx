@@ -2127,20 +2127,20 @@ export default function KDKPage() {
                                                                             </div>
 
                                                                             <div className="flex items-center justify-center gap-2 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px]">
+                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
                                                                                     {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
+                                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                     /
                                                                                     {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
+                                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                 </span>
                                                                                 <span className="text-[8px] font-black uppercase italic tracking-tighter opacity-20 shrink-0" style={{ color: col }}>vs</span>
-                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px]">
+                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
                                                                                     {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
+                                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                     /
                                                                                     {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[9px] ml-0.5 text-[#C9B075]/60 italic">g</span>}
+                                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                 </span>
                                                                             </div>
 
