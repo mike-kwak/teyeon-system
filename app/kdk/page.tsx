@@ -169,7 +169,6 @@ export default function KDKPage() {
             const { data: serverData, error: archiveError } = await supabase
                 .from('teyeon_archive_v1')
                 .select('raw_data')
-                .order('created_at', { ascending: false })
                 .limit(20);
             
             if (archiveError) {
@@ -618,8 +617,7 @@ export default function KDKPage() {
             const { data, error } = await supabase
                 .from('matches')
                 .select('*')
-                .eq('club_id', clubId)
-                .order('created_at', { ascending: false });
+                .eq('club_id', clubId);
 
             if (error) throw error;
 
