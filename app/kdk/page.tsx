@@ -162,12 +162,16 @@ export default function KDKPage() {
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
             const localTitles = failovers.map((f: any) => f.raw_data?.title || '');
             
-            // 2. 서버 아카이브 확인 (최근 20개만)
-            const { data: serverData } = await supabase
+            // 2. 서버 아카이브 확인 (최근 20개만) - 테이블이 없을 수 있으므로 안전하게 처리
+            const { data: serverData, error: archiveError } = await supabase
                 .from('teyeon_archive_v1')
                 .select('raw_data')
                 .order('created_at', { ascending: false })
                 .limit(20);
+            
+            if (archiveError) {
+                console.warn("Archive title sync: teyeon_archive_v1 table not found yet. Skipping server titles.");
+            }
             const serverTitles = (serverData || []).map(d => d.raw_data?.title || '');
             
             // 3. 현재 진행 중인 세션들 확인
@@ -573,8 +577,17 @@ export default function KDKPage() {
             setIsMembersError(false);
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data: profile } = await supabase.from('profiles').select('club_role').eq('id', user.id).single();
-                if (profile) setUserRole(profile.club_role as UserRole);
+                // [v34.3] Defensive Profile Check: Handle missing 'club_role' column gracefully
+                try {
+                    const { data: profile, error: profError } = await supabase.from('profiles').select('club_role').eq('id', user.id).maybeSingle();
+                    if (profError) {
+                        console.warn("Profile check: 'club_role' column may be missing. Defaulting to GUEST.");
+                    } else if (profile) {
+                        setUserRole(profile.club_role as UserRole);
+                    }
+                } catch (e) {
+                    console.warn("Defensive profile check caught exception:", e);
+                }
             }
 
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
