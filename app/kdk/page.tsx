@@ -124,6 +124,7 @@ export default function KDKPage() {
     const [isLegacySync, setIsLegacySync] = useState(false);
     const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
     const [hasProfileError, setHasProfileError] = useState(false); // [v34.4] Prevent 400 spam
+    const [hasArchiveError, setHasArchiveError] = useState(false); // [v34.5] Prevent 404 spam
 
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
@@ -163,6 +164,7 @@ export default function KDKPage() {
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
             const localTitles = failovers.map((f: any) => f.raw_data?.title || '');
             
+            if (hasArchiveError) return;
             // 2. 서버 아카이브 확인 (최근 20개만) - 테이블이 없을 수 있으므로 안전하게 처리
             const { data: serverData, error: archiveError } = await supabase
                 .from('teyeon_archive_v1')
@@ -171,7 +173,8 @@ export default function KDKPage() {
                 .limit(20);
             
             if (archiveError) {
-                console.warn("Archive title sync: teyeon_archive_v1 table not found yet. Skipping server titles.");
+                console.warn("Archive sync failed. Silencing further checks.");
+                setHasArchiveError(true);
             }
             const serverTitles = (serverData || []).map(d => d.raw_data?.title || '');
             
