@@ -755,7 +755,7 @@ export default function KDKPage() {
                 if (sessionList.length > 0 && !hasModernMetadata) {
                     setIsLegacySync(true);
                     setSyncStatus('WARNING');
-                    setSyncErrorMsg("시스템이 '레거시 모드'로 동작 중입니다. (게스트 이름 동기화 제한)");
+                    // [v35.0] No more automatic syncErrorMsg popups
                 } else {
                     setIsLegacySync(false);
                     setSyncStatus('HEALTHY');
