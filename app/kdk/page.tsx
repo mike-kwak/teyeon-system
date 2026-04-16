@@ -123,6 +123,7 @@ export default function KDKPage() {
     const [lastSyncTime, setLastSyncTime] = useState<string>("");
     const [isLegacySync, setIsLegacySync] = useState(false);
     const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
+    const [hasProfileError, setHasProfileError] = useState(false); // [v34.4] Prevent 400 spam
 
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
@@ -576,17 +577,18 @@ export default function KDKPage() {
             setIsMembersLoading(true);
             setIsMembersError(false);
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
+            if (user && !hasProfileError) {
                 // [v34.3] Defensive Profile Check: Handle missing 'club_role' column gracefully
                 try {
                     const { data: profile, error: profError } = await supabase.from('profiles').select('club_role').eq('id', user.id).maybeSingle();
                     if (profError) {
-                        console.warn("Profile check: 'club_role' column may be missing. Defaulting to GUEST.");
+                        console.warn("Profile check failed. Silencing further checks.");
+                        setHasProfileError(true);
                     } else if (profile) {
                         setUserRole(profile.club_role as UserRole);
                     }
                 } catch (e) {
-                    console.warn("Defensive profile check caught exception:", e);
+                    setHasProfileError(true);
                 }
             }
 
@@ -824,16 +826,27 @@ export default function KDKPage() {
     };
 
 
-    const getPlayerName = (id: string) => {
+    const getPlayerName = (id: string, matchId?: string) => {
         if (!id) return "";
-        if (allMembers.length === 0) return "로딩 중...";
         
+        // [v34.4] HYBRID LOOKUP: Try primary source first
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
+        let name = m?.nickname || (m as any)?.name || attendeeConfigs?.[id]?.name || "";
         
-        const name = m?.nickname || (m as any)?.name || attendeeConfigs?.[id]?.name || "";
+        // [v34.4] FALLBACK to Match Metadata (If lookup failed but DB has the original name)
+        if (!name && matchId) {
+            const match = matches.find(mx => mx.id === matchId);
+            if (match && match.playerIds && match.playerNames) {
+                const idx = match.playerIds.indexOf(id);
+                if (idx !== -1 && match.playerNames[idx]) {
+                    name = match.playerNames[idx].replace(' (G)', '').replace(' g', '');
+                }
+            }
+        }
+
         if (!name) return "로딩 중..."; 
         
-        // [v34.1] More robust guest detection (support server-synced metadata)
+        // [v34.1] More robust guest detection
         const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || ((m as any)?.isGuest === true) || (attendeeConfigs?.[id]?.is_guest === true);
         return isGuest ? `${name} (G)` : name;
     };
@@ -2208,19 +2221,19 @@ export default function KDKPage() {
 
                                                                             <div className="flex items-center justify-center gap-2 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                                                                 <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
-                                                                                    {getPlayerName(m.playerIds[0]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[0]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
+                                                                                    {getPlayerName(m.playerIds[0], m.id).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[0], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                     /
-                                                                                    {getPlayerName(m.playerIds[1]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[1]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
+                                                                                    {getPlayerName(m.playerIds[1], m.id).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[1], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                 </span>
                                                                                 <span className="text-[8px] font-black uppercase italic tracking-tighter opacity-20 shrink-0" style={{ color: col }}>vs</span>
                                                                                 <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
-                                                                                    {getPlayerName(m.playerIds[2]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[2]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
+                                                                                    {getPlayerName(m.playerIds[2], m.id).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[2], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                     /
-                                                                                    {getPlayerName(m.playerIds[3]).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[3]).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
+                                                                                    {getPlayerName(m.playerIds[3], m.id).replace(' (G)', '')}
+                                                                                    {getPlayerName(m.playerIds[3], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
                                                                                 </span>
                                                                             </div>
 
@@ -2298,16 +2311,16 @@ export default function KDKPage() {
                                                 <div className="flex-1 flex flex-col justify-center px-1 py-4 sm:px-3 sm:py-8">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 w-full">
                                                         <div className="flex flex-col items-center justify-center min-w-0 gap-1 opacity-80">
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[0])}</span>
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[1])}</span>
+                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[0], m.id)}</span>
+                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[1], m.id)}</span>
                                                         </div>
                                                         <div className="flex flex-col items-center flex-shrink-0 px-1 sm:px-2 justify-center">
                                                             <span className="text-[clamp(24px,6vw,36px)] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{m.score1}:{m.score2}</span>
                                                             <span className="text-[clamp(6px,2vw,8px)] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
                                                         </div>
                                                         <div className="flex flex-col items-center justify-center min-w-0 gap-1 opacity-80">
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[2])}</span>
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[3])}</span>
+                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[2], m.id)}</span>
+                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[3], m.id)}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2411,7 +2424,7 @@ export default function KDKPage() {
                                     <div className="flex flex-col gap-10">
                                         <div className="flex flex-col items-center text-center px-1">
                                             <span className="text-3xl font-black text-white leading-[1.1] mb-2" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.8))' }}>
-                                                {getPlayerName(activeMatchForScore.playerIds[side * 2])}<br />{getPlayerName(activeMatchForScore.playerIds[side * 2 + 1])}
+                                                {getPlayerName(activeMatchForScore.playerIds[side * 2], activeMatchForScore.id)}<br />{getPlayerName(activeMatchForScore.playerIds[side * 2 + 1], activeMatchForScore.id)}
                                             </span>
                                             <div className="h-1 w-12 bg-[#C9B075] rounded-full mt-3 shadow-[0_0_10px_rgba(201,176,117,0.5)]" />
                                         </div>

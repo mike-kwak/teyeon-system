@@ -19,7 +19,7 @@ interface MatchCardProps {
     match: Match;
     isAdmin: boolean;
     role: string;
-    getPlayerName: (id: string) => string;
+    getPlayerName: (id: string, matchId?: string) => string;
     matchNo: number;
     spinningMatchId?: string | null;
     onCancel?: (id: string) => void;
@@ -96,12 +96,12 @@ export default function MatchCard({
                     <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
                         <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[0]).replace(' (G)', '')}</span>
-                                {getPlayerName(match.playerIds[0]).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
+                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[0], match.id).replace(' (G)', '')}</span>
+                                {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
                             </div>
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[1]).replace(' (G)', '')}</span>
-                                {getPlayerName(match.playerIds[1]).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
+                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[1], match.id).replace(' (G)', '')}</span>
+                                {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
                             </div>
                         </div>
                     </div>
@@ -124,12 +124,12 @@ export default function MatchCard({
                     <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
                         <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[2]).replace(' (G)', '')}</span>
-                                {getPlayerName(match.playerIds[2]).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
+                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[2], match.id).replace(' (G)', '')}</span>
+                                {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
                             </div>
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[3]).replace(' (G)', '')}</span>
-                                {getPlayerName(match.playerIds[3]).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
+                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[3], match.id).replace(' (G)', '')}</span>
+                                {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[11px] text-[#C9B075]/90 italic shrink-0">g</span>}
                             </div>
                         </div>
                     </div>
