@@ -1005,7 +1005,7 @@ export default function KDKPage() {
                 if (fullError) {
                     const isSchemaError = fullError.message?.includes('column') || fullError.message?.includes('schema cache');
                     if (isSchemaError) {
-                        console.warn("⚠️ Full sync failed (schema mismatch). Falling back to legacy minimal sync.");
+                        // [v34.8] Silent Fallback: Don't alarm the user if names are already showing
                         const legacyDbMatches = fullDbMatches.map(({ player_names, mode, group_name, ...rest }: any) => rest);
                         const { error: legacyError } = await supabase
                             .from('matches')
@@ -1014,8 +1014,8 @@ export default function KDKPage() {
                         
                         setIsLegacySync(true);
                         setSyncStatus('WARNING');
-                        setSyncErrorMsg("DB 스키마 캐시 지연으로 인해 '레거시 모드'로 저장되었습니다. SQL 명령을 실행해 주세요.");
-                        console.log("✅ Legacy Sync Success");
+                        // setSyncErrorMsg(...) removed to prevent popup
+                        console.log("ℹ️ Legacy Fallback Sync Active");
                     } else {
                         throw fullError;
                     }
