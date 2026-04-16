@@ -119,8 +119,10 @@ export default function KDKPage() {
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
     
     // [v32.2] Sync Integrity States
-    const [syncStatus, setSyncStatus] = useState<'IDLE' | 'HEALTHY' | 'ERROR'>('IDLE');
+    const [syncStatus, setSyncStatus] = useState<'IDLE' | 'HEALTHY' | 'WARNING' | 'ERROR'>('IDLE');
     const [lastSyncTime, setLastSyncTime] = useState<string>("");
+    const [isLegacySync, setIsLegacySync] = useState(false);
+    const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
 
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
@@ -729,7 +731,18 @@ export default function KDKPage() {
                     }
                 }
                 setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-                setSyncStatus('HEALTHY');
+                
+                // [v34.2] Detect Sync Integrity
+                const hasModernMetadata = sessionList.length > 0 && data.some((m: any) => m.player_names && m.player_names.length > 0);
+                if (sessionList.length > 0 && !hasModernMetadata) {
+                    setIsLegacySync(true);
+                    setSyncStatus('WARNING');
+                    setSyncErrorMsg("시스템이 '레거시 모드'로 동작 중입니다. (게스트 이름 동기화 제한)");
+                } else {
+                    setIsLegacySync(false);
+                    setSyncStatus('HEALTHY');
+                    setSyncErrorMsg(null);
+                }
             } else {
                 setAllActiveSessions([]);
                 setShowGateway(false);
@@ -969,11 +982,18 @@ export default function KDKPage() {
                             .from('matches')
                             .upsert(legacyDbMatches, { onConflict: 'id' });
                         if (legacyError) throw legacyError;
+                        
+                        setIsLegacySync(true);
+                        setSyncStatus('WARNING');
+                        setSyncErrorMsg("DB 스키마 캐시 지연으로 인해 '레거시 모드'로 저장되었습니다. SQL 명령을 실행해 주세요.");
                         console.log("✅ Legacy Sync Success");
                     } else {
                         throw fullError;
                     }
                 } else {
+                    setIsLegacySync(false);
+                    setSyncStatus('HEALTHY');
+                    setSyncErrorMsg(null);
                     console.log("✅ Full Live Match Sync Success");
                 }
             } catch (err: any) {
@@ -1948,24 +1968,36 @@ export default function KDKPage() {
                         </button>
                     )}
 
-                    {/* [v32.2] Sync Status UI */}
+                    {/* [v34.2] Enhanced Sync Integrity UI */}
                     <div className="flex items-center gap-3 ml-auto pr-2">
                         <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-[7px] font-black uppercase tracking-widest opacity-30">Server Sync</span>
-                                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`} />
+                            <div className="flex items-center gap-2">
+                                {isLegacySync && (
+                                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded-sm bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 tracking-tighter uppercase animate-pulse">Legacy Mode</span>
+                                )}
+                                <div className="flex flex-col items-end">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[7px] font-black uppercase tracking-widest opacity-30">Server Sync</span>
+                                        <div 
+                                            className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'WARNING' ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`} 
+                                        />
+                                    </div>
+                                    <span className="text-[9px] font-mono font-bold opacity-40 leading-none">{lastSyncTime || 'Wait..'}</span>
+                                </div>
                             </div>
-                            <span className="text-[9px] font-mono font-bold opacity-40 leading-none">{lastSyncTime || 'Wait..'}</span>
                         </div>
                         <button 
                             onClick={() => {
                                 if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                if (isLegacySync && syncErrorMsg) {
+                                    alert(`⚠️ 동기화 경고: ${syncErrorMsg}\n\n다른 기기(아내분 폰 등)에서 이름이 '로딩 중'으로 뜬다면 Supabase SQL Editor에서 이전 가이드해 드린 SQL 명령을 실행하셔야 합니다.`);
+                                }
                                 setSyncTick(prev => prev + 1);
                             }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40 transition-all active:scale-90"
-                            title="서버 데이터 강제 동기화"
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 transition-all active:scale-90 ${isLegacySync ? 'text-yellow-500 border-yellow-500/30' : 'text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40'}`}
+                            title={isLegacySync ? "동기화 지연 해결방법 보기" : "서버 데이터 강제 동기화"}
                         >
-                            <RotateCw className={`w-3.5 h-3.5`} />
+                            {isLegacySync ? <span className="text-xs">⚠️</span> : <RotateCw className={`w-3.5 h-3.5`} />}
                         </button>
                     </div>
                 </div>
