@@ -938,18 +938,17 @@ export default function KDKPage() {
                 groupName: km.group
             })) as any;
 
-            // ENABLE DB SAVE (Sync Live Matches)
+            // [v34.2] Resilient Sync: Try Full Sync first, Fallback to Legacy if DB schema is stale
             try {
-                // DB 테이블에 바로 매핑되도록 snake_case 키로 정제 (캐시 에러를 막기 위해 최신 컬럼은 제외)
-                const dbMatches = formattedMatches.map(m => ({
+                const fullDbMatches = formattedMatches.map(m => ({
                     id: String(m.id),
                     club_id: process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819",
                     session_id: sessionId,
                     session_title: sessionTitle || 'Tournament',
                     round: m.round || 1,
                     court: m.court || 1,
-                    // [v34.1] CRITICAL FIX: To fix 'Loading...' on other phones, we MUST sync names & metadata 
-                    player_names: m.playerIds?.map(pid => getPlayerName(pid)) || [],
+                    player_ids: (m as any).playerIds || [],
+                    player_names: (m as any).playerIds?.map((pid: string) => getPlayerName(pid)) || [],
                     mode: m.mode || 'KDK',
                     group_name: m.groupName || 'A',
                     score1: m.score1 ?? 1,
@@ -957,19 +956,25 @@ export default function KDKPage() {
                     status: m.status || 'waiting'
                 }));
 
-                // RPC 우회: 테이블 직접 다중 Upsert (강력하고 확실함)
-                const { error: matchError } = await supabase
+                const { error: fullError } = await supabase
                     .from('matches')
-                    .upsert(dbMatches, { onConflict: 'id' });
+                    .upsert(fullDbMatches, { onConflict: 'id' });
                 
-                if (matchError) {
-                    console.error("❌ Live Match Sync Error:", matchError);
-                    alert(`🚨 DB 저장 실패! 아내 폰에 안 뜨는 원인입니다!\n에러 내용: ${matchError.message || JSON.stringify(matchError)}\n\n(이 팝업을 찍어서 알려주세요)`);
-                    if (matchError.message?.includes('uuid')) {
-                        console.warn("UUID Mismatch detected. Please apply the SQL migration to change 'matches.id' to TEXT.");
+                if (fullError) {
+                    const isSchemaError = fullError.message?.includes('column') || fullError.message?.includes('schema cache');
+                    if (isSchemaError) {
+                        console.warn("⚠️ Full sync failed (schema mismatch). Falling back to legacy minimal sync.");
+                        const legacyDbMatches = fullDbMatches.map(({ player_names, mode, group_name, ...rest }: any) => rest);
+                        const { error: legacyError } = await supabase
+                            .from('matches')
+                            .upsert(legacyDbMatches, { onConflict: 'id' });
+                        if (legacyError) throw legacyError;
+                        console.log("✅ Legacy Sync Success");
+                    } else {
+                        throw fullError;
                     }
                 } else {
-                    console.log("✅ Live Match Sync Success");
+                    console.log("✅ Full Live Match Sync Success");
                 }
             } catch (err: any) {
                 console.error("Critical Sync Failure:", err);
