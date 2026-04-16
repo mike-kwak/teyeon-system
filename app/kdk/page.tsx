@@ -1091,13 +1091,53 @@ export default function KDKPage() {
 
             // Manual Invalidation (sync state from server)
             await syncActiveSession();
-        } catch (err) {
-            console.error("Start Match Error:", err);
-            setToastMsg("경기 투입 중 오류가 발생했습니다");
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
         } finally {
             setIsStartingMatch(false);
+        }
+    };
+
+    // [v35.6] Manual Repair: Force Push local names/metadata to server
+    const execFullRepair = async () => {
+        if (!isAdmin || isGenerating) return;
+        
+        try {
+            setIsGenerating(true);
+            const fullDbMatches = matches.map(m => ({
+                id: String(m.id),
+                club_id: clubId || process.env.NEXT_PUBLIC_CLUB_ID,
+                session_id: sessionId,
+                session_title: sessionTitle || 'Tournament',
+                round: m.round || 1,
+                court: m.court || 1,
+                player_ids: (m as any).playerIds || [],
+                player_names: (m as any).playerIds?.map((pid: string) => getPlayerName(pid)) || [],
+                mode: m.mode || 'KDK',
+                group_name: m.groupName || 'A',
+                score1: m.score1 ?? 1,
+                score2: m.score2 ?? 1,
+                status: m.status || 'waiting'
+            }));
+
+            const { error } = await supabase
+                .from('matches')
+                .upsert(fullDbMatches, { onConflict: 'id' });
+
+            if (error) throw error;
+
+            console.log("✅ Full Live Match Sync Success");
+            setIsLegacySync(false);
+            setSyncStatus('HEALTHY');
+            setSyncErrorMsg(null);
+            setToastMsg("데이터 구조가 성공적으로 복구되었습니다!");
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+            
+            await syncActiveSession();
+        } catch (err: any) {
+            console.error("Repair Failed:", err);
+            alert(`🚨 복구 실패: ${err.message}\n\n[종합 선물 세트 SQL]을 먼저 실행했는지 확인해 주세요.`);
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -2015,7 +2055,10 @@ export default function KDKPage() {
                             onClick={() => {
                                 if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                 if (isLegacySync) {
-                                    alert(`⚙️ 동기화 진단 리포트 (metadata-only)\n\n현재 이름은 정상적으로 출력되고 있으나, 서버 DB가 최신 구조를 인식하지 못해 '최소 동기화' 모드로 동작 중입니다.\n\n해결방법:\n1. 안내해 드린 [종합 선물 세트 SQL]을 실행해 주세요.\n2. 실행 후 PC에서 [최종 대진 자동 생성!] 버튼을 한 번만 더 눌러주세요.\n3. 그러면 휴대폰의 긴 ID들이 사라지고 진짜 이름으로 바뀝니다.`);
+                                    const confirmRepair = window.confirm(`⚙️ 동기화 진단 리포트 (metadata-only)\n\n현재 이름은 정상적으로 출력되고 있으나, 서버 DB가 최신 구조를 인식하지 못해 '최소 동기화' 모드로 동작 중입니다.\n\n해결방법:\n1. 안내해 드린 [종합 선물 세트 SQL]을 실행해 주세요.\n2. 실행을 완료하셨다면 아래 [확인] 후에 [데이터 구조 강제 복구]를 진행할 수 있습니다.\n\n지금 데이터 구조를 강제로 복구할까요?`);
+                                    if (confirmRepair) {
+                                        execFullRepair();
+                                    }
                                 }
                                 setSyncTick(prev => prev + 1);
                             }}
