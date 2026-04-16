@@ -194,11 +194,6 @@ export default function KDKPage() {
                 }
             });
             
-            const nextTitle = `${prefix}${String(maxSuffix + 1).padStart(2, '0')}`;
-            if (step === 1 || sessionTitle.endsWith('_KDK_01')) {
-                setSessionTitle(nextTitle);
-                console.log(`🏷️ Next available title suggested: ${nextTitle}`);
-            }
         } catch (err) {
             console.error("Failed to find next title:", err);
         } finally {
@@ -514,10 +509,9 @@ export default function KDKPage() {
             }, (payload: any) => {
                 const updatedSessionId = payload.new?.session_id || payload.old?.session_id;
                 
-                // [CRITICAL] 남들 핸드폰(게스트 등)에도 즉시 동기화되도록 세션 ID 대조 후 Tick 트리거
-                // 현재 세션이 선택되지 않았거나(Gatway 모드), 세션 ID가 일치하는 경우에만 동기화
+                // [v35.2] STRICT SESSION FILTER: Only trigger refresh for the active session or if in gateway
                 if (!currentSid || updatedSessionId === currentSid) {
-                    console.log('📡 Realtime update valid for session:', updatedSessionId);
+                    console.log('📡 Realtime update for:', updatedSessionId);
                     setSyncTick(prev => prev + 1);
                 }
             })
@@ -662,7 +656,7 @@ export default function KDKPage() {
                     return sessionList;
                 });
 
-                // Gatekeeper Logic: ALWAYS trust the server over local state for active sessions
+                // [v35.3] SESSION LOCK: If we already have a selected session, NEVER let auto-logic overwrite it
                 if (!selectedSessionId) {
                     if (sessionList.length === 1) {
                         // Auto-entry if only one session
