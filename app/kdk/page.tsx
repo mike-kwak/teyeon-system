@@ -755,7 +755,6 @@ export default function KDKPage() {
                 if (sessionList.length > 0 && !hasModernMetadata) {
                     setIsLegacySync(true);
                     setSyncStatus('WARNING');
-                    // [v35.0] No more automatic syncErrorMsg popups
                 } else {
                     setIsLegacySync(false);
                     setSyncStatus('HEALTHY');
@@ -1005,8 +1004,9 @@ export default function KDKPage() {
                 if (fullError) {
                     const isSchemaError = fullError.message?.includes('column') || fullError.message?.includes('schema cache');
                     if (isSchemaError) {
-                        // [v34.8] Silent Fallback: Don't alarm the user if names are already showing
-                        const legacyDbMatches = fullDbMatches.map(({ player_names, mode, group_name, ...rest }: any) => rest);
+                        // [v35.1] Detailed diagnostic for developer/admin
+                        console.warn("⚠️ Full sync restricted. Missing columns or stale cache detector on:", fullError.message);
+                        const legacyDbMatches = fullDbMatches.map(({ player_names, mode, group_name, score1, score2, ...rest }: any) => rest);
                         const { error: legacyError } = await supabase
                             .from('matches')
                             .upsert(legacyDbMatches, { onConflict: 'id' });
@@ -2019,14 +2019,14 @@ export default function KDKPage() {
                             onClick={() => {
                                 if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                 if (isLegacySync) {
-                                    alert(`⚠️ 동기화 알림 (Legacy Mode)\n\n현재 과거 데이터 혹은 서버 캐시 지연으로 인해 이름 동기화가 제한적입니다.\n\n해결방법: [최종 대진 자동 생성!] 버튼을 한 번 눌러서 새로운 대진표를 생성하시면 즉시 모든 기기에서 이름이 정상으로 복구됩니다.`);
+                                    alert(`⚙️ 동기화 진단 리포트 (metadata-only)\n\n현재 이름은 정상적으로 출력되고 있으나, 서버 DB가 최신 구조를 인식하지 못해 '최소 동기화' 모드로 동작 중입니다.\n\n확인 방법:\n1. Supabase SQL Editor에서 [information_schema] 쿼리를 실행해 보세요.\n2. 목록에 player_names, mode 칸이 보인다면 서버의 '캐시 지연'입니다.\n3. 보이지 않는다면 아까 안내해 드린 [Aggressive SQL]을 다시 한 번 실행해 주세요.`);
                                 }
                                 setSyncTick(prev => prev + 1);
                             }}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 transition-all active:scale-90 ${isLegacySync ? 'text-yellow-500 border-yellow-500/30' : 'text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40'}`}
-                            title={isLegacySync ? "동기화 해결방법 보기" : "서버 데이터 강제 동기화"}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 transition-all active:scale-90 ${isLegacySync ? 'text-[#C9B075] border-[#C9B075]/30' : 'text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40'}`}
+                            title={isLegacySync ? "시스템 진단 보기" : "서버 데이터 강제 동기화"}
                         >
-                            {isLegacySync ? <span className="text-xs">⚠️</span> : <RotateCw className={`w-3.5 h-3.5`} />}
+                            {isLegacySync ? <span className="text-[10px] items-center justify-center flex font-black">SYNC</span> : <RotateCw className={`w-3.5 h-3.5`} />}
                         </button>
                     </div>
                 </div>
