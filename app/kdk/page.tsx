@@ -838,7 +838,11 @@ export default function KDKPage() {
             }
         }
 
-        if (!name) return id; // [v34.7] Return ID instead of "Loading..." to prevent metadata pollution 
+        if (!name) {
+            // [v35.5] Truncate long IDs for better UI fit
+            if (id.startsWith('g-') && id.length > 8) return id.substring(0, 8) + '...';
+            return id; 
+        }
         
         // [v34.1] More robust guest detection
         const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || ((m as any)?.isGuest === true) || (attendeeConfigs?.[id]?.is_guest === true);
@@ -2011,7 +2015,7 @@ export default function KDKPage() {
                             onClick={() => {
                                 if (window.navigator?.vibrate) window.navigator.vibrate(50);
                                 if (isLegacySync) {
-                                    alert(`⚙️ 동기화 진단 리포트 (metadata-only)\n\n현재 이름은 정상적으로 출력되고 있으나, 서버 DB가 최신 구조를 인식하지 못해 '최소 동기화' 모드로 동작 중입니다.\n\n확인 방법:\n1. Supabase SQL Editor에서 [information_schema] 쿼리를 실행해 보세요.\n2. 목록에 player_names, mode 칸이 보인다면 서버의 '캐시 지연'입니다.\n3. 보이지 않는다면 아까 안내해 드린 [Aggressive SQL]을 다시 한 번 실행해 주세요.`);
+                                    alert(`⚙️ 동기화 진단 리포트 (metadata-only)\n\n현재 이름은 정상적으로 출력되고 있으나, 서버 DB가 최신 구조를 인식하지 못해 '최소 동기화' 모드로 동작 중입니다.\n\n해결방법:\n1. 안내해 드린 [종합 선물 세트 SQL]을 실행해 주세요.\n2. 실행 후 PC에서 [최종 대진 자동 생성!] 버튼을 한 번만 더 눌러주세요.\n3. 그러면 휴대폰의 긴 ID들이 사라지고 진짜 이름으로 바뀝니다.`);
                                 }
                                 setSyncTick(prev => prev + 1);
                             }}
