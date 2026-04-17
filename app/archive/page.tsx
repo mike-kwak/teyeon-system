@@ -185,7 +185,7 @@ export default function ArchivePage() {
                         </div>
 
                         {/* 시그니처 섹션 헤더: RANKING UPDATES */}
-                        <div className="flex flex-col gap-1 px-4 mb-20 mt-10">
+                        <div className="flex flex-col gap-1 px-4 mb-32 mt-10">
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
                             <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                         </div>
@@ -211,8 +211,8 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    {/* CHAMPION PODIUM (Max Breathing Space) */}
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-12 mb-2">
+                                    {/* CHAMPION PODIUM (Maximum Breathing Space) */}
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-20 mb-2">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
@@ -231,13 +231,6 @@ export default function ArchivePage() {
                                                     key={p.name} 
                                                     className={`relative flex flex-col items-center p-3 pb-8 rounded-[36px] border border-white/5 backdrop-blur-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-300 ${isFirst ? 'w-[42%] bg-zinc-900 border-white/10 scale-110 z-10' : 'w-[30%] bg-zinc-900/40 opacity-80'}`}
                                                 >
-                                                    {/* Signature Rank Badge */}
-                                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                                                        <div className={`w-8 h-8 rounded-full bg-gradient-to-b ${theme.color} flex items-center justify-center border-2 border-white/20 shadow-lg`}>
-                                                            <span className="text-black font-black text-xs italic">{idx + 1}</span>
-                                                        </div>
-                                                    </div>
-
                                                     <div className="w-full flex flex-col items-center mt-3">
                                                         {/* Avatar / Honor Placeholder */}
                                                         <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-3 shadow-2xl ${isFirst ? 'w-20 h-20 border-[#C9B075]/40' : 'w-16 h-16'}`}>
