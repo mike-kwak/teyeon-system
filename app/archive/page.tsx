@@ -185,14 +185,12 @@ export default function ArchivePage() {
                         </div>
 
                         {/* 시그니처 섹션 헤더: RANKING UPDATES */}
-                        <div className="flex flex-col gap-1 px-4 mb-20 mt-10">
+                        <div className="flex flex-col gap-1 px-4 mb-20 mt-10 relative">
+                            <span className="absolute -top-6 left-4 text-[8px] font-bold text-[#C9B075]/30 tracking-widest uppercase">System Active v1.16.0</span>
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
-                            <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
+                            <div className="h-[2px] w-48 bg-gradient-to-r from-[#00e5ff] via-[#C9B075] to-transparent shadow-[0_4px_15px_rgba(0,229,255,0.2)] mt-1"></div>
                         </div>
 
-                        {/* PHYSICAL SPACE AUTHORITY (v1.15.13) */}
-                        <div className="h-48 w-full" aria-hidden="true"></div>
-                        
                         {(() => {
                             const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
                             selectedSession.matches.forEach((m: any) => {
@@ -214,8 +212,8 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    {/* CHAMPION PODIUM (High Vertical Offset) */}
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-32 mb-10">
+                                    {/* CHAMPION PODIUM (Decisive Padding Over Margin) */}
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto pt-[250px] pb-10 mt-0">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
