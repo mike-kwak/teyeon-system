@@ -254,61 +254,56 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    {/* 4등 이하 프리미엄 랭킹 리스트 (v1.15.3 개편) */}
+                                    {/* 4등 이하 프리미엄 랭킹 리스트 (v1.15.4 정밀 교정) */}
                                     <div className="h-10 w-full" aria-hidden="true" />
-                                    <div className="flex flex-col gap-3 px-1 w-full max-w-2xl mx-auto">
-                                        {/* TABLE HEADER */}
-                                        <div className="grid grid-cols-[30px_1fr_40px_40px_50px] gap-2 px-6 py-2 italic font-black text-[9px] text-zinc-700 tracking-[0.3em] uppercase">
-                                            <span>#</span>
-                                            <span>Player</span>
+                                    <div className="flex flex-col gap-2.5 px-1 w-full max-w-2xl mx-auto">
+                                        {/* TABLE HEADER (Perfect Alignment with Rows) */}
+                                        <div className="grid grid-cols-[40px_1fr_45px_45px_70px] gap-3 px-6 py-2 italic font-black text-[9px] text-zinc-700 tracking-[0.3em] uppercase">
+                                            <span className="text-center">#</span>
+                                            <span className="pl-11">Player</span>
                                             <span className="text-center text-cyan-500/60">W</span>
                                             <span className="text-center text-zinc-700">L</span>
-                                            <span className="text-right text-[#C9B075]/60 pr-1">+/-</span>
+                                            <span className="text-right pr-2 text-[#C9B075]/60">+/-</span>
                                         </div>
 
                                         {/* RANKING ROWS */}
                                         {sortedResults.slice(3).map((p, idx) => (
-                                            <div key={p.name} className="group relative bg-zinc-900/40 hover:bg-zinc-800/60 border border-white/5 rounded-2xl p-4 flex items-center transition-all duration-300 active:scale-[0.98]">
+                                            <div key={p.name} className="group relative bg-zinc-900/40 hover:bg-zinc-800/60 border border-white/5 rounded-2xl px-6 py-4 grid grid-cols-[40px_1fr_45px_45px_70px] gap-3 items-center transition-all duration-300 active:scale-[0.98]">
                                                 {/* Rank Info */}
-                                                <div className="w-8 flex justify-center items-center">
-                                                    <span className="text-[15px] font-[1000] italic text-zinc-700 group-hover:text-zinc-500">{idx + 4}</span>
+                                                <div className="flex justify-center items-center">
+                                                    <span className="text-lg font-[1000] italic text-zinc-800 group-hover:text-zinc-600 transition-colors">{(idx + 4).toString().padStart(2, '0')}</span>
                                                 </div>
 
-                                                {/* Player Info */}
-                                                <div className="flex-1 px-4 flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-black border border-white/5 flex items-center justify-center overflow-hidden">
+                                                {/* Player Info (Compact & Centered) */}
+                                                <div className="flex items-center gap-3 ml-2">
+                                                    <div className="w-9 h-9 rounded-full bg-black border border-white/5 flex items-center justify-center overflow-hidden shadow-inner">
                                                         {p.avatar ? (
-                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                                                         ) : (
-                                                            <span className="text-[10px] font-black text-zinc-800">{p.name[0]}</span>
+                                                            <span className="text-[10px] font-black text-zinc-700">{p.name[0]}</span>
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[15px] font-black text-white italic uppercase tracking-tighter">{p.name}</span>
-                                                        <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest italic">{p.played} Matches</span>
+                                                        <span className="text-[15px] font-black text-white italic uppercase tracking-tighter group-hover:text-[#C9B075] transition-colors">{p.name}</span>
+                                                        <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest italic">{p.played} MATCHES</span>
                                                     </div>
                                                 </div>
 
-                                                {/* Stats */}
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex flex-col items-center w-10">
-                                                        <span className="text-lg font-[1000] italic text-cyan-500/80 drop-shadow-sm">{p.wins}</span>
-                                                        <span className="text-[7px] font-black text-zinc-800 uppercase tracking-tighter">Win</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-center w-10">
-                                                        <span className="text-lg font-[1000] italic text-zinc-600">{p.losses}</span>
-                                                        <span className="text-[7px] font-black text-zinc-800 uppercase tracking-tighter">Loss</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-end w-14 pr-2">
-                                                        <span className={`text-lg font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B070]' : p.diff < 0 ? 'text-red-900' : 'text-zinc-700'}`}>
-                                                            {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                                        </span>
-                                                        <span className="text-[7px] font-black text-zinc-800 uppercase tracking-tighter">Diff</span>
-                                                    </div>
+                                                {/* Stats (Aligned with Header) */}
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-xl font-[1000] italic text-cyan-500/80 drop-shadow-sm">{p.wins}</span>
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-xl font-[1000] italic text-zinc-700">{p.losses}</span>
+                                                </div>
+                                                <div className="flex flex-col items-end pr-2">
+                                                    <span className={`text-xl font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B070]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
+                                                        {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                                    </span>
                                                 </div>
 
-                                                {/* Decoration */}
-                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-8 bg-zinc-800 rounded-full group-hover:bg-[#C9B075]/40 transition-colors"></div>
+                                                {/* Decoration Edge */}
+                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-10 bg-zinc-900 border-r border-zinc-800 rounded-r-full group-hover:bg-[#C9B075]/40 transition-all"></div>
                                             </div>
                                         ))}
                                     </div>
