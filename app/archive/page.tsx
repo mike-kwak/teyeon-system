@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   const CEO_EMAIL = process.env.NEXT_PUBLIC_CEO_EMAIL || 'cws786@nate.com';
   const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',');
-  const isAdmin = userEmail && (userEmail === CEO_EMAIL || ADMIN_EMAILS.includes(userEmail));
+  const isAdmin = (userEmail && (userEmail === CEO_EMAIL || ADMIN_EMAILS.includes(userEmail))) || role === 'ADMIN' || role === 'CEO';
   
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
@@ -562,76 +562,98 @@ export default function ArchivePage() {
                                 <h2 className="text-2xl font-[1000] text-white italic leading-tight tracking-tighter uppercase">{selectedSession.title}</h2>
                             </div>
                             <div className="bg-black/60 p-1 rounded-2xl flex border border-white/5">
-                                {(['MATCHES', 'RANKING', 'PERSONAL'] as const).map(t => (
+                                {(['RANKING', 'MATCHES', 'PERSONAL'] as const).map(t => (
                                     <button key={t} onClick={() => setActiveDetailTab(t)} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeDetailTab === t ? 'bg-[#D4AF37] text-black' : 'text-white/30'}`}>{t}</button>
                                 ))}
                             </div>
                         </div>
 
-                        {activeDetailTab === 'MATCHES' && (
-                            <div className="space-y-8">
-                                {Array.from(new Set(selectedSession.matches.map((m:any) => m.round || 1))).sort((a:any,b:any)=>a-b).map((round:any) => (
-                                    <div key={round} className="space-y-4">
-                                        <h3 className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase text-center flex items-center gap-4"><span className="h-px flex-1 bg-white/5"></span>Round 0{round}<span className="h-px flex-1 bg-white/5"></span></h3>
-                                        {selectedSession.matches.filter((m:any) => (m.round||1) === round).map((m:any, idx:number) => {
-                                             const n = m.player_names || ["?","?","?","?"];
-                                             const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                             return (
-                                                 <div key={m.id} className="bg-white/[0.03] border border-white/5 rounded-[30px] p-6 relative group hover:bg-white/[0.05] transition-all">
-                                                     <span className="absolute top-4 left-6 text-[8px] font-black text-[#D4AF37]/40 uppercase tracking-widest">Court 0{m.court || idx + 1}</span>
-                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 pt-6">
-                                                         <div className="text-center flex flex-col gap-2 items-center text-xs font-black uppercase">
-                                                            <span className={s1 > s2 ? 'text-[#D4AF37]' : 'text-white/40'}>{n[0]}</span>
-                                                            <span className={s1 > s2 ? 'text-[#D4AF37]' : 'text-white/40'}>{n[1]}</span>
-                                                         </div>
-                                                         <div className="flex flex-col items-center gap-1">
-                                                            <div className="bg-black/80 border border-white/10 px-6 py-3 rounded-2xl font-[1000] italic text-2xl tracking-tighter shadow-xl">{s1} : {s2}</div>
-                                                            {m.isLocal && <span className="text-[7px] font-black text-[#D4AF37] uppercase animate-pulse">Offline</span>}
-                                                         </div>
-                                                         <div className="text-center flex flex-col gap-2 items-center text-xs font-black uppercase">
-                                                            <span className={s2 > s1 ? 'text-[#D4AF37]' : 'text-white/40'}>{n[2]}</span>
-                                                            <span className={s2 > s1 ? 'text-[#D4AF37]' : 'text-white/40'}>{n[3]}</span>
-                                                         </div>
-                                                     </div>
-                                                 </div>
-                                             );
-                                         })}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
                         {activeDetailTab === 'RANKING' && (
-                            <div className="bg-white/[0.03] border border-white/5 rounded-[24px] p-2 overflow-hidden">
-                                {(() => {
-                                    const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number }> = {};
-                                    selectedSession.matches.forEach((m: any) => {
-                                        const pNames = m.player_names || [];
-                                        pNames.forEach((name: string, i: number) => {
-                                            if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, games: 0 };
-                                            const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                            const win = i < 2 ? (s1 > s2) : (s2 > s1);
-                                            if (win) stats[name].wins++; else if (s1 !== s2) stats[name].losses++;
-                                            stats[name].diff += i < 2 ? (s1 - s2) : (s2 - s1);
-                                            stats[name].games++;
+                            <div className="space-y-8 animate-in fade-in duration-700">
+                                {/* Top Rank Table */}
+                                <div className="bg-white/[0.03] border border-white/5 rounded-[24px] p-2 overflow-hidden shadow-2xl">
+                                    <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">Final Standings</span>
+                                        <span className="text-[9px] font-black text-white/20 uppercase">Teyeon Official</span>
+                                    </div>
+                                    {(() => {
+                                        const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number }> = {};
+                                        selectedSession.matches.forEach((m: any) => {
+                                            const pNames = m.player_names || [];
+                                            pNames.forEach((name: string, i: number) => {
+                                                if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, games: 0 };
+                                                const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                                const win = i < 2 ? (s1 > s2) : (s2 > s1);
+                                                if (win) stats[name].wins++; else if (s1 !== s2) stats[name].losses++;
+                                                stats[name].diff += i < 2 ? (s1 - s2) : (s2 - s1);
+                                                stats[name].games++;
+                                            });
                                         });
-                                    });
-                                    const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
+                                        const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
 
-                                    return (
-                                        <table className="w-full text-left">
-                                            <thead className="text-[9px] font-black text-white/20 uppercase tracking-widest"><tr><th className="px-6 py-6 font-black">Rank</th><th className="px-2 py-6">Player</th><th className="px-2 py-6 text-center">W/L</th><th className="px-4 py-6 text-right">Diff</th></tr></thead>
-                                            <tbody>{rankingData.map((p:any, idx:number) => (
-                                                <tr key={p.name} className={`border-t border-white/5 ${idx === 0 ? 'bg-[#D4AF37]/5' : ''}`}>
-                                                    <td className="px-6 py-5 flex items-center gap-2 font-[1000] italic text-xl">{idx + 1}</td>
-                                                    <td className="px-2 py-5 font-black text-xs uppercase">{p.name}</td>
-                                                    <td className="px-2 py-5 text-center text-[10px] font-black opacity-30">{p.wins}W {p.losses}L</td>
-                                                    <td className={`px-4 py-5 text-right font-black italic ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
-                                                </tr>
-                                            ))}</tbody>
-                                        </table>
-                                    );
-                                })()}
+                                        return (
+                                            <table className="w-full text-left">
+                                                <thead className="text-[9px] font-black text-white/20 uppercase tracking-widest"><tr><th className="px-6 py-6 font-black">Rank</th><th className="px-2 py-6">Player</th><th className="px-2 py-6 text-center">W/L</th><th className="px-4 py-6 text-right">Diff</th></tr></thead>
+                                                <tbody>{rankingData.map((p:any, idx:number) => (
+                                                    <tr key={p.name} className={`border-t border-white/5 ${idx === 0 ? 'bg-[#D4AF37]/5' : ''}`}>
+                                                        <td className="px-6 py-5 flex items-center gap-2 font-[1000] italic text-xl">{idx + 1}</td>
+                                                        <td className="px-2 py-5 font-black text-xs uppercase">{p.name}</td>
+                                                        <td className="px-2 py-5 text-center text-[10px] font-black opacity-30">{p.wins}W {p.losses}L</td>
+                                                        <td className={`px-4 py-5 text-right font-black italic ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
+                                                    </tr>
+                                                ))}</tbody>
+                                            </table>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Personal Stats Integration (Waterfall) */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4 px-2">
+                                        <div className="h-px flex-1 bg-white/5"></div>
+                                        <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">Personal Analytics</span>
+                                        <div className="h-px flex-1 bg-white/5"></div>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {(() => {
+                                            const pSet = new Set<string>();
+                                            selectedSession.matches.forEach((m:any) => m.player_names?.forEach((n:string)=>pSet.add(n)));
+                                            return Array.from(pSet).sort().map(name => {
+                                                const pMatches = selectedSession.matches.filter((m:any) => m.player_names?.includes(name));
+                                                let w=0, l=0, d=0;
+                                                pMatches.forEach((m:any) => {
+                                                    const ns = m.player_names || []; const i = ns.indexOf(name);
+                                                    const s1 = Number(m.score1||0), s2 = Number(m.score2||0);
+                                                    const win = i < 2 ? (s1 > s2) : (s2 > s1);
+                                                    if (win) w++; else if (s1 !== s2) l++; 
+                                                    d += i < 2 ? (s1-s2) : (s2-s1);
+                                                });
+                                                const rate = Math.round((w/(w+l||1))*100);
+                                                return (
+                                                    <div key={name} className="bg-white/[0.03] border border-white/5 rounded-[30px] p-6 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 bg-[#D4AF37]/10 rounded-2xl flex items-center justify-center font-[1000] text-[#D4AF37] text-sm italic">{name[0]}</div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-black italic uppercase tracking-tighter">{name}</span>
+                                                                <span className="text-[7px] font-black text-white/20 uppercase tracking-widest">{pMatches.length} Matches Played</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-6">
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[8px] font-black text-white/20 uppercase">Win Rate</span>
+                                                                <span className={`text-sm font-black italic ${rate >= 50 ? 'text-[#D4AF37]' : 'text-white/40'}`}>{rate}%</span>
+                                                            </div>
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[8px] font-black text-white/20 uppercase">Score Diff</span>
+                                                                <span className={`text-sm font-black italic ${d >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{d > 0 ? `+${d}` : d}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                </div>
                             </div>
                         )}
                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-6 mt-8 rounded-[28px] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all">Back to List</button>
@@ -639,15 +661,15 @@ export default function ArchivePage() {
                 ) : (
                     <div className="animate-in slide-in-from-bottom duration-500">
                         <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 mb-8 flex gap-4 shadow-2xl">
-                            <div className="flex-1 space-y-2">
-                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest pl-1">Year</span>
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white outline-none">
+                            <div className="flex-1 flex flex-col items-center space-y-2">
+                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">Year</span>
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white outline-none text-center">
                                     {[2026,2025,2024].map(y=><option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
-                            <div className="flex-1 space-y-2">
-                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest pl-1">Month</span>
-                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white outline-none">
+                            <div className="flex-1 flex flex-col items-center space-y-2">
+                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">Month</span>
+                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white outline-none text-center">
                                     {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}
                                 </select>
                             </div>
@@ -655,22 +677,22 @@ export default function ArchivePage() {
 
                         <div className="space-y-6">
                             {sessions.length > 0 ? sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => setSelectedSessionId(s.id)} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[32px] p-8 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/30">
+                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); setActiveDetailTab('RANKING'); }} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[40px] p-8 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/30">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                                    <div className="flex justify-between items-start mb-6 relative z-10">
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex items-center gap-3">
+                                    <div className="flex justify-between items-start mb-4 relative z-10">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-3 mb-1">
                                                 <span className="w-8 h-8 bg-black/40 rounded-xl border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] text-[11px] font-[1000]">{index + 1}</span>
-                                                <span className="text-[11px] font-black text-[#D4AF37] uppercase tracking-widest">{s.date}</span>
+                                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{s.date}</span>
                                             </div>
-                                            <h3 className="text-3xl font-[1000] text-white italic tracking-tighter uppercase">{s.title}</h3>
+                                            <h3 className="text-2xl font-[1000] text-white italic tracking-tighter uppercase leading-none">{s.title}</h3>
                                         </div>
-                                        <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">→</div>
+                                        <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] group-hover:scale-110 transition-transform shadow-lg">→</div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-[9px] font-black text-white/30 tracking-widest uppercase">
+                                    <div className="flex items-center gap-4 text-[9px] font-black text-white/20 tracking-[0.3em] uppercase">
                                         <span className={s.matches[0]?.isLocal ? 'text-[#D4AF37] animate-pulse' : ''}>{s.matches[0]?.isLocal ? 'Local Cache' : 'Cloud Verified'}</span>
                                         <span className="opacity-10">|</span>
-                                        <span>{s.matchCount} Matches Organized</span>
+                                        <span>{s.matchCount} Matches Preserved</span>
                                     </div>
                                     {isAdmin && (
                                         <div className="mt-6 pt-6 border-t border-white/5 flex gap-2">
