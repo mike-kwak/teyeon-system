@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   // v1.18.0: Hard Reset Logic to break stubborn PWA Cache
   useEffect(() => {
-    const VERSION = "1.18.3";
+    const VERSION = "1.18.4";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER_V2");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER_V2", VERSION);
@@ -186,13 +186,13 @@ export default function ArchivePage() {
              ) : mainTab === 'RECORDS' ? (
                  <>
                      {selectedSessionId && selectedSession ? (
-                         <div className="animate-in slide-in-from-right duration-500 flex flex-col gap-1">
-                             <div className="flex flex-col gap-0 px-2 mt-4">
+                         <div className="animate-in slide-in-from-right duration-500 flex flex-col gap-2">
+                             <div className="flex flex-col gap-1 px-2 mt-4">
                                  <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                                  <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                              </div>
      
-                             <div className="flex flex-col gap-1 px-4 relative mt-2">
+                             <div className="flex flex-col gap-1 px-4 relative mt-4">
                                  <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
                                  <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                              </div>
@@ -219,8 +219,8 @@ export default function ArchivePage() {
      
                                  return (
                                      <>
-                                         {/* ULTRA TIGHT BOUNDING BOX (v1.18.3) */}
-                                         <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto min-h-[220px] pb-4 pt-0">
+                                         {/* PERFECT BALANCED BOUNDING BOX (v1.18.4) */}
+                                         <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto min-h-[310px] pb-8 pt-4">
                                              {[1, 0, 2].map((idx) => {
                                                  const p = top3[idx];
                                                  if (!p) return <div key={idx} className="flex-1" />;
@@ -244,7 +244,7 @@ export default function ArchivePage() {
                                              })}
                                          </div>
      
-                                         <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20">
+                                         <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-16">
                                         <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
                                             <span>#</span><span>PROF</span><span className="text-left">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
                                         </div>
