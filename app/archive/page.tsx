@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   // v1.17.1: Force Update Logic to break PWA Cache
   useEffect(() => {
-    const VERSION = "1.17.5";
+    const VERSION = "1.17.6";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER", VERSION);
@@ -221,7 +221,7 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mb-40">
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mb-0 pb-16">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
@@ -244,6 +244,9 @@ export default function ArchivePage() {
                                             );
                                         })}
                                     </div>
+
+                                    {/* ABSOLUTE PHYSICAL SPACE (v1.17.6) */}
+                                    <div className="h-48 w-full" aria-hidden="true" />
 
                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-12">
                                         <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
