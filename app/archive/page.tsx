@@ -7,11 +7,11 @@ import { useAuth } from '@/context/AuthContext';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy } from 'lucide-react';
 
 /**
- * ArchivePage (v1.15.0): MUTED ELEGANCE & PRECISION
- * - Spelling Fix: "태연" -> "테연" (TEYEON Official Name)
- * - Muted Gold UI: Champagne matte gold, no flashy gradients
- * - Zero Clipping: Increased horizontal safety padding
- * - Persistent Navigation: Both tabs always visible for better flow
+ * ArchivePage (v1.14.15): THE COMPACT 3D ELITE
+ * - 1/3 Slimmer: Optimized padding and typography
+ * - High-Definition Depth: 3D shadows + top-shine highlights
+ * - Zero Clipping: Safe horizontal margins
+ * - Explicit Controls: Visible trash icon for admins
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -150,25 +150,25 @@ export default function ArchivePage() {
           <div className="h-[2px] w-full bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent mt-3 shadow-[0_4px_15px_rgba(201,176,117,0.3)]"></div>
       </header>
 
-      {/* 상시 노출 내비게이션 (차분한 디자인) */}
-      <nav className="px-6 mt-8 mb-4 flex gap-2.5 relative z-[90]">
+      {/* 상시 노출 골든 탭 */}
+      <nav className="px-6 mt-6 mb-8 flex gap-2.5 relative z-[90]">
           {(['RECORDS', 'RANKING'] as const).map(t => (
               <button 
                   key={t} onClick={() => {
                     setMainTab(t);
                     if (t === 'RECORDS') setSelectedSessionId(null);
                   }}
-                  className={`flex-1 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic
+                  className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic 
                   ${mainTab === t 
-                    ? 'bg-[#C9B075]/10 text-[#C9B075] border border-[#C9B075]/40 shadow-[0_0_20px_rgba(201,176,117,0.1)]' 
-                    : 'bg-zinc-900/50 border border-white/5 text-zinc-600 hover:text-zinc-300'}`}
+                    ? 'bg-gradient-to-r from-[#C9B075] via-[#f0e68c] to-[#C9B075] text-black shadow-xl shadow-yellow-600/20 scale-[1.02] border border-[#C9B075]/50' 
+                    : 'bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-zinc-200'}`}
               >
-                  {t === 'RECORDS' ? '경기 기록' : '테연 랭킹'}
+                  {t === 'RECORDS' ? '경기 기록' : '태연 랭킹'}
               </button>
           ))}
       </nav>
 
-      <section className="flex-1 px-6 sm:px-8 mt-4"> {/* 전체 서곡 여백 증설 (잘림 방지) */}
+      <section className="flex-1 px-3">
         {loading ? (
             <div className="py-24 text-center">
                 <p className="text-[12px] font-black text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
@@ -179,13 +179,13 @@ export default function ArchivePage() {
                 {selectedSessionId && selectedSession ? (
                     <div className="animate-in slide-in-from-right duration-500">
                         {/* 럭셔리 세션 헤더 */}
-                        <div className="flex flex-col gap-2 px-2 mb-8">
+                        <div className="flex flex-col gap-2 px-6 mb-8">
                             <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
                         {/* 포디움 섹션 */}
-                        <div className="flex items-center gap-4 px-2 mb-6 mt-10">
+                        <div className="flex items-center gap-4 px-6 mb-6 mt-10">
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
                             <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
                         </div>
@@ -212,7 +212,7 @@ export default function ArchivePage() {
                             return (
                                 <>
                                     {/* HIGH-VISIBILITY PODIUM */}
-                                    <div className="flex items-end justify-center gap-2 w-full px-1 max-w-2xl mx-auto">
+                                    <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1 h-2" />;
@@ -255,8 +255,8 @@ export default function ArchivePage() {
                                     </div>
 
                                     <div className="h-6 w-full" aria-hidden="true" />
-                                    <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl w-full flex flex-col items-center py-2 px-1">
-                                        <div className="w-full px-1"> 
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 w-full flex flex-col items-center">
+                                        <div className="w-full px-4 sm:px-6"> 
                                             <div className="bg-black/40 border-b border-white/10 italic py-4 grid grid-cols-[24px_95px_32px_32px_32px_35px_35px_45px] gap-1 justify-center items-center w-full">
                                                 <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
                                                 <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest pl-1">PLAYER</span>
@@ -292,8 +292,8 @@ export default function ArchivePage() {
                         <div className="h-6 w-full" aria-hidden="true" />
 
                         {/* COMPLETED MATCHES */}
-                        <div className="space-y-6 pb-40 px-1 mt-4">
-                            <div className="flex items-center gap-4 px-2">
+                        <div className="space-y-6 pb-40 px-2 mt-4">
+                            <div className="flex items-center gap-4 px-6">
                                 <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/10 to-transparent"></div>
                             </div>
@@ -336,78 +336,77 @@ export default function ArchivePage() {
                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-black uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
                     </div>
                 ) : (
-                    /* 2. 세션 리스트 화면 (ELITE SESSION CARD - v1.15.0 담백한 개편) */
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
-                        {/* 차분한 필터 섹션 */}
-                        <section className="bg-zinc-900/40 border border-white/5 rounded-[32px] p-6 flex gap-4 shadow-xl backdrop-blur-3xl mb-8">
-                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
-                                <span className="text-[9px] text-zinc-700 uppercase tracking-[0.4em] mb-1">TEMPORAL YEAR</span>
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-2xl px-4 py-3 text-[11px] text-white outline-none text-center font-black focus:border-[#C9B075]/30 transition-all appearance-none cursor-pointer">
+                    /* 2. 세션 리스트 화면 (COMPACT 3D ELITE - v1.14.15 개편) */
+                    <div className="animate-in slide-in-from-bottom duration-500 space-y-4">
+                        <section className="bg-zinc-900/60 border border-white/5 rounded-[30px] p-5 flex gap-4 shadow-[0_15px_30px_-10px_rgba(0,0,0,0.8)] backdrop-blur-3xl mb-4">
+                            <div className="flex-1 flex flex-col items-center gap-1.5 italic font-black">
+                                <span className="text-[8px] text-zinc-600 uppercase tracking-[0.2em]">Temporal Year</span>
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
                                     {[2026,2025,2024].map(y=><option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
-                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
-                                <span className="text-[9px] text-zinc-700 uppercase tracking-[0.4em] mb-1">TEMPORAL MONTH</span>
-                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-2xl px-4 py-3 text-[11px] text-white outline-none text-center font-black focus:border-[#C9B075]/30 transition-all appearance-none cursor-pointer">
+                            <div className="flex-1 flex flex-col items-center gap-1.5 italic font-black">
+                                <span className="text-[8px] text-zinc-600 uppercase tracking-[0.2em]">Temporal Month</span>
+                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
                                     {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}
                                 </select>
                             </div>
                         </section>
 
-                        <div className="space-y-6 pb-20"> {/* 카드 간 간격 정밀 조정 */}
+                        <div className="space-y-4"> 
                             {sessions.map((s, index) => (
                                 <div 
                                     key={s.id} 
                                     onClick={() => setSelectedSessionId(s.id)}
-                                    className="group relative backdrop-blur-3xl bg-zinc-900/40 border border-white/5 rounded-[32px] p-7 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/30 shadow-2xl"
+                                    className="group relative backdrop-blur-3xl bg-zinc-900/40 border-t border-t-white/10 border-l border-l-white/5 border border-white/5 rounded-[28px] py-4 px-7 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/40 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]"
                                 >
-                                    {/* 차분한 샴페인 데이트 배지 (잘림 방지 ml-1) */}
-                                    <div className="flex justify-between items-start mb-6 ml-1">
-                                        <div className="px-4 py-1.5 rounded-full bg-zinc-900 border border-[#C9B075]/40 shadow-inner">
-                                            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest italic">{s.date}</span>
+                                    {/* 상단 라인 (잘림 제로 존) */}
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#C9B075] to-[#f0e68c] shadow-lg shadow-yellow-600/10">
+                                            <span className="text-[9px] font-black text-black uppercase tracking-widest italic">{s.date}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 mr-1">
+                                        <div className="flex items-center gap-3 pr-1">
                                             {index === 0 && (
-                                                <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest italic opacity-60">LATEST SYSTEM RECORD</span>
+                                                <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest italic opacity-80">LATEST</span>
                                             )}
                                             {isAdmin && (
-                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2 rounded-xl bg-black/20 border border-white/5 text-zinc-700 hover:text-red-900 transition-all">
-                                                    <Trash2 size={14} />
+                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-1.5 rounded-lg bg-black/30 border border-white/5 text-zinc-400 hover:text-red-500 transition-all">
+                                                    <Trash2 size={16} />
                                                 </button>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* 정갈한 타이틀 (px 확보로 잘림 방지) */}
-                                    <div className="mb-8 px-2">
-                                        <h3 className="text-3xl font-[1000] text-zinc-100 tracking-tighter uppercase italic leading-none group-hover:text-white transition-colors break-all drop-shadow-lg">
+                                    {/* 33% 슬림화된 타이틀 */}
+                                    <div className="mb-4">
+                                        <h3 className="text-[19px] font-[1000] text-white tracking-tighter uppercase italic leading-tight group-hover:text-[#C9B075] transition-colors break-all">
                                             {s.title}
                                         </h3>
                                     </div>
 
-                                    {/* 담백한 럭셔리 스탯 라인 */}
-                                    <div className="flex items-center justify-between pt-5 border-t border-white/[0.03] px-1">
-                                        <div className="flex items-center gap-6">
-                                            <div className="flex items-center gap-2">
-                                                <Users size={14} className="text-zinc-600" />
-                                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">
-                                                    Players: <span className="text-zinc-100 ml-1">{s.participantCount}</span>
+                                    {/* 하단 스탯 (입체적 밸런스) */}
+                                    <div className="flex items-center justify-between pt-3 border-t border-white/[0.03]">
+                                        <div className="flex items-center gap-5">
+                                            <div className="flex items-center gap-1.5">
+                                                <Users size={12} className="text-[#C9B075] opacity-50" />
+                                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">
+                                                    Players: <span className="text-white ml-0.5">{s.participantCount}</span>
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Trophy size={14} className="text-zinc-600" />
-                                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">
-                                                    Matches: <span className="text-zinc-100 ml-1">{s.matchCount}</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <Trophy size={11} className="text-[#C9B075] opacity-50" />
+                                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">
+                                                    Matches: <span className="text-white ml-0.5">{s.matchCount}</span>
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="w-11 h-11 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center text-zinc-600 group-hover:border-[#C9B075]/50 group-hover:text-[#C9B075] transition-all">
-                                            <ArrowRight size={20} />
+                                        <div className="w-8 h-8 rounded-full bg-black/40 border border-white/5 flex items-center justify-center text-[#C9B075] group-hover:bg-[#C9B075] group-hover:text-black transition-all">
+                                            <ArrowRight size={14} />
                                         </div>
                                     </div>
 
-                                    {/* 배경 데코레이션 (차분하게) */}
-                                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9B075] opacity-[0.01] blur-[80px] pointer-events-none group-hover:opacity-[0.03] transition-opacity"></div>
+                                    {/* 3D 라이팅 데코 */}
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#C9B075] opacity-[0.02] blur-[40px] pointer-events-none group-hover:opacity-[0.05] transition-opacity"></div>
                                 </div>
                             ))}
                         </div>
@@ -415,10 +414,10 @@ export default function ArchivePage() {
                 )}
             </>
         ) : (
-            <div className="py-24 text-center bg-zinc-900/40 rounded-[40px] border border-white/5 border-dashed mx-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-700 italic">Global Registry Synchronizing</p>
-                <div className="mt-8 px-8 py-3 bg-black/60 border border-white/5 rounded-2xl inline-block italic text-zinc-500 text-[9px] font-black tracking-widest uppercase animate-pulse">
-                    테연 랭킹 업데이트 중...
+            <div className="py-40 text-center bg-zinc-900/5 rounded-[40px] border border-zinc-900/50 border-dashed">
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-900 italic">Global Registry Synchronizing</p>
+                <div className="mt-8 px-8 py-3 bg-zinc-900/40 border border-white/5 rounded-2xl inline-block italic text-zinc-800 text-[9px] font-black tracking-widest uppercase animate-pulse">
+                    Coming Soon to Ultimate Portal
                 </div>
             </div>
         )}
