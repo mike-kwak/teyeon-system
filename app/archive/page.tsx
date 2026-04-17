@@ -31,6 +31,16 @@ export default function ArchivePage() {
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
 
+  // v1.16.1: Force Update Logic to break PWA Cache
+  useEffect(() => {
+    const VERSION = "1.16.1";
+    const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER");
+    if (savedVersion !== VERSION) {
+        localStorage.setItem("TEYEON_ARCHIVE_VER", VERSION);
+        window.location.reload();
+    }
+  }, []);
+
   useEffect(() => {
     checkUser();
     fetchArchives();
@@ -184,11 +194,11 @@ export default function ArchivePage() {
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
-                        {/* 시그니처 섹션 헤더: RANKING UPDATES */}
+                         {/* 시그니처 섹션 헤더: RANKING UPDATES */}
                         <div className="flex flex-col gap-1 px-4 mb-20 mt-10 relative">
-                            <span className="absolute -top-6 left-4 text-[8px] font-bold text-[#C9B075]/30 tracking-widest uppercase">System Active v1.16.0</span>
+                            <span className="absolute -top-6 left-4 text-[10px] font-bold text-lime-400 tracking-widest uppercase animate-pulse">v1.16.1 LIVE</span>
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
-                            <div className="h-[2px] w-48 bg-gradient-to-r from-[#00e5ff] via-[#C9B075] to-transparent shadow-[0_4px_15px_rgba(0,229,255,0.2)] mt-1"></div>
+                            <div className="h-[2px] w-48 bg-gradient-to-r from-lime-400 via-[#C9B075] to-transparent shadow-[0_4px_15px_rgba(163,230,53,0.3)] mt-1"></div>
                         </div>
 
                         {(() => {
