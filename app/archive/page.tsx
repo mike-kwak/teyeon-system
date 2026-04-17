@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   // v1.18.0: Hard Reset Logic to break stubborn PWA Cache
   useEffect(() => {
-    const VERSION = "1.20.2";
+    const VERSION = "1.20.3";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER_V2");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER_V2", VERSION);
@@ -219,7 +219,7 @@ export default function ArchivePage() {
      
                                  return (
                                      <>
-                                     {/* THE FINAL SNAP (v1.20.1) - PRECISION ADHESION */}
+                                     {/* THE FINAL SNAP (v1.20.1 RESTORATION) - PRECISION ADHESION */}
                                      <div className="w-full max-w-2xl mx-auto h-auto pb-8 flex items-center justify-center px-1">
                                          <div className="flex items-end justify-center gap-2.5 w-full">
                                              {[1, 0, 2].map((idx) => {
@@ -244,10 +244,13 @@ export default function ArchivePage() {
                                                  );
                                              })}
                                          </div>
-                                     {/* COMPACT BUFFER ZONE */}
+                                     </div>
+     
+                                     {/* COMPACT BUFFER ZONE (Sibling) */}
                                      <div className="h-4 w-full" aria-hidden="true" />
      
-                                     <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
+                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-4 px-1">
+                                        <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
                                             <span className="text-center">#</span><span className="text-center">PROF</span><span className="text-center">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
                                         </div>
                                         {others.map((p, i) => (
@@ -259,7 +262,7 @@ export default function ArchivePage() {
                                                         {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-[10px] font-black text-zinc-600 uppercase">{p.name[0]}</span>}
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col pl-4">
+                                                <div className="flex flex-col pl-6">
                                                     <span className="text-sm font-black text-white italic uppercase tracking-tighter break-all">{p.name}</span>
                                                     <span className="text-[9px] font-black text-zinc-600 uppercase italic tracking-widest">{p.played} MATCHES</span>
                                                 </div>
