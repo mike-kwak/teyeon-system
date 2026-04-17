@@ -4,14 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Trash2, ArrowRight, ArrowLeft, Trophy } from 'lucide-react';
 
 /**
- * ArchivePage (v1.14.6): THE GRAND ARCHIVE MASTER
- * - Premium Podium (RankingTab 스타일 이식, 상금 제거)
- * - Fallback Icon System (1위:🏆, 2위:🥈, 3위:🥉)
- * - High-Density Table (4위~ 사진 제거, 왼쪽 밀착 배치)
- * - Section Spacing Synchronization
+ * ArchivePage (v1.14.7): THE PRECISION ARCHIVE
+ * - Grid-based Ranking Table (이름-데이터 유격 박멸, 잘림 방지)
+ * - Enhanced Section Spacing (명확한 수직 여백)
+ * - Match Card Visibility (전체 밝은 텍스트, 점수만 금장)
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -121,18 +120,18 @@ export default function ArchivePage() {
 
   return (
     <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
-      {/* 럭셔리 라인 헤더 (v1.14.6 MASTER) */}
+      {/* 럭셔리 라인 헤더 */}
       <header className="px-8 pt-24 pb-2 flex flex-col gap-1 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
           {selectedSessionId ? (
               <button 
                 onClick={() => setSelectedSessionId(null)}
-                className="flex items-center gap-2 text-[#C9B075] mb-2 hover:translate-x-[-4px] transition-transform italic"
+                className="flex items-center gap-2 text-[#C9B075] mb-2 hover:translate-x-[-4px] transition-transform italic font-black"
               >
                   <ArrowLeft size={16} />
-                  <span className="text-[13px] font-[1000] uppercase tracking-widest">뒤로가기</span>
+                  <span className="text-[13px] uppercase tracking-widest">뒤로가기</span>
               </button>
           ) : (
-            <span className="text-[11px] font-[1000] text-[#C9B075] uppercase tracking-[0.4em] italic drop-shadow-lg">SYSTEM RECORDS</span>
+            <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic drop-shadow-lg">SYSTEM RECORDS</span>
           )}
           <h1 className="text-4xl sm:text-5xl font-[1000] tracking-tighter uppercase italic text-white leading-none drop-shadow-xl">Archive</h1>
           <div className="h-[2px] w-full bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent mt-3 shadow-[0_4px_15px_rgba(201,176,117,0.3)]"></div>
@@ -143,7 +142,7 @@ export default function ArchivePage() {
             {(['RECORDS', 'RANKING'] as const).map(t => (
                 <button 
                     key={t} onClick={() => setMainTab(t)}
-                    className={`flex-1 py-4 rounded-2xl text-[11px] font-[1000] uppercase tracking-widest transition-all relative overflow-hidden group italic ${mainTab === t ? 'bg-zinc-100 text-black shadow-xl shadow-white/5' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-zinc-200'}`}
+                    className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic ${mainTab === t ? 'bg-zinc-100 text-black shadow-xl shadow-white/5' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-zinc-200'}`}
                 >
                     {t === 'RECORDS' ? '경기 기록' : '테연 랭킹'}
                 </button>
@@ -154,23 +153,23 @@ export default function ArchivePage() {
       <section className="flex-1 px-4">
         {loading ? (
             <div className="py-24 text-center">
-                <p className="text-[12px] font-[1000] text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
+                <p className="text-[12px] font-black text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
             </div>
         ) : mainTab === 'RECORDS' ? (
             <>
-                {/* 1. 세션 상세 보기 (Level 2) */}
+                {/* 1. 세션 상세 보기 */}
                 {selectedSessionId && selectedSession ? (
                     <div className="animate-in slide-in-from-right duration-500">
                         {/* 럭셔리 세션 헤더 */}
                         <div className="flex flex-col gap-2 px-6 mb-12">
-                            <span className="text-[12px] font-[1000] text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
-                            <h2 className="text-2xl font-[1000] text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
+                            <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
+                            <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
-                        {/* PREMIUM PODIUM (RankingTab 스타일 이식) */}
+                        {/* PREMIUM PODIUM */}
                         <div className="space-y-10">
                             <div className="flex items-center gap-4 px-6">
-                                <h3 className="text-xl font-[1000] text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
+                                <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
                             </div>
                             
@@ -195,7 +194,6 @@ export default function ArchivePage() {
 
                                 return (
                                     <>
-                                        {/* PREMIUM GLASS PODIUM (Image 2 스타일) */}
                                         <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto mb-12">
                                             {[1, 0, 2].map((idx) => {
                                                 const p = top3[idx];
@@ -214,12 +212,11 @@ export default function ArchivePage() {
                                                                 {p.avatar ? (
                                                                     <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                                                                 ) : (
-                                                                    <span className={`${isFirst ? 'text-4xl' : 'text-2xl'} select-none text-white/20 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
+                                                                    <span className={`${isFirst ? 'text-4xl' : 'text-2xl'} select-none text-white/20`}>
                                                                         {rankEmoji}
                                                                     </span>
                                                                 )}
                                                             </div>
-
                                                             <div className="flex flex-col items-center gap-2 w-full px-2">
                                                                 <div className={`font-black text-white text-center truncate w-full tracking-tighter italic ${isFirst ? 'text-lg' : 'text-[12px]'}`}>
                                                                     {p.name}
@@ -238,50 +235,46 @@ export default function ArchivePage() {
                                             })}
                                         </div>
 
-                                        {/* HIGH-DENSITY DATA TABLE (v1.14.6 MASTER - 사진 제거, 밀도 압축) */}
-                                        <div className="bg-zinc-900/30 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1">
-                                            <table className="w-full text-left border-collapse">
-                                                <thead className="bg-black/40 border-b border-white/5 italic">
-                                                    <tr className="text-[9px] font-black text-zinc-700 uppercase tracking-widest">
-                                                        <th className="px-4 py-5 text-center w-8">#</th>
-                                                        <th className="px-1 py-5">PLAYER</th>
-                                                        <th className="px-1 py-5 text-right w-6">P</th>
-                                                        <th className="px-1 py-5 text-right w-6 text-cyan-500/80">W</th>
-                                                        <th className="px-1 py-5 text-right w-5">L</th>
-                                                        <th className="px-1 py-5 text-right w-7">PF</th>
-                                                        <th className="px-1 py-5 text-right w-7">PA</th>
-                                                        <th className="px-5 py-5 text-right w-12 tracking-tighter">+/-</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-white/[0.02]">
-                                                    {sortedResults.slice(3).map((p, idx) => (
-                                                        <tr key={p.name} className="hover:bg-white/[0.01] transition-colors group italic font-black">
-                                                            <td className="px-4 py-5 text-center text-[15px] text-zinc-800">{idx + 4}</td>
-                                                            <td className="px-1 py-5">
-                                                                <span className="text-[14px] text-zinc-400 uppercase tracking-tight">{p.name}</span>
-                                                            </td>
-                                                            <td className="px-1 py-5 text-right text-[10px] text-zinc-700">{p.played}</td>
-                                                            <td className="px-1 py-5 text-right text-[14px] text-cyan-500/40">{p.wins}</td>
-                                                            <td className="px-1 py-5 text-right text-[14px] text-zinc-900">{p.losses}</td>
-                                                            <td className="px-1 py-5 text-right text-[10px] text-zinc-800">{p.pf}</td>
-                                                            <td className="px-1 py-5 text-right text-[10px] text-zinc-800">{p.pa}</td>
-                                                            <td className={`px-5 py-5 text-right text-[14px] tracking-tighter ${p.diff >= 0 ? 'text-[#C9B075]/60' : 'text-red-950/60'}`}>
-                                                                {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                        {/* HIGH-DENSITY GRID TABLE (v1.14.7 - 이름-데이터 밀착, Zero Clipping) */}
+                                        <div className="bg-zinc-900/30 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 max-w-full">
+                                            {/* Header */}
+                                            <div className="bg-black/40 border-b border-white/5 italic py-3 px-4 grid grid-cols-[30px_1fr_28px_28px_28px_32px_32px_45px] gap-0.5 items-center">
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest">PLAYER</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-right">P</span>
+                                                <span className="text-[9px] font-black text-cyan-500/80 uppercase tracking-widest text-right">W</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-right">L</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-right">PF</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-right">PA</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-right pr-1">+/-</span>
+                                            </div>
+                                            {/* Rows */}
+                                            <div className="divide-y divide-white/[0.02]">
+                                                {sortedResults.slice(3).map((p, idx) => (
+                                                    <div key={p.name} className="py-4 px-4 grid grid-cols-[30px_1fr_28px_28px_28px_32px_32px_45px] gap-0.5 items-center italic font-black hover:bg-white/[0.01] transition-colors group">
+                                                        <span className="text-[14px] text-zinc-800 text-center">{idx + 4}</span>
+                                                        <span className="text-[14px] text-zinc-100 uppercase tracking-tight truncate mr-1">{p.name}</span>
+                                                        <span className="text-[10px] text-zinc-700 text-right">{p.played}</span>
+                                                        <span className="text-[14px] text-cyan-500/40 text-right">{p.wins}</span>
+                                                        <span className="text-[14px] text-zinc-900 text-right">{p.losses}</span>
+                                                        <span className="text-[10px] text-zinc-700 text-right">{p.pf}</span>
+                                                        <span className="text-[10px] text-zinc-700 text-right">{p.pa}</span>
+                                                        <span className={`text-[13px] text-right font-black tracking-tighter pr-1 ${p.diff >= 0 ? 'text-[#C9B075]/60' : 'text-red-950/60'}`}>
+                                                            {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </>
                                 );
                             })()}
                         </div>
 
-                        {/* COMPLETED MATCHES - 경기 결과 리스트 (섹션 간격 동기화) */}
-                        <div className="space-y-6 mt-12 pb-40 px-2">
+                        {/* COMPLETED MATCHES - 명확한 간격 주입 (mt-20) */}
+                        <div className="mt-20 space-y-8 pb-40 px-2">
                             <div className="flex items-center gap-4 px-4">
-                                <h3 className="text-xl font-[1000] text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
+                                <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/10 to-transparent"></div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -290,28 +283,28 @@ export default function ArchivePage() {
                                     const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
                                     return (
                                         <div key={m.id || idx} className="rounded-[28px] flex flex-col overflow-hidden border border-white/5 bg-zinc-900/80 shadow-2xl relative group transition-all">
-                                            {/* Header Bar - 중앙 정렬 & 무잘림 고정 */}
+                                            {/* Header Bar */}
                                             <div className="px-4 py-2 bg-black/40 border-b border-white/[0.03] flex justify-center items-center italic">
                                                 <span className="text-[8px] font-black text-zinc-600 tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
                                             </div>
                                             <div className="px-4 py-6">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 font-black">
                                                     <div className="flex flex-col gap-0.5 text-center">
-                                                        <span className={`text-[11px] italic truncate ${s1 > s2 ? 'text-white' : 'text-zinc-800'}`}>{n[0]}</span>
-                                                        <span className={`text-[11px] italic truncate ${s1 > s2 ? 'text-white' : 'text-zinc-800'}`}>{n[1]}</span>
+                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[0]}</span>
+                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[1]}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1 px-0.5">
-                                                        <span className={`text-2xl italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-900'}`}>{s1}</span>
-                                                        <span className="text-zinc-950 font-bold">:</span>
-                                                        <span className={`text-2xl italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-900'}`}>{s2}</span>
+                                                        <span className={`text-2xl italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-100'}`}>{s1}</span>
+                                                        <span className="text-zinc-950/50 font-bold">:</span>
+                                                        <span className={`text-2xl italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-100'}`}>{s2}</span>
                                                     </div>
                                                     <div className="flex flex-col gap-0.5 text-center">
-                                                        <span className={`text-[11px] italic truncate ${s2 > s1 ? 'text-white' : 'text-zinc-800'}`}>{n[2]}</span>
-                                                        <span className={`text-[11px] italic truncate ${s2 > s1 ? 'text-white' : 'text-zinc-800'}`}>{n[3]}</span>
+                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[2]}</span>
+                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[3]}</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="bg-black/20 py-2.5 text-center border-t border-white/[0.02]">
+                                            <div className="bg-black/10 py-2 text-center border-t border-white/[0.01]">
                                                 <span className="text-[7px] font-black text-zinc-800 uppercase tracking-[0.2em] italic">Archive Record</span>
                                             </div>
                                         </div>
@@ -323,7 +316,7 @@ export default function ArchivePage() {
                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-black uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
                     </div>
                 ) : (
-                    /* 2. 세션 리스트 화면 (Level 1) */
+                    /* 2. 세션 리스트 화면 */
                     <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
                         <section className="bg-zinc-900/60 border border-white/5 rounded-[35px] p-6 flex gap-4 shadow-2xl backdrop-blur-3xl">
                             <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
@@ -374,7 +367,6 @@ export default function ArchivePage() {
                 )}
             </>
         ) : (
-            /* 테연 랭킹 탭 (Ultimate 스타일) */
             <div className="py-40 text-center bg-zinc-900/5 rounded-[40px] border border-zinc-900/50 border-dashed">
                 <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-900 italic">Global Registry Synchronizing</p>
                 <div className="mt-8 px-8 py-3 bg-zinc-900/40 border border-white/5 rounded-2xl inline-block italic text-zinc-800 text-[9px] font-black tracking-widest uppercase animate-pulse">
