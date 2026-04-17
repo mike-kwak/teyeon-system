@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { Edit3, Trash2, ArrowRight } from 'lucide-react';
 
 /**
- * ResultsPage (Synced v1.7.0): The Teyeon Club Official Database
- * v1.7.0 (The Pure History): Deduplication, Anti-Clipping & Full History View (Photo 3 & 4)
+ * ResultsPage (Synced v1.8.0): The Teyeon Club Official Database
+ * v1.8.0: Card slimming, Admin Icons, Live Mirror UI, High Visibility
  */
 export default function ResultsPage() {
   const { user, role } = useAuth();
@@ -252,15 +253,18 @@ export default function ResultsPage() {
                                                     });
                                                 });
                                                 const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
-                                                return rankingData.map((p:any, idx:number) => (
-                                                    <tr key={p.name} className={`border-t border-white/5 ${idx < 3 ? 'bg-white/[0.03]' : 'opacity-40'}`}>
-                                                        <td className={`px-6 py-5 font-black italic ${idx === 0 ? 'text-[#D4AF37] text-xl' : 'text-sm'}`}>{idx + 1}</td>
-                                                        <td className="px-2 py-5 text-white">{p.name}</td>
-                                                        <td className="px-2 py-5 text-center text-white/40">{p.wins}승 {p.losses}패</td>
-                                                        <td className="px-2 py-5 text-center text-[9px] text-white/20">{p.pf} / {p.pa}</td>
-                                                        <td className={`px-4 py-5 text-right font-black italic ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
-                                                    </tr>
-                                                ));
+                                                return rankingData.map((p:any, idx:number) => {
+                                                    const isTop3 = idx < 3;
+                                                    return (
+                                                        <tr key={p.name} className={`border-t border-white/5 ${isTop3 ? 'bg-white/[0.05]' : ''}`}>
+                                                            <td className={`px-6 py-5 font-black italic ${idx === 0 ? 'text-[#D4AF37] text-xl' : 'text-sm text-white'}`}>{idx + 1}</td>
+                                                            <td className="px-2 py-5 text-white font-black uppercase">{p.name}</td>
+                                                            <td className="px-2 py-5 text-center text-white font-black">{p.wins}승 {p.losses}패</td>
+                                                            <td className="px-2 py-5 text-center text-[9px] text-white/60 font-black">{p.pf} / {p.pa}</td>
+                                                            <td className={`px-4 py-5 text-right font-black italic ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
+                                                        </tr>
+                                                    );
+                                                });
                                             })()}
                                         </tbody>
                                     </table>
@@ -273,29 +277,50 @@ export default function ResultsPage() {
                                     <div className="h-[2px] w-8 bg-[#D4AF37]"></div>
                                     <h3 className="text-2xl font-[1000] italic text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Completed Matches</h3>
                                 </div>
-                                <div className="grid grid-cols-1 gap-4">
+                                <div className="grid grid-cols-1 gap-6">
                                     {selectedSession.matches.map((m: any, idx: number) => {
                                         const n = m.player_names || ["?","?","?","?"];
                                         const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                        const isGroupB = (m.group_name || m.groupName) === 'B';
+                                        const groupColor = isGroupB ? '#00E5FF' : '#D4AF37';
+
                                         return (
-                                            <div key={m.id || idx} className="bg-white/[0.02] border border-white/5 rounded-[28px] p-6 flex items-center justify-between relative overflow-hidden group hover:bg-white/5 transition-all">
-                                                <div className="flex flex-col gap-3 flex-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[8px] font-black text-white/30 uppercase tracking-widest italic">R{m.round || 1} • C{m.court || 1}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between gap-4">
-                                                        <div className="flex flex-col flex-1 gap-1">
-                                                            <span className={`text-[11px] font-black italic uppercase ${s1 > s2 ? 'text-white' : 'text-white/20'}`}>{n[0]}</span>
-                                                            <span className={`text-[11px] font-black italic uppercase ${s1 > s2 ? 'text-white' : 'text-white/20'}`}>{n[1]}</span>
+                                            <div key={m.id || idx} className="rounded-2xl relative flex flex-col justify-between overflow-hidden shadow-2xl transition-all border-none"
+                                                 style={{ 
+                                                     background: 'rgba(255, 255, 255, 0.05)', 
+                                                     backdropFilter: 'blur(32px)',
+                                                     borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(212, 175, 55, 0.3)'}`,
+                                                     boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+                                                 }}>
+                                                {/* Mirror Header */}
+                                                <div className="flex items-center justify-center px-4 py-2.5 bg-white/5 border-b border-white/10">
+                                                    <span className="text-[9px] font-black tracking-[0.2em] uppercase italic" style={{ color: groupColor }}>
+                                                        ROUND {m.round || 1} • {m.group_name || m.groupName || 'A'}조 • {idx + 1}경기
+                                                    </span>
+                                                </div>
+
+                                                <div className="p-1 px-3 py-6">
+                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                                                        {/* Team 1 */}
+                                                        <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center border border-white/5 h-[72px]">
+                                                            <span className={`text-[13px] font-black uppercase italic ${s1 > s2 ? 'text-white' : 'text-white/40'}`}>{n[0]}</span>
+                                                            <span className={`text-[13px] font-black uppercase italic ${s1 > s2 ? 'text-white' : 'text-white/40'}`}>{n[1]}</span>
                                                         </div>
-                                                        <div className="flex items-center gap-4 px-2">
-                                                            <span className={`text-4xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
-                                                            <span className="text-sm font-black text-white/5">:</span>
-                                                            <span className={`text-4xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
+
+                                                        {/* Score Mirror */}
+                                                        <div className="flex flex-col items-center px-4 gap-0.5">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className={`text-4xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
+                                                                <span className="text-xl font-black text-white/10">:</span>
+                                                                <span className={`text-4xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
+                                                            </div>
+                                                            <span className="text-[7px] font-black text-white/20 uppercase tracking-widest leading-none">Final Score</span>
                                                         </div>
-                                                        <div className="flex flex-col flex-1 items-end gap-1">
-                                                            <span className={`text-[11px] font-black italic uppercase ${s2 > s1 ? 'text-white' : 'text-white/20'}`}>{n[2]}</span>
-                                                            <span className={`text-[11px] font-black italic uppercase ${s2 > s1 ? 'text-white' : 'text-white/20'}`}>{n[3]}</span>
+
+                                                        {/* Team 2 */}
+                                                        <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center border border-white/5 h-[72px]">
+                                                            <span className={`text-[13px] font-black uppercase italic ${s2 > s1 ? 'text-white' : 'text-white/40'}`}>{n[2]}</span>
+                                                            <span className={`text-[13px] font-black uppercase italic ${s2 > s1 ? 'text-white' : 'text-white/40'}`}>{n[3]}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -324,23 +349,36 @@ export default function ResultsPage() {
                                 </select>
                             </div>
                         </section>
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             {sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); }} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[35px] p-8 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/30">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-3 mb-1"><span className="w-8 h-8 bg-black/40 rounded-xl border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] text-[11px] font-[1000]">{index + 1}</span><span className="text-[10px] font-black text-[#EFDFB4] uppercase tracking-[0.2em]">{s.date}</span></div>
-                                            <h3 className="text-lg font-[1000] text-white italic tracking-tighter uppercase leading-none">{s.title}</h3>
+                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); }} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[28px] p-5 shadow-xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/40">
+                                    <div className="flex justify-between items-center relative z-10">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-black/40 rounded-2xl border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] text-xs font-[1000] italic">{index + 1}</div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-black text-[#EFDFB4]/60 uppercase tracking-widest leading-none mb-1">{s.date}</span>
+                                                <h3 className="text-base font-[1000] text-white italic tracking-tighter uppercase leading-tight group-hover:text-[#D4AF37] transition-colors">{s.title}</h3>
+                                                <div className="flex items-center gap-3 mt-1.5 text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">
+                                                    <span>{index === 0 ? 'Latest Results' : `${s.matchCount} Matches`}</span>
+                                                    <span>•</span>
+                                                    <span className="text-white/20">Official Account</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">→</div>
+                                        <div className="flex items-center gap-2">
+                                            {isAdmin && (
+                                                <div className="flex gap-1.5 mr-2">
+                                                    <button onClick={(e)=>{e.stopPropagation(); editSessionTitle(s.id, s.title);}} className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-[#D4AF37] hover:bg-white/10 transition-all"><Edit3 className="w-3.5 h-3.5" /></button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-red-500 hover:bg-white/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                </div>
+                                            )}
+                                            <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover:text-[#D4AF37] group-hover:border-[#D4AF37]/20 transition-all shadow-xl">
+                                                <ArrowRight className="w-4 h-4" />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-[9px] font-black text-white/20 tracking-[0.3em] uppercase"><span>{s.matchCount} Matches Preserved</span></div>
-                                    {isAdmin && (
-                                        <div className="mt-6 pt-6 border-t border-white/5 flex gap-2">
-                                            <button onClick={(e)=>{e.stopPropagation(); editSessionTitle(s.id, s.title);}} className="text-[9px] font-black text-white/20 hover:text-[#D4AF37]">EDIT</button>
-                                            <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="text-[9px] font-black text-white/20 hover:text-red-500">DELETE</button>
-                                        </div>
-                                    )}
+                                    {/* Subtle gradient glow */}
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 blur-[60px] pointer-events-none"></div>
                                 </div>
                             ))}
                         </div>
