@@ -196,13 +196,12 @@ export default function ArchivePage() {
 
                          {/* 시그니처 섹션 헤더: RANKING UPDATES */}
                         <div className="flex flex-col gap-1 px-4 mb-10 mt-10 relative">
-                            <span className="absolute -top-6 left-4 text-[10px] font-bold text-purple-400 tracking-widest uppercase animate-pulse">v1.16.2 ULTIMATE</span>
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
-                            <div className="h-[2px] w-48 bg-gradient-to-r from-purple-500 via-[#C9B075] to-transparent shadow-[0_4px_15px_rgba(168,85,247,0.3)] mt-1"></div>
+                            <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                         </div>
 
-                        {/* FORCED PHYSICAL GAP (v1.16.2) */}
-                        <div style={{ height: '300px' }} aria-hidden="true" />
+                        {/* STABLE BREATHING SPACE (v1.17.0) */}
+                        <div className="h-32 w-full" aria-hidden="true"></div>
 
                         {(() => {
                             const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
@@ -222,14 +221,12 @@ export default function ArchivePage() {
                             });
                             const sortedResults = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
                             const top3 = sortedResults.slice(0, 3);
+                            const others = sortedResults.slice(3);
 
                             return (
                                 <>
-                                    {/* CHAMPION PODIUM (Absolutely Forced Offset) */}
-                                    <div 
-                                        style={{ marginTop: '100px' }}
-                                        className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto pb-10"
-                                    >
+                                    {/* CHAMPION PODIUM (Refined Spacing) */}
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mb-10">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
@@ -279,49 +276,38 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    {/* 4등 이하 프리미엄 랭킹 리스트 (v1.15.6 좌측 밀착형 교정) */}
-                                    <div className="h-10 w-full" aria-hidden="true" />
-                                    <div className="flex flex-col gap-2.5 px-1 w-full max-w-5xl mx-auto">
-                                        {/* TABLE HEADER (Left-Weighted Layout) */}
-                                        <div className="grid grid-cols-[60px_2.5fr_45px_45px_75px_1fr] gap-2 py-2 italic font-black text-[9px] text-zinc-700 tracking-[0.3em] uppercase">
-                                            <span className="text-center">#</span>
-                                            <span className="pl-14">Player</span>
-                                            <span className="text-center text-cyan-500/60">W</span>
-                                            <span className="text-center text-zinc-700">L</span>
-                                            <span className="text-right pr-2 text-[#C9B075]/60">+/-</span>
-                                            <span></span> {/* Right Spacer only */}
+                                    {/* 7-COLUMN REFINED RANKING LIST */}
+                                    <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20">
+                                        <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
+                                            <span>#</span>
+                                            <span>PROF</span>
+                                            <span className="text-left">PLAYER</span>
+                                            <span className="text-center">W</span>
+                                            <span className="text-center">L</span>
+                                            <span className="text-center">+/-</span>
+                                            <span></span>
                                         </div>
+                                        {others.map((p, index) => (
+                                            <div 
+                                                key={p.name}
+                                                className="group grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] items-center px-6 py-4 rounded-2xl bg-zinc-900/30 border border-white/5 hover:border-[#C9B075]/30 hover:bg-zinc-800/40 transition-all duration-300"
+                                            >
+                                                {/* 1. Rank */}
+                                                <span className="text-sm font-black text-zinc-700 italic group-hover:text-[#C9B075]/50 transition-colors">
+                                                    {(index + 4).toString().padStart(2, '0')}
+                                                </span>
 
-                                        {/* RANKING ROWS */}
-                                        {sortedResults.slice(3).map((p, idx) => (
-                                            <div key={p.name} className="group relative bg-zinc-900/30 hover:bg-zinc-800/60 border border-white/5 rounded-2xl grid grid-cols-[60px_2.5fr_45px_45px_75px_1fr] gap-2 items-center py-4 transition-all duration-300 active:scale-[0.98]">
-                                                {/* Rank */}
-                                                <div className="flex justify-center items-center">
-                                                    <span className="text-lg font-[1000] italic text-zinc-800 group-hover:text-zinc-600">{(idx + 4).toString().padStart(2, '0')}</span>
-                                                </div>
-
-                                                {/* Player Info (Expanded to prevent wrapping) */}
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-black border border-white/5 flex items-center justify-center overflow-hidden shadow-2xl shrink-0 ml-1">
+                                                {/* 2. Avatar */}
+                                                <div className="flex justify-start">
+                                                    <div className="w-8 h-8 rounded-full border border-white/10 bg-zinc-800 overflow-hidden shadow-inner">
                                                         {p.avatar ? (
-                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <span className="text-[10px] font-black text-zinc-800">{p.name[0]}</span>
+                                                            <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-zinc-600 italic">
+                                                                {p.name[0]}
+                                                            </div>
                                                         )}
                                                     </div>
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="text-[15px] font-black text-white italic uppercase tracking-tighter truncate group-hover:text-[#C9B075] transition-colors whitespace-nowrap">{p.name}</span>
-                                                        <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest italic whitespace-nowrap">{p.played} MATCHES</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Stats (Grouped on the right) */}
-                                                <div className="flex justify-center">
-                                                    <span className="text-xl font-[1000] italic text-cyan-500/80 drop-shadow-sm">{p.wins}</span>
-                                                </div>
-                                                <div className="flex justify-center">
-                                                    <span className="text-xl font-[1000] italic text-zinc-700">{p.losses}</span>
-                                                </div>
                                                 <div className="flex justify-end pr-2">
                                                     <span className={`text-xl font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B070]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
                                                         {p.diff > 0 ? `+${p.diff}` : p.diff}
