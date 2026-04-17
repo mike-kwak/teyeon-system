@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   // v1.18.0: Hard Reset Logic to break stubborn PWA Cache
   useEffect(() => {
-    const VERSION = "1.20.4";
+    const VERSION = "1.20.5";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER_V2");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER_V2", VERSION);
@@ -262,7 +262,7 @@ export default function ArchivePage() {
                                                         {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-[10px] font-black text-zinc-600 uppercase">{p.name[0]}</span>}
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col items-center">
+                                                <div className="flex flex-col items-center w-full">
                                                     <span className="text-sm font-black text-white italic uppercase tracking-tighter break-all text-center">{p.name}</span>
                                                     <span className="text-[9px] font-black text-zinc-600 uppercase italic tracking-widest text-center">{p.played} MATCHES</span>
                                                 </div>
