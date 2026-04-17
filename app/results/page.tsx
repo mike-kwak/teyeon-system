@@ -179,15 +179,15 @@ export default function ResultsPage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-36 pb-60">
-      <header className="px-8 pt-12 pb-6 flex flex-col gap-2 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700">
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
+      <header className="px-8 pt-24 pb-8 flex flex-col gap-3 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
           <div className="flex justify-between items-end w-full">
             <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.5em] opacity-40">System Archive</span>
-                <h1 className="text-4xl font-[1000] italic tracking-tight uppercase bg-gradient-to-r from-white via-white to-[#D4AF37] bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Results</h1>
+                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.5em] opacity-50">System Archive v1.11</span>
+                <h1 className="text-4xl sm:text-5xl font-[1000] italic tracking-tight uppercase bg-gradient-to-r from-white via-white/80 to-[#D4AF37] bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Results</h1>
             </div>
           </div>
-          <div className="h-0.5 w-16 bg-gradient-to-r from-[#D4AF37] to-transparent mt-2"></div>
+          <div className="h-0.5 w-20 bg-gradient-to-r from-[#D4AF37] via-[#D4AF37]/50 to-transparent"></div>
       </header>
 
       {!selectedSessionId && (
@@ -217,58 +217,87 @@ export default function ResultsPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-12 animate-in fade-in duration-700">
-                            {/* Full Standings Table (Photo 3 Style - All participants) */}
-                            <div className="bg-white/[0.03] border border-white/10 rounded-[28px] overflow-hidden shadow-2xl">
-                                <div className="px-6 py-5 border-b border-white/5 bg-white/5 flex justify-between items-center">
-                                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Tour Standings Analytics</span>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-[11px] font-black uppercase">
-                                        <thead className="text-[8px] text-white/20 tracking-widest border-b border-white/5">
-                                            <tr>
-                                                <th className="px-6 py-5">#</th>
-                                                <th className="px-2 py-5">Player</th>
-                                                <th className="px-2 py-5 text-center">W / L</th>
-                                                <th className="px-2 py-5 text-center">PF / PA</th>
-                                                <th className="px-4 py-5 text-right">+/-</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(() => {
-                                                const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number, pf: number, pa: number }> = {};
-                                                selectedSession.matches.forEach((m: any) => {
-                                                    const pNames = m.player_names || [];
-                                                    pNames.forEach((name: string, i: number) => {
-                                                        if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 };
-                                                        const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                                        const win = i < 2 ? (s1 > s2) : (s2 > s1);
-                                                        if (win) stats[name].wins++; else if (s1 !== s2) stats[name].losses++;
-                                                        const scored = i < 2 ? s1 : s2;
-                                                        const against = i < 2 ? s2 : s1;
-                                                        stats[name].diff += (scored - against);
-                                                        stats[name].pf += scored;
-                                                        stats[name].pa += against;
-                                                        stats[name].games++;
-                                                    });
-                                                });
-                                                const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
-                                                return rankingData.map((p:any, idx:number) => {
-                                                    const isTop3 = idx < 3;
+                        <div className="space-y-16 animate-in fade-in duration-700">
+                            {/* Executive Presidential Podium (Luxury Top 3) */}
+                            <div className="relative pt-12 mb-8">
+                                {(() => {
+                                    const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number, pf: number, pa: number }> = {};
+                                    selectedSession.matches.forEach((m: any) => {
+                                        const pNames = m.player_names || [];
+                                        pNames.forEach((name: string, i: number) => {
+                                            if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 };
+                                            const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                            const win = i < 2 ? (s1 > s2) : (s2 > s1);
+                                            if (win) stats[name].wins++; else if (s1 !== s2) stats[name].losses++;
+                                            const scored = i < 2 ? s1 : s2;
+                                            const against = i < 2 ? s2 : s1;
+                                            stats[name].diff += (scored - against);
+                                            stats[name].pf += scored;
+                                            stats[name].pa += against;
+                                            stats[name].games++;
+                                        });
+                                    });
+                                    const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
+                                    const top3 = rankingData.slice(0, 3);
+                                    const others = rankingData.slice(3);
+
+                                    return (
+                                        <>
+                                            {/* 3D Podium Layout */}
+                                            <div className="flex items-end justify-center gap-2 max-w-sm mx-auto mb-16 px-4">
+                                                {[1, 0, 2].map((idx) => {
+                                                    const p = top3[idx];
+                                                    if (!p) return <div key={idx} className="flex-1" />;
+                                                    const isFirst = idx === 0;
+                                                    
                                                     return (
-                                                        <tr key={p.name} className={`border-t border-white/5 ${isTop3 ? 'bg-white/[0.05]' : ''}`}>
-                                                            <td className={`px-6 py-5 font-black italic ${idx === 0 ? 'text-[#D4AF37] text-xl' : 'text-sm text-white'}`}>{idx + 1}</td>
-                                                            <td className="px-2 py-5 text-white font-black uppercase">{p.name}</td>
-                                                            <td className="px-2 py-5 text-center text-white font-black">{p.wins}승 {p.losses}패</td>
-                                                            <td className="px-2 py-5 text-center text-[9px] text-white/60 font-black">{p.pf} / {p.pa}</td>
-                                                            <td className={`px-4 py-5 text-right font-black italic ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
-                                                        </tr>
+                                                        <div key={p.name} className={`flex flex-col items-center gap-3 ${isFirst ? 'flex-[1.4] z-10' : 'flex-1 opacity-80'}`}>
+                                                            <div className={`relative px-4 py-8 rounded-[32px] w-full flex flex-col items-center border shadow-2xl transition-all ${isFirst ? 'bg-gradient-to-b from-white/10 to-transparent border-white/20' : 'bg-white/5 border-white/5'}`} style={{ backdropFilter: 'blur(32px)' }}>
+                                                                <div className={`absolute -top-6 w-12 h-12 rounded-full flex items-center justify-center text-xl font-black italic shadow-2xl border-2 ${isFirst ? 'bg-[#D4AF37] border-white/40 text-black' : 'bg-black border-white/10 text-white'}`}>
+                                                                    {idx === 0 ? '1' : (idx === 1 ? '2' : '3')}
+                                                                </div>
+                                                                <div className="flex flex-col items-center w-full min-w-0">
+                                                                    <span className={`font-[1000] italic tracking-tighter uppercase truncate w-full text-center ${isFirst ? 'text-2xl text-white' : 'text-sm text-white/70'}`}>{p.name}</span>
+                                                                    <div className="flex items-center gap-1.5 mt-2">
+                                                                        <span className="text-[10px] font-black text-[#D4AF37]">{p.wins}승 {p.losses}패</span>
+                                                                        <span className="text-[8px] opacity-20">/</span>
+                                                                        <span className={`text-[10px] font-black ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {isFirst && <div className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em] animate-pulse">Champion</div>}
+                                                        </div>
                                                     );
-                                                });
-                                            })()}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                })}
+                                            </div>
+
+                                            {/* Executive List (4th+) */}
+                                            <div className="space-y-3">
+                                                <div className="px-6 flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] italic">
+                                                    <span>Player Rank Analytics</span>
+                                                    <span>W / L / +/-</span>
+                                                </div>
+                                                <div className="bg-white/[0.02] border border-white/5 rounded-[40px] overflow-hidden">
+                                                    {others.map((p: any, idx: number) => (
+                                                        <div key={p.name} className="flex items-center justify-between px-8 py-5 border-b border-white/[0.03] hover:bg-white/5 transition-all group">
+                                                            <div className="flex items-center gap-6">
+                                                                <span className="text-xl font-[1000] italic text-white/10 group-hover:text-[#D4AF37]/40 transition-colors w-6">{idx + 4}</span>
+                                                                <span className="text-lg font-[1000] text-white italic tracking-tight uppercase">{p.name}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex flex-col items-end">
+                                                                    <span className="text-sm font-black text-white">{p.wins}W {p.losses}L</span>
+                                                                    <span className={`text-[10px] font-black opacity-50 ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff} DP</span>
+                                                                </div>
+                                                                <div className="w-1 h-8 rounded-full bg-white/5"></div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             {/* Dashboard Match History Container */}
@@ -344,8 +373,11 @@ export default function ResultsPage() {
                             </div>
                         </div>
 
-                        <button onClick={() => setSelectedSessionId(null)} className="w-full py-6 mt-8 rounded-[28px] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] transition-all mb-32">Back to List</button>
-                    </div>
+                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-8 mt-12 mb-12 rounded-[32px] bg-white/5 border border-white/10 text-[12px] font-black uppercase tracking-[0.3em] hover:bg-white/10 transition-all text-[#D4AF37] italic">Back to Archive List</button>
+                         
+                         {/* Layout Spacing Buffer (Prevents Clipping by Bottom Nav) */}
+                         <div className="h-96 w-full pointer-events-none"></div>
+                      </div>
                 ) : (
                     <div className="animate-in slide-in-from-bottom duration-500">
                         <section className="bg-white/5 border border-white/10 rounded-[35px] p-8 mb-8 flex gap-4 shadow-2xl">
