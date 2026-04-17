@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   // v1.18.0: Hard Reset Logic to break stubborn PWA Cache
   useEffect(() => {
-    const VERSION = "1.19.0";
+    const VERSION = "1.20.1";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER_V2");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER_V2", VERSION);
@@ -219,8 +219,8 @@ export default function ArchivePage() {
      
                                  return (
                                      <>
-                                     {/* THE ULTIMATE FIX (v1.20.0) - NO SCALE, ONLY PHYSICAL SPACING */}
-                                     <div className="w-full max-w-2xl mx-auto h-auto pb-32 flex items-center justify-center px-1">
+                                     {/* THE FINAL SNAP (v1.20.1) - PRECISION ADHESION */}
+                                     <div className="w-full max-w-2xl mx-auto h-auto pb-8 flex items-center justify-center px-1">
                                          <div className="flex items-end justify-center gap-2.5 w-full">
                                              {[1, 0, 2].map((idx) => {
                                                  const p = top3[idx];
@@ -246,10 +246,10 @@ export default function ArchivePage() {
                                          </div>
                                      </div>
      
-                                     {/* PHYSICAL BUFFER ZONE */}
-                                     <div className="h-24 w-full" aria-hidden="true" />
+                                     {/* COMPACT BUFFER ZONE */}
+                                     <div className="h-4 w-full" aria-hidden="true" />
      
-                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-12">
+                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-4">
                                         <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
                                             <span>#</span><span>PROF</span><span className="text-left">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
                                         </div>
