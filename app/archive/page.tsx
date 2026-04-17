@@ -31,9 +31,9 @@ export default function ArchivePage() {
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
 
-  // v1.16.1: Force Update Logic to break PWA Cache
+  // v1.17.1: Force Update Logic to break PWA Cache
   useEffect(() => {
-    const VERSION = "1.16.1";
+    const VERSION = "1.17.2";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER", VERSION);
@@ -271,58 +271,80 @@ export default function ArchivePage() {
                                                             </span>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                               {/* 7-COLUMN REFINED RANKING LIST */}
+                        <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20">
+                            <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
+                                <span>#</span>
+                                <span>PROF</span>
+                                <span className="text-left">PLAYER</span>
+                                <span className="text-center text-cyan-500/60">W</span>
+                                <span className="text-center text-zinc-700/60">L</span>
+                                <span className="text-center text-[#C9B075]/60">+/-</span>
+                                <span></span>
+                            </div>
+                            {others.map((p, index) => (
+                                <div 
+                                    key={p.name}
+                                    className="group grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] items-center px-6 py-4 rounded-2xl bg-zinc-900/30 border border-white/5 hover:border-[#C9B075]/30 hover:bg-zinc-800/40 transition-all duration-300 relative truncate"
+                                >
+                                    {/* 1. Rank */}
+                                    <span className="text-sm font-black text-zinc-700 italic group-hover:text-[#C9B075]/50 transition-colors">
+                                        {(index + 4).toString().padStart(2, '0')}
+                                    </span>
 
-                                    {/* 7-COLUMN REFINED RANKING LIST */}
-                                    <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20">
-                                        <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
-                                            <span>#</span>
-                                            <span>PROF</span>
-                                            <span className="text-left">PLAYER</span>
-                                            <span className="text-center">W</span>
-                                            <span className="text-center">L</span>
-                                            <span className="text-center">+/-</span>
-                                            <span></span>
+                                    {/* 2. Avatar */}
+                                    <div className="flex justify-start items-center">
+                                        <div className="w-8 h-8 rounded-full border border-white/10 bg-zinc-800 overflow-hidden shadow-inner">
+                                            {p.avatar ? (
+                                                <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-zinc-600 italic">
+                                                    {p.name[0]}
+                                                </div>
+                                            )}
                                         </div>
-                                        {others.map((p, index) => (
-                                            <div 
-                                                key={p.name}
-                                                className="group grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] items-center px-6 py-4 rounded-2xl bg-zinc-900/30 border border-white/5 hover:border-[#C9B075]/30 hover:bg-zinc-800/40 transition-all duration-300"
-                                            >
-                                                {/* 1. Rank */}
-                                                <span className="text-sm font-black text-zinc-700 italic group-hover:text-[#C9B075]/50 transition-colors">
-                                                    {(index + 4).toString().padStart(2, '0')}
-                                                </span>
-
-                                                {/* 2. Avatar */}
-                                                <div className="flex justify-start">
-                                                    <div className="w-8 h-8 rounded-full border border-white/10 bg-zinc-800 overflow-hidden shadow-inner">
-                                                        {p.avatar ? (
-                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-zinc-600 italic">
-                                                                {p.name[0]}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                <div className="flex justify-end pr-2">
-                                                    <span className={`text-xl font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B070]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
-                                                        {p.diff > 0 ? `+${p.diff}` : p.diff}
-                                                    </span>
-                                                </div>
-                                                <span></span> {/* Right Spacer */}
-
-                                                {/* Side Decoration */}
-                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-8 bg-zinc-900 border-r border-zinc-800 rounded-r-full group-hover:bg-[#C9B075]/40 transition-all"></div>
-                                            </div>
-                                        ))}
                                     </div>
-                                </>
-                            );
-                        })()}
+
+                                    {/* 3. Player Name */}
+                                    <div className="text-left">
+                                        <span className="text-sm font-black text-white italic tracking-tighter group-hover:text-[#C9B075] transition-colors whitespace-nowrap overflow-hidden text-ellipsis block pr-2">
+                                            {p.name}
+                                        </span>
+                                        <span className="text-[8px] font-black text-zinc-700 uppercase italic block mt-0.5">
+                                            {p.played} MATCHES
+                                        </span>
+                                    </div>
+
+                                    {/* 4. Wins */}
+                                    <span className="text-center text-sm font-black text-cyan-500/80 italic group-hover:text-cyan-400">
+                                        {p.wins}
+                                    </span>
+
+                                    {/* 5. Losses */}
+                                    <span className="text-center text-sm font-black text-zinc-600 italic">
+                                        {p.losses}
+                                    </span>
+
+                                    {/* 6. Differential */}
+                                    <div className="flex justify-center">
+                                        <span className={`text-lg font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B075]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-700'}`}>
+                                            {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                        </span>
+                                    </div>
+
+                                    {/* 7. Action / Sidebar Decor */}
+                                    <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ArrowRight size={14} className="text-[#C9B075]" />
+                                    </div>
+
+                                    {/* Decorative Side Accents */}
+                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 bg-transparent border-r border-[#C9B075]/0 group-hover:border-[#C9B075]/40 transition-all"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                );
+            })()}
 
                         <div className="h-6 w-full" aria-hidden="true" />
 
