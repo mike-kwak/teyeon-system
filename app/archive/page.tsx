@@ -236,13 +236,13 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    {/* 화살표 1: 강제 물리적 공간 확보 (Spacer) */}
-                                    <div className="h-24 w-full" aria-hidden="true" />
+                                    {/* 화살표 1: 최적의 여백 확보 */}
+                                    <div className="h-6 w-full" aria-hidden="true" />
 
-                                    {/* EDGE-TO-EDGE BOLD GRID (v1.14.11 - 왼쪽 쏠림 박멸, L 색상 완전 복구) */}
+                                    {/* OPTIMAL BALANCE GRID (v1.14.12 - 우측 잘림 방지, 데이터 정렬 교정) */}
                                     <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 w-full">
-                                        {/* Header - Full Edge 구조 */}
-                                        <div className="bg-black/60 border-b border-white/10 italic py-5 px-6 grid grid-cols-[30px_1fr_42px_42px_42px_48px_48px_58px] gap-0 items-center w-full">
+                                        {/* Header */}
+                                        <div className="bg-black/60 border-b border-white/10 italic py-4 px-5 grid grid-cols-[30px_1fr_32px_32px_32px_38px_38px_50px] gap-0 items-center w-full">
                                             <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
                                             <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest pl-2">PLAYER</span>
                                             <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">P</span>
@@ -252,18 +252,18 @@ export default function ArchivePage() {
                                             <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PA</span>
                                             <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right pr-2">+/-</span>
                                         </div>
-                                        {/* Rows - Full Edge 구조 */}
+                                        {/* Rows */}
                                         <div className="divide-y divide-white/[0.03]">
                                             {sortedResults.slice(3).map((p, idx) => (
-                                                <div key={p.name} className="py-6 px-6 grid grid-cols-[30px_1fr_42px_42px_42px_48px_48px_58px] gap-0 items-center italic font-black hover:bg-white/[0.02] transition-colors group">
-                                                    <span className="text-[16px] text-zinc-800 text-center">{idx + 4}</span>
-                                                    <span className="text-[16px] text-zinc-100 uppercase tracking-tight truncate pl-2">{p.name}</span>
-                                                    <span className="text-[12px] text-zinc-700 text-right">{p.played}</span>
-                                                    <span className="text-[16px] text-cyan-500/80 text-right">{p.wins}</span>
-                                                    <span className="text-[16px] text-zinc-300 text-right">{p.losses}</span> {/* L 색상: 완전 선명! */}
-                                                    <span className="text-[12px] text-zinc-800 text-right">{p.pf}</span>
-                                                    <span className="text-[12px] text-zinc-800 text-right">{p.pa}</span>
-                                                    <span className={`text-[16px] text-right font-black tracking-tighter pr-2 ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
+                                                <div key={p.name} className="py-5 px-5 grid grid-cols-[30px_1fr_32px_32px_32px_38px_38px_50px] gap-0 items-center italic font-black hover:bg-white/[0.02] transition-colors group">
+                                                    <span className="text-[14px] text-zinc-800 text-center">{idx + 4}</span>
+                                                    <span className="text-[14px] text-zinc-100 uppercase tracking-tight truncate pl-2">{p.name}</span>
+                                                    <span className="text-[11px] text-zinc-700 text-right">{p.played}</span>
+                                                    <span className="text-[14px] text-cyan-500/80 text-right">{p.wins}</span>
+                                                    <span className="text-[14px] text-zinc-300 text-right">{p.losses}</span>
+                                                    <span className="text-[11px] text-zinc-800 text-right">{p.pf}</span>
+                                                    <span className="text-[11px] text-zinc-800 text-right">{p.pa}</span>
+                                                    <span className={`text-[14px] text-right font-black tracking-tighter pr-2 ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
                                                         {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
                                                     </span>
                                                 </div>
@@ -274,8 +274,8 @@ export default function ArchivePage() {
                             );
                         })()}
 
-                        {/* 화살표 2: 강제 물리적 공간 확보 (Spacer) */}
-                        <div className="h-24 w-full" aria-hidden="true" />
+                        {/* 화살표 2: 최적의 여백 확보 */}
+                        <div className="h-6 w-full" aria-hidden="true" />
 
                         {/* COMPLETED MATCHES */}
                         <div className="space-y-8 pb-40 px-2 mt-4">
