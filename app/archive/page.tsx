@@ -516,21 +516,19 @@ export default function ArchivePage() {
       <header className="px-8 pt-24 pb-8 flex flex-col gap-3 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
           <div className="flex justify-between items-end w-full">
             <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.5em] opacity-50">System Archive v1.11</span>
-                <h1 className="text-4xl sm:text-5xl font-[1000] italic tracking-tight uppercase bg-gradient-to-r from-white via-white/80 to-[#D4AF37] bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Archive</h1>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em]">클럽 레코드</span>
+                <h1 className="text-4xl sm:text-5xl font-black tracking-tight uppercase text-white" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Archive</h1>
             </div>
             
             <div className="flex flex-col items-end gap-3">
                 <div onClick={handleForceUpdate} className="group relative flex items-center justify-center cursor-pointer">
-                    <div className="absolute inset-0 bg-[#D4AF37]/20 rounded-full blur-md group-hover:bg-[#D4AF37]/40 transition-all animate-pulse"></div>
-                    <div className="relative bg-black/40 border border-[#D4AF37]/30 px-4 py-2 rounded-full text-[9px] font-black text-[#D4AF37] tracking-widest uppercase flex items-center gap-2 backdrop-blur-md">
-                        <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full animate-ping"></span>
-                        Sync
+                    <div className="relative bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl text-[9px] font-bold text-zinc-400 tracking-widest uppercase flex items-center gap-2 backdrop-blur-md hover:border-zinc-700 transition-colors">
+                        동기화
                     </div>
                 </div>
             </div>
           </div>
-          <div className="h-0.5 w-20 bg-gradient-to-r from-[#D4AF37] via-[#D4AF37]/50 to-transparent"></div>
+          <div className="h-[1px] w-12 bg-zinc-800 mt-4"></div>
       </header>
 
       {!selectedSessionId && (
@@ -538,9 +536,9 @@ export default function ArchivePage() {
             {(['RECORDS', 'RANKING', 'HOF'] as const).map(t => (
                 <button 
                     key={t} onClick={() => setMainTab(t)}
-                    className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${mainTab === t ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20' : 'bg-white/5 border-white/5 text-white/50 hover:text-white/70'}`}
+                    className={`flex-1 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mainTab === t ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'}`}
                 >
-                    {t === 'RECORDS' ? '대회 결과' : t === 'RANKING' ? '전체 랭킹' : '명예의 전당'}
+                    {t === 'RECORDS' ? '대회 결과' : t === 'RANKING' ? '전체 순위' : '명예의 전당'}
                 </button>
             ))}
         </nav>
@@ -548,24 +546,24 @@ export default function ArchivePage() {
 
       <section className="flex-1 px-6 pb-[300px]">
         {loading ? (
-            <div className="py-20 text-center animate-pulse"><div className="w-8 h-8 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p className="text-[10px] font-black text-[#D4AF37] tracking-widest uppercase">Vault Initializing...</p></div>
+            <div className="py-20 text-center"><p className="text-[10px] font-bold text-zinc-600 tracking-widest uppercase">기록 불러오는 중...</p></div>
         ) : mainTab === 'RECORDS' ? (
             <>
                 {selectedSessionId && selectedSession ? (
                     <div className="animate-in slide-in-from-right duration-500">
-                        <div className="bg-white/5 border border-white/10 rounded-[35px] p-8 mb-8 relative overflow-hidden">
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8 relative overflow-hidden">
                             <div className="flex flex-col gap-1 mb-6">
-                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em]">{selectedSession.date}</span>
-                                <h2 className="text-2xl font-[1000] text-white italic leading-tight tracking-tighter uppercase">{selectedSession.title}</h2>
+                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.3em]">{selectedSession.date}</span>
+                                <h2 className="text-2xl font-black text-white leading-tight tracking-tight uppercase">{selectedSession.title}</h2>
                             </div>
-                            <div className="bg-black/60 p-1 rounded-2xl flex border border-white/5">
-                                <button className="flex-1 py-3 text-[10px] bg-[#D4AF37] text-black font-black uppercase tracking-widest rounded-xl transition-all">Official Archive History</button>
+                            <div className="bg-black/40 p-1 rounded-xl flex border border-zinc-800">
+                                <button className="flex-1 py-3 text-[10px] bg-zinc-100 text-black font-bold uppercase tracking-widest rounded-lg transition-all">공식 경기 요약</button>
                             </div>
                         </div>
 
-                        <div className="space-y-16 animate-in fade-in duration-700">
-                            {/* Executive Presidential Podium (Luxury Top 3) */}
-                            <div className="relative pt-12 mb-8">
+                        <div className="space-y-12 animate-in fade-in duration-700">
+                            {/* Flat Premium Podium (Minimal Top 3) */}
+                            <div className="relative pt-8 mb-8">
                                 {(() => {
                                     const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number, pf: number, pa: number }> = {};
                                     selectedSession.matches.forEach((m: any) => {
@@ -589,53 +587,49 @@ export default function ArchivePage() {
 
                                     return (
                                         <>
-                                            {/* 3D Podium Layout */}
-                                            <div className="flex items-end justify-center gap-2 max-w-sm mx-auto mb-16 px-4">
+                                            {/* Minimal Podium Layout */}
+                                            <div className="flex items-end justify-center gap-3 max-w-sm mx-auto mb-12 px-4">
                                                 {[1, 0, 2].map((idx) => {
                                                     const p = top3[idx];
                                                     if (!p) return <div key={idx} className="flex-1" />;
                                                     const isFirst = idx === 0;
                                                     
                                                     return (
-                                                        <div key={p.name} className={`flex flex-col items-center gap-3 ${isFirst ? 'flex-[1.4] z-10' : 'flex-1 opacity-80'}`}>
-                                                            <div className={`relative px-4 py-8 rounded-[32px] w-full flex flex-col items-center border shadow-2xl transition-all ${isFirst ? 'bg-gradient-to-b from-white/10 to-transparent border-white/20' : 'bg-white/5 border-white/5'}`} style={{ backdropFilter: 'blur(32px)' }}>
-                                                                <div className={`absolute -top-6 w-12 h-12 rounded-full flex items-center justify-center text-xl font-black italic shadow-2xl border-2 ${isFirst ? 'bg-[#D4AF37] border-white/40 text-black' : 'bg-black border-white/10 text-white'}`}>
+                                                        <div key={p.name} className={`flex flex-col items-center gap-3 ${isFirst ? 'flex-[1.2] z-10' : 'flex-1'}`}>
+                                                            <div className={`relative px-4 py-8 rounded-2xl w-full flex flex-col items-center border transition-all ${isFirst ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-900 border-zinc-800'}`}>
+                                                                <div className={`absolute -top-4 w-9 h-9 rounded-full flex items-center justify-center text-xs font-black border transition-colors ${isFirst ? 'bg-white text-black border-white' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>
                                                                     {idx === 0 ? '1' : (idx === 1 ? '2' : '3')}
                                                                 </div>
                                                                 <div className="flex flex-col items-center w-full min-w-0">
-                                                                    <span className={`font-[1000] italic tracking-tighter uppercase truncate w-full text-center ${isFirst ? 'text-2xl text-white' : 'text-sm text-white/70'}`}>{p.name}</span>
+                                                                    <span className={`font-black tracking-tight uppercase truncate w-full text-center ${isFirst ? 'text-lg text-white' : 'text-xs text-zinc-400'}`}>{p.name}</span>
                                                                     <div className="flex items-center gap-1.5 mt-2">
-                                                                        <span className="text-[10px] font-black text-[#D4AF37]">{p.wins}승 {p.losses}패</span>
-                                                                        <span className="text-[8px] opacity-20">/</span>
-                                                                        <span className={`text-[10px] font-black ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
+                                                                        <span className="text-[9px] font-bold text-zinc-500">{p.wins}W {p.losses}L</span>
+                                                                        <span className={`text-[9px] font-bold ${p.diff >= 0 ? 'text-zinc-300' : 'text-zinc-600'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            {isFirst && <div className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em] animate-pulse">Champion</div>}
+                                                            {isFirst && <div className="text-[8px] font-black text-white uppercase tracking-[0.3em]">우승</div>}
                                                         </div>
                                                     );
                                                 })}
                                             </div>
 
-                                            {/* Executive List (4th+) */}
-                                            <div className="space-y-3">
-                                                <div className="px-6 flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] italic">
-                                                    <span>Player Rank Analytics</span>
-                                                    <span>W / L / +/-</span>
+                                            {/* Minimal List (4th+) */}
+                                            <div className="space-y-2">
+                                                <div className="px-6 flex justify-between items-center text-[9px] font-bold text-zinc-600 uppercase tracking-widest">
+                                                    <span>플레이어 분석</span>
+                                                    <span>기록 / 득실</span>
                                                 </div>
-                                                <div className="bg-white/[0.02] border border-white/5 rounded-[40px] overflow-hidden">
+                                                <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden">
                                                     {others.map((p: any, idx: number) => (
-                                                        <div key={p.name} className="flex items-center justify-between px-8 py-5 border-b border-white/[0.03] hover:bg-white/5 transition-all group">
+                                                        <div key={p.name} className="flex items-center justify-between px-8 py-4 border-b border-zinc-800/30 hover:bg-zinc-800/30 transition-all group">
                                                             <div className="flex items-center gap-6">
-                                                                <span className="text-xl font-[1000] italic text-white/10 group-hover:text-[#D4AF37]/40 transition-colors w-6">{idx + 4}</span>
-                                                                <span className="text-lg font-[1000] text-white italic tracking-tight uppercase">{p.name}</span>
+                                                                <span className="text-sm font-black text-zinc-700 w-4">{idx + 4}</span>
+                                                                <span className="text-sm font-bold text-zinc-300 uppercase">{p.name}</span>
                                                             </div>
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="flex flex-col items-end">
-                                                                    <span className="text-sm font-black text-white">{p.wins}W {p.losses}L</span>
-                                                                    <span className={`text-[10px] font-black opacity-50 ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff} DP</span>
-                                                                </div>
-                                                                <div className="w-1 h-8 rounded-full bg-white/5"></div>
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-xs font-bold text-zinc-400">{p.wins}승 {p.losses}패</span>
+                                                                <span className={`text-[9px] font-bold ${p.diff >= 0 ? 'text-zinc-500' : 'text-zinc-600'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -647,80 +641,65 @@ export default function ArchivePage() {
                             </div>
 
                             {/* Dashboard Match History Container */}
-                            <div className="space-y-8">
-                                <div className="flex items-center gap-4 px-2">
-                                    <div className="h-[2px] w-8 bg-[#D4AF37]"></div>
-                                    <h3 className="text-2xl font-[1000] italic text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Completed Matches</h3>
+                            <div className="space-y-6 animate-in fade-in duration-700">
+                                <div className="flex items-center gap-3 px-2">
+                                    <div className="h-[1px] w-6 bg-zinc-700"></div>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tight" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>경기 결과</h3>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     {selectedSession.matches.map((m: any, idx: number) => {
                                         const n = m.player_names || ["?","?","?","?"];
                                         const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
                                         const isGroupB = (m.group_name || m.groupName) === 'B';
-                                        const groupColor = isGroupB ? '#00E5FF' : '#D4AF37';
                                         
                                         return (
                                             <div key={m.id || idx} 
-                                                 className="rounded-2xl relative flex flex-col justify-between overflow-hidden shadow-2xl transition-all border-none group" 
-                                                 style={{ 
-                                                     background: 'rgba(255, 255, 255, 0.04)', 
-                                                     backdropFilter: 'blur(64px)', 
-                                                     borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.4)' : 'rgba(212, 175, 55, 0.4)'}`, 
-                                                     boxShadow: '0 20px 40px rgba(0,0,0,0.5)' 
-                                                 }}>
+                                                 className="rounded-xl relative flex flex-col justify-between overflow-hidden shadow-sm transition-all border border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 group">
                                                 {/* Dashboard Header Bar */}
-                                                <div className="flex items-center justify-between px-3 py-2.5 bg-white/5 border-b border-white/10 uppercase italic">
-                                                    <span className="text-[8px] font-black tracking-[0.2em]" style={{ color: groupColor }}>
+                                                <div className="flex items-center justify-between px-3 py-2 bg-black/20 border-b border-zinc-800/30 uppercase">
+                                                    <span className="text-[7px] font-bold tracking-[0.2em] text-zinc-500">
                                                         R{m.round || 1} • {m.group_name || m.groupName || 'A'} • M{idx + 1}
                                                     </span>
                                                     {(isAdmin) && (
-                                                        <div className="flex items-center gap-2 opacity-30 group-hover:opacity-100 transition-opacity">
+                                                        <div className="flex items-center gap-2 opacity-20 group-hover:opacity-100 transition-opacity">
                                                             <button 
-                                                                onClick={(e) => { e.stopPropagation(); if(confirm('수정하시겠습니까?')) {/* Edit Modal or Logic */} }} 
-                                                                className="hover:text-[#D4AF37] transition-colors"
+                                                                onClick={(e) => { e.stopPropagation(); if(confirm('수정하시겠습니까?')) {/* Edit Modal */} }} 
+                                                                className="hover:text-white transition-colors"
                                                             >
-                                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                             </button>
                                                             <button 
                                                                 onClick={(e) => { e.stopPropagation(); handleMatchDelete(m.id || ''); }} 
                                                                 className="hover:text-red-500 transition-colors"
                                                             >
-                                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                             </button>
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                <div className="p-1 px-2.5 py-6">
-                                                    <div className="grid grid-cols-[1.5fr_1fr_1.5fr] items-center gap-1 min-h-[72px]">
+                                                <div className="px-3 py-4">
+                                                    <div className="grid grid-cols-[1.5fr_1fr_1.5fr] items-center gap-1 min-h-[50px]">
                                                         {/* Team Left Block */}
-                                                        <div className="bg-white/5 rounded-xl py-2.5 flex flex-col items-center justify-center border border-white/5 shadow-inner min-w-0">
-                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s1 > s2 ? 'text-white' : 'text-white/20'}`}>{n[0]}</span>
-                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s1 > s2 ? 'text-white' : 'text-white/20'}`}>{n[1]}</span>
+                                                        <div className="flex flex-col items-center justify-center min-w-0">
+                                                            <span className={`text-[10px] font-bold uppercase truncate w-full text-center tracking-tighter ${s1 > s2 ? 'text-white' : 'text-zinc-600'}`}>{n[0]}</span>
+                                                            <span className={`text-[10px] font-bold uppercase truncate w-full text-center tracking-tighter ${s1 > s2 ? 'text-white' : 'text-zinc-600'}`}>{n[1]}</span>
                                                         </div>
 
                                                        {/* Dashboard Score Centerpiece */}
-                                                       <div className="flex flex-col items-center justify-center gap-0 shrink-0">
-                                                            <div className="flex items-center gap-1 drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]">
-                                                                <span className={`text-2xl sm:text-3xl font-[1000] italic leading-none ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
-                                                                <span className="text-sm font-black text-white/5">:</span>
-                                                                <span className={`text-2xl sm:text-3xl font-[1000] italic leading-none ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
+                                                       <div className="flex flex-col items-center justify-center shrink-0">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className={`text-xl font-black leading-none ${s1 > s2 ? 'text-white' : 'text-zinc-700'}`}>{s1}</span>
+                                                                <span className="text-xs font-black text-zinc-800">:</span>
+                                                                <span className={`text-xl font-black leading-none ${s2 > s1 ? 'text-white' : 'text-zinc-700'}`}>{s2}</span>
                                                             </div>
-                                                            <span className="text-[5px] font-black text-white/20 uppercase tracking-[0.2em] mt-1 whitespace-nowrap">Final Res</span>
                                                         </div>
 
                                                         {/* Team Right Block */}
-                                                        <div className="bg-white/5 rounded-xl py-2.5 flex flex-col items-center justify-center border border-white/5 shadow-inner min-w-0">
-                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s2 > s1 ? 'text-white' : 'text-white/20'}`}>{n[2]}</span>
-                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s2 > s1 ? 'text-white' : 'text-white/20'}`}>{n[3]}</span>
+                                                        <div className="flex flex-col items-center justify-center min-w-0">
+                                                            <span className={`text-[10px] font-bold uppercase truncate w-full text-center tracking-tighter ${s2 > s1 ? 'text-white' : 'text-zinc-600'}`}>{n[2]}</span>
+                                                            <span className={`text-[10px] font-bold uppercase truncate w-full text-center tracking-tighter ${s2 > s1 ? 'text-white' : 'text-zinc-600'}`}>{n[3]}</span>
                                                         </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Dashboard Bottom Accents */}
-                                                <div className="flex justify-center pb-2">
-                                                    <div className="h-0.5 w-1/3 bg-white/5 rounded-full overflow-hidden opacity-50">
-                                                        <div className="h-full bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent"></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -729,23 +708,23 @@ export default function ArchivePage() {
                                 </div>
                             </div>
                         </div>
-                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-8 mt-12 mb-12 rounded-[32px] bg-white/5 border border-white/10 text-[12px] font-black uppercase tracking-[0.3em] hover:bg-white/10 transition-all text-[#D4AF37] italic">Back to Archive List</button>
+                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-8 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all text-zinc-400">목록으로 돌아가기</button>
                          
-                         {/* Layout Spacing Buffer (Prevents Clipping by Bottom Nav) */}
+                         {/* Layout Spacing Buffer */}
                          <div className="h-96 w-full pointer-events-none"></div>
                      </div>
                 ) : (
                     <div className="animate-in slide-in-from-bottom duration-500">
-                        <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 mb-8 flex gap-4 shadow-2xl">
+                        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-8 flex gap-4 shadow-sm">
                             <div className="flex-1 flex flex-col items-center space-y-2">
-                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">Year</span>
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white outline-none text-center">
+                                <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Year</span>
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none text-center">
                                     {[2026,2025,2024].map(y=><option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
                             <div className="flex-1 flex flex-col items-center space-y-2">
-                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">Month</span>
-                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white outline-none text-center">
+                                <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Month</span>
+                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none text-center">
                                     {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}
                                 </select>
                             </div>
@@ -753,93 +732,89 @@ export default function ArchivePage() {
 
                         <div className="space-y-4">
                             {sessions.length > 0 ? sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); }} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[28px] p-5 shadow-xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/40">
+                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); }} className="group bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-zinc-600">
                                     <div className="flex justify-between items-center relative z-10">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 bg-black/40 rounded-2xl border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] text-xs font-[1000] italic">{index + 1}</div>
+                                            <div className="w-9 h-9 bg-black rounded-xl border border-zinc-800 flex items-center justify-center text-zinc-400 text-xs font-black">{index + 1}</div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] font-black text-[#EFDFB4]/60 uppercase tracking-widest leading-none mb-1">{s.date}</span>
-                                                <h3 className="text-base font-[1000] text-white italic tracking-tighter uppercase leading-tight group-hover:text-[#D4AF37] transition-colors">{s.title}</h3>
-                                                <div className="flex items-center gap-3 mt-1.5 text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">
+                                                <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest leading-none mb-1">{s.date}</span>
+                                                <h3 className="text-base font-black text-white tracking-tight uppercase leading-tight group-hover:text-zinc-200 transition-colors">{s.title}</h3>
+                                                <div className="flex items-center gap-3 mt-1.5 text-[8px] font-bold text-zinc-700 uppercase tracking-widest">
                                                     <span>{s.matchCount} Matches</span>
                                                     <span>•</span>
-                                                    <span className={s.matches[0]?.isLocal ? 'text-[#D4AF37] animate-pulse' : 'text-white/20'}>{s.matches[0]?.isLocal ? 'Local Cache' : 'Synced'}</span>
+                                                    <span className={s.matches[0]?.isLocal ? 'text-zinc-500' : 'text-zinc-800'}>{s.matches[0]?.isLocal ? 'Local Cache' : 'Synced'}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {isAdmin && (
-                                                <div className="flex gap-1.5 mr-2">
-                                                    <button onClick={(e)=>{e.stopPropagation(); editSessionTitle(s.id, s.title);}} className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-[#D4AF37] hover:bg-white/10 transition-all shadow-lg"><Edit3 className="w-3.5 h-3.5" /></button>
-                                                    <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-red-500 hover:bg-white/10 transition-all shadow-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                <div className="flex gap-1 mr-2">
+                                                    <button onClick={(e)=>{e.stopPropagation(); editSessionTitle(s.id, s.title);}} className="p-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-white transition-all"><Edit3 className="w-3 h-3" /></button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-red-500 transition-all"><Trash2 className="w-3 h-3" /></button>
                                                 </div>
                                             )}
-                                            <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover:text-[#D4AF37] group-hover:border-[#D4AF37]/20 transition-all shadow-xl">
-                                                <ArrowRight className="w-4 h-4" />
-                                            </div>
+                                            <ArrowRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-300 transition-colors" />
                                         </div>
                                     </div>
-                                    {/* Subtle gradient glow */}
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 blur-[60px] pointer-events-none"></div>
                                 </div>
-                            )) : <div className="py-20 text-center opacity-20 font-black uppercase text-xs tracking-widest">No Archives Found</div>}
+                            )) : <div className="py-20 text-center opacity-20 font-bold uppercase text-[10px] tracking-widest text-zinc-600">기록이 없습니다.</div>}
                         </div>
                     </div>
                 )}
             </>
         ) : mainTab === 'RANKING' ? (
             <div className="animate-in fade-in duration-500">
-                <div className="flex gap-2 p-1 bg-white/5 rounded-[20px] mb-8">
+                <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl mb-8">
                     {(['WEEK', 'MONTH', 'YEAR', 'ALL'] as const).map(f => (
-                        <button key={f} onClick={()=>setRankingFilter(f)} className={`flex-1 py-3 rounded-2xl text-[9px] font-[1000] transition-all ${rankingFilter === f ? 'bg-[#D4AF37] text-black shadow-xl' : 'text-white/20'}`}>{f}</button>
+                        <button key={f} onClick={()=>setRankingFilter(f)} className={`flex-1 py-3 rounded-lg text-[9px] font-bold transition-all ${rankingFilter === f ? 'bg-white text-black shadow-sm' : 'text-zinc-600'}`}>{f}</button>
                     ))}
                 </div>
-                <div className="bg-white/[0.03] border border-white/10 rounded-[24px] overflow-hidden">
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
                     <table className="w-full text-left">
-                        <thead className="text-[8px] font-black text-white/20 uppercase tracking-widest border-b border-white/5"><tr className="border-b border-white/5"><th className="px-6 py-6">Rank</th><th className="px-2 py-6">Player</th><th className="px-2 py-6 text-center">Score</th><th className="px-4 py-6 text-right">Diff</th></tr></thead>
+                        <thead className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest border-b border-zinc-800"><tr className="border-b border-zinc-800"><th className="px-6 py-6 font-bold uppercase">순위</th><th className="px-2 py-6 font-bold uppercase">플레이어</th><th className="px-2 py-6 text-center font-bold uppercase">승점</th><th className="px-4 py-6 text-right font-bold uppercase">득실</th></tr></thead>
                         <tbody>{globalLeaderboard.map((p, i) => (
-                            <tr key={p.id} className={`border-t border-white/5 ${i === 0 ? 'bg-[#D4AF37]/5' : ''}`}>
-                                <td className="px-6 py-6 font-[1000] italic text-xl text-[#D4AF37]">{i + 1}</td>
+                            <tr key={p.id} className={`border-t border-zinc-900/50 ${i === 0 ? 'bg-white/5' : ''}`}>
+                                <td className={`px-6 py-6 font-black text-lg ${i === 0 ? 'text-white' : 'text-zinc-600'}`}>{i + 1}</td>
                                 <td className="px-2 py-6">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-white/5 rounded-full border border-white/10 flex items-center justify-center font-black text-[10px]">{p.name[0]}</div>
-                                        <div className="flex flex-col"><span className="text-xs font-black uppercase">{p.name}</span><span className="text-[8px] opacity-30">{Math.round(p.winRate)}% Rate</span></div>
+                                        <div className="w-8 h-8 bg-black rounded-full border border-zinc-800 flex items-center justify-center font-bold text-[10px] text-zinc-400">{p.name[0]}</div>
+                                        <div className="flex flex-col"><span className="text-sm font-bold uppercase text-zinc-200">{p.name}</span><span className="text-[8px] text-zinc-500 uppercase font-bold tracking-tighter">{Math.round(p.winRate)}% 승률</span></div>
                                     </div>
                                 </td>
-                                <td className="px-2 py-6 text-center font-black text-[#D4AF37]">{p.wins}</td>
-                                <td className={`px-4 py-6 text-right font-black italic ${p.diff > 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
+                                <td className="px-2 py-6 text-center font-black text-white">{p.wins}</td>
+                                <td className={`px-4 py-6 text-right font-bold ${p.diff > 0 ? 'text-zinc-400' : 'text-zinc-600'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
                             </tr>
                         ))}</tbody>
                     </table>
                 </div>
             </div>
         ) : (
-            <div className="py-40 text-center opacity-20 font-black uppercase text-xs tracking-[0.5em]">Hall of Fame Coming Soon</div>
+            <div className="py-40 text-center opacity-20 font-bold uppercase text-[9px] tracking-[0.4em] text-zinc-600">명예의 전당 준비 중</div>
         )}
       </section>
 
       {mainTab === 'RANKING' && myRank && (
         <div className="fixed bottom-0 left-0 right-0 p-6 z-[60] bg-gradient-to-t from-black via-black to-transparent pointer-events-none">
-            <div className="max-w-md mx-auto pointer-events-auto bg-[#D4AF37] text-black rounded-[28px] p-5 shadow-2xl flex items-center justify-between">
+            <div className="max-w-md mx-auto pointer-events-auto bg-white text-black rounded-2xl p-5 shadow-xl flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className="text-2xl font-[1000] italic">#{myRank.rank}</div>
-                    <div className="flex flex-col font-black uppercase text-xs italic tracking-tighter">{myRank.name}</div>
+                    <div className="text-xl font-black">#{myRank.rank}</div>
+                    <div className="flex flex-col font-bold uppercase text-[10px] tracking-tighter">{myRank.name}</div>
                 </div>
-                <div className="text-2xl font-[1000] italic">{myRank.wins} pts</div>
+                <div className="text-xl font-black">{myRank.wins} pts</div>
             </div>
         </div>
       )}
 
       {showArchiveSuccess && (
-        <div className="fixed inset-0 z-[5000] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center animate-in fade-in duration-700">
-            <span className="text-9xl mb-10 animate-bounce">🏆</span>
-            <h2 className="text-4xl font-[1000] italic text-white uppercase tracking-tighter text-center">Cloud Sync<br />Successful</h2>
+        <div className="fixed inset-0 z-[5000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in duration-700">
+            <span className="text-7xl mb-10">🏆</span>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight text-center">동기화 완료</h2>
         </div>
       )}
 
       {showSyncToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[6000] bg-[#1C1C1E] border border-[#D4AF37]/40 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-5">
-            <span className="text-[#D4AF37] font-black uppercase tracking-widest text-xs">{syncToastMsg}</span>
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[6000] bg-zinc-900 border border-zinc-800 text-white px-8 py-4 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-5">
+            <span className="text-zinc-400 font-bold uppercase tracking-widest text-[9px]">{syncToastMsg}</span>
         </div>
       )}
     </main>
