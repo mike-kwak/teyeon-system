@@ -179,12 +179,12 @@ export default function ResultsPage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-24 pb-56">
-      <header className="px-8 py-6 flex flex-col gap-2 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700">
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-32 pb-56">
+      <header className="px-8 pt-12 pb-6 flex flex-col gap-2 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700">
           <div className="flex justify-between items-end w-full">
             <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.5em] opacity-40">System Archive</span>
-                <h1 className="text-5xl font-[1000] italic tracking-tight uppercase bg-gradient-to-r from-white via-white to-[#D4AF37] bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Results</h1>
+                <h1 className="text-4xl font-[1000] italic tracking-tight uppercase bg-gradient-to-r from-white via-white to-[#D4AF37] bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Results</h1>
             </div>
           </div>
           <div className="h-0.5 w-16 bg-gradient-to-r from-[#D4AF37] to-transparent mt-2"></div>
@@ -277,7 +277,7 @@ export default function ResultsPage() {
                                     <div className="h-[2px] w-8 bg-[#D4AF37]"></div>
                                     <h3 className="text-2xl font-[1000] italic text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Completed Matches</h3>
                                 </div>
-                                <div className="grid grid-cols-1 gap-6">
+                                <div className="grid grid-cols-2 gap-3">
                                     {selectedSession.matches.map((m: any, idx: number) => {
                                         const n = m.player_names || ["?","?","?","?"];
                                         const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
@@ -285,42 +285,41 @@ export default function ResultsPage() {
                                         const groupColor = isGroupB ? '#00E5FF' : '#D4AF37';
 
                                         return (
-                                            <div key={m.id || idx} className="rounded-2xl relative flex flex-col justify-between overflow-hidden shadow-2xl transition-all border-none"
+                                            <div key={m.id || idx} className="rounded-xl relative flex flex-col justify-between overflow-hidden shadow-2xl transition-all border-none"
                                                  style={{ 
                                                      background: 'rgba(255, 255, 255, 0.05)', 
                                                      backdropFilter: 'blur(32px)',
                                                      borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(212, 175, 55, 0.3)'}`,
-                                                     boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+                                                     boxShadow: '0 10px 20px rgba(0,0,0,0.4)'
                                                  }}>
                                                 {/* Mirror Header */}
-                                                <div className="flex items-center justify-center px-4 py-2.5 bg-white/5 border-b border-white/10">
-                                                    <span className="text-[9px] font-black tracking-[0.2em] uppercase italic" style={{ color: groupColor }}>
-                                                        ROUND {m.round || 1} • {m.group_name || m.groupName || 'A'}조 • {idx + 1}경기
+                                                <div className="flex items-center justify-center px-1.5 py-2 bg-white/5 border-b border-white/10">
+                                                    <span className="text-[7.5px] font-black tracking-widest uppercase italic truncate" style={{ color: groupColor }}>
+                                                        R{m.round || 1} • {m.group_name || m.groupName || 'A'} • {idx + 1}
                                                     </span>
                                                 </div>
 
-                                                <div className="p-1 px-3 py-6">
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-                                                        {/* Team 1 */}
-                                                        <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center border border-white/5 h-[72px]">
-                                                            <span className={`text-[13px] font-black uppercase italic ${s1 > s2 ? 'text-white' : 'text-white/40'}`}>{n[0]}</span>
-                                                            <span className={`text-[13px] font-black uppercase italic ${s1 > s2 ? 'text-white' : 'text-white/40'}`}>{n[1]}</span>
+                                                <div className="p-0.5 px-2 py-4">
+                                                    <div className="grid grid-cols-1 items-center gap-1.5">
+                                                        {/* Team Row 1 */}
+                                                        <div className="bg-white/5 rounded-lg py-1.5 flex flex-col items-center justify-center border border-white/5">
+                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s1 > s2 ? 'text-white' : 'text-white/30'}`}>{n[0]}</span>
+                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s1 > s2 ? 'text-white' : 'text-white/30'}`}>{n[1]}</span>
                                                         </div>
 
-                                                        {/* Score Mirror */}
-                                                        <div className="flex flex-col items-center px-4 gap-0.5">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className={`text-4xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
-                                                                <span className="text-xl font-black text-white/10">:</span>
-                                                                <span className={`text-4xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
+                                                        {/* Score Mirror Row */}
+                                                        <div className="flex flex-col items-center py-0.5 gap-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-2xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
+                                                                <span className="text-lg font-black text-white/5">:</span>
+                                                                <span className={`text-2xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
                                                             </div>
-                                                            <span className="text-[7px] font-black text-white/20 uppercase tracking-widest leading-none">Final Score</span>
                                                         </div>
 
-                                                        {/* Team 2 */}
-                                                        <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center justify-center border border-white/5 h-[72px]">
-                                                            <span className={`text-[13px] font-black uppercase italic ${s2 > s1 ? 'text-white' : 'text-white/40'}`}>{n[2]}</span>
-                                                            <span className={`text-[13px] font-black uppercase italic ${s2 > s1 ? 'text-white' : 'text-white/40'}`}>{n[3]}</span>
+                                                        {/* Team Row 2 */}
+                                                        <div className="bg-white/5 rounded-lg py-1.5 flex flex-col items-center justify-center border border-white/5">
+                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s2 > s1 ? 'text-white' : 'text-white/30'}`}>{n[2]}</span>
+                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s2 > s1 ? 'text-white' : 'text-white/30'}`}>{n[3]}</span>
                                                         </div>
                                                     </div>
                                                 </div>
