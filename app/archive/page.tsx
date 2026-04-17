@@ -140,10 +140,19 @@ export default function ArchivePage() {
             combinedData.push({ ...f, isLocal: true });
         });
 
-        // v10: Add server data, avoiding duplicates
+        // v10: Add server data, avoiding duplicates (Strictly prioritize newest by created_at)
         (data || []).forEach((d: any) => {
-            if (!combinedData.find(f => f.id === d.id)) {
+            const existing = combinedData.find(f => f.id === d.id);
+            if (!existing) {
                 combinedData.push(d);
+            } else {
+                // If ID matches, replace ONLY if server data is newer
+                const existingTime = new Date(existing.created_at || 0).getTime();
+                const newTime = new Date(d.created_at || 0).getTime();
+                if (newTime > existingTime) {
+                    const idx = combinedData.indexOf(existing);
+                    combinedData[idx] = d;
+                }
             }
         });
 
@@ -340,6 +349,43 @@ export default function ArchivePage() {
         fetchArchives();
     } catch (err: any) {
         alert("삭제 실패: " + err.message);
+    }
+  }
+
+  // [v12.1] Edit Session Title
+  async function editSessionTitle(sessionId: string, currentTitle: string) {
+    if (!isAdmin) return;
+    const newTitle = prompt("새로운 대회 제목을 입력하세요:", currentTitle);
+    if (!newTitle || newTitle === currentTitle) return;
+
+    try {
+        setIsSyncing(sessionId);
+        // 1. Fetch current raw_data
+        const { data: record, error: fetchError } = await supabase
+            .from('teyeon_archive_v1')
+            .select('raw_data')
+            .eq('id', sessionId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+        
+        // 2. Update title in raw_data
+        const updatedRaw = { ...record.raw_data, title: newTitle };
+        
+        // 3. Update DB
+        const { error: updateError } = await supabase
+            .from('teyeon_archive_v1')
+            .update({ raw_data: updatedRaw })
+            .eq('id', sessionId);
+            
+        if (updateError) throw updateError;
+        
+        alert("제목이 성공적으로 수정되었습니다.");
+        fetchArchives();
+    } catch (err: any) {
+        alert("수정 실패: " + err.message);
+    } finally {
+        setIsSyncing(null);
     }
   }
 
@@ -638,22 +684,40 @@ export default function ArchivePage() {
                             {sessions.length > 0 ? sessions.map((s, index) => (
                                 <div key={s.id} onClick={() => setSelectedSessionId(s.id)} className="bg-[#12121A] border border-white/5 rounded-[24px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
                                     <div className="flex justify-between items-start mb-6">
-                                        <div className="flex items-center gap-3">
-                                            <span className="w-8 h-8 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-[10px] font-black italic">{index+1}</span>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-[#D4AF37] tracking-widest leading-none">{s.date}</span>
+                                        <div className="flex items-center gap-4">
+                                            <span className="w-6 h-6 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center text-white/20 text-[9px] font-black italic shadow-inner">{index+1}</span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[10px] font-medium text-[#C9B075] tracking-widest leading-none uppercase">{s.date}</span>
                                                 {s.matches[0]?.isLocal && (
-                                                    <span className="text-[7px] font-black text-white/30 uppercase mt-1">Pending Cloud Sync</span>
+                                                    <span className="text-[7px] font-black text-white/30 uppercase">Pending Cloud Sync</span>
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-4">
+                                            {isAdmin && !s.matches[0]?.isLocal && (
+                                                <div className="flex items-center gap-4">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); editSessionTitle(s.id, s.title); }}
+                                                        className="p-2 rounded-xl bg-white/5 border border-white/5 text-white/20 hover:text-[#C9B075] transition-all"
+                                                        title="제목 수정"
+                                                    >
+                                                        <span className="text-sm">✏️</span>
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); deleteSession(s.id, s.title); }}
+                                                        className="p-2 rounded-xl bg-white/5 border border-white/5 text-rose-500/40 hover:text-rose-500 transition-all"
+                                                        title="대회 삭제"
+                                                    >
+                                                        <span className="text-sm">🗑️</span>
+                                                    </button>
+                                                </div>
+                                            )}
                                             {s.matches[0]?.isLocal && (
-                                                <>
+                                                <div className="flex items-center gap-4">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); syncLocalRecord(s.id); }}
                                                         disabled={isSyncing === s.id}
-                                                        className="w-10 h-10 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black transition-all shadow-[0_0_15px_rgba(212,175,55,0.2)]"
+                                                        className="w-10 h-10 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075] hover:text-black transition-all shadow-[0_0_15px_rgba(201,176,117,0.2)]"
                                                     >
                                                         {isSyncing === s.id ? (
                                                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -667,13 +731,16 @@ export default function ArchivePage() {
                                                     >
                                                         <span className="text-lg">🗑️</span>
                                                     </button>
-                                                </>
+                                                </div>
                                             )}
-                                            <span className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/20 transition-all border border-white/5 group-hover:bg-[#D4AF37] group-hover:text-black">→</span>
+                                            <span className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/20 transition-all border border-white/5 group-hover:bg-[#C9B075] group-hover:text-black">→</span>
                                         </div>
                                     </div>
-                                    <h4 className="text-xl font-[1000] text-white italic uppercase mb-2 tracking-tighter">{s.title}</h4>
-                                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{s.matchCount} Matches Verified</span>
+                                    <h4 className="text-xl font-black text-white italic uppercase mb-4 tracking-tighter">{s.title}</h4>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-white/10 uppercase tracking-widest">{s.matchCount} Matches Verified</span>
+                                        <div className="h-px flex-1 bg-white/5 mx-4" />
+                                    </div>
                                     
                                     {/* Local Indicator Bar */}
                                     {s.matches[0]?.isLocal && (
