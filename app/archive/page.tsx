@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 
 /**
  * ArchivePage: The Teyeon Club Official Database
- * v1.1.0-beta.5: Triple-Tab Overhaul (Records, Global Ranking, Hall of Fame)
+ * v1.2.1 (Stable): Cache Force Refresh & Design Finalized
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -471,22 +471,39 @@ export default function ArchivePage() {
   });
 
   const sessions = useMemo(() => {
+    // [v1.2.0] Enhanced Deduplication logic by Title & Date
     const groups: Record<string, any> = {};
-    filteredRecords.forEach(m => {
-        const sid = m.session_id || 'legacy';
-        if (!groups[sid]) {
-            groups[sid] = {
-                id: sid,
-                title: m.session_title || 'Untitled',
+    
+    // Sort records by created_at DESC first to ensure we pick the latest when grouping
+    const sortedRecords = [...filteredRecords].sort((a,b) => {
+        const timeA = new Date(a.created_at || a.match_date || 0).getTime();
+        const timeB = new Date(b.created_at || b.match_date || 0).getTime();
+        return timeB - timeA;
+    });
+
+    sortedRecords.forEach(m => {
+        // Group by title to merge multiple pushes of the same tournament
+        const groupKey = m.session_title || m.title || m.session_id || 'untitled';
+        if (!groups[groupKey]) {
+            groups[groupKey] = {
+                id: m.session_id || groupKey,
+                title: groupKey,
                 date: m.match_date,
+                created_at: m.created_at,
                 matches: [],
                 matchCount: 0
             };
         }
-        groups[sid].matchCount++;
-        groups[sid].matches.push(m);
+        groups[groupKey].matchCount++;
+        groups[groupKey].matches.push(m);
     });
-    return Object.values(groups).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Final sorting: Newest Date first, then newest created_at fallback
+    return Object.values(groups).sort((a:any, b:any) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   }, [filteredRecords]);
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
@@ -713,11 +730,11 @@ export default function ArchivePage() {
                                                 </div>
                                             )}
                                             {s.matches[0]?.isLocal && (
-                                                <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-2">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); syncLocalRecord(s.id); }}
                                                         disabled={isSyncing === s.id}
-                                                        className="w-10 h-10 rounded-2xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075] hover:text-black transition-all shadow-[0_0_15px_rgba(201,176,117,0.2)]"
+                                                        className="w-9 h-9 rounded-xl bg-[#C9B075]/20 border border-[#C9B075]/30 flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075] hover:text-black transition-all shadow-[0_0_15px_rgba(201,176,117,0.2)]"
                                                     >
                                                         {isSyncing === s.id ? (
                                                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -727,7 +744,7 @@ export default function ArchivePage() {
                                                     </button>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); deleteLocalRecord(s.id); }}
-                                                        className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                                                        className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
                                                     >
                                                         <span className="text-lg">🗑️</span>
                                                     </button>
@@ -834,8 +851,27 @@ export default function ArchivePage() {
 
       {/* Admin Tools: Hidden in Ranking tab to keep aesthetic */}
       {isAdmin && mainTab === 'RECORDS' && (
-        <div className="p-8 opacity-20 hover:opacity-100 transition-opacity flex flex-col items-center">
-            <button onClick={seedDemoData} disabled={isSeeding} className="px-6 py-3 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full text-[9px] font-black text-[#D4AF37] tracking-[0.3em] uppercase active:scale-95">{isSeeding ? 'SEEDING...' : '🔧 ADMIN: SEED DEMO DATA'}</button>
+        <div className="p-8 opacity-20 hover:opacity-100 transition-opacity flex flex-col items-center gap-4">
+            <div className="flex gap-2">
+                <button 
+                    onClick={() => {
+                        if (confirm('⚠️ 모든 캐시를 삭제하고 앱을 강제로 새로고침 할까요? (디자인 미반영 해결용)')) {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            window.location.reload();
+                        }
+                    }}
+                    className="px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-full text-[9px] font-black text-red-500 tracking-[0.3em] uppercase active:scale-95"
+                >
+                    🚨 캐시 초기화 & 하드 리로드
+                </button>
+                <button onClick={seedDemoData} disabled={isSeeding} className="px-6 py-3 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full text-[9px] font-black text-[#C9B075] tracking-[0.3em] uppercase active:scale-95">
+                    {isSeeding ? 'SEEDING...' : '🔧 ADMIN: SEED DEMO DATA'}
+                </button>
+            </div>
+            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] animate-pulse">
+                Current Version: v1.2.1 (Stable)
+            </span>
         </div>
       )}
       
