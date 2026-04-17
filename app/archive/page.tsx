@@ -4,14 +4,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Trash2, ArrowRight, ArrowLeft, Trophy } from 'lucide-react';
+import { Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 /**
- * ArchivePage (v1.14.5): THE ULTIMATE ARCHIVE
- * - 타이틀 한 줄 축소 (ARCHIVE)
- * - 시상대 크기 50% 축소 & 트로피 시스템 (사진 부재 시)
- * - 4위 이하 리스트 (사진 제거, 이름 집중)
- * - 경기 결과 카드 (MATCH 중앙 정렬, 무잘림, 음영 강화)
+ * ArchivePage (v1.14.6): THE GRAND ARCHIVE MASTER
+ * - Premium Podium (RankingTab 스타일 이식, 상금 제거)
+ * - Fallback Icon System (1위:🏆, 2위:🥈, 3위:🥉)
+ * - High-Density Table (4위~ 사진 제거, 왼쪽 밀착 배치)
+ * - Section Spacing Synchronization
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -121,7 +121,7 @@ export default function ArchivePage() {
 
   return (
     <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
-      {/* 럭셔리 라인 헤더 (v1.14.5 ULTIMATE - 한 줄 축소) */}
+      {/* 럭셔리 라인 헤더 (v1.14.6 MASTER) */}
       <header className="px-8 pt-24 pb-2 flex flex-col gap-1 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
           {selectedSessionId ? (
               <button 
@@ -151,7 +151,7 @@ export default function ArchivePage() {
         </nav>
       )}
 
-      <section className="flex-1 px-6">
+      <section className="flex-1 px-4">
         {loading ? (
             <div className="py-24 text-center">
                 <p className="text-[12px] font-[1000] text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
@@ -160,18 +160,18 @@ export default function ArchivePage() {
             <>
                 {/* 1. 세션 상세 보기 (Level 2) */}
                 {selectedSessionId && selectedSession ? (
-                    <div className="animate-in slide-in-from-right duration-500 space-y-12">
-                        {/* 럭셔리 세션 헤더 (축소형) */}
-                        <div className="flex flex-col gap-2 px-4">
+                    <div className="animate-in slide-in-from-right duration-500">
+                        {/* 럭셔리 세션 헤더 */}
+                        <div className="flex flex-col gap-2 px-6 mb-12">
                             <span className="text-[12px] font-[1000] text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                             <h2 className="text-2xl font-[1000] text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
-                        {/* AVATAR PODIUM & PRO TABLE (v1.14.5 경량화) */}
+                        {/* PREMIUM PODIUM (RankingTab 스타일 이식) */}
                         <div className="space-y-10">
-                            <div className="flex items-center gap-4 px-4">
+                            <div className="flex items-center gap-4 px-6">
                                 <h3 className="text-xl font-[1000] text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
-                                <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/40 to-transparent"></div>
+                                <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
                             </div>
                             
                             {(() => {
@@ -195,64 +195,77 @@ export default function ArchivePage() {
 
                                 return (
                                     <>
-                                        {/* AVATAR PODIUM (50% 축소 & 트로피 시스템) */}
-                                        <div className="flex items-end justify-center gap-2 max-w-[320px] mx-auto mb-12 px-4">
+                                        {/* PREMIUM GLASS PODIUM (Image 2 스타일) */}
+                                        <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto mb-12">
                                             {[1, 0, 2].map((idx) => {
                                                 const p = top3[idx];
-                                                if (!p) return <div key={idx} className="flex-1" />;
+                                                if (!p) return <div key={idx} className="flex-1 h-2" />;
                                                 const isFirst = idx === 0;
+                                                const widthClass = isFirst ? 'w-[45%]' : 'w-[28%]';
+                                                const rankEmoji = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : '🥉');
+                                                
                                                 return (
-                                                    <div key={p.name} className={`flex flex-col items-center gap-3 ${isFirst ? 'flex-[1.2] z-10' : 'flex-1 opacity-80'}`}>
-                                                        <div className={`relative w-full aspect-square rounded-full border-2 shadow-xl overflow-hidden group transition-all ${isFirst ? 'border-[#C9B075] scale-110' : 'border-white/10'}`}>
-                                                            {p.avatar ? (
-                                                                <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                                                                    <Trophy size={isFirst ? 28 : 20} className="text-[#C9B075] opacity-60" />
-                                                                </div>
-                                                            )}
-                                                            <div className={`absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-[1000] border border-white/20 italic ${isFirst ? 'bg-[#C9B075] text-black' : 'bg-black text-white'}`}>
-                                                                {idx === 0 ? '1' : (idx === 1 ? '2' : '3')}
+                                                    <div key={p.name} className={`relative ${widthClass} flex flex-col justify-end`}>
+                                                        <div className="bg-white/5 backdrop-blur-3xl rounded-[30px] border-t border-t-white/20 border-l border-l-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.2)] flex flex-col items-center pt-8 pb-6 w-full relative">
+                                                            <div className={`
+                                                                flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-4 overflow-hidden
+                                                                ${isFirst ? 'w-16 h-16 border-[#C9B075]/40' : 'w-12 h-12'}
+                                                            `}>
+                                                                {p.avatar ? (
+                                                                    <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <span className={`${isFirst ? 'text-4xl' : 'text-2xl'} select-none text-white/20 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
+                                                                        {rankEmoji}
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        </div>
-                                                        <div className="flex flex-col items-center gap-0.5">
-                                                            <span className={`font-[1000] tracking-tighter uppercase truncate w-full text-center italic ${isFirst ? 'text-[15px] text-white' : 'text-[11px] text-zinc-500'}`}>{p.name}</span>
-                                                            <span className={`font-[1000] text-[10px] italic ${isFirst ? 'text-[#C9B075]' : 'text-zinc-800'}`}>{p.wins}승 {p.losses}패</span>
-                                                            {isFirst && <div className="mt-1 px-2 py-0.5 bg-[#C9B075]/10 text-[#C9B075] text-[7px] font-[1000] rounded-full border border-[#C9B075]/20 italic tracking-widest uppercase">CHAMPION</div>}
+
+                                                            <div className="flex flex-col items-center gap-2 w-full px-2">
+                                                                <div className={`font-black text-white text-center truncate w-full tracking-tighter italic ${isFirst ? 'text-lg' : 'text-[12px]'}`}>
+                                                                    {p.name}
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 font-black tracking-widest uppercase text-[9px] italic opacity-80">
+                                                                    <span className="text-white">{p.wins}승 {p.losses}패</span>
+                                                                    <span className="opacity-20">/</span>
+                                                                    <span className={p.diff > 0 ? 'text-[#00e5ff]' : 'text-white'}>
+                                                                        {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
 
-                                        {/* PRO DATA TABLE (v1.14.5 미니멀리즘: 사진 제거) */}
-                                        <div className="bg-zinc-900/30 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl">
+                                        {/* HIGH-DENSITY DATA TABLE (v1.14.6 MASTER - 사진 제거, 밀도 압축) */}
+                                        <div className="bg-zinc-900/30 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1">
                                             <table className="w-full text-left border-collapse">
                                                 <thead className="bg-black/40 border-b border-white/5 italic">
-                                                    <tr className="text-[9px] font-[1000] text-zinc-700 uppercase tracking-widest">
-                                                        <th className="px-5 py-4 text-center w-10">#</th>
-                                                        <th className="px-1 py-4">PLAYER</th>
-                                                        <th className="px-2 py-4 text-center">P</th>
-                                                        <th className="px-2 py-4 text-center text-cyan-500/60">W</th>
-                                                        <th className="px-2 py-4 text-center">L</th>
-                                                        <th className="px-2 py-4 text-center">PF</th>
-                                                        <th className="px-2 py-4 text-center">PA</th>
-                                                        <th className="px-5 py-4 text-right tracking-tighter">+/-</th>
+                                                    <tr className="text-[9px] font-black text-zinc-700 uppercase tracking-widest">
+                                                        <th className="px-4 py-5 text-center w-8">#</th>
+                                                        <th className="px-1 py-5">PLAYER</th>
+                                                        <th className="px-1 py-5 text-right w-6">P</th>
+                                                        <th className="px-1 py-5 text-right w-6 text-cyan-500/80">W</th>
+                                                        <th className="px-1 py-5 text-right w-5">L</th>
+                                                        <th className="px-1 py-5 text-right w-7">PF</th>
+                                                        <th className="px-1 py-5 text-right w-7">PA</th>
+                                                        <th className="px-5 py-5 text-right w-12 tracking-tighter">+/-</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-white/[0.02]">
                                                     {sortedResults.slice(3).map((p, idx) => (
-                                                        <tr key={p.name} className="hover:bg-white/[0.01] transition-colors group italic">
-                                                            <td className="px-5 py-4 text-center text-base font-[1000] text-zinc-800">{idx + 4}</td>
-                                                            <td className="px-1 py-4">
-                                                                <span className="text-[15px] font-[1000] text-zinc-400 uppercase tracking-tight">{p.name}</span>
+                                                        <tr key={p.name} className="hover:bg-white/[0.01] transition-colors group italic font-black">
+                                                            <td className="px-4 py-5 text-center text-[15px] text-zinc-800">{idx + 4}</td>
+                                                            <td className="px-1 py-5">
+                                                                <span className="text-[14px] text-zinc-400 uppercase tracking-tight">{p.name}</span>
                                                             </td>
-                                                            <td className="px-2 py-4 text-center text-[10px] font-[1000] text-zinc-700">{p.played}</td>
-                                                            <td className="px-2 py-4 text-center text-base font-[1000] text-cyan-500/40">{p.wins}</td>
-                                                            <td className="px-2 py-4 text-center text-base font-[1000] text-zinc-900">{p.losses}</td>
-                                                            <td className="px-2 py-4 text-center text-[10px] font-[1000] text-zinc-800">{p.pf}</td>
-                                                            <td className="px-2 py-4 text-center text-[10px] font-[1000] text-zinc-800">{p.pa}</td>
-                                                            <td className={`px-5 py-4 text-right text-base font-[1000] tracking-tighter ${p.diff >= 0 ? 'text-[#C9B075]/60' : 'text-red-900/60'}`}>
+                                                            <td className="px-1 py-5 text-right text-[10px] text-zinc-700">{p.played}</td>
+                                                            <td className="px-1 py-5 text-right text-[14px] text-cyan-500/40">{p.wins}</td>
+                                                            <td className="px-1 py-5 text-right text-[14px] text-zinc-900">{p.losses}</td>
+                                                            <td className="px-1 py-5 text-right text-[10px] text-zinc-800">{p.pf}</td>
+                                                            <td className="px-1 py-5 text-right text-[10px] text-zinc-800">{p.pa}</td>
+                                                            <td className={`px-5 py-5 text-right text-[14px] tracking-tighter ${p.diff >= 0 ? 'text-[#C9B075]/60' : 'text-red-950/60'}`}>
                                                                 {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                             </td>
                                                         </tr>
@@ -265,11 +278,11 @@ export default function ArchivePage() {
                             })()}
                         </div>
 
-                        {/* COMPLETED MATCHES - 경기 결과 리스트 (중앙 정렬 & 음영 강화) */}
-                        <div className="space-y-8 pb-40">
+                        {/* COMPLETED MATCHES - 경기 결과 리스트 (섹션 간격 동기화) */}
+                        <div className="space-y-6 mt-12 pb-40 px-2">
                             <div className="flex items-center gap-4 px-4">
                                 <h3 className="text-xl font-[1000] text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
-                                <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
+                                <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/10 to-transparent"></div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 {selectedSession.matches.map((m: any, idx: number) => {
@@ -279,27 +292,27 @@ export default function ArchivePage() {
                                         <div key={m.id || idx} className="rounded-[28px] flex flex-col overflow-hidden border border-white/5 bg-zinc-900/80 shadow-2xl relative group transition-all">
                                             {/* Header Bar - 중앙 정렬 & 무잘림 고정 */}
                                             <div className="px-4 py-2 bg-black/40 border-b border-white/[0.03] flex justify-center items-center italic">
-                                                <span className="text-[8px] font-[1000] text-zinc-600 tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
+                                                <span className="text-[8px] font-black text-zinc-600 tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
                                             </div>
                                             <div className="px-4 py-6">
-                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-                                                    <div className="flex flex-col gap-0.5 text-center font-[1000]">
+                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 font-black">
+                                                    <div className="flex flex-col gap-0.5 text-center">
                                                         <span className={`text-[11px] italic truncate ${s1 > s2 ? 'text-white' : 'text-zinc-800'}`}>{n[0]}</span>
                                                         <span className={`text-[11px] italic truncate ${s1 > s2 ? 'text-white' : 'text-zinc-800'}`}>{n[1]}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1 px-0.5">
-                                                        <span className={`text-2xl font-[1000] italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-900'}`}>{s1}</span>
+                                                        <span className={`text-2xl italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-900'}`}>{s1}</span>
                                                         <span className="text-zinc-950 font-bold">:</span>
-                                                        <span className={`text-2xl font-[1000] italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-900'}`}>{s2}</span>
+                                                        <span className={`text-2xl italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-900'}`}>{s2}</span>
                                                     </div>
-                                                    <div className="flex flex-col gap-0.5 text-center font-[1000]">
+                                                    <div className="flex flex-col gap-0.5 text-center">
                                                         <span className={`text-[11px] italic truncate ${s2 > s1 ? 'text-white' : 'text-zinc-800'}`}>{n[2]}</span>
                                                         <span className={`text-[11px] italic truncate ${s2 > s1 ? 'text-white' : 'text-zinc-800'}`}>{n[3]}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="bg-black/20 py-2.5 text-center border-t border-white/[0.02]">
-                                                <span className="text-[7px] font-[1000] text-zinc-800 uppercase tracking-[0.2em] italic">Official Registry</span>
+                                                <span className="text-[7px] font-black text-zinc-800 uppercase tracking-[0.2em] italic">Archive Record</span>
                                             </div>
                                         </div>
                                     );
@@ -307,21 +320,21 @@ export default function ArchivePage() {
                             </div>
                         </div>
 
-                        <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-[1000] uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
+                        <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-black uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
                     </div>
                 ) : (
                     /* 2. 세션 리스트 화면 (Level 1) */
                     <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
                         <section className="bg-zinc-900/60 border border-white/5 rounded-[35px] p-6 flex gap-4 shadow-2xl backdrop-blur-3xl">
-                            <div className="flex-1 flex flex-col items-center gap-2 italic font-[1000]">
+                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
                                 <span className="text-[9px] text-zinc-600 uppercase tracking-[0.3em]">Temporal Year</span>
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center">
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
                                     {[2026,2025,2024].map(y=><option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
-                            <div className="flex-1 flex flex-col items-center gap-2 italic font-[1000]">
+                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
                                 <span className="text-[9px] text-zinc-600 uppercase tracking-[0.3em]">Temporal Month</span>
-                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center">
+                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
                                     {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}
                                 </select>
                             </div>
@@ -336,16 +349,16 @@ export default function ArchivePage() {
                                 >
                                     <div className="flex justify-between items-center relative z-10">
                                         <div className="flex flex-col">
-                                            <span className="text-[9px] font-[1000] text-zinc-700 uppercase tracking-[0.3em] italic mb-1.5">{s.date}</span>
-                                            <h3 className="text-lg font-[1000] text-white tracking-tighter uppercase italic group-hover:text-white transition-colors">{s.title}</h3>
-                                            <div className="flex items-center gap-3 mt-2 text-[9px] font-[1000] text-zinc-800 uppercase tracking-widest italic">
+                                            <span className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.3em] italic mb-1.5">{s.date}</span>
+                                            <h3 className="text-lg font-black text-white tracking-tighter uppercase italic group-hover:text-white transition-colors">{s.title}</h3>
+                                            <div className="flex items-center gap-3 mt-2 text-[9px] font-black text-zinc-800 uppercase tracking-widest italic">
                                                 <span>{s.matchCount} ENTRIES RECORDED</span>
                                                 <span className="text-[#C9B075]/40">{index === 0 ? 'LATEST' : 'SYNCED'}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             {isAdmin && (
-                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2.5 rounded-xl bg-zinc-800/30 border border-white/5 text-zinc-800 hover:text-red-900 transition-all font-[1000] italic">
+                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2.5 rounded-xl bg-zinc-800/30 border border-white/5 text-zinc-800 hover:text-red-900 transition-all font-black italic">
                                                     <Trash2 size={14} />
                                                 </button>
                                             )}
@@ -363,8 +376,8 @@ export default function ArchivePage() {
         ) : (
             /* 테연 랭킹 탭 (Ultimate 스타일) */
             <div className="py-40 text-center bg-zinc-900/5 rounded-[40px] border border-zinc-900/50 border-dashed">
-                <p className="text-[10px] font-[1000] uppercase tracking-[0.5em] text-zinc-900 italic">Global Registry Synchronizing</p>
-                <div className="mt-8 px-8 py-3 bg-zinc-900/40 border border-white/5 rounded-2xl inline-block italic text-zinc-800 text-[9px] font-[1000] tracking-widest uppercase animate-pulse">
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-900 italic">Global Registry Synchronizing</p>
+                <div className="mt-8 px-8 py-3 bg-zinc-900/40 border border-white/5 rounded-2xl inline-block italic text-zinc-800 text-[9px] font-black tracking-widest uppercase animate-pulse">
                     Coming Soon to Ultimate Portal
                 </div>
             </div>
