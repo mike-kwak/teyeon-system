@@ -4,13 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Trash2, ArrowRight, ArrowLeft, Users, Trophy } from 'lucide-react';
 
 /**
- * ArchivePage (v1.14.11): THE ABSOLUTE EXECUTION Masterpiece
- * - Visible L (Losses): text-zinc-300 for absolute readability
- * - Edge-to-Edge Grid: Full width distribution to fix left-tilt
- * - Forced Spacing: Physical h-24 Spacer Divs for section separation
+ * ArchivePage (v1.14.14): THE ELITE SESSION CARD
+ * - Luxury Visuals: Glassmorphism + Gold Accents
+ * - Better Data: Shows Participant counts & Match totals
+ * - Perfect Layout: No more left-alignment clipping, balanced spacing
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -108,12 +108,24 @@ export default function ArchivePage() {
         const dateKey = m.match_date || 'nodate';
         const groupKey = `${title}_${dateKey}`;
         if (!groups[groupKey]) {
-            groups[groupKey] = { id: m.session_id, title, date: m.match_date, created_at: m.created_at, matches: [], matchCount: 0 };
+            groups[groupKey] = { 
+                id: m.session_id, 
+                title, 
+                date: m.match_date, 
+                created_at: m.created_at, 
+                matches: [], 
+                matchCount: 0,
+                playerSet: new Set()
+            };
         }
         groups[groupKey].matches.push(m);
         groups[groupKey].matchCount++;
+        (m.player_names || []).forEach((n:string) => groups[groupKey].playerSet.add(n));
     });
-    return Object.values(groups).sort((a:any, b:any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+    return Object.values(groups)
+      .map(s => ({ ...s, participantCount: s.playerSet.size }))
+      .sort((a:any, b:any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }, [filteredRecords]);
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
@@ -137,18 +149,23 @@ export default function ArchivePage() {
           <div className="h-[2px] w-full bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent mt-3 shadow-[0_4px_15px_rgba(201,176,117,0.3)]"></div>
       </header>
 
-      {!selectedSessionId && (
-        <nav className="px-6 mt-4 mb-10 flex gap-2.5">
-            {(['RECORDS', 'RANKING'] as const).map(t => (
-                <button 
-                    key={t} onClick={() => setMainTab(t)}
-                    className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic ${mainTab === t ? 'bg-zinc-100 text-black shadow-xl shadow-white/5' : 'bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-zinc-200'}`}
-                >
-                    {t === 'RECORDS' ? '경기 기록' : '테연 랭킹'}
-                </button>
-            ))}
-        </nav>
-      )}
+      {/* 상시 노출 골든 탭 */}
+      <nav className="px-6 mt-6 mb-8 flex gap-2.5 relative z-[90]">
+          {(['RECORDS', 'RANKING'] as const).map(t => (
+              <button 
+                  key={t} onClick={() => {
+                    setMainTab(t);
+                    if (t === 'RECORDS') setSelectedSessionId(null);
+                  }}
+                  className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic 
+                  ${mainTab === t 
+                    ? 'bg-gradient-to-r from-[#C9B075] via-[#f0e68c] to-[#C9B075] text-black shadow-xl shadow-yellow-600/20 scale-[1.02] border border-[#C9B075]/50' 
+                    : 'bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-zinc-200'}`}
+              >
+                  {t === 'RECORDS' ? '경기 기록' : '태연 랭킹'}
+              </button>
+          ))}
+      </nav>
 
       <section className="flex-1 px-3">
         {loading ? (
@@ -161,13 +178,13 @@ export default function ArchivePage() {
                 {selectedSessionId && selectedSession ? (
                     <div className="animate-in slide-in-from-right duration-500">
                         {/* 럭셔리 세션 헤더 */}
-                        <div className="flex flex-col gap-2 px-6 mb-12">
+                        <div className="flex flex-col gap-2 px-6 mb-8">
                             <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
                         {/* 포디움 섹션 */}
-                        <div className="flex items-center gap-4 px-6 mb-8 mt-12">
+                        <div className="flex items-center gap-4 px-6 mb-6 mt-10">
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
                             <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
                         </div>
@@ -236,49 +253,46 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    {/* 화살표 1: 최적의 여백 확보 */}
+                                    {/* 수평 비례 정밀 교정 (v1.14.13 기반 리듬 유지) */}
                                     <div className="h-6 w-full" aria-hidden="true" />
-
-                                    {/* OPTIMAL BALANCE GRID (v1.14.12 - 우측 잘림 방지, 데이터 정렬 교정) */}
-                                    <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 w-full">
-                                        {/* Header */}
-                                        <div className="bg-black/60 border-b border-white/10 italic py-4 px-5 grid grid-cols-[30px_1fr_32px_32px_32px_38px_38px_50px] gap-0 items-center w-full">
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest pl-2">PLAYER</span>
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">P</span>
-                                            <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest text-right">W</span>
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">L</span>
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PF</span>
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PA</span>
-                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right pr-2">+/-</span>
-                                        </div>
-                                        {/* Rows */}
-                                        <div className="divide-y divide-white/[0.03]">
-                                            {sortedResults.slice(3).map((p, idx) => (
-                                                <div key={p.name} className="py-5 px-5 grid grid-cols-[30px_1fr_32px_32px_32px_38px_38px_50px] gap-0 items-center italic font-black hover:bg-white/[0.02] transition-colors group">
-                                                    <span className="text-[14px] text-zinc-800 text-center">{idx + 4}</span>
-                                                    <span className="text-[14px] text-zinc-100 uppercase tracking-tight truncate pl-2">{p.name}</span>
-                                                    <span className="text-[11px] text-zinc-700 text-right">{p.played}</span>
-                                                    <span className="text-[14px] text-cyan-500/80 text-right">{p.wins}</span>
-                                                    <span className="text-[14px] text-zinc-300 text-right">{p.losses}</span>
-                                                    <span className="text-[11px] text-zinc-800 text-right">{p.pf}</span>
-                                                    <span className="text-[11px] text-zinc-800 text-right">{p.pa}</span>
-                                                    <span className={`text-[14px] text-right font-black tracking-tighter pr-2 ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
-                                                        {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 w-full flex flex-col items-center">
+                                        <div className="w-full px-4 sm:px-6"> 
+                                            <div className="bg-black/40 border-b border-white/10 italic py-4 grid grid-cols-[24px_95px_32px_32px_32px_35px_35px_45px] gap-1 justify-center items-center w-full">
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest pl-1">PLAYER</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">P</span>
+                                                <span className="text-[9px] font-black text-cyan-500 uppercase tracking-widest text-center">W</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">L</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">PF</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">PA</span>
+                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">+/-</span>
+                                            </div>
+                                            <div className="divide-y divide-white/[0.03]">
+                                                {sortedResults.slice(3).map((p, idx) => (
+                                                    <div key={p.name} className="py-4 grid grid-cols-[24px_95px_32px_32px_32px_35px_35px_45px] gap-1 justify-center items-center italic font-black hover:bg-white/[0.02] transition-colors group">
+                                                        <span className="text-[14px] text-zinc-800 text-center">{idx + 4}</span>
+                                                        <span className="text-[14px] text-zinc-100 uppercase tracking-tight truncate pl-1">{p.name}</span>
+                                                        <span className="text-[11px] text-zinc-700 text-center">{p.played}</span>
+                                                        <span className="text-[14px] text-cyan-500/80 text-center">{p.wins}</span>
+                                                        <span className="text-[14px] text-zinc-300 text-center">{p.losses}</span>
+                                                        <span className="text-[11px] text-zinc-800 text-center">{p.pf}</span>
+                                                        <span className="text-[11px] text-zinc-800 text-center">{p.pa}</span>
+                                                        <span className={`text-[14px] text-center font-black tracking-tighter ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
+                                                            {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </>
                             );
                         })()}
 
-                        {/* 화살표 2: 최적의 여백 확보 */}
                         <div className="h-6 w-full" aria-hidden="true" />
 
                         {/* COMPLETED MATCHES */}
-                        <div className="space-y-8 pb-40 px-2 mt-4">
+                        <div className="space-y-6 pb-40 px-2 mt-4">
                             <div className="flex items-center gap-4 px-6">
                                 <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/10 to-transparent"></div>
@@ -322,7 +336,7 @@ export default function ArchivePage() {
                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-black uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
                     </div>
                 ) : (
-                    /* 2. 세션 리스트 화면 */
+                    /* 2. 세션 리스트 화면 (ELITE SESSION CARD - v1.14.14 개편) */
                     <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
                         <section className="bg-zinc-900/60 border border-white/5 rounded-[35px] p-6 flex gap-4 shadow-2xl backdrop-blur-3xl">
                             <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
@@ -339,33 +353,60 @@ export default function ArchivePage() {
                             </div>
                         </section>
 
-                        <div className="space-y-4">
+                        <div className="space-y-6"> {/* 카드 간 간격 정밀 조정 */}
                             {sessions.map((s, index) => (
                                 <div 
                                     key={s.id} 
                                     onClick={() => setSelectedSessionId(s.id)}
-                                    className="group bg-zinc-900/80 border border-white/5 rounded-[28px] p-5 relative overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/20 shadow-2xl"
+                                    className="group relative backdrop-blur-3xl bg-zinc-900/40 border border-white/5 rounded-[32px] p-6 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/40 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)]"
                                 >
-                                    <div className="flex justify-between items-center relative z-10">
-                                        <div className="flex flex-col">
-                                            <span className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.3em] italic mb-1.5">{s.date}</span>
-                                            <h3 className="text-lg font-black text-white tracking-tighter uppercase italic group-hover:text-white transition-colors">{s.title}</h3>
-                                            <div className="flex items-center gap-3 mt-2 text-[9px] font-black text-zinc-800 uppercase tracking-widest italic">
-                                                <span>{s.matchCount} ENTRIES RECORDED</span>
-                                                <span className="text-[#C9B075]/40">{index === 0 ? 'LATEST' : 'SYNCED'}</span>
-                                            </div>
+                                    {/* 럭셔리 골드 데이트 배지 */}
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#C9B075] to-[#f0e68c] shadow-lg shadow-yellow-600/10">
+                                            <span className="text-[10px] font-black text-black uppercase tracking-widest italic">{s.date}</span>
                                         </div>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            {index === 0 && (
+                                                <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest italic animate-pulse">LATEST SYSTEM RECORD</span>
+                                            )}
                                             {isAdmin && (
-                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2.5 rounded-xl bg-zinc-800/30 border border-white/5 text-zinc-800 hover:text-red-900 transition-all font-black italic">
+                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2 rounded-xl bg-black/20 border border-white/5 text-zinc-600 hover:text-red-500 transition-all">
                                                     <Trash2 size={14} />
                                                 </button>
                                             )}
-                                            <div className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-zinc-800 group-hover:text-[#C9B075]/60 transition-all">
-                                                <ArrowRight size={18} />
-                                            </div>
                                         </div>
                                     </div>
+
+                                    {/* 밸런스 잡힌 타이틀 (Clipping 완벽 차단) */}
+                                    <div className="mb-8 px-1">
+                                        <h3 className="text-2xl font-[1000] text-white tracking-tighter uppercase italic leading-tight group-hover:text-[#C9B075] transition-colors break-all">
+                                            {s.title}
+                                        </h3>
+                                    </div>
+
+                                    {/* 고밀도 럭셔리 스탯 라인 */}
+                                    <div className="flex items-center justify-between pt-4 border-t border-white/[0.03]">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-1.5">
+                                                <Users size={14} className="text-[#C9B075] opacity-60" />
+                                                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
+                                                    Participants: <span className="text-white ml-1">{s.participantCount}</span>
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Trophy size={14} className="text-[#C9B075] opacity-60" />
+                                                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">
+                                                    Matches: <span className="text-white ml-1">{s.matchCount}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-black/40 border border-white/5 flex items-center justify-center text-[#C9B075] group-hover:bg-[#C9B075] group-hover:text-black transition-all">
+                                            <ArrowRight size={18} />
+                                        </div>
+                                    </div>
+
+                                    {/* 배경 데코레이션 */}
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#C9B075] opacity-[0.03] blur-[60px] pointer-events-none group-hover:opacity-[0.06] transition-opacity"></div>
                                 </div>
                             ))}
                         </div>
