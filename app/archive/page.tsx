@@ -184,10 +184,10 @@ export default function ArchivePage() {
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
-                        {/* 포디움 섹션 */}
-                        <div className="flex items-center gap-4 px-2 mb-6 mt-10">
-                            <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
-                            <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
+                        {/* 시그니처 섹션 헤더: RANKING UPDATES */}
+                        <div className="flex flex-col gap-1 px-4 mb-8 mt-10">
+                            <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
+                            <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                         </div>
                         
                         {(() => {
@@ -291,12 +291,12 @@ export default function ArchivePage() {
 
                         <div className="h-6 w-full" aria-hidden="true" />
 
-                        {/* COMPLETED MATCHES */}
-                        <div className="space-y-6 pb-40 px-1 mt-4">
-                            <div className="flex items-center gap-4 px-2">
-                                <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
-                                <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/10 to-transparent"></div>
-                            </div>
+                        {/* 시그니처 섹션 헤더: COMPLETED MATCHES */}
+                        <div className="flex flex-col gap-1 px-4 mb-4 mt-16">
+                            <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">COMPLETED MATCHES</h3>
+                            <div className="h-[2px] w-64 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
+                        </div>
+                        <div className="space-y-6 pb-40 px-1">
                             <div className="grid grid-cols-2 gap-4">
                                 {selectedSession.matches.map((m: any, idx: number) => {
                                     const n = m.player_names || ["?","?","?","?"];
