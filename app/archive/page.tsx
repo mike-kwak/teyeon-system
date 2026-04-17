@@ -195,11 +195,14 @@ export default function ArchivePage() {
                         </div>
 
                          {/* 시그니처 섹션 헤더: RANKING UPDATES */}
-                        <div className="flex flex-col gap-1 px-4 mb-20 mt-10 relative">
-                            <span className="absolute -top-6 left-4 text-[10px] font-bold text-lime-400 tracking-widest uppercase animate-pulse">v1.16.1 LIVE</span>
+                        <div className="flex flex-col gap-1 px-4 mb-10 mt-10 relative">
+                            <span className="absolute -top-6 left-4 text-[10px] font-bold text-purple-400 tracking-widest uppercase animate-pulse">v1.16.2 ULTIMATE</span>
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
-                            <div className="h-[2px] w-48 bg-gradient-to-r from-lime-400 via-[#C9B075] to-transparent shadow-[0_4px_15px_rgba(163,230,53,0.3)] mt-1"></div>
+                            <div className="h-[2px] w-48 bg-gradient-to-r from-purple-500 via-[#C9B075] to-transparent shadow-[0_4px_15px_rgba(168,85,247,0.3)] mt-1"></div>
                         </div>
+
+                        {/* FORCED PHYSICAL GAP (v1.16.2) */}
+                        <div style={{ height: '300px' }} aria-hidden="true" />
 
                         {(() => {
                             const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
@@ -222,8 +225,11 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    {/* CHAMPION PODIUM (Decisive Padding Over Margin) */}
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto pt-[250px] pb-10 mt-0">
+                                    {/* CHAMPION PODIUM (Absolutely Forced Offset) */}
+                                    <div 
+                                        style={{ marginTop: '100px' }}
+                                        className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto pb-10"
+                                    >
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
