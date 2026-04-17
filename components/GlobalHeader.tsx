@@ -109,6 +109,59 @@ const StatusDot = styled('div', {
   boxShadow: '0 0 10px #4CAF50',
 });
 
+const LogoTextContainer = styled('span', {
+  fontSize: '20px',
+  fontFamily: '$sporty',
+  fontWeight: 950,
+  color: '$white',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  fontStyle: 'italic',
+  display: 'flex',
+  alignItems: 'baseline',
+  gap: '4px',
+  background: 'linear-gradient(90deg, #FFFFFF 0%, #D4AF37 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  dropShadow: '0 0 20px rgba(212, 175, 55, 0.4)',
+});
+
+const GlowBadge = styled('div', {
+  padding: '6px 16px',
+  borderRadius: '$full',
+  fontSize: '10px',
+  fontFamily: '$sporty',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.2em',
+  background: 'rgba(212, 175, 55, 0.1)',
+  border: '1px solid rgba(212, 175, 55, 0.4)',
+  color: '#D4AF37',
+  boxShadow: '0 0 15px rgba(212, 175, 55, 0.2), inset 0 0 10px rgba(212, 175, 55, 0.1)',
+  transition: 'all 0.3s ease',
+  cursor: 'pointer',
+  position: 'relative',
+  overflow: 'hidden',
+
+  '&:hover': {
+    background: 'rgba(212, 175, 55, 0.2)',
+    boxShadow: '0 0 25px rgba(212, 175, 55, 0.5), inset 0 0 15px rgba(212, 175, 55, 0.2)',
+    transform: 'translateY(-1px) scale(1.05)',
+  },
+
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    top: '-50%',
+    left: '-50%',
+    width: '200%',
+    height: '200%',
+    background: 'linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent)',
+    transform: 'rotate(45deg)',
+    animation: `${shimmer} 3s infinite`,
+  }
+});
+
 export default function GlobalHeader() {
   const { user, role, isLoading } = useAuth();
 
@@ -126,30 +179,27 @@ export default function GlobalHeader() {
 
   return (
     <HeaderContainer>
-      <div className="flex items-center justify-between w-full px-6">
+      <div className="flex items-center justify-between w-full px-8">
         <LogoLink href="/">
-          <span 
-            className="text-[18px] font-[1000] text-[#C9B075] tracking-[0.2em] uppercase transition-all duration-300 drop-shadow-[0_4px_6px_rgba(201,176,117,0.3)] hover:text-[#EFDFB4] hover:drop-shadow-[0_0_12px_rgba(239,223,180,0.4)]"
-            style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
-          >
-            TEYEON
-            <span className="ml-1 text-[8px] opacity-20 font-light lowercase tracking-normal">v7.0 (ABSOLUTE)</span>
-          </span>
+           <LogoTextContainer>
+             TEYEON
+             <span className="text-[8px] opacity-30 font-light lowercase tracking-normal bg-none WebkitTextFillColor-white">v7.0 (absolute)</span>
+           </LogoTextContainer>
         </LogoLink>
 
         <UserSection>
           {user && !isLoading && (
-            <div className="flex items-center gap-3">
-              <RoleBadge className="bg-[#2A2A2A] text-[#C9B075] border-[#C9B075]/20 text-[10px] px-3 py-1 rounded-full font-black tracking-widest uppercase shadow-inner">
+            <div className="flex items-center gap-4">
+              <GlowBadge>
                  {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
-              </RoleBadge>
+              </GlowBadge>
               <Link href="/profile">
                 <ProfileAvatar 
                   src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
                   alt={user.user_metadata?.full_name} 
-                  size={32}
+                  size={36}
                   fallbackIcon={role === 'CEO' ? '👑' : '👤'}
-                  className="border border-[#C9B075]/30 shadow-[0_0_15px_rgba(201,176,117,0.2)] rounded-full transition-all hover:scale-110 active:scale-90"
+                  className="border-2 border-[#D4AF37]/30 shadow-[0_0_20px_rgba(212,175,55,0.3)] rounded-full transition-all hover:scale-110 hover:border-[#D4AF37] active:scale-95"
                 />
               </Link>
             </div>
