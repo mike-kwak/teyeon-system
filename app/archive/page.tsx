@@ -7,10 +7,10 @@ import { useAuth } from '@/context/AuthContext';
 import { Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 /**
- * ArchivePage (v1.14.10): THE PERFECT BALANCE Masterpiece
- * - Visible L (Losses): text-zinc-500 for high readability
- * - Full-Width Layout: Use card's whole width for data alignment
- * - Massive Spacing: Significant margins between Podium, Table, and Matches
+ * ArchivePage (v1.14.11): THE ABSOLUTE EXECUTION Masterpiece
+ * - Visible L (Losses): text-zinc-300 for absolute readability
+ * - Edge-to-Edge Grid: Full width distribution to fix left-tilt
+ * - Forced Spacing: Physical h-24 Spacer Divs for section separation
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -161,120 +161,124 @@ export default function ArchivePage() {
                 {selectedSessionId && selectedSession ? (
                     <div className="animate-in slide-in-from-right duration-500">
                         {/* 럭셔리 세션 헤더 */}
-                        <div className="flex flex-col gap-2 px-6 mb-16">
+                        <div className="flex flex-col gap-2 px-6 mb-12">
                             <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
                         </div>
 
-                        {/* PREMIUM PODIUM */}
-                        <div className="space-y-4 mb-20"> {/* 화살표 1 지점 여백 확보 */}
-                            <div className="flex items-center gap-4 px-6 mb-8">
-                                <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
-                                <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
-                            </div>
-                            
-                            {(() => {
-                                const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
-                                selectedSession.matches.forEach((m: any) => {
-                                    const pNames = m.player_names || [];
-                                    const pAvatars = m.player_avatars || [];
-                                    pNames.forEach((name: string, i: number) => {
-                                        if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[i] || '', played: 0 };
-                                        const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                        const win = i < 2 ? (s1 > s2) : (s2 > s1);
-                                        stats[name].played++;
-                                        if (win) stats[name].wins++; else stats[name].losses++;
-                                        stats[name].pf += (i < 2 ? s1 : s2);
-                                        stats[name].pa += (i < 2 ? s2 : s1);
-                                        stats[name].diff = stats[name].pf - stats[name].pa;
-                                    });
+                        {/* 포디움 섹션 */}
+                        <div className="flex items-center gap-4 px-6 mb-8 mt-12">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">RANKING UPDATES</h3>
+                            <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/20 to-transparent"></div>
+                        </div>
+                        
+                        {(() => {
+                            const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
+                            selectedSession.matches.forEach((m: any) => {
+                                const pNames = m.player_names || [];
+                                const pAvatars = m.player_avatars || [];
+                                pNames.forEach((name: string, i: number) => {
+                                    if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[i] || '', played: 0 };
+                                    const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                    const win = i < 2 ? (s1 > s2) : (s2 > s1);
+                                    stats[name].played++;
+                                    if (win) stats[name].wins++; else stats[name].losses++;
+                                    stats[name].pf += (i < 2 ? s1 : s2);
+                                    stats[name].pa += (i < 2 ? s2 : s1);
+                                    stats[name].diff = stats[name].pf - stats[name].pa;
                                 });
-                                const sortedResults = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
-                                const top3 = sortedResults.slice(0, 3);
+                            });
+                            const sortedResults = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
+                            const top3 = sortedResults.slice(0, 3);
 
-                                return (
-                                    <>
-                                        {/* HIGH-VISIBILITY PODIUM (v1.14.8 아이콘 강화 버전 유지) */}
-                                        <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto mb-20"> {/* 확실한 띄우기! */}
-                                            {[1, 0, 2].map((idx) => {
-                                                const p = top3[idx];
-                                                if (!p) return <div key={idx} className="flex-1 h-2" />;
-                                                const isFirst = idx === 0;
-                                                const widthClass = isFirst ? 'w-[45%]' : 'w-[28%]';
-                                                const rankEmoji = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : '🥉');
-                                                
-                                                return (
-                                                    <div key={p.name} className={`relative ${widthClass} flex flex-col justify-end`}>
-                                                        <div className="bg-white/5 backdrop-blur-3xl rounded-[30px] border-t border-t-white/20 border-l border-l-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.2)] flex flex-col items-center pt-8 pb-6 w-full relative">
-                                                            <div className={`
-                                                                flex items-center justify-center rounded-full bg-zinc-900 border border-white/10 relative shadow-2xl mb-4 overflow-hidden
-                                                                ${isFirst ? 'w-16 h-16 border-[#C9B075]/60' : 'w-12 h-12'}
-                                                            `}>
-                                                                {p.avatar ? (
-                                                                    <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <span className={`${isFirst ? 'text-4xl' : 'text-2xl'} select-none text-[#C9B075] drop-shadow-[0_0_15px_rgba(201,176,117,1)] opacity-100 font-bold`}>
-                                                                        {rankEmoji}
-                                                                    </span>
-                                                                )}
+                            return (
+                                <>
+                                    {/* HIGH-VISIBILITY PODIUM */}
+                                    <div className="flex items-end justify-center gap-2 w-full px-2 max-w-2xl mx-auto">
+                                        {[1, 0, 2].map((idx) => {
+                                            const p = top3[idx];
+                                            if (!p) return <div key={idx} className="flex-1 h-2" />;
+                                            const isFirst = idx === 0;
+                                            const widthClass = isFirst ? 'w-[45%]' : 'w-[28%]';
+                                            const rankEmoji = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : '🥉');
+                                            
+                                            return (
+                                                <div key={p.name} className={`relative ${widthClass} flex flex-col justify-end`}>
+                                                    <div className="bg-white/5 backdrop-blur-3xl rounded-[30px] border-t border-t-white/20 border-l border-l-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.2)] flex flex-col items-center pt-8 pb-6 w-full relative">
+                                                        <div className={`
+                                                            flex items-center justify-center rounded-full bg-zinc-900 border border-white/10 relative shadow-2xl mb-4 overflow-hidden
+                                                            ${isFirst ? 'w-16 h-16 border-[#C9B075]/60' : 'w-12 h-12'}
+                                                        `}>
+                                                            {p.avatar ? (
+                                                                <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span className={`${isFirst ? 'text-4xl' : 'text-2xl'} select-none text-[#C9B075] drop-shadow-[0_0_15px_rgba(201,176,117,1)] opacity-100 font-bold`}>
+                                                                    {rankEmoji}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex flex-col items-center gap-2 w-full px-2">
+                                                            <div className={`font-black text-white text-center truncate w-full tracking-tighter italic ${isFirst ? 'text-lg' : 'text-[12px]'}`}>
+                                                                {p.name}
                                                             </div>
-
-                                                            <div className="flex flex-col items-center gap-2 w-full px-2">
-                                                                <div className={`font-black text-white text-center truncate w-full tracking-tighter italic ${isFirst ? 'text-lg' : 'text-[12px]'}`}>
-                                                                    {p.name}
-                                                                </div>
-                                                                <div className="flex items-center gap-1.5 font-black tracking-widest uppercase text-[9px] italic opacity-80">
+                                                            <div className="flex items-center gap-1.5 font-black tracking-widest uppercase text-[9px] italic opacity-80">
                                                                     <span className="text-white">{p.wins}승 {p.losses}패</span>
                                                                     <span className="opacity-20">/</span>
                                                                     <span className={p.diff > 0 ? 'text-[#00e5ff]' : 'text-white'}>
                                                                         {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                                     </span>
-                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
 
-                                        {/* FULL-WIDTH BALANCE GRID (v1.14.10 - 왼쪽 쏠림 박멸, L 색상 수혈) */}
-                                        <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 mb-24"> {/* 화살표 2 지점 여백 확보 */}
-                                            {/* Header - Full Width 구조 */}
-                                            <div className="bg-black/60 border-b border-white/10 italic py-4 px-5 grid grid-cols-[30px_1fr_35px_35px_35px_42px_42px_55px] gap-0 items-center w-full">
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest pl-2">PLAYER</span>
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">P</span>
-                                                <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest text-right">W</span>
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">L</span>
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PF</span>
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PA</span>
-                                                <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right pr-2">+/-</span>
-                                            </div>
-                                            {/* Rows - Full Width 구조 */}
-                                            <div className="divide-y divide-white/[0.03]">
-                                                {sortedResults.slice(3).map((p, idx) => (
-                                                    <div key={p.name} className="py-5 px-5 grid grid-cols-[30px_1fr_35px_35px_35px_42px_42px_55px] gap-0 items-center italic font-black hover:bg-white/[0.02] transition-colors group">
-                                                        <span className="text-[15px] text-zinc-800 text-center">{idx + 4}</span>
-                                                        <span className="text-[15px] text-zinc-100 uppercase tracking-tight truncate pl-2">{p.name}</span>
-                                                        <span className="text-[11px] text-zinc-700 text-right">{p.played}</span>
-                                                        <span className="text-[15px] text-cyan-500/60 text-right">{p.wins}</span>
-                                                        <span className="text-[15px] text-zinc-500/60 text-right">{p.losses}</span> {/* L 색상: 검정 탈피! */}
-                                                        <span className="text-[11px] text-zinc-800 text-right">{p.pf}</span>
-                                                        <span className="text-[11px] text-zinc-800 text-right">{p.pa}</span>
-                                                        <span className={`text-[15px] text-right font-black tracking-tighter pr-2 ${p.diff >= 0 ? 'text-[#C9B075]/80' : 'text-red-950/80'}`}>
-                                                            {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                        </div>
+                                    {/* 화살표 1: 강제 물리적 공간 확보 (Spacer) */}
+                                    <div className="h-24 w-full" aria-hidden="true" />
 
-                        {/* COMPLETED MATCHES - 웅장한 여백(mt-12 추가 확보) */}
-                        <div className="mt-28 space-y-8 pb-40 px-2"> {/* mt-20 -> mt-28 상향 */}
+                                    {/* EDGE-TO-EDGE BOLD GRID (v1.14.11 - 왼쪽 쏠림 박멸, L 색상 완전 복구) */}
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 w-full">
+                                        {/* Header - Full Edge 구조 */}
+                                        <div className="bg-black/60 border-b border-white/10 italic py-5 px-6 grid grid-cols-[30px_1fr_42px_42px_42px_48px_48px_58px] gap-0 items-center w-full">
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest pl-2">PLAYER</span>
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">P</span>
+                                            <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest text-right">W</span>
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">L</span>
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PF</span>
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right">PA</span>
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest text-right pr-2">+/-</span>
+                                        </div>
+                                        {/* Rows - Full Edge 구조 */}
+                                        <div className="divide-y divide-white/[0.03]">
+                                            {sortedResults.slice(3).map((p, idx) => (
+                                                <div key={p.name} className="py-6 px-6 grid grid-cols-[30px_1fr_42px_42px_42px_48px_48px_58px] gap-0 items-center italic font-black hover:bg-white/[0.02] transition-colors group">
+                                                    <span className="text-[16px] text-zinc-800 text-center">{idx + 4}</span>
+                                                    <span className="text-[16px] text-zinc-100 uppercase tracking-tight truncate pl-2">{p.name}</span>
+                                                    <span className="text-[12px] text-zinc-700 text-right">{p.played}</span>
+                                                    <span className="text-[16px] text-cyan-500/80 text-right">{p.wins}</span>
+                                                    <span className="text-[16px] text-zinc-300 text-right">{p.losses}</span> {/* L 색상: 완전 선명! */}
+                                                    <span className="text-[12px] text-zinc-800 text-right">{p.pf}</span>
+                                                    <span className="text-[12px] text-zinc-800 text-right">{p.pa}</span>
+                                                    <span className={`text-[16px] text-right font-black tracking-tighter pr-2 ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
+                                                        {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
+
+                        {/* 화살표 2: 강제 물리적 공간 확보 (Spacer) */}
+                        <div className="h-24 w-full" aria-hidden="true" />
+
+                        {/* COMPLETED MATCHES */}
+                        <div className="space-y-8 pb-40 px-2 mt-4">
                             <div className="flex items-center gap-4 px-6">
                                 <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">COMPLETED MATCHES</h3>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C9B075]/10 to-transparent"></div>
