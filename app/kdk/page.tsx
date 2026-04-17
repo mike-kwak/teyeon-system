@@ -2623,10 +2623,10 @@ export default function KDKPage() {
                         </div>
                         <div className="space-y-4">
                             <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(201,176,117,0.8)]">
-                                Championship<br />Archived
+                                Match<br />Completed
                             </h2>
                             <p className="text-[#C9B075] text-xs font-black uppercase tracking-[0.6em] animate-pulse">
-                                대회가 명예의 전당에 박제되었습니다
+                                테연 클럽 아카이브 저장 완료!
                             </p>
                         </div>
                         <div className="flex gap-3">
