@@ -185,7 +185,7 @@ export default function ArchivePage() {
                         </div>
 
                         {/* 시그니처 섹션 헤더: RANKING UPDATES */}
-                        <div className="flex flex-col gap-1 px-4 mb-8 mt-10">
+                        <div className="flex flex-col gap-1 px-4 mb-12 mt-10">
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
                             <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                         </div>
@@ -195,14 +195,14 @@ export default function ArchivePage() {
                             selectedSession.matches.forEach((m: any) => {
                                 const pNames = m.player_names || [];
                                 const pAvatars = m.player_avatars || [];
-                                pNames.forEach((name: string, i: number) => {
-                                    if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[i] || '', played: 0 };
+                                pNames.forEach((name: string, j: number) => {
+                                    if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[j] || '', played: 0 };
                                     const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                    const win = i < 2 ? (s1 > s2) : (s2 > s1);
+                                    const win = j < 2 ? (s1 > s2) : (s2 > s1);
                                     stats[name].played++;
                                     if (win) stats[name].wins++; else stats[name].losses++;
-                                    stats[name].pf += (i < 2 ? s1 : s2);
-                                    stats[name].pa += (i < 2 ? s2 : s1);
+                                    stats[name].pf += (j < 2 ? s1 : s2);
+                                    stats[name].pa += (j < 2 ? s2 : s1);
                                     stats[name].diff = stats[name].pf - stats[name].pa;
                                 });
                             });
@@ -212,7 +212,7 @@ export default function ArchivePage() {
                             return (
                                 <>
                                     {/* REFINED HIGH-VISIBILITY PODIUM */}
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-2 mb-2">
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-6 mb-2">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
@@ -221,7 +221,7 @@ export default function ArchivePage() {
                                             return (
                                                 <div 
                                                     key={p.name} 
-                                                    className={`relative flex flex-col items-center p-3 pb-8 rounded-[36px] border border-white/5 backdrop-blur-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-300 ${isFirst ? 'w-[42%] bg-zinc-900 border-white/10 scale-110 z-10 -mt-2' : 'w-[30%] bg-zinc-900/40 opacity-80'}`}
+                                                    className={`relative flex flex-col items-center p-3 pb-8 rounded-[36px] border border-white/5 backdrop-blur-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-300 ${isFirst ? 'w-[42%] bg-zinc-900 border-white/10 scale-110 z-10' : 'w-[30%] bg-zinc-900/40 opacity-80'}`}
                                                 >
                                                     <div className="w-full flex flex-col items-center mt-2">
                                                         {/* Avatar */}
