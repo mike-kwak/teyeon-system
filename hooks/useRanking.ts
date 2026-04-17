@@ -24,9 +24,23 @@ export function useRanking(
     attendeeConfigs: Record<string, AttendeeConfig>
 ) {
     // 1. Calculate Player Stats from completed matches
-    const playerStats = useMemo(() => {
+    const playerStatsData = useMemo(() => {
         const res: Record<string, RankStats> = {};
-        matches?.filter(m => m?.status === 'complete')?.forEach(m => {
+        const nameMap: Record<string, string> = {};
+
+        matches?.forEach(m => {
+            // [v35.8.4] Build a name map from all matches (not just complete ones) to assist in name recovery
+            if (m?.playerIds && m?.player_names) {
+                m.playerIds.forEach((pid, idx) => {
+                    const pName = m.player_names?.[idx];
+                    if (pName && !pName.startsWith('g-')) {
+                        nameMap[pid] = pName;
+                    }
+                });
+            }
+
+            if (m?.status !== 'complete') return;
+            
             m?.playerIds?.forEach((pid, idx) => {
                 if (!res[pid]) res[pid] = { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 };
                 const isTeam1 = idx < 2;
@@ -43,8 +57,11 @@ export function useRanking(
                 res[pid].diff += d;
             });
         });
-        return res;
+        return { stats: res, nameLookup: nameMap };
     }, [matches]);
+
+    const playerStats = playerStatsData.stats;
+    const nameLookup = playerStatsData.nameLookup;
 
     // 2. Compute Base Ranking (Primary logic for sorting)
     const baseRanking = useMemo(() => {
@@ -54,10 +71,12 @@ export function useRanking(
 
         return participantIds.map(id => {
             const m = (allMembers || []).find(x => x?.id === id) || (tempGuests || []).find(x => x?.id === id);
-            const conf = attendeeConfigs?.[id] || { name: m?.nickname || id, group: 'A', is_guest: m?.is_guest, age: m?.age || 99 };
+            const resolvedName = m?.nickname || nameLookup[id] || id;
+
+            const conf = attendeeConfigs?.[id] || { name: resolvedName, group: 'A', is_guest: m?.is_guest, age: m?.age || 99 };
             return {
                 id,
-                name: m?.nickname || id,
+                name: resolvedName,
                 is_guest: m?.is_guest || conf?.is_guest,
                 avatar: m?.avatar_url || '',
                 group: conf?.group || 'A',
