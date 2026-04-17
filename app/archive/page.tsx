@@ -146,7 +146,7 @@ export default function ArchivePage() {
             if (!existing) {
                 combinedData.push(d);
             } else {
-                // If ID matches, replace ONLY if server data is newer
+                // If ID matches, replace ONLY if server data is newer or has more raw_data
                 const existingTime = new Date(existing.created_at || 0).getTime();
                 const newTime = new Date(d.created_at || 0).getTime();
                 if (newTime > existingTime) {
@@ -156,18 +156,27 @@ export default function ArchivePage() {
             }
         });
 
+        // v13: Pre-sort combined data by created_at DESC before any reconstruction
+        combinedData.sort((a,b) => {
+            const tA = new Date(a.created_at || 0).getTime();
+            const tB = new Date(b.created_at || 0).getTime();
+            return tB - tA;
+        });
+
         // v7: Reconstruction of flat match array
         const reconstructedMatches: any[] = [];
         combinedData.forEach(record => {
             const raw = record.raw_data || {};
-            const matches = raw.snapshot_data || [];
+            const matchesArr = raw.snapshot_data || [];
+            if (matchesArr.length === 0) return; // Skip empty records
+
             const isLocal = !!record.failover || !!record.isLocal;
             
-            matches.forEach((m: any) => {
+            matchesArr.forEach((m: any) => {
                 const pIds = m.player_ids || m.playerIds || [];
                 const meta = raw.player_metadata || {};
                 
-                // v11: Identity Resolution - 1. Snapshot Names -> 2. Metadata Fallback -> 3. Unknown
+                // v11: Identity Resolution
                 const resolvedNames = (m.player_names && m.player_names.length === 4 && !m.player_names.includes('Unknown'))
                     ? m.player_names
                     : pIds.map((pid: string) => meta[pid]?.name || 'Unknown');
@@ -177,6 +186,7 @@ export default function ArchivePage() {
                     session_id: record.id,
                     session_title: `${raw.title}${isLocal ? ' (로컬 저장됨)' : ''}`,
                     match_date: raw.date,
+                    created_at: record.created_at, // Preserve session created_at for sorting
                     isLocal,
                     player_names: resolvedNames,
                     player_ids: pIds
@@ -471,10 +481,10 @@ export default function ArchivePage() {
   });
 
   const sessions = useMemo(() => {
-    // [v1.2.0] Enhanced Deduplication logic by Title & Date
+    // [v1.2.2] Aggressive Deduplication by Title (ignores unique push IDs)
     const groups: Record<string, any> = {};
     
-    // Sort records by created_at DESC first to ensure we pick the latest when grouping
+    // 1. Sort base records by created_at DESC (Newest push first)
     const sortedRecords = [...filteredRecords].sort((a,b) => {
         const timeA = new Date(a.created_at || a.match_date || 0).getTime();
         const timeB = new Date(b.created_at || b.match_date || 0).getTime();
@@ -482,27 +492,40 @@ export default function ArchivePage() {
     });
 
     sortedRecords.forEach(m => {
-        // Group by title to merge multiple pushes of the same tournament
-        const groupKey = m.session_title || m.title || m.session_id || 'untitled';
+        // Group STRICTLY by normalized title to merge duplicate tournament pushes
+        const titleKey = (m.session_title || m.title || "").replace(' (로컬 저장됨)', '').trim();
+        const groupKey = titleKey || m.session_id || 'untitled';
+
         if (!groups[groupKey]) {
             groups[groupKey] = {
                 id: m.session_id || groupKey,
-                title: groupKey,
+                title: m.session_title || m.title || groupKey,
                 date: m.match_date,
                 created_at: m.created_at,
                 matches: [],
                 matchCount: 0
             };
+            groups[groupKey].matches.push(m);
+            groups[groupKey].matchCount = 1;
+        } else {
+            // Already have this title. If this match belongs to the same title group but different ID, 
+            // the sorting above (DESC) ensured we already have the LATEST meta in groups[groupKey].
+            // We only add matches that are not already present (checking by round/court or unique match ID)
+            const isMatchDuplicate = groups[groupKey].matches.some((ex: any) => 
+                (ex.id === m.id) || (ex.round === m.round && ex.court === m.court)
+            );
+            if (!isMatchDuplicate) {
+                groups[groupKey].matches.push(m);
+                groups[groupKey].matchCount++;
+            }
         }
-        groups[groupKey].matchCount++;
-        groups[groupKey].matches.push(m);
     });
 
-    // Final sorting: Newest Date first, then newest created_at fallback
+    // Final sorting: Strictly Latest Creation/Match Date first
     return Object.values(groups).sort((a:any, b:any) => {
-        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        const timeA = new Date(a.created_at || a.date || 0).getTime();
+        const timeB = new Date(b.created_at || b.date || 0).getTime();
+        return timeB - timeA;
     });
   }, [filteredRecords]);
 
@@ -526,7 +549,7 @@ export default function ArchivePage() {
         </nav>
       )}
 
-      <section className="flex-1 px-6 pb-[250px]">
+      <section className="flex-1 px-6 pb-[300px]">
         {loading ? (
             <div className="py-20 text-center animate-pulse"><div className="w-8 h-8 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p className="text-[10px] font-black text-[#D4AF37] tracking-widest uppercase">Initializing Vault...</p></div>
         ) : mainTab === 'RECORDS' ? (
@@ -675,26 +698,33 @@ export default function ArchivePage() {
                 ) : (
                     /* Session List Level 2 */
                     <div className="animate-in slide-in-from-bottom duration-500">
-                        <section className="bg-white/[0.03] border border-white/5 rounded-[24px] p-6 mb-12 flex gap-4">
-                            <div className="flex-1 space-y-1">
-                                <span className="text-[8px] font-black text-white/20 uppercase tracking-widest pl-1">Year</span>
-                                <select 
-                                    value={selectedYear} 
-                                    onChange={e=>setSelectedYear(Number(e.target.value))} 
-                                    className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black text-white focus:border-[#D4AF37] outline-none appearance-none"
-                                >
-                                    {[2026,2025,2024].map(y=><option key={y} value={y} className="bg-[#1C1C28] text-white">{y}년</option>)}
-                                </select>
+                        {/* [v1.2.2] High-Contrast Header Filter Section */}
+                        <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 mb-12 flex gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                            <div className="flex-1 space-y-2">
+                                <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] pl-1">Year</span>
+                                <div className="relative">
+                                    <select 
+                                        value={selectedYear} 
+                                        onChange={e=>setSelectedYear(Number(e.target.value))} 
+                                        className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white focus:border-[#D4AF37] outline-none appearance-none shadow-inner"
+                                    >
+                                        {[2026,2025,2024].map(y=><option key={y} value={y} className="bg-[#1C1C28] text-white">{y}년</option>)}
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#C9B075]">▼</div>
+                                </div>
                             </div>
-                            <div className="flex-1 space-y-1">
-                                <span className="text-[8px] font-black text-white/20 uppercase tracking-widest pl-1">Month</span>
-                                <select 
-                                    value={selectedMonth} 
-                                    onChange={e=>setSelectedMonth(Number(e.target.value))} 
-                                    className="w-full bg-[#1C1C28] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black text-white focus:border-[#D4AF37] outline-none appearance-none"
-                                >
-                                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m} className="bg-[#1C1C28] text-white">{m}월</option>)}
-                                </select>
+                            <div className="flex-1 space-y-2">
+                                <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] pl-1">Month</span>
+                                <div className="relative">
+                                    <select 
+                                        value={selectedMonth} 
+                                        onChange={e=>setSelectedMonth(Number(e.target.value))} 
+                                        className="w-full bg-black/60 border border-white/20 rounded-2xl px-5 py-4 text-xs font-black text-white focus:border-[#D4AF37] outline-none appearance-none shadow-inner"
+                                    >
+                                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m} className="bg-[#1C1C28] text-white">{m}월</option>)}
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#C9B075]">▼</div>
+                                </div>
                             </div>
                         </section>
                         <div className="space-y-6">
