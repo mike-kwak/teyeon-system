@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 
 /**
  * ArchivePage: The Teyeon Club Official Database
- * v1.2.1 (Stable): Cache Force Refresh & Design Finalized
+ * v1.2.3 (Stable): Aggressive Deduplication & Cache Force Refresh
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -879,31 +879,37 @@ export default function ArchivePage() {
         </div>
       )}
 
-      {/* Admin Tools: Hidden in Ranking tab to keep aesthetic */}
-      {isAdmin && mainTab === 'RECORDS' && (
-        <div className="p-8 opacity-20 hover:opacity-100 transition-opacity flex flex-col items-center gap-4">
-            <div className="flex gap-2">
-                <button 
-                    onClick={() => {
-                        if (confirm('⚠️ 모든 캐시를 삭제하고 앱을 강제로 새로고침 할까요? (디자인 미반영 해결용)')) {
-                            localStorage.clear();
-                            sessionStorage.clear();
-                            window.location.reload();
-                        }
-                    }}
-                    className="px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-full text-[9px] font-black text-red-500 tracking-[0.3em] uppercase active:scale-95"
-                >
-                    🚨 캐시 초기화 & 하드 리로드
-                </button>
-                <button onClick={seedDemoData} disabled={isSeeding} className="px-6 py-3 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full text-[9px] font-black text-[#C9B075] tracking-[0.3em] uppercase active:scale-95">
-                    {isSeeding ? 'SEEDING...' : '🔧 ADMIN: SEED DEMO DATA'}
-                </button>
-            </div>
-            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] animate-pulse">
-                Current Version: v1.2.1 (Stable)
-            </span>
-        </div>
-      )}
+      {/* [v1.2.3] Admin Tools: Version & Cache Clear (Visible for all temporarily to fix cache issues) */}
+      <div className="p-8 opacity-40 hover:opacity-100 transition-opacity flex flex-col items-center gap-4 border-t border-white/5 mt-10">
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+              <button 
+                  onClick={() => {
+                      if (confirm('⚠️ 모든 캐시를 삭제하고 앱을 강제로 새로고침 할까요? (디자인 미반영 해결용)')) {
+                          if ('serviceWorker' in navigator) {
+                              navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+                          }
+                          localStorage.clear();
+                          sessionStorage.clear();
+                          window.location.reload(true);
+                      }
+                  }}
+                  className="flex-1 px-6 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-[10px] font-black text-red-500 tracking-[0.2em] uppercase active:scale-95 transition-all shadow-lg"
+              >
+                  🚨 최신 버전으로 강제 업데이트
+              </button>
+              {isAdmin && (
+                  <button onClick={seedDemoData} disabled={isSeeding} className="flex-1 px-6 py-4 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-2xl text-[9px] font-black text-[#C9B075] tracking-[0.2em] uppercase active:scale-95">
+                      {isSeeding ? 'SEEDING...' : '🔧 ADMIN: SEED DATA'}
+                  </button>
+              )}
+          </div>
+          <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] animate-pulse">
+              Current Build: v1.2.3 (2026-04-17)
+          </span>
+          <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest leading-relaxed text-center">
+              수정한 내용이 보이지 않으면<br/>위의 붉은색 업데이트 버튼을 눌러주세요.
+          </p>
+      </div>
       
       {/* v11: Championship Celebration Overlay */}
       {showArchiveSuccess && (
