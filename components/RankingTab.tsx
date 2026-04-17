@@ -124,7 +124,7 @@ export default function RankingTab({
                                             {p.avatar ? (
                                                 <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none text-white/10`}>
+                                                <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none text-[#C9B075] drop-shadow-[0_0_20px_rgba(201,176,117,1)] opacity-100 font-bold`}>
                                                     {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
                                                 </span>
                                             )}
