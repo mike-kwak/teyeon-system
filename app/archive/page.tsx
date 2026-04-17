@@ -185,7 +185,7 @@ export default function ArchivePage() {
                         </div>
 
                         {/* 시그니처 섹션 헤더: RANKING UPDATES */}
-                        <div className="flex flex-col gap-1 px-4 mb-12 mt-10">
+                        <div className="flex flex-col gap-1 px-4 mb-20 mt-10">
                             <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
                             <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                         </div>
@@ -195,14 +195,14 @@ export default function ArchivePage() {
                             selectedSession.matches.forEach((m: any) => {
                                 const pNames = m.player_names || [];
                                 const pAvatars = m.player_avatars || [];
-                                pNames.forEach((name: string, j: number) => {
-                                    if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[j] || '', played: 0 };
+                                pNames.forEach((name: string, k: number) => {
+                                    if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[k] || '', played: 0 };
                                     const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                    const win = j < 2 ? (s1 > s2) : (s2 > s1);
+                                    const win = k < 2 ? (s1 > s2) : (s2 > s1);
                                     stats[name].played++;
                                     if (win) stats[name].wins++; else stats[name].losses++;
-                                    stats[name].pf += (j < 2 ? s1 : s2);
-                                    stats[name].pa += (j < 2 ? s2 : s1);
+                                    stats[name].pf += (k < 2 ? s1 : s2);
+                                    stats[name].pa += (k < 2 ? s2 : s1);
                                     stats[name].diff = stats[name].pf - stats[name].pa;
                                 });
                             });
@@ -211,26 +211,41 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    {/* REFINED HIGH-VISIBILITY PODIUM */}
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-6 mb-2">
+                                    {/* CHAMPION PODIUM (Max Breathing Space) */}
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-12 mb-2">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
                                             const isFirst = idx === 0;
                                             
+                                            // Placeholders for missing photos
+                                            const rankThemes = [
+                                                { icon: '🏆', color: 'from-[#FFD700] to-[#B8860B]', shadow: 'shadow-[0_0_20px_rgba(255,215,0,0.3)]' },
+                                                { icon: '🥈', color: 'from-[#C0C0C0] to-[#707070]', shadow: 'shadow-[0_0_15px_rgba(192,192,192,0.2)]' },
+                                                { icon: '🥉', color: 'from-[#CD7F32] to-[#8B4513]', shadow: 'shadow-[0_0_15px_rgba(205,127,50,0.2)]' }
+                                            ];
+                                            const theme = rankThemes[idx];
+
                                             return (
                                                 <div 
                                                     key={p.name} 
                                                     className={`relative flex flex-col items-center p-3 pb-8 rounded-[36px] border border-white/5 backdrop-blur-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-300 ${isFirst ? 'w-[42%] bg-zinc-900 border-white/10 scale-110 z-10' : 'w-[30%] bg-zinc-900/40 opacity-80'}`}
                                                 >
-                                                    <div className="w-full flex flex-col items-center mt-2">
-                                                        {/* Avatar */}
+                                                    {/* Signature Rank Badge */}
+                                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                                                        <div className={`w-8 h-8 rounded-full bg-gradient-to-b ${theme.color} flex items-center justify-center border-2 border-white/20 shadow-lg`}>
+                                                            <span className="text-black font-black text-xs italic">{idx + 1}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="w-full flex flex-col items-center mt-3">
+                                                        {/* Avatar / Honor Placeholder */}
                                                         <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-3 shadow-2xl ${isFirst ? 'w-20 h-20 border-[#C9B075]/40' : 'w-16 h-16'}`}>
                                                             {p.avatar ? (
                                                                 <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                                                                    <span className="text-2xl font-black text-zinc-700">{p.name[0]}</span>
+                                                                <div className={`w-full h-full bg-gradient-to-br ${theme.color} flex items-center justify-center`}>
+                                                                    <span className="text-3xl drop-shadow-md">{theme.icon}</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -240,11 +255,11 @@ export default function ArchivePage() {
                                                             {p.name}
                                                         </h4>
 
-                                                        {/* Stats (Single Line, Big Font) */}
+                                                        {/* Stats (Single Line, Impact-Size) */}
                                                         <div className="flex items-center justify-center gap-2 font-[1000] text-[12px] italic tracking-tighter uppercase whitespace-nowrap">
                                                             <span className="text-zinc-100">{p.wins}승 {p.losses}패</span>
                                                             <span className="opacity-20 text-zinc-800">|</span>
-                                                            <span className={`${p.diff > 0 ? 'text-[#00e5ff]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
+                                                            <span className={`drop-shadow-sm ${p.diff > 0 ? 'text-[#00e5ff]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
                                                                 {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                             </span>
                                                         </div>
