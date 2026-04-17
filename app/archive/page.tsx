@@ -7,11 +7,10 @@ import { useAuth } from '@/context/AuthContext';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy } from 'lucide-react';
 
 /**
- * ArchivePage (v1.14.15): THE COMPACT 3D ELITE
- * - 1/3 Slimmer: Optimized padding and typography
- * - High-Definition Depth: 3D shadows + top-shine highlights
- * - Zero Clipping: Safe horizontal margins
- * - Explicit Controls: Visible trash icon for admins
+ * ArchivePage (v1.14.14): THE ELITE SESSION CARD
+ * - Luxury Visuals: Glassmorphism + Gold Accents
+ * - Better Data: Shows Participant counts & Match totals
+ * - Perfect Layout: No more left-alignment clipping, balanced spacing
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -150,8 +149,7 @@ export default function ArchivePage() {
           <div className="h-[2px] w-full bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent mt-3 shadow-[0_4px_15px_rgba(201,176,117,0.3)]"></div>
       </header>
 
-      {/* 상시 노출 골든 탭 */}
-      <nav className="px-6 mt-6 mb-8 flex gap-2.5 relative z-[90]">
+         <nav className="px-6 mt-4 mb-10 flex gap-2.5 relative z-[90]">
           {(['RECORDS', 'RANKING'] as const).map(t => (
               <button 
                   key={t} onClick={() => {
@@ -160,7 +158,7 @@ export default function ArchivePage() {
                   }}
                   className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic 
                   ${mainTab === t 
-                    ? 'bg-gradient-to-r from-[#C9B075] via-[#f0e68c] to-[#C9B075] text-black shadow-xl shadow-yellow-600/20 scale-[1.02] border border-[#C9B075]/50' 
+                    ? 'bg-zinc-100 text-black shadow-xl shadow-white/5' 
                     : 'bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-zinc-200'}`}
               >
                   {t === 'RECORDS' ? '경기 기록' : '태연 랭킹'}
@@ -254,6 +252,7 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
+                                    {/* 공간 확보 */}
                                     <div className="h-6 w-full" aria-hidden="true" />
                                     <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl mx-1 w-full flex flex-col items-center">
                                         <div className="w-full px-4 sm:px-6"> 
@@ -277,7 +276,7 @@ export default function ArchivePage() {
                                                         <span className="text-[14px] text-zinc-300 text-center">{p.losses}</span>
                                                         <span className="text-[11px] text-zinc-800 text-center">{p.pf}</span>
                                                         <span className="text-[11px] text-zinc-800 text-center">{p.pa}</span>
-                                                        <span className={`text-[14px] text-center font-black tracking-tighter ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
+                                                        <span className={`text-[14px] text-center font-black tracking-tighter ${p.diff >= 0 ? 'text-[#C9B070]' : 'text-red-900'}`}>
                                                             {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
                                                         </span>
                                                     </div>
@@ -336,77 +335,61 @@ export default function ArchivePage() {
                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-black uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
                     </div>
                 ) : (
-                    /* 2. 세션 리스트 화면 (COMPACT 3D ELITE - v1.14.15 개편) */
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-4">
-                        <section className="bg-zinc-900/60 border border-white/5 rounded-[30px] p-5 flex gap-4 shadow-[0_15px_30px_-10px_rgba(0,0,0,0.8)] backdrop-blur-3xl mb-4">
-                            <div className="flex-1 flex flex-col items-center gap-1.5 italic font-black">
-                                <span className="text-[8px] text-zinc-600 uppercase tracking-[0.2em]">Temporal Year</span>
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
+                    /* 2. 세션 리스트 화면 (RESTORED TONE - v1.14.15) */
+                    <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
+                        <section className="bg-zinc-900/50 border border-white/5 rounded-[30px] p-6 flex gap-4 shadow-2xl backdrop-blur-3xl">
+                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
+                                <span className="text-[9px] text-zinc-600 uppercase tracking-[0.3em]">Temporal Year</span>
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/60 border border-white/5 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
                                     {[2026,2025,2024].map(y=><option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
-                            <div className="flex-1 flex flex-col items-center gap-1.5 italic font-black">
-                                <span className="text-[8px] text-zinc-600 uppercase tracking-[0.2em]">Temporal Month</span>
-                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-zinc-900 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
+                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
+                                <span className="text-[9px] text-zinc-600 uppercase tracking-[0.3em]">Temporal Month</span>
+                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/60 border border-white/5 rounded-xl px-4 py-3 text-[11px] text-white outline-none text-center font-black">
                                     {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}
                                 </select>
                             </div>
                         </section>
 
-                        <div className="space-y-4"> 
+                        <div className="space-y-4">
                             {sessions.map((s, index) => (
                                 <div 
                                     key={s.id} 
                                     onClick={() => setSelectedSessionId(s.id)}
-                                    className="group relative backdrop-blur-3xl bg-zinc-900/40 border-t border-t-white/10 border-l border-l-white/5 border border-white/5 rounded-[28px] py-4 px-7 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/40 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]"
+                                    className="group relative bg-zinc-900/80 border border-white/5 rounded-2xl p-6 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/20 shadow-2xl"
                                 >
-                                    {/* 상단 라인 (잘림 제로 존) */}
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#C9B075] to-[#f0e68c] shadow-lg shadow-yellow-600/10">
-                                            <span className="text-[9px] font-black text-black uppercase tracking-widest italic">{s.date}</span>
+                                    <div className="flex justify-between items-start relative z-10 mb-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest italic">{s.date}</span>
+                                            <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight group-hover:text-white transition-colors">
+                                                {s.title}
+                                            </h3>
                                         </div>
-                                        <div className="flex items-center gap-3 pr-1">
-                                            {index === 0 && (
-                                                <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest italic opacity-80">LATEST</span>
-                                            )}
-                                            {isAdmin && (
-                                                <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-1.5 rounded-lg bg-black/30 border border-white/5 text-zinc-400 hover:text-red-500 transition-all">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            )}
-                                        </div>
+                                        {isAdmin && (
+                                            <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2 text-zinc-800 hover:text-red-900 transition-colors">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </div>
 
-                                    {/* 33% 슬림화된 타이틀 */}
-                                    <div className="mb-4">
-                                        <h3 className="text-[19px] font-[1000] text-white tracking-tighter uppercase italic leading-tight group-hover:text-[#C9B075] transition-colors break-all">
-                                            {s.title}
-                                        </h3>
-                                    </div>
-
-                                    {/* 하단 스탯 (입체적 밸런스) */}
-                                    <div className="flex items-center justify-between pt-3 border-t border-white/[0.03]">
-                                        <div className="flex items-center gap-5">
-                                            <div className="flex items-center gap-1.5">
-                                                <Users size={12} className="text-[#C9B075] opacity-50" />
-                                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">
-                                                    Players: <span className="text-white ml-0.5">{s.participantCount}</span>
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <Trophy size={11} className="text-[#C9B075] opacity-50" />
-                                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest italic">
-                                                    Matches: <span className="text-white ml-0.5">{s.matchCount}</span>
-                                                </span>
-                                            </div>
+                                    <div className="flex items-center justify-between relative z-10">
+                                        <div className="flex items-center gap-4 text-[9px] font-black text-zinc-800 uppercase tracking-[0.2em] italic">
+                                            <span>PLAYERS: {s.participantCount}</span>
+                                            <span>MATCHES: {s.matchCount}</span>
                                         </div>
-                                        <div className="w-8 h-8 rounded-full bg-black/40 border border-white/5 flex items-center justify-center text-[#C9B075] group-hover:bg-[#C9B075] group-hover:text-black transition-all">
-                                            <ArrowRight size={14} />
+                                        <div className="text-[#C9B075] group-hover:translate-x-1 transition-transform">
+                                            <ArrowRight size={18} />
                                         </div>
                                     </div>
-
-                                    {/* 3D 라이팅 데코 */}
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#C9B075] opacity-[0.02] blur-[40px] pointer-events-none group-hover:opacity-[0.05] transition-opacity"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </>
+        ) : (
+r-events-none group-hover:opacity-[0.06] transition-opacity"></div>
                                 </div>
                             ))}
                         </div>
