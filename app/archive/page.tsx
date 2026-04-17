@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 
 /**
  * ArchivePage: The Teyeon Club Official Database
- * v1.2.4 (Stable): Scroll Fix & Emergency Access Update
+ * v1.2.5 (Stable): CEO Badge Emergency Update Path
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -529,10 +529,48 @@ export default function ArchivePage() {
     });
   }, [filteredRecords]);
 
-  const selectedSession = sessions.find(s => s.id === selectedSessionId);
+  const handleForceUpdate = () => {
+    if (confirm('⚠️ 모든 캐시를 삭제하고 앱을 강제로 새로고침 할까요? (디자인 미반영 해결용)')) {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+        }
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload(true);
+    }
+  };
 
   return (
     <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto pt-4 no-scrollbar">
+
+      {/* [v1.2.5] High-Visibility Header with Update Triggers */}
+      <header className="px-6 py-4 flex flex-col gap-1 items-start relative z-[100]">
+          <div className="flex justify-between items-center w-full">
+            <h1 
+                onClick={() => {
+                    if (confirm('🚨 앱을 최신 버전으로 강제로 업데이트할까요? (디자인 미반영 해결용)')) {
+                        handleForceUpdate();
+                    }
+                }}
+                className="text-4xl font-[1000] italic tracking-tighter uppercase text-white/90 cursor-pointer active:scale-95 transition-all"
+            >
+                경기 아카이브
+            </h1>
+            <div className="flex items-center gap-2">
+                <div 
+                    onClick={() => {
+                        handleForceUpdate();
+                    }}
+                    className="bg-[#D4AF37] px-3 py-1 rounded-full text-[10px] font-black text-black animate-pulse cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.4)] active:scale-90"
+                    title="클릭하여 강제 업데이트"
+                >
+                    CEO
+                </div>
+                <img src={user?.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'} alt="" className="w-8 h-8 rounded-full border border-white/20" />
+            </div>
+          </div>
+          <div className="h-1 w-12 bg-[#D4AF37]"></div>
+      </header>
 
       {/* Flagship Tab Navigation */}
       {!selectedSessionId && (
