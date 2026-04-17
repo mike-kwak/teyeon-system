@@ -33,7 +33,7 @@ export default function ArchivePage() {
 
   // v1.17.1: Force Update Logic to break PWA Cache
   useEffect(() => {
-    const VERSION = "1.17.6";
+    const VERSION = "1.17.7";
     const savedVersion = localStorage.getItem("TEYEON_ARCHIVE_VER");
     if (savedVersion !== VERSION) {
         localStorage.setItem("TEYEON_ARCHIVE_VER", VERSION);
@@ -186,7 +186,7 @@ export default function ArchivePage() {
         ) : mainTab === 'RECORDS' ? (
             <>
                 {selectedSessionId && selectedSession ? (
-                    <div className="animate-in slide-in-from-right duration-500">
+                    <div className="animate-in slide-in-from-right duration-500 flex flex-col">
                         <div className="flex flex-col gap-2 px-2 mb-8">
                             <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                             <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
@@ -197,7 +197,7 @@ export default function ArchivePage() {
                             <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
                         </div>
 
-                        <div className="h-24 w-full" aria-hidden="true"></div>
+                        <div className="h-10 w-full" aria-hidden="true"></div>
 
                         {(() => {
                             const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
@@ -221,7 +221,8 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mb-0 pb-16">
+                                    {/* FORCED BOUNDING BOX (v1.17.7) */}
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto min-h-[420px] pb-10 pt-4">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
@@ -245,10 +246,7 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    {/* ABSOLUTE PHYSICAL SPACE (v1.17.6) */}
-                                    <div className="h-48 w-full" aria-hidden="true" />
-
-                                    <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-12">
+                                    <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-8">
                                         <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
                                             <span>#</span><span>PROF</span><span className="text-left">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
                                         </div>
