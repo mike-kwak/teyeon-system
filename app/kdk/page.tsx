@@ -65,6 +65,7 @@ export default function KDKPage() {
 
     const [step, setStep] = useState(1);
     const [syncTick, setSyncTick] = useState(0);
+    const [adminModeManual, setAdminModeManual] = useState(true); // [v35.11] Admin UI Visibility Toggle
 
     // [v25.0] React Stale Closure Resolution for Realtime Sync
     useEffect(() => {
@@ -1951,7 +1952,6 @@ export default function KDKPage() {
                                             <span className="text-lg font-black text-white italic">{s.matchCount}<span className="text-[10px] ml-0.5 opacity-30">회</span></span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">상태</span>
                                             <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter mt-2">입장하기 ➡️</span>
                                         </div>
                                     </div>
@@ -1990,141 +1990,96 @@ export default function KDKPage() {
 
     return (
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
-            <header className="px-6 pt-4 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100]">
-                <div className="flex items-center gap-2">
-                    {/* BACK BUTTON for Step 3 */}
+            {/* [v35.11] Redesigned Master Header: Minimalist 3-Column Layout */}
+            <header className="px-6 py-4 flex items-center justify-between h-18 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+                {/* LEFT: ADMIN TOGGLE & RESET */}
+                <div className="flex-1 flex items-center gap-4">
                     {isAdmin && (
-                        <button 
-                            onClick={() => {
-                                if (window.navigator?.vibrate) window.navigator.vibrate(50);
-                                setStep(2);
-                            }}
-                            className="mr-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white transition-all active:scale-95"
-                            title="경기 설정으로 돌아가기"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setAdminModeManual(!adminModeManual)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${adminModeManual ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-[0_5px_15px_rgba(201,176,117,0.3)]' : 'bg-white/5 border-white/10 text-white/40'}`}
+                            >
+                                <div className={`w-2 h-2 rounded-full ${adminModeManual ? 'bg-black animate-pulse' : 'bg-white/20'}`} />
+                                <span className="text-[9px] font-[1000] uppercase tracking-widest leading-none">ADMIN</span>
+                            </button>
+                            {adminModeManual && (
+                                <button
+                                    onClick={() => setShowResetConfirm(true)}
+                                    className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/20 transition-all active:scale-90"
+                                    title="초기화"
+                                >
+                                    <RotateCw className="w-3 h-3" />
+                                </button>
+                            )}
+                        </div>
                     )}
-                    {isAdmin && (
-                        <div className="flex items-center gap-2 mr-2">
-                             <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_8px_20px_rgba(201,176,117,0.3)] border border-white/20">
-                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                                <span className="text-[9px] font-[1000] text-black uppercase tracking-widest leading-none">ADMIN MODE</span>
+                    {!isAdmin && (
+                        <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
+                                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none">VIEWER</span>
                             </div>
                         </div>
                     )}
-                    {isAdmin && (
-                        <button
-                            onClick={() => setShowResetConfirm(true)}
-                            className="h-10 px-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-                            title="전체 데이터 초기화"
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">초기화</span>
-                        </button>
-                    )}
-                    {allActiveSessions.length > 1 && (
-                        <button
-                            onClick={() => setShowGateway(true)}
-                            className="h-10 px-4 rounded-full bg-[#C9B075]/10 border border-[#C9B075]/30 flex items-center gap-2 text-[#C9B075] hover:bg-[#C9B075]/20 transition-all active:scale-95 group shadow-[0_0_15px_rgba(201,176,117,0.1)]"
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">다른 경기</span>
-                        </button>
-                    )}
-
-                    {/* [v34.2] Enhanced Sync Integrity UI */}
-                    <div className="flex items-center gap-3 ml-auto pr-2">
-                        <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-2">
-                                {isLegacySync && (
-                                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded-sm bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 tracking-tighter uppercase animate-pulse">Legacy Mode</span>
-                                )}
-                                <div className="flex flex-col items-end">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[7px] font-black uppercase tracking-widest opacity-30">Server Sync</span>
-                                        <div 
-                                            className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'WARNING' ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`} 
-                                        />
-                                    </div>
-                                    <span className="text-[9px] font-mono font-bold opacity-40 leading-none">{lastSyncTime || 'Wait..'}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => {
-                                if (window.navigator?.vibrate) window.navigator.vibrate(50);
-                                if (isLegacySync) {
-                                    const confirmRepair = window.confirm(`⚙️ 동기화 진단 리포트 (metadata-only)\n\n현재 이름은 정상적으로 출력되고 있으나, 서버 DB가 최신 구조를 인식하지 못해 '최소 동기화' 모드로 동작 중입니다.\n\n해결방법:\n1. 안내해 드린 [종합 선물 세트 SQL]을 실행해 주세요.\n2. 실행을 완료하셨다면 아래 [확인] 후에 [데이터 구조 강제 복구]를 진행할 수 있습니다.\n\n지금 데이터 구조를 강제로 복구할까요?`);
-                                    if (confirmRepair) {
-                                        execFullRepair();
-                                    }
-                                }
-                                setSyncTick(prev => prev + 1);
-                            }}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 transition-all active:scale-90 ${isLegacySync ? 'text-[#C9B075] border-[#C9B075]/30' : 'text-white/40 hover:text-[#C9B075] hover:border-[#C9B075]/40'}`}
-                            title={isLegacySync ? "시스템 진단 보기" : "서버 데이터 강제 동기화"}
-                        >
-                            {isLegacySync ? <span className="text-[10px] items-center justify-center flex font-black">SYNC</span> : <RotateCw className={`w-3.5 h-3.5`} />}
-                        </button>
-                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button onClick={execCopySchedule} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="대진표 공유">📋</button>
-                    <button onClick={copyFinalResults} className="w-10 h-10 bg-[#C9B075]/10 border border-[#C9B075]/30 rounded-full flex items-center justify-center text-[#C9B075] text-sm active:scale-90 transition-all hover:bg-[#C9B075]/20" title="결과 보고">🏆</button>
+                {/* CENTER: SESSION NAME (Strong Emphasis) */}
+                <div className="flex-[2] flex flex-col items-center">
+                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
+                    <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[150px] sm:max-w-[200px] leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                        {sessionTitle || '260417_KDK_01'}
+                    </h1>
+                </div>
+
+                {/* RIGHT: ACTION & STATUS INDICATOR */}
+                <div className="flex-1 flex items-center justify-end gap-3">
+                    <div className="flex items-center gap-2">
+                        <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 복사">📋</button>
+                        <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 보고">🏆</button>
+                    </div>
+                    
+                    {/* Integrated Sync Indicator */}
+                    <div className="flex flex-col items-end pr-1">
+                        <div className="flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`} />
+                            <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">
+                                {syncStatus === 'HEALTHY' ? '연결됨' : syncStatus === 'Wait..' ? '대기중' : '동기화 중'}
+                            </span>
+                        </div>
+                        <span className="text-[7px] font-mono text-white/20 leading-none mt-0.5">{lastSyncTime || '--:--'}</span>
+                    </div>
                 </div>
             </header>
 
             <div
-                className={`w-full px-5 flex flex-col gap-2 relative z-50 ${activeTab === 'RANKING' ? 'border-b border-white/5 pb-2 pt-2' : 'border-y border-white/10 py-6'}`}
-                style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(32px)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}
+                className={`w-full px-5 flex flex-col gap-2 relative z-50 py-4 ${activeTab === 'RANKING' ? 'border-b border-white/5 pb-2 pt-2' : 'border-b border-white/10'}`}
+                style={{ background: 'rgba(9, 9, 11, 0.85)', backdropFilter: 'blur(32px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
             >
-                {/* LINE 1: SESSION & WIN/PEN */}
+                {/* SUB-HEADER: Financials & Rules (Cleaner Integration) */}
                 <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">SESSION:</span>
-                        <span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter drop-shadow-sm">{sessionTitle || '260407_KDK_01'}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">WIN:</span>
+                            <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{firstPrize/1000}K</span>
+                        </div>
+                        <div className="w-px h-2 bg-white/5" />
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">PEN:</span>
+                            <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{bottom25Penalty/1000}K</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">WIN:</span>
-                            <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">10K</span>
-                        </div>
-                        <div className="mx-1.5 w-px h-2 bg-white/10" />
-                        <div className="flex items-center gap-1">
-                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest leading-none [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">PEN:</span>
-                            <span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none drop-shadow-sm">3~5K</span>
-                        </div>
-                        <button 
-                            onClick={async () => {
-                                if (window.navigator?.vibrate) window.navigator.vibrate(50);
-                                const btn = document.getElementById('manual-sync-btn');
-                                if (btn) btn.style.transform = 'rotate(360deg)';
-                                await syncActiveSession();
-                                setTimeout(() => { if (btn) btn.style.transform = 'rotate(0deg)'; }, 500);
-                            }}
-                            title="강제 새로고침"
-                            className="ml-2 w-6 h-6 flex items-center justify-center text-[10px] bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-                            id="manual-sync-btn"
-                        >
-                            🔄
-                        </button>
-                        {isAdmin && (
-                            <button onClick={() => setShowMemberEditModal(true)} className="ml-1 text-[#C9B075]/60 hover:text-[#C9B075] text-[10px] hover:scale-110 transition-transform active:scale-90">⚙️</button>
+                    
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
+                        <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
+                            {matchRules?.slice(0, 30) || '1:1 시작, 노에드, 타이 3:3'}
+                        </span>
+                        {adminModeManual && isAdmin && (
+                             <button onClick={() => setShowMemberEditModal(true)} className="flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">⚙️</button>
                         )}
                     </div>
                 </div>
-
-                {/* LINE 2: RULES (Only in Matches) */}
-                {activeTab === 'MATCHES' && (
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
-                        <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent uppercase tracking-widest shrink-0 [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]">RULES:</span>
-                        <span className="text-[10px] font-bold text-white tracking-tighter leading-tight italic uppercase truncate drop-shadow-sm">
-                            1:1 시작, 노에드, 타이 3:3 (7포인트 선승)
-                        </span>
-                    </div>
-                )}
             </div>
 
             <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
@@ -2179,7 +2134,7 @@ export default function KDKPage() {
                                             <MatchCard 
                                                 key={mId}
                                                 match={m}
-                                                isAdmin={isAdmin}
+                                                isAdmin={isAdmin && adminModeManual}
                                                 role={role}
                                                 getPlayerName={getPlayerName}
                                                 matchNo={matchNo}
@@ -2282,13 +2237,13 @@ export default function KDKPage() {
                                                                             <div className="flex items-center justify-end">
                                                                                 <button
                                                                                     onClick={() => { 
-                                                                                        if (!isAdmin) return triggerAccessDenied("경기 투입은 관리자만 제어할 수 있습니다.");
+                                                                                        if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드(ADMIN MODE)에서만 제어 가능합니다.");
                                                                                         if (isStartingMatch || hasConflict) return;
                                                                                         if (window.navigator?.vibrate) window.navigator.vibrate(50); 
                                                                                         startMatch(m.id); 
                                                                                     }}
-                                                                                    disabled={isStartingMatch || hasConflict}
-                                                                                    className={`px-4 py-3 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
+                                                                                    disabled={isStartingMatch || hasConflict || !adminModeManual}
+                                                                                    className={`px-4 py-3 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict || !adminModeManual) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
                                                                                     style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
                                                                                 >
                                                                                     {isStartingMatch ? '...' : hasConflict ? '🚫' : (isAdmin ? '투입' : '대기')}
