@@ -512,7 +512,7 @@ export default function ArchivePage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-32 pb-56">
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-36 pb-60">
       <header className="px-8 pt-12 pb-6 flex flex-col gap-2 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700">
           <div className="flex justify-between items-end w-full">
             <div className="flex flex-col gap-1">
@@ -629,13 +629,13 @@ export default function ArchivePage() {
                                 </div>
                             </div>
 
-                            {/* Full Match History (Photo 4 Style - All matches) */}
-                            <div className="space-y-6">
+                            {/* Dashboard Match History Container */}
+                            <div className="space-y-8">
                                 <div className="flex items-center gap-4 px-2">
                                     <div className="h-[2px] w-8 bg-[#D4AF37]"></div>
                                     <h3 className="text-2xl font-[1000] italic text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Completed Matches</h3>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-4">
                                     {selectedSession.matches.map((m: any, idx: number) => {
                                         const n = m.player_names || ["?","?","?","?"];
                                         const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
@@ -644,41 +644,66 @@ export default function ArchivePage() {
                                         
                                         return (
                                             <div key={m.id || idx} 
-                                                 className="rounded-xl relative flex flex-col justify-between overflow-hidden shadow-2xl transition-all border-none" 
+                                                 className="rounded-2xl relative flex flex-col justify-between overflow-hidden shadow-2xl transition-all border-none group" 
                                                  style={{ 
-                                                     background: 'rgba(255, 255, 255, 0.05)', 
-                                                     backdropFilter: 'blur(32px)', 
-                                                     borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(212, 175, 55, 0.3)'}`, 
-                                                     boxShadow: '0 10px 20px rgba(0,0,0,0.4)' 
+                                                     background: 'rgba(255, 255, 255, 0.04)', 
+                                                     backdropFilter: 'blur(64px)', 
+                                                     borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.4)' : 'rgba(212, 175, 55, 0.4)'}`, 
+                                                     boxShadow: '0 20px 40px rgba(0,0,0,0.5)' 
                                                  }}>
-                                                {/* Mirror Header */}
-                                                <div className="flex items-center justify-center px-1.5 py-2 bg-white/5 border-b border-white/10">
-                                                    <span className="text-[7.5px] font-black tracking-widest uppercase italic truncate" style={{ color: groupColor }}>
-                                                        R{m.round || 1} • {m.group_name || m.groupName || 'A'} • {idx + 1}
+                                                {/* Dashboard Header Bar */}
+                                                <div className="flex items-center justify-between px-3 py-2.5 bg-white/5 border-b border-white/10 uppercase italic">
+                                                    <span className="text-[8px] font-black tracking-[0.2em]" style={{ color: groupColor }}>
+                                                        R{m.round || 1} • {m.group_name || m.groupName || 'A'} • M{idx + 1}
                                                     </span>
+                                                    {(isAdmin) && (
+                                                        <div className="flex items-center gap-2 opacity-30 group-hover:opacity-100 transition-opacity">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); if(confirm('수정하시겠습니까?')) {/* Edit Modal or Logic */} }} 
+                                                                className="hover:text-[#D4AF37] transition-colors"
+                                                            >
+                                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); handleMatchDelete(m.id || ''); }} 
+                                                                className="hover:text-red-500 transition-colors"
+                                                            >
+                                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="p-0.5 px-2 py-4">
-                                                    <div className="grid grid-cols-1 items-center gap-1.5">
-                                                        {/* Team Row 1 */}
-                                                        <div className="bg-white/5 rounded-lg py-1.5 flex flex-col items-center justify-center border border-white/5">
-                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s1 > s2 ? 'text-white' : 'text-white/30'}`}>{n[0]}</span>
-                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s1 > s2 ? 'text-white' : 'text-white/30'}`}>{n[1]}</span>
+
+                                                <div className="p-1 px-2.5 py-6">
+                                                    <div className="grid grid-cols-[1.5fr_1fr_1.5fr] items-center gap-1 min-h-[72px]">
+                                                        {/* Team Left Block */}
+                                                        <div className="bg-white/5 rounded-xl py-2.5 flex flex-col items-center justify-center border border-white/5 shadow-inner min-w-0">
+                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s1 > s2 ? 'text-white' : 'text-white/20'}`}>{n[0]}</span>
+                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s1 > s2 ? 'text-white' : 'text-white/20'}`}>{n[1]}</span>
                                                         </div>
 
-                                                       {/* Score Mirror Row */}
-                                                       <div className="flex flex-col items-center py-0.5 gap-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`text-2xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
-                                                                <span className="text-lg font-black text-white/5">:</span>
-                                                                <span className={`text-2xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
+                                                       {/* Dashboard Score Centerpiece */}
+                                                       <div className="flex flex-col items-center justify-center gap-0 shrink-0">
+                                                            <div className="flex items-center gap-1 drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]">
+                                                                <span className={`text-2xl sm:text-3xl font-[1000] italic leading-none ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
+                                                                <span className="text-sm font-black text-white/5">:</span>
+                                                                <span className={`text-2xl sm:text-3xl font-[1000] italic leading-none ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
                                                             </div>
+                                                            <span className="text-[5px] font-black text-white/20 uppercase tracking-[0.2em] mt-1 whitespace-nowrap">Final Res</span>
                                                         </div>
 
-                                                        {/* Team Row 2 */}
-                                                        <div className="bg-white/5 rounded-lg py-1.5 flex flex-col items-center justify-center border border-white/5">
-                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s2 > s1 ? 'text-white' : 'text-white/30'}`}>{n[2]}</span>
-                                                            <span className={`text-[10px] font-black uppercase italic truncate max-w-full ${s2 > s1 ? 'text-white' : 'text-white/30'}`}>{n[3]}</span>
+                                                        {/* Team Right Block */}
+                                                        <div className="bg-white/5 rounded-xl py-2.5 flex flex-col items-center justify-center border border-white/5 shadow-inner min-w-0">
+                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s2 > s1 ? 'text-white' : 'text-white/20'}`}>{n[2]}</span>
+                                                            <span className={`text-[10px] sm:text-[11px] font-[900] uppercase italic truncate w-full px-1 text-center tracking-tight ${s2 > s1 ? 'text-white' : 'text-white/20'}`}>{n[3]}</span>
                                                         </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Dashboard Bottom Accents */}
+                                                <div className="flex justify-center pb-2">
+                                                    <div className="h-0.5 w-1/3 bg-white/5 rounded-full overflow-hidden opacity-50">
+                                                        <div className="h-full bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent"></div>
                                                     </div>
                                                 </div>
                                             </div>
