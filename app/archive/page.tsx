@@ -211,8 +211,8 @@ export default function ArchivePage() {
 
                             return (
                                 <>
-                                    {/* HIGH-VISIBILITY GRAND PODIUM */}
-                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-4 mb-2">
+                                    {/* REFINED HIGH-VISIBILITY PODIUM */}
+                                    <div className="flex items-end justify-center gap-2.5 w-full px-1 max-w-2xl mx-auto mt-2 mb-2">
                                         {[1, 0, 2].map((idx) => {
                                             const p = top3[idx];
                                             if (!p) return <div key={idx} className="flex-1" />;
@@ -221,24 +221,11 @@ export default function ArchivePage() {
                                             return (
                                                 <div 
                                                     key={p.name} 
-                                                    className={`relative flex flex-col items-center p-3 pb-12 rounded-[36px] border border-white/5 backdrop-blur-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-300 ${isFirst ? 'w-[42%] bg-zinc-900 border-white/10 scale-110 z-10 -mt-8' : 'w-[28%] bg-zinc-900/40 opacity-80'}`}
+                                                    className={`relative flex flex-col items-center p-3 pb-8 rounded-[36px] border border-white/5 backdrop-blur-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-300 ${isFirst ? 'w-[42%] bg-zinc-900 border-white/10 scale-110 z-10 -mt-2' : 'w-[30%] bg-zinc-900/40 opacity-80'}`}
                                                 >
-                                                    {/* Badge / Rank (Increased size) */}
-                                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                                                        {idx === 0 ? (
-                                                            <div className="w-11 h-11 rounded-full bg-gradient-to-b from-[#FFD700] to-[#B8860B] flex items-center justify-center shadow-[0_0_25px_rgba(255,215,0,0.4)] border-2 border-white/30">
-                                                                <span className="text-black font-[1000] text-xl">1</span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className={`w-8 h-8 rounded-full bg-gradient-to-b flex items-center justify-center border-2 border-white/20 ${idx === 1 ? 'from-[#C0C0C0] to-[#707070]' : 'from-[#CD7F32] to-[#8B4513]'}`}>
-                                                                <span className="text-black font-black text-xs">{idx + 1}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="w-full flex flex-col items-center mt-6">
-                                                        {/* Avatar (Increased for First) */}
-                                                        <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-4 shadow-2xl ${isFirst ? 'w-22 h-22 border-[#C9B075]/40' : 'w-16 h-16'}`}>
+                                                    <div className="w-full flex flex-col items-center mt-2">
+                                                        {/* Avatar */}
+                                                        <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-3 shadow-2xl ${isFirst ? 'w-20 h-20 border-[#C9B075]/40' : 'w-16 h-16'}`}>
                                                             {p.avatar ? (
                                                                 <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                                                             ) : (
@@ -249,20 +236,17 @@ export default function ArchivePage() {
                                                         </div>
                                                         
                                                         {/* Player Name */}
-                                                        <h4 className={`font-[1000] text-center text-white italic uppercase tracking-tighter mb-2 ${isFirst ? 'text-xl' : 'text-sm'}`}>
+                                                        <h4 className={`font-[1000] text-center text-white italic uppercase tracking-tighter mb-1.5 ${isFirst ? 'text-xl' : 'text-sm'}`}>
                                                             {p.name}
                                                         </h4>
 
-                                                        {/* Stats (Big & Bold) */}
-                                                        <div className="flex flex-col items-center gap-0.5">
-                                                            <div className="flex items-center gap-1.5 font-[1000] text-[12px] italic tracking-tighter uppercase whitespace-nowrap">
-                                                                <span className="text-zinc-100">{p.wins}W</span>
-                                                                <span className="text-zinc-600">/</span>
-                                                                <span className="text-zinc-500">{p.losses}L</span>
-                                                            </div>
-                                                            <div className={`text-[13px] font-[1000] italic tracking-tighter drop-shadow-sm ${p.diff > 0 ? 'text-cyan-400' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
-                                                                {p.diff > 0 ? `+${p.diff} Diff` : `${p.diff} Diff`}
-                                                            </div>
+                                                        {/* Stats (Single Line, Big Font) */}
+                                                        <div className="flex items-center justify-center gap-2 font-[1000] text-[12px] italic tracking-tighter uppercase whitespace-nowrap">
+                                                            <span className="text-zinc-100">{p.wins}승 {p.losses}패</span>
+                                                            <span className="opacity-20 text-zinc-800">|</span>
+                                                            <span className={`${p.diff > 0 ? 'text-[#00e5ff]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
+                                                                {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
