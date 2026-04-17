@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 
 /**
  * ArchivePage: The Teyeon Club Official Database
- * v1.2.3 (Stable): Aggressive Deduplication & Cache Force Refresh
+ * v1.2.4 (Stable): Scroll Fix & Emergency Access Update
  */
 export default function ArchivePage() {
   const { user, role } = useAuth();
@@ -532,7 +532,7 @@ export default function ArchivePage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-x-hidden pt-4">
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto pt-4 no-scrollbar">
 
       {/* Flagship Tab Navigation */}
       {!selectedSessionId && (
@@ -699,7 +699,7 @@ export default function ArchivePage() {
                     /* Session List Level 2 */
                     <div className="animate-in slide-in-from-bottom duration-500">
                         {/* [v1.2.2] High-Contrast Header Filter Section */}
-                        <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 mb-12 flex gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                        <section className="bg-white/5 border border-white/10 rounded-[32px] p-6 mb-8 flex gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
                             <div className="flex-1 space-y-2">
                                 <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.2em] pl-1">Year</span>
                                 <div className="relative">
@@ -727,6 +727,29 @@ export default function ArchivePage() {
                                 </div>
                             </div>
                         </section>
+
+                        {/* [v1.2.4] Emergency Access: Force Update Button (Moved to TOP for visibility) */}
+                        <div className="px-1 mb-10">
+                            <button 
+                                onClick={() => {
+                                    if (confirm('⚠️ 모든 캐시를 삭제하고 앱을 강제로 새로고침 할까요? (디자인 미반영 해결용)')) {
+                                        if ('serviceWorker' in navigator) {
+                                            navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+                                        }
+                                        localStorage.clear();
+                                        sessionStorage.clear();
+                                        window.location.reload(true);
+                                    }
+                                }}
+                                className="w-full px-6 py-6 bg-red-600 border-2 border-red-400 rounded-[28px] text-[12px] font-black text-white tracking-[0.2em] uppercase active:scale-95 transition-all shadow-[0_10px_30px_rgba(220,38,38,0.4)] animate-pulse"
+                            >
+                                🚨 클릭하여 최신 버전으로 강제 업데이트
+                            </button>
+                            <p className="mt-3 text-[9px] font-bold text-red-400/60 uppercase tracking-widest text-center">
+                                수정한 내용이 보이지 않으면 이 버튼을 눌러주세요
+                            </p>
+                        </div>
+
                         <div className="space-y-6">
                             {sessions.length > 0 ? sessions.map((s, index) => (
                                 <div key={s.id} onClick={() => setSelectedSessionId(s.id)} className="bg-[#12121A] border border-white/5 rounded-[24px] p-7 shadow-2xl relative overflow-hidden active:scale-95 transition-all cursor-pointer">
@@ -879,36 +902,16 @@ export default function ArchivePage() {
         </div>
       )}
 
-      {/* [v1.2.3] Admin Tools: Version & Cache Clear (Visible for all temporarily to fix cache issues) */}
-      <div className="p-8 opacity-40 hover:opacity-100 transition-opacity flex flex-col items-center gap-4 border-t border-white/5 mt-10">
-          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
-              <button 
-                  onClick={() => {
-                      if (confirm('⚠️ 모든 캐시를 삭제하고 앱을 강제로 새로고침 할까요? (디자인 미반영 해결용)')) {
-                          if ('serviceWorker' in navigator) {
-                              navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-                          }
-                          localStorage.clear();
-                          sessionStorage.clear();
-                          window.location.reload(true);
-                      }
-                  }}
-                  className="flex-1 px-6 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-[10px] font-black text-red-500 tracking-[0.2em] uppercase active:scale-95 transition-all shadow-lg"
-              >
-                  🚨 최신 버전으로 강제 업데이트
-              </button>
-              {isAdmin && (
-                  <button onClick={seedDemoData} disabled={isSeeding} className="flex-1 px-6 py-4 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-2xl text-[9px] font-black text-[#C9B075] tracking-[0.2em] uppercase active:scale-95">
-                      {isSeeding ? 'SEEDING...' : '🔧 ADMIN: SEED DATA'}
-                  </button>
-              )}
-          </div>
-          <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-[0.4em] animate-pulse">
-              Current Build: v1.2.3 (2026-04-17)
+      {/* [v1.2.4] Footer Info */}
+      <div className="p-8 opacity-20 flex flex-col items-center gap-2 border-t border-white/5 mt-10">
+          <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-[0.4em]">
+              Teyeon Archive Build v1.2.4
           </span>
-          <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest leading-relaxed text-center">
-              수정한 내용이 보이지 않으면<br/>위의 붉은색 업데이트 버튼을 눌러주세요.
-          </p>
+          {isAdmin && (
+              <button onClick={seedDemoData} disabled={isSeeding} className="px-6 py-3 bg-[#C9B075]/10 border border-[#C9B075]/20 rounded-full text-[9px] font-black text-[#C9B075] tracking-[0.2em] uppercase active:scale-95 mt-4">
+                  {isSeeding ? 'SEEDING...' : '🔧 SEED DATA'}
+              </button>
+          )}
       </div>
       
       {/* v11: Championship Celebration Overlay */}
