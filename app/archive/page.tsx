@@ -243,7 +243,7 @@ export default function ArchivePage() {
                                                             <div className="flex items-center gap-1.5 font-black tracking-widest uppercase text-[9px] italic opacity-80">
                                                                     <span className="text-white">{p.wins}승 {p.losses}패</span>
                                                                     <span className="opacity-20">/</span>
-                                                                    <span className={p.diff > 0 ? 'text-[#00e5ff]' : 'text-white'}>
+                                                                    <span className={`font-black ${p.diff > 0 ? 'text-[#00e5ff]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-500'}`}>
                                                                         {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                                     </span>
                                                             </div>
@@ -254,36 +254,63 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    <div className="h-6 w-full" aria-hidden="true" />
-                                    <div className="bg-zinc-900/40 border border-white/5 rounded-[30px] overflow-hidden backdrop-blur-3xl shadow-2xl w-full flex flex-col items-center py-2 px-1">
-                                        <div className="w-full px-1"> 
-                                            <div className="bg-black/40 border-b border-white/10 italic py-4 grid grid-cols-[24px_95px_32px_32px_32px_35px_35px_45px] gap-1 justify-center items-center w-full">
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">#</span>
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest pl-1">PLAYER</span>
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">P</span>
-                                                <span className="text-[9px] font-black text-cyan-500 uppercase tracking-widest text-center">W</span>
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">L</span>
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">PF</span>
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">PA</span>
-                                                <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest text-center">+/-</span>
-                                            </div>
-                                            <div className="divide-y divide-white/[0.03]">
-                                                {sortedResults.slice(3).map((p, idx) => (
-                                                    <div key={p.name} className="py-4 grid grid-cols-[24px_95px_32px_32px_32px_35px_35px_45px] gap-1 justify-center items-center italic font-black hover:bg-white/[0.02] transition-colors group">
-                                                        <span className="text-[14px] text-zinc-800 text-center">{idx + 4}</span>
-                                                        <span className="text-[14px] text-zinc-100 uppercase tracking-tight truncate pl-1">{p.name}</span>
-                                                        <span className="text-[11px] text-zinc-700 text-center">{p.played}</span>
-                                                        <span className="text-[14px] text-cyan-500/80 text-center">{p.wins}</span>
-                                                        <span className="text-[14px] text-zinc-300 text-center">{p.losses}</span>
-                                                        <span className="text-[11px] text-zinc-800 text-center">{p.pf}</span>
-                                                        <span className="text-[11px] text-zinc-800 text-center">{p.pa}</span>
-                                                        <span className={`text-[14px] text-center font-black tracking-tighter ${p.diff >= 0 ? 'text-[#C9B075]' : 'text-red-900'}`}>
-                                                            {p.diff > 0 ? `+${p.diff}` : (p.diff === 0 ? '0' : p.diff)}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                    {/* 4등 이하 프리미엄 랭킹 리스트 (v1.15.3 개편) */}
+                                    <div className="h-10 w-full" aria-hidden="true" />
+                                    <div className="flex flex-col gap-3 px-1 w-full max-w-2xl mx-auto">
+                                        {/* TABLE HEADER */}
+                                        <div className="grid grid-cols-[30px_1fr_40px_40px_50px] gap-2 px-6 py-2 italic font-black text-[9px] text-zinc-700 tracking-[0.3em] uppercase">
+                                            <span>#</span>
+                                            <span>Player</span>
+                                            <span className="text-center text-cyan-500/60">W</span>
+                                            <span className="text-center text-zinc-700">L</span>
+                                            <span className="text-right text-[#C9B075]/60 pr-1">+/-</span>
                                         </div>
+
+                                        {/* RANKING ROWS */}
+                                        {sortedResults.slice(3).map((p, idx) => (
+                                            <div key={p.name} className="group relative bg-zinc-900/40 hover:bg-zinc-800/60 border border-white/5 rounded-2xl p-4 flex items-center transition-all duration-300 active:scale-[0.98]">
+                                                {/* Rank Info */}
+                                                <div className="w-8 flex justify-center items-center">
+                                                    <span className="text-[15px] font-[1000] italic text-zinc-700 group-hover:text-zinc-500">{idx + 4}</span>
+                                                </div>
+
+                                                {/* Player Info */}
+                                                <div className="flex-1 px-4 flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-black border border-white/5 flex items-center justify-center overflow-hidden">
+                                                        {p.avatar ? (
+                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-[10px] font-black text-zinc-800">{p.name[0]}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[15px] font-black text-white italic uppercase tracking-tighter">{p.name}</span>
+                                                        <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest italic">{p.played} Matches</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Stats */}
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex flex-col items-center w-10">
+                                                        <span className="text-lg font-[1000] italic text-cyan-500/80 drop-shadow-sm">{p.wins}</span>
+                                                        <span className="text-[7px] font-black text-zinc-800 uppercase tracking-tighter">Win</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-center w-10">
+                                                        <span className="text-lg font-[1000] italic text-zinc-600">{p.losses}</span>
+                                                        <span className="text-[7px] font-black text-zinc-800 uppercase tracking-tighter">Loss</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end w-14 pr-2">
+                                                        <span className={`text-lg font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B070]' : p.diff < 0 ? 'text-red-900' : 'text-zinc-700'}`}>
+                                                            {p.diff > 0 ? `+${p.diff}` : p.diff}
+                                                        </span>
+                                                        <span className="text-[7px] font-black text-zinc-800 uppercase tracking-tighter">Diff</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Decoration */}
+                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-8 bg-zinc-800 rounded-full group-hover:bg-[#C9B075]/40 transition-colors"></div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </>
                             );
