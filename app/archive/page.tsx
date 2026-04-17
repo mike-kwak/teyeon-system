@@ -219,8 +219,8 @@ export default function ArchivePage() {
      
                                  return (
                                      <>
-                                     {/* THE FINAL BORDER (v1.19.0) - FIXED HEIGHT TO PREVENT OVERLAP */}
-                                     <div className="w-full max-w-2xl mx-auto h-[380px] flex items-center justify-center px-1">
+                                     {/* THE ULTIMATE FIX (v1.20.0) - NO SCALE, ONLY PHYSICAL SPACING */}
+                                     <div className="w-full max-w-2xl mx-auto h-auto pb-32 flex items-center justify-center px-1">
                                          <div className="flex items-end justify-center gap-2.5 w-full">
                                              {[1, 0, 2].map((idx) => {
                                                  const p = top3[idx];
@@ -229,12 +229,12 @@ export default function ArchivePage() {
                                                  const rankThemes = [{ icon: '🏆', color: 'from-[#FFD700] to-[#B8860B]' }, { icon: '🥈', color: 'from-[#C0C0C0] to-[#707070]' }, { icon: '🥉', color: 'from-[#CD7F32] to-[#8B4513]' }];
                                                  const theme = rankThemes[idx];
                                                  return (
-                                                     <div key={p.name} className={`relative flex flex-col items-center p-3 pb-8 rounded-[36px] border border-white/5 bg-zinc-900 shadow-2xl transition-all duration-300 ${isFirst ? 'w-[42%] scale-110 z-10 border-white/10' : 'w-[30%] bg-zinc-900/40 opacity-80'}`}>
+                                                     <div key={p.name} className={`relative flex flex-col items-center p-3 pb-10 rounded-[36px] border border-white/5 bg-zinc-900 shadow-2xl transition-all duration-300 ${isFirst ? 'w-[46%] z-10 border-[#C9B075]/30 bg-zinc-800/50' : 'w-[27%] bg-zinc-900/40 opacity-80'}`}>
                                                          <div className="w-full flex flex-col items-center mt-3">
-                                                             <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-3 ${isFirst ? 'w-20 h-20 border-[#C9B075]/40' : 'w-16 h-16'}`}>
+                                                             <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-3 ${isFirst ? 'w-24 h-24 border-[#C9B075]/40' : 'w-16 h-16'}`}>
                                                                  {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full bg-gradient-to-br ${theme.color} flex items-center justify-center`}><span className="text-3xl">{theme.icon}</span></div>}
                                                              </div>
-                                                             <h4 className={`font-[1000] text-center text-white italic uppercase tracking-tighter mb-1.5 ${isFirst ? 'text-xl' : 'text-sm'}`}>{p.name}</h4>
+                                                             <h4 className={`font-[1000] text-center text-white italic uppercase tracking-tighter mb-1.5 ${isFirst ? 'text-2xl pt-2' : 'text-sm'}`}>{p.name}</h4>
                                                              <div className="flex items-center gap-2 font-[1000] text-[11px] italic tracking-tighter text-zinc-400 capitalize whitespace-nowrap">
                                                                  <span>{p.wins}W {p.losses}L</span>
                                                                  <span className={p.diff > 0 ? 'text-[#00e5ff]' : 'text-red-500'}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
@@ -247,9 +247,9 @@ export default function ArchivePage() {
                                      </div>
      
                                      {/* PHYSICAL BUFFER ZONE */}
-                                     <div className="h-10 w-full" aria-hidden="true" />
+                                     <div className="h-24 w-full" aria-hidden="true" />
      
-                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-8">
+                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-12">
                                         <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
                                             <span>#</span><span>PROF</span><span className="text-left">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
                                         </div>
