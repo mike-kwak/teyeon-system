@@ -462,9 +462,11 @@ export default function ArchivePage() {
     });
 
     sortedRecords.forEach(m => {
-        const rawTitle = m.session_title || m.title || "";
+        const rawTitle = m.session_title || m.title || "Untitled Session";
         const normalizedTitle = rawTitle.replace('(로컬 저장됨)', '').replace('(Local)', '').split(' (로컬 저장됨)')[0].trim();
-        const groupKey = normalizedTitle || m.session_id || 'untitled';
+        
+        // v1.7.0 Use Title as grouping key to prevent duplicates seen in Photo 1
+        const groupKey = normalizedTitle;
 
         if (!groups[groupKey]) {
             groups[groupKey] = {
@@ -478,6 +480,7 @@ export default function ArchivePage() {
             groups[groupKey].matches.push(m);
             groups[groupKey].matchCount = 1;
         } else {
+            // Keep the record with the most matches or the newest created_at
             const isMatchDuplicate = groups[groupKey].matches.some((ex: any) => 
                 (ex.id === m.id) || (ex.round === m.round && ex.court === m.court)
             );
@@ -509,7 +512,7 @@ export default function ArchivePage() {
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
 
   return (
-    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-24 pb-48">
+    <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-y-auto no-scrollbar pt-24 pb-72">
       <header className="px-8 py-6 flex flex-col gap-2 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700">
           <div className="flex justify-between items-end w-full">
             <div className="flex flex-col gap-1">
@@ -570,51 +573,58 @@ export default function ArchivePage() {
 
                         {activeDetailTab === 'RANKING' && (
                             <div className="space-y-12 animate-in fade-in duration-700">
-                                {/* The Ultimate Podium (v1.6.0) */}
+                                {/* Hall of Fame Podium (Replicating RankingTab Style) */}
                                 {(() => {
-                                    const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number }> = {};
+                                    const stats: Record<string, { id:string, name: string, wins: number, losses: number, diff: number, games: number, avatar: string }> = {};
                                     selectedSession.matches.forEach((m: any) => {
                                         const pNames = m.player_names || [];
+                                        const pIds = m.player_ids || [];
                                         pNames.forEach((name: string, i: number) => {
-                                            if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, games: 0 };
+                                            const id = pIds[i] || name;
+                                            if (!stats[id]) {
+                                               const member = members.find(mem => mem.nickname === name || mem.id === id);
+                                               stats[id] = { id, name, wins: 0, losses: 0, diff: 0, games: 0, avatar: member?.avatar_url || '' };
+                                            }
                                             const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
                                             const win = i < 2 ? (s1 > s2) : (s2 > s1);
-                                            if (win) stats[name].wins++; else if (s1 !== s2) stats[name].losses++;
-                                            stats[name].diff += i < 2 ? (s1 - s2) : (s2 - s1);
-                                            stats[name].games++;
+                                            if (win) stats[id].wins++; else if (s1 !== s2) stats[id].losses++;
+                                            stats[id].diff += i < 2 ? (s1 - s2) : (s2 - s1);
+                                            stats[id].games++;
                                         });
                                     });
                                     const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
                                     const top3 = rankingData.slice(0, 3);
-                                    
-                                    // Map to 2nd, 1st, 3rd for Podium visual
-                                    const podium = [
-                                        top3[1] || { name: '-', wins: 0, diff: 0 },
-                                        top3[0] || { name: '-', wins: 0, diff: 0 },
-                                        top3[2] || { name: '-', wins: 0, diff: 0 }
-                                    ];
+                                    const podium = [top3[1] || { name: '-', wins: 0, diff: 0, avatar: '' }, top3[0] || { name: '-', wins: 0, diff: 0, avatar: '' }, top3[2] || { name: '-', wins: 0, diff: 0, avatar: '' }];
 
                                     return (
-                                        <div className="relative mt-8 mb-12 flex justify-center items-end gap-2 px-2 h-[220px]">
+                                        <div className="relative mt-12 mb-20 flex justify-center items-end gap-2 h-[260px] px-2 outline-none">
                                             {podium.map((p, idx) => {
                                                 const isFirst = idx === 1;
-                                                const h = isFirst ? 'h-[200px]' : 'h-[160px]';
-                                                const w = isFirst ? 'w-[140px]' : 'w-[110px]';
+                                                const w = isFirst ? 'w-[145px]' : 'w-[110px]';
                                                 return (
-                                                    <div key={idx} className={`flex flex-col items-center justify-end ${isFirst ? 'z-20' : 'z-10'}`}>
-                                                        <div className={`relative ${w} rounded-t-[40px] bg-gradient-to-b from-white/10 to-white/5 border-x border-t border-white/10 flex flex-col items-center pt-6 shadow-2xl transition-all hover:scale-105`} style={{ height: isFirst ? '140px' : '100px' }}>
-                                                            <div className={`absolute -top-10 ${isFirst ? 'w-20 h-20' : 'w-16 h-16'} rounded-full border-2 ${isFirst ? 'border-[#D4AF37] shadow-[0_0_20px_#D4AF37]' : 'border-white/20'} bg-black overflow-hidden flex items-center justify-center`}>
-                                                                <span className="text-xl font-black italic">{p.name[0]}</span>
+                                                    <div key={idx} className={`flex flex-col items-center justify-end ${isFirst ? 'z-20 scale-110' : 'z-10 opacity-80'}`}>
+                                                        <div className={`relative ${w} rounded-t-[50px] bg-gradient-to-b from-white/10 to-white/5 border-x border-t border-white/20 flex flex-col items-center pt-8 shadow-2xl`} style={{ height: isFirst ? '160px' : '110px' }}>
+                                                            <div className={`absolute -top-12 ${isFirst ? 'w-24 h-24' : 'w-18 h-18'} rounded-full border-4 ${isFirst ? 'border-[#D4AF37] shadow-[0_0_30px_rgba(212,175,55,0.4)]' : 'border-white/20'} bg-black overflow-hidden flex items-center justify-center`}>
+                                                                {p.avatar ? (
+                                                                    <img src={p.avatar} alt="avatar" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <span className="text-2xl font-black italic text-white/20">{p.name[0]}</span>
+                                                                )}
                                                             </div>
-                                                            <span className={`mt-2 font-[1000] italic uppercase tracking-tighter ${isFirst ? 'text-lg text-white' : 'text-sm text-white/60'}`}>{p.name}</span>
-                                                            <div className="flex items-center gap-1 mt-1 opacity-50">
-                                                                <span className="text-[10px] font-black">{p.wins}승 {p.wins - p.wins}패</span>
+                                                            <span className={`mt-2 font-[1000] italic uppercase tracking-tighter ${isFirst ? 'text-xl text-white' : 'text-sm text-white/60'}`}>{p.name}</span>
+                                                            <div className="flex items-center gap-1 mt-1 opacity-60">
+                                                                <span className="text-[10px] font-black">{p.wins}승 {p.games - p.wins}패</span>
                                                                 <span className="text-[10px] font-black">/</span>
                                                                 <span className={`text-[10px] font-black ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
                                                             </div>
-                                                            {isFirst && <div className="mt-2 bg-[#D4AF37] text-black px-3 py-0.5 rounded-full text-[9px] font-[1000] italic">WINNER</div>}
+                                                            {isFirst && (
+                                                                <div className="mt-2 bg-[#D4AF37] text-black px-4 py-1 rounded-full text-[9px] font-[1000] italic flex flex-col items-center shadow-lg transform -rotate-1">
+                                                                    <span>#1 CHAMP</span>
+                                                                    <span className="text-[7px] leading-none opacity-60">₩10,000 PRIZE</span>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <div className={`${w} h-12 bg-white/5 border-x border-b border-white/10 flex items-center justify-center font-[1000] text-2xl italic ${isFirst ? 'text-[#D4AF37] text-4xl' : 'text-white/20'}`}>
+                                                        <div className={`${w} h-14 bg-white/5 border-x border-b border-white/20 rounded-b-3xl flex items-center justify-center font-[1000] italic ${isFirst ? 'text-[#D4AF37] text-5xl' : 'text-white/10 text-3xl'}`}>
                                                             {idx === 0 ? '2' : idx === 1 ? '1' : '3'}
                                                         </div>
                                                     </div>
@@ -624,52 +634,17 @@ export default function ArchivePage() {
                                     );
                                 })()}
 
-                                {/* Completed Matches Grid (v1.6.0) */}
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-4 px-2">
-                                        <div className="h-0.5 w-8 bg-[#D4AF37]"></div>
-                                        <h3 className="text-2xl font-[1000] italic text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Completed Matches</h3>
+                                {/* Full Leaderboard Analytics (All Participants) */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-2">
+                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">Final Ranking Scoreboard</h4>
+                                        <span className="text-[8px] font-black text-white/10 italic">Teyeon Verified</span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {selectedSession.matches.map((m: any, idx: number) => {
-                                            const n = m.player_names || ["?","?","?","?"];
-                                            const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                            return (
-                                                <div key={m.id} className="bg-white/[0.03] border border-white/5 rounded-[24px] p-4 flex flex-col gap-3 relative overflow-hidden group hover:bg-white/5 transition-all">
-                                                    <div className="flex justify-between items-center opacity-20 group-hover:opacity-40 transition-opacity">
-                                                        <span className="text-[7px] font-black uppercase tracking-widest">Match 0{idx+1}</span>
-                                                        <span className="text-[7px] font-black uppercase tracking-widest">G-A</span>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2">
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="flex flex-col text-[10px] font-black uppercase leading-tight italic">
-                                                                <span className={s1 > s2 ? 'text-white' : 'text-white/30'}>{n[0]}</span>
-                                                                <span className={s1 > s2 ? 'text-white' : 'text-white/30'}>{n[1]}</span>
-                                                            </div>
-                                                            <span className={`text-xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/20'}`}>{s1}</span>
-                                                        </div>
-                                                        <div className="h-px bg-white/5"></div>
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="flex flex-col text-[10px] font-black uppercase leading-tight italic">
-                                                                <span className={s2 > s1 ? 'text-white' : 'text-white/30'}>{n[2]}</span>
-                                                                <span className={s2 > s1 ? 'text-white' : 'text-white/30'}>{n[3]}</span>
-                                                            </div>
-                                                            <span className={`text-xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/20'}`}>{s2}</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] font-black text-white/5 uppercase tracking-[0.5em] pointer-events-none group-hover:text-[#D4AF37]/10">VS</div>
-                                                </div>
-                                            );
-                                         })}
-                                    </div>
-                                </div>
-
-                                {/* Full Leaderboard Table (Secondary) */}
-                                <div className="pt-8">
-                                    <h4 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 pl-2">Full Standings Analytics</h4>
-                                    <div className="bg-white/[0.03] border border-white/5 rounded-[24px] overflow-hidden">
-                                        <table className="w-full text-left text-[10px] font-black uppercase">
-                                            <thead className="text-[8px] text-white/30 tracking-widest border-b border-white/5"><tr><th className="px-6 py-4">Rank</th><th className="px-2 py-4">Player</th><th className="px-2 py-4 text-center">W/L</th><th className="px-4 py-4 text-right">Diff</th></tr></thead>
+                                    <div className="bg-white/[0.03] border border-white/10 rounded-[40px] overflow-hidden shadow-2xl">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-white/5 text-[8px] font-black text-white/30 uppercase tracking-widest border-b border-white/5">
+                                                <tr><th className="px-8 py-5">Rank</th><th className="px-2 py-5">Player</th><th className="px-2 py-5 text-center">W/L</th><th className="px-8 py-5 text-right">Diff</th></tr>
+                                            </thead>
                                             <tbody>
                                                 {(() => {
                                                     const stats: Record<string, { name: string, wins: number, losses: number, diff: number, games: number }> = {};
@@ -684,20 +659,62 @@ export default function ArchivePage() {
                                                             stats[name].games++;
                                                         });
                                                     });
-                                                    const rankingData = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
-                                                    return rankingData.map((p:any, idx:number) => (
-                                                        <tr key={p.name} className="border-t border-white/5 opacity-40 hover:opacity-100 transition-opacity">
-                                                            <td className="px-6 py-4 font-black italic">{idx + 1}</td>
-                                                            <td className="px-2 py-4">{p.name}</td>
-                                                            <td className="px-2 py-4 text-center text-white/30">{p.wins}승 {p.losses}패</td>
-                                                            <td className={`px-4 py-4 text-right ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
-                                                        </tr>
-                                                    ));
+                                                    return Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff)).map((p:any, idx:number) => {
+                                                        const isTop3 = idx < 3;
+                                                        return (
+                                                            <tr key={p.name} className={`border-t border-white/5 transition-opacity ${isTop3 ? 'bg-white/[0.02]' : 'opacity-40 hover:opacity-100'}`}>
+                                                                <td className={`px-8 py-5 font-[1000] italic text-lg ${idx === 0 ? 'text-[#D4AF37]' : 'text-white/20'}`}>{idx + 1}</td>
+                                                                <td className="px-2 py-5 font-black text-xs uppercase tracking-tighter">{p.name}</td>
+                                                                <td className="px-2 py-5 text-center text-[10px] font-black opacity-30">{p.wins}W {p.losses}L</td>
+                                                                <td className={`px-8 py-5 text-right font-[1000] italic ${p.diff >= 0 ? 'text-[#4ADE80]' : 'text-red-500'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</td>
+                                                            </tr>
+                                                        );
+                                                    });
                                                 })()}
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
+
+                                {/* Completed Matches History Grid (Photo 4 Style) */}
+                                <div className="space-y-6 pt-12">
+                                    <div className="flex items-center gap-4 px-2">
+                                        <div className="h-0.5 w-12 bg-[#D4AF37] rounded-full"></div>
+                                        <h3 className="text-3xl font-[1000] italic text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}>Completed Matches</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {selectedSession.matches.map((m: any, idx: number) => {
+                                            const n = m.player_names || ["?","?","?","?"];
+                                            const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                            return (
+                                                <div key={m.id} className="bg-white/[0.04] border border-white/10 rounded-[30px] p-5 flex flex-col gap-4 relative overflow-hidden group hover:bg-white/10 transition-all shadow-2xl">
+                                                    <div className="flex justify-between items-center opacity-30 group-hover:opacity-60 transition-opacity">
+                                                        <span className="text-[8px] font-black uppercase tracking-[0.3em]">MATCH 0{idx+1}</span>
+                                                        <span className="text-[8px] font-black uppercase tracking-[0.3em]">RECORD V2</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-3">
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="flex flex-col text-[10px] font-black uppercase leading-[1.1] italic">
+                                                                <span className={s1 > s2 ? 'text-white' : 'text-white/20'}>{n[0]}</span>
+                                                                <span className={s1 > s2 ? 'text-white' : 'text-white/20'}>{n[1]}</span>
+                                                            </div>
+                                                            <span className={`text-2xl font-[1000] italic ${s1 > s2 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s1}</span>
+                                                        </div>
+                                                        <div className="h-px bg-white/10 w-full"></div>
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="flex flex-col text-[10px] font-black uppercase leading-[1.1] italic">
+                                                                <span className={s2 > s1 ? 'text-white' : 'text-white/20'}>{n[2]}</span>
+                                                                <span className={s2 > s1 ? 'text-white' : 'text-white/20'}>{n[3]}</span>
+                                                            </div>
+                                                            <span className={`text-2xl font-[1000] italic ${s2 > s1 ? 'text-[#D4AF37]' : 'text-white/10'}`}>{s2}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                         })}
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedSessionId(null)} className="w-full py-8 mt-12 rounded-[40px] bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-[0.4em] hover:bg-white/10 transition-all active:scale-95 shadow-2xl mb-20 text-white/40">Return to Archive</button>
                             </div>
                         )}
                         <button onClick={() => setSelectedSessionId(null)} className="w-full py-6 mt-8 rounded-[28px] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all">Back to List</button>
@@ -721,27 +738,27 @@ export default function ArchivePage() {
 
                         <div className="space-y-6">
                             {sessions.length > 0 ? sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); setActiveDetailTab('RANKING'); }} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[50px] p-8 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/30">
+                                <div key={s.id} onClick={() => { setSelectedSessionId(s.id); setActiveDetailTab('RANKING'); }} className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[50px] p-10 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-all cursor-pointer hover:border-[#D4AF37]/30 min-h-[170px] flex flex-col justify-center">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                                    <div className="flex justify-between items-start mb-4 relative z-10">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-3 mb-1">
+                                    <div className="flex justify-between items-start relative z-10 w-full mb-4">
+                                        <div className="flex flex-col gap-2 flex-1 pr-6">
+                                            <div className="flex items-center gap-3">
                                                 <span className="w-8 h-8 bg-black/40 rounded-xl border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] text-[11px] font-[1000]">{index + 1}</span>
                                                 <span className="text-[10px] font-black text-[#EFDFB4] uppercase tracking-[0.2em]">{s.date}</span>
                                             </div>
-                                            <h3 className="text-xl font-[1000] text-white italic tracking-tighter uppercase leading-none">{s.title}</h3>
+                                            <h3 className="text-2xl font-[1000] text-white italic tracking-tighter uppercase leading-tight">{s.title}</h3>
                                         </div>
-                                        <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] group-hover:scale-110 transition-transform shadow-lg">→</div>
+                                        <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] group-hover:scale-110 transition-transform shadow-lg border border-[#D4AF37]/20 flex-shrink-0 mt-1">→</div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-[9px] font-black text-white/20 tracking-[0.3em] uppercase">
-                                        <span className={s.matches[0]?.isLocal ? 'text-[#D4AF37] animate-pulse' : ''}>{s.matches[0]?.isLocal ? 'Local Cache' : 'Cloud Verified'}</span>
+                                    <div className="flex items-center gap-4 text-[9px] font-black text-white/20 tracking-[0.3em] uppercase relative z-10">
+                                        <span className={s.matches[0]?.isLocal ? 'text-[#D4AF37] animate-pulse' : ''}>{s.matches[0]?.isLocal ? 'LOCAL CACHE' : 'CLOUD SYNCED'}</span>
                                         <span className="opacity-10">|</span>
                                         <span>{s.matchCount} Matches Preserved</span>
                                     </div>
                                     {isAdmin && (
-                                        <div className="mt-6 pt-6 border-t border-white/5 flex gap-2">
-                                            <button onClick={(e)=>{e.stopPropagation(); editSessionTitle(s.id, s.title);}} className="text-[10px] font-black text-white/20 hover:text-[#D4AF37]">EDIT TITLE</button>
-                                            <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="text-[10px] font-black text-white/20 hover:text-red-500">DELETE SESSION</button>
+                                        <div className="mt-6 pt-6 border-t border-white/5 flex gap-4 relative z-10">
+                                            <button onClick={(e)=>{e.stopPropagation(); editSessionTitle(s.id, s.title);}} className="text-[10px] font-black text-white/20 hover:text-[#D4AF37] transition-colors">EDIT</button>
+                                            <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="text-[10px] font-black text-white/20 hover:text-red-500 transition-colors">DELETE</button>
                                         </div>
                                     )}
                                 </div>
