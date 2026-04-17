@@ -254,33 +254,36 @@ export default function ArchivePage() {
                                         })}
                                     </div>
 
-                                    {/* 4등 이하 프리미엄 랭킹 리스트 (v1.15.4 정밀 교정) */}
+                                    {/* 4등 이하 프리미엄 랭킹 리스트 (v1.15.5 중앙 집중 교정) */}
                                     <div className="h-10 w-full" aria-hidden="true" />
-                                    <div className="flex flex-col gap-2.5 px-1 w-full max-w-2xl mx-auto">
-                                        {/* TABLE HEADER (Perfect Alignment with Rows) */}
-                                        <div className="grid grid-cols-[40px_1fr_45px_45px_70px] gap-3 px-6 py-2 italic font-black text-[9px] text-zinc-700 tracking-[0.3em] uppercase">
+                                    <div className="flex flex-col gap-2 px-1 w-full max-w-4xl mx-auto">
+                                        {/* TABLE HEADER (7-Col Centering Layout) */}
+                                        <div className="grid grid-cols-[1fr_40px_1.5fr_45px_45px_65px_1fr] gap-2 py-2 italic font-black text-[9px] text-zinc-700 tracking-[0.3em] uppercase">
+                                            <span></span> {/* Left Spacer */}
                                             <span className="text-center">#</span>
-                                            <span className="pl-11">Player</span>
+                                            <span className="pl-12">Player</span>
                                             <span className="text-center text-cyan-500/60">W</span>
                                             <span className="text-center text-zinc-700">L</span>
                                             <span className="text-right pr-2 text-[#C9B075]/60">+/-</span>
+                                            <span></span> {/* Right Spacer */}
                                         </div>
 
                                         {/* RANKING ROWS */}
                                         {sortedResults.slice(3).map((p, idx) => (
-                                            <div key={p.name} className="group relative bg-zinc-900/40 hover:bg-zinc-800/60 border border-white/5 rounded-2xl px-6 py-4 grid grid-cols-[40px_1fr_45px_45px_70px] gap-3 items-center transition-all duration-300 active:scale-[0.98]">
-                                                {/* Rank Info */}
+                                            <div key={p.name} className="group relative bg-zinc-900/30 hover:bg-zinc-800/60 border border-white/5 rounded-2xl grid grid-cols-[1fr_40px_1.5fr_45px_45px_65px_1fr] gap-2 items-center py-4 transition-all duration-300 active:scale-[0.98]">
+                                                <span></span> {/* Left Spacer */}
+                                                {/* Rank */}
                                                 <div className="flex justify-center items-center">
-                                                    <span className="text-lg font-[1000] italic text-zinc-800 group-hover:text-zinc-600 transition-colors">{(idx + 4).toString().padStart(2, '0')}</span>
+                                                    <span className="text-lg font-[1000] italic text-zinc-800 group-hover:text-zinc-600">{(idx + 4).toString().padStart(2, '0')}</span>
                                                 </div>
 
-                                                {/* Player Info (Compact & Centered) */}
-                                                <div className="flex items-center gap-3 ml-2">
-                                                    <div className="w-9 h-9 rounded-full bg-black border border-white/5 flex items-center justify-center overflow-hidden shadow-inner">
+                                                {/* Player Info (Pulled to Right via Margin/Padding) */}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-black border border-white/5 flex items-center justify-center overflow-hidden shadow-2xl">
                                                         {p.avatar ? (
-                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                            <img src={p.avatar} alt={p.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                                         ) : (
-                                                            <span className="text-[10px] font-black text-zinc-700">{p.name[0]}</span>
+                                                            <span className="text-[10px] font-black text-zinc-800">{p.name[0]}</span>
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col">
@@ -289,21 +292,22 @@ export default function ArchivePage() {
                                                     </div>
                                                 </div>
 
-                                                {/* Stats (Aligned with Header) */}
-                                                <div className="flex flex-col items-center">
+                                                {/* Stats (Pulled to Left) */}
+                                                <div className="flex justify-center">
                                                     <span className="text-xl font-[1000] italic text-cyan-500/80 drop-shadow-sm">{p.wins}</span>
                                                 </div>
-                                                <div className="flex flex-col items-center">
+                                                <div className="flex justify-center">
                                                     <span className="text-xl font-[1000] italic text-zinc-700">{p.losses}</span>
                                                 </div>
-                                                <div className="flex flex-col items-end pr-2">
+                                                <div className="flex justify-end pr-2">
                                                     <span className={`text-xl font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B070]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>
                                                         {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                     </span>
                                                 </div>
+                                                <span></span> {/* Right Spacer */}
 
-                                                {/* Decoration Edge */}
-                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-10 bg-zinc-900 border-r border-zinc-800 rounded-r-full group-hover:bg-[#C9B075]/40 transition-all"></div>
+                                                {/* Side Decoration */}
+                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-8 bg-zinc-900 border-r border-zinc-800 rounded-r-full group-hover:bg-[#C9B075]/40 transition-all"></div>
                                             </div>
                                         ))}
                                     </div>
@@ -326,28 +330,28 @@ export default function ArchivePage() {
                                     return (
                                         <div key={m.id || idx} className="rounded-[28px] flex flex-col overflow-hidden border border-white/5 bg-zinc-900/80 shadow-2xl relative group transition-all">
                                             {/* Header Bar */}
-                                            <div className="px-4 py-2 bg-black/40 border-b border-white/[0.03] flex justify-center items-center italic">
-                                                <span className="text-[8px] font-black text-zinc-600 tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
+                                            <div className="px-4 py-1.5 bg-black/40 border-b border-white/[0.03] flex justify-center items-center italic">
+                                                <span className="text-[7px] font-black text-zinc-700 tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
                                             </div>
-                                            <div className="px-4 py-6">
+                                            <div className="px-3 py-5">
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 font-black">
-                                                    <div className="flex flex-col gap-0.5 text-center">
-                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[0]}</span>
-                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[1]}</span>
+                                                    <div className="flex flex-col gap-1 text-center">
+                                                        <span className="text-[13px] italic truncate text-zinc-100 uppercase tracking-tighter">{n[0]}</span>
+                                                        <span className="text-[13px] italic truncate text-zinc-100 uppercase tracking-tighter">{n[1]}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1 px-0.5">
-                                                        <span className={`text-2xl italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-100'}`}>{s1}</span>
-                                                        <span className="text-zinc-950/40 font-bold">:</span>
-                                                        <span className={`text-2xl italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-100'}`}>{s2}</span>
+                                                        <span className={`text-2xl italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-200'}`}>{s1}</span>
+                                                        <span className="text-zinc-900 font-bold opacity-30">:</span>
+                                                        <span className={`text-2xl italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-200'}`}>{s2}</span>
                                                     </div>
-                                                    <div className="flex flex-col gap-0.5 text-center">
-                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[2]}</span>
-                                                        <span className="text-[11px] italic truncate text-zinc-100">{n[3]}</span>
+                                                    <div className="flex flex-col gap-1 text-center">
+                                                        <span className="text-[13px] italic truncate text-zinc-100 uppercase tracking-tighter">{n[2]}</span>
+                                                        <span className="text-[13px] italic truncate text-zinc-100 uppercase tracking-tighter">{n[3]}</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="bg-black/10 py-2 text-center border-t border-white/[0.01]">
-                                                <span className="text-[7px] font-black text-zinc-800 uppercase tracking-[0.2em] italic">Archive Record</span>
+                                            <div className="bg-black/10 py-1.5 text-center border-t border-white/[0.01]">
+                                                <span className="text-[6px] font-black text-zinc-800 uppercase tracking-[0.2em] italic">Archive</span>
                                             </div>
                                         </div>
                                     );
