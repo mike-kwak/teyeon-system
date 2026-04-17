@@ -480,8 +480,8 @@ export default function ArchivePage() {
     return mDate.getFullYear() === selectedYear && (mDate.getMonth() + 1) === selectedMonth;
   });
 
-  const sessions = useMemo(() => {
-    // [v1.2.2] Aggressive Deduplication by Title (ignores unique push IDs)
+    const sessions = useMemo(() => {
+    // [v1.3.0] Ultra-Strict Title Normalized Deduplication
     const groups: Record<string, any> = {};
     
     // 1. Sort base records by created_at DESC (Newest push first)
@@ -492,14 +492,20 @@ export default function ArchivePage() {
     });
 
     sortedRecords.forEach(m => {
-        // Group STRICTLY by normalized title to merge duplicate tournament pushes
-        const titleKey = (m.session_title || m.title || "").replace(' (로컬 저장됨)', '').trim();
-        const groupKey = titleKey || m.session_id || 'untitled';
+        // [v1.3.0] Normalize title by removing all local tags and trimming
+        const rawTitle = m.session_title || m.title || "";
+        const normalizedTitle = rawTitle
+            .replace('(로컬 저장됨)', '')
+            .replace('(Local)', '')
+            .split(' (로컬 저장됨)')[0]
+            .trim();
+        
+        const groupKey = normalizedTitle || m.session_id || 'untitled';
 
         if (!groups[groupKey]) {
             groups[groupKey] = {
                 id: m.session_id || groupKey,
-                title: m.session_title || m.title || groupKey,
+                title: normalizedTitle,
                 date: m.match_date,
                 created_at: m.created_at,
                 matches: [],

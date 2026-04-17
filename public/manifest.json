@@ -1,6 +1,6 @@
 {
-  "name": "TEYEON Tournament Archive",
-  "short_name": "TEYEON v1.2.6.1",
+  "name": "TEYEON Tournament Archive v1.3.0",
+  "short_name": "TEYEON_v130",
   "description": "테연 테니스 클럽 매치 관리 시스템",
   "start_url": "/",
   "display": "standalone",

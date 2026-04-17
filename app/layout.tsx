@@ -26,13 +26,13 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "TEYEON | Elite Circuit",
-  description: "The Ultimate Tennis Match Management System",
+  title: "TEYEON v1.3.0",
+  description: "The Ultimate Tournament Database v1.3.0",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TEYEON",
+    title: "TEYEON v1.3.0",
   },
 };
 
