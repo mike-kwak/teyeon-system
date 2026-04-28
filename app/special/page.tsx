@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "5.7";
+        const VERSION = "6.2";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
