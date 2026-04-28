@@ -235,13 +235,30 @@ export default function SpecialMatchPage() {
 
     const handleStartMatch = async (matchId: string) => {
         if (isStartingMatch) return;
+        
+        // Safety Checks
+        const playingMatches = matchQueue.filter(m => m.status === 'playing');
+        if (playingMatches.length >= totalCourts) {
+            alert(`이미 설정된 모든 코트(${totalCourts}개)가 사용 중입니다. 기존 경기를 종료해주세요.`);
+            return;
+        }
+
+        const target = matchQueue.find(m => m.id === matchId);
+        if (!target) return;
+        const playingPlayerIds = new Set(playingMatches.flatMap(m => m.playerIds));
+        const conflictingPlayers = target.playerIds.filter(pid => playingPlayerIds.has(pid));
+        if (conflictingPlayers.length > 0) {
+            const names = conflictingPlayers.map(pid => getPlayerName(pid)).join(', ');
+            alert(`선수 중복: ${names} 선수가 이미 다른 경기에서 플레이 중입니다.`);
+            return;
+        }
+
         setIsStartingMatch(true);
         const nextQueue = matchQueue.map(m => m.id === matchId ? { ...m, status: 'playing' as const } : m);
         setMatchQueue(nextQueue);
         try {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-            const target = nextQueue.find(m => m.id === matchId)!;
-            const dbMatch = { ...target, session_id: sessionId, club_id: clubId, status: 'playing', session_title: sessionTitle, player_names: target.playerIds.map(pid => getPlayerName(pid)) };
+            const dbMatch = { ...target, status: 'playing' as const, session_id: sessionId, club_id: clubId, session_title: sessionTitle, player_names: target.playerIds.map(pid => getPlayerName(pid)) };
             await supabase.rpc('sync_tournament_matches', { p_matches: [dbMatch] });
         } catch (e) { console.error("Sync Error:", e); } finally {
             setIsStartingMatch(false);
@@ -627,6 +644,10 @@ export default function SpecialMatchPage() {
                                             </div>
                                             <div className="flex flex-col gap-6">
                                                 {(() => {
+                                                    const playingMatches = matchQueue.filter(m => m.status === 'playing');
+                                                    const playingPlayerIds = new Set(playingMatches.flatMap(m => m.playerIds));
+                                                    const isCourtFull = playingMatches.length >= totalCourts;
+
                                                     const calculateDisplayRound = (m: Match) => {
                                                         const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
                                                         const fullGroupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
@@ -639,7 +660,8 @@ export default function SpecialMatchPage() {
 
                                                     return groupMatches.map((m, idx) => {
                                                         const { roundNum, matchNo } = calculateDisplayRound(m);
-                                                        const isFirstInRound = idx === 0 || calculateDisplayRound(groupMatches[idx - 1]).roundNum !== roundNum;
+                                                        const isFirstInRound = idx === 0 || (groupMatches[idx - 1] && calculateDisplayRound(groupMatches[idx - 1]).roundNum !== roundNum);
+                                                        const hasConflict = isCourtFull || m.playerIds.some(pid => playingPlayerIds.has(pid));
 
                                                         return (
                                                             <div key={m.id} className={isFirstInRound ? "mt-4" : ""}>
@@ -658,6 +680,7 @@ export default function SpecialMatchPage() {
                                                                         getPlayerName={getPlayerName}
                                                                         isAdmin={isAdmin}
                                                                         isStartingMatch={isStartingMatch}
+                                                                        hasConflict={hasConflict}
                                                                         onStart={(id) => handleStartMatch(id)}
                                                                     />
                                                                 </div>
