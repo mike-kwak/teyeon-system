@@ -26,13 +26,13 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "TEYEON v1.3.0",
-  description: "The Ultimate Tournament Database v1.3.0",
+  title: "TEYEON v1.20.5",
+  description: "The Ultimate Tournament Database v1.20.5",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TEYEON v1.3.0",
+    title: "TEYEON v1.20.5",
   },
 };
 

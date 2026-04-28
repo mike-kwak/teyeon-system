@@ -121,14 +121,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (linkedMember) {
         const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
-        await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
+        try {
+          await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
+        } catch (syncErr) {
+          console.warn('[Auth/DirectSync] Member avatar update failed (non-critical):', syncErr);
+        }
         
         let finalRole: UserRole = 'MEMBER';
         if (linkedMember.role) {
-          const kRole = linkedMember.role.trim();
-          if (kRole === 'CEO' || kRole === '회장') finalRole = 'CEO';
-          else if (['부회장', '총무', '재무', '경기', '섭외'].includes(kRole) || ADMIN_EMAILS.includes(currentUser.email || '')) finalRole = 'ADMIN';
-          else if (['정회원', '준회원'].includes(kRole)) finalRole = 'MEMBER';
+          const kRole = linkedMember.role.trim().toUpperCase();
+          if (kRole.includes('CEO') || (kRole.includes('회장') && !kRole.includes('부회장'))) {
+            finalRole = 'CEO';
+          } else if (
+            ['부회장', '총무', '재무', '경기', '섭외'].some(r => kRole.includes(r.toUpperCase())) || 
+            ADMIN_EMAILS.some(e => e.toLowerCase() === (currentUser.email || '').toLowerCase())
+          ) {
+            finalRole = 'ADMIN';
+          } else if (['정회원', '준회원'].some(r => kRole.includes(r.toUpperCase()))) {
+            finalRole = 'MEMBER';
+          }
         }
 
         console.log(`[Auth/DirectSync] Target Role (Members): ${finalRole}`);
@@ -147,9 +158,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileData && profileData.role) {
         let finalRole: UserRole = 'MEMBER';
-        const pRole = profileData.role.trim();
-        if (pRole === 'CEO' || pRole === '회장') finalRole = 'CEO';
-        else if (['부회장', '총무', '재무', '경기', '섭외'].includes(pRole)) finalRole = 'ADMIN';
+        const pRole = profileData.role.trim().toUpperCase();
+        if (pRole.includes('CEO') || (pRole.includes('회장') && !pRole.includes('부회장'))) {
+          finalRole = 'CEO';
+        } else if (['부회장', '총무', '재무', '경기', '섭외'].some(r => pRole.includes(r.toUpperCase()))) {
+          finalRole = 'ADMIN';
+        }
         
         console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
         setRole(finalRole);
