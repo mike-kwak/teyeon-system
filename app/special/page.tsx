@@ -69,6 +69,8 @@ export default function SpecialMatchPage() {
         attendeeConfigs
     );
 
+    const [isCheckingDB, setIsCheckingDB] = useState(false);
+
     useEffect(() => {
         fetchMembers();
         const saved = localStorage.getItem('special_live_session');
@@ -94,8 +96,63 @@ export default function SpecialMatchPage() {
                     if (data.matches && data.matches.length > 0) setStep(4);
                 }
             } catch (e) { console.error(e); }
+        } else {
+            // Only attempt DB recovery if no local session exists
+            checkDBForActiveSession();
         }
     }, []);
+
+    const checkDBForActiveSession = async () => {
+        if (!isAdmin) return;
+        setIsCheckingDB(true);
+        try {
+            // Query Supabase for any active special matches from the last 24 hours
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const { data, error } = await supabase
+                .from('tournament_matches')
+                .select('*')
+                .eq('mode', 'SPECIAL')
+                .in('status', ['playing', 'waiting'])
+                .gt('created_at', yesterday)
+                .order('created_at', { ascending: false });
+
+            if (data && data.length > 0) {
+                const latestSid = data[0].session_id;
+                const latestTitle = data[0].session_title;
+                const sessionMatches = data.filter(m => m.session_id === latestSid);
+                
+                if (confirm(`[클라우드 알림] 진행 중인 세션(${latestTitle})이 발견되었습니다. 다른 기기(PC 등)에서 시작한 작업을 이 노트북으로 불러오시겠습니까?`)) {
+                    // Reconstruct basic state from DB matches
+                    const reconstructedQueue = sessionMatches.map(m => ({
+                        ...m,
+                        playerIds: m.player_ids || m.playerIds, // Handle both snake/camel
+                        teams: m.teams || [[m.player_ids[0], m.player_ids[1]], [m.player_ids[2], m.player_ids[3]]]
+                    }));
+                    
+                    const allPlayerIdsInSession = new Set(reconstructedQueue.flatMap(m => m.playerIds));
+                    
+                    setMatchQueue(reconstructedQueue);
+                    setSessionId(latestSid);
+                    setSessionTitle(latestTitle);
+                    setSelectedIds(allPlayerIdsInSession);
+                    setStep(4); // Jump straight to dashboard
+                    
+                    // Save to local for persistence on this device too
+                    const sessionData = {
+                        sessionId: latestSid, sessionTitle: latestTitle, matches: reconstructedQueue, 
+                        selectedIds: Array.from(allPlayerIdsInSession), tempGuests: [], attendeeConfigs: {},
+                        prizes: { firstPrize, bottom25Late, bottom25Penalty },
+                        constraints: { totalCourts, matchMins }
+                    };
+                    localStorage.setItem('special_live_session', JSON.stringify(sessionData));
+                }
+            }
+        } catch (e) {
+            console.error("Session Recovery Error:", e);
+        } finally {
+            setIsCheckingDB(false);
+        }
+    };
 
     const fetchMembers = async () => {
         try {
