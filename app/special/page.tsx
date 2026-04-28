@@ -105,11 +105,13 @@ export default function SpecialMatchPage() {
     const checkDBForActiveSession = async () => {
         setIsCheckingDB(true);
         try {
-            // Correct table name is 'matches' (verified from tournament_schema.sql)
+            // Specifically target Special Mode sessions starting with 'SP-'
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data, error } = await supabase
                 .from('matches')
                 .select('*')
+                .eq('mode', 'SPECIAL')
+                .ilike('session_id', 'SP-%')
                 .in('status', ['playing', 'waiting'])
                 .gt('created_at', yesterday)
                 .order('created_at', { ascending: false })
