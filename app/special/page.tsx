@@ -13,7 +13,7 @@ import RankingTab from '@/components/RankingTab';
 
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Zap, Target, Layers, ClipboardCheck, Info, Search } from 'lucide-react';
+import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Target, Layers, ClipboardCheck, Info, Search } from 'lucide-react';
 import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
 import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 
@@ -41,7 +41,7 @@ export default function SpecialMatchPage() {
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     
     const [showResetConfirm, setShowResetConfirm] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isStartingMatch, setIsStartingMatch] = useState(false);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
@@ -232,6 +232,8 @@ export default function SpecialMatchPage() {
     };
 
     const handleStartMatch = async (matchId: string) => {
+        if (isStartingMatch) return;
+        setIsStartingMatch(true);
         const nextQueue = matchQueue.map(m => m.id === matchId ? { ...m, status: 'playing' as const } : m);
         setMatchQueue(nextQueue);
         try {
@@ -239,7 +241,9 @@ export default function SpecialMatchPage() {
             const target = nextQueue.find(m => m.id === matchId)!;
             const dbMatch = { ...target, session_id: sessionId, club_id: clubId, status: 'playing', session_title: sessionTitle, player_names: target.playerIds.map(pid => getPlayerName(pid)) };
             await supabase.rpc('sync_tournament_matches', { p_matches: [dbMatch] });
-        } catch (e) { console.error("Sync Error:", e); }
+        } catch (e) { console.error("Sync Error:", e); } finally {
+            setIsStartingMatch(false);
+        }
     };
 
     const updateMatchScore = async (matchId: string, s1: number, s2: number) => {
@@ -567,9 +571,18 @@ export default function SpecialMatchPage() {
                                                 matchNo={idx + 1}
                                                 getPlayerName={getPlayerName}
                                                 isAdmin={isAdmin}
-                                                onInputScore={(match) => {
-                                                    setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
-                                                    setActiveMatchForScore(match);
+                                                onInputScore={(id, s1, s2) => {
+                                                    const targetMatch = matchQueue.find(x => x.id === id);
+                                                    if (targetMatch) {
+                                                        setTempScores({ s1, s2 });
+                                                        setActiveMatchForScore(targetMatch);
+                                                    }
+                                                }}
+                                                onCancel={(id) => {
+                                                    if (confirm("이 경기를 취소하고 대기열로 되돌리시겠습니까?")) {
+                                                        const nextQueue = matchQueue.map(mx => mx.id === id ? { ...mx, status: 'waiting' as const } : mx);
+                                                        setMatchQueue(nextQueue);
+                                                    }
                                                 }}
                                             />
                                         ))}
@@ -603,6 +616,8 @@ export default function SpecialMatchPage() {
                                                         match={m}
                                                         index={idx}
                                                         getPlayerName={getPlayerName}
+                                                        isAdmin={isAdmin}
+                                                        isStartingMatch={isStartingMatch}
                                                         onStart={(id) => handleStartMatch(id)}
                                                     />
                                                 ))}
@@ -625,6 +640,13 @@ export default function SpecialMatchPage() {
                                                 match={m}
                                                 index={idx}
                                                 getPlayerName={getPlayerName}
+                                                isAdmin={isAdmin}
+                                                onResetStatus={(id) => {
+                                                    if (confirm("이 경기를 다시 '진행 중' 상태로 되돌리시겠습니까?")) {
+                                                        const nextQueue = matchQueue.map(mx => mx.id === id ? { ...mx, status: 'playing' as const, score1: 1, score2: 1 } : mx);
+                                                        setMatchQueue(nextQueue);
+                                                    }
+                                                }}
                                                 onEdit={(match) => {
                                                     setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
                                                     setActiveMatchForScore(match);

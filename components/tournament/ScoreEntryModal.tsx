@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Trophy, Zap, Save } from 'lucide-react';
+import { Trophy, Save } from 'lucide-react';
 import { Match } from '@/lib/tournament_types';
 
 interface ScoreEntryModalProps {
@@ -24,7 +24,6 @@ export const ScoreEntryModal = ({
     return (
         <div className="fixed inset-0 z-[3000] flex items-center justify-center px-6 bg-black/98 backdrop-blur-2xl">
             <div className="w-full max-w-[380px] bg-[#0F0F0F] rounded-[56px] p-10 border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] relative overflow-hidden flex flex-col items-center">
-                <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none -mr-16 -mt-16 rotate-12"><Zap size={350} className="text-[#C9B075]" /></div>
                 
                 <div className="text-center mb-10 relative z-10">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.6em] uppercase block mb-2 opacity-60">MATCH PROTOCOL</span>

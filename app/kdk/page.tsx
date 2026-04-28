@@ -2129,11 +2129,11 @@ export default function KDKPage() {
                                                     getPlayerName={getPlayerName}
                                                     isAdmin={isAdmin && adminModeManual}
                                                     onCancel={(id) => cancelMatch(id)}
-                                                    spinning={spinningMatchId === m.id}
+                                                    spinningMatchId={spinningMatchId}
                                                     matchNo={matchNo}
-                                                    onInputScore={(match) => {
-                                                        setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
-                                                        setShowScoreModal(match.id);
+                                                    onInputScore={(id, s1, s2) => {
+                                                        setTempScores({ s1, s2 });
+                                                        setShowScoreModal(id);
                                                     }}
                                                 />
                                             );
@@ -2201,6 +2201,9 @@ export default function KDKPage() {
                                                                             index={idx}
                                                                             matchNo={matchNo}
                                                                             getPlayerName={getPlayerName}
+                                                                            isAdmin={isAdmin && adminModeManual}
+                                                                            isStartingMatch={isStartingMatch}
+                                                                            hasConflict={busyPlayerIds.has(m.playerIds[0]) || busyPlayerIds.has(m.playerIds[1]) || busyPlayerIds.has(m.playerIds[2]) || busyPlayerIds.has(m.playerIds[3])}
                                                                             onStart={(id) => {
                                                                                 if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드에서만 가능합니다.");
                                                                                 startMatch(id);
@@ -2246,6 +2249,14 @@ export default function KDKPage() {
                                                     index={idx}
                                                     matchNo={gMatchNo}
                                                     getPlayerName={getPlayerName}
+                                                    isAdmin={isAdmin}
+                                                    onResetStatus={(id) => {
+                                                        if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\n(점수가 1:1로 초기화되며 랭킹에서 일시 제외됩니다)")) {
+                                                            supabase.from('matches').update({ status: 'playing', score1: 1, score2: 1 }).eq('id', id).then(() => {
+                                                                setSyncTick(t => t + 1);
+                                                            });
+                                                        }
+                                                    }}
                                                     onEdit={(match) => {
                                                         if (!isAdmin) return triggerAccessDenied();
                                                         setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
