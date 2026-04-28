@@ -318,25 +318,16 @@ export default function SpecialMatchPage() {
     const addMatchToQueue = () => {
         if (draftSlots.includes(null)) { alert("4명의 선수를 모두 채워주세요."); return; }
         
-        // [v6.1] CALCULATE ROUND BASED ON TOTAL COURTS
-        const currentRound = Math.floor(matchQueue.length / totalCourts) + 1;
-        
-        // [v6.1] PREVENT PLAYER COLLISION IN THE SAME ROUND
-        const playersInThisRound = matchQueue
-            .filter(m => m.round === currentRound)
-            .flatMap(m => m.playerIds);
-            
-        const collidingPlayerId = (draftSlots as string[]).find(id => playersInThisRound.includes(id));
-        if (collidingPlayerId) {
-            alert(`선수 중복 오류: ${getPlayerName(collidingPlayerId)} 선수는 이미 ROUND ${currentRound}의 다른 경기에 포함되어 있습니다.`);
-            return;
-        }
+        // [v6.1] Automated Round Calculation based on Courts & Groups
+        const groupMatches = matchQueue.filter(m => m.group === draftGroup);
+        const slotsPerGroupPerRound = Math.max(1, Math.floor(totalCourts / 2));
+        const calculatedRound = Math.floor(groupMatches.length / slotsPerGroupPerRound) + 1;
 
         const newMatch: Match = {
             id: `special-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             playerIds: draftSlots as string[],
             court: null, status: 'waiting', mode: 'SPECIAL', 
-            round: currentRound, // [v6.1] Fixed Rounding
+            round: calculatedRound,
             group: draftGroup,
             teams: [[draftSlots[0]!, draftSlots[1]!], [draftSlots[2]!, draftSlots[3]!]]
         };
