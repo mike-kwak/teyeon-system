@@ -12,7 +12,7 @@ import RankingTab from '@/components/RankingTab';
 
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Zap, Target } from 'lucide-react';
+import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Zap, Target, Layers } from 'lucide-react';
 
 export default function SpecialMatchPage() {
     const router = useRouter();
@@ -28,6 +28,7 @@ export default function SpecialMatchPage() {
 
     // Manual Drafting State
     const [draftSlots, setDraftSlots] = useState<(string | null)[]>([null, null, null, null]);
+    const [draftGroup, setDraftGroup] = useState<'A' | 'B'>('A');
     const [matchQueue, setMatchQueue] = useState<Match[]>([]);
     const [sessionId, setSessionId] = useState<string>(() => `SP-${Date.now()}`);
     const [sessionTitle, setSessionTitle] = useState("");
@@ -215,6 +216,7 @@ export default function SpecialMatchPage() {
             id: `special-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             playerIds: draftSlots as string[],
             court: null, status: 'waiting', mode: 'SPECIAL', round: matchQueue.length + 1,
+            group: draftGroup,
             teams: [[draftSlots[0]!, draftSlots[1]!], [draftSlots[2]!, draftSlots[3]!]]
         };
         setMatchQueue(prev => [...prev, newMatch]);
@@ -271,7 +273,7 @@ export default function SpecialMatchPage() {
         const nextQueue = matchQueue.map(m => m.id === matchId ? { ...m, score1: s1, score2: s2, status: 'complete' as const } : m);
         setMatchQueue(nextQueue);
         setActiveMatchForScore(null);
-        localStorage.setItem('special_live_session', JSON.stringify({ sessionId, sessionTitle, matches: nextQueue, selectedIds: Array.from(selectedIds), tempGuests }));
+        localStorage.setItem('special_live_session', JSON.stringify({ sessionId, sessionTitle, matches: nextQueue, selectedIds: Array.from(selectedIds), tempGuests, attendeeConfigs, prizes: { firstPrize, bottom25Late, bottom25Penalty }, constraints: { totalCourts, matchMins } }));
         try {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             const target = nextQueue.find(m => m.id === matchId)!;
@@ -375,7 +377,7 @@ export default function SpecialMatchPage() {
                                 return (
                                     <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         <span style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.95)' }}>{m.name}{m.is_guest ? ' (G)' : ''}</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0A0A0A', borderRadius: '14px', padding: '6px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                                     <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '14px', fontWeight: 800, outline: 'none', appearance: 'none', textAlign: 'center', width: '48px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
@@ -384,8 +386,8 @@ export default function SpecialMatchPage() {
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} style={{ width: '44px', height: '44px', borderRadius: '14px', background: config.group === 'A' ? '#C9B075' : '#0A0A0A', color: config.group === 'A' ? '#000' : '#fff', border: config.group === 'A' ? 'none' : '1px solid #444', fontWeight: 1000, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer' }}>A</button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} style={{ width: '44px', height: '44px', borderRadius: '14px', background: config.group === 'B' ? '#C9B075' : '#0A0A0A', color: config.group === 'B' ? '#000' : '#fff', border: config.group === 'B' ? 'none' : '1px solid #444', fontWeight: 1000, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer' }}>B</button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm transition-all border ${config.group === 'A' ? 'bg-[#C9B075] text-black border-transparent' : 'bg-black text-white/40 border-white/10'}`}>A</button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm transition-all border ${config.group === 'B' ? 'bg-[#00E5FF] text-black border-transparent' : 'bg-black text-white/40 border-white/10'}`}>B</button>
                                             </div>
                                         </div>
                                     </div>
@@ -453,10 +455,7 @@ export default function SpecialMatchPage() {
                 </div>
 
                 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[420px] px-6 z-[999]">
-                    <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-black border-2 border-[#C9B075] text-white font-[1000] text-lg uppercase tracking-wider shadow-[0_15px_40px_rgba(0,0,0,0.8)] active:scale-95 transition-all flex items-center justify-center gap-3">
-                        <span>매뉴얼 대진 생성 시작!</span>
-                        <span className="text-2xl">🚀</span>
-                    </button>
+                    <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-black border-2 border-[#C9B075] text-white font-[1000] text-lg uppercase tracking-wider shadow-[0_15px_40px_rgba(0,0,0,0.8)] active:scale-95 transition-all flex items-center justify-center gap-3"><span>매뉴얼 대진 생성 시작!</span><span className="text-2xl">🚀</span></button>
                 </div>
             </main>
         );
@@ -493,38 +492,41 @@ export default function SpecialMatchPage() {
                     </section>
 
                     <section className="bg-[#141414] rounded-[48px] p-10 border border-white/5 shadow-2xl relative">
-                        <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-10 text-center opacity-40">Match Construction</h3>
+                        <div className="flex flex-col items-center mb-10 gap-4">
+                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40">Group Assignment</h3>
+                            <div className="flex bg-black/50 p-1 rounded-2xl border border-white/10 w-full max-w-[200px]">
+                                <button onClick={() => setDraftGroup('A')} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${draftGroup === 'A' ? 'bg-[#C9B075] text-black shadow-lg' : 'text-white/40'}`}>A조</button>
+                                <button onClick={() => setDraftGroup('B')} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${draftGroup === 'B' ? 'bg-[#00E5FF] text-black shadow-lg' : 'text-white/40'}`}>B조</button>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-8">
                             <div className="space-y-4">{[0, 1].map(i => (<div key={i} onClick={() => removeFromDraft(i)} className="h-32 rounded-[36px] bg-black/60 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group hover:border-[#C9B075]/30 transition-all">{draftSlots[i] ? (<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center"><span className="font-black text-white text-[18px] tracking-tight">{getPlayerName(draftSlots[i]!)}</span><div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/10 text-red-500 text-[9px] font-black uppercase text-center opacity-0 group-hover:opacity-100 transition-opacity">REMOVE</div></motion.div>) : (<Plus className="text-white/5" size={32} />)}</div>))}</div>
                             <div className="flex flex-col items-center gap-2"><div className="w-px h-20 bg-gradient-to-b from-transparent via-[#C9B075]/20 to-transparent" /><span className="text-[#C9B075] font-black italic text-5xl opacity-10 tracking-widest">VS</span><div className="w-px h-20 bg-gradient-to-t from-transparent via-[#C9B075]/20 to-transparent" /></div>
                             <div className="space-y-4">{[2, 3].map(i => (<div key={i} onClick={() => removeFromDraft(i)} className="h-32 rounded-[36px] bg-black/60 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group hover:border-[#C9B075]/30 transition-all">{draftSlots[i] ? (<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center"><span className="font-black text-white text-[18px] tracking-tight">{getPlayerName(draftSlots[i]!)}</span><div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/10 text-red-500 text-[9px] font-black uppercase text-center opacity-0 group-hover:opacity-100 transition-opacity">REMOVE</div></motion.div>) : (<Plus className="text-white/5" size={32} />)}</div>))}</div>
                         </div>
-                        <button onClick={addMatchToQueue} disabled={draftSlots.includes(null)} className="w-full mt-10 py-6 bg-white/5 text-[#C9B075] font-black rounded-[30px] border border-[#C9B075]/20 active:scale-95 transition-all text-[13px] uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-10"><Plus size={18} strokeWidth={4} /> Add to current Queue</button>
+                        <button onClick={addMatchToQueue} disabled={draftSlots.includes(null)} className={`w-full mt-10 py-6 font-black rounded-[30px] border active:scale-95 transition-all text-[13px] uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-10 ${draftGroup === 'A' ? 'bg-[#C9B075]/10 border-[#C9B075]/20 text-[#C9B075]' : 'bg-[#00E5FF]/10 border-[#00E5FF]/20 text-[#00E5FF]'}`}><Plus size={18} strokeWidth={4} /> Add to {draftGroup} Queue</button>
                     </section>
 
                     <section>
                          <div className="flex items-center justify-between mb-8 px-1">
-                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">{matchQueue.length} Matches Planned</h3>
+                            <h3 className="text-[10px] font-black text-white/30 tracking-[0.3em] uppercase">{matchQueue.length} Matches Planned</h3>
                         </div>
                         <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-4 px-1">
                             {matchQueue.map((m, idx) => (
-                                <Reorder.Item key={m.id} value={m} className="rounded-[30px] grid grid-cols-[60px_1fr_60px] items-center p-7 bg-white/5 border border-white/5 shadow-xl cursor-grab active:cursor-grabbing mb-2 transition-all">
-                                    <div className="flex items-center justify-center"><div className="w-10 h-10 bg-white/10 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20"><span className="text-[13px] font-black italic">G{idx + 1}</span></div></div>
-                                    <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0"><span className="flex-1 text-white font-black truncate text-right text-[16px]"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 text-[#C9B075]">vs</span><span className="flex-1 text-white font-black truncate text-left text-[16px]"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                <Reorder.Item key={m.id} value={m} className={`rounded-[30px] grid grid-cols-[60px_1fr_60px] items-center p-7 bg-white/5 border shadow-xl cursor-grab active:cursor-grabbing mb-2 transition-all ${m.group === 'B' ? 'border-cyan-500/20' : 'border-white/5'}`}>
+                                    <div className="flex items-center justify-center"><div className={`w-10 h-10 rounded-full flex items-center justify-center border ${m.group === 'B' ? 'bg-cyan-500/20 text-cyan-500 border-cyan-500/20' : 'bg-white/10 text-[#C9B075] border-[#C9B075]/20'}`}><span className="text-[13px] font-black italic">{m.group === 'B' ? 'B' : 'G'}{idx + 1}</span></div></div>
+                                    <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0"><span className="flex-1 text-white font-black truncate text-right text-[16px]"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className={`text-[10px] font-black uppercase italic tracking-widest opacity-20 ${m.group === 'B' ? 'text-cyan-500' : 'text-[#C9B075]'}`}>vs</span><span className="flex-1 text-white font-black truncate text-left text-[16px]"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
                                     <div className="flex items-center justify-end"><button onClick={() => removeMatchFromQueue(m.id)} className="p-3 text-white/20 hover:text-red-500 transition-all active:scale-90"><Trash2 size={18} /></button></div>
                                 </Reorder.Item>
                             ))}
                         </Reorder.Group>
                     </section>
-                    
                     <div className="h-80" />
                 </div>
 
                 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[420px] px-6 z-[999]">
-                    <button disabled={isSubmitting || matchQueue.length === 0} onClick={startSpecialSession} className="w-full h-20 bg-black border-2 border-[#C9B075] text-white font-[1000] rounded-[40px] flex items-center justify-center gap-4 shadow-[0_15px_40px_rgba(0,0,0,0.8)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.2em] text-[13px] italic">
-                        <Play fill="white" size={24} /> 
-                        <span>SYNC & START LIVE COURT 🏁</span>
-                    </button>
+                    <button disabled={isSubmitting || matchQueue.length === 0} onClick={startSpecialSession} className="w-full h-20 bg-black border-2 border-[#C9B075] text-white font-[1000] rounded-[40px] flex items-center justify-center gap-4 shadow-[0_15px_40px_rgba(0,0,0,0.8)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.2em] text-[13px] italic"><Play fill="white" size={24} /> <span>SYNC & START LIVE COURT 🏁</span></button>
                 </div>
             </main>
         );
@@ -532,6 +534,47 @@ export default function SpecialMatchPage() {
 
     // --- [STEP 4] Live Court ---
     if (step === 4) {
+        const groupAMatches = matchQueue.filter(m => m.group === 'A' || !m.group);
+        const groupBMatches = matchQueue.filter(m => m.group === 'B');
+
+        const renderMatchList = (matches: Match[], isGroupB = false) => (
+            <div className="space-y-12 pb-10 pt-4">
+                <section>
+                    <div className={`flex items-center gap-3 ml-2 mb-6 border-b pb-4 ${isGroupB ? 'border-cyan-500/20' : 'border-[#C9B075]/20'}`}>
+                        <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-3">
+                            {isGroupB ? 'BLUE WAITING' : 'GROUP A'}
+                            <span className={`text-[10px] not-italic font-black px-2 py-0.5 rounded tracking-widest ${isGroupB ? 'bg-cyan-500 text-black' : 'bg-[#C9B075] text-black'}`}>GROUP {isGroupB ? 'B' : 'A'}</span>
+                        </h2>
+                        {matches.filter(m => m.status === 'playing').length > 0 && (<span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black tracking-widest animate-pulse ${isGroupB ? 'bg-cyan-500/10 text-cyan-500' : 'bg-red-500/10 text-red-500'}`}>LIVE</span>)}
+                    </div>
+                    
+                    <div className="space-y-3">
+                        {matches.filter(m => m.status === 'playing').map((m, idx) => (
+                            <div key={m.id} className={`rounded-[32px] grid grid-cols-[50px_1fr_80px] items-center p-6 bg-white/5 border shadow-xl ${isGroupB ? 'border-cyan-500/20' : 'border-white/5'}`}>
+                                <div className="flex items-center justify-center"><div className={`w-9 h-9 text-black rounded-full flex items-center justify-center shadow-lg ${isGroupB ? 'bg-[#00E5FF]' : 'bg-[#C9B075]'}`}><span className="text-[12px] font-black italic">{m.round || idx + 1}</span></div></div>
+                                <div className="flex items-center justify-center gap-2 text-center px-2 min-w-0">
+                                    <div className="flex-1 flex flex-col items-center justify-center truncate"><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><div className="h-px w-3 bg-white/10 my-0.5" /><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
+                                    <span className={`font-black italic text-[9px] opacity-20 ${isGroupB ? 'text-cyan-500' : 'text-[#C9B075]'}`}>vs</span>
+                                    <div className="flex-1 flex flex-col items-center justify-center truncate"><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><div className="h-px w-3 bg-white/10 my-0.5" /><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                </div>
+                                <div className="flex items-center justify-end"><button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className={`px-4 py-2 text-black font-black rounded-xl text-[9px] tracking-widest active:scale-95 ${isGroupB ? 'bg-[#00E5FF]' : 'bg-[#C9B075]'}`}>SCORE</button></div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-8 space-y-3">
+                        {matches.filter(m => m.status === 'waiting').map((m, idx) => (
+                            <div key={m.id} className="rounded-[32px] grid grid-cols-[50px_1fr_80px] items-center p-6 bg-white/[0.02] border border-white/5 opacity-50">
+                                <div className="flex items-center justify-center"><div className={`w-9 h-9 rounded-full flex items-center justify-center border ${isGroupB ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' : 'bg-white/5 text-[#C9B075] border-white/10'}`}><span className="text-[12px] font-black italic">{m.round || idx + 1}</span></div></div>
+                                <div className="flex items-center justify-center gap-2 text-center px-2 min-w-0"><span className="flex-1 text-[14px] font-bold text-white/60 truncate"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className={`opacity-20 italic font-black text-[9px] ${isGroupB ? 'text-cyan-500' : 'text-[#C9B075]'}`}>vs</span><span className="flex-1 text-[14px] font-bold text-white/60 truncate"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                <div className="flex items-center justify-end"><button onClick={() => handleStartMatch(m.id)} className={`px-4 py-2 bg-white/5 font-black rounded-xl text-[9px] border border-white/10 active:scale-95 ${isGroupB ? 'text-cyan-500' : 'text-[#C9B075]'}`}>START</button></div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            </div>
+        );
+
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60 overflow-hidden" style={{ paddingBottom: "160px" }}>
                 <header className="px-6 pt-6 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100] max-w-lg mx-auto w-full">
@@ -565,35 +608,10 @@ export default function SpecialMatchPage() {
 
                 <div className="flex-1 px-4 overflow-y-auto no-scrollbar relative z-10 max-w-lg mx-auto w-full">
                     {activeTab === 'MATCHES' ? (
-                        <div className="space-y-12 pb-20 pt-4">
-                            <section>
-                                <div className="flex items-center gap-3 ml-2 mb-6"><h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>{matchQueue.filter(m => m.status === 'playing').length > 0 && (<span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[9px] font-black tracking-widest animate-pulse">LIVE</span>)}</div>
-                                <div className="space-y-3">
-                                    {matchQueue.filter(m => m.status === 'playing').map((m, idx) => (
-                                        <div key={m.id} className="rounded-[32px] grid grid-cols-[50px_1fr_80px] items-center p-6 bg-white/5 border border-white/5 shadow-xl">
-                                            <div className="flex items-center justify-center"><div className="w-9 h-9 bg-[#C9B075] text-black rounded-full flex items-center justify-center shadow-lg"><span className="text-[12px] font-black italic">G{m.round || idx + 1}</span></div></div>
-                                            <div className="flex items-center justify-center gap-2 text-center px-2 min-w-0">
-                                                <div className="flex-1 flex flex-col items-center justify-center truncate"><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><div className="h-px w-3 bg-white/10 my-0.5" /><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
-                                                <span className="text-[#C9B075] font-black italic text-[9px] opacity-20">vs</span>
-                                                <div className="flex-1 flex flex-col items-center justify-center truncate"><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><div className="h-px w-3 bg-white/10 my-0.5" /><span className="text-[15px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
-                                            </div>
-                                            <div className="flex items-center justify-end"><button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className="px-4 py-2 bg-[#C9B075] text-black font-black rounded-xl text-[9px] tracking-widest active:scale-95">SCORE</button></div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                            <section>
-                                <h2 className="text-xl font-black italic tracking-tighter uppercase text-white/30 ml-2 mb-6">WAITING</h2>
-                                <div className="space-y-3">
-                                    {matchQueue.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <div key={m.id} className="rounded-[32px] grid grid-cols-[50px_1fr_80px] items-center p-6 bg-white/[0.02] border border-white/5 opacity-50">
-                                            <div className="flex items-center justify-center"><div className="w-9 h-9 bg-white/5 text-[#C9B075] rounded-full flex items-center justify-center border border-white/10"><span className="text-[12px] font-black italic">G{m.round || idx + 1}</span></div></div>
-                                            <div className="flex items-center justify-center gap-2 text-center px-2 min-w-0"><span className="flex-1 text-[14px] font-bold text-white/60 truncate"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className="text-[#C9B075] opacity-20 italic font-black text-[9px]">vs</span><span className="flex-1 text-[14px] font-bold text-white/60 truncate"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
-                                            <div className="flex items-center justify-end"><button onClick={() => handleStartMatch(m.id)} className="px-4 py-2 bg-white/5 text-[#C9B075] font-black rounded-xl text-[9px] border border-white/10 active:scale-95">START</button></div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
+                        <div className="pb-20">
+                            {renderMatchList(groupAMatches, false)}
+                            <div className="h-10" />
+                            {renderMatchList(groupBMatches, true)}
                         </div>
                     ) : (
                         <RankingTab players={allPlayersInRanking} sessionTitle={sessionTitle} isArchive={false} isAdmin={isAdmin} prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }} onShareMatch={execCopySchedule} onShareResult={copyFinalResults} onFinalize={handleFinalArchive} isGenerating={isSubmitting} />
@@ -616,7 +634,7 @@ export default function SpecialMatchPage() {
                                 <div className="flex flex-col items-center gap-4"><span className="text-[11px] font-black text-white/40 uppercase tracking-widest text-center h-8 leading-none flex items-center truncate max-w-full"><PlayerNameBadge id={activeMatchForScore.playerIds[2]} /> / <PlayerNameBadge id={activeMatchForScore.playerIds[3]} /></span><div className="flex items-center gap-4"><button onClick={() => setTempScores(p => ({ ...p, s2: Math.max(0, p.s2 - 1) }))} className="w-10 h-10 rounded-full bg-white/5 text-white/40 font-bold">-</button><span className="text-4xl font-black text-[#C9B075] font-mono">{tempScores.s2}</span><button onClick={() => setTempScores(p => ({ ...p, s2: p.s2 + 1 }))} className="w-10 h-10 rounded-full bg-white/5 text-white/40 font-bold">+</button></div></div>
                              </div>
                              <div className="flex flex-col gap-3">
-                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="w-full py-5 bg-[#C9B075] text-black font-black rounded-full shadow-lg active:scale-95 transition-all uppercase tracking-widest text-sm">기록 저장 💾</button>
+                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className={`w-full py-5 font-black rounded-full shadow-lg active:scale-95 transition-all uppercase tracking-widest text-sm ${activeMatchForScore.group === 'B' ? 'bg-[#00E5FF] text-black' : 'bg-[#C9B075] text-black'}`}>기록 저장 💾</button>
                                 <button onClick={() => setActiveMatchForScore(null)} className="w-full py-4 text-white/20 font-black uppercase tracking-widest text-[10px]">취소</button>
                              </div>
                         </div>
