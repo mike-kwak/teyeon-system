@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.2";
+        const VERSION = "6.3";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -782,19 +782,27 @@ export default function SpecialMatchPage() {
                                     <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">WAITING FOR NEXT ROUND...</div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-3">
-                                        {playingMatches.map((m, idx) => (
-                                            <div key={m.id} className="relative">
-                                                <div className="absolute -top-2 left-4 z-50 bg-[#C9B075] text-black text-[9px] font-[1000] px-2 py-0.5 rounded-full shadow-lg italic">ROUND {m.round || idx + 1}</div>
-                                                <PlayingMatchCard 
-                                                    match={m} 
-                                                    matchNo={idx + 1} 
-                                                    getPlayerName={getPlayerName} 
-                                                    isAdmin={isAdmin}
-                                                    onInputScore={(id, s1, s2) => { setTempScores({ s1, s2 }); setActiveMatchForScore(matchQueue.find(x => x.id === id) || null); }}
-                                                    onCancel={(id) => { if (confirm("취소하시겠습니까?")) setMatchQueue(prev => prev.map(mx => mx.id === id ? { ...mx, status: 'waiting' } : mx)); }}
-                                                />
-                                            </div>
-                                        ))}
+                                        {playingMatches.map((m, idx) => {
+                                            const groupCount = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A') && x.status !== 'waiting').findIndex(x => x.id === m.id);
+                                            const matchIdxInGroup = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A')).findIndex(x => x.id === m.id) + 1;
+                                            return (
+                                                <div key={m.id} className="relative group">
+                                                    <div className="absolute -top-3 left-0 right-0 flex justify-center z-50">
+                                                        <div className={`px-4 py-1 rounded-t-xl text-[9px] font-black tracking-widest uppercase border-t border-x ${m.group === 'B' ? 'bg-[#00E5FF]/20 border-[#00E5FF]/30 text-[#00E5FF]' : 'bg-[#C9B075]/20 border-[#C9B075]/30 text-[#C9B075]'}`}>
+                                                            ROUND {m.round} • {m.group === 'B' ? 'B조' : 'A조'} • {matchIdxInGroup}경기
+                                                        </div>
+                                                    </div>
+                                                    <PlayingMatchCard 
+                                                        match={m} 
+                                                        matchNo={matchIdxInGroup} 
+                                                        getPlayerName={getPlayerName} 
+                                                        isAdmin={isAdmin}
+                                                        onInputScore={(id, s1, s2) => { setTempScores({ s1, s2 }); setActiveMatchForScore(matchQueue.find(x => x.id === id) || null); }}
+                                                        onCancel={(id) => { if (confirm("취소하시겠습니까?")) setMatchQueue(prev => prev.map(mx => mx.id === id ? { ...mx, status: 'waiting' } : mx)); }}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </section>
@@ -832,13 +840,16 @@ export default function SpecialMatchPage() {
                                                 
                                                 <div className="flex flex-col gap-3">
                                                     {matchesByRound[roundNum].map((m) => {
-                                                        const globalIdx = matchQueue.findIndex(x => x.id === m.id);
+                                                        const groupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
+                                                        const matchIdxInGroup = groupMatches.findIndex(x => x.id === m.id) + 1;
+                                                        const prefix = m.group === 'B' ? 'B' : 'G';
+                                                        
                                                         return (
                                                             <WaitingMatchCard 
                                                                 key={m.id} 
                                                                 match={m} 
-                                                                index={globalIdx} 
-                                                                matchNo={globalIdx + 1} 
+                                                                index={matchIdxInGroup - 1} 
+                                                                matchNo={matchIdxInGroup} 
                                                                 getPlayerName={getPlayerName} 
                                                                 isAdmin={isAdmin} 
                                                                 isStartingMatch={isStartingMatch} 
