@@ -586,21 +586,22 @@ export default function SpecialMatchPage() {
                                                     matchNo={matchNo}
                                                     getPlayerName={getPlayerName}
                                                     isAdmin={isAdmin}
-                                                onInputScore={(id, s1, s2) => {
-                                                    const targetMatch = matchQueue.find(x => x.id === id);
-                                                    if (targetMatch) {
-                                                        setTempScores({ s1, s2 });
-                                                        setActiveMatchForScore(targetMatch);
-                                                    }
-                                                }}
-                                                onCancel={(id) => {
-                                                    if (confirm("이 경기를 취소하고 대기열로 되돌리시겠습니까?")) {
-                                                        const nextQueue = matchQueue.map(mx => mx.id === id ? { ...mx, status: 'waiting' as const } : mx);
-                                                        setMatchQueue(nextQueue);
-                                                    }
-                                                }}
-                                            />
-                                        ))}
+                                                    onInputScore={(id, s1, s2) => {
+                                                        const targetMatch = matchQueue.find(x => x.id === id);
+                                                        if (targetMatch) {
+                                                            setTempScores({ s1, s2 });
+                                                            setActiveMatchForScore(targetMatch);
+                                                        }
+                                                    }}
+                                                    onCancel={(id) => {
+                                                        if (confirm("이 경기를 취소하고 대기열로 되돌리시겠습니까?")) {
+                                                            const nextQueue = matchQueue.map(mx => mx.id === id ? { ...mx, status: 'waiting' as const } : mx);
+                                                            setMatchQueue(nextQueue);
+                                                        }
+                                                    }}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </section>
