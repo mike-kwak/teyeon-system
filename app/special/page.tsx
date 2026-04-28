@@ -667,10 +667,20 @@ export default function SpecialMatchPage() {
                 {/* --- FLOATING BOTTOM UI (1:1 KDK IDENTITY) --- */}
                 <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[200] px-6 pb-12 pt-10 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none">
                     <div className="flex flex-col gap-6 pointer-events-auto">
-                        {/* TAB BAR (MATCHES | RANKING) */}
-                        <div className="bg-[#1E1E1E] p-1.5 rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,1)] flex backdrop-blur-3xl">
-                            <button onClick={() => setActiveTab('MATCHES')} className={`flex-1 py-5 rounded-[22px] text-[12px] font-[1000] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 ${activeTab === 'MATCHES' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/20'}`}>🔥 MATCHES</button>
-                            <button onClick={() => setActiveTab('RANKING')} className={`flex-1 py-5 rounded-[22px] text-[12px] font-[1000] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 ${activeTab === 'RANKING' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/20'}`}>📊 RANKING</button>
+                        {/* TAB BAR (MATCHES | RANKING) - 1:1 KDK SYNC */}
+                        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] rounded-[32px] p-2 flex items-center justify-between gap-3">
+                            <button
+                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
+                                className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                            >
+                                🔥 MATCHES
+                            </button>
+                            <button
+                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
+                                className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                            >
+                                📊 RANKING
+                            </button>
                         </div>
                         
                         {/* ACTION BUTTONS */}
