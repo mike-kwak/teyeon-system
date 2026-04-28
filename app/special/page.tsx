@@ -42,7 +42,7 @@ export default function SpecialMatchPage() {
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
     
-    // Configuration Aligned with High-Fidelity UI
+    // Configuration Aligned with KDK Production
     const [totalCourts, setTotalCourts] = useState(1);
     const [matchMins, setMatchMins] = useState(30);
     const [firstPrize, setFirstPrize] = useState(10000);
@@ -333,7 +333,7 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 2] High-Fidelity Configuration (Refined) ---
+    // --- [STEP 2] Settings Dashboard (1:1 with KDK) ---
     if (step === 2) {
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
@@ -342,43 +342,47 @@ export default function SpecialMatchPage() {
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-60">
-                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0 pt-4 relative z-[100]">
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-80">
+                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0 pt-4">
                     <div className="flex items-center"><button onClick={() => setStep(1)} className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] active:scale-95 transition-all"><ArrowLeft size={18} /></button></div>
-                    <div className="text-center flex flex-col items-center gap-2"><div className="flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 leading-none scale-90">Step 02</span><h1 className="text-3xl font-black italic tracking-tighter uppercase text-white leading-none">경기 대진 설정</h1></div></div>
+                    <div className="text-center flex flex-col items-center gap-2">
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 leading-none scale-90">Step 02</span>
+                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
+                        </div>
+                    </div>
                 </header>
 
-                <div className="px-6 space-y-8 w-full pt-12 overflow-y-auto no-scrollbar pb-40">
-                    {/* 1. Archive Title */}
+                <div className="px-6 space-y-12 w-full pt-12">
+                    {/* Archive Title */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2"><span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" /><h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3></div>
                         <input type="text" value={sessionTitle} onChange={(e) => setSessionTitle(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white outline-none transition-all" />
                     </section>
 
-                    {/* 2. Attendee Matrix */}
-                    <section style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '32px', padding: '24px' }}>
+                    {/* Attendee Matrix (KDK Style) */}
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-[11px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3"><span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" />ATTENDEE MATRIX</h3>
-                            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
+                            <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#C9B075]" />ATTENDEE MATRIX</h3>
+                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-2 no-scrollbar" style={{ maxHeight: '480px', overflowY: 'auto' }}>
                             {attendees.map(m => {
                                 const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
                                 return (
-                                    <div key={m.id} className="bg-[#0A0A0A] border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
-                                        <span className="text-[15px] font-black text-white/90">{m.name}{m.is_guest ? ' (G)' : ''}</span>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40"><Clock size={16} /></div>
-                                                <div className="flex items-center gap-2 bg-black border border-white/10 rounded-xl px-3 py-2">
-                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} className="bg-transparent text-white text-[13px] font-black outline-none appearance-none w-11 text-center">{timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C1E]">{t}</option>)}</select>
-                                                    <span className="text-white/20 text-[9px] font-black">TO</span>
-                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} className="bg-transparent text-white text-[13px] font-black outline-none appearance-none w-11 text-center">{timeOptions.map(t => <option key={t} value={t} className="bg-[#1C1C1E]">{t}</option>)}</select>
+                                    <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <span style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>{m.name}{m.is_guest ? ' (G)' : ''}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#0A0A0A', borderRadius: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
+                                                    <span style={{ color: '#6B7280', fontSize: '10px', fontWeight: 700 }}>TO</span>
+                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} className={`w-11 h-11 rounded-xl font-black transition-all flex items-center justify-center border ${config.group === 'A' ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg' : 'bg-white/5 border-white/10 text-white/40'}`}>A</button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} className={`w-11 h-11 rounded-xl font-black transition-all flex items-center justify-center border ${config.group === 'B' ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg' : 'bg-white/5 border-white/10 text-white/40'}`}>B</button>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'A' ? '#C9B075' : '#0A0A0A', color: config.group === 'A' ? '#000' : '#fff', border: config.group === 'A' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.15s' }}>A</button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'B' ? '#C9B075' : '#0A0A0A', color: config.group === 'B' ? '#000' : '#fff', border: config.group === 'B' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.15s' }}>B</button>
                                             </div>
                                         </div>
                                     </div>
@@ -387,58 +391,60 @@ export default function SpecialMatchPage() {
                         </div>
                     </section>
 
-                    {/* 3. Constraints (Image 2 style) */}
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-3 px-2"><span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" /><h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Constraints</h3></div>
-                        <div className="grid grid-cols-1 gap-3">
-                             <div className="bg-[#141414] border border-white/10 rounded-[24px] p-6 flex items-center justify-between">
-                                <div className="flex flex-col"><span className="text-[12px] font-black text-white/80 uppercase tracking-widest">Total Courts</span></div>
-                                <div className="flex items-center gap-6">
-                                    <button onClick={() => setTotalCourts(p => Math.max(1, p - 1))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">-</button>
-                                    <span className="text-2xl font-black text-[#C9B075] w-10 text-center">{totalCourts}</span>
-                                    <button onClick={() => setTotalCourts(p => p + 1)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">+</button>
+                    {/* Constraints & Financials */}
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
+                         <div className="space-y-8">
+                            <div className="space-y-4">
+                                <h3 className="text-[13px] font-bold text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#C9B075]" />CONSTRAINTS</h3>
+                                <div className="space-y-3">
+                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                                        <span className="text-[12px] font-black text-white/60">TOTAL COURTS</span>
+                                        <div className="flex items-center gap-4">
+                                            <button onClick={() => setTotalCourts(p => Math.max(1, p - 1))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
+                                            <span className="text-xl font-black text-[#C9B075] w-8 text-center">{totalCourts}</span>
+                                            <button onClick={() => setTotalCourts(p => p + 1)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                                        <span className="text-[12px] font-black text-white/60">MATCH MINS</span>
+                                        <div className="flex items-center gap-4">
+                                            <button onClick={() => setMatchMins(p => Math.max(5, p - 5))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
+                                            <span className="text-xl font-black text-[#C9B075] w-8 text-center">{matchMins}</span>
+                                            <button onClick={() => setMatchMins(p => p + 5)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                        </div>
+                                    </div>
                                 </div>
-                             </div>
-                             <div className="bg-[#141414] border border-white/10 rounded-[24px] p-6 flex items-center justify-between">
-                                <div className="flex flex-col"><span className="text-[12px] font-black text-white/80 uppercase tracking-widest">Match Mins</span></div>
-                                <div className="flex items-center gap-6">
-                                    <button onClick={() => setMatchMins(p => Math.max(5, p - 5))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">-</button>
-                                    <span className="text-2xl font-black text-[#C9B075] w-10 text-center">{matchMins}</span>
-                                    <button onClick={() => setMatchMins(p => p + 5)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">+</button>
+                            </div>
+                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                <h3 className="text-[13px] font-bold text-[#10b981] uppercase tracking-[0.3em] flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#10b981]" />FINANCIALS</h3>
+                                <div className="space-y-3">
+                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                                        <span className="text-[12px] font-black text-white/60 uppercase">Prize Gold</span>
+                                        <div className="flex items-center gap-4">
+                                            <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
+                                            <span className="text-xl font-black text-white w-12 text-center">{(firstPrize/1000).toFixed(0)}k</span>
+                                            <button onClick={() => setFirstPrize(p => p + 5000)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                                        <div className="flex flex-col"><span className="text-[12px] font-black text-[#C9B075] uppercase">Tier 1 Fine</span><span className="text-[8px] font-bold text-white/20">BOTTOM 25%~50%</span></div>
+                                        <div className="flex items-center gap-4">
+                                            <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
+                                            <span className="text-xl font-black text-white w-12 text-center">{(bottom25Late/1000).toFixed(0)}k</span>
+                                            <button onClick={() => setBottom25Late(p => p + 1000)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                                        <div className="flex flex-col"><span className="text-[12px] font-black text-rose-500 uppercase">Tier 2 Fine</span><span className="text-[8px] font-bold text-white/20">BOTTOM 0%~25%</span></div>
+                                        <div className="flex items-center gap-4">
+                                            <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
+                                            <span className="text-xl font-black text-white w-12 text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
+                                            <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                        </div>
+                                    </div>
                                 </div>
-                             </div>
-                        </div>
-                    </section>
-
-                    {/* 4. Financials (Image 2 style) */}
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-3 px-2"><span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" /><h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Financials</h3></div>
-                        <div className="grid grid-cols-1 gap-3">
-                             <div className="bg-[#141414] border border-white/10 rounded-[24px] p-6 flex items-center justify-between">
-                                <span className="text-[12px] font-black text-white/80 uppercase tracking-widest">Prize Gold</span>
-                                <div className="flex items-center gap-6">
-                                    <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">-</button>
-                                    <span className="text-2xl font-black text-white w-16 text-center">{(firstPrize/1000).toFixed(0)}k</span>
-                                    <button onClick={() => setFirstPrize(p => p + 5000)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">+</button>
-                                </div>
-                             </div>
-                             <div className="bg-[#141414] border border-white/10 rounded-[24px] p-6 flex items-center justify-between">
-                                <div className="flex flex-col"><span className="text-[12px] font-black text-[#C9B075] uppercase tracking-widest">Tier 1 Fine</span><span className="text-[9px] font-bold text-white/20">BOTTOM 25%~50%</span></div>
-                                <div className="flex items-center gap-6">
-                                    <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">-</button>
-                                    <span className="text-2xl font-black text-white w-16 text-center">{(bottom25Late/1000).toFixed(0)}k</span>
-                                    <button onClick={() => setBottom25Late(p => p + 1000)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">+</button>
-                                </div>
-                             </div>
-                             <div className="bg-[#141414] border border-white/10 rounded-[24px] p-6 flex items-center justify-between">
-                                <div className="flex flex-col"><span className="text-[12px] font-black text-rose-500 uppercase tracking-widest">Tier 2 Fine</span><span className="text-[9px] font-bold text-white/20">BOTTOM 0%~25%</span></div>
-                                <div className="flex items-center gap-6">
-                                    <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">-</button>
-                                    <span className="text-2xl font-black text-white w-16 text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
-                                    <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold">+</button>
-                                </div>
-                             </div>
-                        </div>
+                            </div>
+                         </div>
                     </section>
                 </div>
 
@@ -449,18 +455,18 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 3] Manual Match Builder (Pure Drafting - Image 3 Style) ---
+    // --- [STEP 3] Manual Match Builder (Pure Drafting) ---
     if (step === 3) {
         const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto pb-96 relative overflow-x-hidden">
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-80">
                 <header className="fixed top-0 w-full max-w-[480px] z-[150] bg-black/90 backdrop-blur-3xl border-b border-white/10 h-20 flex items-center px-8 justify-between">
                     <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
-                    <div className="text-center flex flex-col"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-1">BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
+                    <div className="text-center flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-1">BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
                     <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
                 </header>
 
-                <div className="mt-28 px-8 space-y-12 pb-[300px]">
+                <div className="mt-28 px-8 space-y-12">
                     {/* Player Bank */}
                     <section>
                         <div className="flex items-center justify-between mb-6 px-1">
@@ -474,7 +480,7 @@ export default function SpecialMatchPage() {
                         </div>
                     </section>
 
-                    {/* Match Construction (Image 3 Style - Minimalist) */}
+                    {/* Match Construction */}
                     <section className="bg-[#141414] rounded-[40px] p-8 border border-white/5 shadow-2xl relative">
                         <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-10 text-center opacity-40">Match Construction</h3>
                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
@@ -489,7 +495,6 @@ export default function SpecialMatchPage() {
                     <section className="pb-40">
                          <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">{matchQueue.length} Matches Planned</h3>
-                            {matchQueue.length > 0 && (<button onClick={startSpecialSession} className="px-6 py-4 bg-[#C9B075] text-black text-[12px] font-black rounded-full uppercase tracking-widest active:scale-90 transition-all italic flex items-center gap-2">Start Live Court <Play size={14} fill="black" /></button>)}
                         </div>
                         <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-3 px-1">
                             {matchQueue.map((m, idx) => (
@@ -510,7 +515,7 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 4] Live Court (Minimal Score Entry Modal) ---
+    // --- [STEP 4] Live Court ---
     if (step === 4) {
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-60 overflow-hidden" style={{ paddingBottom: "160px" }}>
