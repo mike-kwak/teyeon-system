@@ -776,15 +776,17 @@ export default function SpecialMatchPage() {
                                 ) : (
                                     <div className="grid grid-cols-2 gap-3">
                                         {playingMatches.map((m, idx) => (
-                                            <PlayingMatchCard 
-                                                key={m.id} 
-                                                match={m} 
-                                                matchNo={idx + 1} 
-                                                getPlayerName={getPlayerName} 
-                                                isAdmin={isAdmin}
-                                                onInputScore={(id, s1, s2) => { setTempScores({ s1, s2 }); setActiveMatchForScore(matchQueue.find(x => x.id === id) || null); }}
-                                                onCancel={(id) => { if (confirm("취소하시겠습니까?")) setMatchQueue(prev => prev.map(mx => mx.id === id ? { ...mx, status: 'waiting' } : mx)); }}
-                                            />
+                                            <div key={m.id} className="relative">
+                                                <div className="absolute -top-2 left-4 z-50 bg-[#C9B075] text-black text-[9px] font-[1000] px-2 py-0.5 rounded-full shadow-lg italic">ROUND {m.round || idx + 1}</div>
+                                                <PlayingMatchCard 
+                                                    match={m} 
+                                                    matchNo={idx + 1} 
+                                                    getPlayerName={getPlayerName} 
+                                                    isAdmin={isAdmin}
+                                                    onInputScore={(id, s1, s2) => { setTempScores({ s1, s2 }); setActiveMatchForScore(matchQueue.find(x => x.id === id) || null); }}
+                                                    onCancel={(id) => { if (confirm("취소하시겠습니까?")) setMatchQueue(prev => prev.map(mx => mx.id === id ? { ...mx, status: 'waiting' } : mx)); }}
+                                                />
+                                            </div>
                                         ))}
                                     </div>
                                 )}
@@ -803,17 +805,19 @@ export default function SpecialMatchPage() {
                                         </div>
                                         <div className="flex flex-col gap-3">
                                             {matches.map((m, idx) => (
-                                                <WaitingMatchCard 
-                                                    key={m.id} 
-                                                    match={m} 
-                                                    index={idx} 
-                                                    matchNo={idx + 1} 
-                                                    getPlayerName={getPlayerName} 
-                                                    isAdmin={isAdmin} 
-                                                    isStartingMatch={isStartingMatch} 
-                                                    hasConflict={playingMatches.length >= totalCourts || m.playerIds.some(pid => playingPlayerIds.has(pid))} 
-                                                    onStart={handleStartMatch} 
-                                                />
+                                                <div key={m.id} className="relative">
+                                                    <div className={`absolute -top-2 left-4 z-50 ${group === 'B' ? 'bg-[#00E5FF]' : 'bg-[#C9B075]'} text-black text-[9px] font-[1000] px-2 py-0.5 rounded-full shadow-lg italic`}>ROUND {m.round || idx + 1}</div>
+                                                    <WaitingMatchCard 
+                                                        match={m} 
+                                                        index={idx} 
+                                                        matchNo={idx + 1} 
+                                                        getPlayerName={getPlayerName} 
+                                                        isAdmin={isAdmin} 
+                                                        isStartingMatch={isStartingMatch} 
+                                                        hasConflict={playingMatches.length >= totalCourts || m.playerIds.some(pid => playingPlayerIds.has(pid))} 
+                                                        onStart={handleStartMatch} 
+                                                    />
+                                                </div>
                                             ))}
                                         </div>
                                     </section>
