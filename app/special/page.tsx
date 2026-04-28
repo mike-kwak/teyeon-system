@@ -57,6 +57,19 @@ export default function SpecialMatchPage() {
     
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
+    // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
+    useEffect(() => {
+        const VERSION = "5.7";
+        const savedVersion = localStorage.getItem('teyeon_special_version');
+        if (savedVersion !== VERSION) {
+            localStorage.setItem('teyeon_special_version', VERSION);
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+            }
+            window.location.reload();
+        }
+    }, []);
+
     const selectedMembersList = useMemo(() => {
         const combined = [...allMembers, ...tempGuests];
         return combined.filter(m => selectedIds.has(m.id));
@@ -74,30 +87,53 @@ export default function SpecialMatchPage() {
 
     useEffect(() => {
         fetchMembers();
+        loadSession();
+    }, []);
+
+    const loadSession = async () => {
+        setIsCheckingDB(true);
+        // 1. Try Server Data First (for cross-device sync)
+        try {
+            const { data: serverSessions } = await supabase
+                .from('teyeon_special_sessions')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (serverSessions && serverSessions.length > 0) {
+                const latest = serverSessions[0];
+                const diff = Date.now() - new Date(latest.created_at).getTime();
+                if (diff < 24 * 60 * 60 * 1000) { // Within 24h
+                    const raw = latest.raw_data;
+                    setMatchQueue(raw.matches || []);
+                    setSessionId(latest.session_id);
+                    setSessionTitle(raw.sessionTitle);
+                    setSelectedIds(new Set(raw.selectedIds || []));
+                    setTempGuests(raw.tempGuests || []);
+                    setAttendeeConfigs(raw.attendeeConfigs || {});
+                    setStep(4);
+                    setIsCheckingDB(false);
+                    return;
+                }
+            }
+        } catch (e) { console.error("Server sync failed:", e); }
+
+        // 2. Fallback to Local Storage
         const saved = localStorage.getItem('special_live_session');
         if (saved) {
             try {
                 const data = JSON.parse(saved);
-                if (data.sessionId) {
-                    setMatchQueue(data.matches || []);
-                    setSessionId(data.sessionId);
-                    setSessionTitle(data.sessionTitle);
-                    setSelectedIds(new Set(data.selectedIds || []));
-                    setTempGuests(data.tempGuests || []);
-                    if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs);
-                    if (data.prizes) {
-                        setFirstPrize(data.prizes.firstPrize);
-                        setBottom25Late(data.prizes.bottom25Late);
-                        setBottom25Penalty(data.prizes.bottom25Penalty);
-                    }
-                    if (data.constraints) {
-                        setTotalCourts(data.constraints.totalCourts || 1);
-                        setMatchMins(data.constraints.matchMins || 30);
-                    }
-                    if (data.matches && data.matches.length > 0) setStep(4);
-                }
+                setMatchQueue(data.matches || []);
+                setSessionId(data.sessionId);
+                setSessionTitle(data.sessionTitle);
+                setSelectedIds(new Set(data.selectedIds || []));
+                setTempGuests(data.tempGuests || []);
+                if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs);
+                if (data.matches?.length > 0) setStep(4);
             } catch (e) { console.error(e); }
-        } else {
+        }
+        setIsCheckingDB(false);
+    };
             // Only attempt DB recovery if no local session exists
             checkDBForActiveSession();
         }
@@ -105,10 +141,27 @@ export default function SpecialMatchPage() {
 
     const syncCurrentQueueToDB = async (queue: Match[]) => {
         try {
+            const payload = {
+                sessionId,
+                sessionTitle,
+                matches: queue,
+                selectedIds: Array.from(selectedIds),
+                tempGuests,
+                attendeeConfigs,
+                timestamp: new Date().toISOString()
+            };
+
+            // [v5.7] FULL SESSION CLOUD SYNC
+            await supabase.from('teyeon_special_sessions').upsert({
+                session_id: sessionId,
+                raw_data: payload,
+                created_at: new Date().toISOString()
+            }, { onConflict: 'session_id' });
+
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             const dbMatches = queue.map((m, idx) => ({
                 ...m, 
-                round: idx + 1, 
+                round: m.round || (idx + 1), 
                 session_id: sessionId, 
                 club_id: clubId, 
                 session_title: sessionTitle, 
@@ -291,20 +344,29 @@ export default function SpecialMatchPage() {
         if (matchQueue.length === 0) { alert("최소 1개 이상의 대진이 필요합니다."); return; }
         setIsSubmitting(true);
         try {
-            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-            const dbMatches = matchQueue.map((m, idx) => ({
-                ...m, round: idx + 1, session_id: sessionId, club_id: clubId, session_title: sessionTitle, status: m.status || 'waiting', 
-                player_names: m.playerIds.map(pid => getPlayerName(pid))
-            }));
-            await supabase.rpc('sync_tournament_matches', { p_matches: dbMatches });
-        } catch (err: any) { console.error("Sync Logic Failure:", err.message); } finally {
-            const sessionData = {
-                sessionId, sessionTitle, matches: matchQueue, selectedIds: Array.from(selectedIds), tempGuests, attendeeConfigs,
-                prizes: { firstPrize, bottom25Late, bottom25Penalty },
-                constraints: { totalCourts, matchMins }
+            const payload = {
+                sessionId,
+                sessionTitle,
+                matches: matchQueue,
+                selectedIds: Array.from(selectedIds),
+                tempGuests,
+                attendeeConfigs,
+                timestamp: new Date().toISOString()
             };
-            localStorage.setItem('special_live_session', JSON.stringify(sessionData));
+
+            // [v5.7] FINAL SERVER SYNC
+            await supabase.from('teyeon_special_sessions').upsert({
+                session_id: sessionId,
+                raw_data: payload,
+                created_at: new Date().toISOString()
+            }, { onConflict: 'session_id' });
+
+            localStorage.setItem('special_live_session', JSON.stringify(payload));
             setStep(4);
+        } catch (err: any) { 
+            console.error("Sync Logic Failure:", err.message); 
+            setStep(4); // Fallback to local
+        } finally {
             setIsSubmitting(false);
         }
     };
