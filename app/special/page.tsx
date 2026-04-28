@@ -13,6 +13,8 @@ import RankingTab from '@/components/RankingTab';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Zap, Target, Layers, ClipboardCheck, Info, Search } from 'lucide-react';
+import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
+import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 
 export default function SpecialMatchPage() {
     const router = useRouter();
@@ -575,19 +577,16 @@ export default function SpecialMatchPage() {
                                     {matchQueue.some(m => m.status === 'playing') && (<span className="px-3 py-1 bg-red-500 text-white text-[9px] font-black rounded-full tracking-widest animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">1 LIVE</span>)}
                                 </div>
                                 <div className="space-y-8">
-                                    {matchQueue.filter(m => m.status === 'playing').map((m, idx) => (
-                                        <div key={m.id} className="bg-[#1E1E1E] rounded-[48px] p-1 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.8)] relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none -mr-4 -mt-4"><Zap size={100} className="text-[#C9B075]" /></div>
-                                            <div className="p-8 pb-4 relative z-10">
-                                                <div className="flex items-center gap-2 mb-8 opacity-40 px-2"><span className="text-[10px] font-black uppercase tracking-widest text-[#C9B075]">ROUND {m.round || idx+1}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className={`text-[10px] font-black uppercase tracking-widest ${m.group === 'B' ? 'text-[#00E5FF]' : 'text-[#C9B075]'}`}>{m.group === 'B' ? 'B조' : 'A조'}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className="text-[10px] font-black uppercase tracking-widest text-white/40">1 경기</span><RotateCw size={10} className="ml-1" /></div>
-                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
-                                                    <div className="bg-[#2A2A2A] rounded-[32px] py-7 px-4 text-center border border-white/5 flex flex-col items-center justify-center"><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full mb-1.5">{getPlayerName(m.playerIds[0])}</span><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full">{getPlayerName(m.playerIds[1])}</span></div>
-                                                    <span className="text-white/20 font-black italic text-sm uppercase tracking-widest">vs</span>
-                                                    <div className="bg-[#2A2A2A] rounded-[32px] py-7 px-4 text-center border border-white/5 flex flex-col items-center justify-center"><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full mb-1.5">{getPlayerName(m.playerIds[2])}</span><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full">{getPlayerName(m.playerIds[3])}</span></div>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className="w-full py-6 bg-black/40 hover:bg-[#C9B075]/10 text-[#C9B075] font-black text-[13px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 transition-all border-t border-white/5 italic relative z-10">INPUT SCORE <Trophy size={14} fill="#C9B075" /></button>
-                                        </div>
+                                    {matchQueue.filter(m => m.status === 'playing').map((m) => (
+                                        <PlayingMatchCard 
+                                            key={m.id}
+                                            match={m}
+                                            getPlayerName={getPlayerName}
+                                            onInputScore={(match) => {
+                                                setTempScores({ s1: 0, s2: 0 });
+                                                setActiveMatchForScore(match);
+                                            }}
+                                        />
                                     ))}
                                 </div>
                             </section>
@@ -599,13 +598,13 @@ export default function SpecialMatchPage() {
                                 </div>
                                 <div className="space-y-4">
                                     {groupAMatches.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <div key={m.id} onClick={() => handleStartMatch(m.id)} className="rounded-[40px] bg-[#1A1A1A] border border-white/5 p-7 flex items-center justify-between group active:scale-95 transition-all shadow-xl hover:border-[#C9B075]/30 cursor-pointer">
-                                            <div className="flex items-center gap-7">
-                                                <div className="w-14 h-14 bg-[#2A2A2A] rounded-full flex flex-col items-center justify-center border border-white/10 group-hover:bg-[#C9B075]/10 group-hover:border-[#C9B075]/30 transition-all"><span className="text-white/20 font-black text-[9px] uppercase leading-none mb-0.5">R{m.round || 0}</span><span className="text-[#C9B075] font-black text-sm italic leading-none">G{idx+1}</span></div>
-                                                <div className="flex items-center gap-5"><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span><span className="text-[10px] font-black text-white/10 italic">vs</span><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span></div>
-                                            </div>
-                                            <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center opacity-10 group-hover:opacity-100 transition-opacity"><Zap size={12} fill="white" /></div>
-                                        </div>
+                                        <WaitingMatchCard 
+                                            key={m.id}
+                                            match={m}
+                                            index={idx}
+                                            getPlayerName={getPlayerName}
+                                            onStart={(id) => handleStartMatch(id)}
+                                        />
                                     ))}
                                 </div>
                             </section>
@@ -617,13 +616,13 @@ export default function SpecialMatchPage() {
                                 </div>
                                 <div className="space-y-4">
                                     {groupBMatches.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <div key={m.id} onClick={() => handleStartMatch(m.id)} className="rounded-[40px] bg-[#1A1A1A] border border-cyan-500/10 p-7 flex items-center justify-between group active:scale-95 transition-all shadow-xl hover:border-cyan-500/30 cursor-pointer">
-                                            <div className="flex items-center gap-7">
-                                                <div className="w-14 h-14 bg-[#2A2A2A] rounded-full flex flex-col items-center justify-center border border-white/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 transition-all"><span className="text-white/20 font-black text-[9px] uppercase leading-none mb-0.5">R{m.round || 0}</span><span className="text-cyan-500 font-black text-sm italic leading-none">B{idx+1}</span></div>
-                                                <div className="flex items-center gap-5"><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span><span className="text-[10px] font-black text-cyan-500/20 italic">vs</span><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span></div>
-                                            </div>
-                                            <div className="w-6 h-6 rounded-full border border-cyan-500/10 flex items-center justify-center opacity-10 group-hover:opacity-100 transition-opacity"><Zap size={12} fill="#00E5FF" /></div>
-                                        </div>
+                                        <WaitingMatchCard 
+                                            key={m.id}
+                                            match={m}
+                                            index={idx}
+                                            getPlayerName={getPlayerName}
+                                            onStart={(id) => handleStartMatch(id)}
+                                        />
                                     ))}
                                 </div>
                             </section>
@@ -636,19 +635,16 @@ export default function SpecialMatchPage() {
                                     </div>
                                     <div className="space-y-6">
                                         {completedMatches.map((m, idx) => (
-                                            <div key={m.id} className="rounded-[48px] bg-gradient-to-br from-[#1E1E1E] to-[#141414] border border-white/5 p-8 relative overflow-hidden group">
-                                                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none -mr-4 -mt-4"><Zap size={80} className="text-[#C9B075]" /></div>
-                                                <div className="flex items-center gap-2 mb-6 opacity-20 px-2"><span className="text-[9px] font-black uppercase tracking-widest text-[#C9B075]">GROUP {m.group || 'A'}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className="text-[9px] font-black uppercase tracking-widest text-white">MATCH {String(idx + 1).padStart(2, '0')}</span><RotateCw size={8} className="ml-1" /></div>
-                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                                                    <div className="text-right flex flex-col gap-1"><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[0])}</span><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[1])}</span></div>
-                                                    <div className="flex flex-col items-center gap-1.5 px-6">
-                                                        <div className="flex items-center gap-4"><span className="text-[32px] font-[1000] text-[#C9B075] leading-none">{m.score1}</span><span className="text-[20px] font-black text-white/10 leading-none">:</span><span className="text-[32px] font-[1000] text-[#C9B075] leading-none">{m.score2}</span></div>
-                                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] italic">FINAL WIN</span>
-                                                    </div>
-                                                    <div className="text-left flex flex-col gap-1"><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[2])}</span><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[3])}</span></div>
-                                                </div>
-                                                <div className="mt-6 flex items-center justify-center gap-2 text-[9px] font-black text-white/10 uppercase tracking-widest italic group-hover:text-white/30 transition-colors">TAP TO EDIT <Layers size={10} /></div>
-                                            </div>
+                                            <CompletedMatchCard 
+                                                key={m.id}
+                                                match={m}
+                                                index={idx}
+                                                getPlayerName={getPlayerName}
+                                                onEdit={(match) => {
+                                                    setTempScores({ s1: 0, s2: 0 });
+                                                    setActiveMatchForScore(match);
+                                                }}
+                                            />
                                         ))}
                                     </div>
                                 </section>
@@ -678,44 +674,14 @@ export default function SpecialMatchPage() {
 
                 {/* --- PROFESSIONAL GRADE WINNER SELECTION MODAL (REPLICATED) --- */}
                 {activeMatchForScore && (
-                    <div className="fixed inset-0 z-[3000] flex items-center justify-center px-6 bg-black/98 backdrop-blur-2xl">
-                        <div className="w-full max-w-[380px] bg-[#0F0F0F] rounded-[56px] p-10 border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] relative overflow-hidden flex flex-col items-center">
-                             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none -mr-16 -mt-16 rotate-12"><Zap size={350} className="text-[#C9B075]" /></div>
-                             
-                             <div className="text-center mb-10 relative z-10">
-                                <span className="text-[10px] font-black text-[#C9B075] tracking-[0.6em] uppercase block mb-2 opacity-60">MATCH PROTOCOL</span>
-                                <h3 className="text-2xl font-[1000] italic tracking-tight text-white uppercase flex items-center gap-3"><Trophy size={20} className="text-[#C9B075]" /> WINNER SELECTION</h3>
-                             </div>
-                             
-                             <div className="grid grid-cols-2 gap-px bg-white/5 w-full relative z-10 mb-10 rounded-3xl overflow-hidden">
-                                {/* TEAM 1 SELECTOR */}
-                                <div className="bg-[#0F0F0F] p-6 flex flex-col items-center gap-8">
-                                    <div className="flex flex-col items-center h-14 justify-center text-center"><span className="text-[15px] font-[1000] text-white leading-tight mb-1 truncate w-full">{getPlayerName(activeMatchForScore.playerIds[0])}</span><span className="text-[15px] font-[1000] text-white leading-tight truncate w-full">{getPlayerName(activeMatchForScore.playerIds[1])}</span><div className="w-6 h-0.5 bg-[#C9B075] mt-2 opacity-40 rounded-full" /></div>
-                                    <span className="text-[72px] font-[1000] text-white/90 font-mono tracking-tighter leading-none mb-4">{tempScores.s1}</span>
-                                    <div className="grid grid-cols-3 gap-2 w-full">
-                                        {[0, 1, 2, 3, 4, 5, 6].map(num => (
-                                            <button key={`s1-${num}`} onClick={() => setTempScores(p => ({ ...p, s1: num }))} className={`h-12 rounded-xl flex items-center justify-center text-[18px] font-black transition-all ${tempScores.s1 === num ? 'bg-[#C9B075]/20 text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.2)]' : 'bg-[#1A1A1A] text-white/20'}`}>{num}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                                {/* TEAM 2 SELECTOR */}
-                                <div className="bg-[#0F0F0F] p-6 flex flex-col items-center gap-8 border-l border-white/5">
-                                    <div className="flex flex-col items-center h-14 justify-center text-center"><span className="text-[15px] font-[1000] text-white leading-tight mb-1 truncate w-full">{getPlayerName(activeMatchForScore.playerIds[2])}</span><span className="text-[15px] font-[1000] text-white leading-tight truncate w-full">{getPlayerName(activeMatchForScore.playerIds[3])}</span><div className="w-6 h-0.5 bg-[#C9B075] mt-2 opacity-40 rounded-full" /></div>
-                                    <span className="text-[72px] font-[1000] text-white/90 font-mono tracking-tighter leading-none mb-4">{tempScores.s2}</span>
-                                    <div className="grid grid-cols-3 gap-2 w-full">
-                                        {[0, 1, 2, 3, 4, 5, 6].map(num => (
-                                            <button key={`s2-${num}`} onClick={() => setTempScores(p => ({ ...p, s2: num }))} className={`h-12 rounded-xl flex items-center justify-center text-[18px] font-black transition-all ${tempScores.s2 === num ? 'bg-[#C9B075]/20 text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.2)]' : 'bg-[#1A1A1A] text-white/20'}`}>{num}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                             </div>
-                             
-                             <div className="flex flex-col gap-4 w-full relative z-10 px-4">
-                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="w-full h-20 bg-[#C9B075]/10 border border-[#C9B075]/20 text-[#C9B075] font-[1000] rounded-[32px] flex items-center justify-center gap-4 active:scale-95 transition-all shadow-xl uppercase tracking-[0.3em] text-[13px] italic">CONFIRM SCORE <Trophy size={18} fill="#C9B075" /></button>
-                                <button onClick={() => setActiveMatchForScore(null)} className="w-full py-4 text-white/20 font-black uppercase tracking-widest text-[11px] hover:text-white transition-colors">CANCEL</button>
-                             </div>
-                        </div>
-                    </div>
+                    <ScoreEntryModal 
+                        match={activeMatchForScore}
+                        tempScores={tempScores}
+                        setTempScores={setTempScores}
+                        onSave={(matchId, s1, s2) => updateMatchScore(matchId, s1, s2)}
+                        onCancel={() => setActiveMatchForScore(null)}
+                        getPlayerName={getPlayerName}
+                    />
                 )}
             </main>
         );

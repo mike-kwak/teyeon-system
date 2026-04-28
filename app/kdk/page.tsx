@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import { RotateCw, CheckCircle2 } from 'lucide-react';
-import MatchCard from '@/components/tournament/MatchCard';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
@@ -18,9 +17,8 @@ import { useRanking } from '@/hooks/useRanking';
 import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
-
-
-// --- Types & Interfaces Moved to lib/tournament_types.ts ---
+import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
+import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 
 export default function KDKPage() {
     const router = useRouter();
@@ -2107,47 +2105,38 @@ export default function KDKPage() {
                                         .map(mId => ({ id: mId, match: matches.find(x => x.id === mId) }))
                                         .filter(x => x.match)
                                         .sort((a, b) => {
-                                            // Sort by Round first, then by ID (consistent with Match No calculation)
                                             if (a.match!.round !== b.match!.round) return (a.match!.round || 0) - (b.match!.round || 0);
                                             return (a.match!.id || '').localeCompare(b.match!.id || '');
                                         })
                                         .map(({ id: mId, match: m }) => {
                                             if (!m) return null;
+                                            const allMatchesInGroupSorted = matches.filter(mx => {
+                                                const p0 = mx.playerIds?.[0];
+                                                if (!p0) return false;
+                                                const pGroup = attendeeConfigs[p0]?.group || (allMembers || []).find(x => x.id === p0)?.position || 'A';
+                                                const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
+                                                return nGroup === (m.groupName || 'A');
+                                            }).sort((a, b) => {
+                                                if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                                return (a.id || '').localeCompare(b.id || '');
+                                            });
+                                            const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
 
-                                        const allMatchesInGroupSorted = matches.filter(mx => {
-                                            const p0 = mx.playerIds?.[0];
-                                            if (!p0) return false;
-                                            const pGroup = attendeeConfigs[p0]?.group || (allMembers || []).find(x => x.id === p0)?.position || 'A';
-                                            const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
-                                            return nGroup === (m.groupName || 'A');
-                                        }).sort((a, b) => {
-                                            if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                            return (a.id || '').localeCompare(b.id || '');
-                                        });
-                                        const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
-                                        const normalizedGroup = m.groupName || 'A';
-                                        const isGroupB = normalizedGroup === 'B';
-                                        const groupColor = isGroupB ? '#00E5FF' : '#C9B075';
-                                        const cardGlow = isGroupB ? '0 0 15px rgba(0, 229, 255, 0.2)' : '0 0 15px rgba(201, 176, 117, 0.05)';
-
-                                        return (
-                                            <MatchCard 
-                                                key={mId}
-                                                match={m}
-                                                isAdmin={isAdmin && adminModeManual}
-                                                role={role}
-                                                getPlayerName={getPlayerName}
-                                                matchNo={matchNo}
-                                                spinningMatchId={spinningMatchId}
-                                                onCancel={(id) => cancelMatch(id)}
-                                                onInputScore={(id, s1, s2) => {
-                                                    setTempScores({ s1, s2 });
-                                                    setShowScoreModal(id);
-                                                }}
-                                                showToast={showToast}
-                                                toastMsg={toastMsg}
-                                            />
-                                        );
+                                            return (
+                                                <PlayingMatchCard 
+                                                    key={m.id}
+                                                    match={m}
+                                                    getPlayerName={getPlayerName}
+                                                    isAdmin={isAdmin && adminModeManual}
+                                                    onCancel={(id) => cancelMatch(id)}
+                                                    spinning={spinningMatchId === m.id}
+                                                    matchNo={matchNo}
+                                                    onInputScore={(match) => {
+                                                        setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
+                                                        setShowScoreModal(match.id);
+                                                    }}
+                                                />
+                                            );
                                     })}
                                 </div>
                             )}
@@ -2193,7 +2182,7 @@ export default function KDKPage() {
                                                                     <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
                                                                     <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
                                                                 </div>
-                                                                {matchesInRound.map((m) => {
+                                                                {matchesInRound.map((m, idx) => {
                                                                     const allMatchesInGroupSorted = matches.filter(mx => {
                                                                         const p0 = mx.playerIds[0];
                                                                         const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
@@ -2204,52 +2193,19 @@ export default function KDKPage() {
                                                                         return a.id.localeCompare(b.id);
                                                                     });
                                                                     const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
-                                                                    const busyPlayers = m.playerIds.filter(pid => busyPlayerIds.has(pid));
-                                                                    const hasConflict = busyPlayers.length > 0;
 
                                                                     return (
-                                                                        <div key={m.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[45px_1fr_75px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '12px', paddingRight: '12px', paddingTop: '22px', paddingBottom: '22px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
-                                                                            <div className="flex items-center justify-center">
-                                                                                <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
-                                                                                    <span className="text-[8px] font-black leading-none opacity-40">R{m.round}</span>
-                                                                                    <span className="text-[12px] font-[1000] leading-none uppercase">G{matchNo}</span>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="flex items-center justify-center gap-2 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
-                                                                                    {getPlayerName(m.playerIds[0], m.id).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[0], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
-                                                                                    /
-                                                                                    {getPlayerName(m.playerIds[1], m.id).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[1], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
-                                                                                </span>
-                                                                                <span className="text-[8px] font-black uppercase italic tracking-tighter opacity-20 shrink-0" style={{ color: col }}>vs</span>
-                                                                                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
-                                                                                    {getPlayerName(m.playerIds[2], m.id).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[2], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
-                                                                                    /
-                                                                                    {getPlayerName(m.playerIds[3], m.id).replace(' (G)', '')}
-                                                                                    {getPlayerName(m.playerIds[3], m.id).includes('(G)') && <span className="text-[13px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">g</span>}
-                                                                                </span>
-                                                                            </div>
-
-                                                                            <div className="flex items-center justify-end">
-                                                                                <button
-                                                                                    onClick={() => { 
-                                                                                        if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드(ADMIN MODE)에서만 제어 가능합니다.");
-                                                                                        if (isStartingMatch || hasConflict) return;
-                                                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50); 
-                                                                                        startMatch(m.id); 
-                                                                                    }}
-                                                                                    disabled={isStartingMatch || hasConflict || !adminModeManual}
-                                                                                    className={`px-4 py-3 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict || !adminModeManual) && isAdmin ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
-                                                                                    style={{ backgroundColor: (isStartingMatch || hasConflict) && isAdmin ? undefined : col, color: (isStartingMatch || hasConflict) && isAdmin ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) && isAdmin ? 'none' : `0 4px 15px ${col}66` }}
-                                                                                >
-                                                                                    {isStartingMatch ? '...' : hasConflict ? '🚫' : (isAdmin ? '투입' : '대기')}
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
+                                                                        <WaitingMatchCard 
+                                                                            key={m.id}
+                                                                            match={m}
+                                                                            index={idx}
+                                                                            matchNo={matchNo}
+                                                                            getPlayerName={getPlayerName}
+                                                                            onStart={(id) => {
+                                                                                if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드에서만 가능합니다.");
+                                                                                startMatch(id);
+                                                                            }}
+                                                                        />
                                                                     );
                                                                 })}
                                                             </div>
@@ -2267,66 +2223,38 @@ export default function KDKPage() {
                             <div style={{ marginTop: '32px' }}>
                                 <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" style={{ marginBottom: '16px' }} />
-                                <div className="grid grid-cols-2 gap-x-3 gap-y-5">
-                                    {matches.filter(m => m.status === 'complete').sort((a, b) => {
-                                        const gA = a.groupName || 'A';
-                                        const gB = b.groupName || 'A';
-                                        if (gA !== gB) return gA.localeCompare(gB);
-                                        const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === gA).sort((x, y) => (x.round || 0) - (y.round || 0) || String(x.id).localeCompare(String(y.id)));
-                                        return groupMatchesSorted.findIndex(x => x.id === a.id) - groupMatchesSorted.findIndex(x => x.id === b.id);
-                                    }).map(m => {
-                                        const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === (m.groupName || 'A')).sort((a, b) => {
-                                            if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                            return String(a.id).localeCompare(String(b.id));
-                                        });
-                                        const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
+                                <div className="space-y-6">
+                                    {matches.filter(m => m.status === 'complete')
+                                        .sort((a, b) => {
+                                            const gA = a.groupName || 'A';
+                                            const gB = b.groupName || 'A';
+                                            if (gA !== gB) return gA.localeCompare(gB);
+                                            const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === gA).sort((x, y) => (x.round || 0) - (y.round || 0) || String(x.id).localeCompare(String(y.id)));
+                                            return groupMatchesSorted.findIndex(x => x.id === a.id) - groupMatchesSorted.findIndex(x => x.id === b.id);
+                                        })
+                                        .map((m, idx) => {
+                                            const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === (m.groupName || 'A')).sort((a, b) => {
+                                                if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                                return String(a.id).localeCompare(String(b.id));
+                                            });
+                                            const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
 
-                                        return (
-                                            <div key={m.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setShowScoreModal(m.id); }} className="rounded-[24px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
-                                                {/* SECTION HEADER BAR */}
-                                                <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.02] border-b border-white/5 overflow-hidden relative">
-                                                    <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate" style={{ color: m.groupName === 'B' ? 'rgba(0, 229, 255, 0.4)' : 'rgba(201, 176, 117, 0.5)' }}>
-                                                        GROUP {(m.groupName || 'A')} • MATCH {gMatchNo.toString().padStart(2, '0')}
-                                                    </span>
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (!isAdmin) return triggerAccessDenied();
-                                                            if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\\n(점수가 1:1로 초기화되며 랭킹에서 임시 제외됩니다.)")) {
-                                                                supabase.from('matches').update({ status: 'playing', score1: 1, score2: 1 }).eq('id', m.id).then(() => {
-                                                                    setSyncTick(t => t + 1);
-                                                                });
-                                                            }
-                                                        }}
-                                                        className="absolute right-3 hover:bg-white/10 p-1.5 rounded-full transition-all text-white/40 hover:text-[#10B981] z-20"
-                                                        title="경기 다시 진행"
-                                                    >
-                                                        <RotateCw size={12} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-
-                                                <div className="flex-1 flex flex-col justify-center px-1 py-4 sm:px-3 sm:py-8">
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 w-full">
-                                                        <div className="flex flex-col items-center justify-center min-w-0 gap-1 opacity-80">
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[0], m.id)}</span>
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[1], m.id)}</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-center flex-shrink-0 px-1 sm:px-2 justify-center">
-                                                            <span className="text-[clamp(24px,6vw,36px)] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{m.score1}:{m.score2}</span>
-                                                            <span className="text-[clamp(6px,2vw,8px)] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-center justify-center min-w-0 gap-1 opacity-80">
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[2], m.id)}</span>
-                                                            <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(m.playerIds[3], m.id)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="pb-3 text-center transition-all duration-300">
-                                                    <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em] group-hover:text-[#C9B075]/60 group-hover:tracking-[0.4em] transition-all">TAP TO EDIT ✎</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            return (
+                                                <CompletedMatchCard 
+                                                    key={m.id}
+                                                    match={m}
+                                                    index={idx}
+                                                    matchNo={gMatchNo}
+                                                    getPlayerName={getPlayerName}
+                                                    onEdit={(match) => {
+                                                        if (!isAdmin) return triggerAccessDenied();
+                                                        setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
+                                                        setShowScoreModal(match.id);
+                                                    }}
+                                                />
+                                            );
+                                        })}
+                                </div>
                                 </div>
                             </div>
                         )}
