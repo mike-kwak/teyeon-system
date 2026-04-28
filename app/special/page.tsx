@@ -716,7 +716,7 @@ export default function SpecialMatchPage() {
                                 {playingMatches.length === 0 ? (
                                     <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">WAITING FOR NEXT ROUND...</div>
                                 ) : (
-                                    <div className="flex flex-col gap-4">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {playingMatches.map((m, idx) => (
                                             <PlayingMatchCard 
                                                 key={m.id} 
@@ -769,7 +769,7 @@ export default function SpecialMatchPage() {
                                         <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2">COMPLETED MATCHES</h3>
                                         <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                     </div>
-                                    <div className="flex flex-col gap-3">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {completedMatches.map((m, idx) => (
                                             <CompletedMatchCard 
                                                 key={m.id} 
