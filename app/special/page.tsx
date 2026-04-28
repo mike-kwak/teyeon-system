@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.9";
+        const VERSION = "7.0";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -94,11 +94,20 @@ export default function SpecialMatchPage() {
         setIsCheckingDB(true);
         // 1. Try Server Data First (for cross-device sync)
         try {
-            const { data: serverSessions } = await supabase
-                .from('teyeon_special_sessions')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(1);
+            const urlParams = new URLSearchParams(window.location.search);
+            const querySessionId = urlParams.get('session');
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+            
+            let query = supabase.from('teyeon_special_sessions').select('*');
+            
+            if (querySessionId) {
+                // [v7.0] Direct session link priority
+                query = query.eq('session_id', querySessionId);
+            } else {
+                query = query.eq('club_id', clubId).order('created_at', { ascending: false }).limit(1);
+            }
+
+            const { data: serverSessions } = await query;
 
             if (serverSessions && serverSessions.length > 0) {
                 const latest = serverSessions[0];
@@ -764,7 +773,18 @@ export default function SpecialMatchPage() {
                         </h1>
                     </div>
                     <div className="flex-1 flex items-center justify-end gap-3">
-                        <button onClick={() => { syncCurrentQueueToDB(matchQueue); alert("서버 동기화 완료! 폰에서 새로고침 하세요."); }} className="w-8 h-8 bg-[#C9B075] border border-[#C9B075] rounded-lg flex items-center justify-center text-black shadow-lg active:scale-95 transition-all" title="서버 강제 동기화">☁️</button>
+                        <button 
+                            onClick={() => {
+                                const url = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
+                                navigator.clipboard.writeText(url);
+                                alert("세션 공유 링크가 복사되었습니다! 폰으로 보내서 접속하세요.");
+                            }} 
+                            className="w-8 h-8 bg-blue-500 border border-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg active:scale-95 transition-all" 
+                            title="세션 링크 복사"
+                        >
+                            🔗
+                        </button>
+                        <button onClick={() => { syncCurrentQueueToDB(matchQueue); alert("서버 동기화 완료!"); }} className="w-8 h-8 bg-[#C9B075] border border-[#C9B075] rounded-lg flex items-center justify-center text-black shadow-lg active:scale-95 transition-all" title="서버 강제 동기화">☁️</button>
                         <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075]">📋</button>
                         <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075]">🏆</button>
                     </div>
