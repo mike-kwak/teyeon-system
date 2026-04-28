@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.7";
+        const VERSION = "6.8";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -147,14 +147,16 @@ export default function SpecialMatchPage() {
                 timestamp: new Date().toISOString()
             };
 
-            // [v5.7] FULL SESSION CLOUD SYNC
+            // [v6.8] FULL SESSION CLOUD SYNC WITH CLUB ID
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+            
             await supabase.from('teyeon_special_sessions').upsert({
                 session_id: sessionId,
+                club_id: clubId,
                 raw_data: payload,
                 created_at: new Date().toISOString()
             }, { onConflict: 'session_id' });
 
-            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             const dbMatches = queue.map((m, idx) => ({
                 ...m, 
                 round: m.round || (idx + 1), 
