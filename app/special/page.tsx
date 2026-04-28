@@ -45,6 +45,7 @@ export default function SpecialMatchPage() {
     const [isStartingMatch, setIsStartingMatch] = useState(false);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [isOptimizing, setIsOptimizing] = useState(false);
+    const [bankFilter, setBankFilter] = useState<'ALL' | 'A' | 'B'>('ALL');
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
     
     // Configuration Aligned with KDK Production
@@ -555,29 +556,63 @@ export default function SpecialMatchPage() {
 
     // --- [STEP 3] Manual Match Builder ---
     if (step === 3) {
+        const selectedIdsInManual = draftSlots.filter(id => id !== null) as string[];
+        const availableMembers = selectedMembersList.filter(m => !draftSlots.includes(m.id));
+        
+        // [v5.3] Group Filtering Logic
+        const filteredBank = availableMembers.filter(m => {
+            if (bankFilter === 'ALL') return true;
+            const config = attendeeConfigs[m.id];
+            return (config?.group || 'A') === bankFilter;
+        });
+
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
                 <header className="px-8 pt-8 mb-6 max-w-lg mx-auto w-full flex items-center justify-between">
                     <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
                     <div className="text-center flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-2">MANUAL BUILDER</span>
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-2">MANUAL BUILDER v5.3</span>
                         <h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1>
                     </div>
                     <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
                 </header>
 
                 <div className="px-8 space-y-12 max-w-lg mx-auto w-full">
+                    {/* PLAYER BANK WITH GROUP FILTER */}
                     <section className="min-h-[140px]">
                         <div className="flex items-center justify-between mb-8 px-1">
-                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
-                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{selectedMembersList.length} Available</span>
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
+                                <span className="text-[9px] font-bold text-white/20 uppercase">{filteredBank.length} Avail</span>
+                            </div>
+                            
+                            {/* [v5.3] Group Filter Toggles */}
+                            <div className="flex items-center bg-white/5 rounded-full p-1 border border-white/10 scale-90 origin-right">
+                                {(['ALL', 'A', 'B'] as const).map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setBankFilter(f)}
+                                        className={`px-4 py-1.5 rounded-full text-[10px] font-black transition-all ${bankFilter === f ? 'bg-[#C9B075] text-black shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                                    >
+                                        {f === 'ALL' ? 'ALL' : f + '조'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
+
                         <div className="flex flex-wrap gap-2">
-                            {selectedMembersList.length === 0 ? (
-                                <p className="text-white/20 text-[12px] font-bold italic w-full text-center py-10">No members selected</p>
+                            {filteredBank.length === 0 ? (
+                                <p className="text-white/20 text-[12px] font-bold italic w-full text-center py-10 border border-dashed border-white/5 rounded-3xl">No members available in this group</p>
                             ) : (
-                                selectedMembersList.map(m => (
-                                    <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent pointer-events-none' : 'bg-black border-white/10 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
+                                filteredBank.map(m => (
+                                    <button
+                                        key={m.id}
+                                        onClick={() => addToDraft(m.id)}
+                                        className="h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight bg-black border border-white/10 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white transition-all shadow-xl"
+                                    >
+                                        {m.nickname}
+                                        <div className={`absolute top-1 right-2 w-1.5 h-1.5 rounded-full ${ (attendeeConfigs[m.id]?.group || 'A') === 'B' ? 'bg-[#00E5FF]' : 'bg-[#C9B075]' } opacity-40`} />
+                                    </button>
                                 ))
                             )}
                         </div>
@@ -624,7 +659,31 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 4] Live Court (Absolute 1:1 Parity) ---
+    // [v5.3] LOCAL REPAIR: BREAK-PROOF WAITING CARD
+    const WaitingMatchCard = ({ match, index, matchNo, getPlayerName, isAdmin, isStartingMatch, hasConflict, onStart }: any) => {
+        const names = match.playerIds.map((pid: any) => getPlayerName(pid).split(' ')[0]);
+        return (
+            <div className={`relative flex items-center justify-between p-3 rounded-2xl transition-all active:scale-[0.98] overflow-hidden ${hasConflict ? 'bg-white/[0.02] border border-white/5 opacity-50' : 'bg-white/[0.04] border border-white/10 shadow-lg'}`} style={{ height: '76px' }}>
+                <div className="flex flex-col justify-center gap-1 w-[72%] overflow-hidden">
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/5 border border-white/10 shrink-0">
+                            <span className="text-[8px] font-black text-[#C9B075] italic">R{match.round || 1}</span>
+                        </div>
+                        <div className="flex flex-col min-w-0 leading-none">
+                            <div className="flex items-center gap-1">
+                                <span className="text-[11px] font-black text-white truncate max-w-[45%]">{names[0]}/{names[1]}</span>
+                                <span className="text-[8px] font-black text-[#C9B075]/40 italic shrink-0">VS</span>
+                                <span className="text-[11px] font-black text-white truncate max-w-[45%]">{names[2]}/{names[3]}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button disabled={!isAdmin || hasConflict || isStartingMatch} onClick={() => onStart(match.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shrink-0 ${hasConflict ? 'bg-white/5 text-white/10' : 'bg-[#C9B075] text-black shadow-md hover:scale-105 active:scale-95'}`}><span className="text-[9px] font-black uppercase">{hasConflict ? '대기' : '투입'}</span></button>
+            </div>
+        );
+    };
+
+    // --- [STEP 4] Live Court (Absolute 1: parity) ---
     if (step === 4) {
         const groupAMatches = matchQueue.filter(m => m.group === 'A' || !m.group);
         const groupBMatches = matchQueue.filter(m => m.group === 'B');
@@ -868,7 +927,7 @@ export default function SpecialMatchPage() {
                     )}
                 </div>
 
-                {/* [v5.2] BOTTOM TAB BAR (1:1 KDK IDENTITY) */}
+                {/* [v5.3] BOTTOM TAB BAR (1:1 KDK IDENTITY) */}
                 <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[200]">
                     <button
                         onClick={() => setActiveTab('MATCHES')}
