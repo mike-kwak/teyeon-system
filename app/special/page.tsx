@@ -792,34 +792,57 @@ export default function SpecialMatchPage() {
                                 )}
                             </section>
 
-                            {/* WAITING */}
+                            {/* WAITING (Grouped by Round) */}
                             {['A', 'B'].map(group => {
-                                const matches = group === 'A' ? groupAMatches : groupBMatches;
-                                if (matches.length === 0) return null;
+                                const groupMatches = group === 'A' ? groupAMatches : groupBMatches;
+                                if (groupMatches.length === 0) return null;
+                                
+                                // Group by round
+                                const matchesByRound: Record<number, Match[]> = {};
+                                groupMatches.forEach(m => {
+                                    const r = m.round || 1;
+                                    if (!matchesByRound[r]) matchesByRound[r] = [];
+                                    matchesByRound[r].push(m);
+                                });
+                                const sortedRounds = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
                                 const col = group === 'B' ? '#00E5FF' : '#C9B075';
+
                                 return (
-                                    <section key={group}>
-                                        <div className="flex flex-col mb-4">
-                                            <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2">{group === 'B' ? '연조(BLUE)' : '테조(GOLD)'} WAITING</h3>
-                                            <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
+                                    <section key={group} className="flex flex-col gap-6 mb-12">
+                                        <div className="flex flex-col mb-2">
+                                            <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2">{group === 'B' ? 'BLUE WAITING' : 'GOLD WAITING'}</h3>
+                                            <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, transparent)` }} />
                                         </div>
-                                        <div className="flex flex-col gap-3">
-                                            {matches.map((m, idx) => (
-                                                <div key={m.id} className="relative">
-                                                    <div className={`absolute -top-2 left-4 z-50 ${group === 'B' ? 'bg-[#00E5FF]' : 'bg-[#C9B075]'} text-black text-[9px] font-[1000] px-2 py-0.5 rounded-full shadow-lg italic`}>ROUND {m.round || idx + 1}</div>
-                                                    <WaitingMatchCard 
-                                                        match={m} 
-                                                        index={idx} 
-                                                        matchNo={idx + 1} 
-                                                        getPlayerName={getPlayerName} 
-                                                        isAdmin={isAdmin} 
-                                                        isStartingMatch={isStartingMatch} 
-                                                        hasConflict={playingMatches.length >= totalCourts || m.playerIds.some(pid => playingPlayerIds.has(pid))} 
-                                                        onStart={handleStartMatch} 
-                                                    />
+
+                                        {sortedRounds.map(roundNum => (
+                                            <div key={roundNum} className="space-y-4">
+                                                {/* Round Separator Line */}
+                                                <div className="flex items-center gap-4 px-2 py-4">
+                                                    <div className="h-px flex-1 bg-white/10" />
+                                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] italic">ROUND {roundNum}</span>
+                                                    <div className="h-px flex-1 bg-white/10" />
                                                 </div>
-                                            ))}
-                                        </div>
+                                                
+                                                <div className="flex flex-col gap-3">
+                                                    {matchesByRound[roundNum].map((m) => {
+                                                        const globalIdx = matchQueue.findIndex(x => x.id === m.id);
+                                                        return (
+                                                            <WaitingMatchCard 
+                                                                key={m.id} 
+                                                                match={m} 
+                                                                index={globalIdx} 
+                                                                matchNo={globalIdx + 1} 
+                                                                getPlayerName={getPlayerName} 
+                                                                isAdmin={isAdmin} 
+                                                                isStartingMatch={isStartingMatch} 
+                                                                hasConflict={playingMatches.length >= totalCourts || m.playerIds.some(pid => playingPlayerIds.has(pid))} 
+                                                                onStart={handleStartMatch} 
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </section>
                                 );
                             })}
