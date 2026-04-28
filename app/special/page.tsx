@@ -538,87 +538,102 @@ export default function SpecialMatchPage() {
                     </div>
                 </header>
 
-                <div className="flex-1 px-6 overflow-y-auto no-scrollbar max-w-lg mx-auto w-full">
+                <div className="flex-1 px-4 overflow-y-auto no-scrollbar max-w-lg mx-auto w-full antialiased pb-60" style={{ background: '#14161a' }}>
                     {activeTab === 'MATCHES' ? (
-                        <div className="space-y-16 pb-40">
-                            {/* NOW PLAYING SECTION (CAPSULE STYLE) */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-10">
-                                    <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase leading-none">NOW PLAYING</h2>
-                                    {matchQueue.some(m => m.status === 'playing') && (<span className="px-3 py-1 bg-red-500 text-white text-[9px] font-black rounded-full tracking-widest animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">1 LIVE</span>)}
+                        <div className="space-y-0">
+                            {/* NOW PLAYING SECTION (1:1 KDK MIRROR) */}
+                            <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
+                                <div className="flex flex-col" style={{ marginBottom: '16px' }}>
+                                    <div className="flex items-center gap-3 ml-2">
+                                        <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
+                                        {matchQueue.some(m => m.status === 'playing') && (
+                                            <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                                {matchQueue.filter(m => m.status === 'playing').length} LIVE
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                 </div>
-                                <div className="space-y-8">
-                                    {matchQueue.filter(m => m.status === 'playing').map((m) => (
-                                        <PlayingMatchCard 
-                                            key={m.id}
-                                            match={m}
-                                            getPlayerName={getPlayerName}
-                                            onInputScore={(match) => {
-                                                setTempScores({ s1: 0, s2: 0 });
-                                                setActiveMatchForScore(match);
-                                            }}
-                                        />
-                                    ))}
-                                </div>
+
+                                {matchQueue.filter(m => m.status === 'playing').length === 0 ? (
+                                    <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
+                                        {matchQueue.filter(m => m.status === 'playing').map((m, idx) => (
+                                            <PlayingMatchCard 
+                                                key={m.id}
+                                                match={m}
+                                                matchNo={idx + 1}
+                                                getPlayerName={getPlayerName}
+                                                isAdmin={isAdmin}
+                                                onInputScore={(match) => {
+                                                    setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
+                                                    setActiveMatchForScore(match);
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </section>
 
-                            {/* GOLD WAITING SECTION (CIRCLE Rx Gx STYLE) */}
-                            <section>
-                                <div className="flex items-center gap-3 px-2 mb-8 border-b border-[#C9B075]/20 pb-5">
-                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">GOLD WAITING</h2>
-                                </div>
-                                <div className="space-y-4">
-                                    {groupAMatches.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <WaitingMatchCard 
-                                            key={m.id}
-                                            match={m}
-                                            index={idx}
-                                            getPlayerName={getPlayerName}
-                                            onStart={(id) => handleStartMatch(id)}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
+                            {/* WAITING QUEUE (1:1 KDK MIRROR) */}
+                            <div style={{ marginTop: '32px' }}>
+                                {['A', 'B'].map(group => {
+                                    const groupMatches = matchQueue.filter(m => {
+                                        const normalizedGroup = m.group || 'A';
+                                        return normalizedGroup === group && m.status === 'waiting';
+                                    });
 
-                            {/* BLUE WAITING SECTION */}
-                            <section>
-                                <div className="flex items-center gap-3 px-2 mb-8 border-b border-[#00E5FF]/20 pb-5">
-                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-3 leading-none">BLUE WAITING <span className="text-[10px] not-italic font-black bg-[#00E5FF] text-black px-2 py-0.5 rounded tracking-widest uppercase">GROUP B</span></h2>
-                                </div>
-                                <div className="space-y-4">
-                                    {groupBMatches.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <WaitingMatchCard 
-                                            key={m.id}
-                                            match={m}
-                                            index={idx}
-                                            getPlayerName={getPlayerName}
-                                            onStart={(id) => handleStartMatch(id)}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
+                                    if (groupMatches.length === 0) return null;
 
-                            {/* COMPLETED MATCHES SECTION (REPLICATED 6:3 FINAL WIN STYLE) */}
-                            {completedMatches.length > 0 && (
-                                <section>
-                                    <div className="flex items-center gap-3 px-2 mb-10 border-b border-white/5 pb-5">
-                                        <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">COMPLETED MATCHES</h2>
+                                    const isB = group === 'B';
+                                    const col = isB ? '#00E5FF' : '#C9B075';
+
+                                    return (
+                                        <div key={group} className="space-y-3">
+                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
+                                                <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
+                                                <div className="mt-2 h-1.5 w-48 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
+                                            </div>
+                                            <div className="flex flex-col gap-6">
+                                                {groupMatches.map((m, idx) => (
+                                                    <WaitingMatchCard 
+                                                        key={m.id}
+                                                        match={m}
+                                                        index={idx}
+                                                        getPlayerName={getPlayerName}
+                                                        onStart={(id) => handleStartMatch(id)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* COMPLETED MATCHES SECTION (1:1 KDK MIRROR) */}
+                            {matchQueue.some(m => m.status === 'complete') && (
+                                <div style={{ marginTop: '32px' }}>
+                                    <div className="flex flex-col" style={{ marginBottom: '16px' }}>
+                                        <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
+                                        <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                     </div>
                                     <div className="space-y-6">
-                                        {completedMatches.map((m, idx) => (
+                                        {matchQueue.filter(m => m.status === 'complete').map((m, idx) => (
                                             <CompletedMatchCard 
                                                 key={m.id}
                                                 match={m}
                                                 index={idx}
                                                 getPlayerName={getPlayerName}
                                                 onEdit={(match) => {
-                                                    setTempScores({ s1: 0, s2: 0 });
+                                                    setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
                                                     setActiveMatchForScore(match);
                                                 }}
                                             />
                                         ))}
                                     </div>
-                                </section>
+                                </div>
                             )}
                         </div>
                     ) : (
