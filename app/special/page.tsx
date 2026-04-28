@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.5";
+        const VERSION = "6.6";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -416,12 +416,20 @@ export default function SpecialMatchPage() {
         }
 
         setIsStartingMatch(true);
+        console.log("[v6.6] Starting Match:", matchId);
+        
         const nextQueue = matchQueue.map(m => m.id === matchId ? { ...m, status: 'playing' as const } : m);
         setMatchQueue(nextQueue);
+        
         try {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             const dbMatch = { ...target, status: 'playing' as const, session_id: sessionId, club_id: clubId, session_title: sessionTitle, player_names: target.playerIds.map(pid => getPlayerName(pid)) };
+            
+            // Sync ONLY the target match to DB
             await supabase.rpc('sync_tournament_matches', { p_matches: [dbMatch] });
+            
+            // Force save the entire state to be safe
+            await syncCurrentQueueToDB(nextQueue);
         } catch (e) { console.error("Sync Error:", e); } finally {
             setIsStartingMatch(false);
         }
@@ -808,12 +816,15 @@ export default function SpecialMatchPage() {
                                 const groupMatches = group === 'A' ? groupAMatches : groupBMatches;
                                 if (groupMatches.length === 0) return null;
                                 
-                                // [v6.4] Forced Grouping by Round (2 games per round if 4 courts)
+                                // [v6.6] Forced Grouping by Round using Global Queue Index
                                 const matchesByRound: Record<number, Match[]> = {};
                                 const slotsPerRound = Math.max(1, Math.floor(totalCourts / 2));
                                 
-                                groupMatches.forEach((m, idx) => {
-                                    const displayRound = Math.floor(idx / slotsPerRound) + 1;
+                                groupMatches.forEach((m) => {
+                                    // Use the index in the FULL queue to determine the round stably
+                                    const fullIdxInGroup = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A')).findIndex(x => x.id === m.id);
+                                    const displayRound = Math.floor(fullIdxInGroup / slotsPerRound) + 1;
+                                    
                                     if (!matchesByRound[displayRound]) matchesByRound[displayRound] = [];
                                     matchesByRound[displayRound].push(m);
                                 });
