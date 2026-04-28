@@ -485,7 +485,7 @@ export default function SpecialMatchPage() {
                                 <p className="text-white/20 text-[12px] font-bold italic w-full text-center py-10">No members selected</p>
                             ) : (
                                 selectedMembersList.map(m => (
-                                    <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent pointer-events-none' : 'bg-[#141414] border-white/5 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
+                                    <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent pointer-events-none' : 'bg-black border-white/10 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
                                 ))
                             )}
                         </div>
@@ -536,17 +536,18 @@ export default function SpecialMatchPage() {
     if (step === 4) {
         const groupAMatches = matchQueue.filter(m => m.group === 'A' || !m.group);
         const groupBMatches = matchQueue.filter(m => m.group === 'B');
+        const completedMatches = matchQueue.filter(m => m.status === 'complete');
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
-                {/* --- KDK REPLICATED HEADER --- */}
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[280px]" style={{ paddingBottom: "280px" }}>
+                {/* --- HEADER --- */}
                 <header className="px-6 pt-8 pb-4 max-w-lg mx-auto w-full relative z-[100]">
                     <div className="flex items-center justify-between gap-4 mb-2">
                         <div className="flex items-center gap-4">
                             <button onClick={() => setStep(3)} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/20 active:scale-90 transition-all"><RotateCw size={18} /></button>
                             <div className="flex flex-col">
                                 <span className="text-[9px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40">SESSION</span>
-                                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[180px]">{sessionTitle}</h1>
+                                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[180px] leading-tight">{sessionTitle}</h1>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -556,7 +557,6 @@ export default function SpecialMatchPage() {
                         </div>
                     </div>
                     
-                    {/* INFO BAR */}
                     <div className="flex items-center justify-between px-1 py-3 border-t border-white/5 mt-4">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest">WIN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(firstPrize/1000).toFixed(0)}K</span></div>
@@ -566,18 +566,10 @@ export default function SpecialMatchPage() {
                     </div>
                 </header>
 
-                {/* TAB SWITCHER */}
-                <nav className="px-6 mb-8 max-w-lg mx-auto w-full relative z-[100]">
-                    <div className="bg-[#141414] p-1.5 rounded-2xl border border-white/10 shadow-2xl flex">
-                        <button onClick={() => setActiveTab('MATCHES')} className={`flex-1 py-4 rounded-xl text-[11px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${activeTab === 'MATCHES' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-lg scale-[1.02]' : 'text-white/30'}`}><Zap size={14} fill={activeTab === 'MATCHES' ? 'black' : 'none'} /> MATCHES</button>
-                        <button onClick={() => setActiveTab('RANKING')} className={`flex-1 py-4 rounded-xl text-[11px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${activeTab === 'RANKING' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-lg scale-[1.02]' : 'text-white/30'}`}><Trophy size={14} fill={activeTab === 'RANKING' ? 'black' : 'none'} /> RANKING</button>
-                    </div>
-                </nav>
-
                 <div className="flex-1 px-6 overflow-y-auto no-scrollbar max-w-lg mx-auto w-full">
                     {activeTab === 'MATCHES' ? (
-                        <div className="space-y-16 pb-20">
-                            {/* NOW PLAYING SECTION */}
+                        <div className="space-y-16 pb-32">
+                            {/* NOW PLAYING */}
                             <section>
                                 <div className="flex items-center gap-3 mb-8">
                                     <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase">NOW PLAYING</h2>
@@ -586,25 +578,25 @@ export default function SpecialMatchPage() {
                                 <div className="space-y-6">
                                     {matchQueue.filter(m => m.status === 'playing').map((m, idx) => (
                                         <div key={m.id} className="bg-gradient-to-br from-[#1E1E1E] to-[#141414] rounded-[48px] p-1 border border-white/10 shadow-2xl relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Zap size={100} className="text-[#C9B075]" /></div>
-                                            <div className="p-8 pb-4">
+                                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Zap size={100} className="text-[#C9B075]" /></div>
+                                            <div className="p-8 pb-4 relative z-10">
                                                 <div className="flex items-center gap-2 mb-8 opacity-40"><span className="text-[10px] font-black uppercase tracking-widest text-[#C9B075]">ROUND {m.round || idx+1}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className={`text-[10px] font-black uppercase tracking-widest ${m.group === 'B' ? 'text-[#00E5FF]' : 'text-[#C9B075]'}`}>{m.group === 'B' ? 'B조' : 'A조'}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className="text-[10px] font-black uppercase tracking-widest text-white/40">1 경기</span><RotateCw size={10} className="ml-1" /></div>
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
-                                                    <div className="bg-black/40 rounded-[32px] p-6 text-center border border-white/5"><span className="text-[18px] font-black text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><span className="text-[18px] font-black text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
-                                                    <span className="text-[#C9B075] font-black italic text-sm opacity-20">vs</span>
-                                                    <div className="bg-black/40 rounded-[32px] p-6 text-center border border-white/5"><span className="text-[18px] font-black text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><span className="text-[18px] font-black text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                                    <div className="bg-black/60 rounded-[32px] p-6 text-center border border-white/5 backdrop-blur-sm"><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
+                                                    <span className="text-[#C9B075] font-black italic text-sm opacity-20 uppercase tracking-widest">vs</span>
+                                                    <div className="bg-black/60 rounded-[32px] p-6 text-center border border-white/5 backdrop-blur-sm"><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
                                                 </div>
                                             </div>
-                                            <button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className="w-full py-6 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 text-[#C9B075] font-black text-[12px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all border-t border-white/5 italic">INPUT SCORE <Trophy size={14} fill="#C9B075" /></button>
+                                            <button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className="w-full py-6 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 text-[#C9B075] font-black text-[12px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all border-t border-white/5 italic relative z-10">INPUT SCORE <Trophy size={14} fill="#C9B075" /></button>
                                         </div>
                                     ))}
                                 </div>
                             </section>
 
-                            {/* GOLD WAITING SECTION */}
+                            {/* GOLD WAITING */}
                             <section>
                                 <div className="flex items-center gap-3 px-2 mb-8 border-b border-[#C9B075]/20 pb-5">
-                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase">GOLD WAITING</h2>
+                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">GOLD WAITING</h2>
                                 </div>
                                 <div className="space-y-4">
                                     {groupAMatches.filter(m => m.status === 'waiting').map((m, idx) => (
@@ -619,10 +611,10 @@ export default function SpecialMatchPage() {
                                 </div>
                             </section>
 
-                            {/* BLUE WAITING SECTION */}
+                            {/* BLUE WAITING */}
                             <section>
                                 <div className="flex items-center gap-3 px-2 mb-8 border-b border-[#00E5FF]/20 pb-5">
-                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-3">BLUE WAITING <span className="text-[10px] not-italic font-black bg-[#00E5FF] text-black px-2 py-0.5 rounded tracking-widest">GROUP B</span></h2>
+                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-3 leading-none">BLUE WAITING <span className="text-[10px] not-italic font-black bg-[#00E5FF] text-black px-2 py-0.5 rounded tracking-widest">GROUP B</span></h2>
                                 </div>
                                 <div className="space-y-4">
                                     {groupBMatches.filter(m => m.status === 'waiting').map((m, idx) => (
@@ -636,33 +628,76 @@ export default function SpecialMatchPage() {
                                     ))}
                                 </div>
                             </section>
+
+                            {/* COMPLETE */}
+                            {completedMatches.length > 0 && (
+                                <section>
+                                    <div className="flex items-center gap-3 px-2 mb-8 border-b border-white/5 pb-5">
+                                        <h2 className="text-2xl font-black italic tracking-tighter text-white/20 uppercase leading-none">COMPLETE</h2>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {completedMatches.map((m, idx) => (
+                                            <div key={m.id} className="rounded-[28px] bg-white/[0.02] border border-white/[0.05] p-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 opacity-40">
+                                                <div className="text-right flex flex-col"><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
+                                                <div className="flex items-center gap-3 px-4 py-2 bg-black/40 rounded-2xl border border-white/5"><span className="text-[16px] font-[1000] text-[#C9B075]">{m.score1}</span><span className="text-[9px] font-black text-white/20">:</span><span className="text-[16px] font-[1000] text-[#C9B075]">{m.score2}</span></div>
+                                                <div className="text-left flex flex-col"><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     ) : (
                         <RankingTab players={allPlayersInRanking} sessionTitle={sessionTitle} isArchive={false} isAdmin={isAdmin} prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }} onShareMatch={execCopySchedule} onShareResult={copyFinalResults} onFinalize={handleFinalArchive} isGenerating={isSubmitting} />
                     )}
                 </div>
 
-                {/* BOTTOM ACTION BAR */}
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[100]">
-                    <div className="bg-[#141414] border border-white/5 p-2 rounded-[32px] shadow-2xl flex gap-3 backdrop-blur-2xl">
-                        {isAdmin && (<button onClick={() => setStep(3)} className="w-16 h-16 bg-white/5 text-[#C9B075] rounded-[24px] flex items-center justify-center border border-white/10 active:scale-90 transition-all shadow-inner"><Plus size={24} strokeWidth={3} /></button>)}
-                        <button disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')} onClick={handleFinalArchive} className="flex-1 h-16 bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black font-[1000] rounded-[24px] flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-[11px] disabled:opacity-20 italic">최종 아카이브 전송 🏆</button>
+                {/* --- FLOATING BOTTOM UI (PARITY WITH KDK) --- */}
+                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[200] px-6 pb-12 pt-6 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none">
+                    <div className="flex flex-col gap-5 pointer-events-auto">
+                        {/* TAB SWITCHER MOVED TO BOTTOM */}
+                        <div className="bg-[#141414] p-1.5 rounded-[24px] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex backdrop-blur-2xl">
+                            <button onClick={() => setActiveTab('MATCHES')} className={`flex-1 py-4 rounded-[18px] text-[11px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${activeTab === 'MATCHES' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-lg' : 'text-white/20'}`}><Zap size={14} fill={activeTab === 'MATCHES' ? 'black' : 'none'} /> MATCHES</button>
+                            <button onClick={() => setActiveTab('RANKING')} className={`flex-1 py-4 rounded-[18px] text-[11px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${activeTab === 'RANKING' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-lg' : 'text-white/20'}`}><Trophy size={14} fill={activeTab === 'RANKING' ? 'black' : 'none'} /> RANKING</button>
+                        </div>
+                        
+                        {/* ARCHIVE ACTION BAR */}
+                        <div className="bg-[#141414] border border-white/5 p-2 rounded-[32px] shadow-2xl flex gap-3 backdrop-blur-2xl border-t border-white/10">
+                            {isAdmin && (<button onClick={() => setStep(3)} className="w-16 h-16 bg-white/5 text-[#C9B075] rounded-[24px] flex items-center justify-center border border-white/10 active:scale-90 transition-all shadow-inner"><Plus size={24} strokeWidth={3} /></button>)}
+                            <button disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')} onClick={handleFinalArchive} className="flex-1 h-16 bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black font-[1000] rounded-[24px] flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-[11px] disabled:opacity-20 italic">최종 아카이브 전송 🏆</button>
+                        </div>
                     </div>
                 </div>
 
-                {/* SCORE MODAL (KDK STYLE) */}
+                {/* --- PRODUCTION GRADE SCORE MODAL --- */}
                 {activeMatchForScore && (
-                    <div className="fixed inset-0 z-[2000] flex items-center justify-center px-8 bg-black/95 backdrop-blur-md">
-                        <div className="w-full max-w-[360px] bg-[#141414] rounded-[48px] p-10 border border-white/10 shadow-2xl relative overflow-hidden">
-                             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><Zap size={150} className="text-[#C9B075]" /></div>
-                             <div className="text-center mb-10"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase">ENTER SCORE</span><h3 className="text-2xl font-black italic tracking-tighter text-white mt-2 uppercase">MATCH RESULTS</h3></div>
-                             <div className="grid grid-cols-2 gap-10 mb-12">
-                                <div className="flex flex-col items-center gap-6"><span className="text-[12px] font-black text-white/40 uppercase tracking-widest text-center h-10 leading-tight flex items-center justify-center truncate max-w-full"><PlayerNameBadge id={activeMatchForScore.playerIds[0]} /><br /><PlayerNameBadge id={activeMatchForScore.playerIds[1]} /></span><div className="flex items-center gap-4"><button onClick={() => setTempScores(p => ({ ...p, s1: Math.max(0, p.s1 - 1) }))} className="w-10 h-10 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90">-</button><span className="text-5xl font-black text-[#C9B075] font-mono tracking-tighter">{tempScores.s1}</span><button onClick={() => setTempScores(p => ({ ...p, s1: p.s1 + 1 }))} className="w-10 h-10 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90">+</button></div></div>
-                                <div className="flex flex-col items-center gap-6"><span className="text-[12px] font-black text-white/40 uppercase tracking-widest text-center h-10 leading-tight flex items-center justify-center truncate max-w-full"><PlayerNameBadge id={activeMatchForScore.playerIds[2]} /><br /><PlayerNameBadge id={activeMatchForScore.playerIds[3]} /></span><div className="flex items-center gap-4"><button onClick={() => setTempScores(p => ({ ...p, s2: Math.max(0, p.s2 - 1) }))} className="w-10 h-10 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90">-</button><span className="text-5xl font-black text-[#C9B075] font-mono tracking-tighter">{tempScores.s2}</span><button onClick={() => setTempScores(p => ({ ...p, s2: p.s2 + 1 }))} className="w-10 h-10 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90">+</button></div></div>
+                    <div className="fixed inset-0 z-[3000] flex items-center justify-center px-8 bg-black/98 backdrop-blur-xl">
+                        <div className="w-full max-w-[360px] bg-[#141414] rounded-[56px] p-12 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col items-center">
+                             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none -mr-10 -mt-10 rotate-12"><Zap size={280} className="text-[#C9B075]" /></div>
+                             <div className="text-center mb-12 relative z-10"><span className="text-[11px] font-black text-[#C9B075] tracking-[0.6em] uppercase block mb-3 opacity-60">ENTER SCORE</span><h3 className="text-3xl font-[1000] italic tracking-tight text-white uppercase whitespace-nowrap">MATCH RESULTS</h3></div>
+                             
+                             <div className="grid grid-cols-2 gap-10 mb-14 relative z-10 w-full">
+                                <div className="flex flex-col items-center gap-8">
+                                    <div className="flex flex-col items-center h-12 justify-center"><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px] mb-1">{getPlayerName(activeMatchForScore.playerIds[0])}</span><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px]">{getPlayerName(activeMatchForScore.playerIds[1])}</span></div>
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => setTempScores(p => ({ ...p, s1: Math.max(0, p.s1 - 1) }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">-</button>
+                                        <span className="text-6xl font-black text-[#C9B075] font-mono tracking-tighter leading-none">{tempScores.s1}</span>
+                                        <button onClick={() => setTempScores(p => ({ ...p, s1: p.s1 + 1 }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">+</button>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-8">
+                                    <div className="flex flex-col items-center h-12 justify-center"><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px] mb-1">{getPlayerName(activeMatchForScore.playerIds[2])}</span><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px]">{getPlayerName(activeMatchForScore.playerIds[3])}</span></div>
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => setTempScores(p => ({ ...p, s2: Math.max(0, p.s2 - 1) }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">-</button>
+                                        <span className="text-6xl font-black text-[#C9B075] font-mono tracking-tighter leading-none">{tempScores.s2}</span>
+                                        <button onClick={() => setTempScores(p => ({ ...p, s2: p.s2 + 1 }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">+</button>
+                                    </div>
+                                </div>
                              </div>
-                             <div className="flex flex-col gap-4">
-                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className={`w-full py-6 font-black rounded-3xl shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-[13px] italic ${activeMatchForScore.group === 'B' ? 'bg-[#00E5FF] text-black' : 'bg-[#C9B075] text-black'}`}>기록 저장 💾</button>
-                                <button onClick={() => setActiveMatchForScore(null)} className="w-full py-4 text-white/20 font-black uppercase tracking-widest text-[10px] hover:text-white transition-colors">취소</button>
+                             
+                             <div className="flex flex-col gap-4 w-full relative z-10">
+                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className={`w-full py-6 font-[1000] rounded-[32px] shadow-[0_15px_40px_rgba(0,0,0,0.5)] active:scale-95 transition-all uppercase tracking-widest text-sm italic flex items-center justify-center gap-3 ${activeMatchForScore.group === 'B' ? 'bg-[#00E5FF] text-black' : 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black'}`}>기록 저장 <Save size={18} fill="black" /></button>
+                                <button onClick={() => setActiveMatchForScore(null)} className="w-full py-4 text-white/20 font-black uppercase tracking-widest text-[11px] hover:text-white transition-colors">취소</button>
                              </div>
                         </div>
                     </div>
@@ -674,7 +709,7 @@ export default function SpecialMatchPage() {
     return (
         <AnimatePresence>
             {showResetConfirm && (
-                <div className="fixed inset-0 z-[3000] flex items-center justify-center px-8 bg-black/90 backdrop-blur-md">
+                <div className="fixed inset-0 z-[4000] flex items-center justify-center px-8 bg-black/90 backdrop-blur-md">
                     <div className="w-full max-w-[360px] bg-[#141414] rounded-[40px] p-8 border border-white/10 shadow-2xl text-center">
                         <h3 className="text-xl font-black italic tracking-tighter text-white uppercase mb-4">RESET SESSION?</h3>
                         <p className="text-sm text-white/40 font-bold leading-relaxed mb-10">진행 중인 모든 대진과 설정이 초기화됩니다.<br />정말 초기화하시겠습니까?</p>
