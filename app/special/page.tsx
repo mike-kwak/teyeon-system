@@ -102,20 +102,35 @@ export default function SpecialMatchPage() {
         }
     }, []);
 
+    const syncCurrentQueueToDB = async (queue: Match[]) => {
+        try {
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+            const dbMatches = queue.map((m, idx) => ({
+                ...m, 
+                round: idx + 1, 
+                session_id: sessionId, 
+                club_id: clubId, 
+                session_title: sessionTitle, 
+                status: m.status || 'waiting', 
+                mode: 'SPECIAL',
+                player_names: m.playerIds.map(pid => getPlayerName(pid))
+            }));
+            await supabase.rpc('sync_tournament_matches', { p_matches: dbMatches });
+        } catch (e) { console.error("Real-time Sync Error:", e); }
+    };
+
     const checkDBForActiveSession = async () => {
         setIsCheckingDB(true);
         try {
-            // Specifically target Special Mode sessions starting with 'SP-'
-            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            // Broad search for any active matches with SP- prefix
             const { data, error } = await supabase
                 .from('matches')
                 .select('*')
                 .eq('mode', 'SPECIAL')
                 .ilike('session_id', 'SP-%')
                 .in('status', ['playing', 'waiting'])
-                .gt('created_at', yesterday)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(100);
 
             if (error) throw error;
 
@@ -149,10 +164,10 @@ export default function SpecialMatchPage() {
                     };
                     localStorage.setItem('special_live_session', JSON.stringify(sessionData));
                 } else {
-                    alert("새 세션을 시작합니다. 클라우드 데이터는 무시됩니다.");
+                    alert("새 세션을 시작합니다.");
                 }
             } else {
-                alert("최근 24시간 내에 활성화된 세션이 없습니다.");
+                alert("활성화된 수동 모드 세션을 찾을 수 없습니다. PC에서 대진 생성을 진행 중인지 확인해 주세요.");
             }
         } catch (e: any) {
             console.error("Session Recovery Error:", e);
@@ -231,6 +246,7 @@ export default function SpecialMatchPage() {
 
     const handleReorder = (newOrder: Match[]) => {
         setMatchQueue(newOrder);
+        syncCurrentQueueToDB(newOrder); // Cloud Sync
         setIsOptimizing(true);
         setTimeout(() => setIsOptimizing(false), 800);
     };
@@ -258,11 +274,17 @@ export default function SpecialMatchPage() {
             group: draftGroup,
             teams: [[draftSlots[0]!, draftSlots[1]!], [draftSlots[2]!, draftSlots[3]!]]
         };
-        setMatchQueue(prev => [...prev, newMatch]);
+        const nextQueue = [...matchQueue, newMatch];
+        setMatchQueue(nextQueue);
+        syncCurrentQueueToDB(nextQueue); // Cloud Sync
         setDraftSlots([null, null, null, null]);
     };
 
-    const removeMatchFromQueue = (id: string) => { setMatchQueue(prev => prev.filter(m => m.id !== id)); };
+    const removeMatchFromQueue = (id: string) => { 
+        const nextQueue = matchQueue.filter(m => m.id !== id);
+        setMatchQueue(nextQueue); 
+        syncCurrentQueueToDB(nextQueue); // Cloud Sync
+    };
 
     const startSpecialSession = async () => {
         if (matchQueue.length === 0) { alert("최소 1개 이상의 대진이 필요합니다."); return; }

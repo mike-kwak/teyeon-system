@@ -24,7 +24,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  const CURRENT_VERSION = 'v4.8 Special Mode Sync';
+  const CURRENT_VERSION = 'v4.9 Real-time Sync';
 
   useEffect(() => {
     setIsMounted(true);
