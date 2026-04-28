@@ -14,7 +14,8 @@ import {
   Layout, 
   CircleDollarSign, 
   Cpu, 
-  Settings 
+  Settings,
+  RotateCw
 } from 'lucide-react';
 // Note: We don't need a heavy external Skeleton library, basic tailwind animate-pulse blocks work flawlessly.
 
@@ -23,13 +24,33 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  const CURRENT_VERSION = 'v4.2 Stability Sync';
+
   useEffect(() => {
     setIsMounted(true);
+    
+    // PWA Cache Busting Logic (v4.2)
+    const savedVersion = localStorage.getItem('teyeon_pwa_version');
+    if (savedVersion && savedVersion !== CURRENT_VERSION) {
+      console.log(`[PWA] Version Mismatch: ${savedVersion} -> ${CURRENT_VERSION}. Forcing hard sync.`);
+      localStorage.setItem('teyeon_pwa_version', CURRENT_VERSION);
+      window.location.reload();
+    } else {
+      localStorage.setItem('teyeon_pwa_version', CURRENT_VERSION);
+    }
+
     if (toast) {
       const timer = setTimeout(() => setToast(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  const handleHardSync = () => {
+    if (confirm("앱의 최신 데이터와 UI를 동기화하기 위해 새로고침 하시겠습니까?")) {
+      localStorage.clear(); // Clear all stale local data
+      window.location.href = window.location.origin + '?v=' + Date.now(); // Cache bust URL
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -141,9 +162,12 @@ export default function Home() {
            <span className="text-[11px] font-black text-gray-400 tracking-[0.25em] uppercase font-['Rajdhani',sans-serif]">
              TEYEON CLUB MANAGEMENT
            </span>
-           <span className="text-[10px] text-[#E8E137] font-bold tracking-widest font-['Rajdhani',sans-serif]">
-             Premium Experience v3.9 Stability Ed.
-           </span>
+           <div 
+             onClick={handleHardSync}
+             className="text-[10px] text-[#E8E137] font-bold tracking-widest font-['Rajdhani',sans-serif] cursor-pointer hover:underline flex items-center justify-center gap-1.5"
+           >
+             <RotateCw size={10} /> Premium Experience {CURRENT_VERSION}
+           </div>
         </div>
       </div>
 
