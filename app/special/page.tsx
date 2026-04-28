@@ -540,7 +540,13 @@ export default function SpecialMatchPage() {
                             <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest">WIN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(firstPrize/1000).toFixed(0)}K</span></div>
                             <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-2">PEN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(bottom25Penalty/1000).toFixed(0)}K</span></div>
                         </div>
-                        <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-white/20 uppercase tracking-widest">RULES:</span><span className="text-[9px] font-bold text-white/40 italic">1:1 시작, 노애드, 타이 3:3 시작 7포인트 선승</span></div>
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest shrink-0">RULES:</span>
+                            <span className="text-[9px] font-bold text-white/40 italic truncate">1:1 시작, 노애드, 타이 3:3 시작 7포인트 선승</span>
+                            {isAdmin && (
+                                <button onClick={() => setStep(2)} className="ml-1 flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">⚙️</button>
+                            )}
+                        </div>
                     </div>
                 </header>
 
