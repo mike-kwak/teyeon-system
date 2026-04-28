@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.6";
+        const VERSION = "6.7";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -849,13 +849,16 @@ export default function SpecialMatchPage() {
                                                 
                                                 <div className="flex flex-col gap-3">
                                                     {matchesByRound[roundNum].map((m) => {
-                                                        const matchIdxInGroup = groupMatches.findIndex(x => x.id === m.id) + 1;
+                                                        // [v6.7] Use Absolute Index in FULL Group Queue for stable 'G' numbering
+                                                        const fullGroupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
+                                                        const absoluteIdxInGroup = fullGroupMatches.findIndex(x => x.id === m.id) + 1;
+                                                        
                                                         return (
                                                             <WaitingMatchCard 
                                                                 key={m.id} 
                                                                 match={m} 
-                                                                index={matchIdxInGroup - 1} 
-                                                                matchNo={matchIdxInGroup} 
+                                                                index={absoluteIdxInGroup - 1} 
+                                                                matchNo={absoluteIdxInGroup} 
                                                                 getPlayerName={getPlayerName} 
                                                                 isAdmin={isAdmin} 
                                                                 isStartingMatch={isStartingMatch} 
