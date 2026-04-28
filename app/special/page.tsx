@@ -333,7 +333,7 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 2] Settings Dashboard (Optimized for Width & Scrolling) ---
+    // --- [STEP 2] Settings Dashboard ---
     if (step === 2) {
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
@@ -342,7 +342,7 @@ export default function SpecialMatchPage() {
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[240px]" style={{ paddingBottom: "240px" }}>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[350px]" style={{ paddingBottom: "350px" }}>
                 <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0 pt-6 max-w-lg mx-auto w-full">
                     <div className="flex items-center"><button onClick={() => setStep(1)} className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] active:scale-95 transition-all shadow-[0_0_15px_rgba(201,176,117,0.1)]"><ArrowLeft size={18} /></button></div>
                     <div className="text-center flex flex-col items-center gap-2">
@@ -360,7 +360,7 @@ export default function SpecialMatchPage() {
                         <input type="text" value={sessionTitle} onChange={(e) => setSessionTitle(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-base font-black text-white outline-none focus:border-[#C9B075]/50 focus:bg-white/10 transition-all" />
                     </section>
 
-                    {/* Attendee Matrix (Expanded for natural scroll) */}
+                    {/* Attendee Matrix */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#C9B075]" />ATTENDEE MATRIX</h3>
@@ -372,7 +372,7 @@ export default function SpecialMatchPage() {
                                 return (
                                     <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         <span style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.95)' }}>{m.name}{m.is_guest ? ' (G)' : ''}</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0A0A0A', borderRadius: '14px', padding: '6px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                                     <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '14px', fontWeight: 800, outline: 'none', appearance: 'none', textAlign: 'center', width: '48px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
@@ -391,7 +391,7 @@ export default function SpecialMatchPage() {
                         </div>
                     </section>
 
-                    {/* Constraints & Financials (Expanded for Width) */}
+                    {/* Constraints & Financials */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
                          <div className="space-y-10">
                             <div className="space-y-6">
@@ -455,23 +455,23 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 3] Manual Match Builder (Optimized for Width) ---
+    // --- [STEP 3] Manual Match Builder ---
     if (step === 3) {
         const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-80">
-                <header className="fixed top-0 w-full z-[150] bg-black/90 backdrop-blur-3xl border-b border-white/10 h-20 flex items-center px-8 justify-between">
+                <header className="fixed top-0 w-full z-[150] bg-black/90 backdrop-blur-3xl border-b border-white/10 h-24 flex items-center px-8 justify-between">
                     <div className="max-w-lg mx-auto w-full flex items-center justify-between">
                         <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
-                        <div className="text-center flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-1">BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
+                        <div className="text-center flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-2">MANUAL BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
                         <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
                     </div>
                 </header>
 
-                <div className="mt-28 px-8 space-y-12 max-w-lg mx-auto w-full">
+                <div className="mt-40 px-8 space-y-12 max-w-lg mx-auto w-full">
                     {/* Player Bank */}
-                    <section>
-                        <div className="flex items-center justify-between mb-6 px-1">
+                    <section className="pt-4">
+                        <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
                             <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{selectedMembers.length} Available</span>
                         </div>
@@ -517,7 +517,7 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 4] Live Court (Optimized for Width) ---
+    // --- [STEP 4] Live Court ---
     if (step === 4) {
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60 overflow-hidden" style={{ paddingBottom: "160px" }}>
