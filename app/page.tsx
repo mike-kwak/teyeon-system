@@ -24,7 +24,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  const CURRENT_VERSION = 'v4.3 Status Lock';
+  const CURRENT_VERSION = 'v4.4 Device Sync';
 
   useEffect(() => {
     setIsMounted(true);
@@ -52,18 +52,31 @@ export default function Home() {
     }
   };
 
+  const MenuCard = ({ label, icon, path, comingSoon, badge }: { label: string, icon: React.ReactNode, path: string, comingSoon?: boolean, badge?: string }) => (
+    <Link 
+      href={path}
+      className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-[160px] ${comingSoon ? 'opacity-80' : ''}`}
+    >
+      {comingSoon && (
+        <span className="absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse top-4 right-4">
+          COMING SOON
+        </span>
+      )}
+      {badge && !comingSoon && (
+        <span className="absolute px-[10px] py-[4px] bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-[1000] rounded-full tracking-[0.1em] border border-[#C9B075]/40 top-4 right-4">
+          {badge}
+        </span>
+      )}
+      <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
+        {icon}
+      </div>
+      <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
+        {label}
+      </span>
+    </Link>
+  );
+
   if (!isMounted) return null;
-
-  const menuItems = [
-    { label: '클럽 공지', icon: <Megaphone size={36} strokeWidth={1.5} />, path: '/notice', comingSoon: false },
-    { label: '멤버 프로필', icon: <Users size={36} strokeWidth={1.5} />, path: '/members', comingSoon: false },
-    { label: '스페셜 매치', icon: <Layout size={36} strokeWidth={1.5} />, path: '/special', comingSoon: false },
-    { label: '대전 생성', icon: <Swords size={36} strokeWidth={1.5} />, path: '/kdk', comingSoon: false },
-
-    { label: '클럽 재무', icon: <CircleDollarSign size={36} strokeWidth={1.5} />, path: '/finance', comingSoon: true },
-    { label: 'AI 시드 예측', icon: <Cpu size={36} strokeWidth={1.5} />, path: '/prediction', comingSoon: true },
-    { label: '관리자 설정', icon: <Settings size={36} strokeWidth={1.5} />, path: '/admin', comingSoon: false },
-  ];
 
   return (
     <main 
@@ -136,50 +149,70 @@ export default function Home() {
           </div>
         )}
 
-        {/* Authenticated State - Grid Menu (Moved up as requested) */}
+        {/* Refactored Reliable Grid Menu (v4.4 Device Parity Lock) */}
         {!isLoading && user && (
           <>
             <div className="grid grid-cols-2 gap-6 w-full mt-6 animate-in slide-in-from-bottom-4 duration-700">
-              {menuItems.slice(0, 6).map((item, index) => (
-                <Link 
-                  key={index} 
-                  href={item.path}
-                  className="relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-[160px]"
-                >
-                  {item.comingSoon && (
-                    <span className="absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse top-4 right-4">
-                      COMING SOON
-                    </span>
-                  )}
-                  <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
-                    {item.icon}
-                  </div>
-                  <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
-                    {item.label}
-                  </span>
-                </Link>
-              ))}
+              {/* Row 1 */}
+              <MenuCard 
+                label="클럽 공지" 
+                icon={<Megaphone size={36} strokeWidth={1.5} />} 
+                path="/notice" 
+              />
+              <MenuCard 
+                label="멤버 프로필" 
+                icon={<Users size={36} strokeWidth={1.5} />} 
+                path="/members" 
+              />
+              
+              {/* Row 2 - Critical Session Controls */}
+              <MenuCard 
+                label="스페셜 매치" 
+                icon={<Layout size={36} strokeWidth={1.5} />} 
+                path="/special" 
+                badge="MANUAL"
+              />
+              <MenuCard 
+                label="대전 생성" 
+                icon={<Swords size={36} strokeWidth={1.5} />} 
+                path="/kdk" 
+                badge="KDK"
+              />
+
+              {/* Row 3 - Extended Features */}
+              <MenuCard 
+                label="클럽 재무" 
+                icon={<CircleDollarSign size={36} strokeWidth={1.5} />} 
+                path="/finance" 
+                comingSoon 
+              />
+              <MenuCard 
+                label="AI 시드 예측" 
+                icon={<Cpu size={36} strokeWidth={1.5} />} 
+                path="/prediction" 
+                comingSoon 
+              />
             </div>
 
-            {/* Vertically Centered Admin Spacer (Row 3 to Admin) */}
+            {/* Vertically Centered Admin Spacer */}
             <div className="h-8 w-full shrink-0" />
 
-            {/* Standalone Admin Setting Button (v6.2 Pixel-Perfect Symmetrical Lock) */}
+            {/* Standalone Admin Setting Button */}
             <div className="w-full animate-in fade-in duration-1000">
               <Link 
-                href={menuItems[6].path}
+                href="/admin"
                 className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-16 w-full"
               >
                 <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
-                  {React.isValidElement(menuItems[6].icon) && React.cloneElement(menuItems[6].icon as React.ReactElement<any>, { size: 28 })}
+                  <Settings size={28} />
                 </div>
                 <span className="font-bold text-[#C9B075]/80 tracking-[0.2em] text-center text-[16px] uppercase font-['Rajdhani',sans-serif]">
-                  {menuItems[6].label}
+                  관리자 설정
                 </span>
               </Link>
             </div>
 
-            {/* Vertically Centered Admin Spacer (Admin to Footer) */}
+            {/* Vertically Centered Admin Spacer */}
             <div className="h-8 w-full shrink-0" />
           </>
         )}
