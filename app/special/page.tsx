@@ -51,7 +51,6 @@ export default function SpecialMatchPage() {
     
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
-    // [CRITICAL FIX] Hooks must be at the top level
     const selectedMembersList = useMemo(() => {
         const combined = [...allMembers, ...tempGuests];
         return combined.filter(m => selectedIds.has(m.id));
@@ -453,8 +452,11 @@ export default function SpecialMatchPage() {
                     <div className="h-80" />
                 </div>
 
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[999]">
-                    <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-[#C9B075] text-black font-[1000] text-lg uppercase tracking-wider shadow-[0_20px_50px_rgba(201,176,117,0.5)] active:scale-95 transition-all border-none">매뉴얼 대진 생성 시작! 🚀</button>
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[420px] px-6 z-[999]">
+                    <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-black border-2 border-[#C9B075] text-white font-[1000] text-lg uppercase tracking-wider shadow-[0_15px_40px_rgba(0,0,0,0.8)] active:scale-95 transition-all flex items-center justify-center gap-3">
+                        <span>매뉴얼 대진 생성 시작!</span>
+                        <span className="text-2xl">🚀</span>
+                    </button>
                 </div>
             </main>
         );
@@ -518,8 +520,11 @@ export default function SpecialMatchPage() {
                     <div className="h-80" />
                 </div>
 
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[999]">
-                    <button disabled={isSubmitting || matchQueue.length === 0} onClick={startSpecialSession} className="w-full h-20 bg-gradient-to-r from-[#C9B075] via-[#F3E5AB] to-[#C9B075] text-black font-[1000] rounded-[40px] flex items-center justify-center gap-4 shadow-2xl active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.3em] text-[13px] italic"><Play fill="black" size={24} /> <span>SYNC & START LIVE COURT 🏁</span></button>
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[420px] px-6 z-[999]">
+                    <button disabled={isSubmitting || matchQueue.length === 0} onClick={startSpecialSession} className="w-full h-20 bg-black border-2 border-[#C9B075] text-white font-[1000] rounded-[40px] flex items-center justify-center gap-4 shadow-[0_15px_40px_rgba(0,0,0,0.8)] active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.2em] text-[13px] italic">
+                        <Play fill="white" size={24} /> 
+                        <span>SYNC & START LIVE COURT 🏁</span>
+                    </button>
                 </div>
             </main>
         );
