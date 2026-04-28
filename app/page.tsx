@@ -217,18 +217,8 @@ export default function Home() {
           </>
         )}
 
-        {/* Footer Text */}
-        <div className="mt-0 mb-12 text-center flex flex-col gap-2 opacity-40 animate-in fade-in duration-1000">
-           <span className="text-[11px] font-black text-gray-400 tracking-[0.25em] uppercase font-['Rajdhani',sans-serif]">
-             TEYEON CLUB MANAGEMENT
-           </span>
-           <div 
-             onClick={handleHardSync}
-             className="text-[10px] text-[#E8E137] font-bold tracking-widest font-['Rajdhani',sans-serif] cursor-pointer hover:underline flex items-center justify-center gap-1.5"
-           >
-             <RotateCw size={10} /> Premium Experience {CURRENT_VERSION}
-           </div>
-        </div>
+        {/* Bottom Spacer */}
+        <div className="h-12 w-full shrink-0" />
       </div>
 
       {/* Toast Notification */}

@@ -312,12 +312,12 @@ export default function SpecialMatchPage() {
         const p = [...allMembers, ...tempGuests].find(m => m.id === id);
         if (p) return p.nickname + (p.is_guest ? ' (G)' : '');
         
-        // [v5.0] Rescue Fallback for Guest Names
-        if (id.includes('iseul')) return "이슬 (G)";
-        if (id.includes('hoyoung')) return "호영 (G)";
-        if (id.includes('jinhee')) return "진희 (G)";
-        if (id.includes('heungki')) return "흥기 (G)";
-        if (id.includes('eunji')) return "은지 (G)";
+        // [v5.1] Rescue Full Names for Guests
+        if (id.includes('iseul')) return "강이슬 (G)";
+        if (id.includes('hoyoung')) return "장호영 (G)";
+        if (id.includes('jinhee')) return "주진희 (G)";
+        if (id.includes('heungki')) return "민흥기 (G)";
+        if (id.includes('eunji')) return "황은지 (G)";
         
         return '???';
     };
@@ -420,23 +420,6 @@ export default function SpecialMatchPage() {
                     <motion.button initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} onClick={() => setStep(1)} className="w-full group relative overflow-hidden rounded-[40px] h-[170px] text-left border-2 border-[#C9B075]/30 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-2xl bg-[#0A0A0A]/80 backdrop-blur-2xl">
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                         <div className="relative z-10 h-full flex items-center justify-between px-10"><div className="flex-1 pr-4 space-y-2"><h3 className="text-[32px] font-[1000] italic text-[#C9B075] tracking-tight uppercase leading-none">MANUAL MODE</h3><p className="text-[12px] font-black text-white/50 leading-snug tracking-tight">수동 매칭 및 직접 점수 입력</p></div><div className="w-16 h-16 shrink-0 rounded-[24px] bg-[#C9B075]/10 border border-[#C9B075]/20 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform"><LayoutGrid size={32} strokeWidth={2.5} /></div></div>
-                    </motion.button>
-
-                    {/* Manual Cloud Recovery Access (v4.6 Multi-Device Parity) */}
-                    <motion.button 
-                        initial={{ opacity: 0, y: 10 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        transition={{ delay: 0.4 }}
-                        onClick={checkDBForActiveSession}
-                        disabled={isCheckingDB}
-                        className="w-full h-16 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center gap-3 text-white/40 font-black tracking-tight text-[13px] uppercase hover:bg-white/10 hover:text-[#C9B075] transition-all active:scale-95 disabled:opacity-20"
-                    >
-                        {isCheckingDB ? (
-                            <RotateCw className="animate-spin" size={18} />
-                        ) : (
-                            <Sparkles className="text-[#C9B075]" size={18} />
-                        )}
-                        <span>☁️ 진행중인 세션 불러오기 (클라우드 동기화)</span>
                     </motion.button>
                 </div>
             </main>
@@ -740,7 +723,8 @@ export default function SpecialMatchPage() {
                             <div style={{ marginTop: '32px' }}>
                                 {['A', 'B'].map(group => {
                                     const groupMatches = matchQueue.filter(m => {
-                                        const normalizedGroup = m.group || 'A';
+                                        // [v5.1] Support both explicit group and court-based indicators (Court 1=A, Court 2=B)
+                                        const normalizedGroup = m.group || (m.court === 1 ? 'A' : (m.court === 2 ? 'B' : 'A'));
                                         return normalizedGroup === group && m.status === 'waiting';
                                     });
 
@@ -752,55 +736,60 @@ export default function SpecialMatchPage() {
                                     return (
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
-                                                <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
+                                                <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? '연조(BLUE)' : '테조(GOLD)'} WAITING</h3>
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
-                                            <div className="flex flex-col gap-6">
+                                            
+                                            {/* Round-based Packed Layout (v5.1 High-Density UI) */}
+                                            <div className="flex flex-col gap-8">
                                                 {(() => {
                                                     const playingMatches = matchQueue.filter(m => m.status === 'playing');
                                                     const playingPlayerIds = new Set(playingMatches.flatMap(m => m.playerIds));
                                                     const isCourtFull = playingMatches.length >= totalCourts;
 
-                                                    const calculateDisplayRound = (m: Match) => {
-                                                        const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
-                                                        const fullGroupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
-                                                        const indexInFull = fullGroupMatches.findIndex(x => x.id === m.id);
-                                                        return {
-                                                            roundNum: Math.floor(indexInFull / courtsPerGroup) + 1,
-                                                            matchNo: indexInFull + 1
-                                                        };
-                                                    };
+                                                    // Group matches by round for packed rendering
+                                                    const roundGroups: { [key: number]: Match[] } = {};
+                                                    groupMatches.forEach(m => {
+                                                        const r = m.round || 1;
+                                                        if (!roundGroups[r]) roundGroups[r] = [];
+                                                        roundGroups[r].push(m);
+                                                    });
 
-                                                    return groupMatches.map((m, idx) => {
-                                                        const { roundNum, matchNo } = calculateDisplayRound(m);
-                                                        const isFirstInRound = idx === 0 || (groupMatches[idx - 1] && calculateDisplayRound(groupMatches[idx - 1]).roundNum !== roundNum);
-                                                        const hasConflict = isCourtFull || m.playerIds.some(pid => playingPlayerIds.has(pid));
+                                                    return Object.keys(roundGroups).sort((a,b) => Number(a)-Number(b)).map(rKey => {
+                                                        const roundNum = Number(rKey);
+                                                        const matchesInRound = roundGroups[roundNum];
 
                                                         return (
-                                                            <div key={m.id} className={isFirstInRound ? "mt-4" : ""}>
-                                                                {isFirstInRound && (
-                                                                    <div className="flex items-center gap-2 ml-2 mb-3 opacity-60">
-                                                                        <div className="h-[1px] w-4" style={{ background: col }} />
-                                                                        <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
-                                                                        <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
-                                                                    </div>
-                                                                )}
-                                                                <div className="mb-4">
-                                                                    <WaitingMatchCard 
-                                                                        match={{ ...m, round: roundNum }}
-                                                                        index={idx}
-                                                                        matchNo={matchNo}
-                                                                        getPlayerName={getPlayerName}
-                                                                        isAdmin={isAdmin}
-                                                                        isStartingMatch={isStartingMatch}
-                                                                        hasConflict={hasConflict}
-                                                                        onStart={(id) => handleStartMatch(id)}
-                                                                    />
+                                                            <div key={roundNum} className="space-y-3">
+                                                                <div className="flex items-center gap-2 ml-2 mb-3 opacity-60">
+                                                                    <div className="h-[1px] w-4" style={{ background: col }} />
+                                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
+                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                                </div>
+                                                                
+                                                                {/* Grid Layout (Packed like KDK) */}
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    {matchesInRound.map((m, idx) => {
+                                                                        const hasConflict = isCourtFull || m.playerIds.some(pid => playingPlayerIds.has(pid));
+                                                                        return (
+                                                                            <WaitingMatchCard 
+                                                                                key={m.id}
+                                                                                match={m}
+                                                                                index={idx}
+                                                                                matchNo={idx + 1}
+                                                                                getPlayerName={getPlayerName}
+                                                                                isAdmin={isAdmin}
+                                                                                isStartingMatch={isStartingMatch}
+                                                                                hasConflict={hasConflict}
+                                                                                onStart={(id) => handleStartMatch(id)}
+                                                                            />
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </div>
                                                         );
                                                     });
-                                                })()}
+                                                 })()}
                                             </div>
                                         </div>
                                     );
