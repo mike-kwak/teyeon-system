@@ -659,301 +659,146 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // [v5.3] LOCAL REPAIR: BREAK-PROOF WAITING CARD
-    const WaitingMatchCard = ({ match, index, matchNo, getPlayerName, isAdmin, isStartingMatch, hasConflict, onStart }: any) => {
-        const names = match.playerIds.map((pid: any) => getPlayerName(pid).split(' ')[0]);
-        return (
-            <div className={`relative flex items-center justify-between p-3 rounded-2xl transition-all active:scale-[0.98] overflow-hidden ${hasConflict ? 'bg-white/[0.02] border border-white/5 opacity-50' : 'bg-white/[0.04] border border-white/10 shadow-lg'}`} style={{ height: '76px' }}>
-                <div className="flex flex-col justify-center gap-1 w-[72%] overflow-hidden">
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/5 border border-white/10 shrink-0">
-                            <span className="text-[8px] font-black text-[#C9B075] italic">R{match.round || 1}</span>
-                        </div>
-                        <div className="flex flex-col min-w-0 leading-none">
-                            <div className="flex items-center gap-1">
-                                <span className="text-[11px] font-black text-white truncate max-w-[45%]">{names[0]}/{names[1]}</span>
-                                <span className="text-[8px] font-black text-[#C9B075]/40 italic shrink-0">VS</span>
-                                <span className="text-[11px] font-black text-white truncate max-w-[45%]">{names[2]}/{names[3]}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button disabled={!isAdmin || hasConflict || isStartingMatch} onClick={() => onStart(match.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shrink-0 ${hasConflict ? 'bg-white/5 text-white/10' : 'bg-[#C9B075] text-black shadow-md hover:scale-105 active:scale-95'}`}><span className="text-[9px] font-black uppercase">{hasConflict ? '대기' : '투입'}</span></button>
-            </div>
-        );
-    };
-
-    // --- [STEP 4] Live Court (Absolute 1: parity) ---
+    // --- [STEP 4] Live Court (Absolute 1:1 Parity) ---
     if (step === 4) {
-        const groupAMatches = matchQueue.filter(m => m.group === 'A' || !m.group);
-        const groupBMatches = matchQueue.filter(m => m.group === 'B');
+        const groupAMatches = matchQueue.filter(m => (m.group || 'A') === 'A' && m.status === 'waiting');
+        const groupBMatches = matchQueue.filter(m => m.group === 'B' && m.status === 'waiting');
+        const playingMatches = matchQueue.filter(m => m.status === 'playing');
         const completedMatches = matchQueue.filter(m => m.status === 'complete');
+        const playingPlayerIds = new Set(playingMatches.flatMap(m => m.playerIds));
 
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
-                {/* [v5.2] MASTER HEADER (1:1 KDK IDENTITY) */}
+                {/* [v5.5] MASTER HEADER (1:1 KDK IDENTITY) */}
                 <header className="px-6 py-4 flex items-center justify-between h-18 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl">
                     <div className="flex-1 flex items-center gap-4">
                         {isAdmin && (
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-[#C9B075] border-[#C9B075] text-black shadow-[0_5px_15px_rgba(201,176,117,0.3)]">
-                                    <div className="w-2 h-2 rounded-full bg-black animate-pulse" />
-                                    <span className="text-[9px] font-[1000] uppercase tracking-widest leading-none">ADMIN</span>
-                                </div>
-                            </div>
-                        )}
-                        {!isAdmin && (
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
-                                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none">VIEWER</span>
-                                </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-[#C9B075] border-[#C9B075] text-black shadow-[0_5px_15px_rgba(201,176,117,0.3)]">
+                                <div className="w-2 h-2 rounded-full bg-black animate-pulse" />
+                                <span className="text-[9px] font-[1000] uppercase tracking-widest">ADMIN</span>
                             </div>
                         )}
                     </div>
-
                     <div className="flex-[2] flex flex-col items-center">
                         <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Special Session</span>
-                        <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[150px] sm:max-w-[200px] leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
-                            {sessionTitle || '260428_SPECIAL'}
+                        <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">
+                            {sessionTitle || 'SPECIAL MATCH'}
                         </h1>
                     </div>
-
                     <div className="flex-1 flex items-center justify-end gap-3">
-                        <div className="flex items-center gap-2">
-                            <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all">📋</button>
-                            <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all">🏆</button>
-                        </div>
-                        <div className="flex flex-col items-end pr-1">
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                                <span className="text-[8px] font-black text-[#10b981] uppercase tracking-widest whitespace-nowrap">연결됨</span>
-                            </div>
-                            <div className="mt-0.5 text-[8px] font-black text-[#10b981] uppercase tracking-widest opacity-40">SYNC OK</div>
-                        </div>
+                        <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075]">📋</button>
+                        <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075]">🏆</button>
                     </div>
                 </header>
 
-                <div
-                    className={`w-full px-5 flex flex-col gap-2 relative z-50 py-4 ${activeTab === 'RANKING' ? 'border-b border-white/5 pb-2 pt-2' : 'border-b border-white/10'}`}
-                    style={{ background: 'rgba(9, 9, 11, 0.85)', backdropFilter: 'blur(32px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-                >
+                <div className="w-full px-5 flex flex-col gap-2 relative z-50 py-4 border-b border-white/10" style={{ background: 'rgba(9, 9, 11, 0.85)', backdropFilter: 'blur(32px)' }}>
                     <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 shrink-0">
-                            <div className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">WIN:</span>
-                                <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{firstPrize/1000}K</span>
-                            </div>
-                            <div className="w-px h-2 bg-white/5" />
-                            <div className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">PEN:</span>
-                                <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{bottom25Penalty/1000}K</span>
-                            </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1"><span className="text-[8px] font-black text-[#C9B075] opacity-50 uppercase">WIN:</span><span className="text-[9px] font-bold text-white">{firstPrize/1000}K</span></div>
+                            <div className="flex items-center gap-1 ml-2"><span className="text-[8px] font-black text-[#C9B075] opacity-50 uppercase">PEN:</span><span className="text-[9px] font-bold text-white">{bottom25Penalty/1000}K</span></div>
                         </div>
-                        
                         <div className="flex items-center gap-3 overflow-hidden">
-                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
-                            <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
-                                1:1 시작, 노애드, 타이 3:3 시작
-                            </span>
-                            {isAdmin && (
-                                <button onClick={() => setStep(2)} className="flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">⚙️</button>
-                            )}
+                            <span className="text-[9px] font-bold text-white/60 italic uppercase truncate whitespace-nowrap">1:1 시작, 노애드, 타이 3:3 시작</span>
+                            {isAdmin && <button onClick={() => setStep(2)} className="text-[#C9B075]/40 text-[10px]">⚙️</button>}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-1 px-4 space-y-0 overflow-y-auto no-scrollbar antialiased pb-60" style={{ background: '#14161a' }}>
+                <div className="flex-1 px-4 overflow-y-auto no-scrollbar" style={{ background: '#14161a' }}>
                     {activeTab === 'MATCHES' ? (
-                        <div className="space-y-0">
-                            <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
-                                <div className="flex flex-col" style={{ marginBottom: '16px' }}>
-                                    <div className="flex items-center gap-3 ml-2">
-                                        <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
-                                        {matchQueue.some(m => m.status === 'playing') && (
-                                            <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                                {matchQueue.filter(m => m.status === 'playing').length} LIVE
-                                            </span>
-                                        )}
-                                    </div>
+                        <div className="flex flex-col gap-10 py-8">
+                            {/* NOW PLAYING */}
+                            <section>
+                                <div className="flex flex-col mb-4">
+                                    <h2 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2">NOW PLAYING</h2>
                                     <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                 </div>
-
-                                {matchQueue.filter(m => m.status === 'playing').length === 0 ? (
-                                    <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
+                                {playingMatches.length === 0 ? (
+                                    <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">WAITING FOR NEXT ROUND...</div>
                                 ) : (
-                                    <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
-                                        {matchQueue.filter(m => m.status === 'playing').map((m, idx) => {
-                                            const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
-                                            const fullGroupMatches = matchQueue.filter(x => (x.group || (x.court === 1 ? 'A' : (x.court === 2 ? 'B' : 'A'))) === (m.group || (m.court === 1 ? 'A' : (m.court === 2 ? 'B' : 'A'))));
-                                            const indexInFull = fullGroupMatches.findIndex(x => x.id === m.id);
-                                            const roundNum = Math.floor(indexInFull / courtsPerGroup) + 1;
-                                            const matchNo = indexInFull + 1;
-
-                                            return (
-                                                <PlayingMatchCard 
-                                                    key={m.id}
-                                                    match={{ ...m, round: roundNum }}
-                                                    matchNo={matchNo}
-                                                    getPlayerName={getPlayerName}
-                                                    isAdmin={isAdmin}
-                                                    onInputScore={(id, s1, s2) => {
-                                                        const targetMatch = matchQueue.find(x => x.id === id);
-                                                        if (targetMatch) {
-                                                            setTempScores({ s1, s2 });
-                                                            setActiveMatchForScore(targetMatch);
-                                                        }
-                                                    }}
-                                                    onCancel={(id) => {
-                                                        if (confirm("이 경기를 취소하고 대기열로 되돌리시겠습니까?")) {
-                                                            const nextQueue = matchQueue.map(mx => mx.id === id ? { ...mx, status: 'waiting' as const } : mx);
-                                                            setMatchQueue(nextQueue);
-                                                        }
-                                                    }}
-                                                />
-                                            );
-                                        })}
+                                    <div className="flex flex-col gap-4">
+                                        {playingMatches.map((m, idx) => (
+                                            <PlayingMatchCard 
+                                                key={m.id} 
+                                                match={m} 
+                                                matchNo={idx + 1} 
+                                                getPlayerName={getPlayerName} 
+                                                isAdmin={isAdmin}
+                                                onInputScore={(id, s1, s2) => { setTempScores({ s1, s2 }); setActiveMatchForScore(matchQueue.find(x => x.id === id) || null); }}
+                                                onCancel={(id) => { if (confirm("취소하시겠습니까?")) setMatchQueue(prev => prev.map(mx => mx.id === id ? { ...mx, status: 'waiting' } : mx)); }}
+                                            />
+                                        ))}
                                     </div>
                                 )}
                             </section>
 
-                            <div style={{ marginTop: '32px' }}>
-                                {['A', 'B'].map(group => {
-                                    const groupMatches = matchQueue.filter(m => {
-                                        const normalizedGroup = m.group || (m.court === 1 ? 'A' : (m.court === 2 ? 'B' : 'A'));
-                                        return normalizedGroup === group && m.status === 'waiting';
-                                    });
-
-                                    if (groupMatches.length === 0) return null;
-
-                                    const isB = group === 'B';
-                                    const col = isB ? '#00E5FF' : '#C9B075';
-
-                                    return (
-                                        <div key={group} className="space-y-3">
-                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
-                                                <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? '연조(BLUE)' : '테조(GOLD)'} WAITING</h3>
-                                                <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
-                                            </div>
-                                            
-                                            <div className="flex flex-col gap-8">
-                                                {(() => {
-                                                    const playingMatches = matchQueue.filter(m => m.status === 'playing');
-                                                    const playingPlayerIds = new Set(playingMatches.flatMap(m => m.playerIds));
-                                                    const isCourtFull = playingMatches.length >= totalCourts;
-
-                                                    const roundGroups: { [key: number]: Match[] } = {};
-                                                    groupMatches.forEach(m => {
-                                                        const r = m.round || 1;
-                                                        if (!roundGroups[r]) roundGroups[r] = [];
-                                                        roundGroups[r].push(m);
-                                                    });
-
-                                                    return Object.keys(roundGroups).sort((a,b) => Number(a)-Number(b)).map(rKey => {
-                                                        const roundNum = Number(rKey);
-                                                        const matchesInRound = roundGroups[roundNum];
-
-                                                        return (
-                                                            <div key={roundNum} className="space-y-3">
-                                                                <div className="flex items-center gap-2 ml-2 mb-3 opacity-60">
-                                                                    <div className="h-[1px] w-4" style={{ background: col }} />
-                                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
-                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
-                                                                </div>
-                                                                
-                                                                <div className="grid grid-cols-2 gap-3">
-                                                                    {matchesInRound.map((m, idx) => {
-                                                                        const hasConflict = isCourtFull || m.playerIds.some(pid => playingPlayerIds.has(pid));
-                                                                        return (
-                                                                            <WaitingMatchCard 
-                                                                                key={m.id}
-                                                                                match={m}
-                                                                                index={idx}
-                                                                                matchNo={idx + 1}
-                                                                                getPlayerName={getPlayerName}
-                                                                                isAdmin={isAdmin}
-                                                                                isStartingMatch={isStartingMatch}
-                                                                                hasConflict={hasConflict}
-                                                                                onStart={(id) => handleStartMatch(id)}
-                                                                            />
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    });
-                                                 })()}
-                                            </div>
+                            {/* WAITING */}
+                            {['A', 'B'].map(group => {
+                                const matches = group === 'A' ? groupAMatches : groupBMatches;
+                                if (matches.length === 0) return null;
+                                const col = group === 'B' ? '#00E5FF' : '#C9B075';
+                                return (
+                                    <section key={group}>
+                                        <div className="flex flex-col mb-4">
+                                            <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2">{group === 'B' ? '연조(BLUE)' : '테조(GOLD)'} WAITING</h3>
+                                            <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div className="flex flex-col gap-3">
+                                            {matches.map((m, idx) => (
+                                                <WaitingMatchCard 
+                                                    key={m.id} 
+                                                    match={m} 
+                                                    index={idx} 
+                                                    matchNo={idx + 1} 
+                                                    getPlayerName={getPlayerName} 
+                                                    isAdmin={isAdmin} 
+                                                    isStartingMatch={isStartingMatch} 
+                                                    hasConflict={playingMatches.length >= totalCourts || m.playerIds.some(pid => playingPlayerIds.has(pid))} 
+                                                    onStart={handleStartMatch} 
+                                                />
+                                            ))}
+                                        </div>
+                                    </section>
+                                );
+                            })}
 
-                            {matchQueue.some(m => m.status === 'complete') && (
-                                <div style={{ marginTop: '48px' }}>
-                                    <div className="flex flex-col" style={{ marginBottom: '16px' }}>
-                                        <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
+                            {/* COMPLETED */}
+                            {completedMatches.length > 0 && (
+                                <section>
+                                    <div className="flex flex-col mb-4">
+                                        <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2">COMPLETED MATCHES</h3>
                                         <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3 mt-4">
-                                        {matchQueue.filter(m => m.status === 'complete').map((m, idx) => (
+                                    <div className="flex flex-col gap-3">
+                                        {completedMatches.map((m, idx) => (
                                             <CompletedMatchCard 
-                                                key={m.id}
-                                                match={m}
-                                                index={idx}
-                                                getPlayerName={getPlayerName}
+                                                key={m.id} 
+                                                match={m} 
+                                                index={idx} 
+                                                getPlayerName={getPlayerName} 
                                                 isAdmin={isAdmin}
-                                                onResetStatus={(id) => {
-                                                    if (confirm("이 경기를 다시 '진행 중' 상태로 되돌리시겠습니까?")) {
-                                                        const nextQueue = matchQueue.map(mx => mx.id === id ? { ...mx, status: 'playing' as const, score1: 1, score2: 1 } : mx);
-                                                        setMatchQueue(nextQueue);
-                                                    }
-                                                }}
-                                                onEdit={(match) => {
-                                                    setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
-                                                    setActiveMatchForScore(match);
-                                                }}
+                                                onResetStatus={(id) => { if (confirm("복구하시겠습니까?")) setMatchQueue(prev => prev.map(mx => mx.id === id ? { ...mx, status: 'playing', score1: 1, score2: 1 } : mx)); }}
+                                                onEdit={(match) => { setTempScores({ s1: match.score1 || 0, s2: match.score2 || 0 }); setActiveMatchForScore(match); }}
                                             />
                                         ))}
                                     </div>
-                                </div>
+                                </section>
                             )}
                         </div>
                     ) : (
-                        <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                        <div className="py-8">
                             <RankingTab players={allPlayersInRanking} sessionTitle={sessionTitle} isArchive={false} isAdmin={isAdmin} prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }} onShareMatch={execCopySchedule} onShareResult={copyFinalResults} onFinalize={handleFinalArchive} isGenerating={isSubmitting} />
                         </div>
                     )}
                 </div>
 
-                {/* [v5.3] BOTTOM TAB BAR (1:1 KDK IDENTITY) */}
                 <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[200]">
-                    <button
-                        onClick={() => setActiveTab('MATCHES')}
-                        className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
-                    >
-                        🔥 MATCHES
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('RANKING')}
-                        className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
-                    >
-                        📊 RANKING
-                    </button>
+                    <button onClick={() => setActiveTab('MATCHES')} className={`flex-1 rounded-[24px] py-6 flex items-center justify-center transition-all ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px]'}`}>🔥 MATCHES</button>
+                    <button onClick={() => setActiveTab('RANKING')} className={`flex-1 rounded-[24px] py-6 flex items-center justify-center transition-all ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] border border-white/20' : 'text-white/40 font-bold text-[20px]'}`}>📊 RANKING</button>
                 </nav>
 
-
-                {/* --- PROFESSIONAL GRADE WINNER SELECTION MODAL (REPLICATED) --- */}
                 {activeMatchForScore && (
-                    <ScoreEntryModal 
-                        match={activeMatchForScore}
-                        tempScores={tempScores}
-                        setTempScores={setTempScores}
-                        onSave={(matchId, s1, s2) => updateMatchScore(matchId, s1, s2)}
-                        onCancel={() => setActiveMatchForScore(null)}
-                        getPlayerName={getPlayerName}
-                    />
+                    <ScoreEntryModal match={activeMatchForScore} tempScores={tempScores} setTempScores={setTempScores} onSave={(matchId, s1, s2) => updateMatchScore(matchId, s1, s2)} onCancel={() => setActiveMatchForScore(null)} getPlayerName={getPlayerName} />
                 )}
             </main>
         );
