@@ -51,6 +51,12 @@ export default function SpecialMatchPage() {
     
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
+    // [CRITICAL FIX] Hooks must be at the top level
+    const selectedMembersList = useMemo(() => {
+        const combined = [...allMembers, ...tempGuests];
+        return combined.filter(m => selectedIds.has(m.id));
+    }, [allMembers, tempGuests, selectedIds]);
+
     const playerStats = useMemo(() => {
         const stats: Record<string, { id: string, name: string, wins: number, losses: number, diff: number, pf: number, pa: number }> = {};
         Array.from(selectedIds).forEach(id => {
@@ -343,7 +349,6 @@ export default function SpecialMatchPage() {
 
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
-                {/* Non-fixed Header */}
                 <header className="grid grid-cols-3 px-6 mb-4 items-center h-28 shrink-0 pt-8 max-w-lg mx-auto w-full">
                     <div className="flex items-center"><button onClick={() => setStep(1)} className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] active:scale-95 transition-all shadow-[0_0_15px_rgba(201,176,117,0.1)]"><ArrowLeft size={18} /></button></div>
                     <div className="text-center flex flex-col items-center gap-2">
@@ -355,13 +360,11 @@ export default function SpecialMatchPage() {
                 </header>
 
                 <div className="px-6 space-y-12 max-w-lg mx-auto w-full">
-                    {/* Archive Title */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2"><span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" /><h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3></div>
                         <input type="text" value={sessionTitle} onChange={(e) => setSessionTitle(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-base font-black text-white outline-none focus:border-[#C9B075]/50 focus:bg-white/10 transition-all" />
                     </section>
 
-                    {/* Attendee Matrix */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#C9B075]" />ATTENDEE MATRIX</h3>
@@ -392,7 +395,6 @@ export default function SpecialMatchPage() {
                         </div>
                     </section>
 
-                    {/* Constraints & Financials */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
                          <div className="space-y-10">
                             <div className="space-y-6">
@@ -448,12 +450,11 @@ export default function SpecialMatchPage() {
                          </div>
                     </section>
                     
-                    {/* Mandatory Spacer for Scrolling */}
                     <div className="h-80" />
                 </div>
 
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[200]">
-                    <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-[#C9B075] text-black font-[1000] text-lg uppercase tracking-wider shadow-[0_20px_50px_rgba(201,176,117,0.4)] active:scale-95 transition-all border-none">매뉴얼 대진 생성 시작! 🚀</button>
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[999]">
+                    <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-[#C9B075] text-black font-[1000] text-lg uppercase tracking-wider shadow-[0_20px_50px_rgba(201,176,117,0.5)] active:scale-95 transition-all border-none">매뉴얼 대진 생성 시작! 🚀</button>
                 </div>
             </main>
         );
@@ -461,15 +462,8 @@ export default function SpecialMatchPage() {
 
     // --- [STEP 3] Manual Match Builder ---
     if (step === 3) {
-        // Recalculate selected members list stably
-        const selectedMembersList = useMemo(() => {
-            const combined = [...allMembers, ...tempGuests];
-            return combined.filter(m => selectedIds.has(m.id));
-        }, [allMembers, tempGuests, selectedIds]);
-
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
-                {/* Non-fixed Header to avoid overlap */}
                 <header className="px-8 pt-8 mb-6 max-w-lg mx-auto w-full flex items-center justify-between">
                     <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
                     <div className="text-center flex flex-col items-center">
@@ -480,7 +474,6 @@ export default function SpecialMatchPage() {
                 </header>
 
                 <div className="px-8 space-y-12 max-w-lg mx-auto w-full">
-                    {/* Player Bank */}
                     <section className="min-h-[140px]">
                         <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
@@ -497,7 +490,6 @@ export default function SpecialMatchPage() {
                         </div>
                     </section>
 
-                    {/* Match Construction */}
                     <section className="bg-[#141414] rounded-[48px] p-10 border border-white/5 shadow-2xl relative">
                         <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-10 text-center opacity-40">Match Construction</h3>
                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-8">
@@ -508,7 +500,6 @@ export default function SpecialMatchPage() {
                         <button onClick={addMatchToQueue} disabled={draftSlots.includes(null)} className="w-full mt-10 py-6 bg-white/5 text-[#C9B075] font-black rounded-[30px] border border-[#C9B075]/20 active:scale-95 transition-all text-[13px] uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-10"><Plus size={18} strokeWidth={4} /> Add to current Queue</button>
                     </section>
 
-                    {/* Match Queue */}
                     <section>
                          <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">{matchQueue.length} Matches Planned</h3>
@@ -524,11 +515,10 @@ export default function SpecialMatchPage() {
                         </Reorder.Group>
                     </section>
                     
-                    {/* Mandatory Spacer for Scrolling */}
                     <div className="h-80" />
                 </div>
 
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[200]">
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[999]">
                     <button disabled={isSubmitting || matchQueue.length === 0} onClick={startSpecialSession} className="w-full h-20 bg-gradient-to-r from-[#C9B075] via-[#F3E5AB] to-[#C9B075] text-black font-[1000] rounded-[40px] flex items-center justify-center gap-4 shadow-2xl active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.3em] text-[13px] italic"><Play fill="black" size={24} /> <span>SYNC & START LIVE COURT 🏁</span></button>
                 </div>
             </main>
