@@ -572,13 +572,20 @@ export default function SpecialMatchPage() {
                                     <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
-                                        {matchQueue.filter(m => m.status === 'playing').map((m, idx) => (
-                                            <PlayingMatchCard 
-                                                key={m.id}
-                                                match={m}
-                                                matchNo={idx + 1}
-                                                getPlayerName={getPlayerName}
-                                                isAdmin={isAdmin}
+                                        {matchQueue.filter(m => m.status === 'playing').map((m, idx) => {
+                                            const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
+                                            const fullGroupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
+                                            const indexInFull = fullGroupMatches.findIndex(x => x.id === m.id);
+                                            const roundNum = Math.floor(indexInFull / courtsPerGroup) + 1;
+                                            const matchNo = indexInFull + 1;
+
+                                            return (
+                                                <PlayingMatchCard 
+                                                    key={m.id}
+                                                    match={{ ...m, round: roundNum }}
+                                                    matchNo={matchNo}
+                                                    getPlayerName={getPlayerName}
+                                                    isAdmin={isAdmin}
                                                 onInputScore={(id, s1, s2) => {
                                                     const targetMatch = matchQueue.find(x => x.id === id);
                                                     if (targetMatch) {
@@ -618,33 +625,45 @@ export default function SpecialMatchPage() {
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-6">
-                                                {groupMatches.map((m, idx) => {
-                                                    const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
-                                                    const displayRound = Math.floor(idx / courtsPerGroup) + 1;
-                                                    const isFirstInRound = idx % courtsPerGroup === 0;
-                                                    
-                                                    return (
-                                                        <div key={m.id} className={isFirstInRound ? "mt-4" : ""}>
-                                                            {isFirstInRound && (
-                                                                <div className="flex items-center gap-2 ml-2 mb-3 opacity-60">
-                                                                    <div className="h-[1px] w-4" style={{ background: col }} />
-                                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {displayRound}</span>
-                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                {(() => {
+                                                    const calculateDisplayRound = (m: Match) => {
+                                                        const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
+                                                        const fullGroupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
+                                                        const indexInFull = fullGroupMatches.findIndex(x => x.id === m.id);
+                                                        return {
+                                                            roundNum: Math.floor(indexInFull / courtsPerGroup) + 1,
+                                                            matchNo: indexInFull + 1
+                                                        };
+                                                    };
+
+                                                    return groupMatches.map((m, idx) => {
+                                                        const { roundNum, matchNo } = calculateDisplayRound(m);
+                                                        const isFirstInRound = idx === 0 || calculateDisplayRound(groupMatches[idx - 1]).roundNum !== roundNum;
+
+                                                        return (
+                                                            <div key={m.id} className={isFirstInRound ? "mt-4" : ""}>
+                                                                {isFirstInRound && (
+                                                                    <div className="flex items-center gap-2 ml-2 mb-3 opacity-60">
+                                                                        <div className="h-[1px] w-4" style={{ background: col }} />
+                                                                        <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
+                                                                        <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                                    </div>
+                                                                )}
+                                                                <div className="mb-4">
+                                                                    <WaitingMatchCard 
+                                                                        match={{ ...m, round: roundNum }}
+                                                                        index={idx}
+                                                                        matchNo={matchNo}
+                                                                        getPlayerName={getPlayerName}
+                                                                        isAdmin={isAdmin}
+                                                                        isStartingMatch={isStartingMatch}
+                                                                        onStart={(id) => handleStartMatch(id)}
+                                                                    />
                                                                 </div>
-                                                            )}
-                                                            <div className="mb-4">
-                                                                <WaitingMatchCard 
-                                                                    match={m}
-                                                                    index={idx}
-                                                                    getPlayerName={getPlayerName}
-                                                                    isAdmin={isAdmin}
-                                                                    isStartingMatch={isStartingMatch}
-                                                                    onStart={(id) => handleStartMatch(id)}
-                                                                />
                                                             </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        );
+                                                    });
+                                                })()}
                                             </div>
                                         </div>
                                     );
