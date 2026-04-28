@@ -342,18 +342,19 @@ export default function SpecialMatchPage() {
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[350px]" style={{ paddingBottom: "350px" }}>
-                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0 pt-6 max-w-lg mx-auto w-full">
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
+                {/* Non-fixed Header */}
+                <header className="grid grid-cols-3 px-6 mb-4 items-center h-28 shrink-0 pt-8 max-w-lg mx-auto w-full">
                     <div className="flex items-center"><button onClick={() => setStep(1)} className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] active:scale-95 transition-all shadow-[0_0_15px_rgba(201,176,117,0.1)]"><ArrowLeft size={18} /></button></div>
                     <div className="text-center flex flex-col items-center gap-2">
                         <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 leading-none scale-90">Step 02</span>
+                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-2 leading-none scale-90">Step 02</span>
                             <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
                         </div>
                     </div>
                 </header>
 
-                <div className="px-6 space-y-12 max-w-lg mx-auto w-full mt-10">
+                <div className="px-6 space-y-12 max-w-lg mx-auto w-full">
                     {/* Archive Title */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2"><span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" /><h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3></div>
@@ -372,7 +373,7 @@ export default function SpecialMatchPage() {
                                 return (
                                     <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         <span style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.95)' }}>{m.name}{m.is_guest ? ' (G)' : ''}</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0A0A0A', borderRadius: '14px', padding: '6px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                                     <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '14px', fontWeight: 800, outline: 'none', appearance: 'none', textAlign: 'center', width: '48px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
@@ -446,6 +447,9 @@ export default function SpecialMatchPage() {
                             </div>
                          </div>
                     </section>
+                    
+                    {/* Mandatory Spacer for Scrolling */}
+                    <div className="h-80" />
                 </div>
 
                 <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[200]">
@@ -457,28 +461,39 @@ export default function SpecialMatchPage() {
 
     // --- [STEP 3] Manual Match Builder ---
     if (step === 3) {
-        const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
+        // Recalculate selected members list stably
+        const selectedMembersList = useMemo(() => {
+            const combined = [...allMembers, ...tempGuests];
+            return combined.filter(m => selectedIds.has(m.id));
+        }, [allMembers, tempGuests, selectedIds]);
+
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-80">
-                <header className="fixed top-0 w-full z-[150] bg-black/90 backdrop-blur-3xl border-b border-white/10 h-24 flex items-center px-8 justify-between">
-                    <div className="max-w-lg mx-auto w-full flex items-center justify-between">
-                        <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
-                        <div className="text-center flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-2">MANUAL BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
-                        <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative">
+                {/* Non-fixed Header to avoid overlap */}
+                <header className="px-8 pt-8 mb-6 max-w-lg mx-auto w-full flex items-center justify-between">
+                    <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
+                    <div className="text-center flex flex-col items-center">
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-2">MANUAL BUILDER</span>
+                        <h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1>
                     </div>
+                    <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
                 </header>
 
-                <div className="mt-40 px-8 space-y-12 max-w-lg mx-auto w-full">
+                <div className="px-8 space-y-12 max-w-lg mx-auto w-full">
                     {/* Player Bank */}
-                    <section className="pt-4">
+                    <section className="min-h-[140px]">
                         <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Player Bank</h3>
-                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{selectedMembers.length} Available</span>
+                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{selectedMembersList.length} Available</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {selectedMembers.map(m => (
-                                <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent' : 'bg-[#141414] border-white/5 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
-                            ))}
+                            {selectedMembersList.length === 0 ? (
+                                <p className="text-white/20 text-[12px] font-bold italic w-full text-center py-10">No members selected</p>
+                            ) : (
+                                selectedMembersList.map(m => (
+                                    <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent pointer-events-none' : 'bg-[#141414] border-white/5 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
+                                ))
+                            )}
                         </div>
                     </section>
 
@@ -494,7 +509,7 @@ export default function SpecialMatchPage() {
                     </section>
 
                     {/* Match Queue */}
-                    <section className="pb-40">
+                    <section>
                          <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">{matchQueue.length} Matches Planned</h3>
                         </div>
@@ -508,6 +523,9 @@ export default function SpecialMatchPage() {
                             ))}
                         </Reorder.Group>
                     </section>
+                    
+                    {/* Mandatory Spacer for Scrolling */}
+                    <div className="h-80" />
                 </div>
 
                 <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[200]">
