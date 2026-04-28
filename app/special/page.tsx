@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.8";
+        const VERSION = "6.9";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -128,8 +128,11 @@ export default function SpecialMatchPage() {
                 setSessionTitle(data.sessionTitle);
                 setSelectedIds(new Set(data.selectedIds || []));
                 setTempGuests(data.tempGuests || []);
-                if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs);
-                if (data.matches?.length > 0) setStep(4);
+                if (data.matches?.length > 0) {
+                    setStep(4);
+                    // [v6.9] Force sync local data to cloud immediately
+                    syncCurrentQueueToDB(data.matches);
+                }
             } catch (e) { console.error(e); }
         }
         setIsCheckingDB(false);
@@ -761,6 +764,7 @@ export default function SpecialMatchPage() {
                         </h1>
                     </div>
                     <div className="flex-1 flex items-center justify-end gap-3">
+                        <button onClick={() => { syncCurrentQueueToDB(matchQueue); alert("서버 동기화 완료! 폰에서 새로고침 하세요."); }} className="w-8 h-8 bg-[#C9B075] border border-[#C9B075] rounded-lg flex items-center justify-center text-black shadow-lg active:scale-95 transition-all" title="서버 강제 동기화">☁️</button>
                         <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075]">📋</button>
                         <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075]">🏆</button>
                     </div>
