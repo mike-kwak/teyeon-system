@@ -631,55 +631,95 @@ export default function SpecialMatchPage() {
         const completedMatches = matchQueue.filter(m => m.status === 'complete');
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[300px]" style={{ paddingBottom: "300px" }}>
-                {/* --- KDK HEADER (REPLICATED) --- */}
-                <header className="px-6 pt-8 pb-4 max-w-lg mx-auto w-full relative z-[100]">
-                    <div className="flex items-center justify-between gap-4 mb-2">
-                        <div className="flex items-center gap-4">
-                             <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40">SESSION</span>
-                                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-tight">{sessionTitle}</h1>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
+                {/* [v5.2] MASTER HEADER (1:1 KDK IDENTITY) */}
+                <header className="px-6 py-4 flex items-center justify-between h-18 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+                    <div className="flex-1 flex items-center gap-4">
+                        {isAdmin && (
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-[#C9B075] border-[#C9B075] text-black shadow-[0_5px_15px_rgba(201,176,117,0.3)]">
+                                    <div className="w-2 h-2 rounded-full bg-black animate-pulse" />
+                                    <span className="text-[9px] font-[1000] uppercase tracking-widest leading-none">ADMIN</span>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={execCopySchedule} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/40 active:scale-90 transition-all"><ClipboardCheck size={20} /></button>
-                            <button onClick={copyFinalResults} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/40 active:scale-90 transition-all"><Trophy size={20} /></button>
-                            <div className="flex items-center gap-1 ml-1"><div className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" /><span className="text-[8px] font-black text-[#10b981] uppercase tracking-widest whitespace-nowrap">동기화 확정</span></div>
-                        </div>
+                        )}
+                        {!isAdmin && (
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
+                                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none">VIEWER</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    
-                    <div className="flex items-center justify-between px-1 py-3 border-t border-white/5 mt-4">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest">WIN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(firstPrize/1000).toFixed(0)}K</span></div>
-                            <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-2">PEN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(bottom25Penalty/1000).toFixed(0)}K</span></div>
+
+                    <div className="flex-[2] flex flex-col items-center">
+                        <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Special Session</span>
+                        <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[150px] sm:max-w-[200px] leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                            {sessionTitle || '260428_SPECIAL'}
+                        </h1>
+                    </div>
+
+                    <div className="flex-1 flex items-center justify-end gap-3">
+                        <div className="flex items-center gap-2">
+                            <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all">📋</button>
+                            <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all">🏆</button>
                         </div>
-                        <div className="flex items-center gap-1.5 overflow-hidden">
-                            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest shrink-0">RULES:</span>
-                            <span className="text-[9px] font-bold text-white/40 italic truncate">1:1 시작, 노애드, 타이 3:3 시작 7포인트 선승</span>
-                            {isAdmin && (
-                                <button onClick={() => setStep(2)} className="ml-1 flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">⚙️</button>
-                            )}
+                        <div className="flex flex-col items-end pr-1">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                <span className="text-[8px] font-black text-[#10b981] uppercase tracking-widest whitespace-nowrap">연결됨</span>
+                            </div>
+                            <div className="mt-0.5 text-[8px] font-black text-[#10b981] uppercase tracking-widest opacity-40">SYNC OK</div>
                         </div>
                     </div>
                 </header>
 
-                <div className="flex-1 px-4 overflow-y-auto no-scrollbar max-w-lg mx-auto w-full antialiased pb-60" style={{ background: '#14161a' }}>
+                <div
+                    className={`w-full px-5 flex flex-col gap-2 relative z-50 py-4 ${activeTab === 'RANKING' ? 'border-b border-white/5 pb-2 pt-2' : 'border-b border-white/10'}`}
+                    style={{ background: 'rgba(9, 9, 11, 0.85)', backdropFilter: 'blur(32px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+                >
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center gap-1">
+                                <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">WIN:</span>
+                                <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{firstPrize/1000}K</span>
+                            </div>
+                            <div className="w-px h-2 bg-white/5" />
+                            <div className="flex items-center gap-1">
+                                <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">PEN:</span>
+                                <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{bottom25Penalty/1000}K</span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
+                            <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
+                                1:1 시작, 노애드, 타이 3:3 시작
+                            </span>
+                            {isAdmin && (
+                                <button onClick={() => setStep(2)} className="flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">⚙️</button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 px-4 space-y-0 overflow-y-auto no-scrollbar antialiased pb-60" style={{ background: '#14161a' }}>
                     {activeTab === 'MATCHES' ? (
                         <div className="space-y-0">
-                            {/* NOW PLAYING SECTION (1:1 KDK MIRROR) */}
                             <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
-                                    <div className="flex flex-col" style={{ marginBottom: '16px' }}>
-                                        <div className="flex items-center gap-3 ml-2">
-                                            <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
-                                            {matchQueue.some(m => m.status === 'playing') && (
-                                                <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                                    {matchQueue.filter(m => m.status === 'playing').length} LIVE
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                <div className="flex flex-col" style={{ marginBottom: '16px' }}>
+                                    <div className="flex items-center gap-3 ml-2">
+                                        <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
+                                        {matchQueue.some(m => m.status === 'playing') && (
+                                            <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                                {matchQueue.filter(m => m.status === 'playing').length} LIVE
+                                            </span>
+                                        )}
                                     </div>
+                                    <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                </div>
 
                                 {matchQueue.filter(m => m.status === 'playing').length === 0 ? (
                                     <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
@@ -687,7 +727,7 @@ export default function SpecialMatchPage() {
                                     <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
                                         {matchQueue.filter(m => m.status === 'playing').map((m, idx) => {
                                             const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
-                                            const fullGroupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
+                                            const fullGroupMatches = matchQueue.filter(x => (x.group || (x.court === 1 ? 'A' : (x.court === 2 ? 'B' : 'A'))) === (m.group || (m.court === 1 ? 'A' : (m.court === 2 ? 'B' : 'A'))));
                                             const indexInFull = fullGroupMatches.findIndex(x => x.id === m.id);
                                             const roundNum = Math.floor(indexInFull / courtsPerGroup) + 1;
                                             const matchNo = indexInFull + 1;
@@ -719,11 +759,9 @@ export default function SpecialMatchPage() {
                                 )}
                             </section>
 
-                            {/* WAITING QUEUE (1:1 KDK MIRROR) */}
                             <div style={{ marginTop: '32px' }}>
                                 {['A', 'B'].map(group => {
                                     const groupMatches = matchQueue.filter(m => {
-                                        // [v5.1] Support both explicit group and court-based indicators (Court 1=A, Court 2=B)
                                         const normalizedGroup = m.group || (m.court === 1 ? 'A' : (m.court === 2 ? 'B' : 'A'));
                                         return normalizedGroup === group && m.status === 'waiting';
                                     });
@@ -740,14 +778,12 @@ export default function SpecialMatchPage() {
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
                                             
-                                            {/* Round-based Packed Layout (v5.1 High-Density UI) */}
                                             <div className="flex flex-col gap-8">
                                                 {(() => {
                                                     const playingMatches = matchQueue.filter(m => m.status === 'playing');
                                                     const playingPlayerIds = new Set(playingMatches.flatMap(m => m.playerIds));
                                                     const isCourtFull = playingMatches.length >= totalCourts;
 
-                                                    // Group matches by round for packed rendering
                                                     const roundGroups: { [key: number]: Match[] } = {};
                                                     groupMatches.forEach(m => {
                                                         const r = m.round || 1;
@@ -767,7 +803,6 @@ export default function SpecialMatchPage() {
                                                                     <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
                                                                 </div>
                                                                 
-                                                                {/* Grid Layout (Packed like KDK) */}
                                                                 <div className="grid grid-cols-2 gap-3">
                                                                     {matchesInRound.map((m, idx) => {
                                                                         const hasConflict = isCourtFull || m.playerIds.some(pid => playingPlayerIds.has(pid));
@@ -795,9 +830,9 @@ export default function SpecialMatchPage() {
                                     );
                                 })}
                             </div>
-                            {/* COMPLETED MATCHES SECTION (1:1 KDK MIRROR) */}
+
                             {matchQueue.some(m => m.status === 'complete') && (
-                                <div style={{ marginTop: '32px' }}>
+                                <div style={{ marginTop: '48px' }}>
                                     <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                         <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
                                         <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
@@ -827,36 +862,28 @@ export default function SpecialMatchPage() {
                             )}
                         </div>
                     ) : (
-                        <RankingTab players={allPlayersInRanking} sessionTitle={sessionTitle} isArchive={false} isAdmin={isAdmin} prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }} onShareMatch={execCopySchedule} onShareResult={copyFinalResults} onFinalize={handleFinalArchive} isGenerating={isSubmitting} />
+                        <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                            <RankingTab players={allPlayersInRanking} sessionTitle={sessionTitle} isArchive={false} isAdmin={isAdmin} prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }} onShareMatch={execCopySchedule} onShareResult={copyFinalResults} onFinalize={handleFinalArchive} isGenerating={isSubmitting} />
+                        </div>
                     )}
                 </div>
 
-                {/* --- FLOATING BOTTOM UI (1:1 KDK IDENTITY) --- */}
-                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[200] px-6 pb-12 pt-10 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none">
-                    <div className="flex flex-col gap-6 pointer-events-auto">
-                        {/* TAB BAR (MATCHES | RANKING) - 1:1 KDK SYNC */}
-                        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] rounded-[32px] p-2 flex items-center justify-between gap-3">
-                            <button
-                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                                className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
-                            >
-                                🔥 MATCHES
-                            </button>
-                            <button
-                                onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                                className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
-                            >
-                                📊 RANKING
-                            </button>
-                        </div>
-                        
-                        {/* ACTION BUTTONS */}
-                        <div className="flex gap-4">
-                            {isAdmin && (<button onClick={() => setStep(3)} className="w-20 h-20 bg-[#1E1E1E] text-[#C9B075] rounded-[28px] flex items-center justify-center border border-white/10 active:scale-90 transition-all shadow-2xl shadow-black"><Plus size={32} strokeWidth={3} /></button>)}
-                            <button disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')} onClick={handleFinalArchive} className="flex-1 h-20 bg-[#C9B075]/10 border border-[#C9B075]/30 text-[#C9B075] font-[1000] rounded-[28px] flex items-center justify-center gap-4 shadow-2xl active:scale-95 transition-all uppercase tracking-[0.2em] text-[12px] disabled:opacity-20 italic">최종 아카이브 전송 🏆</button>
-                        </div>
-                    </div>
-                </div>
+                {/* [v5.2] BOTTOM TAB BAR (1:1 KDK IDENTITY) */}
+                <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[200]">
+                    <button
+                        onClick={() => setActiveTab('MATCHES')}
+                        className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    >
+                        🔥 MATCHES
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('RANKING')}
+                        className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    >
+                        📊 RANKING
+                    </button>
+                </nav>
+
 
                 {/* --- PROFESSIONAL GRADE WINNER SELECTION MODAL (REPLICATED) --- */}
                 {activeMatchForScore && (
