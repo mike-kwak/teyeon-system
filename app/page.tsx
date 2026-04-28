@@ -24,7 +24,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  const CURRENT_VERSION = 'v4.6 Cloud Sync';
+  const CURRENT_VERSION = 'v4.7 Sync Fixed';
 
   useEffect(() => {
     setIsMounted(true);

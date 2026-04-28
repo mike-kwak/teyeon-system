@@ -105,10 +105,10 @@ export default function SpecialMatchPage() {
     const checkDBForActiveSession = async () => {
         setIsCheckingDB(true);
         try {
-            // Permissive recovery: look for any active matches recently
+            // Correct table name is 'matches' (verified from tournament_schema.sql)
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data, error } = await supabase
-                .from('tournament_matches')
+                .from('matches')
                 .select('*')
                 .in('status', ['playing', 'waiting'])
                 .gt('created_at', yesterday)
