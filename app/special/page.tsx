@@ -621,21 +621,27 @@ export default function SpecialMatchPage() {
                                                 {groupMatches.map((m, idx) => {
                                                     const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
                                                     const displayRound = Math.floor(idx / courtsPerGroup) + 1;
+                                                    const isFirstInRound = idx % courtsPerGroup === 0;
+                                                    
                                                     return (
-                                                        <div key={m.id} className="space-y-3">
-                                                            <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
-                                                                <div className="h-[1px] w-4" style={{ background: col }} />
-                                                                <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {displayRound}</span>
-                                                                <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                        <div key={m.id} className={isFirstInRound ? "mt-4" : ""}>
+                                                            {isFirstInRound && (
+                                                                <div className="flex items-center gap-2 ml-2 mb-3 opacity-60">
+                                                                    <div className="h-[1px] w-4" style={{ background: col }} />
+                                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {displayRound}</span>
+                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                                </div>
+                                                            )}
+                                                            <div className="mb-4">
+                                                                <WaitingMatchCard 
+                                                                    match={m}
+                                                                    index={idx}
+                                                                    getPlayerName={getPlayerName}
+                                                                    isAdmin={isAdmin}
+                                                                    isStartingMatch={isStartingMatch}
+                                                                    onStart={(id) => handleStartMatch(id)}
+                                                                />
                                                             </div>
-                                                            <WaitingMatchCard 
-                                                                match={m}
-                                                                index={idx}
-                                                                getPlayerName={getPlayerName}
-                                                                isAdmin={isAdmin}
-                                                                isStartingMatch={isStartingMatch}
-                                                                onStart={(id) => handleStartMatch(id)}
-                                                            />
                                                         </div>
                                                     );
                                                 })}
