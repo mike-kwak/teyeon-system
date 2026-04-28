@@ -12,7 +12,7 @@ import RankingTab from '@/components/RankingTab';
 
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Zap, Target, Layers, ClipboardCheck, Info } from 'lucide-react';
+import { Trash2, Plus, Play, CheckCircle2, Trophy, LayoutGrid, Save, Calendar, Sparkles, RotateCw, ArrowLeft, Clock, Zap, Target, Layers, ClipboardCheck, Info, Search } from 'lucide-react';
 
 export default function SpecialMatchPage() {
     const router = useRouter();
@@ -532,22 +532,21 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 4] Live Court (1:1 KDK Replication) ---
+    // --- [STEP 4] Live Court (Absolute 1:1 Parity) ---
     if (step === 4) {
         const groupAMatches = matchQueue.filter(m => m.group === 'A' || !m.group);
         const groupBMatches = matchQueue.filter(m => m.group === 'B');
         const completedMatches = matchQueue.filter(m => m.status === 'complete');
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[280px]" style={{ paddingBottom: "280px" }}>
-                {/* --- HEADER --- */}
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[300px]" style={{ paddingBottom: "300px" }}>
+                {/* --- KDK HEADER (REPLICATED) --- */}
                 <header className="px-6 pt-8 pb-4 max-w-lg mx-auto w-full relative z-[100]">
                     <div className="flex items-center justify-between gap-4 mb-2">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => setStep(3)} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/20 active:scale-90 transition-all"><RotateCw size={18} /></button>
-                            <div className="flex flex-col">
+                             <div className="flex flex-col">
                                 <span className="text-[9px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40">SESSION</span>
-                                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[180px] leading-tight">{sessionTitle}</h1>
+                                <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-tight">{sessionTitle}</h1>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -562,85 +561,93 @@ export default function SpecialMatchPage() {
                             <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest">WIN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(firstPrize/1000).toFixed(0)}K</span></div>
                             <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-2">PEN:</span><span className="text-[10px] font-black text-white uppercase tracking-tighter">{(bottom25Penalty/1000).toFixed(0)}K</span></div>
                         </div>
-                        <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-white/20 uppercase tracking-widest">RULES:</span><span className="text-[9px] font-bold text-white/40 italic">1:1 시작, 노애드, 타이 3:3 시작</span><Info size={10} className="text-[#C9B075] opacity-40" /></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[9px] font-black text-white/20 uppercase tracking-widest">RULES:</span><span className="text-[9px] font-bold text-white/40 italic">1:1 시작, 노애드, 타이 3:3 시작 7포인트 선승</span></div>
                     </div>
                 </header>
 
                 <div className="flex-1 px-6 overflow-y-auto no-scrollbar max-w-lg mx-auto w-full">
                     {activeTab === 'MATCHES' ? (
-                        <div className="space-y-16 pb-32">
-                            {/* NOW PLAYING */}
+                        <div className="space-y-16 pb-40">
+                            {/* NOW PLAYING SECTION (CAPSULE STYLE) */}
                             <section>
-                                <div className="flex items-center gap-3 mb-8">
-                                    <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase">NOW PLAYING</h2>
+                                <div className="flex items-center gap-3 mb-10">
+                                    <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase leading-none">NOW PLAYING</h2>
                                     {matchQueue.some(m => m.status === 'playing') && (<span className="px-3 py-1 bg-red-500 text-white text-[9px] font-black rounded-full tracking-widest animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">1 LIVE</span>)}
                                 </div>
-                                <div className="space-y-6">
+                                <div className="space-y-8">
                                     {matchQueue.filter(m => m.status === 'playing').map((m, idx) => (
-                                        <div key={m.id} className="bg-gradient-to-br from-[#1E1E1E] to-[#141414] rounded-[48px] p-1 border border-white/10 shadow-2xl relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Zap size={100} className="text-[#C9B075]" /></div>
+                                        <div key={m.id} className="bg-[#1E1E1E] rounded-[48px] p-1 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.8)] relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none -mr-4 -mt-4"><Zap size={100} className="text-[#C9B075]" /></div>
                                             <div className="p-8 pb-4 relative z-10">
-                                                <div className="flex items-center gap-2 mb-8 opacity-40"><span className="text-[10px] font-black uppercase tracking-widest text-[#C9B075]">ROUND {m.round || idx+1}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className={`text-[10px] font-black uppercase tracking-widest ${m.group === 'B' ? 'text-[#00E5FF]' : 'text-[#C9B075]'}`}>{m.group === 'B' ? 'B조' : 'A조'}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className="text-[10px] font-black uppercase tracking-widest text-white/40">1 경기</span><RotateCw size={10} className="ml-1" /></div>
+                                                <div className="flex items-center gap-2 mb-8 opacity-40 px-2"><span className="text-[10px] font-black uppercase tracking-widest text-[#C9B075]">ROUND {m.round || idx+1}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className={`text-[10px] font-black uppercase tracking-widest ${m.group === 'B' ? 'text-[#00E5FF]' : 'text-[#C9B075]'}`}>{m.group === 'B' ? 'B조' : 'A조'}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className="text-[10px] font-black uppercase tracking-widest text-white/40">1 경기</span><RotateCw size={10} className="ml-1" /></div>
                                                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
-                                                    <div className="bg-black/60 rounded-[32px] p-6 text-center border border-white/5 backdrop-blur-sm"><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
-                                                    <span className="text-[#C9B075] font-black italic text-sm opacity-20 uppercase tracking-widest">vs</span>
-                                                    <div className="bg-black/60 rounded-[32px] p-6 text-center border border-white/5 backdrop-blur-sm"><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><span className="text-[18px] font-[1000] text-white leading-tight block truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                                    <div className="bg-[#2A2A2A] rounded-[32px] py-7 px-4 text-center border border-white/5 flex flex-col items-center justify-center"><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full mb-1.5">{getPlayerName(m.playerIds[0])}</span><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full">{getPlayerName(m.playerIds[1])}</span></div>
+                                                    <span className="text-white/20 font-black italic text-sm uppercase tracking-widest">vs</span>
+                                                    <div className="bg-[#2A2A2A] rounded-[32px] py-7 px-4 text-center border border-white/5 flex flex-col items-center justify-center"><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full mb-1.5">{getPlayerName(m.playerIds[2])}</span><span className="text-[18px] font-[1000] text-white leading-none truncate max-w-full">{getPlayerName(m.playerIds[3])}</span></div>
                                                 </div>
                                             </div>
-                                            <button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className="w-full py-6 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 text-[#C9B075] font-black text-[12px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all border-t border-white/5 italic relative z-10">INPUT SCORE <Trophy size={14} fill="#C9B075" /></button>
+                                            <button onClick={() => { setTempScores({ s1: 0, s2: 0 }); setActiveMatchForScore(m); }} className="w-full py-6 bg-black/40 hover:bg-[#C9B075]/10 text-[#C9B075] font-black text-[13px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 transition-all border-t border-white/5 italic relative z-10">INPUT SCORE <Trophy size={14} fill="#C9B075" /></button>
                                         </div>
                                     ))}
                                 </div>
                             </section>
 
-                            {/* GOLD WAITING */}
+                            {/* GOLD WAITING SECTION (CIRCLE Rx Gx STYLE) */}
                             <section>
                                 <div className="flex items-center gap-3 px-2 mb-8 border-b border-[#C9B075]/20 pb-5">
                                     <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">GOLD WAITING</h2>
                                 </div>
                                 <div className="space-y-4">
                                     {groupAMatches.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <div key={m.id} onClick={() => handleStartMatch(m.id)} className="rounded-[36px] bg-[#1A1A1A] border border-white/5 p-7 flex items-center justify-between group active:scale-95 transition-all shadow-xl hover:border-[#C9B075]/30 cursor-pointer">
-                                            <div className="flex items-center gap-6">
-                                                <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:bg-[#C9B075]/10 group-hover:border-[#C9B075]/30 transition-all"><span className="text-[#C9B075] font-black italic text-sm">G{idx+1}</span></div>
-                                                <div className="flex items-center gap-4"><span className="text-[16px] font-black text-white/80 group-hover:text-white transition-colors"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className="text-[10px] font-black text-[#C9B075] opacity-20 italic">vs</span><span className="text-[16px] font-black text-white/80 group-hover:text-white transition-colors"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                        <div key={m.id} onClick={() => handleStartMatch(m.id)} className="rounded-[40px] bg-[#1A1A1A] border border-white/5 p-7 flex items-center justify-between group active:scale-95 transition-all shadow-xl hover:border-[#C9B075]/30 cursor-pointer">
+                                            <div className="flex items-center gap-7">
+                                                <div className="w-14 h-14 bg-[#2A2A2A] rounded-full flex flex-col items-center justify-center border border-white/10 group-hover:bg-[#C9B075]/10 group-hover:border-[#C9B075]/30 transition-all"><span className="text-white/20 font-black text-[9px] uppercase leading-none mb-0.5">R{m.round || 0}</span><span className="text-[#C9B075] font-black text-sm italic leading-none">G{idx+1}</span></div>
+                                                <div className="flex items-center gap-5"><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span><span className="text-[10px] font-black text-white/10 italic">vs</span><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span></div>
                                             </div>
-                                            <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Play size={12} fill="white" className="ml-0.5" /></div>
+                                            <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center opacity-10 group-hover:opacity-100 transition-opacity"><Zap size={12} fill="white" /></div>
                                         </div>
                                     ))}
                                 </div>
                             </section>
 
-                            {/* BLUE WAITING */}
+                            {/* BLUE WAITING SECTION */}
                             <section>
                                 <div className="flex items-center gap-3 px-2 mb-8 border-b border-[#00E5FF]/20 pb-5">
-                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-3 leading-none">BLUE WAITING <span className="text-[10px] not-italic font-black bg-[#00E5FF] text-black px-2 py-0.5 rounded tracking-widest">GROUP B</span></h2>
+                                    <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center gap-3 leading-none">BLUE WAITING <span className="text-[10px] not-italic font-black bg-[#00E5FF] text-black px-2 py-0.5 rounded tracking-widest uppercase">GROUP B</span></h2>
                                 </div>
                                 <div className="space-y-4">
                                     {groupBMatches.filter(m => m.status === 'waiting').map((m, idx) => (
-                                        <div key={m.id} onClick={() => handleStartMatch(m.id)} className="rounded-[36px] bg-[#1A1A1A] border border-cyan-500/10 p-7 flex items-center justify-between group active:scale-95 transition-all shadow-xl hover:border-cyan-500/30 cursor-pointer">
-                                            <div className="flex items-center gap-6">
-                                                <div className="w-12 h-12 bg-cyan-500/5 rounded-full flex items-center justify-center border border-cyan-500/10 group-hover:bg-cyan-500/20 group-hover:border-cyan-500/30 transition-all"><span className="text-cyan-500 font-black italic text-sm">B{idx+1}</span></div>
-                                                <div className="flex items-center gap-4"><span className="text-[16px] font-black text-white/80 group-hover:text-white transition-colors"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className="text-[10px] font-black text-cyan-500 opacity-20 italic">vs</span><span className="text-[16px] font-black text-white/80 group-hover:text-white transition-colors"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                        <div key={m.id} onClick={() => handleStartMatch(m.id)} className="rounded-[40px] bg-[#1A1A1A] border border-cyan-500/10 p-7 flex items-center justify-between group active:scale-95 transition-all shadow-xl hover:border-cyan-500/30 cursor-pointer">
+                                            <div className="flex items-center gap-7">
+                                                <div className="w-14 h-14 bg-[#2A2A2A] rounded-full flex flex-col items-center justify-center border border-white/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 transition-all"><span className="text-white/20 font-black text-[9px] uppercase leading-none mb-0.5">R{m.round || 0}</span><span className="text-cyan-500 font-black text-sm italic leading-none">B{idx+1}</span></div>
+                                                <div className="flex items-center gap-5"><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[0])}/{getPlayerName(m.playerIds[1])}</span><span className="text-[10px] font-black text-cyan-500/20 italic">vs</span><span className="text-[16px] font-[1000] text-white/90 group-hover:text-white transition-colors">{getPlayerName(m.playerIds[2])}/{getPlayerName(m.playerIds[3])}</span></div>
                                             </div>
-                                            <div className="w-8 h-8 rounded-full border border-cyan-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Play size={12} fill="#00E5FF" className="ml-0.5" /></div>
+                                            <div className="w-6 h-6 rounded-full border border-cyan-500/10 flex items-center justify-center opacity-10 group-hover:opacity-100 transition-opacity"><Zap size={12} fill="#00E5FF" /></div>
                                         </div>
                                     ))}
                                 </div>
                             </section>
 
-                            {/* COMPLETE */}
+                            {/* COMPLETED MATCHES SECTION (REPLICATED 6:3 FINAL WIN STYLE) */}
                             {completedMatches.length > 0 && (
                                 <section>
-                                    <div className="flex items-center gap-3 px-2 mb-8 border-b border-white/5 pb-5">
-                                        <h2 className="text-2xl font-black italic tracking-tighter text-white/20 uppercase leading-none">COMPLETE</h2>
+                                    <div className="flex items-center gap-3 px-2 mb-10 border-b border-white/5 pb-5">
+                                        <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">COMPLETED MATCHES</h2>
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-6">
                                         {completedMatches.map((m, idx) => (
-                                            <div key={m.id} className="rounded-[28px] bg-white/[0.02] border border-white/[0.05] p-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 opacity-40">
-                                                <div className="text-right flex flex-col"><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[0]} /></span><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[1]} /></span></div>
-                                                <div className="flex items-center gap-3 px-4 py-2 bg-black/40 rounded-2xl border border-white/5"><span className="text-[16px] font-[1000] text-[#C9B075]">{m.score1}</span><span className="text-[9px] font-black text-white/20">:</span><span className="text-[16px] font-[1000] text-[#C9B075]">{m.score2}</span></div>
-                                                <div className="text-left flex flex-col"><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[2]} /></span><span className="text-[14px] font-black text-white truncate"><PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                            <div key={m.id} className="rounded-[48px] bg-gradient-to-br from-[#1E1E1E] to-[#141414] border border-white/5 p-8 relative overflow-hidden group">
+                                                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none -mr-4 -mt-4"><Zap size={80} className="text-[#C9B075]" /></div>
+                                                <div className="flex items-center gap-2 mb-6 opacity-20 px-2"><span className="text-[9px] font-black uppercase tracking-widest text-[#C9B075]">GROUP {m.group || 'A'}</span><span className="w-1 h-1 rounded-full bg-white/20" /><span className="text-[9px] font-black uppercase tracking-widest text-white">MATCH {String(idx + 1).padStart(2, '0')}</span><RotateCw size={8} className="ml-1" /></div>
+                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                                                    <div className="text-right flex flex-col gap-1"><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[0])}</span><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[1])}</span></div>
+                                                    <div className="flex flex-col items-center gap-1.5 px-6">
+                                                        <div className="flex items-center gap-4"><span className="text-[32px] font-[1000] text-[#C9B075] leading-none">{m.score1}</span><span className="text-[20px] font-black text-white/10 leading-none">:</span><span className="text-[32px] font-[1000] text-[#C9B075] leading-none">{m.score2}</span></div>
+                                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] italic">FINAL WIN</span>
+                                                    </div>
+                                                    <div className="text-left flex flex-col gap-1"><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[2])}</span><span className="text-[16px] font-[1000] text-white leading-none truncate">{getPlayerName(m.playerIds[3])}</span></div>
+                                                </div>
+                                                <div className="mt-6 flex items-center justify-center gap-2 text-[9px] font-black text-white/10 uppercase tracking-widest italic group-hover:text-white/30 transition-colors">TAP TO EDIT <Layers size={10} /></div>
                                             </div>
                                         ))}
                                     </div>
@@ -652,52 +659,60 @@ export default function SpecialMatchPage() {
                     )}
                 </div>
 
-                {/* --- FLOATING BOTTOM UI (PARITY WITH KDK) --- */}
-                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[200] px-6 pb-12 pt-6 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none">
-                    <div className="flex flex-col gap-5 pointer-events-auto">
-                        {/* TAB SWITCHER MOVED TO BOTTOM */}
-                        <div className="bg-[#141414] p-1.5 rounded-[24px] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex backdrop-blur-2xl">
-                            <button onClick={() => setActiveTab('MATCHES')} className={`flex-1 py-4 rounded-[18px] text-[11px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${activeTab === 'MATCHES' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-lg' : 'text-white/20'}`}><Zap size={14} fill={activeTab === 'MATCHES' ? 'black' : 'none'} /> MATCHES</button>
-                            <button onClick={() => setActiveTab('RANKING')} className={`flex-1 py-4 rounded-[18px] text-[11px] font-[1000] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${activeTab === 'RANKING' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-lg' : 'text-white/20'}`}><Trophy size={14} fill={activeTab === 'RANKING' ? 'black' : 'none'} /> RANKING</button>
+                {/* --- FLOATING BOTTOM UI (1:1 KDK IDENTITY) --- */}
+                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[200] px-6 pb-12 pt-10 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none">
+                    <div className="flex flex-col gap-6 pointer-events-auto">
+                        {/* TAB BAR (MATCHES | RANKING) */}
+                        <div className="bg-[#1E1E1E] p-1.5 rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,1)] flex backdrop-blur-3xl">
+                            <button onClick={() => setActiveTab('MATCHES')} className={`flex-1 py-5 rounded-[22px] text-[12px] font-[1000] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 ${activeTab === 'MATCHES' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/20'}`}>🔥 MATCHES</button>
+                            <button onClick={() => setActiveTab('RANKING')} className={`flex-1 py-5 rounded-[22px] text-[12px] font-[1000] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 ${activeTab === 'RANKING' ? 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black shadow-[0_0_20px_rgba(201,176,117,0.3)]' : 'text-white/20'}`}>📊 RANKING</button>
                         </div>
                         
-                        {/* ARCHIVE ACTION BAR */}
-                        <div className="bg-[#141414] border border-white/5 p-2 rounded-[32px] shadow-2xl flex gap-3 backdrop-blur-2xl border-t border-white/10">
-                            {isAdmin && (<button onClick={() => setStep(3)} className="w-16 h-16 bg-white/5 text-[#C9B075] rounded-[24px] flex items-center justify-center border border-white/10 active:scale-90 transition-all shadow-inner"><Plus size={24} strokeWidth={3} /></button>)}
-                            <button disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')} onClick={handleFinalArchive} className="flex-1 h-16 bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black font-[1000] rounded-[24px] flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-[11px] disabled:opacity-20 italic">최종 아카이브 전송 🏆</button>
+                        {/* ACTION BUTTONS */}
+                        <div className="flex gap-4">
+                            {isAdmin && (<button onClick={() => setStep(3)} className="w-20 h-20 bg-[#1E1E1E] text-[#C9B075] rounded-[28px] flex items-center justify-center border border-white/10 active:scale-90 transition-all shadow-2xl shadow-black"><Plus size={32} strokeWidth={3} /></button>)}
+                            <button disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')} onClick={handleFinalArchive} className="flex-1 h-20 bg-[#C9B075]/10 border border-[#C9B075]/30 text-[#C9B075] font-[1000] rounded-[28px] flex items-center justify-center gap-4 shadow-2xl active:scale-95 transition-all uppercase tracking-[0.2em] text-[12px] disabled:opacity-20 italic">최종 아카이브 전송 🏆</button>
                         </div>
                     </div>
                 </div>
 
-                {/* --- PRODUCTION GRADE SCORE MODAL --- */}
+                {/* --- PROFESSIONAL GRADE WINNER SELECTION MODAL (REPLICATED) --- */}
                 {activeMatchForScore && (
-                    <div className="fixed inset-0 z-[3000] flex items-center justify-center px-8 bg-black/98 backdrop-blur-xl">
-                        <div className="w-full max-w-[360px] bg-[#141414] rounded-[56px] p-12 border border-white/10 shadow-2xl relative overflow-hidden flex flex-col items-center">
-                             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none -mr-10 -mt-10 rotate-12"><Zap size={280} className="text-[#C9B075]" /></div>
-                             <div className="text-center mb-12 relative z-10"><span className="text-[11px] font-black text-[#C9B075] tracking-[0.6em] uppercase block mb-3 opacity-60">ENTER SCORE</span><h3 className="text-3xl font-[1000] italic tracking-tight text-white uppercase whitespace-nowrap">MATCH RESULTS</h3></div>
+                    <div className="fixed inset-0 z-[3000] flex items-center justify-center px-6 bg-black/98 backdrop-blur-2xl">
+                        <div className="w-full max-w-[380px] bg-[#0F0F0F] rounded-[56px] p-10 border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] relative overflow-hidden flex flex-col items-center">
+                             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none -mr-16 -mt-16 rotate-12"><Zap size={350} className="text-[#C9B075]" /></div>
                              
-                             <div className="grid grid-cols-2 gap-10 mb-14 relative z-10 w-full">
-                                <div className="flex flex-col items-center gap-8">
-                                    <div className="flex flex-col items-center h-12 justify-center"><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px] mb-1">{getPlayerName(activeMatchForScore.playerIds[0])}</span><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px]">{getPlayerName(activeMatchForScore.playerIds[1])}</span></div>
-                                    <div className="flex items-center gap-4">
-                                        <button onClick={() => setTempScores(p => ({ ...p, s1: Math.max(0, p.s1 - 1) }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">-</button>
-                                        <span className="text-6xl font-black text-[#C9B075] font-mono tracking-tighter leading-none">{tempScores.s1}</span>
-                                        <button onClick={() => setTempScores(p => ({ ...p, s1: p.s1 + 1 }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">+</button>
+                             <div className="text-center mb-10 relative z-10">
+                                <span className="text-[10px] font-black text-[#C9B075] tracking-[0.6em] uppercase block mb-2 opacity-60">MATCH PROTOCOL</span>
+                                <h3 className="text-2xl font-[1000] italic tracking-tight text-white uppercase flex items-center gap-3"><Trophy size={20} className="text-[#C9B075]" /> WINNER SELECTION</h3>
+                             </div>
+                             
+                             <div className="grid grid-cols-2 gap-px bg-white/5 w-full relative z-10 mb-10 rounded-3xl overflow-hidden">
+                                {/* TEAM 1 SELECTOR */}
+                                <div className="bg-[#0F0F0F] p-6 flex flex-col items-center gap-8">
+                                    <div className="flex flex-col items-center h-14 justify-center text-center"><span className="text-[15px] font-[1000] text-white leading-tight mb-1 truncate w-full">{getPlayerName(activeMatchForScore.playerIds[0])}</span><span className="text-[15px] font-[1000] text-white leading-tight truncate w-full">{getPlayerName(activeMatchForScore.playerIds[1])}</span><div className="w-6 h-0.5 bg-[#C9B075] mt-2 opacity-40 rounded-full" /></div>
+                                    <span className="text-[72px] font-[1000] text-white/90 font-mono tracking-tighter leading-none mb-4">{tempScores.s1}</span>
+                                    <div className="grid grid-cols-3 gap-2 w-full">
+                                        {[0, 1, 2, 3, 4, 5, 6].map(num => (
+                                            <button key={`s1-${num}`} onClick={() => setTempScores(p => ({ ...p, s1: num }))} className={`h-12 rounded-xl flex items-center justify-center text-[18px] font-black transition-all ${tempScores.s1 === num ? 'bg-[#C9B075]/20 text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.2)]' : 'bg-[#1A1A1A] text-white/20'}`}>{num}</button>
+                                        ))}
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-center gap-8">
-                                    <div className="flex flex-col items-center h-12 justify-center"><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px] mb-1">{getPlayerName(activeMatchForScore.playerIds[2])}</span><span className="text-[13px] font-black text-white/40 leading-none truncate max-w-[120px]">{getPlayerName(activeMatchForScore.playerIds[3])}</span></div>
-                                    <div className="flex items-center gap-4">
-                                        <button onClick={() => setTempScores(p => ({ ...p, s2: Math.max(0, p.s2 - 1) }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">-</button>
-                                        <span className="text-6xl font-black text-[#C9B075] font-mono tracking-tighter leading-none">{tempScores.s2}</span>
-                                        <button onClick={() => setTempScores(p => ({ ...p, s2: p.s2 + 1 }))} className="w-9 h-9 rounded-full bg-white/5 text-white/40 font-bold border border-white/10 active:scale-90 transition-all flex items-center justify-center text-xl">+</button>
+                                {/* TEAM 2 SELECTOR */}
+                                <div className="bg-[#0F0F0F] p-6 flex flex-col items-center gap-8 border-l border-white/5">
+                                    <div className="flex flex-col items-center h-14 justify-center text-center"><span className="text-[15px] font-[1000] text-white leading-tight mb-1 truncate w-full">{getPlayerName(activeMatchForScore.playerIds[2])}</span><span className="text-[15px] font-[1000] text-white leading-tight truncate w-full">{getPlayerName(activeMatchForScore.playerIds[3])}</span><div className="w-6 h-0.5 bg-[#C9B075] mt-2 opacity-40 rounded-full" /></div>
+                                    <span className="text-[72px] font-[1000] text-white/90 font-mono tracking-tighter leading-none mb-4">{tempScores.s2}</span>
+                                    <div className="grid grid-cols-3 gap-2 w-full">
+                                        {[0, 1, 2, 3, 4, 5, 6].map(num => (
+                                            <button key={`s2-${num}`} onClick={() => setTempScores(p => ({ ...p, s2: num }))} className={`h-12 rounded-xl flex items-center justify-center text-[18px] font-black transition-all ${tempScores.s2 === num ? 'bg-[#C9B075]/20 text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.2)]' : 'bg-[#1A1A1A] text-white/20'}`}>{num}</button>
+                                        ))}
                                     </div>
                                 </div>
                              </div>
                              
-                             <div className="flex flex-col gap-4 w-full relative z-10">
-                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className={`w-full py-6 font-[1000] rounded-[32px] shadow-[0_15px_40px_rgba(0,0,0,0.5)] active:scale-95 transition-all uppercase tracking-widest text-sm italic flex items-center justify-center gap-3 ${activeMatchForScore.group === 'B' ? 'bg-[#00E5FF] text-black' : 'bg-gradient-to-r from-[#C9B075] to-[#F3E5AB] text-black'}`}>기록 저장 <Save size={18} fill="black" /></button>
-                                <button onClick={() => setActiveMatchForScore(null)} className="w-full py-4 text-white/20 font-black uppercase tracking-widest text-[11px] hover:text-white transition-colors">취소</button>
+                             <div className="flex flex-col gap-4 w-full relative z-10 px-4">
+                                <button onClick={() => updateMatchScore(activeMatchForScore.id, tempScores.s1, tempScores.s2)} className="w-full h-20 bg-[#C9B075]/10 border border-[#C9B075]/20 text-[#C9B075] font-[1000] rounded-[32px] flex items-center justify-center gap-4 active:scale-95 transition-all shadow-xl uppercase tracking-[0.3em] text-[13px] italic">CONFIRM SCORE <Trophy size={18} fill="#C9B075" /></button>
+                                <button onClick={() => setActiveMatchForScore(null)} className="w-full py-4 text-white/20 font-black uppercase tracking-widest text-[11px] hover:text-white transition-colors">CANCEL</button>
                              </div>
                         </div>
                     </div>
