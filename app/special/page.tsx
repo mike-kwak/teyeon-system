@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.4";
+        const VERSION = "6.5";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -785,16 +785,9 @@ export default function SpecialMatchPage() {
                                         {playingMatches.map((m, idx) => {
                                             const groupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
                                             const matchIdxInGroup = groupMatches.findIndex(x => x.id === m.id) + 1;
-                                            const slotsPerRound = Math.max(1, Math.floor(totalCourts / 2));
-                                            const displayRound = Math.floor((matchIdxInGroup - 1) / slotsPerRound) + 1;
                                             
                                             return (
-                                                <div key={m.id} className="relative pt-6">
-                                                    <div className="absolute top-0 left-0 right-0 flex justify-center z-50">
-                                                        <div className={`px-4 py-1.5 rounded-t-[14px] text-[10px] font-black tracking-widest uppercase border-t border-x ${m.group === 'B' ? 'bg-[#00E5FF]/10 border-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#C9B075]/10 border-[#C9B075]/20 text-[#C9B075]'}`}>
-                                                            ROUND {displayRound} • {m.group === 'B' ? 'B조' : 'A조'} • {matchIdxInGroup}경기
-                                                        </div>
-                                                    </div>
+                                                <div key={m.id} className="relative">
                                                     <PlayingMatchCard 
                                                         match={m} 
                                                         matchNo={matchIdxInGroup} 
