@@ -333,7 +333,7 @@ export default function SpecialMatchPage() {
         );
     }
 
-    // --- [STEP 2] Settings Dashboard (1:1 with KDK) ---
+    // --- [STEP 2] Settings Dashboard (Optimized for Width & Scrolling) ---
     if (step === 2) {
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
@@ -342,9 +342,9 @@ export default function SpecialMatchPage() {
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-80">
-                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0 pt-4">
-                    <div className="flex items-center"><button onClick={() => setStep(1)} className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] active:scale-95 transition-all"><ArrowLeft size={18} /></button></div>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-[240px]" style={{ paddingBottom: "240px" }}>
+                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0 pt-6 max-w-lg mx-auto w-full">
+                    <div className="flex items-center"><button onClick={() => setStep(1)} className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] active:scale-95 transition-all shadow-[0_0_15px_rgba(201,176,117,0.1)]"><ArrowLeft size={18} /></button></div>
                     <div className="text-center flex flex-col items-center gap-2">
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 leading-none scale-90">Step 02</span>
@@ -353,36 +353,36 @@ export default function SpecialMatchPage() {
                     </div>
                 </header>
 
-                <div className="px-6 space-y-12 w-full pt-12">
+                <div className="px-6 space-y-12 max-w-lg mx-auto w-full mt-10">
                     {/* Archive Title */}
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2"><span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" /><h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3></div>
-                        <input type="text" value={sessionTitle} onChange={(e) => setSessionTitle(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white outline-none transition-all" />
+                        <input type="text" value={sessionTitle} onChange={(e) => setSessionTitle(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-base font-black text-white outline-none focus:border-[#C9B075]/50 focus:bg-white/10 transition-all" />
                     </section>
 
-                    {/* Attendee Matrix (KDK Style) */}
+                    {/* Attendee Matrix (Expanded for natural scroll) */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-8">
                             <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#C9B075]" />ATTENDEE MATRIX</h3>
                             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
                         </div>
-                        <div className="space-y-2 no-scrollbar" style={{ maxHeight: '480px', overflowY: 'auto' }}>
+                        <div className="space-y-3">
                             {attendees.map(m => {
                                 const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
                                 return (
-                                    <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>{m.name}{m.is_guest ? ' (G)' : ''}</span>
+                                    <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <span style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.95)' }}>{m.name}{m.is_guest ? ' (G)' : ''}</span>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#0A0A0A', borderRadius: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
-                                                    <span style={{ color: '#6B7280', fontSize: '10px', fontWeight: 700 }}>TO</span>
-                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0A0A0A', borderRadius: '14px', padding: '6px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '14px', fontWeight: 800, outline: 'none', appearance: 'none', textAlign: 'center', width: '48px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
+                                                    <span style={{ color: '#6B7280', fontSize: '10px', fontWeight: 900 }}>TO</span>
+                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '14px', fontWeight: 800, outline: 'none', appearance: 'none', textAlign: 'center', width: '48px', cursor: 'pointer' }}>{timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}</select>
                                                 </div>
                                             </div>
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'A' ? '#C9B075' : '#0A0A0A', color: config.group === 'A' ? '#000' : '#fff', border: config.group === 'A' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.15s' }}>A</button>
-                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'B' ? '#C9B075' : '#0A0A0A', color: config.group === 'B' ? '#000' : '#fff', border: config.group === 'B' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.15s' }}>B</button>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))} style={{ width: '44px', height: '44px', borderRadius: '14px', background: config.group === 'A' ? '#C9B075' : '#0A0A0A', color: config.group === 'A' ? '#000' : '#fff', border: config.group === 'A' ? 'none' : '1px solid #444', fontWeight: 1000, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer' }}>A</button>
+                                                <button onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))} style={{ width: '44px', height: '44px', borderRadius: '14px', background: config.group === 'B' ? '#C9B075' : '#0A0A0A', color: config.group === 'B' ? '#000' : '#fff', border: config.group === 'B' ? 'none' : '1px solid #444', fontWeight: 1000, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer' }}>B</button>
                                             </div>
                                         </div>
                                     </div>
@@ -391,55 +391,55 @@ export default function SpecialMatchPage() {
                         </div>
                     </section>
 
-                    {/* Constraints & Financials */}
+                    {/* Constraints & Financials (Expanded for Width) */}
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px' }}>
-                         <div className="space-y-8">
-                            <div className="space-y-4">
+                         <div className="space-y-10">
+                            <div className="space-y-6">
                                 <h3 className="text-[13px] font-bold text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#C9B075]" />CONSTRAINTS</h3>
-                                <div className="space-y-3">
-                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                                        <span className="text-[12px] font-black text-white/60">TOTAL COURTS</span>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setTotalCourts(p => Math.max(1, p - 1))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
-                                            <span className="text-xl font-black text-[#C9B075] w-8 text-center">{totalCourts}</span>
-                                            <button onClick={() => setTotalCourts(p => p + 1)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                <div className="space-y-4">
+                                    <div className="bg-[#141414] border border-white/5 rounded-[24px] p-6 flex items-center justify-between">
+                                        <span className="text-[14px] font-[1000] text-white/70 uppercase tracking-tight">TOTAL COURTS</span>
+                                        <div className="flex items-center gap-6">
+                                            <button onClick={() => setTotalCourts(p => Math.max(1, p - 1))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">-</button>
+                                            <span className="text-2xl font-black text-[#C9B075] w-10 text-center">{totalCourts}</span>
+                                            <button onClick={() => setTotalCourts(p => p + 1)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">+</button>
                                         </div>
                                     </div>
-                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                                        <span className="text-[12px] font-black text-white/60">MATCH MINS</span>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setMatchMins(p => Math.max(5, p - 5))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
-                                            <span className="text-xl font-black text-[#C9B075] w-8 text-center">{matchMins}</span>
-                                            <button onClick={() => setMatchMins(p => p + 5)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                    <div className="bg-[#141414] border border-white/5 rounded-[24px] p-6 flex items-center justify-between">
+                                        <span className="text-[14px] font-[1000] text-white/70 uppercase tracking-tight">MATCH MINS</span>
+                                        <div className="flex items-center gap-6">
+                                            <button onClick={() => setMatchMins(p => Math.max(5, p - 5))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">-</button>
+                                            <span className="text-2xl font-black text-[#C9B075] w-10 text-center">{matchMins}</span>
+                                            <button onClick={() => setMatchMins(p => p + 5)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">+</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="space-y-4 pt-4 border-t border-white/5">
+                            <div className="space-y-6 pt-8 border-t border-white/5">
                                 <h3 className="text-[13px] font-bold text-[#10b981] uppercase tracking-[0.3em] flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-[#10b981]" />FINANCIALS</h3>
-                                <div className="space-y-3">
-                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                                        <span className="text-[12px] font-black text-white/60 uppercase">Prize Gold</span>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
-                                            <span className="text-xl font-black text-white w-12 text-center">{(firstPrize/1000).toFixed(0)}k</span>
-                                            <button onClick={() => setFirstPrize(p => p + 5000)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                <div className="space-y-4">
+                                    <div className="bg-[#141414] border border-white/5 rounded-[24px] p-6 flex items-center justify-between">
+                                        <span className="text-[14px] font-[1000] text-white/70 uppercase tracking-tight">Prize Gold</span>
+                                        <div className="flex items-center gap-6">
+                                            <button onClick={() => setFirstPrize(p => Math.max(0, p - 5000))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">-</button>
+                                            <span className="text-2xl font-black text-white w-16 text-center">{(firstPrize/1000).toFixed(0)}k</span>
+                                            <button onClick={() => setFirstPrize(p => p + 5000)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">+</button>
                                         </div>
                                     </div>
-                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                                        <div className="flex flex-col"><span className="text-[12px] font-black text-[#C9B075] uppercase">Tier 1 Fine</span><span className="text-[8px] font-bold text-white/20">BOTTOM 25%~50%</span></div>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
-                                            <span className="text-xl font-black text-white w-12 text-center">{(bottom25Late/1000).toFixed(0)}k</span>
-                                            <button onClick={() => setBottom25Late(p => p + 1000)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                    <div className="bg-[#141414] border border-white/5 rounded-[24px] p-6 flex items-center justify-between">
+                                        <div className="flex flex-col"><span className="text-[14px] font-[1000] text-[#C9B075] uppercase tracking-tight">Tier 1 Fine</span><span className="text-[9px] font-bold text-white/20">BOTTOM 25%~50%</span></div>
+                                        <div className="flex items-center gap-6">
+                                            <button onClick={() => setBottom25Late(p => Math.max(0, p - 1000))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">-</button>
+                                            <span className="text-2xl font-black text-white w-16 text-center">{(bottom25Late/1000).toFixed(0)}k</span>
+                                            <button onClick={() => setBottom25Late(p => p + 1000)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">+</button>
                                         </div>
                                     </div>
-                                    <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                                        <div className="flex flex-col"><span className="text-[12px] font-black text-rose-500 uppercase">Tier 2 Fine</span><span className="text-[8px] font-bold text-white/20">BOTTOM 0%~25%</span></div>
-                                        <div className="flex items-center gap-4">
-                                            <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">-</button>
-                                            <span className="text-xl font-black text-white w-12 text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
-                                            <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">+</button>
+                                    <div className="bg-[#141414] border border-white/5 rounded-[24px] p-6 flex items-center justify-between">
+                                        <div className="flex flex-col"><span className="text-[14px] font-[1000] text-rose-500 uppercase tracking-tight">Tier 2 Fine</span><span className="text-[9px] font-bold text-white/20">BOTTOM 0%~25%</span></div>
+                                        <div className="flex items-center gap-6">
+                                            <button onClick={() => setBottom25Penalty(p => Math.max(0, p - 1000))} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">-</button>
+                                            <span className="text-2xl font-black text-white w-16 text-center">{(bottom25Penalty/1000).toFixed(0)}k</span>
+                                            <button onClick={() => setBottom25Penalty(p => p + 1000)} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-bold active:scale-90 transition-all">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -448,25 +448,27 @@ export default function SpecialMatchPage() {
                     </section>
                 </div>
 
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-8 z-[200]">
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[200]">
                     <button onClick={startMatchBuilder} className="w-full h-20 rounded-[40px] bg-[#C9B075] text-black font-[1000] text-lg uppercase tracking-wider shadow-[0_20px_50px_rgba(201,176,117,0.4)] active:scale-95 transition-all border-none">매뉴얼 대진 생성 시작! 🚀</button>
                 </div>
             </main>
         );
     }
 
-    // --- [STEP 3] Manual Match Builder (Pure Drafting) ---
+    // --- [STEP 3] Manual Match Builder (Optimized for Width) ---
     if (step === 3) {
         const selectedMembers = [...allMembers, ...tempGuests].filter(m => selectedIds.has(m.id));
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-80">
-                <header className="fixed top-0 w-full max-w-[480px] z-[150] bg-black/90 backdrop-blur-3xl border-b border-white/10 h-20 flex items-center px-8 justify-between">
-                    <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
-                    <div className="text-center flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-1">BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
-                    <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-80">
+                <header className="fixed top-0 w-full z-[150] bg-black/90 backdrop-blur-3xl border-b border-white/10 h-20 flex items-center px-8 justify-between">
+                    <div className="max-w-lg mx-auto w-full flex items-center justify-between">
+                        <button onClick={() => setStep(2)} className="p-3 bg-white/5 rounded-2xl text-white/40 active:scale-90 transition-all"><ArrowLeft size={20} /></button>
+                        <div className="text-center flex flex-col items-center"><span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase leading-none mb-1">BUILDER</span><h1 className="text-xl font-black italic tracking-tighter text-white uppercase truncate max-w-[200px] leading-none">{sessionTitle}</h1></div>
+                        <button onClick={() => setShowResetConfirm(true)} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-95 transition-all"><Trash2 size={18} /></button>
+                    </div>
                 </header>
 
-                <div className="mt-28 px-8 space-y-12">
+                <div className="mt-28 px-8 space-y-12 max-w-lg mx-auto w-full">
                     {/* Player Bank */}
                     <section>
                         <div className="flex items-center justify-between mb-6 px-1">
@@ -475,20 +477,20 @@ export default function SpecialMatchPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {selectedMembers.map(m => (
-                                <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-11 px-5 rounded-xl font-black text-[13px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent' : 'bg-[#141414] border-white/5 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
+                                <button key={m.id} onClick={() => addToDraft(m.id)} disabled={draftSlots.includes(m.id)} className={`h-12 px-6 rounded-2xl font-black text-[14px] tracking-tight transition-all border ${draftSlots.includes(m.id) ? 'bg-white/5 border-transparent text-transparent' : 'bg-[#141414] border-white/5 text-white/80 active:scale-95 hover:border-[#C9B075]/40 hover:text-white'}`}>{m.nickname}</button>
                             ))}
                         </div>
                     </section>
 
                     {/* Match Construction */}
-                    <section className="bg-[#141414] rounded-[40px] p-8 border border-white/5 shadow-2xl relative">
+                    <section className="bg-[#141414] rounded-[48px] p-10 border border-white/5 shadow-2xl relative">
                         <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase mb-10 text-center opacity-40">Match Construction</h3>
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
-                            <div className="space-y-4">{[0, 1].map(i => (<div key={i} onClick={() => removeFromDraft(i)} className="h-28 rounded-[32px] bg-black/60 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group hover:border-[#C9B075]/30 transition-all">{draftSlots[i] ? (<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center"><span className="font-black text-white text-[17px] tracking-tight">{getPlayerName(draftSlots[i]!)}</span><div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/10 text-red-500 text-[8px] font-black uppercase text-center opacity-0 group-hover:opacity-100 transition-opacity">REMOVE</div></motion.div>) : (<Plus className="text-white/5" size={32} />)}</div>))}</div>
-                            <div className="flex flex-col items-center gap-2"><div className="w-px h-16 bg-gradient-to-b from-transparent via-[#C9B075]/20 to-transparent" /><span className="text-[#C9B075] font-black italic text-4xl opacity-10 tracking-widest">VS</span><div className="w-px h-16 bg-gradient-to-t from-transparent via-[#C9B075]/20 to-transparent" /></div>
-                            <div className="space-y-4">{[2, 3].map(i => (<div key={i} onClick={() => removeFromDraft(i)} className="h-28 rounded-[32px] bg-black/60 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group hover:border-[#C9B075]/30 transition-all">{draftSlots[i] ? (<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center"><span className="font-black text-white text-[17px] tracking-tight">{getPlayerName(draftSlots[i]!)}</span><div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/10 text-red-500 text-[8px] font-black uppercase text-center opacity-0 group-hover:opacity-100 transition-opacity">REMOVE</div></motion.div>) : (<Plus className="text-white/5" size={32} />)}</div>))}</div>
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-8">
+                            <div className="space-y-4">{[0, 1].map(i => (<div key={i} onClick={() => removeFromDraft(i)} className="h-32 rounded-[36px] bg-black/60 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group hover:border-[#C9B075]/30 transition-all">{draftSlots[i] ? (<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center"><span className="font-black text-white text-[18px] tracking-tight">{getPlayerName(draftSlots[i]!)}</span><div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/10 text-red-500 text-[9px] font-black uppercase text-center opacity-0 group-hover:opacity-100 transition-opacity">REMOVE</div></motion.div>) : (<Plus className="text-white/5" size={32} />)}</div>))}</div>
+                            <div className="flex flex-col items-center gap-2"><div className="w-px h-20 bg-gradient-to-b from-transparent via-[#C9B075]/20 to-transparent" /><span className="text-[#C9B075] font-black italic text-5xl opacity-10 tracking-widest">VS</span><div className="w-px h-20 bg-gradient-to-t from-transparent via-[#C9B075]/20 to-transparent" /></div>
+                            <div className="space-y-4">{[2, 3].map(i => (<div key={i} onClick={() => removeFromDraft(i)} className="h-32 rounded-[36px] bg-black/60 border border-white/5 flex items-center justify-center cursor-pointer relative overflow-hidden group hover:border-[#C9B075]/30 transition-all">{draftSlots[i] ? (<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center"><span className="font-black text-white text-[18px] tracking-tight">{getPlayerName(draftSlots[i]!)}</span><div className="absolute inset-x-0 bottom-0 py-1 bg-red-500/10 text-red-500 text-[9px] font-black uppercase text-center opacity-0 group-hover:opacity-100 transition-opacity">REMOVE</div></motion.div>) : (<Plus className="text-white/5" size={32} />)}</div>))}</div>
                         </div>
-                        <button onClick={addMatchToQueue} disabled={draftSlots.includes(null)} className="w-full mt-10 py-5 bg-white/5 text-[#C9B075] font-black rounded-[24px] border border-[#C9B075]/20 active:scale-95 transition-all text-[12px] uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-10"><Plus size={18} strokeWidth={4} /> Add to current Queue</button>
+                        <button onClick={addMatchToQueue} disabled={draftSlots.includes(null)} className="w-full mt-10 py-6 bg-white/5 text-[#C9B075] font-black rounded-[30px] border border-[#C9B075]/20 active:scale-95 transition-all text-[13px] uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-10"><Plus size={18} strokeWidth={4} /> Add to current Queue</button>
                     </section>
 
                     {/* Match Queue */}
@@ -496,30 +498,30 @@ export default function SpecialMatchPage() {
                          <div className="flex items-center justify-between mb-8 px-1">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">{matchQueue.length} Matches Planned</h3>
                         </div>
-                        <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-3 px-1">
+                        <Reorder.Group axis="y" values={matchQueue} onReorder={handleReorder} className="space-y-4 px-1">
                             {matchQueue.map((m, idx) => (
-                                <Reorder.Item key={m.id} value={m} className="rounded-[24px] grid grid-cols-[50px_1fr_60px] items-center p-6 bg-white/5 border border-white/5 shadow-xl cursor-grab active:cursor-grabbing mb-2 transition-all">
-                                    <div className="flex items-center justify-center"><div className="w-9 h-9 bg-white/10 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20"><span className="text-[12px] font-black italic">G{idx + 1}</span></div></div>
-                                    <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0"><span className="flex-1 text-white font-bold truncate text-right text-[15px]"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 text-[#C9B075]">vs</span><span className="flex-1 text-white font-bold truncate text-left text-[15px]"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
-                                    <div className="flex items-center justify-end"><button onClick={() => removeMatchFromQueue(m.id)} className="p-3 text-white/20 hover:text-red-500 transition-all active:scale-90"><Trash2 size={16} /></button></div>
+                                <Reorder.Item key={m.id} value={m} className="rounded-[30px] grid grid-cols-[60px_1fr_60px] items-center p-7 bg-white/5 border border-white/5 shadow-xl cursor-grab active:cursor-grabbing mb-2 transition-all">
+                                    <div className="flex items-center justify-center"><div className="w-10 h-10 bg-white/10 text-[#C9B075] rounded-full flex items-center justify-center border border-[#C9B075]/20"><span className="text-[13px] font-black italic">G{idx + 1}</span></div></div>
+                                    <div className="flex items-center justify-center gap-4 text-center px-2 min-w-0"><span className="flex-1 text-white font-black truncate text-right text-[16px]"><PlayerNameBadge id={m.playerIds[0]} /> / <PlayerNameBadge id={m.playerIds[1]} /></span><span className="text-[10px] font-black uppercase italic tracking-widest opacity-20 text-[#C9B075]">vs</span><span className="flex-1 text-white font-black truncate text-left text-[16px]"><PlayerNameBadge id={m.playerIds[2]} /> / <PlayerNameBadge id={m.playerIds[3]} /></span></div>
+                                    <div className="flex items-center justify-end"><button onClick={() => removeMatchFromQueue(m.id)} className="p-3 text-white/20 hover:text-red-500 transition-all active:scale-90"><Trash2 size={18} /></button></div>
                                 </Reorder.Item>
                             ))}
                         </Reorder.Group>
                     </section>
                 </div>
 
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-8 z-[200]">
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[200]">
                     <button disabled={isSubmitting || matchQueue.length === 0} onClick={startSpecialSession} className="w-full h-20 bg-gradient-to-r from-[#C9B075] via-[#F3E5AB] to-[#C9B075] text-black font-[1000] rounded-[40px] flex items-center justify-center gap-4 shadow-2xl active:scale-95 transition-all disabled:opacity-20 uppercase tracking-[0.3em] text-[13px] italic"><Play fill="black" size={24} /> <span>SYNC & START LIVE COURT 🏁</span></button>
                 </div>
             </main>
         );
     }
 
-    // --- [STEP 4] Live Court ---
+    // --- [STEP 4] Live Court (Optimized for Width) ---
     if (step === 4) {
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full max-w-[480px] mx-auto relative pb-60 overflow-hidden" style={{ paddingBottom: "160px" }}>
-                <header className="px-6 pt-6 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100]">
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60 overflow-hidden" style={{ paddingBottom: "160px" }}>
+                <header className="px-6 pt-6 flex items-center justify-between gap-4 mb-2 h-14 relative z-[100] max-w-lg mx-auto w-full">
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full border border-white/20"><span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" /><span className="text-[9px] font-black text-black uppercase tracking-widest">LIVE MODE</span></div>
                     </div>
@@ -529,8 +531,8 @@ export default function SpecialMatchPage() {
                     </div>
                 </header>
 
-                <div className="w-full px-5 flex flex-col gap-2 relative z-50 border-y border-white/5 py-6 mt-4" style={{ background: 'rgba(10,10,10,0.8)', backdropFilter: 'blur(32px)' }}>
-                    <div className="flex items-center justify-between gap-4">
+                <div className="w-full relative z-50 border-y border-white/5 py-6 mt-4" style={{ background: 'rgba(10,10,10,0.8)', backdropFilter: 'blur(32px)' }}>
+                    <div className="max-w-lg mx-auto w-full px-5 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-1.5 min-w-0"><span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest shrink-0">SESSION:</span><span className="text-[10px] font-bold text-white truncate uppercase tracking-tighter">{sessionTitle}</span></div>
                         <div className="flex items-center gap-1.5 shrink-0">
                             <div className="flex items-center gap-1"><span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest leading-none">WIN:</span><span className="text-[10px] font-bold text-white tracking-tighter uppercase leading-none">{(firstPrize/1000).toFixed(0)}K</span></div>
@@ -540,7 +542,7 @@ export default function SpecialMatchPage() {
                     </div>
                 </div>
 
-                <nav className="px-6 my-6 relative z-10 w-full flex justify-center">
+                <nav className="px-6 my-6 relative z-10 w-full flex justify-center max-w-lg mx-auto">
                     <div className="flex bg-[#141414] p-1 rounded-full border border-white/5 shadow-2xl w-full">
                         {(['MATCHES', 'RANKING'] as const).map(tab => (
                             <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${activeTab === tab ? 'bg-[#C9B075] text-black' : 'text-white/30'}`}>{tab}</button>
@@ -548,7 +550,7 @@ export default function SpecialMatchPage() {
                     </div>
                 </nav>
 
-                <div className="flex-1 px-4 overflow-y-auto no-scrollbar relative z-10">
+                <div className="flex-1 px-4 overflow-y-auto no-scrollbar relative z-10 max-w-lg mx-auto w-full">
                     {activeTab === 'MATCHES' ? (
                         <div className="space-y-12 pb-20 pt-4">
                             <section>
@@ -585,7 +587,7 @@ export default function SpecialMatchPage() {
                     )}
                 </div>
 
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-8 z-[100]">
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-lg px-8 z-[100]">
                     <div className="bg-[#141414] border border-white/5 p-2 rounded-full shadow-2xl flex gap-3">
                         {isAdmin && (<button onClick={() => setStep(3)} className="w-16 h-16 bg-white/5 text-[#C9B075] rounded-full flex items-center justify-center border border-white/10 active:scale-90 transition-all"><Plus size={24} strokeWidth={3} /></button>)}
                         <button disabled={isSubmitting || !matchQueue.every(m => m.status === 'complete')} onClick={handleFinalArchive} className="flex-1 h-16 bg-[#C9B075] text-black font-[1000] rounded-full flex items-center justify-center gap-4 shadow-lg active:scale-95 transition-all uppercase tracking-widest text-[11px] disabled:opacity-20">최종 아카이브 전송</button>
