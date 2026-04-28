@@ -59,7 +59,7 @@ export default function SpecialMatchPage() {
 
     // [v5.7] FORCE CACHE BUSTING & VERSION SYNC
     useEffect(() => {
-        const VERSION = "6.3";
+        const VERSION = "6.4";
         const savedVersion = localStorage.getItem('teyeon_special_version');
         if (savedVersion !== VERSION) {
             localStorage.setItem('teyeon_special_version', VERSION);
@@ -783,13 +783,16 @@ export default function SpecialMatchPage() {
                                 ) : (
                                     <div className="grid grid-cols-2 gap-3">
                                         {playingMatches.map((m, idx) => {
-                                            const groupCount = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A') && x.status !== 'waiting').findIndex(x => x.id === m.id);
-                                            const matchIdxInGroup = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A')).findIndex(x => x.id === m.id) + 1;
+                                            const groupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
+                                            const matchIdxInGroup = groupMatches.findIndex(x => x.id === m.id) + 1;
+                                            const slotsPerRound = Math.max(1, Math.floor(totalCourts / 2));
+                                            const displayRound = Math.floor((matchIdxInGroup - 1) / slotsPerRound) + 1;
+                                            
                                             return (
-                                                <div key={m.id} className="relative group">
-                                                    <div className="absolute -top-3 left-0 right-0 flex justify-center z-50">
-                                                        <div className={`px-4 py-1 rounded-t-xl text-[9px] font-black tracking-widest uppercase border-t border-x ${m.group === 'B' ? 'bg-[#00E5FF]/20 border-[#00E5FF]/30 text-[#00E5FF]' : 'bg-[#C9B075]/20 border-[#C9B075]/30 text-[#C9B075]'}`}>
-                                                            ROUND {m.round} • {m.group === 'B' ? 'B조' : 'A조'} • {matchIdxInGroup}경기
+                                                <div key={m.id} className="relative pt-6">
+                                                    <div className="absolute top-0 left-0 right-0 flex justify-center z-50">
+                                                        <div className={`px-4 py-1.5 rounded-t-[14px] text-[10px] font-black tracking-widest uppercase border-t border-x ${m.group === 'B' ? 'bg-[#00E5FF]/10 border-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#C9B075]/10 border-[#C9B075]/20 text-[#C9B075]'}`}>
+                                                            ROUND {displayRound} • {m.group === 'B' ? 'B조' : 'A조'} • {matchIdxInGroup}경기
                                                         </div>
                                                     </div>
                                                     <PlayingMatchCard 
@@ -812,12 +815,14 @@ export default function SpecialMatchPage() {
                                 const groupMatches = group === 'A' ? groupAMatches : groupBMatches;
                                 if (groupMatches.length === 0) return null;
                                 
-                                // Group by round
+                                // [v6.4] Forced Grouping by Round (2 games per round if 4 courts)
                                 const matchesByRound: Record<number, Match[]> = {};
-                                groupMatches.forEach(m => {
-                                    const r = m.round || 1;
-                                    if (!matchesByRound[r]) matchesByRound[r] = [];
-                                    matchesByRound[r].push(m);
+                                const slotsPerRound = Math.max(1, Math.floor(totalCourts / 2));
+                                
+                                groupMatches.forEach((m, idx) => {
+                                    const displayRound = Math.floor(idx / slotsPerRound) + 1;
+                                    if (!matchesByRound[displayRound]) matchesByRound[displayRound] = [];
+                                    matchesByRound[displayRound].push(m);
                                 });
                                 const sortedRounds = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
                                 const col = group === 'B' ? '#00E5FF' : '#C9B075';
@@ -840,10 +845,7 @@ export default function SpecialMatchPage() {
                                                 
                                                 <div className="flex flex-col gap-3">
                                                     {matchesByRound[roundNum].map((m) => {
-                                                        const groupMatches = matchQueue.filter(x => (x.group || 'A') === (m.group || 'A'));
                                                         const matchIdxInGroup = groupMatches.findIndex(x => x.id === m.id) + 1;
-                                                        const prefix = m.group === 'B' ? 'B' : 'G';
-                                                        
                                                         return (
                                                             <WaitingMatchCard 
                                                                 key={m.id} 
