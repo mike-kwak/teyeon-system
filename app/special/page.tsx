@@ -635,7 +635,7 @@ export default function SpecialMatchPage() {
                                         <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
                                         <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                                     </div>
-                                    <div className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-3 mt-4">
                                         {matchQueue.filter(m => m.status === 'complete').map((m, idx) => (
                                             <CompletedMatchCard 
                                                 key={m.id}

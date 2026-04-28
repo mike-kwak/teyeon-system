@@ -56,10 +56,6 @@ export const PlayingMatchCard = ({
                     >
                         ROUND {match.round} • {normalizedGroup}조 • {matchNo}경기
                     </span>
-                    <RotateCw 
-                        className={`w-3 h-3 transition-colors ${spinningMatchId === match.id ? 'animate-spin' : 'opacity-40'}`} 
-                        style={{ color: groupColor }} 
-                    />
                 </div>
                 
                 {isAdmin && onCancel && (
