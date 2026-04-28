@@ -618,23 +618,27 @@ export default function SpecialMatchPage() {
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-6">
-                                                {groupMatches.map((m, idx) => (
-                                                    <div key={m.id} className="space-y-3">
-                                                        <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
-                                                            <div className="h-[1px] w-4" style={{ background: col }} />
-                                                            <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {m.round}</span>
-                                                            <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                {groupMatches.map((m, idx) => {
+                                                    const courtsPerGroup = Math.max(1, Math.floor(totalCourts / 2));
+                                                    const displayRound = Math.floor(idx / courtsPerGroup) + 1;
+                                                    return (
+                                                        <div key={m.id} className="space-y-3">
+                                                            <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
+                                                                <div className="h-[1px] w-4" style={{ background: col }} />
+                                                                <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {displayRound}</span>
+                                                                <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                            </div>
+                                                            <WaitingMatchCard 
+                                                                match={m}
+                                                                index={idx}
+                                                                getPlayerName={getPlayerName}
+                                                                isAdmin={isAdmin}
+                                                                isStartingMatch={isStartingMatch}
+                                                                onStart={(id) => handleStartMatch(id)}
+                                                            />
                                                         </div>
-                                                        <WaitingMatchCard 
-                                                            match={m}
-                                                            index={idx}
-                                                            getPlayerName={getPlayerName}
-                                                            isAdmin={isAdmin}
-                                                            isStartingMatch={isStartingMatch}
-                                                            onStart={(id) => handleStartMatch(id)}
-                                                        />
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     );
