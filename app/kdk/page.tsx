@@ -2086,7 +2086,7 @@ export default function KDKPage() {
                         <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                 <div className="flex items-center gap-3 ml-2">
-                                    <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
+                                    <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
                                     {activeMatchIds.length > 0 && (
                                         <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -2094,7 +2094,7 @@ export default function KDKPage() {
                                         </span>
                                     )}
                                 </div>
-                                <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                             </div>
 
                             {activeMatchIds.length === 0 ? (
@@ -2167,8 +2167,8 @@ export default function KDKPage() {
                                     return (
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
-                                                <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
-                                                <div className="mt-2 h-1.5 w-48 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
+                                                <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
+                                                <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-6">
                                                 {(() => {
@@ -2221,7 +2221,7 @@ export default function KDKPage() {
 
                         {matches.some(m => m.status === 'complete') && (
                             <div style={{ marginTop: '32px' }}>
-                                <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
+                                <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
                                 <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" style={{ marginBottom: '16px' }} />
                                 <div className="space-y-6">
                                     {matches.filter(m => m.status === 'complete')
