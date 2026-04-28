@@ -134,10 +134,6 @@ export default function SpecialMatchPage() {
         }
         setIsCheckingDB(false);
     };
-            // Only attempt DB recovery if no local session exists
-            checkDBForActiveSession();
-        }
-    }, []);
 
     const syncCurrentQueueToDB = async (queue: Match[]) => {
         try {
