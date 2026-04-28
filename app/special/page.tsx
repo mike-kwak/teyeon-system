@@ -41,6 +41,7 @@ export default function SpecialMatchPage() {
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isStartingMatch, setIsStartingMatch] = useState(false);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [isOptimizing, setIsOptimizing] = useState(false);
@@ -200,6 +201,7 @@ export default function SpecialMatchPage() {
 
     const startSpecialSession = async () => {
         if (matchQueue.length === 0) { alert("최소 1개 이상의 대진이 필요합니다."); return; }
+        setIsSubmitting(true);
         try {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
             const dbMatches = matchQueue.map((m, idx) => ({
