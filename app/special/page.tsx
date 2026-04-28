@@ -613,15 +613,21 @@ export default function SpecialMatchPage() {
                                             </div>
                                             <div className="flex flex-col gap-6">
                                                 {groupMatches.map((m, idx) => (
-                                                    <WaitingMatchCard 
-                                                        key={m.id}
-                                                        match={m}
-                                                        index={idx}
-                                                        getPlayerName={getPlayerName}
-                                                        isAdmin={isAdmin}
-                                                        isStartingMatch={isStartingMatch}
-                                                        onStart={(id) => handleStartMatch(id)}
-                                                    />
+                                                    <div key={m.id} className="space-y-3">
+                                                        <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
+                                                            <div className="h-[1px] w-4" style={{ background: col }} />
+                                                            <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {m.round}</span>
+                                                            <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                        </div>
+                                                        <WaitingMatchCard 
+                                                            match={m}
+                                                            index={idx}
+                                                            getPlayerName={getPlayerName}
+                                                            isAdmin={isAdmin}
+                                                            isStartingMatch={isStartingMatch}
+                                                            onStart={(id) => handleStartMatch(id)}
+                                                        />
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
