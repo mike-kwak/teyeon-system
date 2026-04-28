@@ -26,8 +26,8 @@ export default function KDKPage() {
     const [showToast, setShowToast] = useState(false);
     const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
 
-    // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (STAFF 포함)
-    const isAdmin = role === 'CEO' || role === 'ADMIN' || role === 'STAFF';
+    // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (ADMIN 포함)
+    const isAdmin = role === 'CEO' || role === 'ADMIN';
     const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
     // 권한 제한 알림 헬퍼
@@ -705,7 +705,7 @@ export default function KDKPage() {
                         // [v34.1] GUEST RECOVERY: Re-materialize tempGuests from match data if names are missing locally
                         const guestMappings: Record<string, string> = {};
                         refreshingMatches.forEach(rm => {
-                            rm.playerIds.forEach((pid, idx) => {
+                            rm.playerIds.forEach((pid: string, idx: number) => {
                                 if (pid?.startsWith('g-')) {
                                     const rawName = rm.playerNames?.[idx] || "";
                                     const cleanName = rawName.replace(' (G)', '').replace(' g', '');
@@ -2042,7 +2042,7 @@ export default function KDKPage() {
                         <div className="flex items-center gap-1.5">
                             <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`} />
                             <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">
-                                {syncStatus === 'HEALTHY' ? '연결됨' : syncStatus === 'Wait..' ? '대기중' : '동기화 중'}
+                                {syncStatus === 'HEALTHY' ? '연결됨' : syncStatus === 'IDLE' ? '대기중' : '동기화 중'}
                             </span>
                         </div>
                         <span className="text-[7px] font-mono text-white/20 leading-none mt-0.5">{lastSyncTime || '--:--'}</span>
@@ -2255,7 +2255,6 @@ export default function KDKPage() {
                                             );
                                         })}
                                 </div>
-                                </div>
                             </div>
                         )}
                     </>
@@ -2331,79 +2330,14 @@ export default function KDKPage() {
             )}
 
             {activeMatchForScore && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setShowScoreModal(null)}></div>
-                    <div className="relative w-full max-w-lg rounded-[40px] p-8 pb-10 animate-in fade-in zoom-in duration-300 max-h-[95vh] overflow-y-auto no-scrollbar flex flex-col" style={{ background: 'rgba(18, 20, 24, 0.95)', backdropFilter: 'blur(64px)', borderTop: '2px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 50px 100px rgba(0,0,0,0.9)' }}>
-                        <header className="flex flex-col items-center gap-2 text-center px-4 shrink-0" style={{ marginBottom: '28px' }}>
-                            <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase opacity-80">Match Protocol</span>
-                            <div className="mt-2 py-3 px-10 bg-[#C9B075]/10 rounded-2xl border border-[#C9B075]/20 shadow-[0_0_30px_rgba(201,176,117,0.1)]">
-                                <h3 className="text-xl font-black italic text-white tracking-tight uppercase flex items-center gap-3">
-                                    <span className="text-[#C9B075]">🏆</span> WINNER SELECTION
-                                </h3>
-                            </div>
-                        </header>
-
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-6" style={{ marginBottom: '4px' }}>
-                            {[0, 1].map(side => (
-                                <React.Fragment key={side}>
-                                    <div className="flex flex-col gap-10">
-                                        <div className="flex flex-col items-center text-center px-1">
-                                            <span className="text-3xl font-black text-white leading-[1.1] mb-2" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.8))' }}>
-                                                {getPlayerName(activeMatchForScore.playerIds[side * 2], activeMatchForScore.id)}<br />{getPlayerName(activeMatchForScore.playerIds[side * 2 + 1], activeMatchForScore.id)}
-                                            </span>
-                                            <div className="h-1 w-12 bg-[#C9B075] rounded-full mt-3 shadow-[0_0_10px_rgba(201,176,117,0.5)]" />
-                                        </div>
-
-                                        <div className="text-8xl font-black bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent text-center mb-4" style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' }}>
-                                            {side === 0 ? tempScores.s1 : tempScores.s2}
-                                        </div>
-
-                                        <div className="grid grid-cols-3 gap-3 px-1">
-                                            {[0, 1, 2, 3, 4, 5, 6].map(n => (
-                                                <button
-                                                    key={n}
-                                                    onClick={() => {
-                                                        if (window.navigator?.vibrate) window.navigator.vibrate(50);
-                                                        const val = Math.min(6, Math.max(0, n));
-                                                        const nextScores = side === 0 ? ({ ...tempScores, s1: val }) : ({ ...tempScores, s2: val });
-                                                        // [v34.0] Local-Only Score Editing (Broadcasting removed for stability)
-                                                        // Only Confirm Score button will commit to DB
-                                                        setTempScores(nextScores);
-                                                    }}
-                                                    className="h-14 rounded-xl text-xl font-black transition-all active:scale-90"
-                                                    style={{
-                                                        background: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? 'rgba(201, 176, 117, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                                                        color: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '#C9B075' : 'rgba(255, 255, 255, 0.15)',
-                                                        border: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '1px solid rgba(201, 176, 117, 0.5)' : '1px solid transparent',
-                                                        boxShadow: (side === 0 ? tempScores.s1 : tempScores.s2) === n ? '0 0 20px rgba(201, 176, 117, 0.4)' : 'inset 0 1px 1px rgba(255, 255, 255, 0.1)'
-                                                    }}
-                                                >
-                                                    {n}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {side === 0 && <div className="w-px bg-white/10 my-4" />}
-                                </React.Fragment>
-                            ))}
-                        </div>
-
-                        <div className="flex gap-4 px-4 shrink-0" style={{ marginTop: '32px', marginBottom: '8px' }}>
-                            <button onClick={() => setShowScoreModal(null)} className="flex-1 h-20 bg-white/5 border border-white/5 text-white/30 font-black rounded-[24px] uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all">Cancel</button>
-                            <button
-                                disabled={tempScores.s1 === tempScores.s2}
-                                onClick={() => finishMatch(activeMatchForScore.id, tempScores.s1, tempScores.s2)}
-                                className="flex-[3] h-20 text-black font-black rounded-[24px] uppercase text-2xl tracking-[0.2em] shadow-xl disabled:opacity-20 active:scale-95 transition-all border border-white/20"
-                                style={{
-                                    background: 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)',
-                                    boxShadow: '0 10px 40px rgba(142,122,74,0.5), inset 0 0 20px rgba(255,255,255,0.2)'
-                                }}
-                            >
-                                Confirm Score 🏆
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ScoreEntryModal 
+                    match={activeMatchForScore}
+                    tempScores={tempScores}
+                    setTempScores={setTempScores}
+                    onSave={finishMatch}
+                    onCancel={() => setShowScoreModal(null)}
+                    getPlayerName={getPlayerName}
+                />
             )}
 
             {showMemberEditModal && (

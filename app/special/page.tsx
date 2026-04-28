@@ -6,7 +6,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Member, Match, AttendeeConfig } from '@/lib/tournament_types';
+import { Match, Member, AttendeeConfig, RankedPlayer } from '@/lib/tournament_types';
+import { useRanking } from '@/hooks/useRanking';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import RankingTab from '@/components/RankingTab';
 
@@ -59,43 +60,13 @@ export default function SpecialMatchPage() {
         return combined.filter(m => selectedIds.has(m.id));
     }, [allMembers, tempGuests, selectedIds]);
 
-    const playerStats = useMemo(() => {
-        const stats: Record<string, { id: string, name: string, wins: number, losses: number, diff: number, pf: number, pa: number }> = {};
-        Array.from(selectedIds).forEach(id => {
-            const m = [...allMembers, ...tempGuests].find(x => x.id === id);
-            stats[id] = { id, name: m?.nickname || "Unknown", wins: 0, losses: 0, diff: 0, pf: 0, pa: 0 };
-        });
-        matchQueue.filter(m => m.status === 'complete').forEach(m => {
-            const s1 = m.score1 || 0;
-            const s2 = m.score2 || 0;
-            m.playerIds.forEach((pid, idx) => {
-                if (!stats[pid]) return;
-                const isTeam1 = idx < 2;
-                const win = isTeam1 ? (s1 > s2) : (s2 > s1);
-                if (win) stats[pid].wins++; else stats[pid].losses++;
-                stats[pid].diff += isTeam1 ? (s1 - s2) : (s2 - s1);
-                stats[pid].pf += isTeam1 ? s1 : s2;
-                stats[pid].pa += isTeam1 ? s2 : s1;
-            });
-        });
-        return stats;
-    }, [matchQueue, selectedIds, allMembers, tempGuests]);
-
-    const allPlayersInRanking = useMemo(() => {
-        return Array.from(selectedIds).map(id => {
-            const m = [...allMembers, ...tempGuests].find(x => x.id === id);
-            const conf = attendeeConfigs[id] || { age: m?.age || 99, group: 'A' };
-            const { id: statsId, name: statsName, ...restStats } = playerStats[id] || { id, name: m?.nickname || "Unknown", wins: 0, losses: 0, diff: 0, pf: 0, pa: 0 };
-            return {
-                id: statsId,
-                name: statsName,
-                ...restStats,
-                is_guest: !!m?.is_guest,
-                age: conf.age || m?.age || 99,
-                group: conf.group || 'A'
-            };
-        }).sort((a, b) => (b.wins - a.wins) || (b.diff - a.diff) || ((a.age || 99) - (b.age || 99)));
-    }, [playerStats, selectedIds, allMembers, tempGuests, attendeeConfigs]);
+    const { ranking: allPlayersInRanking, playerStats } = useRanking(
+        matchQueue,
+        allMembers,
+        tempGuests,
+        selectedIds,
+        attendeeConfigs
+    );
 
     useEffect(() => {
         fetchMembers();

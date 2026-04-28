@@ -37,7 +37,7 @@ export const PlayingMatchCard = ({
     spinning?: boolean;
     matchNo?: number;
 }) => {
-    const normalizedGroup = match.groupName || match.group || 'A';
+    const normalizedGroup = match.groupName || (match as any).group || 'A';
     const isGroupB = normalizedGroup === 'B';
     const groupColor = isGroupB ? '#00E5FF' : '#C9B075';
 
@@ -100,7 +100,7 @@ export const WaitingMatchCard = ({
     onStart: (id: string) => void;
     matchNo?: number;
 }) => {
-    const normalizedGroup = match.groupName || match.group || 'A';
+    const normalizedGroup = match.groupName || (match as any).group || 'A';
     const isGroupB = normalizedGroup === 'B';
     const displayIndex = matchNo || index + 1;
 
@@ -143,7 +143,7 @@ export const CompletedMatchCard = ({
     onEdit: (m: Match) => void;
     matchNo?: number;
 }) => {
-    const normalizedGroup = match.groupName || match.group || 'A';
+    const normalizedGroup = match.groupName || (match as any).group || 'A';
     const displayIndex = matchNo || index + 1;
 
     return (

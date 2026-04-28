@@ -27,6 +27,7 @@ export interface Match {
     id: string;
     playerIds: string[];
     playerNames?: string[]; // Server-side mapping for guests & spectators
+    player_names?: string[]; // Legacy server-side mapping
     court: number | null;
     status: 'waiting' | 'playing' | 'complete';
     score1?: number;
@@ -35,6 +36,7 @@ export interface Match {
     round?: number;
     teams?: [string[], string[]];
     groupName?: string;
+    group?: string; // Legacy/Special Match group
 }
 
 export type RankTrend = 'up' | 'down' | 'same';
@@ -49,11 +51,11 @@ export interface RankedPlayer {
     wins: number;
     losses: number;
     diff: number;
-    games: number;
+    games?: number;
     pf: number;
     pa: number;
-    trend: RankTrend;
+    trend?: RankTrend;
 }
 
-export type UserRole = 'CEO' | 'Staff' | 'Member' | 'Guest';
+export type UserRole = 'CEO' | 'ADMIN' | 'MEMBER' | 'GUEST';
 export type KDKConcept = 'RANDOM' | 'MBTI' | 'AWARD' | 'AGE';
