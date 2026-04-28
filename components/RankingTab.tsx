@@ -187,14 +187,15 @@ export default function RankingTab({
                         <span className="text-right text-[#00e5ff]">+/-</span>
                         <span className="text-center text-[#C9B075]">FINE</span>
                     </div>
-                    {others.map((p) => {
+                    {others.map((p, i) => {
+                        const localRank = i + 4;
                         const originalIdx = players.findIndex((x) => x.id === p.id);
                         const { amount } = calculateSettlement(p, originalIdx, players.length);
                         return (
                             <RankingRow 
                                 key={p.id}
                                 player={p}
-                                rank={originalIdx + 1}
+                                rank={localRank}
                                 amount={amount}
                             />
                         );
