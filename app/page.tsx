@@ -24,7 +24,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  const CURRENT_VERSION = 'v4.2 Stability Sync';
+  const CURRENT_VERSION = 'v4.3 Status Lock';
 
   useEffect(() => {
     setIsMounted(true);
@@ -72,8 +72,35 @@ export default function Home() {
     >
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center">
         
-        {/* Perfect Balance Spacer (24px Header-to-Grid) */}
-        <div className="h-[24px] w-full shrink-0" />
+        {/* Premium Status Header (v4.3 Visibility Lock) */}
+        {!isLoading && user && (
+          <div className="w-full flex items-center justify-between px-4 py-3 bg-[#1A1A1A]/60 backdrop-blur-xl rounded-2xl border border-white/10 mb-6 animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="flex items-center gap-3">
+              <ProfileAvatar 
+                uid={user.id} 
+                url={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                size={40} 
+              />
+              <div className="flex flex-col">
+                <span className="text-white font-black text-[14px] tracking-tight">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit mt-0.5 tracking-widest uppercase ${
+                  role === 'CEO' ? 'bg-[#C9B075] text-black' : 
+                  role === 'ADMIN' ? 'bg-blue-600 text-white' : 'bg-white/10 text-white/60'
+                }`}>
+                  {role}
+                </span>
+              </div>
+            </div>
+            <button 
+              onClick={() => signOut()}
+              className="text-[10px] font-black text-white/40 hover:text-red-500 transition-colors uppercase tracking-widest"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
 
         {/* Luxury Skeleton Loading State */}
         {isLoading && (
