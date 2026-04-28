@@ -103,41 +103,42 @@ export default function SpecialMatchPage() {
     }, []);
 
     const checkDBForActiveSession = async () => {
-        if (!isAdmin) return;
         setIsCheckingDB(true);
         try {
-            // Query Supabase for any active special matches from the last 24 hours
+            // Permissive recovery: look for any active matches recently
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data, error } = await supabase
                 .from('tournament_matches')
                 .select('*')
-                .eq('mode', 'SPECIAL')
                 .in('status', ['playing', 'waiting'])
                 .gt('created_at', yesterday)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
 
             if (data && data.length > 0) {
                 const latestSid = data[0].session_id;
                 const latestTitle = data[0].session_title;
                 const sessionMatches = data.filter(m => m.session_id === latestSid);
                 
-                if (confirm(`[클라우드 알림] 진행 중인 세션(${latestTitle})이 발견되었습니다. 다른 기기(PC 등)에서 시작한 작업을 이 노트북으로 불러오시겠습니까?`)) {
-                    // Reconstruct basic state from DB matches
-                    const reconstructedQueue = sessionMatches.map(m => ({
-                        ...m,
-                        playerIds: m.player_ids || m.playerIds, // Handle both snake/camel
-                        teams: m.teams || [[m.player_ids[0], m.player_ids[1]], [m.player_ids[2], m.player_ids[3]]]
-                    }));
+                if (confirm(`[클라우드 동기화] 진행 중인 세션(${latestTitle})을 발견했습니다. 불러오시겠습니까?`)) {
+                    const reconstructedQueue = sessionMatches.map(m => {
+                        const pIds = m.player_ids || m.playerIds || [];
+                        return {
+                            ...m,
+                            playerIds: pIds,
+                            teams: m.teams || [[pIds[0], pIds[1]], [pIds[2], pIds[3]]]
+                        };
+                    });
                     
                     const allPlayerIdsInSession = new Set(reconstructedQueue.flatMap(m => m.playerIds));
-                    
                     setMatchQueue(reconstructedQueue);
                     setSessionId(latestSid);
                     setSessionTitle(latestTitle);
                     setSelectedIds(allPlayerIdsInSession);
-                    setStep(4); // Jump straight to dashboard
+                    setStep(4);
                     
-                    // Save to local for persistence on this device too
                     const sessionData = {
                         sessionId: latestSid, sessionTitle: latestTitle, matches: reconstructedQueue, 
                         selectedIds: Array.from(allPlayerIdsInSession), tempGuests: [], attendeeConfigs: {},
@@ -145,10 +146,15 @@ export default function SpecialMatchPage() {
                         constraints: { totalCourts, matchMins }
                     };
                     localStorage.setItem('special_live_session', JSON.stringify(sessionData));
+                } else {
+                    alert("새 세션을 시작합니다. 클라우드 데이터는 무시됩니다.");
                 }
+            } else {
+                alert("최근 24시간 내에 활성화된 세션이 없습니다.");
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error("Session Recovery Error:", e);
+            alert("동기화 실패: " + e.message);
         } finally {
             setIsCheckingDB(false);
         }
@@ -381,6 +387,23 @@ export default function SpecialMatchPage() {
                     <motion.button initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} onClick={() => setStep(1)} className="w-full group relative overflow-hidden rounded-[40px] h-[170px] text-left border-2 border-[#C9B075]/30 hover:border-[#C9B075] transition-all active:scale-[0.98] shadow-2xl bg-[#0A0A0A]/80 backdrop-blur-2xl">
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                         <div className="relative z-10 h-full flex items-center justify-between px-10"><div className="flex-1 pr-4 space-y-2"><h3 className="text-[32px] font-[1000] italic text-[#C9B075] tracking-tight uppercase leading-none">MANUAL MODE</h3><p className="text-[12px] font-black text-white/50 leading-snug tracking-tight">수동 매칭 및 직접 점수 입력</p></div><div className="w-16 h-16 shrink-0 rounded-[24px] bg-[#C9B075]/10 border border-[#C9B075]/20 flex items-center justify-center text-[#C9B075] group-hover:scale-110 transition-transform"><LayoutGrid size={32} strokeWidth={2.5} /></div></div>
+                    </motion.button>
+
+                    {/* Manual Cloud Recovery Access (v4.6 Multi-Device Parity) */}
+                    <motion.button 
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: 0.4 }}
+                        onClick={checkDBForActiveSession}
+                        disabled={isCheckingDB}
+                        className="w-full h-16 rounded-[24px] bg-white/5 border border-white/10 flex items-center justify-center gap-3 text-white/40 font-black tracking-tight text-[13px] uppercase hover:bg-white/10 hover:text-[#C9B075] transition-all active:scale-95 disabled:opacity-20"
+                    >
+                        {isCheckingDB ? (
+                            <RotateCw className="animate-spin" size={18} />
+                        ) : (
+                            <Sparkles className="text-[#C9B075]" size={18} />
+                        )}
+                        <span>☁️ 진행중인 세션 불러오기 (클라우드 동기화)</span>
                     </motion.button>
                 </div>
             </main>
