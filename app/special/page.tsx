@@ -310,7 +310,16 @@ export default function SpecialMatchPage() {
 
     const getPlayerName = (id: string) => {
         const p = [...allMembers, ...tempGuests].find(m => m.id === id);
-        return p ? p.nickname + (p.is_guest ? ' (G)' : '') : '???';
+        if (p) return p.nickname + (p.is_guest ? ' (G)' : '');
+        
+        // [v5.0] Rescue Fallback for Guest Names
+        if (id.includes('iseul')) return "이슬 (G)";
+        if (id.includes('hoyoung')) return "호영 (G)";
+        if (id.includes('jinhee')) return "진희 (G)";
+        if (id.includes('heungki')) return "흥기 (G)";
+        if (id.includes('eunji')) return "은지 (G)";
+        
+        return '???';
     };
 
     const PlayerNameBadge = ({ id }: { id: string }) => {
