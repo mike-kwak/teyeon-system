@@ -500,13 +500,6 @@ export default function KDKPage() {
         const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
         const currentSid = showGateway ? null : activeSessionId;
         const realtimeFilter = `club_id=eq.${clubId}`;
-        console.log('[KDK Realtime] subscribing:', realtimeFilter);
-        console.log('[KDK Realtime] session state:', {
-            activeSessionId,
-            selectedSessionId,
-            sessionId,
-            filter: realtimeFilter
-        });
 
         const matchesChannel = supabase.channel(`sync-kdk-club-${clubId}`)
             .on('postgres_changes', { 
@@ -516,38 +509,18 @@ export default function KDKPage() {
                 filter: realtimeFilter
             }, (payload: any) => {
                 const updatedSessionId = payload.new?.session_id || payload.old?.session_id;
-                console.log('[KDK Realtime] postgres_changes fired:', {
-                    activeSessionId,
-                    selectedSessionId,
-                    sessionId,
-                    filter: realtimeFilter,
-                    payloadSessionId: updatedSessionId
-                });
                 
                 // [v35.2] STRICT SESSION FILTER: Only trigger refresh for the active session or if in gateway
                 if (currentSid && updatedSessionId === currentSid) {
-                    console.log('📡 Realtime update for:', updatedSessionId);
                     fetchMatches(currentSid);
                 } else if (currentSid) {
-                    console.log('[KDK Realtime] ignored different session:', {
-                        activeSessionId: currentSid,
-                        payloadSessionId: updatedSessionId
-                    });
                 } else if (!currentSid) {
                     console.log('[KDK Realtime] session list change:', updatedSessionId);
                     syncActiveSession();
                 }
             })
             .subscribe((status) => {
-                console.log('[KDK Realtime] subscribe status detail:', {
-                    status,
-                    activeSessionId,
-                    selectedSessionId,
-                    sessionId,
-                    filter: realtimeFilter
-                });
                 console.log('[KDK Realtime] status:', status);
-                if (status === 'SUBSCRIBED') console.log('✅ Realtime [Club-Wide] Subscribed');
             });
 
         return () => {
@@ -643,12 +616,6 @@ export default function KDKPage() {
     };
 
     const fetchMatches = async (targetSessionId: string) => {
-        console.log('[KDK Realtime] fetchMatches called:', {
-            targetSessionId,
-            activeSessionId,
-            selectedSessionId,
-            sessionId
-        });
         if (!targetSessionId) return;
 
         try {
@@ -661,10 +628,6 @@ export default function KDKPage() {
                 .order('court', { ascending: true });
 
             if (error) throw error;
-            console.log('[KDK Realtime] fetchMatches result:', {
-                targetSessionId,
-                length: data?.length || 0
-            });
 
             const mappedMatches = (data || []).map(m => ({
                 id: m.id,
