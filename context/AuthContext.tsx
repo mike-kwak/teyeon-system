@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
@@ -65,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isPendingMatching, setIsPendingMatching] = useState(false);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
+  const authResolvedRef = useRef(false);
 
   const fetchConfig = async () => {
     try {
@@ -138,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const finalRole = normalizeRole(profileData?.role);
       console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
+      authResolvedRef.current = true;
       setRole(finalRole);
       setIsPendingMatching(false);
       setIsLoading(false);
@@ -145,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('[Auth/DirectSync] Critical Failure Path:', err);
       
+      authResolvedRef.current = true;
       setRole('GUEST');
       setIsLoading(false);
     }
@@ -154,8 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Safety Force Resolve (Prevents "Syncing..." hang)
     // Increased to 15s to allow for multiple exponential retries in poor LTE conditions
     const safetyTimeout = setTimeout(() => {
-        if (isLoading) {
+        if (!authResolvedRef.current) {
             console.warn('[Auth] Safety timeout reached. Forcing resolve with cached state.');
+            authResolvedRef.current = true;
             setRole('GUEST');
             setIsLoading(false);
         }
@@ -173,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           await syncProfile(session.user);
         } else {
+          authResolvedRef.current = true;
           setIsLoading(false);
         }
       } catch (err) {
@@ -200,9 +205,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else if (event === 'SIGNED_OUT') {
         // Only clear state on explicit SIGNED_OUT
-        setSession(null);
-        setUser(null);
-        setRole('GUEST');
+          setSession(null);
+          setUser(null);
+          authResolvedRef.current = true;
+          setRole('GUEST');
         setIsPendingMatching(false);
         setIsLoading(false);
       }
