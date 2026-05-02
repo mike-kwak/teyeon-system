@@ -57,6 +57,24 @@ const normalizeRole = (value?: string | null): UserRole => {
   return VALID_ROLES.includes(normalized as UserRole) ? normalized as UserRole : 'GUEST';
 };
 
+const withAuthTimeout = async <T,>(promise: PromiseLike<T>, label: string, ms = 12000): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+  });
+
+  console.log(`[Auth/DirectSync] ${label} started`);
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeout]);
+  } catch (err) {
+    console.error(`[Auth/DirectSync] ${label} failed or timed out:`, err);
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -119,11 +137,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: currentUser.email
       });
 
-      const { data: idProfile, error: idProfileError } = await supabase
-        .from('profiles')
-        .select('id, email, role')
-        .eq('id', currentUser.id)
-        .maybeSingle();
+      console.log('[Auth/DirectSync] Starting profile lookup', {
+        syncKey,
+        userId: currentUser.id,
+        email: currentUser.email
+      });
+
+      const { data: idProfile, error: idProfileError } = await withAuthTimeout(
+        supabase
+          .from('profiles')
+          .select('id, email, role')
+          .eq('id', currentUser.id)
+          .maybeSingle(),
+        'Profile lookup by id'
+      );
 
       if (idProfileError) {
         console.error('[Auth/DirectSync] Profile lookup by id failed:', {
