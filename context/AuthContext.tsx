@@ -116,28 +116,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
-        .select('role')
+        .select('id, role')
         .eq('id', currentUser.id)
         .maybeSingle();
 
-      if (profileFetchError) throw profileFetchError;
-
-      const nextRole = normalizeRole(existingProfile?.role);
-      const { data: profileData, error: upsertError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: currentUser.id,
+      if (profileFetchError) {
+        console.error('[Auth/DirectSync] Profile lookup failed:', {
+          userId: currentUser.id,
           email: currentUser.email,
-          role: nextRole,
-          nickname,
-          avatar_url: avatarUrl
-        }, { onConflict: 'id' })
-        .select('role')
-        .single();
+          error: profileFetchError
+        });
+        throw profileFetchError;
+      }
 
-      if (upsertError) throw upsertError;
+      console.log('[Auth/DirectSync] Profile lookup result:', {
+        userId: currentUser.id,
+        email: currentUser.email,
+        profileRole: existingProfile?.role ?? null
+      });
 
-      const finalRole = normalizeRole(profileData?.role);
+      let finalRole = normalizeRole(existingProfile?.role);
+
+      if (existingProfile) {
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({
+            email: currentUser.email,
+            nickname,
+            avatar_url: avatarUrl
+          })
+          .eq('id', currentUser.id);
+
+        if (profileUpdateError) {
+          console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
+        }
+      } else {
+        const { data: insertedProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: currentUser.id,
+            email: currentUser.email,
+            role: 'GUEST',
+            nickname,
+            avatar_url: avatarUrl
+          })
+          .select('role')
+          .single();
+
+        if (insertError) throw insertError;
+        finalRole = normalizeRole(insertedProfile?.role);
+      }
+
       console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
       authResolvedRef.current = true;
       setRole(finalRole);
