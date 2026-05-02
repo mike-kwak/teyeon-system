@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
@@ -50,11 +50,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const CEO_EMAIL = process.env.NEXT_PUBLIC_CEO_EMAIL || 'cws786@nate.com';
-const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim());
+const VALID_ROLES: UserRole[] = ['CEO', 'ADMIN', 'MEMBER', 'GUEST'];
 
-const STAFF_ROLES = ['회장', '부회장', '총무', '재무', '경기', '섭외'];
-const MEMBER_ROLES = ['정회원', '준회원'];
+const normalizeRole = (value?: string | null): UserRole => {
+  const normalized = value?.trim().toUpperCase();
+  return VALID_ROLES.includes(normalized as UserRole) ? normalized as UserRole : 'GUEST';
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isPendingMatching, setIsPendingMatching] = useState(false);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
+  const authResolvedRef = useRef(false);
 
   const fetchConfig = async () => {
     try {
@@ -103,99 +105,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const syncProfile = async (currentUser: User) => {
     try {
       console.log(`[Auth/DirectSync] Forcing single source of truth lookup for ${currentUser.email}`);
-      
-      // Early Priority: CEO Email Check (Hardcoded safety)
-      if (currentUser.email === CEO_EMAIL) {
-        setRole('CEO');
-        setIsPendingMatching(false);
-        setIsLoading(false);
-        return;
-      }
 
-      // Step 1: Check Members Table (Official Hub)
-      const { data: linkedMember, error: memberError } = await supabase
-        .from('members')
-        .select('id, role, email')
-        .eq('email', currentUser.email)
-        .single();
-      
-      if (linkedMember) {
-        const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
-        try {
-          await supabase.from('members').update({ avatar_url: avatarUrl }).eq('id', linkedMember.id);
-        } catch (syncErr) {
-          console.warn('[Auth/DirectSync] Member avatar update failed (non-critical):', syncErr);
-        }
-        
-        let finalRole: UserRole = 'MEMBER';
-        if (linkedMember.role) {
-          const kRole = linkedMember.role.trim().toUpperCase();
-          if (kRole.includes('CEO') || (kRole.includes('회장') && !kRole.includes('부회장'))) {
-            finalRole = 'CEO';
-          } else if (
-            ['부회장', '총무', '재무', '경기', '섭외'].some(r => kRole.includes(r.toUpperCase())) || 
-            ADMIN_EMAILS.some(e => e.toLowerCase() === (currentUser.email || '').toLowerCase())
-          ) {
-            finalRole = 'ADMIN';
-          } else if (['정회원', '준회원'].some(r => kRole.includes(r.toUpperCase()))) {
-            finalRole = 'MEMBER';
-          }
-        }
+      const avatarUrl = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture || null;
+      const nickname =
+        currentUser.user_metadata?.nickname ||
+        currentUser.user_metadata?.full_name ||
+        currentUser.user_metadata?.name ||
+        currentUser.email?.split('@')[0] ||
+        null;
 
-        console.log(`[Auth/DirectSync] Target Role (Members): ${finalRole}`);
-        setRole(finalRole);
-        setIsPendingMatching(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 2: Check Profiles Table (Secondary Source for Role)
-      const { data: profileData, error: profileError } = await supabase
+      const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (profileFetchError) throw profileFetchError;
+
+      const nextRole = normalizeRole(existingProfile?.role);
+      const { data: profileData, error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          role: nextRole,
+          nickname,
+          avatar_url: avatarUrl
+        }, { onConflict: 'id' })
+        .select('role')
         .single();
 
-      if (profileData && profileData.role) {
-        let finalRole: UserRole = 'MEMBER';
-        const pRole = profileData.role.trim().toUpperCase();
-        if (pRole.includes('CEO') || (pRole.includes('회장') && !pRole.includes('부회장'))) {
-          finalRole = 'CEO';
-        } else if (['부회장', '총무', '재무', '경기', '섭외'].some(r => pRole.includes(r.toUpperCase()))) {
-          finalRole = 'ADMIN';
-        }
-        
-        console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
-        setRole(finalRole);
-        
-        // Cache role for offline resilience
-        if (typeof window !== 'undefined') {
-           localStorage.setItem('teyeon_last_known_role', finalRole);
-        }
+      if (upsertError) throw upsertError;
 
-        setIsLoading(false);
-        return;
-      }
-
-      setRole('GUEST');
-      if (typeof window !== 'undefined') localStorage.setItem('teyeon_last_known_role', 'GUEST');
+      const finalRole = normalizeRole(profileData?.role);
+      console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
+      authResolvedRef.current = true;
+      setRole(finalRole);
       setIsPendingMatching(false);
       setIsLoading(false);
+      return;
     } catch (err) {
       console.error('[Auth/DirectSync] Critical Failure Path:', err);
       
-      // Attempt to recover from cache on failure
-      if (typeof window !== 'undefined') {
-        const cachedRole = localStorage.getItem('teyeon_last_known_role') as UserRole;
-        if (cachedRole) {
-          console.warn('[Auth/DirectSync] Network failure, using cached role:', cachedRole);
-          setRole(cachedRole);
-        } else {
-          setRole('GUEST');
-        }
-      } else {
-        setRole('GUEST');
-      }
+      authResolvedRef.current = true;
+      setRole('GUEST');
       setIsLoading(false);
     }
   };
@@ -204,10 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Safety Force Resolve (Prevents "Syncing..." hang)
     // Increased to 15s to allow for multiple exponential retries in poor LTE conditions
     const safetyTimeout = setTimeout(() => {
-        if (isLoading) {
+        if (!authResolvedRef.current) {
             console.warn('[Auth] Safety timeout reached. Forcing resolve with cached state.');
-            const cachedRole = typeof window !== 'undefined' ? localStorage.getItem('teyeon_last_known_role') as UserRole : null;
-            if (cachedRole && role === 'GUEST') setRole(cachedRole);
+            authResolvedRef.current = true;
+            setRole('GUEST');
             setIsLoading(false);
         }
     }, 15000);
@@ -224,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           await syncProfile(session.user);
         } else {
+          authResolvedRef.current = true;
           setIsLoading(false);
         }
       } catch (err) {
@@ -251,9 +205,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else if (event === 'SIGNED_OUT') {
         // Only clear state on explicit SIGNED_OUT
-        setSession(null);
-        setUser(null);
-        setRole('GUEST');
+          setSession(null);
+          setUser(null);
+          authResolvedRef.current = true;
+          setRole('GUEST');
         setIsPendingMatching(false);
         setIsLoading(false);
       }
@@ -281,8 +236,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithKakao = async () => {
-    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-    const redirectTarget = isProduction ? 'https://teyeon-system.vercel.app' : window.location.origin;
+    const redirectTarget = typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}${window.location.search}`
+      : undefined;
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: { redirectTo: redirectTarget, skipBrowserRedirect: false },

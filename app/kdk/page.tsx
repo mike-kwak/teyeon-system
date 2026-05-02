@@ -114,6 +114,7 @@ export default function KDKPage() {
     const [userRole, setUserRole] = useState<UserRole>('GUEST');
     const [allActiveSessions, setAllActiveSessions] = useState<{ id: string, title: string, matchCount: number, playerCount: number, lastActivity: string }[]>([]);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const activeSessionId = selectedSessionId || sessionId;
     const [showGateway, setShowGateway] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'MATCHES' | 'RANKING'>('MATCHES');
@@ -497,25 +498,29 @@ export default function KDKPage() {
 
         // [v33.0] Club-Scoped Realtime Subscription (Simplification for Global Sync)
         const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-        const currentSid = sessionId || selectedSessionId;
+        const currentSid = showGateway ? null : activeSessionId;
+        const realtimeFilter = `club_id=eq.${clubId}`;
 
         const matchesChannel = supabase.channel(`sync-kdk-club-${clubId}`)
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'matches', 
-                filter: `club_id=eq.${clubId}` 
+                filter: realtimeFilter
             }, (payload: any) => {
                 const updatedSessionId = payload.new?.session_id || payload.old?.session_id;
                 
                 // [v35.2] STRICT SESSION FILTER: Only trigger refresh for the active session or if in gateway
-                if (!currentSid || updatedSessionId === currentSid) {
-                    console.log('📡 Realtime update for:', updatedSessionId);
-                    setSyncTick(prev => prev + 1);
+                if (currentSid && updatedSessionId === currentSid) {
+                    fetchMatches(currentSid);
+                } else if (currentSid) {
+                } else if (!currentSid) {
+                    console.log('[KDK Realtime] session list change:', updatedSessionId);
+                    syncActiveSession();
                 }
             })
             .subscribe((status) => {
-                if (status === 'SUBSCRIBED') console.log('✅ Realtime [Club-Wide] Subscribed');
+                console.log('[KDK Realtime] status:', status);
             });
 
         return () => {
@@ -523,7 +528,7 @@ export default function KDKPage() {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             supabase.removeChannel(matchesChannel);
         };
-    }, [sessionId, selectedSessionId]);
+    }, [activeSessionId, showGateway]);
 
     // [v25.0] Guest Access Auto Router
     useEffect(() => {
@@ -610,13 +615,55 @@ export default function KDKPage() {
         }
     };
 
-    const syncActiveSession = async () => {
+    const fetchMatches = async (targetSessionId: string) => {
+        if (!targetSessionId) return;
+
         try {
-            
             const { data, error } = await supabase
                 .from('matches')
                 .select('*')
+                .eq('club_id', clubId)
+                .eq('session_id', targetSessionId)
+                .order('round', { ascending: true })
+                .order('court', { ascending: true });
+
+            if (error) throw error;
+
+            const mappedMatches = (data || []).map(m => ({
+                id: m.id,
+                playerIds: m.player_ids || m.playerIds || [],
+                playerNames: m.player_names || m.playerNames || [],
+                court: m.court,
+                status: m.status,
+                score1: m.score1,
+                score2: m.score2,
+                mode: m.mode || 'KDK',
+                round: m.round,
+                teams: m.teams,
+                groupName: m.group_name || m.groupName || 'A'
+            })) as Match[];
+
+            setMatches(mappedMatches);
+            setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        } catch (err) {
+            console.error('[KDK Realtime] fetchMatches failed:', err);
+        }
+    };
+
+    const syncActiveSession = async () => {
+        try {
+            
+            let query = supabase
+                .from('matches')
+                .select('*')
                 .eq('club_id', clubId);
+
+            const shouldLoadAllSessions = !selectedSessionId && (showGateway || (step === 1 && matches.length === 0));
+            if (activeSessionId && !shouldLoadAllSessions) {
+                query = query.eq('session_id', activeSessionId);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
 
