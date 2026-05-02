@@ -114,30 +114,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser.email?.split('@')[0] ||
         null;
 
-      const { data: existingProfile, error: profileFetchError } = await supabase
+      console.log('[Auth/DirectSync] Current auth user:', {
+        userId: currentUser.id,
+        email: currentUser.email
+      });
+
+      const { data: idProfile, error: idProfileError } = await supabase
         .from('profiles')
-        .select('id, role')
+        .select('id, email, role')
         .eq('id', currentUser.id)
         .maybeSingle();
 
-      if (profileFetchError) {
-        console.error('[Auth/DirectSync] Profile lookup failed:', {
+      if (idProfileError) {
+        console.error('[Auth/DirectSync] Profile lookup by id failed:', {
           userId: currentUser.id,
           email: currentUser.email,
-          error: profileFetchError
+          error: idProfileError
         });
-        throw profileFetchError;
+        throw idProfileError;
       }
 
-      console.log('[Auth/DirectSync] Profile lookup result:', {
+      console.log('[Auth/DirectSync] Profile lookup by id result:', {
         userId: currentUser.id,
         email: currentUser.email,
-        profileRole: existingProfile?.role ?? null
+        profileId: idProfile?.id ?? null,
+        profileEmail: idProfile?.email ?? null,
+        profileRole: idProfile?.role ?? null
       });
 
-      let finalRole = normalizeRole(existingProfile?.role);
+      let profile = idProfile;
 
-      if (existingProfile) {
+      if (!profile && currentUser.email) {
+        const { data: emailProfiles, error: emailProfileError } = await supabase
+          .from('profiles')
+          .select('id, email, role')
+          .eq('email', currentUser.email)
+          .limit(1);
+
+        if (emailProfileError) {
+          console.error('[Auth/DirectSync] Profile lookup by email failed:', {
+            userId: currentUser.id,
+            email: currentUser.email,
+            error: emailProfileError
+          });
+          throw emailProfileError;
+        }
+
+        profile = emailProfiles?.[0] ?? null;
+        console.log('[Auth/DirectSync] Profile lookup by email result:', {
+          userId: currentUser.id,
+          email: currentUser.email,
+          profileId: profile?.id ?? null,
+          profileEmail: profile?.email ?? null,
+          profileRole: profile?.role ?? null
+        });
+      }
+
+      let finalRole = normalizeRole(profile?.role);
+
+      if (profile) {
+        if (profile.id !== currentUser.id) {
+          const { error: profileIdUpdateError } = await supabase
+            .from('profiles')
+            .update({
+              id: currentUser.id,
+              email: currentUser.email,
+              nickname,
+              avatar_url: avatarUrl
+            })
+            .eq('id', profile.id);
+
+          if (profileIdUpdateError) {
+            console.warn('[Auth/DirectSync] Profile id reconcile failed:', {
+              fromProfileId: profile.id,
+              toUserId: currentUser.id,
+              email: currentUser.email,
+              error: profileIdUpdateError
+            });
+          }
+        }
+
         const { error: profileUpdateError } = await supabase
           .from('profiles')
           .update({
