@@ -281,8 +281,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithKakao = async () => {
-    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-    const redirectTarget = isProduction ? 'https://teyeon-system.vercel.app' : window.location.origin;
+    const redirectTarget = typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}${window.location.search}`
+      : undefined;
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: { redirectTo: redirectTarget, skipBrowserRedirect: false },
