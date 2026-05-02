@@ -57,6 +57,24 @@ const normalizeRole = (value?: string | null): UserRole => {
   return VALID_ROLES.includes(normalized as UserRole) ? normalized as UserRole : 'GUEST';
 };
 
+const withAuthTimeout = async <T,>(promise: PromiseLike<T>, label: string, ms = 12000): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+  });
+
+  console.log(`[Auth/DirectSync] ${label} started`);
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeout]);
+  } catch (err) {
+    console.error(`[Auth/DirectSync] ${label} failed or timed out:`, err);
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -66,6 +84,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isPendingMatching, setIsPendingMatching] = useState(false);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
   const authResolvedRef = useRef(false);
+  const authUserSeenRef = useRef(false);
+  const profileLookupStartedRef = useRef(false);
+  const profileSyncPromiseRef = useRef<Promise<void> | null>(null);
+  const profileSyncUserKeyRef = useRef<string | null>(null);
 
   const fetchConfig = async () => {
     try {
@@ -103,6 +125,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const syncProfile = async (currentUser: User) => {
+    authUserSeenRef.current = true;
+    const syncKey = `${currentUser.id}:${currentUser.email || ''}`;
+
+    if (profileSyncPromiseRef.current) {
+      console.log('[Auth/DirectSync] Profile sync already in flight. Reusing current request.', {
+        requested: syncKey,
+        inFlight: profileSyncUserKeyRef.current
+      });
+      return profileSyncPromiseRef.current;
+    }
+
+    profileSyncUserKeyRef.current = syncKey;
+
+    const syncPromise = (async () => {
     try {
       console.log(`[Auth/DirectSync] Forcing single source of truth lookup for ${currentUser.email}`);
 
@@ -119,11 +155,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: currentUser.email
       });
 
-      const { data: idProfile, error: idProfileError } = await supabase
-        .from('profiles')
-        .select('id, email, role')
-        .eq('id', currentUser.id)
-        .maybeSingle();
+      profileLookupStartedRef.current = true;
+      console.log('[Auth/DirectSync] Starting profile lookup', {
+        syncKey,
+        userId: currentUser.id,
+        email: currentUser.email
+      });
+
+      const { data: idProfile, error: idProfileError } = await withAuthTimeout(
+        supabase
+          .from('profiles')
+          .select('id, email, role')
+          .eq('id', currentUser.id)
+          .maybeSingle(),
+        'Profile lookup by id'
+      );
 
       if (idProfileError) {
         console.error('[Auth/DirectSync] Profile lookup by id failed:', {
@@ -145,11 +191,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let profile = idProfile;
 
       if (!profile && currentUser.email) {
-        const { data: emailProfiles, error: emailProfileError } = await supabase
-          .from('profiles')
-          .select('id, email, role')
-          .eq('email', currentUser.email)
-          .limit(1);
+        const { data: emailProfiles, error: emailProfileError } = await withAuthTimeout(
+          supabase
+            .from('profiles')
+            .select('id, email, role')
+            .eq('email', currentUser.email)
+            .limit(1),
+          'Profile lookup by email'
+        );
 
         if (emailProfileError) {
           console.error('[Auth/DirectSync] Profile lookup by email failed:', {
@@ -171,18 +220,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let finalRole = normalizeRole(profile?.role);
+      let roleApplied = false;
 
       if (profile) {
+        console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
+        authResolvedRef.current = true;
+        setRole(finalRole);
+        setIsPendingMatching(false);
+        setIsLoading(false);
+        roleApplied = true;
+
         if (profile.id !== currentUser.id) {
-          const { error: profileIdUpdateError } = await supabase
-            .from('profiles')
-            .update({
-              id: currentUser.id,
-              email: currentUser.email,
-              nickname,
-              avatar_url: avatarUrl
-            })
-            .eq('id', profile.id);
+          const { error: profileIdUpdateError } = await withAuthTimeout(
+            supabase
+              .from('profiles')
+              .update({
+                id: currentUser.id,
+                email: currentUser.email,
+                nickname,
+                avatar_url: avatarUrl
+              })
+              .eq('id', profile.id),
+            'Profile id reconcile',
+            5000
+          );
 
           if (profileIdUpdateError) {
             console.warn('[Auth/DirectSync] Profile id reconcile failed:', {
@@ -194,47 +255,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        const { error: profileUpdateError } = await supabase
-          .from('profiles')
-          .update({
-            email: currentUser.email,
-            nickname,
-            avatar_url: avatarUrl
-          })
-          .eq('id', currentUser.id);
+        const { error: profileUpdateError } = await withAuthTimeout(
+          supabase
+            .from('profiles')
+            .update({
+              email: currentUser.email,
+              nickname,
+              avatar_url: avatarUrl
+            })
+            .eq('id', currentUser.id),
+          'Profile display update',
+          5000
+        );
 
         if (profileUpdateError) {
           console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
         }
       } else {
-        const { data: insertedProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: currentUser.id,
-            email: currentUser.email,
-            role: 'GUEST',
-            nickname,
-            avatar_url: avatarUrl
-          })
-          .select('role')
-          .single();
+        const { data: insertedProfile, error: insertError } = await withAuthTimeout(
+          supabase
+            .from('profiles')
+            .insert({
+              id: currentUser.id,
+              email: currentUser.email,
+              role: 'GUEST',
+              nickname,
+              avatar_url: avatarUrl
+            })
+            .select('role')
+            .single(),
+          'Profile guest insert'
+        );
 
         if (insertError) throw insertError;
         finalRole = normalizeRole(insertedProfile?.role);
       }
 
-      console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
-      authResolvedRef.current = true;
-      setRole(finalRole);
-      setIsPendingMatching(false);
-      setIsLoading(false);
+      if (!roleApplied) {
+        console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
+        authResolvedRef.current = true;
+        setRole(finalRole);
+        setIsPendingMatching(false);
+        setIsLoading(false);
+      }
       return;
     } catch (err) {
       console.error('[Auth/DirectSync] Critical Failure Path:', err);
       
       authResolvedRef.current = true;
-      setRole('GUEST');
+      setIsPendingMatching(false);
       setIsLoading(false);
+    }
+    })();
+
+    profileSyncPromiseRef.current = syncPromise;
+
+    try {
+      await syncPromise;
+    } finally {
+      if (profileSyncPromiseRef.current === syncPromise) {
+        profileSyncPromiseRef.current = null;
+        profileSyncUserKeyRef.current = null;
+      }
     }
   };
 
@@ -243,6 +325,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Increased to 15s to allow for multiple exponential retries in poor LTE conditions
     const safetyTimeout = setTimeout(() => {
         if (!authResolvedRef.current) {
+          if (authUserSeenRef.current || profileLookupStartedRef.current || profileSyncPromiseRef.current) {
+            console.warn('[Auth] Safety timeout reached while auth/profile lookup is active. Ending loading without changing role.', {
+              hasAuthUser: authUserSeenRef.current,
+              profileLookupStarted: profileLookupStartedRef.current,
+              profileSyncInFlight: Boolean(profileSyncPromiseRef.current)
+            });
+            authResolvedRef.current = true;
+            setIsLoading(false);
+            return;
+          }
+
             console.warn('[Auth] Safety timeout reached. Forcing resolve with cached state.');
             authResolvedRef.current = true;
             setRole('GUEST');
@@ -260,6 +353,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          authUserSeenRef.current = true;
           await syncProfile(session.user);
         } else {
           authResolvedRef.current = true;
@@ -280,19 +374,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Enhanced stability: Catch all active session events
       if (['SIGNED_IN', 'INITIAL_SESSION', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await syncProfile(session.user);
+          authUserSeenRef.current = true;
+          setTimeout(() => {
+            void syncProfile(session.user);
+          }, 0);
         }
       } else if (event === 'SIGNED_OUT') {
         // Only clear state on explicit SIGNED_OUT
           setSession(null);
           setUser(null);
           authResolvedRef.current = true;
+          authUserSeenRef.current = false;
+          profileLookupStartedRef.current = false;
           setRole('GUEST');
         setIsPendingMatching(false);
         setIsLoading(false);
