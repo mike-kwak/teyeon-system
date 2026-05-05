@@ -88,6 +88,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const profileLookupStartedRef = useRef(false);
   const profileSyncPromiseRef = useRef<Promise<void> | null>(null);
   const profileSyncUserKeyRef = useRef<string | null>(null);
+  const resolvedProfileSyncKeyRef = useRef<string | null>(null);
+  const inFlightLogShownRef = useRef(false);
 
   const fetchConfig = async () => {
     try {
@@ -128,15 +130,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authUserSeenRef.current = true;
     const syncKey = `${currentUser.id}:${currentUser.email || ''}`;
 
+    if (authResolvedRef.current && resolvedProfileSyncKeyRef.current === syncKey) {
+      return;
+    }
+
     if (profileSyncPromiseRef.current) {
-      console.log('[Auth/DirectSync] Profile sync already in flight. Reusing current request.', {
-        requested: syncKey,
-        inFlight: profileSyncUserKeyRef.current
-      });
+      if (!inFlightLogShownRef.current) {
+        console.debug('[Auth/DirectSync] Profile sync already in flight. Reusing current request.', {
+          requested: syncKey,
+          inFlight: profileSyncUserKeyRef.current
+        });
+        inFlightLogShownRef.current = true;
+      }
       return profileSyncPromiseRef.current;
     }
 
     profileSyncUserKeyRef.current = syncKey;
+    inFlightLogShownRef.current = false;
 
     const syncPromise = (async () => {
     try {
@@ -225,52 +235,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile) {
         console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
         authResolvedRef.current = true;
+        resolvedProfileSyncKeyRef.current = syncKey;
         setRole(finalRole);
         setIsPendingMatching(false);
         setIsLoading(false);
         roleApplied = true;
 
-        if (profile.id !== currentUser.id) {
-          const { error: profileIdUpdateError } = await withAuthTimeout(
-            supabase
-              .from('profiles')
-              .update({
-                id: currentUser.id,
-                email: currentUser.email,
-                nickname,
-                avatar_url: avatarUrl
-              })
-              .eq('id', profile.id),
-            'Profile id reconcile',
-            5000
-          );
+        void (async () => {
+          try {
+            if (profile.id !== currentUser.id) {
+              const { error: profileIdUpdateError } = await withAuthTimeout(
+                supabase
+                  .from('profiles')
+                  .update({
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    nickname,
+                    avatar_url: avatarUrl
+                  })
+                  .eq('id', profile.id),
+                'Profile id reconcile',
+                5000
+              );
 
-          if (profileIdUpdateError) {
-            console.warn('[Auth/DirectSync] Profile id reconcile failed:', {
-              fromProfileId: profile.id,
-              toUserId: currentUser.id,
-              email: currentUser.email,
-              error: profileIdUpdateError
-            });
+              if (profileIdUpdateError) {
+                console.warn('[Auth/DirectSync] Profile id reconcile failed:', {
+                  fromProfileId: profile.id,
+                  toUserId: currentUser.id,
+                  email: currentUser.email,
+                  error: profileIdUpdateError
+                });
+              }
+            }
+
+            const { error: profileUpdateError } = await withAuthTimeout(
+              supabase
+                .from('profiles')
+                .update({
+                  email: currentUser.email,
+                  nickname,
+                  avatar_url: avatarUrl
+                })
+                .eq('id', currentUser.id),
+              'Profile display update',
+              5000
+            );
+
+            if (profileUpdateError) {
+              console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
+            }
+          } catch (displaySyncError) {
+            console.warn('[Auth/DirectSync] Profile display sync skipped:', displaySyncError);
           }
-        }
-
-        const { error: profileUpdateError } = await withAuthTimeout(
-          supabase
-            .from('profiles')
-            .update({
-              email: currentUser.email,
-              nickname,
-              avatar_url: avatarUrl
-            })
-            .eq('id', currentUser.id),
-          'Profile display update',
-          5000
-        );
-
-        if (profileUpdateError) {
-          console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
-        }
+        })();
       } else {
         const { data: insertedProfile, error: insertError } = await withAuthTimeout(
           supabase
@@ -294,6 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!roleApplied) {
         console.log(`[Auth/DirectSync] Target Role (Profiles): ${finalRole}`);
         authResolvedRef.current = true;
+        resolvedProfileSyncKeyRef.current = syncKey;
         setRole(finalRole);
         setIsPendingMatching(false);
         setIsLoading(false);
@@ -316,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profileSyncPromiseRef.current === syncPromise) {
         profileSyncPromiseRef.current = null;
         profileSyncUserKeyRef.current = null;
+        inFlightLogShownRef.current = false;
       }
     }
   };
@@ -345,8 +364,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const init = async (retryCount = 0) => {
       try {
-        await fetchConfig();
-        const { data: { session }, error } = await withRetry(() => supabase.auth.getSession());
+        void fetchConfig();
+        const { data: { session }, error } = await withAuthTimeout(
+          supabase.auth.getSession(),
+          'Auth getSession',
+          7000
+        );
         if (error) throw error;
 
         setSession(session);
@@ -376,7 +399,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Enhanced stability: Catch all active session events
-      if (['SIGNED_IN', 'INITIAL_SESSION', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
+      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -392,6 +415,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authResolvedRef.current = true;
           authUserSeenRef.current = false;
           profileLookupStartedRef.current = false;
+          resolvedProfileSyncKeyRef.current = null;
           setRole('GUEST');
         setIsPendingMatching(false);
         setIsLoading(false);
