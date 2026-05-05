@@ -77,6 +77,34 @@ export default function RootLayout({
         justifyContent: 'center',
         alignItems: 'flex-start'
       }}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations()
+                  .then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                      registration.unregister();
+                    });
+                  })
+                  .catch(function(error) {
+                    console.warn('[PWA] Service worker cleanup failed:', error);
+                  });
+              }
+              if ('caches' in window) {
+                caches.keys()
+                  .then(function(keys) {
+                    return Promise.all(keys.map(function(key) {
+                      return caches.delete(key);
+                    }));
+                  })
+                  .catch(function(error) {
+                    console.warn('[PWA] Cache cleanup failed:', error);
+                  });
+              }
+            `,
+          }}
+        />
         <StitchesRegistry>
           <AuthProvider>
             <ThemeProvider>
