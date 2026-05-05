@@ -5,22 +5,19 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import ProfileAvatar from '@/components/ProfileAvatar';
 import { 
   Users, 
-  Trophy, 
   Swords, 
   Megaphone, 
   Layout, 
   CircleDollarSign, 
   Cpu, 
-  Settings,
-  RotateCw
+  Settings
 } from 'lucide-react';
 // Note: We don't need a heavy external Skeleton library, basic tailwind animate-pulse blocks work flawlessly.
 
 export default function Home() {
-  const { user, role, signInWithKakao, signOut, isLoading, systemMessage } = useAuth();
+  const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -55,22 +52,22 @@ export default function Home() {
   const MenuCard = ({ label, icon, path, comingSoon, badge }: { label: string, icon: React.ReactNode, path: string, comingSoon?: boolean, badge?: string }) => (
     <Link 
       href={path}
-      className={`relative flex flex-col items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-[160px] ${comingSoon ? 'opacity-80' : ''}`}
+      className={`relative flex flex-col items-center justify-center bg-[#242323]/95 backdrop-blur-md rounded-[24px] gap-3 transition-all duration-300 hover:bg-[#2B2926] hover:-translate-y-1 active:scale-[0.98] shadow-[0_10px_28px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.06)] border border-[#D8BE78]/12 group h-[160px] ${comingSoon ? 'opacity-85' : ''}`}
     >
       {comingSoon && (
-        <span className="absolute px-[10px] py-[4px] bg-red-600/20 text-red-500 text-[10px] font-[1000] rounded-full tracking-tighter shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-red-500/40 animate-pulse top-4 right-4">
+        <span className="absolute px-[10px] py-[4px] bg-[#3A2424] text-[#FF8A8A] text-[9px] font-[1000] rounded-full tracking-[0.08em] shadow-[0_0_14px_rgba(239,68,68,0.18)] border border-[#FF8A8A]/35 animate-pulse top-4 right-4">
           COMING SOON
         </span>
       )}
       {badge && !comingSoon && (
-        <span className="absolute px-[10px] py-[4px] bg-[#C9B075]/20 text-[#C9B075] text-[10px] font-[1000] rounded-full tracking-[0.1em] border border-[#C9B075]/40 top-4 right-4">
+        <span className="absolute px-[10px] py-[4px] bg-[#D8BE78]/16 text-[#E1C982] text-[9px] font-[1000] rounded-full tracking-[0.12em] border border-[#D8BE78]/40 shadow-[0_0_12px_rgba(216,190,120,0.12)] top-4 right-4">
           {badge}
         </span>
       )}
-      <div className="text-[#C9B075] drop-shadow-[0_2px_8px_rgba(201,176,117,0.3)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
+      <div className="text-[#D8BE78] drop-shadow-[0_2px_10px_rgba(216,190,120,0.24)] transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1">
         {icon}
       </div>
-      <span className="font-bold text-[#C9B075]/80 tracking-wide text-center px-2 text-[16px]">
+      <span className="font-bold text-[#F1E7C4] tracking-wide text-center px-2 text-[16px]">
         {label}
       </span>
     </Link>
@@ -80,48 +77,18 @@ export default function Home() {
 
   return (
     <main 
-      className="min-h-screen bg-[#121212] px-5 pt-0 w-full max-w-[480px] mx-auto flex flex-col items-center overflow-x-hidden relative"
+      className="min-h-screen bg-[#181816] px-5 pt-0 w-full max-w-[480px] mx-auto flex flex-col items-center overflow-x-hidden relative"
       style={{ paddingBottom: '250px' }}
     >
       <div className="w-full max-w-[430px] mx-auto flex flex-col items-center">
-        
-        {/* Premium Status Header (v4.3 Visibility Lock) */}
-        {!isLoading && user && (
-          <div className="w-full flex items-center justify-between px-4 py-3 bg-[#1A1A1A]/60 backdrop-blur-xl rounded-2xl border border-white/10 mb-6 animate-in fade-in slide-in-from-top-2 duration-500">
-            <div className="flex items-center gap-3">
-              <ProfileAvatar 
-                uid={user.id} 
-                url={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-                size={40} 
-              />
-              <div className="flex flex-col">
-                <span className="text-white font-black text-[14px] tracking-tight">
-                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit mt-0.5 tracking-widest uppercase ${
-                  role === 'CEO' ? 'bg-[#C9B075] text-black' : 
-                  role === 'ADMIN' ? 'bg-blue-600 text-white' : 'bg-white/10 text-white/60'
-                }`}>
-                  {role}
-                </span>
-              </div>
-            </div>
-            <button 
-              onClick={() => signOut()}
-              className="text-[10px] font-black text-white/40 hover:text-red-500 transition-colors uppercase tracking-widest"
-            >
-              Sign Out
-            </button>
-          </div>
-        )}
 
         {/* Luxury Skeleton Loading State */}
         {isLoading && (
           <div className="w-full flex flex-col gap-6 animate-pulse">
-            <div className="w-full h-[60px] bg-[#1A1A1A]/40 rounded-xl mb-2"></div>
+            <div className="w-full h-[60px] bg-[#242323]/60 rounded-xl mb-2 border border-[#D8BE78]/10"></div>
             <div className="grid grid-cols-2 gap-6 w-full">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-[160px] bg-[#1A1A1A]/60 backdrop-blur-md rounded-[24px] border border-white/5 shadow-[0_4px_10px_rgba(232,225,55,0.05)]"></div>
+                <div key={i} className="h-[160px] bg-[#242323]/70 backdrop-blur-md rounded-[24px] border border-[#D8BE78]/10 shadow-[0_4px_12px_rgba(216,190,120,0.06)]"></div>
               ))}
             </div>
           </div>
@@ -129,21 +96,21 @@ export default function Home() {
 
         {/* Unauthenticated State - Center Login */}
         {!isLoading && !user && (
-          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-6 bg-gradient-to-b from-[#1A1A1A]/90 to-[#121212]/80 backdrop-blur-2xl rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] relative overflow-hidden">
-            <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#E8E137]/40 to-transparent"></div>
+          <div className="w-full flex flex-col items-center justify-center min-h-[40vh] px-6 py-12 mt-6 bg-gradient-to-b from-[#242323]/95 to-[#191917]/90 backdrop-blur-2xl rounded-[32px] border border-[#D8BE78]/12 shadow-[0_20px_40px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] relative overflow-hidden">
+            <div className="absolute top-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#D8BE78]/45 to-transparent"></div>
             
-            <p className="text-[16px] font-[900] text-gray-200 tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
+            <p className="text-[16px] font-[900] text-[#F1E7C4] tracking-[0.2em] mb-12 text-center font-['Rajdhani',sans-serif] drop-shadow-md">
               TEYEON에 오신 것을 환영합니다
             </p>
             
             <button 
               onClick={() => signInWithKakao()}
-              className="w-full max-w-[320px] py-5 rounded-full bg-gradient-to-r from-[#1A1A1A] to-[#121212] text-[#E8E137] text-[15px] font-[1000] tracking-widest border border-[#E8E137]/30 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(232,225,55,0.05)] transition-all hover:-translate-y-1 hover:border-[#E8E137]/80 hover:shadow-[0_15px_40px_rgba(232,225,55,0.2)] active:scale-[0.98] flex items-center justify-center gap-4 font-['Rajdhani',sans-serif]"
+              className="w-full max-w-[320px] py-5 rounded-full bg-gradient-to-r from-[#25231F] to-[#1B1A18] text-[#E1C982] text-[15px] font-[1000] tracking-widest border border-[#D8BE78]/35 shadow-[0_8px_30px_rgba(0,0,0,0.55),inset_0_0_20px_rgba(216,190,120,0.06)] transition-all hover:-translate-y-1 hover:border-[#D8BE78]/75 hover:shadow-[0_15px_40px_rgba(216,190,120,0.18)] active:scale-[0.98] flex items-center justify-center gap-4 font-['Rajdhani',sans-serif]"
             >
               <span className="text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">💬</span> 카카오 계정으로 접속
             </button>
             
-            <span className="text-[10px] text-gray-500 font-bold tracking-widest mt-8 uppercase font-['Rajdhani',sans-serif]">
+            <span className="text-[10px] text-[#A8A39A] font-bold tracking-widest mt-8 uppercase font-['Rajdhani',sans-serif]">
               Authorized Personnel Only
             </span>
           </div>
@@ -201,12 +168,12 @@ export default function Home() {
             <div className="w-full animate-in fade-in duration-1000">
               <Link 
                 href="/admin"
-                className="relative flex flex-row items-center justify-center bg-[#1A1A1A]/90 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#1A1A1A] hover:-translate-y-1 active:scale-[0.98] shadow-[0_8px_25px_rgba(0,0,0,0.6)] border border-white/5 group h-16 w-full"
+                className="relative flex flex-row items-center justify-center bg-[#242323]/95 backdrop-blur-md rounded-[24px] gap-4 transition-all duration-300 hover:bg-[#2B2926] hover:-translate-y-1 active:scale-[0.98] shadow-[0_10px_28px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.06)] border border-[#D8BE78]/12 group h-16 w-full"
               >
-                <div className="text-[#C9B075]/60 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#C9B075]">
+                <div className="text-[#D8BE78]/70 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#D8BE78]">
                   <Settings size={28} />
                 </div>
-                <span className="font-bold text-[#C9B075]/80 tracking-[0.2em] text-center text-[16px] uppercase font-['Rajdhani',sans-serif]">
+                <span className="font-bold text-[#F1E7C4] tracking-[0.2em] text-center text-[16px] uppercase font-['Rajdhani',sans-serif]">
                   관리자 설정
                 </span>
               </Link>
@@ -223,7 +190,7 @@ export default function Home() {
 
       {/* Toast Notification */}
       {(toast || systemMessage) && (
-        <div className="fixed bottom-[115px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] p-[16px] bg-[#E8E137] text-black font-black text-center rounded-xl z-[2000] shadow-[0_20px_50px_rgba(0,0,0,0.8)] font-['Rajdhani',sans-serif] tracking-wider text-[14px]">
+        <div className="fixed bottom-[115px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] p-[16px] bg-[#D8BE78] text-black font-black text-center rounded-xl z-[2000] shadow-[0_20px_50px_rgba(0,0,0,0.65)] font-['Rajdhani',sans-serif] tracking-wider text-[14px]">
           {toast || systemMessage}
         </div>
       )}
