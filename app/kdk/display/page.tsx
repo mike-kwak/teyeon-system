@@ -3,12 +3,13 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Match } from '@/lib/tournament_types';
+import { Match, Member } from '@/lib/tournament_types';
 
 const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
 
 type RealtimeStatus = 'IDLE' | 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED' | string;
 type RankingEntry = {
+  id: string;
   name: string;
   wins: number;
   losses: number;
@@ -16,6 +17,7 @@ type RankingEntry = {
   pointsAgainst: number;
   diff: number;
 };
+type PlayerLookup = Record<string, { name: string; isGuest: boolean }>;
 
 const formatClock = () => {
   return new Date().toLocaleTimeString('ko-KR', {
@@ -47,21 +49,44 @@ function mapMatch(row: any): Match {
   };
 }
 
-function playerName(match: Match, index: number) {
-  const raw = match.playerNames?.[index] || match.player_names?.[index] || match.playerIds?.[index] || '-';
-  return String(raw).replace(' (G)', ' G').replace(' g', ' G');
+function isLikelyId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    || /^[a-z0-9-]{18,}$/i.test(value);
 }
 
-function teamLabel(match: Match, startIndex: number) {
-  return `${playerName(match, startIndex)} / ${playerName(match, startIndex + 1)}`;
+function cleanPlayerName(value?: string) {
+  return String(value || '').trim().replace(' (G)', ' G').replace(' g', ' G');
 }
 
-function calculateLiveRanking(completedMatches: Match[]): RankingEntry[] {
+function playerName(match: Match, index: number, playerLookup: PlayerLookup) {
+  const playerId = match.playerIds?.[index] || '';
+  const lookup = playerId ? playerLookup[playerId] : null;
+  if (lookup?.name) return lookup.isGuest ? `${lookup.name} G` : lookup.name;
+
+  const storedName = cleanPlayerName(match.playerNames?.[index] || match.player_names?.[index]);
+  if (storedName && storedName !== playerId && !isLikelyId(storedName)) return storedName;
+
+  const teamIndex = index < 2 ? 0 : 1;
+  const teamPlayerIndex = index < 2 ? index : index - 2;
+  const teamName = cleanPlayerName(match.teams?.[teamIndex]?.[teamPlayerIndex]);
+  if (teamName && teamName !== playerId && !isLikelyId(teamName)) return teamName;
+
+  if (playerId?.startsWith('g-')) return storedName && !isLikelyId(storedName) ? `${storedName} G` : '게스트';
+  if (playerId && !isLikelyId(playerId)) return cleanPlayerName(playerId);
+  return '이름 확인중';
+}
+
+function teamLabel(match: Match, startIndex: number, playerLookup: PlayerLookup) {
+  return `${playerName(match, startIndex, playerLookup)} / ${playerName(match, startIndex + 1, playerLookup)}`;
+}
+
+function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLookup): RankingEntry[] {
   const rankingMap = new Map<string, RankingEntry>();
 
-  const ensurePlayer = (name: string) => {
-    if (!rankingMap.has(name)) {
-      rankingMap.set(name, {
+  const ensurePlayer = (id: string, name: string) => {
+    if (!rankingMap.has(id)) {
+      rankingMap.set(id, {
+        id,
         name,
         wins: 0,
         losses: 0,
@@ -70,7 +95,9 @@ function calculateLiveRanking(completedMatches: Match[]): RankingEntry[] {
         diff: 0,
       });
     }
-    return rankingMap.get(name)!;
+    const player = rankingMap.get(id)!;
+    player.name = name;
+    return player;
   };
 
   completedMatches.forEach((match) => {
@@ -78,12 +105,16 @@ function calculateLiveRanking(completedMatches: Match[]): RankingEntry[] {
     const score2 = Number(match.score2 ?? 0);
     if (score1 === score2) return;
 
-    const team1 = [playerName(match, 0), playerName(match, 1)].filter((name) => name && name !== '-');
-    const team2 = [playerName(match, 2), playerName(match, 3)].filter((name) => name && name !== '-');
+    const team1 = [0, 1]
+      .map((index) => ({ id: match.playerIds?.[index] || `${match.id}-${index}`, name: playerName(match, index, playerLookup) }))
+      .filter((player) => player.name && player.name !== '-');
+    const team2 = [2, 3]
+      .map((index) => ({ id: match.playerIds?.[index] || `${match.id}-${index}`, name: playerName(match, index, playerLookup) }))
+      .filter((player) => player.name && player.name !== '-');
     const team1Won = score1 > score2;
 
-    team1.forEach((name) => {
-      const player = ensurePlayer(name);
+    team1.forEach(({ id, name }) => {
+      const player = ensurePlayer(id, name);
       player.wins += team1Won ? 1 : 0;
       player.losses += team1Won ? 0 : 1;
       player.pointsFor += score1;
@@ -91,8 +122,8 @@ function calculateLiveRanking(completedMatches: Match[]): RankingEntry[] {
       player.diff = player.pointsFor - player.pointsAgainst;
     });
 
-    team2.forEach((name) => {
-      const player = ensurePlayer(name);
+    team2.forEach(({ id, name }) => {
+      const player = ensurePlayer(id, name);
       player.wins += team1Won ? 0 : 1;
       player.losses += team1Won ? 1 : 0;
       player.pointsFor += score2;
@@ -109,7 +140,7 @@ function calculateLiveRanking(completedMatches: Match[]): RankingEntry[] {
   });
 }
 
-function CourtCard({ court, match }: { court: number; match?: Match }) {
+function CourtCard({ court, match, playerLookup }: { court: number; match?: Match; playerLookup: PlayerLookup }) {
   const groupName = match?.groupName || match?.group || 'A';
 
   return (
@@ -142,13 +173,13 @@ function CourtCard({ court, match }: { court: number; match?: Match }) {
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
               <div className="rounded-[16px] border border-white/10 bg-white/[0.06] p-2.5 text-center">
                 <p className="text-[clamp(18px,1.7vw,28px)] font-black leading-tight text-white">
-                  {teamLabel(match, 0)}
+                  {teamLabel(match, 0, playerLookup)}
                 </p>
               </div>
               <div className="text-[13px] font-black uppercase tracking-[0.22em] text-[#D8BE78]/70">vs</div>
               <div className="rounded-[16px] border border-white/10 bg-white/[0.06] p-2.5 text-center">
                 <p className="text-[clamp(18px,1.7vw,28px)] font-black leading-tight text-white">
-                  {teamLabel(match, 2)}
+                  {teamLabel(match, 2, playerLookup)}
                 </p>
               </div>
             </div>
@@ -169,7 +200,7 @@ function CourtCard({ court, match }: { court: number; match?: Match }) {
   );
 }
 
-function CompactMatch({ match, index }: { match: Match; index: number }) {
+function CompactMatch({ match, index, playerLookup }: { match: Match; index: number; playerLookup: PlayerLookup }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.05] p-2.5">
       <div className="mb-1.5 flex items-center justify-between">
@@ -180,21 +211,21 @@ function CompactMatch({ match, index }: { match: Match; index: number }) {
           {match.groupName || match.group || 'A'}
         </span>
       </div>
-      <p className="truncate text-[14px] font-black text-white">{teamLabel(match, 0)}</p>
-      <p className="mt-1 truncate text-[14px] font-black text-white/80">{teamLabel(match, 2)}</p>
+      <p className="truncate text-[14px] font-black text-white">{teamLabel(match, 0, playerLookup)}</p>
+      <p className="mt-1 truncate text-[14px] font-black text-white/80">{teamLabel(match, 2, playerLookup)}</p>
     </div>
   );
 }
 
-function CompletedMiniCard({ match }: { match: Match }) {
+function CompletedMiniCard({ match, playerLookup }: { match: Match; playerLookup: PlayerLookup }) {
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.05] p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#D8BE78]/70">R{match.round || '-'}</span>
         <span className="shrink-0 text-[22px] font-black leading-none text-[#D8BE78]">{match.score1 ?? 0}:{match.score2 ?? 0}</span>
       </div>
-      <p className="truncate text-[12px] font-black text-white/75">{teamLabel(match, 0)}</p>
-      <p className="mt-1 truncate text-[12px] font-black text-white/45">{teamLabel(match, 2)}</p>
+      <p className="truncate text-[12px] font-black text-white/75">{teamLabel(match, 0, playerLookup)}</p>
+      <p className="mt-1 truncate text-[12px] font-black text-white/45">{teamLabel(match, 2, playerLookup)}</p>
     </div>
   );
 }
@@ -203,6 +234,7 @@ function KdkDisplayBoard() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session') || '';
   const [matches, setMatches] = useState<Match[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [sessionTitle, setSessionTitle] = useState('');
   const [clock, setClock] = useState(formatClock);
   const [loading, setLoading] = useState(true);
@@ -210,6 +242,21 @@ function KdkDisplayBoard() {
   const [lastSync, setLastSync] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('IDLE');
   const [resolvedSessionId, setResolvedSessionId] = useState('');
+
+  const fetchMembers = async () => {
+    try {
+      let query = supabase.from('members').select('*');
+      if (CLUB_ID) query = query.eq('club_id', CLUB_ID);
+
+      const { data, error: membersError } = await query;
+      if (membersError) throw membersError;
+
+      setMembers(data || []);
+      console.log('[KDK Display] members loaded:', { count: data?.length || 0 });
+    } catch (err) {
+      console.error('[KDK Display] fetchMembers failed:', err);
+    }
+  };
 
   const fetchMatches = async (targetSessionId: string) => {
     if (!targetSessionId) {
@@ -290,6 +337,10 @@ function KdkDisplayBoard() {
   }, []);
 
   useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  useEffect(() => {
     fetchMatches(sessionId);
   }, [sessionId]);
 
@@ -339,7 +390,20 @@ function KdkDisplayBoard() {
     return matches.filter((match) => match.status === 'complete').sort(sortMatches).reverse();
   }, [matches]);
 
-  const liveRanking = useMemo(() => calculateLiveRanking(completedMatches), [completedMatches]);
+  const playerLookup = useMemo(() => {
+    return members.reduce<PlayerLookup>((acc, member: any) => {
+      const name = String(member.nickname || member.name || '').trim();
+      if (member.id && name) {
+        acc[String(member.id)] = {
+          name,
+          isGuest: member.is_guest === true || member.isGuest === true || String(member.id).startsWith('g-'),
+        };
+      }
+      return acc;
+    }, {});
+  }, [members]);
+
+  const liveRanking = useMemo(() => calculateLiveRanking(completedMatches, playerLookup), [completedMatches, playerLookup]);
   const playingCount = matches.filter((match) => match.status === 'playing').length;
   const statusLabel = realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : realtimeStatus;
 
@@ -381,7 +445,7 @@ function KdkDisplayBoard() {
 
             <div className="grid min-h-0 grid-cols-2 grid-rows-2 gap-4">
               {[1, 2, 3, 4].map((court) => (
-                <CourtCard key={court} court={court} match={playingByCourt.get(court)} />
+                <CourtCard key={court} court={court} match={playingByCourt.get(court)} playerLookup={playerLookup} />
               ))}
             </div>
 
@@ -393,7 +457,7 @@ function KdkDisplayBoard() {
               {completedMatches.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
                   {completedMatches.slice(0, 4).map((match) => (
-                    <CompletedMiniCard key={match.id} match={match} />
+                    <CompletedMiniCard key={match.id} match={match} playerLookup={playerLookup} />
                   ))}
                 </div>
               ) : (
@@ -433,7 +497,7 @@ function KdkDisplayBoard() {
               </div>
               <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
                 {waitingMatches.slice(0, 5).map((match, index) => (
-                  <CompactMatch key={match.id} match={match} index={index} />
+                  <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} />
                 ))}
                 {!loading && waitingMatches.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-[13px] font-black uppercase tracking-[0.22em] text-white/35">
