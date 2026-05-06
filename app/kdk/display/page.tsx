@@ -209,18 +209,20 @@ function KdkDisplayBoard() {
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('IDLE');
+  const [resolvedSessionId, setResolvedSessionId] = useState('');
 
   const fetchMatches = async (targetSessionId: string) => {
     if (!targetSessionId) {
       setMatches([]);
       setLoading(false);
       setError('Missing session query.');
+      setResolvedSessionId('');
       return;
     }
 
     try {
       setError(null);
-      const { data, error: fetchError } = await supabase
+      const { data: sessionData, error: sessionError } = await supabase
         .from('matches')
         .select('*')
         .eq('club_id', CLUB_ID)
@@ -228,9 +230,49 @@ function KdkDisplayBoard() {
         .order('round', { ascending: true })
         .order('court', { ascending: true });
 
-      if (fetchError) throw fetchError;
+      if (sessionError) throw sessionError;
 
-      const nextMatches = (data || []).map(mapMatch).sort(sortMatches);
+      console.log('[KDK Display] fetchMatches by session_id:', {
+        targetSessionId,
+        count: sessionData?.length || 0,
+      });
+
+      let data = sessionData || [];
+      let nextResolvedSessionId = data[0]?.session_id || targetSessionId;
+
+      if (data.length === 0) {
+        const { data: titleData, error: titleError } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('club_id', CLUB_ID)
+          .eq('session_title', targetSessionId)
+          .order('round', { ascending: true })
+          .order('court', { ascending: true });
+
+        if (titleError) throw titleError;
+
+        console.log('[KDK Display] fetchMatches by session_title:', {
+          targetSessionId,
+          count: titleData?.length || 0,
+          resolvedSessionId: titleData?.[0]?.session_id || '',
+        });
+
+        data = titleData || [];
+        nextResolvedSessionId = data[0]?.session_id || targetSessionId;
+      }
+
+      if (data.length === 0) {
+        const message = `No matches found for session "${targetSessionId}". Checked matches.session_id and matches.session_title.`;
+        console.warn('[KDK Display] no matches found:', {
+          targetSessionId,
+          clubId: CLUB_ID,
+          checkedColumns: ['session_id', 'session_title'],
+        });
+        setError(message);
+      }
+
+      const nextMatches = data.map(mapMatch).sort(sortMatches);
+      setResolvedSessionId(nextResolvedSessionId);
       setMatches(nextMatches);
       setSessionTitle(data?.[0]?.session_title || targetSessionId);
       setLastSync(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
@@ -255,6 +297,7 @@ function KdkDisplayBoard() {
     if (!sessionId) return;
 
     const realtimeFilter = `club_id=eq.${CLUB_ID}`;
+    const activeRealtimeSessionId = resolvedSessionId || sessionId;
     const channel = supabase.channel(`kdk-display-${CLUB_ID}-${sessionId}`)
       .on('postgres_changes', {
         event: '*',
@@ -263,8 +306,9 @@ function KdkDisplayBoard() {
         filter: realtimeFilter,
       }, (payload: any) => {
         const payloadSessionId = payload.new?.session_id || payload.old?.session_id;
-        if (payloadSessionId === sessionId) {
-          fetchMatches(sessionId);
+        const payloadSessionTitle = payload.new?.session_title || payload.old?.session_title;
+        if (payloadSessionId === activeRealtimeSessionId || payloadSessionTitle === sessionId) {
+          fetchMatches(activeRealtimeSessionId);
         }
       })
       .subscribe((status) => {
@@ -275,7 +319,7 @@ function KdkDisplayBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sessionId]);
+  }, [sessionId, resolvedSessionId]);
 
   const playingByCourt = useMemo(() => {
     const map = new Map<number, Match>();
