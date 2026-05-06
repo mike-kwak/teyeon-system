@@ -261,6 +261,16 @@ function KdkDisplayBoard() {
         nextResolvedSessionId = data[0]?.session_id || targetSessionId;
       }
 
+      if (data.length === 0) {
+        const message = `No matches found for session "${targetSessionId}". Checked matches.session_id and matches.session_title.`;
+        console.warn('[KDK Display] no matches found:', {
+          targetSessionId,
+          clubId: CLUB_ID,
+          checkedColumns: ['session_id', 'session_title'],
+        });
+        setError(message);
+      }
+
       const nextMatches = data.map(mapMatch).sort(sortMatches);
       setResolvedSessionId(nextResolvedSessionId);
       setMatches(nextMatches);
