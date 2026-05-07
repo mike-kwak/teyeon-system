@@ -1866,6 +1866,17 @@ export default function KDKPage() {
                                     <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Paste Matches</span>
                                     <h2 className="mt-1 text-xl font-black text-white">대진 붙여넣기</h2>
                                 </div>
+                                <div className="mb-4 rounded-[16px] border border-[#C9B075]/20 bg-black/30 p-3">
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#C9B075]">입력 예시</span>
+                                        <span className="text-[9px] font-bold text-white/35">탭 구분 텍스트 지원</span>
+                                    </div>
+                                    <pre className="whitespace-pre-wrap break-keep text-[11px] font-bold leading-relaxed text-white/55">
+{`1 봉준/상윤 vs 영호/광현 19:00
+2 현민/영우 vs 진희/효철 19:00
+1    봉준    상윤    영호    광현    19:00`}
+                                    </pre>
+                                </div>
                                 <textarea
                                     value={manualPasteText}
                                     onChange={(e) => {
@@ -1873,7 +1884,7 @@ export default function KDKPage() {
                                         setManualNameOverrides({});
                                     }}
                                     className="min-h-[160px] w-full resize-y rounded-[18px] border border-white/10 bg-black/35 px-4 py-4 text-[13px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50"
-                                    placeholder={"1 봉준/상윤 vs 영호/광현 19:00\n2 현민/영우 vs 진희/효철 19:00\n\n1\t봉준\t상윤\t영호\t광현\t19:00"}
+                                    placeholder={"예: 1 봉준/상윤 vs 영호/광현 19:00"}
                                 />
                             </div>
 
@@ -2042,7 +2053,14 @@ export default function KDKPage() {
                             <button
                                 type="button"
                                 onClick={() => setManualStep('RULES')}
-                                className="w-full rounded-full border border-[#C9B075]/40 bg-[#C9B075] px-5 py-4 text-[12px] font-black uppercase tracking-[0.16em] text-black shadow-[0_12px_30px_rgba(201,176,117,0.25)] transition-all active:scale-[0.98]"
+                                className="flex min-h-[54px] w-full items-center justify-center rounded-[18px] px-5 text-[14px] font-black uppercase tracking-[0.12em] transition-all active:scale-[0.98]"
+                                style={{
+                                    background: 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)',
+                                    color: '#050505',
+                                    border: '1px solid rgba(255,232,150,0.9)',
+                                    boxShadow: '0 0 24px rgba(247,215,122,0.38), 0 14px 34px rgba(0,0,0,0.35)',
+                                    WebkitTextFillColor: '#050505',
+                                }}
                             >
                                 다음: 룰 설정
                             </button>
