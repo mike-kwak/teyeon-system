@@ -183,6 +183,10 @@ export default function KDKPage() {
         }
     };
 
+    const getPlayingPlayerIdsInMatch = (match: Match) => {
+        return (match.playerIds || []).filter((playerId) => busyPlayerIds.has(playerId));
+    };
+
     const findNextAvailableTitle = async () => {
         const d = new Date();
         const yy = String(d.getFullYear()).slice(-2);
@@ -2318,8 +2322,11 @@ export default function KDKPage() {
                                                                         return a.id.localeCompare(b.id);
                                                                     });
                                                                     const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
+                                                                    const playingPlayerIdsInMatch = getPlayingPlayerIdsInMatch(m);
+                                                                    const hasConflict = busyPlayerIds.has(m.playerIds[0]) || busyPlayerIds.has(m.playerIds[1]) || busyPlayerIds.has(m.playerIds[2]) || busyPlayerIds.has(m.playerIds[3]);
 
                                                                     return (
+                                                                        <div key={m.id} className={`relative rounded-2xl ${playingPlayerIdsInMatch.length > 0 ? 'ring-1 ring-red-500/25 shadow-[0_0_18px_rgba(239,68,68,0.16)]' : ''}`}>
                                                                         <WaitingMatchCard 
                                                                             key={m.id}
                                                                             match={m}
@@ -2328,12 +2335,40 @@ export default function KDKPage() {
                                                                             getPlayerName={getPlayerName}
                                                                             isAdmin={isAdmin && adminModeManual}
                                                                             isStartingMatch={isStartingMatch}
-                                                                            hasConflict={busyPlayerIds.has(m.playerIds[0]) || busyPlayerIds.has(m.playerIds[1]) || busyPlayerIds.has(m.playerIds[2]) || busyPlayerIds.has(m.playerIds[3])}
+                                                                            hasConflict={hasConflict}
                                                                             onStart={(id) => {
                                                                                 if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드에서만 가능합니다.");
                                                                                 startMatch(id);
                                                                             }}
                                                                         />
+                                                                            {playingPlayerIdsInMatch.length > 0 && (
+                                                                                <div className="pointer-events-none absolute left-[58px] right-[86px] top-[18px] z-20 grid grid-cols-[1fr_18px_1fr] items-start">
+                                                                                    <div className="grid grid-cols-2 gap-1 px-1">
+                                                                                        {[0, 1].map((playerIndex) => (
+                                                                                            <div key={playerIndex} className="flex justify-center">
+                                                                                                {busyPlayerIds.has(m.playerIds[playerIndex]) && (
+                                                                                                    <span className="rounded-full border border-red-400/45 bg-red-500/22 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-50 shadow-[0_0_10px_rgba(239,68,68,0.32)]">
+                                                                                                        LIVE
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                    <div />
+                                                                                    <div className="grid grid-cols-2 gap-1 px-1">
+                                                                                        {[2, 3].map((playerIndex) => (
+                                                                                            <div key={playerIndex} className="flex justify-center">
+                                                                                                {busyPlayerIds.has(m.playerIds[playerIndex]) && (
+                                                                                                    <span className="rounded-full border border-red-400/45 bg-red-500/22 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-50 shadow-[0_0_10px_rgba(239,68,68,0.32)]">
+                                                                                                        LIVE
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                     );
                                                                 })}
                                                             </div>
