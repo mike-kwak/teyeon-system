@@ -80,28 +80,86 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations()
-                  .then(function(registrations) {
-                    registrations.forEach(function(registration) {
-                      registration.unregister();
+              (function() {
+                var cleanupKey = 'teyeon_sw_cleanup_v2';
+                var reloadKey = 'teyeon_sw_cleanup_reload_v2';
+                var shouldLog = false;
+
+                try {
+                  shouldLog = !sessionStorage.getItem(cleanupKey);
+                } catch (error) {
+                  shouldLog = true;
+                }
+
+                function markCleanupDone() {
+                  try {
+                    sessionStorage.setItem(cleanupKey, 'done');
+                  } catch (error) {}
+                }
+
+                function hasReloaded() {
+                  try {
+                    return sessionStorage.getItem(reloadKey) === 'done';
+                  } catch (error) {
+                    return true;
+                  }
+                }
+
+                function markReloaded() {
+                  try {
+                    sessionStorage.setItem(reloadKey, 'done');
+                  } catch (error) {}
+                }
+
+                var serviceWorkerCleanup = Promise.resolve(0);
+                var cacheCleanup = Promise.resolve(0);
+
+                if ('serviceWorker' in navigator) {
+                  serviceWorkerCleanup = navigator.serviceWorker.getRegistrations()
+                    .then(function(registrations) {
+                      return Promise.all(registrations.map(function(registration) {
+                        return registration.unregister();
+                      })).then(function() {
+                        return registrations.length;
+                      });
                     });
+                }
+
+                if ('caches' in window) {
+                  cacheCleanup = caches.keys()
+                    .then(function(keys) {
+                      return Promise.all(keys.map(function(key) {
+                        return caches.delete(key);
+                      })).then(function() {
+                        return keys.length;
+                      });
+                    });
+                }
+
+                Promise.all([serviceWorkerCleanup, cacheCleanup])
+                  .then(function(results) {
+                    var registrationCount = results[0];
+                    var cacheCount = results[1];
+                    var hadController = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+
+                    if (shouldLog && (registrationCount > 0 || cacheCount > 0 || hadController)) {
+                      console.info('[PWA Cleanup] Service Worker cleanup requested');
+                      if (registrationCount > 0) console.info('[PWA Cleanup] Service Worker unregistered', registrationCount);
+                      if (cacheCount > 0) console.info('[PWA Cleanup] Cache storage cleared', cacheCount);
+                    }
+
+                    markCleanupDone();
+
+                    if ((registrationCount > 0 || cacheCount > 0 || hadController) && !hasReloaded()) {
+                      markReloaded();
+                      window.location.reload();
+                    }
                   })
                   .catch(function(error) {
-                    console.warn('[PWA] Service worker cleanup failed:', error);
+                    console.warn('[PWA Cleanup] Cleanup failed:', error);
+                    markCleanupDone();
                   });
-              }
-              if ('caches' in window) {
-                caches.keys()
-                  .then(function(keys) {
-                    return Promise.all(keys.map(function(key) {
-                      return caches.delete(key);
-                    }));
-                  })
-                  .catch(function(error) {
-                    console.warn('[PWA] Cache cleanup failed:', error);
-                  });
-              }
+              })();
             `,
           }}
         />

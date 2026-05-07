@@ -1,14 +1,4 @@
 import type { NextConfig } from "next";
-import withPWAInit from "@ducanh2912/next-pwa";
-
-const withPWA = withPWAInit({
-  dest: "public",
-  disable: true,
-  workboxOptions: {
-    skipWaiting: true,
-    clientsClaim: true,
-  },
-});
 
 const nextConfig: NextConfig = {
   // Ignore lint and type errors to allow deployment of connectivity fixes
@@ -54,4 +44,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;
