@@ -257,20 +257,52 @@ function CourtCard({ court, match, playerLookup }: { court: number; match?: Matc
   );
 }
 
-function CompactMatch({ match, index, playerLookup }: { match: Match; index: number; playerLookup: PlayerLookup }) {
+function CompactMatch({ match, index, playerLookup, playingPlayerIds }: { match: Match; index: number; playerLookup: PlayerLookup; playingPlayerIds: Set<string> }) {
+  const hasActivePlayer = (match.playerIds || []).some((playerId) => playingPlayerIds.has(playerId));
+  const renderPlayer = (playerIndex: number) => {
+    const playerId = match.playerIds?.[playerIndex] || '';
+    const isPlaying = !!playerId && playingPlayerIds.has(playerId);
+
+    return (
+      <span className="flex min-w-0 flex-col items-center justify-end gap-0.5">
+        {isPlaying && (
+          <span className="rounded-full border border-red-400/50 bg-red-500/20 px-1.5 py-0.5 text-[7px] font-black uppercase leading-none tracking-[0.08em] text-red-100 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+            LIVE
+          </span>
+        )}
+        {!isPlaying && <span className="h-[11px]" />}
+        <span className="max-w-full truncate">{playerName(match, playerIndex, playerLookup)}</span>
+      </span>
+    );
+  };
+
   return (
-    <div className="relative min-h-[78px] overflow-hidden rounded-[16px] border border-[#D8BE78]/26 bg-[linear-gradient(135deg,#11110F,rgba(216,190,120,0.065)_55%,#080808)] px-4 py-3.5 shadow-[0_9px_20px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.085)]">
+    <div className={`relative min-h-[78px] overflow-hidden rounded-[16px] border px-4 py-3.5 shadow-[0_9px_20px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.085)] ${
+      hasActivePlayer
+        ? 'border-red-400/42 bg-[linear-gradient(135deg,#140D0D,rgba(239,68,68,0.085)_46%,#080808)]'
+        : 'border-[#D8BE78]/26 bg-[linear-gradient(135deg,#11110F,rgba(216,190,120,0.065)_55%,#080808)]'
+    }`}>
       <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/66 to-transparent" />
-      <div className="absolute inset-y-3 left-0 w-px bg-gradient-to-b from-transparent via-[#FFD66B]/28 to-transparent" />
+      <div className={`absolute inset-y-3 left-0 w-px bg-gradient-to-b from-transparent ${
+        hasActivePlayer
+          ? 'via-red-400/72 to-transparent shadow-[0_0_12px_rgba(239,68,68,0.48)]'
+          : 'via-[#FFD66B]/28 to-transparent'
+      }`} />
       <div className="grid grid-cols-[40px_minmax(0,1fr)_44px_minmax(0,1fr)] items-center gap-3.5">
         <span className="flex h-8 w-8 items-center justify-center rounded-md border border-[#D8BE78]/32 bg-[#D8BE78]/13 text-[13px] font-black text-[#FFD66B] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
           {String(index + 1).padStart(2, '0')}
         </span>
-        <p className="min-w-0 break-keep text-right text-[clamp(14px,0.86vw,17px)] font-black leading-snug text-white [overflow-wrap:anywhere]">{teamLabel(match, 0, playerLookup)}</p>
+        <div className="grid min-w-0 grid-cols-2 items-end gap-2 break-keep text-center text-[clamp(14px,0.86vw,17px)] font-black leading-snug text-white [overflow-wrap:anywhere]">
+          {renderPlayer(0)}
+          {renderPlayer(1)}
+        </div>
         <span className="flex h-8 w-8 items-center justify-center justify-self-center rounded-full border border-[#D8BE78]/38 bg-black/76 text-[9px] font-black text-[#FFD66B]">
           VS
         </span>
-        <p className="min-w-0 break-keep text-[clamp(14px,0.86vw,17px)] font-black leading-snug text-white/90 [overflow-wrap:anywhere]">{teamLabel(match, 2, playerLookup)}</p>
+        <div className="grid min-w-0 grid-cols-2 items-end gap-2 break-keep text-center text-[clamp(14px,0.86vw,17px)] font-black leading-snug text-white/90 [overflow-wrap:anywhere]">
+          {renderPlayer(2)}
+          {renderPlayer(3)}
+        </div>
       </div>
       <div className="ml-[54px] mt-2 inline-flex rounded-full border border-[#D8BE78]/16 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/44">
         R{match.round || '-'} - Group {match.groupName || match.group || 'A'}
@@ -456,6 +488,18 @@ function KdkDisplayBoard() {
     return map;
   }, [matches]);
 
+  const playingPlayerIds = useMemo(() => {
+    const ids = new Set<string>();
+    matches
+      .filter((match) => match.status === 'playing')
+      .forEach((match) => {
+        (match.playerIds || []).forEach((playerId) => {
+          if (playerId) ids.add(playerId);
+        });
+      });
+    return ids;
+  }, [matches]);
+
   const waitingMatches = useMemo(() => {
     return matches.filter((match) => match.status === 'waiting').sort(sortMatches);
   }, [matches]);
@@ -607,7 +651,7 @@ function KdkDisplayBoard() {
               </div>
               <div className="min-h-0 flex-1 space-y-2.5 overflow-hidden">
                 {waitingMatches.slice(0, 5).map((match, index) => (
-                  <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} />
+                  <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} playingPlayerIds={playingPlayerIds} />
                 ))}
                 {!loading && waitingMatches.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-[#D8BE78]/18 bg-white/[0.025] py-12 text-center text-[13px] font-black uppercase tracking-[0.22em] text-white/38">
