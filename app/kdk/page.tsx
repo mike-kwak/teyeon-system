@@ -64,6 +64,7 @@ export default function KDKPage() {
     const [step, setStep] = useState(0);
     const [generationMode, setGenerationMode] = useState<'AUTO' | 'MANUAL' | null>(null);
     const [manualInputMode, setManualInputMode] = useState<'PASTE' | 'DIRECT' | 'OCR' | null>(null);
+    const [manualStep, setManualStep] = useState<'INPUT' | 'MATCH_NAMES' | 'RULES'>('INPUT');
     const [syncTick, setSyncTick] = useState(0);
     const [adminModeManual, setAdminModeManual] = useState(true); // [v35.11] Admin UI Visibility Toggle
 
@@ -106,6 +107,7 @@ export default function KDKPage() {
     const [matchRules, setMatchRules] = useState("1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승");
 
     const [manualPasteText, setManualPasteText] = useState("");
+    const [manualNameOverrides, setManualNameOverrides] = useState<Record<string, string>>({});
 
     const [firstPrize, setFirstPrize] = useState(10000);
     const [bottom25Late, setBottom25Late] = useState(3000);
@@ -497,6 +499,9 @@ export default function KDKPage() {
                 setGenerationMode('AUTO');
             }
             if (data.manualInputMode) setManualInputMode(data.manualInputMode);
+            if (data.manualStep) setManualStep(data.manualStep);
+            if (data.manualPasteText) setManualPasteText(data.manualPasteText);
+            if (data.manualNameOverrides) setManualNameOverrides(data.manualNameOverrides || {});
             if (data.sessionTitle) setSessionTitle(data.sessionTitle);
             if (data.sessionId) setSessionId(data.sessionId);
 
@@ -585,7 +590,7 @@ export default function KDKPage() {
 
     // Save to LocalStorage
     useEffect(() => {
-        if (step > 1 || selectedIds.size > 0) {
+        if (step > 1 || selectedIds.size > 0 || generationMode === 'MANUAL') {
             const data = {
                 matches,
                 attendeeConfigs,
@@ -594,12 +599,15 @@ export default function KDKPage() {
                 step,
                 generationMode,
                 manualInputMode,
+                manualStep,
+                manualPasteText,
+                manualNameOverrides,
                 sessionTitle,
                 sessionId
             };
             localStorage.setItem('kdk_live_session', JSON.stringify(data));
         }
-    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, sessionTitle, sessionId]);
+    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, manualStep, manualPasteText, manualNameOverrides, sessionTitle, sessionId]);
 
     // Independent Score Buffer for Active Modal
     useEffect(() => {
@@ -1617,6 +1625,85 @@ export default function KDKPage() {
 
     const manualPastePreview = useMemo(() => parseManualPasteMatches(manualPasteText), [manualPasteText]);
 
+    type ManualNameMatch = {
+        originalName: string;
+        selectedValue: string;
+        memberId: string | null;
+        displayName: string;
+        status: 'MEMBER' | 'GUEST';
+        guestKey: string;
+        candidates: Member[];
+    };
+
+    const normalizeManualName = (name: string) => name.trim().replace(/\s+/g, '').toLowerCase();
+    const getManualMemberName = (member: Member) => member.nickname || (member as any).name || 'Unknown';
+
+    const manualPlayerNames = useMemo(() => {
+        const seen = new Set<string>();
+        const names: string[] = [];
+
+        manualPastePreview.forEach(row => {
+            [...row.teamA, ...row.teamB].forEach(name => {
+                const trimmed = name.trim();
+                const key = normalizeManualName(trimmed);
+                if (!trimmed || seen.has(key)) return;
+                seen.add(key);
+                names.push(trimmed);
+            });
+        });
+
+        return names;
+    }, [manualPastePreview]);
+
+    const manualNameMatches = useMemo<ManualNameMatch[]>(() => {
+        const memberPool = [...allMembers, ...tempGuests];
+
+        const findCandidates = (rawName: string) => {
+            const target = normalizeManualName(rawName);
+            const exact = memberPool.filter(member => normalizeManualName(getManualMemberName(member)) === target);
+            const partial = memberPool.filter(member => {
+                const memberName = normalizeManualName(getManualMemberName(member));
+                return memberName !== target && (memberName.includes(target) || target.includes(memberName));
+            });
+            const byId = new Map<string, Member>();
+            [...exact, ...partial].forEach(member => byId.set(member.id, member));
+            return Array.from(byId.values());
+        };
+
+        return manualPlayerNames.map(originalName => {
+            const candidates = findCandidates(originalName);
+            const override = manualNameOverrides[originalName];
+            const selectedMember = override && override !== 'guest'
+                ? memberPool.find(member => member.id === override)
+                : candidates[0];
+            const useGuest = override === 'guest' || !selectedMember;
+            const guestKey = `manual-guest-${normalizeManualName(originalName) || originalName}`;
+
+            return {
+                originalName,
+                selectedValue: useGuest ? 'guest' : selectedMember.id,
+                memberId: useGuest ? null : selectedMember.id,
+                displayName: useGuest ? `${originalName}(G)` : getManualMemberName(selectedMember),
+                status: useGuest ? 'GUEST' : 'MEMBER',
+                guestKey,
+                candidates,
+            };
+        });
+    }, [allMembers, tempGuests, manualPlayerNames, manualNameOverrides]);
+
+    const manualNameMatchMap = useMemo(() => {
+        const map = new Map<string, ManualNameMatch>();
+        manualNameMatches.forEach(match => map.set(normalizeManualName(match.originalName), match));
+        return map;
+    }, [manualNameMatches]);
+
+    const getManualResolvedName = (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return '확인 필요';
+        const match = manualNameMatchMap.get(normalizeManualName(trimmed));
+        return match?.displayName || trimmed;
+    };
+
 
     // --- Step 0: Generation Mode Selection ---
     if (step === 0) {
@@ -1661,6 +1748,7 @@ export default function KDKPage() {
                         onClick={() => {
                             setGenerationMode('MANUAL');
                             setManualInputMode(null);
+                            setManualStep('INPUT');
                             setStep(1);
                         }}
                         className="group rounded-[32px] border border-white/10 bg-white/[0.04] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
@@ -1683,17 +1771,25 @@ export default function KDKPage() {
 
     // --- Manual Configuration Flow ---
     if (step === 1 && generationMode === 'MANUAL') {
+        const manualPasteMatchCount = manualPastePreview.length;
+        const canProceedToNameMatching = manualInputMode === 'PASTE' && manualStep === 'INPUT' && manualPasteMatchCount > 0;
+
         return (
-            <main className="flex min-h-screen w-full flex-col bg-black px-6 py-6 text-white font-sans">
+            <main className="flex min-h-screen w-full flex-col overflow-y-auto bg-black px-6 py-6 text-white font-sans">
                 <header className="grid h-12 grid-cols-3 items-center">
                     <div className="flex items-center">
                         <button
                             type="button"
                             onClick={() => {
                                 if (manualInputMode) {
-                                    setManualInputMode(null);
+                                    if (manualStep !== 'INPUT') {
+                                        setManualStep('INPUT');
+                                    } else {
+                                        setManualInputMode(null);
+                                    }
                                 } else {
                                     setGenerationMode(null);
+                                    setManualStep('INPUT');
                                     setStep(0);
                                 }
                             }}
@@ -1713,13 +1809,16 @@ export default function KDKPage() {
                     <div />
                 </header>
 
-                <section className="mx-auto mt-8 w-full max-w-lg space-y-4 pb-12">
+                <section className="mx-auto mt-8 w-full max-w-lg space-y-4 pb-40">
                     {!manualInputMode && (
                         <>
                             <button
                                 type="button"
-                                onClick={() => setManualInputMode('PASTE')}
-                                className="w-full rounded-[30px] border border-[#C9B075]/35 bg-[#171717] p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.3)] transition-all active:scale-[0.98]"
+                                onClick={() => {
+                                    setManualInputMode('PASTE');
+                                    setManualStep('INPUT');
+                                }}
+                                className="w-full rounded-[24px] border border-[#C9B075]/35 bg-[#171717] p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.3)] transition-all active:scale-[0.98]"
                             >
                                 <div className="mb-6 flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]">Preview Ready</span>
@@ -1734,8 +1833,11 @@ export default function KDKPage() {
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => setManualInputMode('DIRECT')}
-                                    className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
+                                    onClick={() => {
+                                        setManualInputMode('DIRECT');
+                                        setManualStep('INPUT');
+                                    }}
+                                    className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
                                 >
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
                                     <h3 className="mt-4 text-base font-black text-white">직접 만들기</h3>
@@ -1743,8 +1845,11 @@ export default function KDKPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setManualInputMode('OCR')}
-                                    className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
+                                    onClick={() => {
+                                        setManualInputMode('OCR');
+                                        setManualStep('INPUT');
+                                    }}
+                                    className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
                                 >
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
                                     <h3 className="mt-4 text-base font-black text-white">캡처 인식</h3>
@@ -1754,31 +1859,34 @@ export default function KDKPage() {
                         </>
                     )}
 
-                    {manualInputMode === 'PASTE' && (
+                    {manualInputMode === 'PASTE' && manualStep === 'INPUT' && (
                         <div className="space-y-4">
-                            <div className="rounded-[30px] border border-[#C9B075]/20 bg-[#141414] p-5">
+                            <div className="overflow-visible rounded-[24px] border border-[#C9B075]/20 bg-[#141414] p-5">
                                 <div className="mb-4">
                                     <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Paste Matches</span>
                                     <h2 className="mt-1 text-xl font-black text-white">대진 붙여넣기</h2>
                                 </div>
                                 <textarea
                                     value={manualPasteText}
-                                    onChange={(e) => setManualPasteText(e.target.value)}
-                                    className="min-h-[160px] w-full resize-y rounded-[22px] border border-white/10 bg-black/35 px-4 py-4 text-[13px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50"
+                                    onChange={(e) => {
+                                        setManualPasteText(e.target.value);
+                                        setManualNameOverrides({});
+                                    }}
+                                    className="min-h-[160px] w-full resize-y rounded-[18px] border border-white/10 bg-black/35 px-4 py-4 text-[13px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50"
                                     placeholder={"1 봉준/상윤 vs 영호/광현 19:00\n2 현민/영우 vs 진희/효철 19:00\n\n1\t봉준\t상윤\t영호\t광현\t19:00"}
                                 />
                             </div>
 
-                            <div className="rounded-[30px] border border-white/10 bg-[#111111] p-4">
+                            <div className="overflow-visible rounded-[24px] border border-white/10 bg-[#111111] p-4">
                                 <div className="mb-3 flex items-center justify-between gap-3 px-1">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
                                     <span className="text-[10px] font-black text-[#C9B075]">
-                                        {manualPastePreview.length} matches
+                                        {manualPasteMatchCount} matches · {manualPlayerNames.length} names
                                     </span>
                                 </div>
 
-                                {manualPastePreview.length === 0 ? (
-                                    <div className="rounded-[20px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
+                                {manualPasteMatchCount === 0 ? (
+                                    <div className="rounded-[18px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
                                         대진을 붙여넣으면 경기 미리보기가 표시됩니다.
                                     </div>
                                 ) : (
@@ -1786,7 +1894,7 @@ export default function KDKPage() {
                                         {manualPastePreview.map((row, index) => (
                                             <div
                                                 key={`${row.raw}-${index}`}
-                                                className={`rounded-[20px] border px-3 py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
+                                                className={`overflow-visible rounded-[16px] border px-3 py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
                                             >
                                                 <div className="flex items-center justify-between gap-3">
                                                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9B075] text-[11px] font-black text-black">
@@ -1810,11 +1918,150 @@ export default function KDKPage() {
                                         ))}
                                     </div>
                                 )}
+
+                                <div className="mt-4 border-t border-white/10 pt-4">
+                                    <button
+                                        type="button"
+                                        disabled={!canProceedToNameMatching}
+                                        onClick={() => setManualStep('MATCH_NAMES')}
+                                        className="flex min-h-[54px] w-full items-center justify-center rounded-[18px] px-5 text-[14px] font-black uppercase tracking-[0.12em] transition-all active:scale-[0.98] disabled:cursor-not-allowed"
+                                        style={{
+                                            background: canProceedToNameMatching
+                                                ? 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)'
+                                                : 'rgba(255,255,255,0.08)',
+                                            color: canProceedToNameMatching ? '#050505' : 'rgba(255,255,255,0.38)',
+                                            border: canProceedToNameMatching
+                                                ? '1px solid rgba(255,232,150,0.9)'
+                                                : '1px solid rgba(255,255,255,0.16)',
+                                            boxShadow: canProceedToNameMatching
+                                                ? '0 0 24px rgba(247,215,122,0.38), 0 14px 34px rgba(0,0,0,0.35)'
+                                                : 'none',
+                                            WebkitTextFillColor: canProceedToNameMatching ? '#050505' : 'rgba(255,255,255,0.38)',
+                                        }}
+                                    >
+                                        다음: 이름 매칭
+                                    </button>
+                                    {!canProceedToNameMatching && (
+                                        <p className="mt-2 text-center text-[10px] font-bold text-white/35">
+                                            대진을 1개 이상 붙여넣으면 이름 매칭으로 이동할 수 있습니다.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             <p className="px-1 text-[10px] font-bold leading-relaxed text-white/35">
-                                1차는 미리보기 전용입니다. 저장은 다음 단계에서 기존 matches 구조와 맞춰 연결합니다.
+                                다음 단계에서 이름을 멤버/게스트와 매칭합니다. 아직 저장은 하지 않습니다.
                             </p>
+                        </div>
+                    )}
+
+                    {manualInputMode === 'PASTE' && manualStep === 'MATCH_NAMES' && (
+                        <div className="space-y-4">
+                            <button
+                                type="button"
+                                onClick={() => setManualStep('INPUT')}
+                                className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black text-white/55 transition-all active:scale-95"
+                            >
+                                ← 붙여넣기로 돌아가기
+                            </button>
+
+                            <div className="overflow-visible rounded-[24px] border border-[#C9B075]/20 bg-[#141414] p-5">
+                                <div className="mb-4 flex items-start justify-between gap-3">
+                                    <div>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Name Matching</span>
+                                        <h2 className="mt-1 text-xl font-black text-white">이름 매칭</h2>
+                                        <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/45">
+                                            붙여넣은 이름을 멤버 또는 게스트와 연결합니다.
+                                        </p>
+                                    </div>
+                                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black text-white/45">
+                                        {manualPlayerNames.length} names
+                                    </span>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {manualNameMatches.map(match => (
+                                        <div key={match.originalName} className="overflow-visible rounded-[16px] border border-white/10 bg-black/25 p-3">
+                                            <div className="mb-2 flex items-center justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-white/25">Original</span>
+                                                    <span className="block truncate text-sm font-black text-white">{match.originalName}</span>
+                                                </div>
+                                                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] ${match.status === 'MEMBER' ? 'bg-[#C9B075] text-black' : 'bg-white/10 text-white/55'}`}>
+                                                    {match.status}
+                                                </span>
+                                            </div>
+                                            <select
+                                                value={match.selectedValue}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setManualNameOverrides(prev => ({ ...prev, [match.originalName]: value }));
+                                                }}
+                                                className="w-full rounded-[14px] border border-white/10 bg-[#0A0A0A] px-3 py-3 text-[12px] font-black text-white outline-none focus:border-[#C9B075]/50"
+                                            >
+                                                {match.candidates.map(candidate => (
+                                                    <option key={candidate.id} value={candidate.id} className="bg-[#111111] text-white">
+                                                        {getManualMemberName(candidate)} / 멤버
+                                                    </option>
+                                                ))}
+                                                <option value="guest" className="bg-[#111111] text-white">
+                                                    {match.originalName}(G) / 게스트로 사용
+                                                </option>
+                                            </select>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="overflow-visible rounded-[24px] border border-white/10 bg-[#111111] p-4">
+                                <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Matched Preview</span>
+                                    <span className="text-[10px] font-black text-[#C9B075]">{manualPastePreview.length} matches</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {manualPastePreview.map((row, index) => (
+                                        <div key={`${row.raw}-matched-${index}`} className="overflow-visible rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9B075] text-[11px] font-black text-black">
+                                                    {row.order}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
+                                                        <span className="truncate text-right">{row.teamA.map(getManualResolvedName).join(' / ')}</span>
+                                                        <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
+                                                        <span className="truncate">{row.teamB.map(getManualResolvedName).join(' / ')}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="shrink-0 text-[10px] font-black text-white/40">{row.time || '--:--'}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setManualStep('RULES')}
+                                className="w-full rounded-full border border-[#C9B075]/40 bg-[#C9B075] px-5 py-4 text-[12px] font-black uppercase tracking-[0.16em] text-black shadow-[0_12px_30px_rgba(201,176,117,0.25)] transition-all active:scale-[0.98]"
+                            >
+                                다음: 룰 설정
+                            </button>
+                        </div>
+                    )}
+
+                    {manualInputMode === 'PASTE' && manualStep === 'RULES' && (
+                        <div className="rounded-[24px] border border-[#C9B075]/20 bg-[#141414] px-5 py-8 text-center">
+                            <p className="text-lg font-black text-white">룰 설정은 다음 단계에서 연결됩니다.</p>
+                            <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
+                                이번 작업에서는 이름 매칭과 매칭 적용 미리보기까지만 저장 없이 준비했습니다.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setManualStep('MATCH_NAMES')}
+                                className="mt-6 rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-[11px] font-black text-white/60 transition-all active:scale-95"
+                            >
+                                이름 매칭으로 돌아가기
+                            </button>
                         </div>
                     )}
 
