@@ -61,7 +61,9 @@ export default function KDKPage() {
     }, [role, router]);
     */
 
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(0);
+    const [generationMode, setGenerationMode] = useState<'AUTO' | 'MANUAL' | null>(null);
+    const [manualInputMode, setManualInputMode] = useState<'PASTE' | 'DIRECT' | 'OCR' | null>(null);
     const [syncTick, setSyncTick] = useState(0);
     const [adminModeManual, setAdminModeManual] = useState(true); // [v35.11] Admin UI Visibility Toggle
 
@@ -102,6 +104,8 @@ export default function KDKPage() {
     const [partnerSelectSource, setPartnerSelectSource] = useState<string | null>(null);
     const [targetGames, setTargetGames] = useState(4);
     const [matchRules, setMatchRules] = useState("1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승");
+
+    const [manualPasteText, setManualPasteText] = useState("");
 
     const [firstPrize, setFirstPrize] = useState(10000);
     const [bottom25Late, setBottom25Late] = useState(3000);
@@ -487,6 +491,12 @@ export default function KDKPage() {
             if (data.selectedIds) setSelectedIds(new Set(data.selectedIds || []));
             if (data.tempGuests) setTempGuests(data.tempGuests || []);
             if (data.step) setStep(data.step || 1);
+            if (data.generationMode) {
+                setGenerationMode(data.generationMode);
+            } else if (data.step === 1 || data.step === 2) {
+                setGenerationMode('AUTO');
+            }
+            if (data.manualInputMode) setManualInputMode(data.manualInputMode);
             if (data.sessionTitle) setSessionTitle(data.sessionTitle);
             if (data.sessionId) setSessionId(data.sessionId);
 
@@ -582,12 +592,14 @@ export default function KDKPage() {
                 selectedIds: Array.from(selectedIds),
                 tempGuests,
                 step,
+                generationMode,
+                manualInputMode,
                 sessionTitle,
                 sessionId
             };
             localStorage.setItem('kdk_live_session', JSON.stringify(data));
         }
-    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, sessionTitle, sessionId]);
+    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, sessionTitle, sessionId]);
 
     // Independent Score Buffer for Active Modal
     useEffect(() => {
@@ -1552,6 +1564,281 @@ export default function KDKPage() {
         return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
     }
 
+    type ManualPastePreviewMatch = {
+        order: number;
+        teamA: [string, string];
+        teamB: [string, string];
+        time: string;
+        raw: string;
+        isValid: boolean;
+    };
+
+    const parseManualPasteMatches = (input: string): ManualPastePreviewMatch[] => {
+        return input
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(Boolean)
+            .map((line, index) => {
+                const tabParts = line.split(/\t+/).map(part => part.trim()).filter(Boolean);
+
+                if (tabParts.length >= 5) {
+                    const [orderRaw, a1, a2, b1, b2, timeRaw] = tabParts;
+                    return {
+                        order: Number(orderRaw) || index + 1,
+                        teamA: [a1 || "", a2 || ""],
+                        teamB: [b1 || "", b2 || ""],
+                        time: timeRaw || "",
+                        raw: line,
+                        isValid: Boolean(a1 && a2 && b1 && b2),
+                    };
+                }
+
+                const timeMatch = line.match(/(\d{1,2}:\d{2})\s*$/);
+                const timeToken = timeMatch ? timeMatch[0] : "";
+                const time = timeMatch ? timeMatch[1] : "";
+                const withoutTime = timeToken ? line.replace(timeToken, '').trim() : line;
+                const orderMatch = withoutTime.match(/^(\d+)[\).\s-]*/);
+                const order = orderMatch ? Number(orderMatch[1]) : index + 1;
+                const body = orderMatch ? withoutTime.slice(orderMatch[0].length).trim() : withoutTime;
+                const vsParts = body.split(/\s+vs\s+|\s+VS\s+|\s+v\s+/i).map(part => part.trim());
+                const teamA = (vsParts[0] || '').split(/[\/,]/).map(part => part.trim()).filter(Boolean);
+                const teamB = (vsParts[1] || '').split(/[\/,]/).map(part => part.trim()).filter(Boolean);
+
+                return {
+                    order,
+                    teamA: [teamA[0] || "", teamA[1] || ""],
+                    teamB: [teamB[0] || "", teamB[1] || ""],
+                    time,
+                    raw: line,
+                    isValid: Boolean(teamA[0] && teamA[1] && teamB[0] && teamB[1]),
+                };
+            });
+    };
+
+    const manualPastePreview = useMemo(() => parseManualPasteMatches(manualPasteText), [manualPasteText]);
+
+
+    // --- Step 0: Generation Mode Selection ---
+    if (step === 0) {
+        return (
+            <main className="flex min-h-screen w-full flex-col bg-black px-6 py-8 text-white font-sans">
+                <header className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
+                    <span className="mb-3 rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.35em] text-[#C9B075]">
+                        KDK Setup
+                    </span>
+                    <h1 className="text-3xl font-black italic uppercase tracking-tight text-white">
+                        생성 방식 선택
+                    </h1>
+                    <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
+                        자동 생성과 수동 구성을 먼저 분리해서 안정적으로 대진을 준비합니다.
+                    </p>
+                </header>
+
+                <section className="mx-auto mt-10 grid w-full max-w-lg gap-4">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setGenerationMode('AUTO');
+                            setManualInputMode(null);
+                            setStep(1);
+                        }}
+                        className="group rounded-[32px] border border-[#C9B075]/30 bg-[#181818] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition-all active:scale-[0.98]"
+                    >
+                        <div className="mb-8 flex items-center justify-between">
+                            <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
+                                Default
+                            </span>
+                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">→</span>
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight text-white">자동 생성</h2>
+                        <p className="mt-3 text-[13px] font-bold leading-relaxed text-white/50">
+                            참가자와 조건을 선택하면 앱이 기존 KDK 로직으로 대진을 자동 생성합니다.
+                        </p>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setGenerationMode('MANUAL');
+                            setManualInputMode(null);
+                            setStep(1);
+                        }}
+                        className="group rounded-[32px] border border-white/10 bg-white/[0.04] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
+                    >
+                        <div className="mb-8 flex items-center justify-between">
+                            <span className="rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#C9B075]">
+                                Manual
+                            </span>
+                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">→</span>
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight text-white">수동 구성</h2>
+                        <p className="mt-3 text-[13px] font-bold leading-relaxed text-white/50">
+                            직접 만든 대진, 엑셀/텍스트 붙여넣기, 캡처 인식 방식으로 대진을 구성합니다.
+                        </p>
+                    </button>
+                </section>
+            </main>
+        );
+    }
+
+    // --- Manual Configuration Flow ---
+    if (step === 1 && generationMode === 'MANUAL') {
+        return (
+            <main className="flex min-h-screen w-full flex-col bg-black px-6 py-6 text-white font-sans">
+                <header className="grid h-12 grid-cols-3 items-center">
+                    <div className="flex items-center">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (manualInputMode) {
+                                    setManualInputMode(null);
+                                } else {
+                                    setGenerationMode(null);
+                                    setStep(0);
+                                }
+                            }}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] transition-all active:scale-95"
+                        >
+                            ←
+                        </button>
+                    </div>
+                    <div className="flex flex-col items-center text-center">
+                        <span className="mb-1 inline-block rounded-full border border-[#C9B075]/20 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase leading-none tracking-[0.4em] text-[#C9B075]">
+                            Manual
+                        </span>
+                        <h1 className="whitespace-nowrap text-2xl font-black italic uppercase leading-none tracking-tight text-white">
+                            수동 구성
+                        </h1>
+                    </div>
+                    <div />
+                </header>
+
+                <section className="mx-auto mt-8 w-full max-w-lg space-y-4 pb-12">
+                    {!manualInputMode && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setManualInputMode('PASTE')}
+                                className="w-full rounded-[30px] border border-[#C9B075]/35 bg-[#171717] p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.3)] transition-all active:scale-[0.98]"
+                            >
+                                <div className="mb-6 flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]">Preview Ready</span>
+                                    <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black text-black">1차</span>
+                                </div>
+                                <h2 className="text-xl font-black text-white">대진 붙여넣기</h2>
+                                <p className="mt-2 text-[12px] font-bold leading-relaxed text-white/45">
+                                    엑셀, 카톡, 메모장 텍스트를 붙여넣어 경기 순서와 팀 구성을 미리 확인합니다.
+                                </p>
+                            </button>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setManualInputMode('DIRECT')}
+                                    className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
+                                >
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
+                                    <h3 className="mt-4 text-base font-black text-white">직접 만들기</h3>
+                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">경기별 팀 직접 구성</p>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setManualInputMode('OCR')}
+                                    className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
+                                >
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
+                                    <h3 className="mt-4 text-base font-black text-white">캡처 인식</h3>
+                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">이미지/OCR 기반 인식</p>
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {manualInputMode === 'PASTE' && (
+                        <div className="space-y-4">
+                            <div className="rounded-[30px] border border-[#C9B075]/20 bg-[#141414] p-5">
+                                <div className="mb-4">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Paste Matches</span>
+                                    <h2 className="mt-1 text-xl font-black text-white">대진 붙여넣기</h2>
+                                </div>
+                                <textarea
+                                    value={manualPasteText}
+                                    onChange={(e) => setManualPasteText(e.target.value)}
+                                    className="min-h-[160px] w-full resize-y rounded-[22px] border border-white/10 bg-black/35 px-4 py-4 text-[13px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50"
+                                    placeholder={"1 봉준/상윤 vs 영호/광현 19:00\n2 현민/영우 vs 진희/효철 19:00\n\n1\t봉준\t상윤\t영호\t광현\t19:00"}
+                                />
+                            </div>
+
+                            <div className="rounded-[30px] border border-white/10 bg-[#111111] p-4">
+                                <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
+                                    <span className="text-[10px] font-black text-[#C9B075]">
+                                        {manualPastePreview.length} matches
+                                    </span>
+                                </div>
+
+                                {manualPastePreview.length === 0 ? (
+                                    <div className="rounded-[20px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
+                                        대진을 붙여넣으면 경기 미리보기가 표시됩니다.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {manualPastePreview.map((row, index) => (
+                                            <div
+                                                key={`${row.raw}-${index}`}
+                                                className={`rounded-[20px] border px-3 py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
+                                            >
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9B075] text-[11px] font-black text-black">
+                                                        {row.order}
+                                                    </span>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
+                                                            <span className="truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                                            <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
+                                                            <span className="truncate">{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                                        </div>
+                                                        {!row.isValid && (
+                                                            <p className="mt-1 text-center text-[10px] font-bold text-red-300">
+                                                                형식을 확인해 주세요.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <span className="shrink-0 text-[10px] font-black text-white/40">{row.time || '--:--'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <p className="px-1 text-[10px] font-bold leading-relaxed text-white/35">
+                                1차는 미리보기 전용입니다. 저장은 다음 단계에서 기존 matches 구조와 맞춰 연결합니다.
+                            </p>
+                        </div>
+                    )}
+
+                    {manualInputMode === 'DIRECT' && (
+                        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] px-5 py-8 text-center">
+                            <p className="text-lg font-black text-white">직접 만들기 준비 중</p>
+                            <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
+                                추후 참가자를 선택하고 경기별 팀을 직접 구성하는 방식으로 확장합니다.
+                            </p>
+                        </div>
+                    )}
+
+                    {manualInputMode === 'OCR' && (
+                        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] px-5 py-8 text-center">
+                            <p className="text-lg font-black text-white">캡처 인식 Coming Soon</p>
+                            <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
+                                이미지/OCR 기반 대진 인식은 안정화 이후 별도 단계로 검토합니다.
+                            </p>
+                        </div>
+                    )}
+                </section>
+            </main>
+        );
+    }
 
     // --- Step 1: Attendee Selection (Refactored to MemberSelector) ---
     if (step === 1) {
@@ -1573,12 +1860,18 @@ export default function KDKPage() {
                 onFetchMembers={fetchMembers}
                 onConfirm={handleStep1Confirm}
                 onReset={() => setShowResetConfirm(true)}
+                onBack={() => {
+                    setGenerationMode(null);
+                    setStep(0);
+                }}
                 onRestore={(data) => {
                     setMatches(data.matches || []);
                     setAttendeeConfigs(data.attendeeConfigs || {});
                     setSelectedIds(new Set(data.selectedIds || []));
                     setTempGuests(data.tempGuests || []);
                     setStep(data.step || 1);
+                    setGenerationMode(data.generationMode || 'AUTO');
+                    setManualInputMode(data.manualInputMode || null);
                     setSessionTitle(data.sessionTitle || "");
                     if (data.settings?.finance) {
                         setFirstPrize(data.settings.finance.firstPrize);
@@ -1658,7 +1951,6 @@ export default function KDKPage() {
                             placeholder="Ex: 2026-03-27 테연 정기전"
                         />
                     </section>
-
 
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="flex items-center justify-between">
@@ -2079,7 +2371,9 @@ export default function KDKPage() {
                             onClick={() => { 
                                 if (!isAdmin) return triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
                                 setShowGateway(false); 
-                                setStep(1); 
+                                setStep(0);
+                                setGenerationMode(null);
+                                setManualInputMode(null);
                                 setSelectedSessionId(null); 
                                 setMatches([]); 
                                 setSessionId(""); 
