@@ -152,6 +152,37 @@ export default function KDKPage() {
     }, [matches]);
 
     // [v14.0] 제목 중복 방지: 자동으로 다음 번호(KDK_02 등)를 찾는 헬퍼
+    const getDisplayUrl = () => {
+        const targetSessionId = activeSessionId?.trim();
+        if (!targetSessionId) return null;
+        return `/kdk/display?session=${encodeURIComponent(targetSessionId)}`;
+    };
+
+    const openDisplayBoard = () => {
+        const displayUrl = getDisplayUrl();
+        if (!displayUrl) {
+            alert("먼저 KDK 세션을 생성하거나 불러와 주세요.");
+            return;
+        }
+        window.open(displayUrl, '_blank', 'noopener,noreferrer');
+    };
+
+    const copyDisplayBoardUrl = async () => {
+        const displayUrl = getDisplayUrl();
+        if (!displayUrl) {
+            alert("먼저 KDK 세션을 생성하거나 불러와 주세요.");
+            return;
+        }
+
+        const absoluteUrl = `${window.location.origin}${displayUrl}`;
+        try {
+            await navigator.clipboard.writeText(absoluteUrl);
+            alert("전광판 주소가 복사되었습니다.");
+        } catch {
+            alert(`전광판 주소: ${absoluteUrl}`);
+        }
+    };
+
     const findNextAvailableTitle = async () => {
         const d = new Date();
         const yy = String(d.getFullYear()).slice(-2);
@@ -866,28 +897,55 @@ export default function KDKPage() {
     };
 
 
+    const isLikelyPlayerId = (value?: string) => {
+        if (!value) return false;
+        const trimmed = value.trim();
+        return (
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed) ||
+            /^\d+$/.test(trimmed) ||
+            /^(g|guest)-\d+/i.test(trimmed) ||
+            /^[0-9a-f]{24,}$/i.test(trimmed)
+        );
+    };
+
+    const cleanDisplayName = (value?: string) => {
+        const cleaned = (value || "").replace(' (G)', '').replace(' g', '').trim();
+        return cleaned && !isLikelyPlayerId(cleaned) ? cleaned : "";
+    };
+
+    const findMatchPlayerName = (id: string, matchId?: string) => {
+        const sourceMatches = matchId
+            ? matches.filter(mx => mx.id === matchId)
+            : matches.filter(mx => (mx.playerIds || []).includes(id));
+
+        for (const match of sourceMatches) {
+            const idx = match.playerIds?.indexOf(id) ?? -1;
+            if (idx === -1) continue;
+
+            const metadataName = cleanDisplayName(match.playerNames?.[idx]);
+            if (metadataName) return metadataName;
+
+            const teamIndex = idx >= 2 ? 1 : 0;
+            const teamPlayerIndex = idx % 2;
+            const teamName = cleanDisplayName((match as any).teams?.[teamIndex]?.[teamPlayerIndex]);
+            if (teamName) return teamName;
+        }
+
+        return "";
+    };
+
     const getPlayerName = (id: string, matchId?: string) => {
         if (!id) return "";
         
         // [v34.4] HYBRID LOOKUP: Try primary source first
         const m = [...(allMembers || []), ...(tempGuests || [])].find(x => x?.id === id);
-        let name = m?.nickname || (m as any)?.name || attendeeConfigs?.[id]?.name || "";
+        let name = cleanDisplayName(m?.nickname || (m as any)?.name || attendeeConfigs?.[id]?.name || "");
         
         // [v34.4] FALLBACK to Match Metadata (If lookup failed but DB has the original name)
-        if (!name && matchId) {
-            const match = matches.find(mx => mx.id === matchId);
-            if (match && match.playerIds && match.playerNames) {
-                const idx = match.playerIds.indexOf(id);
-                if (idx !== -1 && match.playerNames[idx]) {
-                    name = match.playerNames[idx].replace(' (G)', '').replace(' g', '');
-                }
-            }
-        }
+        if (!name) name = findMatchPlayerName(id, matchId);
 
         if (!name) {
-            // [v35.5] Truncate long IDs for better UI fit
-            if (id.startsWith('g-') && id.length > 8) return id.substring(0, 8) + '...';
-            return id; 
+            return isLikelyPlayerId(id) ? "이름 확인중" : id;
         }
         
         // [v34.1] More robust guest detection
@@ -2072,9 +2130,29 @@ export default function KDKPage() {
                 {/* CENTER: SESSION NAME (Strong Emphasis) */}
                 <div className="flex-[2] flex flex-col items-center">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
-                    <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[150px] sm:max-w-[200px] leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
-                        {sessionTitle || '260417_KDK_01'}
-                    </h1>
+                    <div className="flex max-w-full items-center justify-center gap-2">
+                        <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[110px] sm:max-w-[180px] leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                            {sessionTitle || '260417_KDK_01'}
+                        </h1>
+                        <button
+                            type="button"
+                            onClick={openDisplayBoard}
+                            disabled={!activeSessionId}
+                            className="shrink-0 rounded-full border border-[#C9B075]/35 bg-[#C9B075]/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.08)] transition-all active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25"
+                            title="전광판 열기"
+                        >
+                            TV
+                        </button>
+                        <button
+                            type="button"
+                            onClick={copyDisplayBoardUrl}
+                            disabled={!activeSessionId}
+                            className="hidden shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-white/45 transition-all hover:border-[#C9B075]/30 hover:text-[#C9B075] active:scale-95 disabled:cursor-not-allowed disabled:text-white/20 sm:inline-flex"
+                            title="전광판 주소 복사"
+                        >
+                            COPY
+                        </button>
+                    </div>
                 </div>
 
                 {/* RIGHT: ACTION & STATUS INDICATOR */}
