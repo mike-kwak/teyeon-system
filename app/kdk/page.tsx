@@ -1574,6 +1574,7 @@ export default function KDKPage() {
 
     type ManualPastePreviewMatch = {
         order: number;
+        group: string;
         teamA: [string, string];
         teamB: [string, string];
         time: string;
@@ -1581,49 +1582,96 @@ export default function KDKPage() {
         isValid: boolean;
     };
 
+    const normalizeManualGroup = (value?: string) => {
+        const normalized = (value || 'A').trim().replace(/조$/i, '').toUpperCase();
+        return /^[A-Z]$/.test(normalized) ? normalized : 'A';
+    };
+
+    const getManualGroupLabel = (group?: string) => `${normalizeManualGroup(group)}조`;
+
+    const getManualGroupFromToken = (token?: string) => {
+        if (!token) return "";
+        const trimmed = token.trim();
+        const match = trimmed.match(/^([A-Za-z])\s*조?$/i);
+        return match ? normalizeManualGroup(match[1]) : "";
+    };
+
     const parseManualPasteMatches = (input: string): ManualPastePreviewMatch[] => {
-        return input
+        const rows: ManualPastePreviewMatch[] = [];
+        let currentGroup = 'A';
+
+        input
             .split(/\r?\n/)
             .map(line => line.trim())
             .filter(Boolean)
-            .map((line, index) => {
-                const tabParts = line.split(/\t+/).map(part => part.trim()).filter(Boolean);
+            .forEach(line => {
+                const sectionGroup = getManualGroupFromToken(line);
+                if (sectionGroup) {
+                    currentGroup = sectionGroup;
+                    return;
+                }
 
-                if (tabParts.length >= 5) {
-                    const [orderRaw, a1, a2, b1, b2, timeRaw] = tabParts;
-                    return {
-                        order: Number(orderRaw) || index + 1,
-                        teamA: [a1 || "", a2 || ""],
-                        teamB: [b1 || "", b2 || ""],
-                        time: timeRaw || "",
+                const columnParts = line.split(/\t+|\s{2,}/).map(part => part.trim()).filter(Boolean);
+
+                if (columnParts.length >= 5) {
+                    const firstGroup = getManualGroupFromToken(columnParts[0]);
+                    const hasGroupColumn = Boolean(firstGroup) && columnParts.length >= 6;
+                    const group = hasGroupColumn ? firstGroup : currentGroup;
+                    const orderRaw = hasGroupColumn ? columnParts[1] : columnParts[0];
+                    const playerOffset = hasGroupColumn ? 2 : 1;
+                    const a1 = columnParts[playerOffset] || "";
+                    const a2 = columnParts[playerOffset + 1] || "";
+                    const b1 = columnParts[playerOffset + 2] || "";
+                    const b2 = columnParts[playerOffset + 3] || "";
+                    const timeRaw = columnParts[playerOffset + 4] || "";
+
+                    rows.push({
+                        order: Number(orderRaw) || rows.length + 1,
+                        group,
+                        teamA: [a1, a2],
+                        teamB: [b1, b2],
+                        time: timeRaw,
                         raw: line,
                         isValid: Boolean(a1 && a2 && b1 && b2),
-                    };
+                    });
+                    return;
                 }
 
                 const timeMatch = line.match(/(\d{1,2}:\d{2})\s*$/);
                 const timeToken = timeMatch ? timeMatch[0] : "";
                 const time = timeMatch ? timeMatch[1] : "";
-                const withoutTime = timeToken ? line.replace(timeToken, '').trim() : line;
+                let withoutTime = timeToken ? line.replace(timeToken, '').trim() : line;
+                let group = currentGroup;
+
+                const groupPrefixMatch = withoutTime.match(/^([A-Za-z])\s*조?\s+(?=\d)/i);
+                if (groupPrefixMatch) {
+                    group = normalizeManualGroup(groupPrefixMatch[1]);
+                    withoutTime = withoutTime.slice(groupPrefixMatch[0].length).trim();
+                }
+
                 const orderMatch = withoutTime.match(/^(\d+)[\).\s-]*/);
-                const order = orderMatch ? Number(orderMatch[1]) : index + 1;
+                const order = orderMatch ? Number(orderMatch[1]) : rows.length + 1;
                 const body = orderMatch ? withoutTime.slice(orderMatch[0].length).trim() : withoutTime;
                 const vsParts = body.split(/\s+vs\s+|\s+VS\s+|\s+v\s+/i).map(part => part.trim());
                 const teamA = (vsParts[0] || '').split(/[\/,]/).map(part => part.trim()).filter(Boolean);
                 const teamB = (vsParts[1] || '').split(/[\/,]/).map(part => part.trim()).filter(Boolean);
 
-                return {
+                rows.push({
                     order,
+                    group,
                     teamA: [teamA[0] || "", teamA[1] || ""],
                     teamB: [teamB[0] || "", teamB[1] || ""],
                     time,
                     raw: line,
                     isValid: Boolean(teamA[0] && teamA[1] && teamB[0] && teamB[1]),
-                };
+                });
             });
+
+        return rows;
     };
 
     const manualPastePreview = useMemo(() => parseManualPasteMatches(manualPasteText), [manualPasteText]);
+    const manualGroups = useMemo(() => Array.from(new Set(manualPastePreview.map(row => row.group))).sort(), [manualPastePreview]);
 
     type ManualNameMatch = {
         originalName: string;
@@ -1871,12 +1919,17 @@ export default function KDKPage() {
                                         <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#C9B075]">입력 예시</span>
                                         <span className="text-[9px] font-bold text-white/35">탭 구분 텍스트 지원</span>
                                     </div>
-                                    <pre className="whitespace-pre-wrap break-keep text-[11px] font-bold leading-relaxed text-white/55">
-{`1 봉준/상윤 vs 영호/광현 19:00
-2 현민/영우 vs 진희/효철 19:00
-1    봉준    상윤    영호    광현    19:00`}
-                                    </pre>
-                                </div>
+                                     <pre className="whitespace-pre-wrap break-keep text-[11px] font-bold leading-relaxed text-white/55">
+{`A조
+1 봉준/상윤 vs 영호/광현 19:00
+B조
+1 민준/상준 vs 강정호/구봉준 20:00
+A    1    봉준    상윤    영호    광현    19:00`}
+                                     </pre>
+                                    <p className="mt-2 text-[10px] font-bold text-white/35">
+                                        조 표기가 없으면 A조로 인식됩니다.
+                                    </p>
+                                 </div>
                                 <textarea
                                     value={manualPasteText}
                                     onChange={(e) => {
@@ -1892,7 +1945,7 @@ export default function KDKPage() {
                                 <div className="mb-3 flex items-center justify-between gap-3 px-1">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
                                     <span className="text-[10px] font-black text-[#C9B075]">
-                                        {manualPasteMatchCount} matches · {manualPlayerNames.length} names
+                                        {manualPasteMatchCount} matches · {manualPlayerNames.length} names · {manualGroups.length || 0} groups
                                     </span>
                                 </div>
 
@@ -1908,8 +1961,8 @@ export default function KDKPage() {
                                                 className={`overflow-visible rounded-[16px] border px-3 py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
                                             >
                                                 <div className="flex items-center justify-between gap-3">
-                                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9B075] text-[11px] font-black text-black">
-                                                        {row.order}
+                                                    <span className="flex min-w-[52px] shrink-0 items-center justify-center rounded-full bg-[#C9B075] px-2.5 py-1.5 text-[10px] font-black text-black">
+                                                        {getManualGroupLabel(row.group)} · {row.order}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
@@ -2027,14 +2080,14 @@ export default function KDKPage() {
                             <div className="overflow-visible rounded-[24px] border border-white/10 bg-[#111111] p-4">
                                 <div className="mb-3 flex items-center justify-between gap-3 px-1">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Matched Preview</span>
-                                    <span className="text-[10px] font-black text-[#C9B075]">{manualPastePreview.length} matches</span>
+                                    <span className="text-[10px] font-black text-[#C9B075]">{manualPastePreview.length} matches · {manualGroups.length || 0} groups</span>
                                 </div>
                                 <div className="space-y-2">
                                     {manualPastePreview.map((row, index) => (
                                         <div key={`${row.raw}-matched-${index}`} className="overflow-visible rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-3">
                                             <div className="flex items-center justify-between gap-3">
-                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9B075] text-[11px] font-black text-black">
-                                                    {row.order}
+                                                <span className="flex min-w-[52px] shrink-0 items-center justify-center rounded-full bg-[#C9B075] px-2.5 py-1.5 text-[10px] font-black text-black">
+                                                    {getManualGroupLabel(row.group)} · {row.order}
                                                 </span>
                                                 <div className="min-w-0 flex-1">
                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
@@ -2052,7 +2105,10 @@ export default function KDKPage() {
 
                             <button
                                 type="button"
-                                onClick={() => setManualStep('RULES')}
+                                onClick={() => {
+                                    setManualStep('RULES');
+                                    setStep(2);
+                                }}
                                 className="flex min-h-[54px] w-full items-center justify-center rounded-[18px] px-5 text-[14px] font-black uppercase tracking-[0.12em] transition-all active:scale-[0.98]"
                                 style={{
                                     background: 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)',
@@ -2151,10 +2207,21 @@ export default function KDKPage() {
 
     // --- Step 2: Settings Dashboard ---
     if (step === 2) {
+        const isManualRulesMode = generationMode === 'MANUAL';
         const attendees = Array.from(selectedIds).map(id => {
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
             return { id, name: m?.nickname || 'Unknown', is_guest: !!m?.is_guest };
         });
+        const manualMatchedRows = manualPastePreview.map(row => ({
+            ...row,
+            teamAResolved: row.teamA.map(getManualResolvedName),
+            teamBResolved: row.teamB.map(getManualResolvedName),
+        }));
+        const manualMatchedGroups = manualGroups.map(group => ({
+            group,
+            rows: manualMatchedRows.filter(row => row.group === group),
+        }));
+        const isStep2ButtonDisabled = !isManualRulesMode && isGenerating;
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => 
             selectedIds.has(m.id) && (partnerSelectSource === 'NEW' ? true : m.id !== partnerSelectSource)
@@ -2166,7 +2233,12 @@ export default function KDKPage() {
                 <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0">
                     <div className="flex items-center">
                         <button
-                            onClick={() => setStep(1)}
+                            onClick={() => {
+                                if (isManualRulesMode) {
+                                    setManualStep('MATCH_NAMES');
+                                }
+                                setStep(1);
+                            }}
                             className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 active:scale-95 transition-all text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.1)]"
                         >
                             <span className="text-xl leading-none -mt-0.5">←</span>
@@ -2217,6 +2289,7 @@ export default function KDKPage() {
                         />
                     </section>
 
+                    {!isManualRulesMode ? (
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3">
@@ -2269,8 +2342,52 @@ export default function KDKPage() {
                             })}
                         </div>
                     </section>
+                    ) : (
+                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px', overflow: 'visible' }}>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
+                                MANUAL MATCH SUMMARY
+                            </h3>
+                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{manualMatchedRows.length} MATCHES</span>
+                        </div>
+                        <div className="mt-4 space-y-4">
+                            {manualMatchedGroups.map(({ group, rows }) => (
+                                <div key={`manual-rules-group-${group}`} className="space-y-2">
+                                    <div className="flex items-center gap-2 px-1">
+                                        <span className="rounded-full border border-[#C9B075]/35 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black text-[#C9B075]">
+                                            {getManualGroupLabel(group)}
+                                        </span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/25">
+                                            {rows.length} matches
+                                        </span>
+                                    </div>
+                                    {rows.map((row, index) => (
+                                        <div key={`${row.raw}-rules-${group}-${index}`} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <span style={{ width: '28px', height: '28px', borderRadius: '999px', background: '#C9B075', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 1000, flexShrink: 0 }}>{row.order}</span>
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
+                                                    <span className="truncate text-right">{row.teamAResolved.join(' / ')}</span>
+                                                    <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
+                                                    <span className="truncate">{row.teamBResolved.join(' / ')}</span>
+                                                </div>
+                                            </div>
+                                            <span style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>{row.time || '--:--'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                            <div style={{ borderRadius: '18px', border: '1px solid rgba(201,176,117,0.18)', background: 'rgba(201,176,117,0.06)', padding: '12px 14px' }}>
+                                <p className="text-[11px] font-bold leading-relaxed text-white/45">
+                                    수동 구성은 승리 점수 6점 고정, 1:1 시작을 기본 전제로 사용합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                    )}
 
 
+                    {!isManualRulesMode && (
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
                         <div className="space-y-6">
                             <h4 className="text-[13px] font-bold text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3">
@@ -2358,6 +2475,7 @@ export default function KDKPage() {
                             </div>
                         </div>
                     </section>
+                    )}
 
 
                     <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '28px 24px', marginTop: '12px', overflow: 'visible' }}>
@@ -2451,15 +2569,19 @@ export default function KDKPage() {
                     <div style={{ position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '450px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
                         <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
                             <button
-                                disabled={isGenerating}
+                                disabled={isStep2ButtonDisabled}
                                 onClick={() => {
+                                    if (isManualRulesMode) {
+                                        alert('수동 대진 저장은 다음 단계에서 연결됩니다.');
+                                        return;
+                                    }
                                     generateKDK();
                                 }}
                                 style={{
                                     width: '100%',
                                     padding: '8px 0',
                                     borderRadius: '999px',
-                                    background: isGenerating ? '#1A1A1A' : '#C9B075',
+                                    background: isStep2ButtonDisabled ? '#1A1A1A' : '#C9B075',
                                     color: '#000000',
                                     border: '1px solid rgba(255, 255, 255, 0.4)',
                                     fontSize: '14px',
@@ -2468,20 +2590,20 @@ export default function KDKPage() {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '8px',
-                                    cursor: isGenerating ? 'not-allowed' : 'pointer',
+                                    cursor: isStep2ButtonDisabled ? 'not-allowed' : 'pointer',
                                     WebkitTextFillColor: '#000000',
                                     transition: 'all 0.15s',
                                     boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
                                 }}
                             >
-                                {isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
+                                {isManualRulesMode ? '붙여넣은 대진으로 생성' : isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
                             </button>
                         </div>
                     </div>
                 )}
 
 
-                {partnerSelectSource && (
+                {!isManualRulesMode && partnerSelectSource && (
                     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                         <div style={{ background: '#1C1C1C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '32px', width: '100%', maxWidth: '400px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
