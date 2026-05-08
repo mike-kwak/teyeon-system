@@ -808,9 +808,9 @@ export default function KDKPage() {
                         const guestMappings: Record<string, string> = {};
                         refreshingMatches.forEach(rm => {
                             rm.playerIds.forEach((pid: string, idx: number) => {
-                                if (pid?.startsWith('g-')) {
+                                if (pid?.startsWith('g-') || pid?.startsWith('manual-guest-')) {
                                     const rawName = rm.playerNames?.[idx] || "";
-                                    const cleanName = rawName.replace(' (G)', '').replace(' g', '');
+                                    const cleanName = rawName.replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
                                     if (cleanName) guestMappings[pid] = cleanName;
                                 }
                             });
@@ -927,13 +927,14 @@ export default function KDKPage() {
         return (
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed) ||
             /^\d+$/.test(trimmed) ||
+            /^manual-guest-/i.test(trimmed) ||
             /^(g|guest)-\d+/i.test(trimmed) ||
             /^[0-9a-f]{24,}$/i.test(trimmed)
         );
     };
 
     const cleanDisplayName = (value?: string) => {
-        const cleaned = (value || "").replace(' (G)', '').replace(' g', '').trim();
+        const cleaned = (value || "").replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
         return cleaned && !isLikelyPlayerId(cleaned) ? cleaned : "";
     };
 
@@ -973,8 +974,8 @@ export default function KDKPage() {
         }
         
         // [v34.1] More robust guest detection
-        const isGuest = (id.startsWith('g-')) || (m?.is_guest === true) || ((m as any)?.isGuest === true) || (attendeeConfigs?.[id]?.is_guest === true);
-        return isGuest ? `${name} (G)` : name;
+        const isGuest = (id.startsWith('g-')) || (id.startsWith('manual-guest-')) || (m?.is_guest === true) || ((m as any)?.isGuest === true) || (attendeeConfigs?.[id]?.is_guest === true);
+        return isGuest ? `${name}(G)` : name;
     };
 
     const getPlayerAvatar = (id: string) => {
@@ -1160,6 +1161,183 @@ export default function KDKPage() {
         } catch (err: any) {
             console.error(err);
             alert("대진 생성 실패: " + err.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const saveManualKDKMatches = async () => {
+        if (isGenerating) return;
+
+        if (hasPermission('kdk') !== 'WRITE') {
+            alert(getRestrictionMessage('kdk'));
+            return;
+        }
+
+        const title = sessionTitle.trim();
+        if (!title) {
+            alert('세션명을 입력해 주세요.');
+            return;
+        }
+
+        if (manualPastePreview.length === 0) {
+            alert('저장할 수동 대진이 없습니다.');
+            return;
+        }
+
+        const invalidRow = manualPastePreview.find(row => !row.isValid);
+        if (invalidRow) {
+            alert(`형식을 확인해 주세요: ${invalidRow.raw}`);
+            return;
+        }
+
+        setIsGenerating(true);
+        const summarizeSupabaseError = (error: any) => ({
+            message: error?.message || String(error || 'Unknown error'),
+            details: error?.details,
+            hint: error?.hint,
+            code: error?.code,
+        });
+        let lastManualError: any = null;
+        try {
+            const manualSessionId = sessionId?.trim() || (() => {
+                const d = new Date();
+                const dateStr = d.toISOString().split('T')[0].replace(/-/g, '');
+                return `KDK-${dateStr}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+            })();
+
+            const seenMatchSignatures = new Set<string>();
+            const manualGuests = new Map<string, Member>();
+            const nextSelectedIds = new Set(selectedIds);
+            const nextAttendeeConfigs = { ...attendeeConfigs };
+
+            const formattedMatches = manualPastePreview.map((row, index) => {
+                const group = normalizeManualGroup(row.group);
+                const resolvedPlayers = [...row.teamA, ...row.teamB].map(getManualResolvedPlayer);
+                const playerIds = resolvedPlayers.map(player => player.id);
+                const playerNames = resolvedPlayers.map(player => player.name);
+                const uniquePlayers = new Set(playerIds);
+
+                if (uniquePlayers.size !== 4) {
+                    throw new Error(`${getManualGroupLabel(group)} ${row.order}번 경기 안에 같은 선수가 중복되어 있습니다.`);
+                }
+
+                const signature = `${group}|${playerIds.join('|')}|${row.time || ''}`;
+                if (seenMatchSignatures.has(signature)) {
+                    throw new Error(`${getManualGroupLabel(group)} ${row.order}번 경기와 같은 대진이 중복되어 있습니다.`);
+                }
+                seenMatchSignatures.add(signature);
+
+                playerIds.forEach((playerId, playerIndex) => {
+                    const resolved = resolvedPlayers[playerIndex];
+                    const isGuest = resolved.isGuest;
+                    const displayName = resolved.name.replace(/\(G\)$/i, '').trim();
+                    nextSelectedIds.add(playerId);
+                    nextAttendeeConfigs[playerId] = {
+                        ...(nextAttendeeConfigs[playerId] || {}),
+                        id: playerId,
+                        name: displayName || resolved.rawName || 'Guest',
+                        is_guest: isGuest,
+                        group: group === 'B' ? 'B' : 'A',
+                        startTime: row.time || nextAttendeeConfigs[playerId]?.startTime || '19:00',
+                        endTime: nextAttendeeConfigs[playerId]?.endTime || '22:00',
+                    };
+
+                    if (isGuest) {
+                        manualGuests.set(playerId, {
+                            id: playerId,
+                            nickname: displayName || resolved.rawName || 'Guest',
+                            is_guest: true,
+                            position: group,
+                        });
+                    }
+                });
+
+                return {
+                    id: crypto.randomUUID(),
+                    playerIds,
+                    playerNames,
+                    court: row.order || index + 1,
+                    status: 'waiting',
+                    score1: 1,
+                    score2: 1,
+                    mode: 'KDK',
+                    round: row.order || index + 1,
+                    teams: [playerNames.slice(0, 2), playerNames.slice(2, 4)] as [string[], string[]],
+                    groupName: group,
+                } as Match;
+            });
+
+            const fullDbMatches = formattedMatches.map(m => ({
+                id: String(m.id),
+                club_id: clubId,
+                session_id: manualSessionId,
+                session_title: title,
+                round: m.round || 1,
+                court: m.court || 1,
+                player_ids: (m as any).playerIds || [],
+                player_names: (m as any).playerNames || [],
+                mode: m.mode || 'KDK',
+                group_name: m.groupName || 'A',
+                score1: m.score1 ?? 1,
+                score2: m.score2 ?? 1,
+                status: m.status || 'waiting',
+            }));
+            const { error: fullError } = await supabase
+                .from('matches')
+                .upsert(fullDbMatches, { onConflict: 'id' });
+
+            if (fullError) {
+                lastManualError = fullError;
+                const isSchemaError = fullError.message?.includes('column') || fullError.message?.includes('schema cache');
+                if (isSchemaError) {
+                    console.warn('[Manual KDK Save Fallback]', summarizeSupabaseError(fullError));
+                    const legacyDbMatches = fullDbMatches.map(({ player_names, mode, group_name, score1, score2, ...rest }: any) => rest);
+                    const { error: legacyError } = await supabase
+                        .from('matches')
+                        .upsert(legacyDbMatches, { onConflict: 'id' });
+                    if (legacyError) {
+                        lastManualError = legacyError;
+                        console.error('[Manual KDK Save Failure]', summarizeSupabaseError(legacyError));
+                        throw legacyError;
+                    }
+                    setIsLegacySync(true);
+                    setSyncStatus('WARNING');
+                } else {
+                    console.error('[Manual KDK Save Failure]', summarizeSupabaseError(fullError));
+                    throw fullError;
+                }
+            } else {
+                setIsLegacySync(false);
+                setSyncStatus('HEALTHY');
+                setSyncErrorMsg(null);
+            }
+
+            setSessionId(manualSessionId);
+            setSelectedSessionId(manualSessionId);
+            setSessionTitle(title);
+            setShowGateway(false);
+            setTempGuests(prev => {
+                const next = new Map(prev.map(guest => [guest.id, guest]));
+                manualGuests.forEach((guest, id) => next.set(id, guest));
+                return Array.from(next.values());
+            });
+            setSelectedIds(nextSelectedIds);
+            setAttendeeConfigs(nextAttendeeConfigs);
+            setMatches(formattedMatches);
+            setGenerationMode(null);
+            setManualInputMode(null);
+            setManualStep('INPUT');
+            setActiveTab('MATCHES');
+            setStep(3);
+
+            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+            alert('수동 대진이 생성되었습니다.');
+        } catch (err: any) {
+            if (lastManualError !== err) {
+                console.error('[Manual KDK Save Failure]', summarizeSupabaseError(err));
+            }
+            alert(`수동 대진 생성 실패: ${err.message || String(err)}`);
         } finally {
             setIsGenerating(false);
         }
@@ -1685,6 +1863,31 @@ export default function KDKPage() {
 
     const normalizeManualName = (name: string) => name.trim().replace(/\s+/g, '').toLowerCase();
     const getManualMemberName = (member: Member) => member.nickname || (member as any).name || 'Unknown';
+    const isManualGuestMember = (member?: Member) => {
+        const id = member?.id || "";
+        return Boolean(member?.is_guest === true || (member as any)?.isGuest === true || id.startsWith('g-') || id.startsWith('manual-guest-'));
+    };
+    const getManualMemberCandidates = (rawName: string, memberPool: Member[] = [...allMembers, ...tempGuests]) => {
+        const target = normalizeManualName(rawName);
+        if (!target) return [];
+
+        const realMembers = memberPool.filter(member => !isManualGuestMember(member));
+        const guestMembers = memberPool.filter(member => isManualGuestMember(member));
+        const byId = new Map<string, Member>();
+        const append = (members: Member[]) => members.forEach(member => byId.set(member.id, member));
+        const exact = (members: Member[]) => members.filter(member => normalizeManualName(getManualMemberName(member)) === target);
+        const partial = (members: Member[]) => members.filter(member => {
+            const memberName = normalizeManualName(getManualMemberName(member));
+            return memberName !== target && (memberName.includes(target) || target.includes(memberName));
+        });
+
+        append(exact(realMembers));
+        append(partial(realMembers));
+        append(exact(guestMembers));
+        append(partial(guestMembers));
+
+        return Array.from(byId.values());
+    };
 
     const manualPlayerNames = useMemo(() => {
         const seen = new Set<string>();
@@ -1706,25 +1909,13 @@ export default function KDKPage() {
     const manualNameMatches = useMemo<ManualNameMatch[]>(() => {
         const memberPool = [...allMembers, ...tempGuests];
 
-        const findCandidates = (rawName: string) => {
-            const target = normalizeManualName(rawName);
-            const exact = memberPool.filter(member => normalizeManualName(getManualMemberName(member)) === target);
-            const partial = memberPool.filter(member => {
-                const memberName = normalizeManualName(getManualMemberName(member));
-                return memberName !== target && (memberName.includes(target) || target.includes(memberName));
-            });
-            const byId = new Map<string, Member>();
-            [...exact, ...partial].forEach(member => byId.set(member.id, member));
-            return Array.from(byId.values());
-        };
-
         return manualPlayerNames.map(originalName => {
-            const candidates = findCandidates(originalName);
+            const candidates = getManualMemberCandidates(originalName, memberPool);
             const override = manualNameOverrides[originalName];
             const selectedMember = override && override !== 'guest'
                 ? memberPool.find(member => member.id === override)
                 : candidates[0];
-            const useGuest = override === 'guest' || !selectedMember;
+            const useGuest = override === 'guest' || !selectedMember || isManualGuestMember(selectedMember);
             const guestKey = `manual-guest-${normalizeManualName(originalName) || originalName}`;
 
             return {
@@ -1750,6 +1941,30 @@ export default function KDKPage() {
         if (!trimmed) return '확인 필요';
         const match = manualNameMatchMap.get(normalizeManualName(trimmed));
         return match?.displayName || trimmed;
+    };
+
+    const getManualResolvedPlayer = (name: string) => {
+        const trimmed = name.trim();
+        const match = manualNameMatchMap.get(normalizeManualName(trimmed));
+        const forceGuest = match?.selectedValue === 'guest';
+        const memberPool = [...allMembers, ...tempGuests];
+        const matchedMember = !forceGuest && match?.memberId
+            ? memberPool.find(member => member.id === match.memberId)
+            : null;
+        const fallbackMember = !forceGuest
+            ? getManualMemberCandidates(trimmed, memberPool).find(member => !isManualGuestMember(member))
+            : null;
+        const selectedMember = matchedMember || fallbackMember || null;
+        const isGuest = !selectedMember;
+        const guestKey = match?.guestKey || `manual-guest-${normalizeManualName(trimmed) || trimmed}`;
+        const memberName = selectedMember ? getManualMemberName(selectedMember) : "";
+
+        return {
+            id: selectedMember ? selectedMember.id : guestKey,
+            name: isGuest ? (trimmed ? `${trimmed}(G)` : "이름 확인중") : memberName,
+            rawName: trimmed,
+            isGuest,
+        };
     };
 
 
@@ -1823,7 +2038,7 @@ export default function KDKPage() {
         const canProceedToNameMatching = manualInputMode === 'PASTE' && manualStep === 'INPUT' && manualPasteMatchCount > 0;
 
         return (
-            <main className="flex min-h-screen w-full flex-col overflow-y-auto bg-black px-6 py-6 text-white font-sans">
+            <main className="flex min-h-screen w-full flex-col overflow-y-auto bg-black px-6 py-6 text-white font-sans" style={{ paddingBottom: 'calc(180px + env(safe-area-inset-bottom))' }}>
                 <header className="grid h-12 grid-cols-3 items-center">
                     <div className="flex items-center">
                         <button
@@ -2221,14 +2436,14 @@ A    1    봉준    상윤    영호    광현    19:00`}
             group,
             rows: manualMatchedRows.filter(row => row.group === group),
         }));
-        const isStep2ButtonDisabled = !isManualRulesMode && isGenerating;
+        const isStep2ButtonDisabled = isGenerating;
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => 
             selectedIds.has(m.id) && (partnerSelectSource === 'NEW' ? true : m.id !== partnerSelectSource)
         );
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
+            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: 'calc(220px + env(safe-area-inset-bottom))' }}>
 
                 <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0">
                     <div className="flex items-center">
@@ -2572,7 +2787,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 disabled={isStep2ButtonDisabled}
                                 onClick={() => {
                                     if (isManualRulesMode) {
-                                        alert('수동 대진 저장은 다음 단계에서 연결됩니다.');
+                                        saveManualKDKMatches();
                                         return;
                                     }
                                     generateKDK();
@@ -2596,7 +2811,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
                                 }}
                             >
-                                {isManualRulesMode ? '붙여넣은 대진으로 생성' : isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
+                                {isManualRulesMode ? (isGenerating ? '생성 중...' : '붙여넣은 대진으로 생성') : isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
                             </button>
                         </div>
                     </div>
@@ -2777,7 +2992,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
     }
 
     return (
-        <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: "160px" }}>
+        <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
             {/* [v35.11] Redesigned Master Header: Minimalist 3-Column Layout */}
             <header className="px-6 py-4 flex items-center justify-between h-18 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl">
                 {/* LEFT: ADMIN TOGGLE & RESET */}
@@ -2890,7 +3105,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
             </div>
 
-            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a' }}>
+            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a', paddingBottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
                 {activeTab === 'MATCHES' && (
                     <>
                         <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
