@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -65,6 +65,14 @@ export default function KDKPage() {
     const [generationMode, setGenerationMode] = useState<'AUTO' | 'MANUAL' | null>(null);
     const [manualInputMode, setManualInputMode] = useState<'PASTE' | 'DIRECT' | 'OCR' | null>(null);
     const [manualStep, setManualStep] = useState<'INPUT' | 'MATCH_NAMES' | 'RULES'>('INPUT');
+    const [kdkEntryMode, setKdkEntryMode] = useState<'CHECKING' | 'CHOOSE' | 'CREATE' | 'LIVE'>('CHECKING');
+    const [hasRestoredSession, setHasRestoredSession] = useState(false);
+    const kdkEntryModeRef = useRef<'CHECKING' | 'CHOOSE' | 'CREATE' | 'LIVE'>('CHECKING');
+    const hasInitializedKdkRef = useRef(false);
+    const updateKdkEntryMode = (mode: 'CHECKING' | 'CHOOSE' | 'CREATE' | 'LIVE') => {
+        kdkEntryModeRef.current = mode;
+        setKdkEntryMode(mode);
+    };
     const [syncTick, setSyncTick] = useState(0);
     const [adminModeManual, setAdminModeManual] = useState(true); // [v35.11] Admin UI Visibility Toggle
 
@@ -72,6 +80,10 @@ export default function KDKPage() {
     useEffect(() => {
         if (syncTick > 0) syncActiveSession();
     }, [syncTick]);
+
+    useEffect(() => {
+        kdkEntryModeRef.current = kdkEntryMode;
+    }, [kdkEntryMode]);
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [tempGuests, setTempGuests] = useState<Member[]>([]);
@@ -205,7 +217,7 @@ export default function KDKPage() {
             // 1. 로컬 스토리지 확인
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
             const localTitles = failovers.map((f: any) => f.raw_data?.title || '');
-            
+
             if (hasArchiveError) return;
             // 2. 서버 아카이브 확인 (최근 20개만) - 테이블이 없을 수 있으므로 안전하게 처리
             const { data: serverData, error: archiveError } = await supabase
@@ -485,14 +497,23 @@ export default function KDKPage() {
     const restoreSession = () => {
         try {
             const saved = localStorage.getItem('kdk_live_session');
-            if (!saved) return;
+            if (!saved) return false;
 
             const data = JSON.parse(saved);
+            const hasSavedMatches = Array.isArray(data.matches) && data.matches.length > 0;
+            const hasSavedLiveSession = Boolean(data.sessionId && (hasSavedMatches || data.step >= 3));
             if (data.matches) setMatches(data.matches || []);
             if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs || {});
             if (data.selectedIds) setSelectedIds(new Set(data.selectedIds || []));
             if (data.tempGuests) setTempGuests(data.tempGuests || []);
-            if (data.step) setStep(data.step || 1);
+            if (hasSavedLiveSession) {
+                setStep(3);
+                updateKdkEntryMode('CHOOSE');
+                setHasRestoredSession(true);
+            } else if (data.step) {
+                setStep(data.step || 1);
+                updateKdkEntryMode('CREATE');
+            }
             if (data.generationMode) {
                 setGenerationMode(data.generationMode);
             } else if (data.step === 1 || data.step === 2) {
@@ -504,34 +525,67 @@ export default function KDKPage() {
             if (data.manualNameOverrides) setManualNameOverrides(data.manualNameOverrides || {});
             if (data.sessionTitle) setSessionTitle(data.sessionTitle);
             if (data.sessionId) setSessionId(data.sessionId);
+            if (data.selectedSessionId || hasSavedLiveSession) setSelectedSessionId(data.selectedSessionId || data.sessionId);
 
             console.log("Session restored from LocalStorage");
+            return hasSavedLiveSession;
         } catch (e) {
             console.error("Session Restoration Error:", e);
+            return false;
         }
     };
 
     useEffect(() => {
-        fetchMembers();
-        restoreSession();
-        
-        // [v14.0] 초기 구동 시 제목 중복 체크
-        setTimeout(() => {
-            findNextAvailableTitle();
-        }, 1500);
+        if (!hasInitializedKdkRef.current) {
+            hasInitializedKdkRef.current = true;
+            fetchMembers();
+            restoreSession();
 
-        // Migrate all 18:00 configs to 19:00
-        setAttendeeConfigs(prev => {
-            const next = { ...prev };
-            let changed = false;
-            Object.keys(next).forEach(id => {
-                if (next[id].startTime === '18:00') {
-                    next[id] = { ...next[id], startTime: '19:00' };
-                    changed = true;
-                }
+            const entryMode = new URLSearchParams(window.location.search).get('entry');
+            if (entryMode === 'live') {
+                updateKdkEntryMode('LIVE');
+                setActiveTab('MATCHES');
+                setStep(3);
+                setShowGateway(false);
+                window.history.replaceState(null, '', window.location.pathname);
+            } else if (entryMode === 'create') {
+                updateKdkEntryMode('CREATE');
+                setShowGateway(false);
+                setSelectedSessionId(null);
+                setMatches([]);
+                setSelectedIds(new Set());
+                setAttendeeConfigs({});
+                setTempGuests([]);
+                setGenerationMode(null);
+                setManualInputMode(null);
+                setManualStep('INPUT');
+                setManualPasteText("");
+                setManualNameOverrides({});
+                setActiveTab('MATCHES');
+                setSessionId(createFreshSessionId());
+                setSessionTitle(getSuggestedSessionTitle());
+                setStep(0);
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+
+            // [v14.0] 초기 구동 시 제목 중복 체크
+            setTimeout(() => {
+                findNextAvailableTitle();
+            }, 1500);
+
+            // Migrate all 18:00 configs to 19:00
+            setAttendeeConfigs(prev => {
+                const next = { ...prev };
+                let changed = false;
+                Object.keys(next).forEach(id => {
+                    if (next[id].startTime === '18:00') {
+                        next[id] = { ...next[id], startTime: '19:00' };
+                        changed = true;
+                    }
+                });
+                return changed ? next : prev;
             });
-            return changed ? next : prev;
-        });
+        }
 
         const timer = setInterval(() => {
             setCurrentTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' }));
@@ -603,11 +657,12 @@ export default function KDKPage() {
                 manualPasteText,
                 manualNameOverrides,
                 sessionTitle,
-                sessionId
+                sessionId,
+                selectedSessionId
             };
             localStorage.setItem('kdk_live_session', JSON.stringify(data));
         }
-    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, manualStep, manualPasteText, manualNameOverrides, sessionTitle, sessionId]);
+    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, manualStep, manualPasteText, manualNameOverrides, sessionTitle, sessionId, selectedSessionId]);
 
     // Independent Score Buffer for Active Modal
     useEffect(() => {
@@ -634,16 +689,21 @@ export default function KDKPage() {
             setIsMembersError(false);
             const { data: { user } } = await supabase.auth.getUser();
             if (user && !hasProfileError) {
-                // [v34.3] Defensive Profile Check: Handle missing 'club_role' column gracefully
+                // Defensive profile check: app roles now live in profiles.role.
                 try {
-                    const { data: profile, error: profError } = await supabase.from('profiles').select('club_role').eq('id', user.id).maybeSingle();
+                    const { data: profile, error: profError } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', user.id)
+                        .maybeSingle();
                     if (profError) {
-                        console.warn("Profile check failed. Silencing further checks.");
+                        console.warn("Profile check failed. Continuing with AuthContext role.", profError);
                         setHasProfileError(true);
                     } else if (profile) {
-                        setUserRole(profile.club_role as UserRole);
+                        setUserRole((profile as any).role as UserRole);
                     }
                 } catch (e) {
+                    console.warn("Profile check skipped. Continuing with AuthContext role.", e);
                     setHasProfileError(true);
                 }
             }
@@ -665,6 +725,11 @@ export default function KDKPage() {
         } catch (err) {
             console.error("Fetch Members Error:", err);
             setIsMembersError(true);
+            if (kdkEntryMode === 'CHECKING') {
+                setHasRestoredSession(false);
+                updateKdkEntryMode('CREATE');
+                setStep(0);
+            }
         } finally {
             setIsMembersLoading(false);
         }
@@ -713,7 +778,7 @@ export default function KDKPage() {
                 .select('*')
                 .eq('club_id', clubId);
 
-            const shouldLoadAllSessions = !selectedSessionId && (showGateway || (step === 1 && matches.length === 0));
+            const shouldLoadAllSessions = !selectedSessionId && (showGateway || kdkEntryMode === 'CHECKING' || kdkEntryMode === 'CHOOSE' || (step === 1 && matches.length === 0));
             if (activeSessionId && !shouldLoadAllSessions) {
                 query = query.eq('session_id', activeSessionId);
             }
@@ -756,13 +821,15 @@ export default function KDKPage() {
                 });
 
                 // [v35.3] SESSION LOCK: If we already have a selected session, NEVER let auto-logic overwrite it
-                if (!selectedSessionId) {
+                const latestEntryMode = kdkEntryModeRef.current;
+                if (!selectedSessionId && latestEntryMode !== 'CREATE' && latestEntryMode !== 'LIVE') {
                     if (sessionList.length === 1) {
                         // Auto-entry if only one session
                         const soleSession = sessionsMap[sessionList[0].id];
                         const mappedMatches = soleSession.matches.map(m => ({
                             id: m.id,
                             playerIds: m.player_ids || m.playerIds || [],
+                            playerNames: m.player_names || m.playerNames || [],
                             court: m.court,
                             status: m.status,
                             score1: m.score1,
@@ -780,17 +847,22 @@ export default function KDKPage() {
                         setSessionId(soleSession.id);
                         setSessionTitle(soleSession.title);
                         setSelectedSessionId(soleSession.id);
+                        setHasRestoredSession(true);
+                        updateKdkEntryMode('CHOOSE');
+                        setShowGateway(false);
                         setStep(3);
                     } else if (sessionList.length > 1) {
+                        setHasRestoredSession(true);
+                        updateKdkEntryMode('CHOOSE');
                         setShowGateway(true);
                         setStep(3);
                     }
-                } else {
+                } else if (selectedSessionId) {
                     // Refresh current session data if already selected
                     const currentSession = sessionsMap[selectedSessionId];
                     if (currentSession) {
                         // [v34.1] Read extended metadata from Server Truth
-                        const refreshingMatches = currentSession.matches.map(m => ({
+                        const refreshingMatches = currentSession.matches.map((m: any) => ({
                             id: m.id,
                             playerIds: m.player_ids || m.playerIds || [],
                             playerNames: m.player_names || m.playerNames || [],
@@ -806,7 +878,7 @@ export default function KDKPage() {
 
                         // [v34.1] GUEST RECOVERY: Re-materialize tempGuests from match data if names are missing locally
                         const guestMappings: Record<string, string> = {};
-                        refreshingMatches.forEach(rm => {
+                        refreshingMatches.forEach((rm: any) => {
                             rm.playerIds.forEach((pid: string, idx: number) => {
                                 if (pid?.startsWith('g-') || pid?.startsWith('manual-guest-')) {
                                     const rawName = rm.playerNames?.[idx] || "";
@@ -854,15 +926,29 @@ export default function KDKPage() {
                     setSyncErrorMsg(null);
                 }
             } else {
-                setAllActiveSessions([]);
+                const latestEntryMode = kdkEntryModeRef.current;
+                if (latestEntryMode !== 'CREATE') {
+                    setAllActiveSessions([]);
+                }
                 setShowGateway(false);
+                if (latestEntryMode === 'CHECKING') {
+                    setHasRestoredSession(false);
+                    updateKdkEntryMode('CREATE');
+                    setStep(0);
+                }
                 if (!isAdmin) {
                     setShowGateway(true);
+                    updateKdkEntryMode('LIVE');
                     setStep(3);
                 }
             }
         } catch (err) {
             console.error("Active session sync failure:", err);
+            if (kdkEntryModeRef.current === 'CHECKING') {
+                setHasRestoredSession(false);
+                updateKdkEntryMode('CREATE');
+                setStep(0);
+            }
         }
     };
 
@@ -873,10 +959,67 @@ export default function KDKPage() {
             setShowGateway(false);
             setSessionId(sId);
             setSessionTitle(target.title);
+            updateKdkEntryMode('LIVE');
             setStep(3);
             // Trigger a re-sync to get the full match data for this session
             syncActiveSession();
         }
+    };
+
+    const createFreshSessionId = () => {
+        const d = new Date();
+        const dateStr = d.toISOString().split('T')[0].replace(/-/g, '');
+        return `KDK-${dateStr}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    };
+
+    const getSuggestedSessionTitle = () => {
+        const d = new Date();
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const prefix = `${yy}${mm}${dd}_KDK_`;
+        const titles = [sessionTitle, ...allActiveSessions.map(s => s.title)].filter(Boolean);
+        const maxSequence = titles.reduce((max, title) => {
+            if (!title.startsWith(prefix)) return max;
+            const value = Number(title.slice(prefix.length));
+            return Number.isFinite(value) ? Math.max(max, value) : max;
+        }, 0);
+        return `${prefix}${String(maxSequence + 1).padStart(2, '0')}`;
+    };
+
+    const openExistingLiveCourt = () => {
+        updateKdkEntryMode('LIVE');
+        setActiveTab('MATCHES');
+        setStep(3);
+        if (allActiveSessions.length > 1 && !selectedSessionId) {
+            setShowGateway(true);
+        } else {
+            setShowGateway(false);
+        }
+    };
+
+    const startNewKdkCreation = () => {
+        if (!isAdmin) {
+            triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
+            return;
+        }
+
+        updateKdkEntryMode('CREATE');
+        setShowGateway(false);
+        setSelectedSessionId(null);
+        setMatches([]);
+        setSelectedIds(new Set());
+        setAttendeeConfigs({});
+        setTempGuests([]);
+        setGenerationMode(null);
+        setManualInputMode(null);
+        setManualStep('INPUT');
+        setManualPasteText("");
+        setManualNameOverrides({});
+        setActiveTab('MATCHES');
+        setSessionId(createFreshSessionId());
+        setSessionTitle(getSuggestedSessionTitle());
+        setStep(0);
     };
 
     const toggleMember = (id: string) => {
@@ -1157,6 +1300,7 @@ export default function KDKPage() {
 
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // 딩-동!
             setMatches(formattedMatches);
+            updateKdkEntryMode('LIVE');
             setStep(3);
         } catch (err: any) {
             console.error(err);
@@ -1329,6 +1473,7 @@ export default function KDKPage() {
             setManualInputMode(null);
             setManualStep('INPUT');
             setActiveTab('MATCHES');
+            updateKdkEntryMode('LIVE');
             setStep(3);
 
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
@@ -1967,6 +2112,78 @@ export default function KDKPage() {
         };
     };
 
+
+    const hasExistingKdkSession = hasRestoredSession || matches.length > 0 || allActiveSessions.length > 0 || Boolean(selectedSessionId);
+
+    if (kdkEntryMode === 'CHECKING') {
+        return (
+            <main className="flex min-h-screen w-full flex-col items-center justify-center bg-black px-6 text-white font-sans">
+                <PremiumSpinner />
+                <p className="mt-6 text-[11px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">
+                    Checking KDK Session
+                </p>
+            </main>
+        );
+    }
+
+    if (kdkEntryMode === 'CHOOSE' && hasExistingKdkSession) {
+        const sessionCount = allActiveSessions.length || (matches.length > 0 ? 1 : 0);
+        const primaryTitle = selectedSessionId
+            ? (allActiveSessions.find(s => s.id === selectedSessionId)?.title || sessionTitle)
+            : (allActiveSessions[0]?.title || sessionTitle);
+
+        return (
+            <main className="flex min-h-screen w-full flex-col bg-black px-6 py-8 text-white font-sans">
+                <header className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
+                    <span className="mb-3 rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.35em] text-[#C9B075]">
+                        KDK Entry
+                    </span>
+                    <h1 className="text-3xl font-black italic uppercase tracking-tight text-white">
+                        진행 중인 대진이 있습니다
+                    </h1>
+                    <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
+                        기존 대진을 이어서 운영하거나, 새 대진 생성 화면으로 이동할 수 있습니다.
+                    </p>
+                </header>
+
+                <section className="mx-auto mt-10 grid w-full max-w-lg gap-4">
+                    <Link
+                        href="/kdk?entry=live"
+                        onClick={openExistingLiveCourt}
+                        className="group block rounded-[28px] border border-[#C9B075]/35 bg-[#181818] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition-all active:scale-[0.98]"
+                    >
+                        <div className="mb-7 flex items-center justify-between gap-4">
+                            <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
+                                Live Court
+                            </span>
+                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">→</span>
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight text-white">기존 라이브 코트 보기</h2>
+                        <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/50">
+                            {sessionCount > 1 ? `${sessionCount}개의 진행 중인 세션 중 선택합니다.` : `${primaryTitle || '현재 세션'}을 이어서 운영합니다.`}
+                        </p>
+                    </Link>
+
+                    <Link
+                        href="/kdk?entry=create"
+                        onClick={startNewKdkCreation}
+                        className="group block rounded-[28px] border border-white/10 bg-white/[0.04] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
+                    >
+                        <div className="mb-7 flex items-center justify-between gap-4">
+                            <span className="rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#C9B075]">
+                                New Draw
+                            </span>
+                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">→</span>
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight text-white">새 대진 생성하기</h2>
+                        <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/50">
+                            기존 세션은 보존하고, 자동 생성 또는 수동 구성 Step 0부터 새로 시작합니다.
+                        </p>
+                    </Link>
+                </section>
+            </main>
+        );
+    }
 
     // --- Step 0: Generation Mode Selection ---
     if (step === 0) {
@@ -2970,17 +3187,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 { (allActiveSessions.length === 0 || isAdmin) && (
                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full px-8 pb-4">
                         <button
-                            onClick={() => { 
-                                if (!isAdmin) return triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
-                                setShowGateway(false); 
-                                setStep(0);
-                                setGenerationMode(null);
-                                setManualInputMode(null);
-                                setSelectedSessionId(null); 
-                                setMatches([]); 
-                                setSessionId(""); 
-                                setSessionTitle(""); 
-                            }}
+                            onClick={startNewKdkCreation}
                             className="w-full py-5 rounded-full bg-white/5 border border-white/10 text-white/40 font-black text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                         >
                             {isAdmin ? '+ 새로운 대회 생성하기' : '준비 된 경기가 없습니다'}
@@ -3524,4 +3731,3 @@ A    1    봉준    상윤    영호    광현    19:00`}
         </main>
     );
 }
-
