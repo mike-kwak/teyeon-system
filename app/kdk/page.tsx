@@ -20,6 +20,16 @@ import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals
 import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
 import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 
+type ActiveKdkSession = {
+    id: string;
+    title: string;
+    matchCount: number;
+    playerCount: number;
+    lastActivity: string;
+};
+
+type KdkEntryBackTarget = 'ENTRY_CHOICE' | 'MAIN' | null;
+
 export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
@@ -66,6 +76,8 @@ export default function KDKPage() {
     const [manualInputMode, setManualInputMode] = useState<'PASTE' | 'DIRECT' | 'OCR' | null>(null);
     const [manualStep, setManualStep] = useState<'INPUT' | 'MATCH_NAMES' | 'RULES'>('INPUT');
     const [kdkEntryMode, setKdkEntryMode] = useState<'CHECKING' | 'CHOOSE' | 'CREATE' | 'LIVE'>('CHECKING');
+    const [sessionSelectorBackTarget, setSessionSelectorBackTarget] = useState<KdkEntryBackTarget>(null);
+    const [createBackTarget, setCreateBackTarget] = useState<KdkEntryBackTarget>(null);
     const [hasRestoredSession, setHasRestoredSession] = useState(false);
     const kdkEntryModeRef = useRef<'CHECKING' | 'CHOOSE' | 'CREATE' | 'LIVE'>('CHECKING');
     const hasInitializedKdkRef = useRef(false);
@@ -137,7 +149,9 @@ export default function KDKPage() {
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     const [showRankingModal, setShowRankingModal] = useState(false);
     const [userRole, setUserRole] = useState<UserRole>('GUEST');
-    const [allActiveSessions, setAllActiveSessions] = useState<{ id: string, title: string, matchCount: number, playerCount: number, lastActivity: string }[]>([]);
+    const [allActiveSessions, setAllActiveSessions] = useState<ActiveKdkSession[]>([]);
+    const [sessionDeleteTarget, setSessionDeleteTarget] = useState<ActiveKdkSession | null>(null);
+    const [isDeletingSession, setIsDeletingSession] = useState(false);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const activeSessionId = selectedSessionId || sessionId;
     const [showGateway, setShowGateway] = useState(false);
@@ -509,15 +523,16 @@ export default function KDKPage() {
             const data = JSON.parse(saved);
             const hasSavedMatches = Array.isArray(data.matches) && data.matches.length > 0;
             const hasSavedLiveSession = Boolean(data.sessionId && (hasSavedMatches || data.step >= 3));
-            if (data.matches) setMatches(data.matches || []);
-            if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs || {});
-            if (data.selectedIds) setSelectedIds(new Set(data.selectedIds || []));
-            if (data.tempGuests) setTempGuests(data.tempGuests || []);
             if (hasSavedLiveSession) {
-                setStep(3);
-                updateKdkEntryMode('CHOOSE');
+                // Do not restore live matches from device-local cache.
+                // Supabase active sessions are the source of truth across devices.
                 setHasRestoredSession(true);
+                return true;
             } else if (data.step) {
+                if (data.matches) setMatches(data.matches || []);
+                if (data.attendeeConfigs) setAttendeeConfigs(data.attendeeConfigs || {});
+                if (data.selectedIds) setSelectedIds(new Set(data.selectedIds || []));
+                if (data.tempGuests) setTempGuests(data.tempGuests || []);
                 setStep(data.step || 1);
                 updateKdkEntryMode('CREATE');
             }
@@ -532,7 +547,6 @@ export default function KDKPage() {
             if (data.manualNameOverrides) setManualNameOverrides(data.manualNameOverrides || {});
             if (data.sessionTitle) setSessionTitle(data.sessionTitle);
             if (data.sessionId) setSessionId(data.sessionId);
-            if (data.selectedSessionId || hasSavedLiveSession) setSelectedSessionId(data.selectedSessionId || data.sessionId);
 
             console.log("Session restored from LocalStorage");
             return hasSavedLiveSession;
@@ -550,12 +564,16 @@ export default function KDKPage() {
 
             const entryMode = new URLSearchParams(window.location.search).get('entry');
             if (entryMode === 'live') {
+                setSessionSelectorBackTarget(null);
+                setCreateBackTarget(null);
                 updateKdkEntryMode('LIVE');
                 setActiveTab('MATCHES');
                 setStep(3);
                 setShowGateway(false);
                 window.history.replaceState(null, '', window.location.pathname);
             } else if (entryMode === 'create') {
+                setSessionSelectorBackTarget(null);
+                setCreateBackTarget('MAIN');
                 updateKdkEntryMode('CREATE');
                 setShowGateway(false);
                 setSelectedSessionId(null);
@@ -609,7 +627,7 @@ export default function KDKPage() {
 
         // [v33.0] Club-Scoped Realtime Subscription (Simplification for Global Sync)
         const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
-        const currentSid = showGateway ? null : activeSessionId;
+        const currentSid = (showGateway || kdkEntryMode === 'CHOOSE' || kdkEntryMode === 'CHECKING') ? null : activeSessionId;
         const realtimeFilter = `club_id=eq.${clubId}`;
 
         const matchesChannel = supabase.channel(`sync-kdk-club-${clubId}`)
@@ -639,7 +657,7 @@ export default function KDKPage() {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             supabase.removeChannel(matchesChannel);
         };
-    }, [activeSessionId, showGateway]);
+    }, [activeSessionId, showGateway, kdkEntryMode]);
 
     // [v25.0] Guest Access Auto Router
     useEffect(() => {
@@ -742,6 +760,20 @@ export default function KDKPage() {
         }
     };
 
+    const mapDbMatchToMatch = (m: any): Match => ({
+        id: m.id,
+        playerIds: m.player_ids || m.playerIds || [],
+        playerNames: m.player_names || m.playerNames || [],
+        court: m.court,
+        status: m.status,
+        score1: m.score1,
+        score2: m.score2,
+        mode: m.mode || 'KDK',
+        round: m.round,
+        teams: m.teams,
+        groupName: m.group_name || m.groupName || 'A'
+    });
+
     const fetchMatches = async (targetSessionId: string) => {
         if (!targetSessionId) return;
 
@@ -756,19 +788,7 @@ export default function KDKPage() {
 
             if (error) throw error;
 
-            const mappedMatches = (data || []).map(m => ({
-                id: m.id,
-                playerIds: m.player_ids || m.playerIds || [],
-                playerNames: m.player_names || m.playerNames || [],
-                court: m.court,
-                status: m.status,
-                score1: m.score1,
-                score2: m.score2,
-                mode: m.mode || 'KDK',
-                round: m.round,
-                teams: m.teams,
-                groupName: m.group_name || m.groupName || 'A'
-            })) as Match[];
+            const mappedMatches = (data || []).map(mapDbMatchToMatch);
 
             setMatches(mappedMatches);
             setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -779,175 +799,165 @@ export default function KDKPage() {
 
     const syncActiveSession = async () => {
         try {
-            
-            let query = supabase
+            const { data, error } = await supabase
                 .from('matches')
                 .select('*')
                 .eq('club_id', clubId);
 
-            const shouldLoadAllSessions = !selectedSessionId && (showGateway || kdkEntryMode === 'CHECKING' || kdkEntryMode === 'CHOOSE' || (step === 1 && matches.length === 0));
-            if (activeSessionId && !shouldLoadAllSessions) {
-                query = query.eq('session_id', activeSessionId);
-            }
-
-            const { data, error } = await query;
-
             if (error) throw error;
 
-            if (data && data.length > 0) {
-                // Group by session
-                const sessionsMap: Record<string, { id: string, title: string, matches: any[], players: Set<string>, lastActivity: string }> = {};
-                
-                data.forEach(m => {
-                    const sId = m.session_id || 'LEGACY';
-                    if (!sessionsMap[sId]) {
-                        sessionsMap[sId] = {
-                            id: sId,
-                            title: m.session_title || 'Unnamed Tournament',
-                            matches: [],
-                            players: new Set(),
-                            lastActivity: m.created_at
-                        };
-                    }
-                    sessionsMap[sId].matches.push(m);
-                    (m.playerIds || []).forEach((pid: string) => sessionsMap[sId].players.add(pid));
-                });
+            const rows = data || [];
+            const latestEntryMode = kdkEntryModeRef.current;
 
-                const sessionList = Object.values(sessionsMap).map(s => ({
+            if (rows.length === 0) {
+                setAllActiveSessions([]);
+                setHasRestoredSession(false);
+                if (latestEntryMode === 'LIVE') {
+                    setSelectedSessionId(null);
+                    setMatches([]);
+                    setShowGateway(true);
+                    setStep(3);
+                } else if (latestEntryMode === 'CHECKING' || latestEntryMode === 'CHOOSE') {
+                    setSelectedSessionId(null);
+                    setMatches([]);
+                    setShowGateway(false);
+                    setCreateBackTarget('MAIN');
+                    setSessionSelectorBackTarget(null);
+                    updateKdkEntryMode('CREATE');
+                    setStep(0);
+                }
+                setSyncStatus('IDLE');
+                return;
+            }
+
+            const sessionsMap: Record<string, { id: string, title: string, matches: any[], players: Set<string>, lastActivity: string }> = {};
+
+            rows.forEach((m: any) => {
+                const sId = m.session_id || 'LEGACY';
+                const activity = m.updated_at || m.match_date || m.created_at || '';
+                if (!sessionsMap[sId]) {
+                    sessionsMap[sId] = {
+                        id: sId,
+                        title: m.session_title || 'Unnamed Tournament',
+                        matches: [],
+                        players: new Set(),
+                        lastActivity: activity,
+                    };
+                }
+                sessionsMap[sId].matches.push(m);
+                const currentActivity = Date.parse(sessionsMap[sId].lastActivity || '');
+                const nextActivity = Date.parse(activity || '');
+                if (!Number.isFinite(currentActivity) || (Number.isFinite(nextActivity) && nextActivity > currentActivity)) {
+                    sessionsMap[sId].lastActivity = activity;
+                }
+                (m.player_ids || m.playerIds || []).forEach((pid: string) => sessionsMap[sId].players.add(pid));
+            });
+
+            const sessionList = Object.values(sessionsMap)
+                .map(s => ({
                     id: s.id,
                     title: s.title,
                     matchCount: s.matches.length,
                     playerCount: s.players.size,
-                    lastActivity: s.lastActivity
-                }));
+                    lastActivity: s.lastActivity,
+                }))
+                .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime());
 
-                setAllActiveSessions(prev => {
-                    const nextJson = JSON.stringify(sessionList);
-                    if (JSON.stringify(prev) === nextJson) return prev;
-                    return sessionList;
+            setAllActiveSessions(prev => {
+                const nextJson = JSON.stringify(sessionList);
+                if (JSON.stringify(prev) === nextJson) return prev;
+                return sessionList;
+            });
+
+            setHasRestoredSession(true);
+
+            const applySession = (targetSessionId: string) => {
+                const currentSession = sessionsMap[targetSessionId];
+                if (!currentSession) return false;
+
+                const refreshingMatches = currentSession.matches.map(mapDbMatchToMatch);
+
+                const guestMappings: Record<string, string> = {};
+                refreshingMatches.forEach((rm: any) => {
+                    rm.playerIds.forEach((pid: string, idx: number) => {
+                        if (pid?.startsWith('g-') || pid?.startsWith('manual-guest-')) {
+                            const rawName = rm.playerNames?.[idx] || pid.replace(/^manual-guest-/, '');
+                            const cleanName = rawName.replace(/^manual-guest-/, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
+                            if (cleanName) guestMappings[pid] = cleanName;
+                        }
+                    });
                 });
 
-                // [v35.3] SESSION LOCK: If we already have a selected session, NEVER let auto-logic overwrite it
-                const latestEntryMode = kdkEntryModeRef.current;
-                if (!selectedSessionId && latestEntryMode !== 'CREATE' && latestEntryMode !== 'LIVE') {
-                    if (sessionList.length === 1) {
-                        // Auto-entry if only one session
-                        const soleSession = sessionsMap[sessionList[0].id];
-                        const mappedMatches = soleSession.matches.map(m => ({
-                            id: m.id,
-                            playerIds: m.player_ids || m.playerIds || [],
-                            playerNames: m.player_names || m.playerNames || [],
-                            court: m.court,
-                            status: m.status,
-                            score1: m.score1,
-                            score2: m.score2,
-                            mode: m.mode || 'KDK',
-                            round: m.round,
-                            teams: m.teams,
-                            groupName: m.group_name || m.groupName || 'A'
-                        }));
-                        setMatches(prev => {
-                            const nextJson = JSON.stringify(mappedMatches);
-                            if (JSON.stringify(prev) === nextJson) return prev;
-                            return mappedMatches;
+                if (Object.keys(guestMappings).length > 0) {
+                    setTempGuests(prev => {
+                        const next = [...prev];
+                        let changed = false;
+                        Object.entries(guestMappings).forEach(([gid, gname]) => {
+                            if (!next.some(p => p.id === gid)) {
+                                next.push({ id: gid, nickname: gname, is_guest: true });
+                                changed = true;
+                            }
                         });
-                        setSessionId(soleSession.id);
-                        setSessionTitle(soleSession.title);
-                        setSelectedSessionId(soleSession.id);
-                        setHasRestoredSession(true);
-                        updateKdkEntryMode('CHOOSE');
-                        setShowGateway(false);
-                        setStep(3);
-                    } else if (sessionList.length > 1) {
-                        setHasRestoredSession(true);
-                        updateKdkEntryMode('CHOOSE');
+                        return changed ? next : prev;
+                    });
+                }
+
+                setMatches(prev => {
+                    const nextJson = JSON.stringify(refreshingMatches);
+                    if (JSON.stringify(prev) === nextJson) return prev;
+                    return refreshingMatches;
+                });
+                setSessionId(currentSession.id);
+                setSessionTitle(currentSession.title);
+                setSelectedSessionId(currentSession.id);
+                setShowGateway(false);
+                setStep(3);
+                return true;
+            };
+
+            if (latestEntryMode === 'CREATE') {
+                // Creation flow is isolated from active session restore.
+            } else if (selectedSessionId) {
+                if (!applySession(selectedSessionId)) {
+                    setSelectedSessionId(null);
+                    setMatches([]);
+                    if (latestEntryMode === 'LIVE') {
                         setShowGateway(true);
                         setStep(3);
-                    }
-                } else if (selectedSessionId) {
-                    // Refresh current session data if already selected
-                    const currentSession = sessionsMap[selectedSessionId];
-                    if (currentSession) {
-                        // [v34.1] Read extended metadata from Server Truth
-                        const refreshingMatches = currentSession.matches.map((m: any) => ({
-                            id: m.id,
-                            playerIds: m.player_ids || m.playerIds || [],
-                            playerNames: m.player_names || m.playerNames || [],
-                            court: m.court,
-                            status: m.status,
-                            score1: m.score1,
-                            score2: m.score2,
-                            mode: m.mode || 'KDK',
-                            round: m.round,
-                            teams: m.teams,
-                            groupName: m.group_name || m.groupName || 'A'
-                        }));
-
-                        // [v34.1] GUEST RECOVERY: Re-materialize tempGuests from match data if names are missing locally
-                        const guestMappings: Record<string, string> = {};
-                        refreshingMatches.forEach((rm: any) => {
-                            rm.playerIds.forEach((pid: string, idx: number) => {
-                                if (pid?.startsWith('g-') || pid?.startsWith('manual-guest-')) {
-                                    const rawName = rm.playerNames?.[idx] || "";
-                                    const cleanName = rawName.replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
-                                    if (cleanName) guestMappings[pid] = cleanName;
-                                }
-                            });
-                        });
-
-                        if (Object.keys(guestMappings).length > 0) {
-                            setTempGuests(prev => {
-                                const next = [...prev];
-                                let changed = false;
-                                Object.entries(guestMappings).forEach(([gid, gname]) => {
-                                    if (!next.some(p => p.id === gid)) {
-                                        next.push({ id: gid, nickname: gname, is_guest: true });
-                                        changed = true;
-                                    }
-                                });
-                                return changed ? next : prev;
-                            });
-                        }
-
-                        setMatches(prev => {
-                            const nextJson = JSON.stringify(refreshingMatches);
-                            if (JSON.stringify(prev) === nextJson) return prev;
-                            return refreshingMatches;
-                        });
-                        // Also sync Title in case it was changed
-                        if (currentSession.title !== sessionTitle) {
-                            setSessionTitle(currentSession.title);
-                        }
+                    } else if (latestEntryMode === 'CHECKING') {
+                        updateKdkEntryMode('CHOOSE');
+                        setStep(3);
                     }
                 }
-                setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-                
-                // [v34.2] Detect Sync Integrity
-                const hasModernMetadata = sessionList.length > 0 && data.some((m: any) => m.player_names && m.player_names.length > 0);
-                if (sessionList.length > 0 && !hasModernMetadata) {
-                    setIsLegacySync(true);
-                    setSyncStatus('WARNING');
+            } else if (latestEntryMode === 'LIVE') {
+                if (sessionList.length === 1) {
+                    applySession(sessionList[0].id);
                 } else {
-                    setIsLegacySync(false);
-                    setSyncStatus('HEALTHY');
-                    setSyncErrorMsg(null);
-                }
-            } else {
-                const latestEntryMode = kdkEntryModeRef.current;
-                if (latestEntryMode !== 'CREATE') {
-                    setAllActiveSessions([]);
-                }
-                setShowGateway(false);
-                if (latestEntryMode === 'CHECKING') {
-                    setHasRestoredSession(false);
-                    updateKdkEntryMode('CREATE');
-                    setStep(0);
-                }
-                if (!isAdmin) {
+                    setMatches([]);
                     setShowGateway(true);
-                    updateKdkEntryMode('LIVE');
                     setStep(3);
                 }
+            } else if (latestEntryMode === 'CHECKING') {
+                setCreateBackTarget(null);
+                setSessionSelectorBackTarget(null);
+                updateKdkEntryMode('CHOOSE');
+                setShowGateway(false);
+                setStep(3);
+            } else if (latestEntryMode === 'CHOOSE') {
+                setShowGateway(false);
+                setStep(3);
+            }
+
+            setLastSyncTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+            const hasModernMetadata = sessionList.length > 0 && rows.some((m: any) => m.player_names && m.player_names.length > 0);
+            if (sessionList.length > 0 && !hasModernMetadata) {
+                setIsLegacySync(true);
+                setSyncStatus('WARNING');
+            } else {
+                setIsLegacySync(false);
+                setSyncStatus('HEALTHY');
+                setSyncErrorMsg(null);
             }
         } catch (err) {
             console.error("Active session sync failure:", err);
@@ -962,14 +972,15 @@ export default function KDKPage() {
     const enterSession = (sId: string) => {
         const target = allActiveSessions.find(s => s.id === sId);
         if (target) {
+            setSessionSelectorBackTarget(null);
+            setCreateBackTarget(null);
             setSelectedSessionId(sId);
             setShowGateway(false);
             setSessionId(sId);
             setSessionTitle(target.title);
             updateKdkEntryMode('LIVE');
             setStep(3);
-            // Trigger a re-sync to get the full match data for this session
-            syncActiveSession();
+            fetchMatches(sId);
         }
     };
 
@@ -994,14 +1005,45 @@ export default function KDKPage() {
         return `${prefix}${String(maxSequence + 1).padStart(2, '0')}`;
     };
 
+    const returnToEntryChoice = () => {
+        setSelectedSessionId(null);
+        setMatches([]);
+        setShowGateway(false);
+        setGenerationMode(null);
+        setManualInputMode(null);
+        setManualStep('INPUT');
+        setSessionSelectorBackTarget(null);
+        setCreateBackTarget(null);
+        setActiveTab('MATCHES');
+        updateKdkEntryMode('CHOOSE');
+        setStep(3);
+    };
+
+    const handleGenerationModeBack = () => {
+        if (createBackTarget === 'ENTRY_CHOICE' || allActiveSessions.length > 0) {
+            returnToEntryChoice();
+            return;
+        }
+
+        router.push('/');
+    };
+
     const openExistingLiveCourt = () => {
+        setSessionSelectorBackTarget('ENTRY_CHOICE');
+        setCreateBackTarget(null);
         updateKdkEntryMode('LIVE');
         setActiveTab('MATCHES');
         setStep(3);
-        if (allActiveSessions.length > 1 && !selectedSessionId) {
+        if (allActiveSessions.length === 1) {
+            enterSession(allActiveSessions[0].id);
+        } else if (allActiveSessions.length > 1) {
+            setSelectedSessionId(null);
+            setMatches([]);
             setShowGateway(true);
         } else {
-            setShowGateway(false);
+            setSelectedSessionId(null);
+            setMatches([]);
+            setShowGateway(true);
         }
     };
 
@@ -1011,6 +1053,8 @@ export default function KDKPage() {
             return;
         }
 
+        setCreateBackTarget(kdkEntryModeRef.current === 'CHOOSE' ? 'ENTRY_CHOICE' : 'MAIN');
+        setSessionSelectorBackTarget(null);
         updateKdkEntryMode('CREATE');
         setShowGateway(false);
         setSelectedSessionId(null);
@@ -1027,6 +1071,47 @@ export default function KDKPage() {
         setSessionId(createFreshSessionId());
         setSessionTitle(getSuggestedSessionTitle());
         setStep(0);
+    };
+
+    const handleDeleteActiveSession = async () => {
+        if (!sessionDeleteTarget) return;
+        if (!isAdmin) {
+            triggerAccessDenied("진행 중인 세션 삭제는 관리자만 가능합니다.");
+            setSessionDeleteTarget(null);
+            return;
+        }
+
+        const target = sessionDeleteTarget;
+        setIsDeletingSession(true);
+        try {
+            const { error } = await supabase
+                .from('matches')
+                .delete()
+                .eq('club_id', clubId)
+                .eq('session_id', target.id);
+
+            if (error) throw error;
+
+            const remainingSessions = allActiveSessions.filter(session => session.id !== target.id);
+            setAllActiveSessions(remainingSessions);
+            setSessionDeleteTarget(null);
+
+            if (selectedSessionId === target.id || sessionId === target.id) {
+                setSelectedSessionId(null);
+                setMatches([]);
+                localStorage.removeItem('kdk_live_session');
+                updateKdkEntryMode('LIVE');
+                setShowGateway(true);
+                setStep(3);
+            }
+
+            await syncActiveSession();
+        } catch (error) {
+            console.error('[KDK] Active session delete failed:', error);
+            alert("진행 중인 세션 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        } finally {
+            setIsDeletingSession(false);
+        }
     };
 
     const clampTotalCourts = (value: number) => {
@@ -2277,7 +2362,139 @@ export default function KDKPage() {
     };
 
 
-    const hasExistingKdkSession = hasRestoredSession || matches.length > 0 || allActiveSessions.length > 0 || Boolean(selectedSessionId);
+    const renderActiveSessionSelector = () => (
+        <main className="flex min-h-screen w-full flex-col bg-black text-white font-sans relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900 opacity-50" />
+
+            <header className="relative z-10 p-8 flex flex-col items-center text-center">
+                {sessionSelectorBackTarget === 'ENTRY_CHOICE' && (
+                    <button
+                        type="button"
+                        onClick={returnToEntryChoice}
+                        className="absolute left-6 top-8 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/55 transition-all active:scale-95 hover:border-[#C9B075]/30 hover:text-[#C9B075]"
+                    >
+                        ← 뒤로
+                    </button>
+                )}
+                <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase mb-4 animate-pulse">
+                    Live Court
+                </span>
+                <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-2xl">
+                    진행 중인 세션 선택
+                </h1>
+                <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
+                    Supabase에 저장된 진행 중 세션 기준으로 운영할 대진을 선택합니다.
+                </p>
+                <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
+            </header>
+
+            <div className="relative z-10 flex-1 px-6 pb-32 flex flex-col gap-5 overflow-y-auto custom-scrollbar" style={{ paddingBottom: 'calc(150px + env(safe-area-inset-bottom))' }}>
+                {allActiveSessions.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+                        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-dashed border-white/20 bg-white/[0.03]">
+                            <span className="text-4xl">🎾</span>
+                        </div>
+                        <h2 className="mb-2 text-xl font-black uppercase tracking-tight text-white">진행 중인 대진이 없습니다</h2>
+                        <p className="max-w-xs text-[12px] font-bold leading-relaxed text-white/42">
+                            새 대진은 메인 화면의 대진 생성에서 시작해 주세요.
+                        </p>
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={startNewKdkCreation}
+                                className="mt-8 w-full max-w-xs rounded-2xl border border-[#C9B075]/45 bg-[#C9B075]/12 px-5 py-4 text-[12px] font-black uppercase tracking-[0.18em] text-[#C9B075] transition-all active:scale-95"
+                            >
+                                대진 생성으로 이동
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    allActiveSessions.map((s, idx) => {
+                        const isLatest = idx === 0;
+                        const lastActivityLabel = s.lastActivity
+                            ? new Date(s.lastActivity).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                            : '--';
+                        return (
+                            <div
+                                key={s.id}
+                                className={`relative rounded-[24px] p-6 text-left transition-all group overflow-hidden bg-white/5 backdrop-blur-3xl border-t border-t-white/20 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] ${isLatest ? 'border-[#C9B075]/30' : ''}`}
+                            >
+                                {isLatest && (
+                                    <div className="absolute -inset-[3px] rounded-[28px] bg-gradient-to-b from-[#C9B075] via-[#C9B075]/10 to-transparent -z-10 opacity-40 blur-[4px]" />
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => enterSession(s.id)}
+                                    className="w-full text-left transition-all active:scale-[0.99]"
+                                >
+                                    <div className="mb-7 flex items-start justify-between gap-4">
+                                        <div className="flex min-w-0 flex-col gap-1">
+                                            <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${isLatest ? 'text-[#C9B075]' : 'text-white/40'}`}>
+                                                {isLatest ? 'Latest Session' : 'Active Session'}
+                                            </span>
+                                            <h2 className="truncate text-2xl font-black italic tracking-tighter text-white uppercase transition-colors group-hover:text-[#C9B075] leading-none">
+                                                {s.title}
+                                            </h2>
+                                            <span className="mt-1 text-[10px] font-bold text-white/32">
+                                                {lastActivityLabel}
+                                            </span>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-red-500/80">LIVE</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-5">
+                                        <div className="flex flex-col">
+                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">참가 인원</span>
+                                            <span className="text-lg font-black italic text-white">{s.playerCount}<span className="ml-0.5 text-[10px] opacity-30">명</span></span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">경기 수</span>
+                                            <span className="text-lg font-black italic text-white">{s.matchCount}<span className="ml-0.5 text-[10px] opacity-30">개</span></span>
+                                        </div>
+                                        <div className="flex flex-col items-end justify-end">
+                                            <span className="text-[10px] font-black uppercase tracking-tight text-[#C9B075]">입장하기 →</span>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {isAdmin && (
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setSessionDeleteTarget(s);
+                                        }}
+                                        className="mt-4 w-full rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300/80 transition-all active:scale-95"
+                                    >
+                                        세션 삭제
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {sessionDeleteTarget && (
+                <CustomConfirmModal
+                    title="세션 삭제"
+                    message={`${sessionDeleteTarget.title} 세션의 진행 중 경기 데이터를 삭제합니다. 아카이브 데이터는 삭제하지 않습니다.`}
+                    confirmText={isDeletingSession ? "삭제 중..." : "세션 삭제"}
+                    icon="🗑️"
+                    onConfirm={handleDeleteActiveSession}
+                    onCancel={() => {
+                        if (!isDeletingSession) setSessionDeleteTarget(null);
+                    }}
+                />
+            )}
+        </main>
+    );
+
+    const hasExistingKdkSession = hasRestoredSession || allActiveSessions.length > 0;
 
     if (kdkEntryMode === 'CHECKING') {
         return (
@@ -2353,6 +2570,15 @@ export default function KDKPage() {
     if (step === 0) {
         return (
             <main className="flex min-h-screen w-full flex-col bg-black px-6 py-8 text-white font-sans">
+                <div className="mx-auto mb-4 flex w-full max-w-lg">
+                    <button
+                        type="button"
+                        onClick={handleGenerationModeBack}
+                        className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/55 transition-all active:scale-95 hover:border-[#C9B075]/30 hover:text-[#C9B075]"
+                    >
+                        ← 뒤로
+                    </button>
+                </div>
                 <header className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
                     <span className="mb-3 rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.35em] text-[#C9B075]">
                         KDK Setup
@@ -3292,6 +3518,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
     const activeMatchForScore = showScoreModal ? matches.find(m => m.id === showScoreModal) : null;
 
     if (showGateway && step === 3) {
+        return renderActiveSessionSelector();
         return (
             <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900 opacity-50" />
