@@ -54,14 +54,34 @@ function isLikelyId(value: string) {
     || /^[a-z0-9-]{18,}$/i.test(value);
 }
 
+function formatKDKPlayerName(value?: string) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+
+  if (trimmed.toLowerCase().startsWith('manual-guest-')) {
+    const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').trim();
+    return guestName ? `${guestName}(G)` : '게스트(G)';
+  }
+
+  const normalizedGuest = trimmed.replace(/\s*\(G\)$/i, '(G)');
+  if (/\s+g$/i.test(normalizedGuest)) {
+    return `${normalizedGuest.replace(/\s+g$/i, '').trim()}(G)`;
+  }
+
+  return normalizedGuest;
+}
+
 function cleanPlayerName(value?: string) {
-  return String(value || '').trim().replace(' (G)', ' G').replace(' g', ' G');
+  return formatKDKPlayerName(value);
 }
 
 function playerName(match: Match, index: number, playerLookup: PlayerLookup) {
   const playerId = match.playerIds?.[index] || '';
   const lookup = playerId ? playerLookup[playerId] : null;
-  if (lookup?.name) return lookup.isGuest ? `${lookup.name} G` : lookup.name;
+  if (lookup?.name) {
+    const lookupName = cleanPlayerName(lookup.name);
+    return lookup.isGuest && !lookupName.endsWith('(G)') ? `${lookupName}(G)` : lookupName;
+  }
 
   const storedName = cleanPlayerName(match.playerNames?.[index] || match.player_names?.[index]);
   if (storedName && storedName !== playerId && !isLikelyId(storedName)) return storedName;
@@ -71,7 +91,8 @@ function playerName(match: Match, index: number, playerLookup: PlayerLookup) {
   const teamName = cleanPlayerName(match.teams?.[teamIndex]?.[teamPlayerIndex]);
   if (teamName && teamName !== playerId && !isLikelyId(teamName)) return teamName;
 
-  if (playerId?.startsWith('g-')) return storedName && !isLikelyId(storedName) ? `${storedName} G` : 'Guest';
+  if (playerId?.startsWith('manual-guest-')) return cleanPlayerName(playerId);
+  if (playerId?.startsWith('g-')) return storedName && !isLikelyId(storedName) ? cleanPlayerName(storedName) : '게스트(G)';
   if (playerId && !isLikelyId(playerId)) return cleanPlayerName(playerId);
   return 'Name loading';
 }
@@ -513,8 +534,8 @@ function KdkDisplayBoard() {
       const name = String(member.nickname || member.name || '').trim();
       if (member.id && name) {
         acc[String(member.id)] = {
-          name,
-          isGuest: member.is_guest === true || member.isGuest === true || String(member.id).startsWith('g-'),
+          name: cleanPlayerName(name),
+          isGuest: member.is_guest === true || member.isGuest === true || String(member.id).startsWith('g-') || String(member.id).startsWith('manual-guest-'),
         };
       }
       return acc;
