@@ -84,6 +84,7 @@ export default function KDKPage() {
     useEffect(() => {
         kdkEntryModeRef.current = kdkEntryMode;
     }, [kdkEntryMode]);
+
     const [allMembers, setAllMembers] = useState<Member[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [tempGuests, setTempGuests] = useState<Member[]>([]);
@@ -111,6 +112,7 @@ export default function KDKPage() {
 
     const [genMode, setGenMode] = useState<KDKConcept>('RANDOM');
     const [totalCourts, setTotalCourts] = useState(99); // [v17.0] 무제한 코트 지원 (CEO 지시)
+    const [totalCourtsInput, setTotalCourtsInput] = useState('99');
     const [matchTime, setMatchTime] = useState(30);
     const [fixedPartners, setFixedPartners] = useState<[string, string][]>([]);
     const [fixedTeamMode, setFixedTeamMode] = useState(false);
@@ -124,6 +126,11 @@ export default function KDKPage() {
     const [firstPrize, setFirstPrize] = useState(10000);
     const [bottom25Late, setBottom25Late] = useState(3000);
     const [bottom25Penalty, setBottom25Penalty] = useState(5000);
+
+    useEffect(() => {
+        setTotalCourtsInput(String(totalCourts));
+    }, [totalCourts]);
+
     const [accountInfo, setAccountInfo] = useState("카카오뱅크 3333-01-5235337 (곽민섭)");
     const [currentTime, setCurrentTime] = useState("");
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
@@ -1022,6 +1029,28 @@ export default function KDKPage() {
         setStep(0);
     };
 
+    const clampTotalCourts = (value: number) => {
+        const numericValue = Number.isFinite(value) ? Math.trunc(value) : 1;
+        return Math.min(99, Math.max(1, numericValue));
+    };
+
+    const commitTotalCourts = (value: number) => {
+        const nextValue = clampTotalCourts(value);
+        setTotalCourts(nextValue);
+        setTotalCourtsInput(String(nextValue));
+    };
+
+    const handleTotalCourtsInputChange = (value: string) => {
+        const digitsOnly = value.replace(/[^\d]/g, '');
+        setTotalCourtsInput(digitsOnly);
+        if (!digitsOnly) return;
+        commitTotalCourts(Number(digitsOnly));
+    };
+
+    const handleTotalCourtsInputBlur = () => {
+        commitTotalCourts(Number(totalCourtsInput || totalCourts || 1));
+    };
+
     const toggleMember = (id: string) => {
         const next = new Set(selectedIds);
         if (next.has(id)) {
@@ -1076,8 +1105,21 @@ export default function KDKPage() {
         );
     };
 
+    const getManualGuestDisplayName = (value?: string) => {
+        const trimmed = (value || "").trim();
+        if (!trimmed.toLowerCase().startsWith('manual-guest-')) return "";
+        const name = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').trim();
+        return name ? `${name}(G)` : "게스트(G)";
+    };
+
+    const stripGuestSuffix = (value?: string) => {
+        return (value || "").replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
+    };
+
     const cleanDisplayName = (value?: string) => {
-        const cleaned = (value || "").replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
+        const manualGuestName = getManualGuestDisplayName(value);
+        if (manualGuestName) return stripGuestSuffix(manualGuestName);
+        const cleaned = stripGuestSuffix(value);
         return cleaned && !isLikelyPlayerId(cleaned) ? cleaned : "";
     };
 
@@ -1111,6 +1153,9 @@ export default function KDKPage() {
         
         // [v34.4] FALLBACK to Match Metadata (If lookup failed but DB has the original name)
         if (!name) name = findMatchPlayerName(id, matchId);
+
+        const manualGuestName = getManualGuestDisplayName(id);
+        if (!name && manualGuestName) return manualGuestName;
 
         if (!name) {
             return isLikelyPlayerId(id) ? "이름 확인중" : id;
@@ -2227,6 +2272,7 @@ export default function KDKPage() {
                         type="button"
                         onClick={() => {
                             setGenerationMode('MANUAL');
+                            commitTotalCourts(4);
                             setManualInputMode(null);
                             setManualStep('INPUT');
                             setStep(1);
@@ -2538,6 +2584,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             <button
                                 type="button"
                                 onClick={() => {
+                                    commitTotalCourts(4);
                                     setManualStep('RULES');
                                     setStep(2);
                                 }}
@@ -2919,10 +2966,34 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setTotalCourts(Math.max(1, totalCourts - 1))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{totalCourts}</span>
-                                    <button onClick={() => setTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '170px', height: '40px' }}>
+                                    <button type="button" onClick={() => commitTotalCourts(totalCourts - 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <input
+                                        aria-label="Total Courts"
+                                        inputMode="numeric"
+                                        max={99}
+                                        min={1}
+                                        onBlur={handleTotalCourtsInputBlur}
+                                        onChange={(event) => handleTotalCourtsInputChange(event.target.value)}
+                                        pattern="[0-9]*"
+                                        type="text"
+                                        value={totalCourtsInput}
+                                        style={{
+                                            width: '70px',
+                                            height: '40px',
+                                            borderRadius: '12px',
+                                            border: '1px solid rgba(201,176,117,0.28)',
+                                            background: 'rgba(0,0,0,0.28)',
+                                            color: '#C9B075',
+                                            fontSize: '28px',
+                                            fontWeight: 900,
+                                            textAlign: 'center',
+                                            outline: 'none',
+                                            flex: 'none',
+                                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
+                                        }}
+                                    />
+                                    <button type="button" onClick={() => commitTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
@@ -3235,10 +3306,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
 
                 {/* CENTER: SESSION NAME (Strong Emphasis) */}
-                <div className="flex-[2] flex flex-col items-center">
+                <div className="flex-[2] flex min-w-0 flex-col items-center">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
-                    <div className="flex max-w-full items-center justify-center gap-2">
-                        <h1 className="text-xl sm:text-2xl font-black italic tracking-tighter text-white uppercase truncate max-w-[110px] sm:max-w-[180px] leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                    <div className="flex max-w-full min-w-0 items-center justify-center gap-2">
+                        <h1 className="max-w-[152px] whitespace-nowrap text-[clamp(14px,3.75vw,18px)] font-black italic tracking-[-0.065em] text-white uppercase sm:max-w-[220px] sm:text-2xl sm:tracking-tighter leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
                             {sessionTitle || '260417_KDK_01'}
                         </h1>
                         <button
