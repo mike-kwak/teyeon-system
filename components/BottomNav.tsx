@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Medal, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import LiveMatchGatekeeper from './tournament/LiveMatchGatekeeper';
 
 const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) => (
   <svg 
@@ -27,16 +25,14 @@ const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) 
 
 const navItems = [
   { path: '/', label: 'MAIN', icon: (props: any) => <Home {...props} /> },
-  { path: '/kdk', label: 'LIVE COURT', icon: (props: any) => <TennisRacket {...props} /> },
+  { path: '/kdk?entry=live', label: 'LIVE COURT', icon: (props: any) => <TennisRacket {...props} /> },
   { path: '/archive', label: 'ARCHIVE', icon: (props: any) => <Medal {...props} /> },
   { path: '/profile', label: 'PROFILE', icon: (props: any) => <User {...props} /> },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, setSystemMessage } = useAuth();
-  const [showGatekeeper, setShowGatekeeper] = React.useState(false);
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {
@@ -45,17 +41,8 @@ export default function BottomNav() {
       setTimeout(() => setSystemMessage(null), 3000);
       return;
     }
-
-    const kdkActive = localStorage.getItem('kdk_live_session');
-    const specialActive = localStorage.getItem('special_live_session');
-
-    if (kdkActive && specialActive) {
-      e.preventDefault();
-      setShowGatekeeper(true);
-    } else if (specialActive) {
-      e.preventDefault();
-      router.push('/special');
-    }
+    e.preventDefault();
+    window.location.href = '/kdk?entry=live';
   };
 
   const handleGuestClick = (e: React.MouseEvent, itemLabel: string) => {
@@ -76,7 +63,8 @@ export default function BottomNav() {
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[500] h-[95px] w-full max-w-[430px] bg-black/80 backdrop-blur-3xl border-t border-white/10 px-1 flex justify-around items-center shadow-[0_-10px_40px_rgba(0,0,0,0.8)] transition-all duration-300">
       <div className="w-full mx-auto flex justify-between items-center h-full px-4">
         {navItems.map((item) => {
-          const isActive = pathname === item.path || (item.path !== '/' && pathname?.startsWith(item.path));
+          const itemBasePath = item.path.split('?')[0];
+          const isActive = pathname === itemBasePath || (itemBasePath !== '/' && pathname?.startsWith(itemBasePath));
           return (
             <Link 
               key={item.path} 
@@ -106,10 +94,6 @@ export default function BottomNav() {
         })}
       </div>
     </nav>
-      <LiveMatchGatekeeper 
-        isOpen={showGatekeeper} 
-        onClose={() => setShowGatekeeper(false)} 
-      />
     </>
   );
 }
