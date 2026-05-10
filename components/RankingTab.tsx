@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RankingRow from './tournament/RankingRow';
 
 import { RankedPlayer } from '@/lib/tournament_types';
@@ -17,6 +17,21 @@ interface RankingTabProps {
     isGenerating?: boolean;
     ceremonyMode?: boolean;
     snapshot_data?: any[];
+    detailedResults?: PlayerDetailedResult[];
+}
+
+interface PlayerDetailedResult {
+    id: string;
+    rank: number;
+    name: string;
+    group: string;
+    wins: number;
+    losses: number;
+    pointsForByMatch: number[];
+    pointsAgainstByMatch: number[];
+    pointsForTotal: number;
+    pointsAgainstTotal: number;
+    diff: number;
 }
 
 export default function RankingTab({ 
@@ -30,11 +45,14 @@ export default function RankingTab({
     onFinalize,
     isGenerating,
     ceremonyMode = false,
-    snapshot_data = []
+    snapshot_data = [],
+    detailedResults = []
 }: RankingTabProps) {
     const [sortKey, setSortKey] = useState<string>('rk');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [activeRankingTab, setActiveRankingTab] = useState<'ALL' | 'A' | 'B'>('ALL');
+    const [detailExportStatus, setDetailExportStatus] = useState('');
+    const detailCaptureRef = useRef<HTMLDivElement | null>(null);
     
     // Safety guard for players array
     const playersList = players || [];
@@ -205,6 +223,385 @@ export default function RankingTab({
         );
     };
 
+    const activeDetailedResults = (activeRankingTab === 'ALL'
+        ? detailedResults
+        : detailedResults.filter((row) => row.group === activeRankingTab)
+    ).map((row, index) => ({ ...row, displayRank: index + 1 }));
+    const maxDetailGameCount = Math.max(
+        0,
+        ...activeDetailedResults.map((row) => Math.max(row.pointsForByMatch.length, row.pointsAgainstByMatch.length))
+    );
+    const detailGameColumns = Array.from({ length: maxDetailGameCount }, (_, index) => index);
+
+    const DetailScoreCells = ({ values }: { values: number[] }) => (
+        <>
+            {detailGameColumns.map((columnIndex) => (
+                <td key={columnIndex} className="px-3 py-3 text-center font-black text-white/82">
+                    {values[columnIndex] ?? '-'}
+                </td>
+            ))}
+        </>
+    );
+
+    const getDetailExportFileName = () => {
+        const safeSessionTitle = (sessionTitle || 'KDK_DETAIL_RESULTS')
+            .replace(/[\\/:*?"<>|]/g, '_')
+            .replace(/\s+/g, '_');
+        return `${safeSessionTitle}_PERSONAL_DETAIL.png`;
+    };
+
+    const createDetailedResultImageBlob = async () => {
+        if (activeDetailedResults.length === 0 || maxDetailGameCount === 0) {
+            throw new Error('No detailed result rows to export.');
+        }
+
+        const scale = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+        const padding = 36;
+        const rowHeight = 48;
+        const headerTopHeight = 48;
+        const headerSubHeight = 38;
+        const titleHeight = 96;
+        const footerHeight = 28;
+        const scoreColWidth = 52;
+        const columns = [
+            { label: '순위', width: 66 },
+            { label: '성명', width: 150 },
+            { label: '승', width: 56 },
+            { label: '패', width: 56 },
+        ];
+        const pointsWidth = maxDetailGameCount * scoreColWidth + 70;
+        const tableWidth = columns.reduce((sum, column) => sum + column.width, 0) + pointsWidth + pointsWidth + 72;
+        const width = Math.max(920, tableWidth + padding * 2);
+        const height = titleHeight + headerTopHeight + headerSubHeight + activeDetailedResults.length * rowHeight + footerHeight + padding;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(width * scale);
+        canvas.height = Math.ceil(height * scale);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas context is unavailable.');
+        ctx.scale(scale, scale);
+
+        const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number, fillStyle: string, strokeStyle?: string) => {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+            if (strokeStyle) {
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        };
+
+        const drawText = (
+            text: string,
+            x: number,
+            y: number,
+            options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline } = {}
+        ) => {
+            ctx.fillStyle = options.color || '#ffffff';
+            ctx.font = `${options.weight || 800} ${options.size || 14}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            ctx.textAlign = options.align || 'center';
+            ctx.textBaseline = options.baseline || 'middle';
+            ctx.fillText(text, x, y);
+        };
+
+        const drawCell = (text: string, x: number, y: number, w: number, h: number, color = '#f5f5f5', weight: number | string = 800, size = 14) => {
+            drawText(text, x + w / 2, y + h / 2, { color, weight, size });
+        };
+
+        const backgroundGradient = ctx.createLinearGradient(0, 0, width, height);
+        backgroundGradient.addColorStop(0, '#050505');
+        backgroundGradient.addColorStop(0.5, '#10100d');
+        backgroundGradient.addColorStop(1, '#050505');
+        ctx.fillStyle = backgroundGradient;
+        ctx.fillRect(0, 0, width, height);
+
+        drawRoundedRect(padding / 2, padding / 2, width - padding, height - padding, 22, 'rgba(255,255,255,0.035)', 'rgba(201,176,117,0.35)');
+        drawText('TEYEON KDK', padding, 36, { align: 'left', size: 13, weight: 900, color: '#c9b075' });
+        drawText(sessionTitle || 'KDK SESSION', padding, 66, { align: 'left', size: 28, weight: 900, color: '#ffffff' });
+        drawText('개인별 상세 결과표', width - padding, 66, { align: 'right', size: 22, weight: 900, color: '#f6df9a' });
+
+        const tableX = padding;
+        let y = titleHeight;
+        const drawHeaderCell = (text: string, x: number, cellY: number, w: number, h: number, bg = 'rgba(201,176,117,0.18)') => {
+            ctx.fillStyle = bg;
+            ctx.fillRect(x, cellY, w, h);
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.strokeRect(x, cellY, w, h);
+            drawCell(text, x, cellY, w, h, '#f6df9a', 900, 13);
+        };
+
+        let x = tableX;
+        columns.forEach((column) => {
+            drawHeaderCell(column.label, x, y, column.width, headerTopHeight + headerSubHeight);
+            x += column.width;
+        });
+        drawHeaderCell('게임득점', x, y, pointsWidth, headerTopHeight);
+        const pfX = x;
+        x += pointsWidth;
+        drawHeaderCell('게임실점', x, y, pointsWidth, headerTopHeight);
+        const paX = x;
+        x += pointsWidth;
+        drawHeaderCell('득실', x, y, 72, headerTopHeight + headerSubHeight);
+
+        y += headerTopHeight;
+        x = pfX;
+        detailGameColumns.forEach((columnIndex) => {
+            drawHeaderCell(String(columnIndex + 1), x, y, scoreColWidth, headerSubHeight, 'rgba(255,255,255,0.055)');
+            x += scoreColWidth;
+        });
+        drawHeaderCell('합계', x, y, 70, headerSubHeight, 'rgba(201,176,117,0.12)');
+        x = paX;
+        detailGameColumns.forEach((columnIndex) => {
+            drawHeaderCell(String(columnIndex + 1), x, y, scoreColWidth, headerSubHeight, 'rgba(255,255,255,0.055)');
+            x += scoreColWidth;
+        });
+        drawHeaderCell('합계', x, y, 70, headerSubHeight, 'rgba(201,176,117,0.12)');
+
+        y += headerSubHeight;
+        activeDetailedResults.forEach((row, rowIndex) => {
+            const rowBg = rowIndex % 2 === 0 ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.02)';
+            ctx.fillStyle = rowBg;
+            ctx.fillRect(tableX, y, tableWidth, rowHeight);
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeRect(tableX, y, tableWidth, rowHeight);
+
+            x = tableX;
+            drawCell(String(row.displayRank), x, y, columns[0].width, rowHeight, '#f6df9a', 900, 15);
+            x += columns[0].width;
+            drawCell(row.name, x, y, columns[1].width, rowHeight, '#ffffff', 900, 15);
+            x += columns[1].width;
+            drawCell(String(row.wins), x, y, columns[2].width, rowHeight, '#86efac', 900, 15);
+            x += columns[2].width;
+            drawCell(String(row.losses), x, y, columns[3].width, rowHeight, '#fca5a5', 900, 15);
+            x += columns[3].width;
+
+            detailGameColumns.forEach((columnIndex) => {
+                drawCell(String(row.pointsForByMatch[columnIndex] ?? '-'), x, y, scoreColWidth, rowHeight, '#e5e7eb', 800, 14);
+                x += scoreColWidth;
+            });
+            drawCell(String(row.pointsForTotal), x, y, 70, rowHeight, '#ffffff', 900, 15);
+            x += 70;
+            detailGameColumns.forEach((columnIndex) => {
+                drawCell(String(row.pointsAgainstByMatch[columnIndex] ?? '-'), x, y, scoreColWidth, rowHeight, '#e5e7eb', 800, 14);
+                x += scoreColWidth;
+            });
+            drawCell(String(row.pointsAgainstTotal), x, y, 70, rowHeight, '#ffffff', 900, 15);
+            x += 70;
+            drawCell(row.diff > 0 ? `+${row.diff}` : String(row.diff), x, y, 72, rowHeight, row.diff > 0 ? '#86efac' : row.diff < 0 ? '#fca5a5' : '#d1d5db', 900, 15);
+            y += rowHeight;
+        });
+
+        return new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('Failed to create detail result image.'));
+            }, 'image/png', 0.95);
+        });
+    };
+
+    const downloadDetailedResultImage = (blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = getDetailExportFileName();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const copyDetailedResultImage = async (blob: Blob) => {
+        if (
+            typeof window === 'undefined' ||
+            typeof navigator === 'undefined' ||
+            !navigator.clipboard ||
+            typeof navigator.clipboard.write !== 'function' ||
+            typeof (window as any).ClipboardItem !== 'function'
+        ) {
+            throw new Error('Image clipboard is not supported.');
+        }
+
+        const ClipboardItemCtor = (window as any).ClipboardItem;
+        await navigator.clipboard.write([
+            new ClipboardItemCtor({
+                [blob.type]: blob,
+            }),
+        ]);
+    };
+
+    const handleDetailedResultImageAction = async (mode: 'download' | 'copy' | 'share') => {
+        try {
+            setDetailExportStatus(
+                mode === 'copy'
+                    ? '복사할 이미지를 준비 중입니다.'
+                    : mode === 'share'
+                        ? '공유 이미지를 준비 중입니다.'
+                        : '저장 이미지를 준비 중입니다.'
+            );
+            const blob = await createDetailedResultImageBlob();
+
+            if (mode === 'copy') {
+                try {
+                    await copyDetailedResultImage(blob);
+                    const message = '이미지가 복사되었습니다. 카카오톡 채팅방에서 붙여넣기 해주세요.';
+                    setDetailExportStatus(message);
+                    alert(message);
+                    return;
+                } catch (copyError) {
+                    console.warn('[KDK Detail Result Image Copy]', copyError);
+                    downloadDetailedResultImage(blob);
+                    const message = '이미지 복사를 지원하지 않아 PNG로 저장했습니다. 카카오톡에는 저장한 이미지를 첨부해 주세요.';
+                    setDetailExportStatus(message);
+                    alert(message);
+                    return;
+                }
+            }
+
+            const file = new File([blob], getDetailExportFileName(), { type: 'image/png' });
+            const shareData = {
+                files: [file],
+                title: '개인별 상세 결과표',
+                text: sessionTitle ? `${sessionTitle} 개인별 상세 결과표` : 'KDK 개인별 상세 결과표',
+            } as ShareData & { files: File[] };
+            const shareNavigator = navigator as Navigator & { canShare?: (data?: ShareData & { files?: File[] }) => boolean };
+            const canShareFiles =
+                mode === 'share' &&
+                typeof navigator !== 'undefined' &&
+                typeof navigator.share === 'function' &&
+                (!shareNavigator.canShare || shareNavigator.canShare(shareData));
+
+            if (canShareFiles) {
+                await navigator.share(shareData);
+                setDetailExportStatus('공유가 완료되었습니다.');
+                return;
+            }
+
+            downloadDetailedResultImage(blob);
+            setDetailExportStatus(mode === 'share' ? '공유를 지원하지 않아 이미지로 저장했습니다.' : '이미지를 저장했습니다.');
+        } catch (error) {
+            console.warn('[KDK Detail Result Image]', error);
+            setDetailExportStatus('이미지 생성에 실패했습니다.');
+            alert('상세 결과표 이미지를 만들지 못했습니다.');
+        }
+    };
+
+    const DetailedResultTable = () => {
+        if (activeDetailedResults.length === 0) return null;
+
+        return (
+            <section ref={detailCaptureRef} className="mx-4 mt-8 rounded-[28px] border border-[#C9B075]/18 bg-white/[0.035] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.35)]">
+                <div className="mb-4 flex items-end justify-between gap-3 px-1">
+                    <div>
+                        <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">
+                            Player Detail
+                        </span>
+                        <h3 className="mt-1 text-xl font-black italic uppercase tracking-tight text-white">
+                            개인별 상세 결과표
+                        </h3>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                        <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
+                            Completed only
+                        </span>
+                        {maxDetailGameCount > 0 && (
+                            <div className="flex flex-wrap justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleDetailedResultImageAction('download')}
+                                    className="rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98]"
+                                >
+                                    이미지 저장
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDetailedResultImageAction('copy')}
+                                    className="rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98]"
+                                >
+                                    이미지 복사
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDetailedResultImageAction('share')}
+                                    className="rounded-xl border border-white/12 bg-white/[0.07] px-3 py-2 text-[11px] font-black text-white/82 transition active:scale-[0.98] md:hidden"
+                                >
+                                    공유
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {detailExportStatus && (
+                    <div className="mb-3 rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
+                        {detailExportStatus}
+                    </div>
+                )}
+
+                {maxDetailGameCount === 0 ? (
+                    <div className="rounded-[20px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
+                        완료된 경기 결과가 생기면 선수별 득점/실점 상세표가 표시됩니다.
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto rounded-[20px] border border-white/10 bg-black/28">
+                        <table className="min-w-max w-full border-collapse text-[12px]">
+                            <thead>
+                                <tr className="border-b border-white/10 bg-[#C9B075]/10 text-[10px] font-black uppercase tracking-[0.14em] text-[#C9B075]">
+                                    <th rowSpan={2} className="min-w-[52px] border-r border-white/10 px-3 py-3 text-center">순위</th>
+                                    <th rowSpan={2} className="min-w-[96px] border-r border-white/10 px-3 py-3 text-center">성명</th>
+                                    <th rowSpan={2} className="min-w-[42px] border-r border-white/10 px-3 py-3 text-center">승</th>
+                                    <th rowSpan={2} className="min-w-[42px] border-r border-white/10 px-3 py-3 text-center">패</th>
+                                    <th colSpan={maxDetailGameCount + 1} className="border-r border-white/10 px-3 py-3 text-center">게임득점</th>
+                                    <th colSpan={maxDetailGameCount + 1} className="border-r border-white/10 px-3 py-3 text-center">게임실점</th>
+                                    <th rowSpan={2} className="min-w-[54px] px-3 py-3 text-center">득실</th>
+                                </tr>
+                                <tr className="border-b border-white/10 bg-white/[0.035] text-[10px] font-black uppercase tracking-[0.12em] text-white/42">
+                                    {detailGameColumns.map((columnIndex) => (
+                                        <th key={`pf-${columnIndex}`} className="min-w-[42px] border-r border-white/5 px-3 py-2 text-center">{columnIndex + 1}</th>
+                                    ))}
+                                    <th className="min-w-[54px] border-r border-white/10 px-3 py-2 text-center text-[#C9B075]/80">합계</th>
+                                    {detailGameColumns.map((columnIndex) => (
+                                        <th key={`pa-${columnIndex}`} className="min-w-[42px] border-r border-white/5 px-3 py-2 text-center">{columnIndex + 1}</th>
+                                    ))}
+                                    <th className="min-w-[54px] border-r border-white/10 px-3 py-2 text-center text-[#C9B075]/80">합계</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {activeDetailedResults.map((row) => (
+                                    <tr key={row.id} className="border-b border-white/5 text-white/72 last:border-b-0">
+                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-[#C9B075]">{row.displayRank}</td>
+                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-white">{row.name}</td>
+                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-emerald-300">{row.wins}</td>
+                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-red-300">{row.losses}</td>
+                                        <DetailScoreCells values={row.pointsForByMatch} />
+                                        <td className="border-x border-white/10 px-3 py-3 text-center font-black text-white">{row.pointsForTotal}</td>
+                                        <DetailScoreCells values={row.pointsAgainstByMatch} />
+                                        <td className="border-x border-white/10 px-3 py-3 text-center font-black text-white">{row.pointsAgainstTotal}</td>
+                                        <td className={`px-3 py-3 text-center font-black ${row.diff > 0 ? 'text-emerald-300' : row.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
+                                            {row.diff > 0 ? `+${row.diff}` : row.diff}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </section>
+        );
+    };
+
     return (
         <div className="flex flex-col min-h-screen relative">
             <style jsx global>{`
@@ -261,6 +658,8 @@ export default function RankingTab({
                 {activeRankingTab === 'ALL' && <RankingTable players={players} title="INTEGRATED LEADERBOARD" />}
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
+
+                <DetailedResultTable />
                 
                 <div className="h-8" aria-hidden="true" />
 
