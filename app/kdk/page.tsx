@@ -1835,6 +1835,125 @@ export default function KDKPage() {
         attendeeConfigs
     );
 
+    type PlayerDetailedResult = {
+        id: string;
+        rank: number;
+        name: string;
+        group: string;
+        wins: number;
+        losses: number;
+        pointsForByMatch: number[];
+        pointsAgainstByMatch: number[];
+        pointsForTotal: number;
+        pointsAgainstTotal: number;
+        diff: number;
+    };
+
+    const playerDetailedResults = useMemo<PlayerDetailedResult[]>(() => {
+        const detailsById = new Map<string, PlayerDetailedResult>();
+
+        const ensureDetail = (playerId: string, fallbackName?: string, fallbackGroup?: string) => {
+            const existing = detailsById.get(playerId);
+            if (existing) return existing;
+
+            const rankingIndex = allPlayersInRanking.findIndex(player => player.id === playerId);
+            const rankingPlayer = rankingIndex >= 0 ? allPlayersInRanking[rankingIndex] : null;
+            const resolvedName = getPlayerName(playerId);
+            const name = resolvedName && resolvedName !== '이름 확인중'
+                ? resolvedName
+                : (fallbackName || rankingPlayer?.name || '이름 확인중');
+
+            const detail: PlayerDetailedResult = {
+                id: playerId,
+                rank: rankingIndex >= 0 ? rankingIndex + 1 : detailsById.size + 1,
+                name,
+                group: rankingPlayer?.group || fallbackGroup || 'A',
+                wins: 0,
+                losses: 0,
+                pointsForByMatch: [],
+                pointsAgainstByMatch: [],
+                pointsForTotal: 0,
+                pointsAgainstTotal: 0,
+                diff: 0,
+            };
+
+            detailsById.set(playerId, detail);
+            return detail;
+        };
+
+        allPlayersInRanking.forEach((player, index) => {
+            const resolvedName = getPlayerName(player.id);
+            const name = resolvedName && resolvedName !== '이름 확인중' ? resolvedName : player.name;
+            detailsById.set(player.id, {
+                id: player.id,
+                rank: index + 1,
+                name,
+                group: player.group || 'A',
+                wins: 0,
+                losses: 0,
+                pointsForByMatch: [],
+                pointsAgainstByMatch: [],
+                pointsForTotal: 0,
+                pointsAgainstTotal: 0,
+                diff: 0,
+            });
+        });
+
+        const completedMatches = matches
+            .filter(match => match.status === 'complete')
+            .sort((a, b) => {
+                const dateA = Date.parse((a as any).match_date || '');
+                const dateB = Date.parse((b as any).match_date || '');
+                if (Number.isFinite(dateA) && Number.isFinite(dateB) && dateA !== dateB) return dateA - dateB;
+
+                const groupCompare = String(a.groupName || 'A').localeCompare(String(b.groupName || 'A'));
+                if (groupCompare !== 0) return groupCompare;
+                return (a.round || 0) - (b.round || 0)
+                    || (a.court || 99) - (b.court || 99)
+                    || String(a.id).localeCompare(String(b.id));
+            });
+
+        completedMatches.forEach(match => {
+            const score1 = Number(match.score1 ?? 0);
+            const score2 = Number(match.score2 ?? 0);
+
+            (match.playerIds || []).forEach((playerId, index) => {
+                if (!playerId) return;
+
+                const isTeamA = index < 2;
+                const pointsFor = isTeamA ? score1 : score2;
+                const pointsAgainst = isTeamA ? score2 : score1;
+                const fallbackName = getPlayerName(playerId, match.id);
+                const detail = ensureDetail(playerId, fallbackName, match.groupName || (match as any).group || 'A');
+
+                detail.pointsForByMatch.push(pointsFor);
+                detail.pointsAgainstByMatch.push(pointsAgainst);
+                detail.pointsForTotal += pointsFor;
+                detail.pointsAgainstTotal += pointsAgainst;
+                detail.diff = detail.pointsForTotal - detail.pointsAgainstTotal;
+
+                if (pointsFor > pointsAgainst) detail.wins += 1;
+                else detail.losses += 1;
+            });
+        });
+
+        const rankedRows = allPlayersInRanking.map((player, index) => {
+            const detail = ensureDetail(player.id, player.name, player.group);
+            return {
+                ...detail,
+                rank: index + 1,
+            };
+        });
+
+        const rankedIds = new Set(rankedRows.map(row => row.id));
+        const extraRows = Array.from(detailsById.values())
+            .filter(row => !rankedIds.has(row.id))
+            .sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pointsForTotal - a.pointsForTotal || a.name.localeCompare(b.name))
+            .map((row, index) => ({ ...row, rank: rankedRows.length + index + 1 }));
+
+        return [...rankedRows, ...extraRows];
+    }, [matches, allPlayersInRanking, allMembers, tempGuests, attendeeConfigs]);
+
 
     const execCopySchedule = () => {
         if (!matches || matches.length === 0) {
@@ -3617,6 +3736,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             onFinalize={handleFinalArchive}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
+                            detailedResults={playerDetailedResults}
                         />
                     </div>
                 )}
@@ -3669,6 +3789,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             onFinalize={handleFinalArchive}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
+                            detailedResults={playerDetailedResults}
                         />
                     </div>
                 </div>
