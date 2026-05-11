@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RankingRow from './tournament/RankingRow';
 
-import { RankedPlayer } from '@/lib/tournament_types';
+import { Match, RankedPlayer } from '@/lib/tournament_types';
 
 interface RankingTabProps {
     players: RankedPlayer[];
@@ -18,6 +18,7 @@ interface RankingTabProps {
     ceremonyMode?: boolean;
     snapshot_data?: any[];
     detailedResults?: PlayerDetailedResult[];
+    matches?: Match[];
 }
 
 interface PlayerDetailedResult {
@@ -46,12 +47,14 @@ export default function RankingTab({
     isGenerating,
     ceremonyMode = false,
     snapshot_data = [],
-    detailedResults = []
+    detailedResults = [],
+    matches = []
 }: RankingTabProps) {
     const [sortKey, setSortKey] = useState<string>('rk');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [activeRankingTab, setActiveRankingTab] = useState<'ALL' | 'A' | 'B'>('ALL');
     const [detailExportStatus, setDetailExportStatus] = useState('');
+    const [tableExportStatus, setTableExportStatus] = useState('');
     const detailCaptureRef = useRef<HTMLDivElement | null>(null);
     
     // Safety guard for players array
@@ -250,6 +253,246 @@ export default function RankingTab({
         return `${safeSessionTitle}_PERSONAL_DETAIL.png`;
     };
 
+    const formatKDKPlayerName = (value?: string) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return '';
+        if (/^manual-guest-/i.test(trimmed)) {
+            const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').trim();
+            return guestName ? `${guestName}(G)` : '게스트(G)';
+        }
+        if (/\s+g$/i.test(trimmed)) return `${trimmed.replace(/\s+g$/i, '').trim()}(G)`;
+        return trimmed.replace(/\s*\(G\)$/i, '(G)');
+    };
+
+    const isLikelyKDKId = (value?: string) => {
+        const raw = String(value || '').trim();
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)
+            || /^[a-z0-9-]{18,}$/i.test(raw);
+    };
+
+    const getRankedPlayerNameById = (playerId?: string) => {
+        if (!playerId) return '';
+        const found = playersList.find((player) => player.id === playerId);
+        return formatKDKPlayerName(found?.name);
+    };
+
+    const normalizeKDKGroup = (value?: string) => {
+        const raw = String(value || '').trim().toUpperCase();
+        if (raw.includes('B') || raw.includes('BLUE')) return 'B';
+        return 'A';
+    };
+
+    const getGroupLabel = (group?: string) => {
+        return normalizeKDKGroup(group) === 'B' ? 'B조' : 'A조';
+    };
+
+    const getMatchPlayerName = (match: Match, index: number) => {
+        const storedName = formatKDKPlayerName(match.playerNames?.[index] || match.player_names?.[index]);
+        if (storedName) return storedName;
+        const teamIndex = index < 2 ? 0 : 1;
+        const teamPlayerIndex = index < 2 ? index : index - 2;
+        const teamName = formatKDKPlayerName(match.teams?.[teamIndex]?.[teamPlayerIndex]);
+        if (teamName) return teamName;
+        return formatKDKPlayerName(match.playerIds?.[index]) || '이름 확인중';
+    };
+
+    const getSafeMatchPlayerName = (match: Match, index: number) => {
+        const storedName = formatKDKPlayerName(match.playerNames?.[index] || match.player_names?.[index]);
+        if (storedName && !isLikelyKDKId(storedName)) return storedName;
+
+        const playerId = match.playerIds?.[index];
+        if (/^manual-guest-/i.test(String(playerId || ''))) return formatKDKPlayerName(playerId);
+
+        const rankedName = getRankedPlayerNameById(playerId);
+        if (rankedName && !isLikelyKDKId(rankedName)) return rankedName;
+
+        const teamIndex = index < 2 ? 0 : 1;
+        const teamPlayerIndex = index < 2 ? index : index - 2;
+        const teamName = formatKDKPlayerName(match.teams?.[teamIndex]?.[teamPlayerIndex]);
+        if (teamName && !isLikelyKDKId(teamName)) return teamName;
+
+        const idFallback = formatKDKPlayerName(playerId);
+        if (idFallback && !isLikelyKDKId(idFallback)) return idFallback;
+        return '미확인';
+    };
+
+    const getMatchTeamLabel = (match: Match, startIndex: number) => {
+        return `${getSafeMatchPlayerName(match, startIndex)} / ${getSafeMatchPlayerName(match, startIndex + 1)}`;
+    };
+
+    const sortedExportMatches = [...(matches || [])].sort((a, b) => {
+        const roundDiff = (a.round || 0) - (b.round || 0);
+        if (roundDiff !== 0) return roundDiff;
+        const groupDiff = normalizeKDKGroup(a.groupName || a.group).localeCompare(normalizeKDKGroup(b.groupName || b.group));
+        if (groupDiff !== 0) return groupDiff;
+        const courtDiff = (a.court || 99) - (b.court || 99);
+        if (courtDiff !== 0) return courtDiff;
+        return String(a.id).localeCompare(String(b.id));
+    });
+
+    type MatchTableExportKind = 'schedule' | 'results';
+
+    const getMatchTableRows = (kind: MatchTableExportKind) => {
+        const sourceMatches = kind === 'results'
+            ? sortedExportMatches.filter((match) => match.status === 'complete')
+            : sortedExportMatches;
+
+        return sourceMatches.map((match, index) => ({
+            no: index + 1,
+            group: getGroupLabel(match.groupName || match.group),
+            groupKey: normalizeKDKGroup(match.groupName || match.group),
+            round: `R${match.round || '-'}`,
+            matchNo: `${match.court || index + 1}경기`,
+            teamA: getMatchTeamLabel(match, 0),
+            teamB: getMatchTeamLabel(match, 2),
+            score: `${match.score1 ?? 0} : ${match.score2 ?? 0}`,
+        }));
+    };
+
+    const getMatchTableExportFileName = (kind: MatchTableExportKind) => {
+        const safeSessionTitle = (sessionTitle || 'KDK_MATCH_TABLE')
+            .replace(/[\\/:*?"<>|]/g, '_')
+            .replace(/\s+/g, '_');
+        return `${safeSessionTitle}_${kind === 'schedule' ? 'FULL_MATCH_TABLE' : 'MATCH_RESULTS'}.png`;
+    };
+
+    const createMatchTableImageBlob = async (kind: MatchTableExportKind) => {
+        const rows = getMatchTableRows(kind);
+        const isResults = kind === 'results';
+        const title = isResults ? '경기 결과표' : '전체 대진표';
+        const scale = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+        const padding = 36;
+        const rowHeight = 48;
+        const titleHeight = 112;
+        const footerHeight = 30;
+        const columns = isResults
+            ? [
+                { key: 'no', label: 'No', width: 54 },
+                { key: 'group', label: '조', width: 72 },
+                { key: 'round', label: 'ROUND', width: 90 },
+                { key: 'matchNo', label: '경기', width: 88 },
+                { key: 'teamA', label: '팀1', width: 270 },
+                { key: 'score', label: '점수', width: 110 },
+                { key: 'teamB', label: '팀2', width: 270 },
+            ]
+            : [
+                { key: 'no', label: 'No', width: 54 },
+                { key: 'group', label: '조', width: 72 },
+                { key: 'round', label: 'ROUND', width: 90 },
+                { key: 'matchNo', label: '경기', width: 88 },
+                { key: 'teamA', label: '팀1', width: 305 },
+                { key: 'teamB', label: '팀2', width: 305 },
+            ];
+        const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
+        const emptyRows = rows.length === 0 ? 1 : 0;
+        const width = Math.max(980, tableWidth + padding * 2);
+        const height = titleHeight + rowHeight + Math.max(rows.length, emptyRows) * rowHeight + footerHeight + padding;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(width * scale);
+        canvas.height = Math.ceil(height * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas context is unavailable.');
+        ctx.scale(scale, scale);
+
+        const drawText = (
+            text: string,
+            x: number,
+            y: number,
+            options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline; maxWidth?: number } = {}
+        ) => {
+            ctx.fillStyle = options.color || '#ffffff';
+            ctx.font = `${options.weight || 800} ${options.size || 14}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            ctx.textAlign = options.align || 'center';
+            ctx.textBaseline = options.baseline || 'middle';
+            ctx.fillText(text, x, y, options.maxWidth);
+        };
+
+        const fitText = (text: string, x: number, y: number, maxWidth: number, options: { size: number; minSize?: number; weight?: number | string; color?: string; align?: CanvasTextAlign } ) => {
+            let size = options.size;
+            const minSize = options.minSize || 12;
+            ctx.font = `${options.weight || 800} ${size}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            while (size > minSize && ctx.measureText(text).width > maxWidth) {
+                size -= 1;
+                ctx.font = `${options.weight || 800} ${size}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            }
+            drawText(text, x, y, { ...options, size, maxWidth });
+        };
+
+        const background = ctx.createLinearGradient(0, 0, width, height);
+        background.addColorStop(0, '#050505');
+        background.addColorStop(0.52, '#10100d');
+        background.addColorStop(1, '#050505');
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = 'rgba(201,176,117,0.35)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(padding / 2, padding / 2, width - padding, height - padding);
+
+        drawText('TEYEON KDK', padding, 36, { align: 'left', size: 13, weight: 900, color: '#c9b075' });
+        drawText(sessionTitle || 'KDK SESSION', padding, 66, { align: 'left', size: 28, weight: 900, color: '#ffffff' });
+        drawText(title, width - padding, 66, { align: 'right', size: 23, weight: 900, color: '#f6df9a' });
+        drawText(new Date().toLocaleString('ko-KR'), width - padding, 96, { align: 'right', size: 12, weight: 800, color: 'rgba(255,255,255,0.45)' });
+
+        const tableX = padding;
+        let y = titleHeight;
+        let x = tableX;
+        columns.forEach((column) => {
+            ctx.fillStyle = 'rgba(201,176,117,0.16)';
+            ctx.fillRect(x, y, column.width, rowHeight);
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.strokeRect(x, y, column.width, rowHeight);
+            drawText(column.label, x + column.width / 2, y + rowHeight / 2, { size: 13, weight: 900, color: '#f6df9a' });
+            x += column.width;
+        });
+
+        y += rowHeight;
+        if (rows.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.035)';
+            ctx.fillRect(tableX, y, tableWidth, rowHeight);
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeRect(tableX, y, tableWidth, rowHeight);
+            drawText(isResults ? '완료된 경기가 없습니다' : '대진이 없습니다', tableX + tableWidth / 2, y + rowHeight / 2, { size: 16, weight: 900, color: 'rgba(255,255,255,0.72)' });
+        } else {
+            rows.forEach((row, rowIndex) => {
+                const rowAccent = row.groupKey === 'B' ? 'rgba(56,217,255,0.18)' : 'rgba(255,214,107,0.16)';
+                ctx.fillStyle = rowIndex % 2 === 0 ? 'rgba(255,255,255,0.034)' : 'rgba(255,255,255,0.02)';
+                ctx.fillRect(tableX, y, tableWidth, rowHeight);
+                ctx.fillStyle = rowAccent;
+                ctx.fillRect(tableX, y, 5, rowHeight);
+                ctx.strokeStyle = 'rgba(255,255,255,0.075)';
+                ctx.strokeRect(tableX, y, tableWidth, rowHeight);
+
+                x = tableX;
+                columns.forEach((column) => {
+                    const value = String((row as any)[column.key] ?? '');
+                    const isTeam = column.key === 'teamA' || column.key === 'teamB';
+                    const isScore = column.key === 'score';
+                    const color = column.key === 'group'
+                        ? row.groupKey === 'B' ? '#67e8f9' : '#f6df9a'
+                        : isScore ? '#ffffff' : '#f4f4f5';
+                    if (isTeam) {
+                        fitText(value, x + column.width / 2, y + rowHeight / 2, column.width - 18, { size: 16, minSize: 12, weight: 900, color });
+                    } else {
+                        drawText(value, x + column.width / 2, y + rowHeight / 2, { size: isScore ? 18 : 14, weight: 900, color });
+                    }
+                    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                    ctx.strokeRect(x, y, column.width, rowHeight);
+                    x += column.width;
+                });
+
+                y += rowHeight;
+            });
+        }
+
+        return new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('Failed to create match table image.'));
+            }, 'image/png', 0.95);
+        });
+    };
+
     const createDetailedResultImageBlob = async () => {
         if (activeDetailedResults.length === 0 || maxDetailGameCount === 0) {
             throw new Error('No detailed result rows to export.');
@@ -443,6 +686,230 @@ export default function RankingTab({
         ]);
     };
 
+    const downloadImageBlob = (blob: Blob, fileName: string) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const copyImageBlob = async (blob: Blob) => {
+        if (
+            typeof window === 'undefined' ||
+            typeof navigator === 'undefined' ||
+            !navigator.clipboard ||
+            typeof navigator.clipboard.write !== 'function' ||
+            typeof (window as any).ClipboardItem !== 'function'
+        ) {
+            throw new Error('Image clipboard is not supported.');
+        }
+
+        const ClipboardItemCtor = (window as any).ClipboardItem;
+        await navigator.clipboard.write([
+            new ClipboardItemCtor({
+                [blob.type]: blob,
+            }),
+        ]);
+    };
+
+    const getFinalResultPlayerName = (player: RankedPlayer) => {
+        const manualGuestName = formatKDKPlayerName(player.name);
+        const idGuestName = formatKDKPlayerName(player.id);
+        const sourceName = manualGuestName && !isLikelyKDKId(manualGuestName) ? manualGuestName : idGuestName;
+        const cleanName = sourceName && !isLikelyKDKId(sourceName) ? sourceName : '미확인';
+        const isGuest = player.is_guest || /^manual-guest-/i.test(player.id) || /^g-/i.test(player.id);
+        return isGuest && !cleanName.endsWith('(G)') ? `${cleanName}(G)` : cleanName;
+    };
+
+    const getFinalResultExportFileName = () => {
+        const safeSessionTitle = (sessionTitle || 'KDK_FINAL_RESULTS')
+            .replace(/[\\/:*?"<>|]/g, '_')
+            .replace(/\s+/g, '_');
+        return `${safeSessionTitle}_FINAL_RESULTS.png`;
+    };
+
+    const createFinalResultImageBlob = async () => {
+        if (playersList.length === 0) throw new Error('No final result rows to export.');
+
+        const scale = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+        const padding = 36;
+        const rowHeight = 54;
+        const titleHeight = 142;
+        const footerHeight = 52;
+        const width = 920;
+        const height = titleHeight + playersList.length * rowHeight + footerHeight + padding;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(width * scale);
+        canvas.height = Math.ceil(height * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas context is unavailable.');
+        ctx.scale(scale, scale);
+
+        const drawText = (
+            text: string,
+            x: number,
+            y: number,
+            options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline; maxWidth?: number } = {}
+        ) => {
+            ctx.fillStyle = options.color || '#ffffff';
+            ctx.font = `${options.weight || 800} ${options.size || 14}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            ctx.textAlign = options.align || 'left';
+            ctx.textBaseline = options.baseline || 'middle';
+            ctx.fillText(text, x, y, options.maxWidth);
+        };
+
+        const fitText = (text: string, x: number, y: number, maxWidth: number, options: { size: number; minSize?: number; weight?: number | string; color?: string; align?: CanvasTextAlign }) => {
+            let size = options.size;
+            const minSize = options.minSize || 12;
+            ctx.font = `${options.weight || 800} ${size}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            while (size > minSize && ctx.measureText(text).width > maxWidth) {
+                size -= 1;
+                ctx.font = `${options.weight || 800} ${size}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            }
+            drawText(text, x, y, { ...options, size, maxWidth });
+        };
+
+        const bg = ctx.createLinearGradient(0, 0, width, height);
+        bg.addColorStop(0, '#050505');
+        bg.addColorStop(0.5, '#11100d');
+        bg.addColorStop(1, '#050505');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = 'rgba(201,176,117,0.38)';
+        ctx.strokeRect(padding / 2, padding / 2, width - padding, height - padding);
+
+        drawText('TEYEON KDK', padding, 38, { size: 14, weight: 900, color: '#c9b075' });
+        drawText(sessionTitle || 'KDK SESSION', padding, 70, { size: 30, weight: 900, color: '#ffffff' });
+        drawText('오늘의 최종 결과', width - padding, 70, { align: 'right', size: 25, weight: 900, color: '#f6df9a' });
+        drawText(`상금/벌금: 1위 ${prizes.first.toLocaleString()} / L1 ${prizes.l1.toLocaleString()} / L2 ${prizes.l2.toLocaleString()}`, padding, 112, { size: 14, weight: 800, color: 'rgba(255,255,255,0.62)' });
+
+        const totalCount = playersList.length;
+        const rows = playersList.map((player, index) => {
+            const amountInfo = calculateSettlement(player, index, totalCount);
+            return {
+                rank: index + 1,
+                name: getFinalResultPlayerName(player),
+                wins: player.wins,
+                losses: player.losses,
+                amount: amountInfo.amount,
+            };
+        });
+
+        let y = titleHeight;
+        rows.forEach((row, index) => {
+            const isTop = row.rank <= 3;
+            ctx.fillStyle = isTop
+                ? row.rank === 1
+                    ? 'rgba(201,176,117,0.16)'
+                    : row.rank === 2
+                        ? 'rgba(255,255,255,0.08)'
+                        : 'rgba(251,146,60,0.08)'
+                : index % 2 === 0 ? 'rgba(255,255,255,0.036)' : 'rgba(255,255,255,0.022)';
+            ctx.fillRect(padding, y, width - padding * 2, rowHeight);
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeRect(padding, y, width - padding * 2, rowHeight);
+
+            const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `${row.rank}위`;
+            drawText(medal, padding + 24, y + rowHeight / 2, { size: row.rank <= 3 ? 23 : 15, weight: 900, color: '#f6df9a', align: 'center' });
+            fitText(row.name, padding + 72, y + rowHeight / 2, 330, { size: 20, minSize: 14, weight: 900, color: '#ffffff' });
+            drawText(`${row.wins}승 ${row.losses}패`, padding + 460, y + rowHeight / 2, { size: 17, weight: 900, color: 'rgba(255,255,255,0.84)' });
+
+            const amountText = row.amount > 0
+                ? `+${row.amount.toLocaleString()}원`
+                : row.amount < 0
+                    ? `-${Math.abs(row.amount).toLocaleString()}원`
+                    : '0원';
+            drawText(amountText, width - padding - 16, y + rowHeight / 2, {
+                align: 'right',
+                size: 18,
+                weight: 900,
+                color: row.amount > 0 ? '#f6df9a' : row.amount < 0 ? '#fca5a5' : 'rgba(255,255,255,0.68)',
+            });
+
+            y += rowHeight;
+        });
+
+        drawText('상세 결과는 Archive에서 확인할 수 있습니다.', padding, height - 36, { size: 13, weight: 800, color: 'rgba(255,255,255,0.48)' });
+        drawText(new Date().toLocaleString('ko-KR'), width - padding, height - 36, { align: 'right', size: 12, weight: 800, color: 'rgba(255,255,255,0.38)' });
+
+        return new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('Failed to create final result image.'));
+            }, 'image/png', 0.95);
+        });
+    };
+
+    const handleFinalResultImageAction = async (mode: 'download' | 'copy') => {
+        try {
+            setTableExportStatus('최종 결과 이미지를 준비 중입니다.');
+            const blob = await createFinalResultImageBlob();
+            const fileName = getFinalResultExportFileName();
+
+            if (mode === 'copy') {
+                try {
+                    await copyImageBlob(blob);
+                    const message = '이미지가 복사되었습니다. 카카오톡 채팅방에서 붙여넣기 해주세요.';
+                    setTableExportStatus(message);
+                    alert(message);
+                    return;
+                } catch (copyError) {
+                    console.warn('[KDK Final Result Image Copy]', copyError);
+                    downloadImageBlob(blob, fileName);
+                    const message = '이미지 복사가 지원되지 않아 PNG로 저장했습니다. 카카오톡에 첨부해주세요.';
+                    setTableExportStatus(message);
+                    alert(message);
+                    return;
+                }
+            }
+
+            downloadImageBlob(blob, fileName);
+            setTableExportStatus('최종 결과 이미지를 저장했습니다.');
+        } catch (error) {
+            console.warn('[KDK Final Result Image]', error);
+            setTableExportStatus('최종 결과 이미지 생성에 실패했습니다.');
+            alert('최종 결과 이미지를 만들지 못했습니다.');
+        }
+    };
+
+    const handleMatchTableImageAction = async (kind: MatchTableExportKind, mode: 'download' | 'copy') => {
+        const label = kind === 'schedule' ? '전체 대진표' : '경기 결과표';
+        try {
+            setTableExportStatus(`${label} 이미지를 준비 중입니다.`);
+            const blob = await createMatchTableImageBlob(kind);
+            const fileName = getMatchTableExportFileName(kind);
+
+            if (mode === 'copy') {
+                try {
+                    await copyImageBlob(blob);
+                    const message = '이미지가 복사되었습니다. 카카오톡 채팅방에서 붙여넣기 해주세요.';
+                    setTableExportStatus(message);
+                    alert(message);
+                    return;
+                } catch (copyError) {
+                    console.warn('[KDK Match Table Image Copy]', copyError);
+                    downloadImageBlob(blob, fileName);
+                    const message = '이미지 복사가 지원되지 않아 PNG로 저장했습니다. 카카오톡에 첨부해주세요.';
+                    setTableExportStatus(message);
+                    alert(message);
+                    return;
+                }
+            }
+
+            downloadImageBlob(blob, fileName);
+            setTableExportStatus(`${label} 이미지를 저장했습니다.`);
+        } catch (error) {
+            console.warn('[KDK Match Table Image]', error);
+            setTableExportStatus(`${label} 이미지 생성에 실패했습니다.`);
+            alert(`${label} 이미지를 만들지 못했습니다.`);
+        }
+    };
+
     const handleDetailedResultImageAction = async (mode: 'download' | 'copy' | 'share') => {
         try {
             setDetailExportStatus(
@@ -497,6 +964,82 @@ export default function RankingTab({
             setDetailExportStatus('이미지 생성에 실패했습니다.');
             alert('상세 결과표 이미지를 만들지 못했습니다.');
         }
+    };
+
+    const ImageExportPanel = () => {
+        const ButtonPair = ({
+            title,
+            onDownload,
+            onCopy,
+            disabled = false,
+        }: {
+            title: string;
+            onDownload: () => void;
+            onCopy: () => void;
+            disabled?: boolean;
+        }) => (
+            <div className="rounded-[20px] border border-white/10 bg-black/24 p-3">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">{title}</p>
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={onDownload}
+                        className="rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2.5 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                        저장
+                    </button>
+                    <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={onCopy}
+                        className="rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2.5 text-[11px] font-black text-black shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                        복사
+                    </button>
+                </div>
+            </div>
+        );
+
+        return (
+            <section className="mx-4 mt-8 rounded-[28px] border border-[#C9B075]/18 bg-white/[0.03] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">Image Share</span>
+                        <h3 className="mt-1 text-lg font-black italic uppercase tracking-tight text-white">이미지 공유</h3>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
+                        PNG
+                    </span>
+                </div>
+
+                {(detailExportStatus || tableExportStatus) && (
+                    <div className="mb-3 rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
+                        {tableExportStatus || detailExportStatus}
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <ButtonPair
+                        title="개인별 상세표"
+                        disabled={maxDetailGameCount === 0 || activeDetailedResults.length === 0}
+                        onDownload={() => handleDetailedResultImageAction('download')}
+                        onCopy={() => handleDetailedResultImageAction('copy')}
+                    />
+                    <ButtonPair
+                        title="전체 대진표"
+                        disabled={sortedExportMatches.length === 0}
+                        onDownload={() => handleMatchTableImageAction('schedule', 'download')}
+                        onCopy={() => handleMatchTableImageAction('schedule', 'copy')}
+                    />
+                    <ButtonPair
+                        title="경기 결과표"
+                        onDownload={() => handleMatchTableImageAction('results', 'download')}
+                        onCopy={() => handleMatchTableImageAction('results', 'copy')}
+                    />
+                </div>
+            </section>
+        );
     };
 
     const DetailedResultTable = () => {
@@ -659,6 +1202,7 @@ export default function RankingTab({
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
 
+                <ImageExportPanel />
                 <DetailedResultTable />
                 
                 <div className="h-8" aria-hidden="true" />
