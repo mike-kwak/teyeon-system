@@ -33,6 +33,27 @@ const sortMatches = (a: Match, b: Match) => {
   return String(a.id).localeCompare(String(b.id));
 };
 
+function resolveDisplayRowGroup(row: any) {
+  const directGroup = row.group_name || row.groupName || row.group || row.group_label || row.groupLabel || row.groupNameLabel;
+  const normalizedDirect = normalizeDisplayGroup(directGroup);
+  if (normalizedDirect) return normalizedDirect;
+
+  try {
+    const sessionId = row.session_id || row.sessionId;
+    const matchId = row.id;
+    if (typeof window !== 'undefined' && sessionId && matchId) {
+      const rawCache = window.localStorage.getItem(`kdk_manual_group_cache_${sessionId}`);
+      if (rawCache) {
+        const cached = JSON.parse(rawCache);
+        const cachedGroup = normalizeDisplayGroup(cached?.[String(matchId)]);
+        if (cachedGroup) return cachedGroup;
+      }
+    }
+  } catch {}
+
+  return 'A';
+}
+
 function mapMatch(row: any): Match {
   return {
     id: String(row.id),
@@ -45,7 +66,7 @@ function mapMatch(row: any): Match {
     mode: row.mode || 'KDK',
     round: row.round,
     teams: row.teams,
-    groupName: row.group_name || row.groupName || 'A',
+    groupName: resolveDisplayRowGroup(row),
   };
 }
 
@@ -73,6 +94,31 @@ function formatKDKPlayerName(value?: string) {
 
 function cleanPlayerName(value?: string) {
   return formatKDKPlayerName(value);
+}
+
+function normalizeDisplayGroup(value?: string) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return '';
+  if (raw.includes('BLUE') || raw === 'B') return 'B';
+  if (raw.includes('GOLD') || raw === 'A') return 'A';
+  return raw.includes('B') ? 'B' : 'A';
+}
+
+function getDisplayGroupMeta(value?: string) {
+  const normalizedGroup = normalizeDisplayGroup(value);
+  const isGroupB = normalizedGroup === 'B';
+  return {
+    normalizedGroup,
+    isGroupB,
+    label: isGroupB ? 'GROUP B / BLUE' : 'GROUP A / GOLD',
+    groupLabel: isGroupB ? 'GROUP B' : 'GROUP A',
+    accent: isGroupB ? '#38D9FF' : '#FFD66B',
+    accentStrong: isGroupB ? '#1CA7FF' : '#F0B93F',
+    accentSoft: isGroupB ? 'rgba(56, 217, 255, 0.11)' : 'rgba(255, 214, 107, 0.11)',
+    accentMid: isGroupB ? 'rgba(56, 217, 255, 0.2)' : 'rgba(255, 214, 107, 0.2)',
+    border: isGroupB ? 'rgba(56, 217, 255, 0.82)' : 'rgba(255, 214, 107, 0.72)',
+    panel: 'linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.03)_46%,rgba(0,0,0,0.3))',
+  };
 }
 
 function playerName(match: Match, index: number, playerLookup: PlayerLookup) {
@@ -170,33 +216,47 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
 
 function CourtCard({ court, match, playerLookup }: { court: number; match?: Match; playerLookup: PlayerLookup }) {
   const groupName = match?.groupName || match?.group || 'A';
+  const groupMeta = getDisplayGroupMeta(groupName);
   const teamA = match ? teamPlayers(match, 0, playerLookup) : [];
   const teamB = match ? teamPlayers(match, 2, playerLookup) : [];
 
   return (
     <section className={`group relative min-h-0 overflow-hidden rounded-[20px] border bg-[#090908] ${
       match
-        ? 'border-red-500/82 shadow-[0_0_0_1px_rgba(255,214,107,0.22),0_0_34px_rgba(239,68,68,0.36),0_18px_48px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.055)]'
+        ? 'shadow-[0_18px_48px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.055)]'
         : 'border-[#D8BE78]/46 shadow-[0_0_0_1px_rgba(216,190,120,0.14),0_18px_40px_rgba(0,0,0,0.5),inset_0_0_0_1px_rgba(255,255,255,0.04)]'
-    }`}>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.085),transparent_30%,rgba(216,190,120,0.07)),radial-gradient(circle_at_50%_100%,rgba(216,190,120,0.18),transparent_38%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(118deg,transparent_0%,transparent_46%,rgba(255,214,107,0.08)_48%,transparent_52%)]" />
-      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/62 to-transparent" />
+    }`} style={match ? { borderColor: groupMeta.border, boxShadow: `0 0 0 1px ${groupMeta.accentMid}, 0 18px 48px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.055)` } : undefined}>
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.07),transparent 34%,rgba(255,255,255,0.025)),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.045),transparent 40%)' }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(118deg,transparent 0%,transparent 46%,rgba(255,255,255,0.035) 48%,transparent 52%)' }}
+      />
+      <div className="absolute inset-x-5 top-0 h-[3px] bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
       {match && (
         <>
-          <div className="absolute inset-x-0 bottom-0 h-[4px] bg-gradient-to-r from-red-600 via-[#FFE6A3] to-red-600 shadow-[0_0_28px_rgba(239,68,68,1)]" />
+          <div
+            className="absolute inset-x-0 bottom-0 h-[4px]"
+            style={{
+              backgroundImage: `linear-gradient(to right, rgba(220,38,38,0.82), ${groupMeta.accent}, rgba(220,38,38,0.82))`,
+              boxShadow: '0 0 16px rgba(239,68,68,0.56)',
+            }}
+          />
           <div className="absolute inset-x-12 bottom-1 h-10 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.34),transparent_70%)]" />
           <div className="absolute bottom-0 left-0 h-20 w-20 bg-[radial-gradient(circle_at_0%_100%,rgba(239,68,68,0.38),transparent_72%)]" />
           <div className="absolute bottom-0 right-0 h-20 w-20 bg-[radial-gradient(circle_at_100%_100%,rgba(239,68,68,0.3),transparent_72%)]" />
           <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-red-400/72 to-transparent" />
           <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-red-400/56 to-transparent" />
+          <div className="absolute inset-y-5 left-0 w-[4px] rounded-r-full" style={{ background: `linear-gradient(to bottom, transparent, ${groupMeta.accent}, transparent)` }} />
         </>
       )}
-      <div className="absolute -bottom-7 left-9 right-9 h-24 border-x border-t border-[#D8BE78]/28 opacity-85" />
-      <div className="absolute bottom-7 left-1/2 h-16 w-px -translate-x-1/2 bg-[#D8BE78]/34" />
-      <div className="absolute bottom-7 left-[18%] right-[18%] h-px bg-[#D8BE78]/34" />
-      <div className="absolute bottom-12 left-[16%] right-[16%] h-px bg-[#D8BE78]/18" />
-      <div className="absolute bottom-[54px] left-[16%] right-[16%] h-px bg-[#D8BE78]/10" />
+      <div className="absolute -bottom-7 left-9 right-9 h-24 border-x border-t opacity-85" style={{ borderColor: groupMeta.border }} />
+      <div className="absolute bottom-7 left-1/2 h-16 w-px -translate-x-1/2" style={{ backgroundColor: groupMeta.border }} />
+      <div className="absolute bottom-7 left-[18%] right-[18%] h-px" style={{ backgroundColor: groupMeta.border }} />
+      <div className="absolute bottom-12 left-[16%] right-[16%] h-px" style={{ backgroundColor: groupMeta.accentSoft }} />
+      <div className="absolute bottom-[54px] left-[16%] right-[16%] h-px" style={{ backgroundColor: groupMeta.accentSoft.replace('0.18', '0.1') }} />
 
       <div className="relative flex h-full min-h-0 flex-col p-3 2xl:p-3.5">
         <div className={`absolute right-5 top-5 z-20 rounded-[14px] border px-4 py-2.5 text-[13px] font-black uppercase tracking-[0.16em] ${
@@ -206,58 +266,57 @@ function CourtCard({ court, match, playerLookup }: { court: number; match?: Matc
         }`}>
           {match ? 'LIVE' : 'READY'}
         </div>
-        <div className="flex items-start justify-between gap-3 border-b border-[#D8BE78]/18 pb-1.5 pr-28">
+        <div className="relative flex items-center border-b pb-2 pr-32" style={{ borderColor: groupMeta.accentSoft }}>
           <div className="flex items-end gap-3">
             <span className="text-[12px] font-black uppercase tracking-[0.2em] text-white/82">Court</span>
-            <span className="text-[38px] font-black leading-[0.8] text-[#FFD66B] drop-shadow-[0_0_16px_rgba(255,214,107,0.36)]">{court}</span>
+            <span className="text-[38px] font-black leading-[0.8]" style={{ color: groupMeta.accent }}>{court}</span>
           </div>
+          {match && (
+            <div className="absolute left-1/2 top-1 flex max-w-[58%] -translate-x-1/2 items-center justify-center gap-3">
+              <span className="rounded-lg border bg-black/46 px-3.5 py-1.5 text-[13px] font-black uppercase tracking-[0.1em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+                Round {match.round || '-'}
+              </span>
+              <span className="max-w-[180px] truncate rounded-lg border bg-black/46 px-3.5 py-1.5 text-[13px] font-black uppercase tracking-[0.1em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+                {groupMeta.label}
+              </span>
+            </div>
+          )}
         </div>
 
         {match ? (
           <div className="relative flex min-h-0 flex-1 flex-col justify-center pt-0">
-            <div className="-mt-2 mb-4 flex items-center justify-center gap-3">
-              <span className="rounded-lg border border-[#D8BE78]/32 bg-[#D8BE78]/20 px-4 py-1.5 text-[18px] font-black uppercase tracking-[0.08em] text-[#FFD66B] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                Round {match.round || '-'}
-              </span>
-              <span className="rounded-lg border border-white/12 bg-white/[0.08] px-4 py-1.5 text-[18px] font-black uppercase tracking-[0.08em] text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                Group {groupName}
-              </span>
-            </div>
-
-            <div className="relative rounded-[18px] border border-[#D8BE78]/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.085),rgba(216,190,120,0.04)_42%,rgba(0,0,0,0.22))] p-3 shadow-[0_14px_28px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-1px_0_rgba(216,190,120,0.09)]">
-              <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/58 to-transparent" />
-              <div className="grid grid-cols-[minmax(0,1fr)_64px_minmax(0,1fr)] items-center gap-4">
-                <div className="flex min-h-[68px] flex-col justify-center rounded-[14px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.11),rgba(216,190,120,0.055)_54%,rgba(0,0,0,0.26))] px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-10px_24px_rgba(0,0,0,0.16)]">
+            <div className="relative mt-4 rounded-[20px] border px-5 py-4 shadow-[0_14px_28px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]" style={{ borderColor: groupMeta.border, background: groupMeta.panel, boxShadow: `0 14px 28px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)` }}>
+              <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
+              <div className="grid grid-cols-[minmax(0,1fr)_74px_minmax(0,1fr)] items-start gap-4">
+                <div className="flex min-h-[82px] flex-col justify-center rounded-[16px] border border-white/10 bg-black/28 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   {teamA.map((name, index) => (
-                    <p key={index} className="break-keep text-[clamp(19px,1.65vw,31px)] font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.78)] [overflow-wrap:anywhere]">
+                    <p key={index} className="break-keep text-[clamp(21px,1.65vw,31px)] font-black leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)] [overflow-wrap:anywhere]">
                       {name}
                     </p>
                   ))}
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center justify-self-center rounded-full border border-[#FFD66B]/70 bg-black/88 text-[13px] font-black text-[#FFD66B] shadow-[0_0_18px_rgba(216,190,120,0.44),inset_0_0_14px_rgba(216,190,120,0.18)]">
-                  VS
+                <div className="flex h-[82px] items-center justify-center">
+                  <span className="flex h-16 w-16 items-center justify-center rounded-full border bg-black/68 text-[21px] font-black uppercase tracking-[0.04em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+                    VS
+                  </span>
                 </div>
-                <div className="flex min-h-[68px] flex-col justify-center rounded-[14px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.11),rgba(216,190,120,0.055)_54%,rgba(0,0,0,0.26))] px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-10px_24px_rgba(0,0,0,0.16)]">
+                <div className="flex min-h-[82px] flex-col justify-center rounded-[16px] border border-white/10 bg-black/28 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   {teamB.map((name, index) => (
-                    <p key={index} className="break-keep text-[clamp(19px,1.65vw,31px)] font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.78)] [overflow-wrap:anywhere]">
+                    <p key={index} className="break-keep text-[clamp(21px,1.65vw,31px)] font-black leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)] [overflow-wrap:anywhere]">
                       {name}
                     </p>
                   ))}
                 </div>
               </div>
-            </div>
-
-            <div className="relative mx-auto mt-2 flex min-w-[250px] items-center justify-center gap-5 rounded-[20px] border border-[#FFD66B]/16 bg-[linear-gradient(180deg,rgba(255,214,107,0.08),rgba(0,0,0,0.24))] px-8 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(0,0,0,0.2)]">
-              <div className="absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-red-400/58 to-transparent" />
-              <span className="text-[clamp(56px,4.8vw,84px)] font-black leading-none text-[#FFF4C8] drop-shadow-[0_0_34px_rgba(255,214,107,0.9)]">
-                {match.score1 ?? 1}
-              </span>
-              <span className="text-[clamp(42px,3.6vw,62px)] font-black leading-none text-[#FFD66B] drop-shadow-[0_0_28px_rgba(255,214,107,0.72)]">
-                :
-              </span>
-              <span className="text-[clamp(56px,4.8vw,84px)] font-black leading-none text-[#FFF4C8] drop-shadow-[0_0_34px_rgba(255,214,107,0.9)]">
-                {match.score2 ?? 1}
-              </span>
+              <div className="mt-4 grid grid-cols-[minmax(0,1fr)_74px_minmax(0,1fr)] items-center gap-4">
+                <span className="text-center text-[clamp(46px,3.8vw,66px)] font-black leading-none text-[#FFF4C8]">
+                  {match.score1 ?? 1}
+                </span>
+                <span className="text-center text-[22px] font-black leading-none text-white/28">:</span>
+                <span className="text-center text-[clamp(46px,3.8vw,66px)] font-black leading-none text-[#FFF4C8]">
+                  {match.score2 ?? 1}
+                </span>
+              </div>
             </div>
           </div>
         ) : (
@@ -266,7 +325,7 @@ function CourtCard({ court, match, playerLookup }: { court: number; match?: Matc
               <span className="absolute left-4 top-0 h-8 w-1 -rotate-45 rounded-full bg-[#EAD8A2]/62 shadow-[0_0_16px_rgba(216,190,120,0.25)]" />
               <span className="absolute right-4 top-0 h-8 w-1 rotate-45 rounded-full bg-[#EAD8A2]/62 shadow-[0_0_16px_rgba(216,190,120,0.25)]" />
             </div>
-            <p className="text-[clamp(28px,2.45vw,42px)] font-black uppercase tracking-[0.15em] text-[#F1DC9C] drop-shadow-[0_0_24px_rgba(216,190,120,0.36)]">Standby</p>
+            <p className="text-[clamp(28px,2.45vw,42px)] font-black uppercase tracking-[0.15em] text-[#F1DC9C]">Standby</p>
             <div className="h-px w-56 bg-gradient-to-r from-transparent via-[#FFD66B]/72 to-transparent shadow-[0_0_18px_rgba(255,214,107,0.42)]" />
             <p className="rounded-full border border-[#D8BE78]/34 bg-black/48 px-8 py-3 text-[18px] font-black uppercase tracking-[0.14em] text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
               Waiting for match
@@ -279,78 +338,80 @@ function CourtCard({ court, match, playerLookup }: { court: number; match?: Matc
 }
 
 function CompactMatch({ match, index, playerLookup, playingPlayerIds }: { match: Match; index: number; playerLookup: PlayerLookup; playingPlayerIds: Set<string> }) {
+  const groupMeta = getDisplayGroupMeta(match.groupName || match.group || 'A');
   const hasActivePlayer = (match.playerIds || []).some((playerId) => playingPlayerIds.has(playerId));
   const renderPlayer = (playerIndex: number) => {
     const playerId = match.playerIds?.[playerIndex] || '';
     const isPlaying = !!playerId && playingPlayerIds.has(playerId);
 
     return (
-      <span className="flex min-w-0 flex-col items-center justify-end gap-0.5">
+      <span className="flex min-w-0 items-center justify-center gap-1">
         {isPlaying && (
-          <span className="rounded-full border border-red-400/50 bg-red-500/20 px-1.5 py-0.5 text-[7px] font-black uppercase leading-none tracking-[0.08em] text-red-100 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-            LIVE
-          </span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.42)]" />
         )}
-        {!isPlaying && <span className="h-[11px]" />}
         <span className="max-w-full truncate">{playerName(match, playerIndex, playerLookup)}</span>
       </span>
     );
   };
 
   return (
-    <div className={`relative min-h-[78px] overflow-hidden rounded-[16px] border px-4 py-3.5 shadow-[0_9px_20px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.085)] ${
+    <div className={`relative min-h-[78px] overflow-hidden rounded-[16px] border px-4 py-2.5 shadow-[0_9px_20px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.085)] ${
       hasActivePlayer
         ? 'border-red-400/42 bg-[linear-gradient(135deg,#140D0D,rgba(239,68,68,0.085)_46%,#080808)]'
-        : 'border-[#D8BE78]/26 bg-[linear-gradient(135deg,#11110F,rgba(216,190,120,0.065)_55%,#080808)]'
-    }`}>
-      <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/66 to-transparent" />
+        : ''
+    }`} style={{ borderColor: groupMeta.border }}>
+      {!hasActivePlayer && (
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#11110F,rgba(255,255,255,0.035)_55%,#080808)]" />
+      )}
+      <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
       <div className={`absolute inset-y-3 left-0 w-px bg-gradient-to-b from-transparent ${
         hasActivePlayer
           ? 'via-red-400/72 to-transparent shadow-[0_0_12px_rgba(239,68,68,0.48)]'
-          : 'via-[#FFD66B]/28 to-transparent'
-      }`} />
-      <div className="grid grid-cols-[40px_minmax(0,1fr)_44px_minmax(0,1fr)] items-center gap-3.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-[#D8BE78]/32 bg-[#D8BE78]/13 text-[13px] font-black text-[#FFD66B] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          : ''
+      }`} style={!hasActivePlayer ? { backgroundImage: `linear-gradient(to bottom, transparent, ${groupMeta.accent}, transparent)` } : undefined} />
+      <div className="grid grid-cols-[40px_minmax(0,1fr)_42px_minmax(0,1fr)] items-center gap-3.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md border text-[13px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ borderColor: groupMeta.border, background: groupMeta.accentSoft, color: groupMeta.accent }}>
           {String(index + 1).padStart(2, '0')}
         </span>
-        <div className="grid min-w-0 grid-cols-2 items-end gap-2 break-keep text-center text-[clamp(14px,0.86vw,17px)] font-black leading-snug text-white [overflow-wrap:anywhere]">
+        <div className="grid min-w-0 grid-cols-2 items-end gap-2.5 break-keep text-center text-[clamp(18px,1.12vw,21px)] font-black leading-snug text-white [overflow-wrap:anywhere]">
           {renderPlayer(0)}
           {renderPlayer(1)}
         </div>
-        <span className="flex h-8 w-8 items-center justify-center justify-self-center rounded-full border border-[#D8BE78]/38 bg-black/76 text-[9px] font-black text-[#FFD66B]">
+        <span className="flex h-8 w-8 items-center justify-center justify-self-center rounded-full border bg-black/76 text-[10px] font-black" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
           VS
         </span>
-        <div className="grid min-w-0 grid-cols-2 items-end gap-2 break-keep text-center text-[clamp(14px,0.86vw,17px)] font-black leading-snug text-white/90 [overflow-wrap:anywhere]">
+        <div className="grid min-w-0 grid-cols-2 items-end gap-2.5 break-keep text-center text-[clamp(18px,1.12vw,21px)] font-black leading-snug text-white/90 [overflow-wrap:anywhere]">
           {renderPlayer(2)}
           {renderPlayer(3)}
         </div>
       </div>
-      <div className="ml-[54px] mt-2 inline-flex rounded-full border border-[#D8BE78]/16 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/44">
-        R{match.round || '-'} - Group {match.groupName || match.group || 'A'}
+      <div className="ml-[54px] mt-2 inline-flex rounded-full border bg-black/42 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+        R{match.round || '-'} - {groupMeta.label}
       </div>
     </div>
   );
 }
 
 function CompletedMiniCard({ match, playerLookup }: { match: Match; playerLookup: PlayerLookup }) {
+  const groupMeta = getDisplayGroupMeta(match.groupName || match.group || 'A');
   return (
-    <div className="relative min-w-0 overflow-hidden rounded-[22px] border border-[#D8BE78]/40 bg-[linear-gradient(135deg,#11110F,rgba(216,190,120,0.075)_52%,#080808)] p-5 shadow-[0_16px_34px_rgba(0,0,0,0.36),0_0_22px_rgba(216,190,120,0.1),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-18px_38px_rgba(0,0,0,0.2)]">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/88 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent via-[#FFD66B]/70 to-transparent shadow-[0_0_18px_rgba(255,214,107,0.4)]" />
-      <div className="absolute inset-x-12 bottom-1 h-8 bg-[radial-gradient(ellipse_at_center,rgba(255,214,107,0.12),transparent_72%)]" />
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="relative min-w-0 overflow-hidden rounded-[22px] border bg-[linear-gradient(135deg,#11110F,rgba(255,255,255,0.035)_52%,#080808)] p-5 shadow-[0_16px_34px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-18px_38px_rgba(0,0,0,0.2)]" style={{ borderColor: groupMeta.border }}>
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
+      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
+      <div className="absolute inset-x-12 bottom-1 h-8 opacity-55" style={{ background: `radial-gradient(ellipse at center, ${groupMeta.accentSoft}, transparent 72%)` }} />
+      <div className="relative mb-3 flex items-center justify-start gap-3">
         <span className="rounded-md border border-emerald-300/20 bg-emerald-400/12 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/82">Done</span>
-        <span className="rounded-md border border-[#D8BE78]/16 bg-black/24 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/42">R{match.round || '-'} / G{match.groupName || match.group || 'A'}</span>
+        <span className="absolute left-1/2 max-w-[72%] -translate-x-1/2 truncate rounded-md border bg-black/24 px-2.5 py-1 text-center text-[9px] font-black uppercase tracking-[0.16em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>R{match.round || '-'} / {groupMeta.label}</span>
       </div>
-      <div className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_112px_minmax(0,1fr)] items-stretch gap-3.5">
-        <div className="flex min-w-0 items-center rounded-[16px] border border-[#D8BE78]/12 bg-black/28 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <p className="break-keep text-[clamp(12px,0.8vw,16px)] font-black leading-tight text-white [overflow-wrap:anywhere]">{teamLabel(match, 0, playerLookup)}</p>
+      <div className="grid min-h-[90px] grid-cols-[minmax(0,1.1fr)_96px_minmax(0,1.1fr)] items-stretch gap-3.5">
+        <div className="flex min-w-0 items-center justify-center rounded-[16px] border bg-black/28 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" style={{ borderColor: groupMeta.accentMid }}>
+          <p className="whitespace-nowrap text-center text-[clamp(15px,1.02vw,22px)] font-black leading-none tracking-[-0.04em] text-white">{teamLabel(match, 0, playerLookup)}</p>
         </div>
-        <span className="flex shrink-0 items-center justify-center rounded-[16px] border border-[#FFD66B]/34 bg-black/46 text-center text-[46px] font-black leading-none text-[#FFF4C8] drop-shadow-[0_0_32px_rgba(255,214,107,0.76)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <span className="flex shrink-0 items-center justify-center rounded-[16px] border bg-black/46 text-center text-[42px] font-black leading-none text-[#FFF4C8] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ borderColor: groupMeta.accentMid }}>
           {match.score1 ?? 0}:{match.score2 ?? 0}
         </span>
-        <div className="flex min-w-0 items-center justify-end rounded-[16px] border border-[#D8BE78]/12 bg-black/28 px-4 py-3 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <p className="break-keep text-[clamp(12px,0.8vw,16px)] font-black leading-tight text-white/82 [overflow-wrap:anywhere]">{teamLabel(match, 2, playerLookup)}</p>
+        <div className="flex min-w-0 items-center justify-center rounded-[16px] border bg-black/28 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" style={{ borderColor: groupMeta.accentMid }}>
+          <p className="whitespace-nowrap text-center text-[clamp(15px,1.02vw,22px)] font-black leading-none tracking-[-0.04em] text-white/88">{teamLabel(match, 2, playerLookup)}</p>
         </div>
       </div>
     </div>
@@ -580,13 +641,13 @@ function KdkDisplayBoard() {
               </h1>
             </div>
           </div>
-          <div className="grid shrink-0 grid-cols-[auto_auto_auto] items-center gap-3">
+          <div className="grid shrink-0 grid-cols-[auto_auto_auto] items-center gap-8">
             <div className="text-right">
               <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/34">Time</p>
               <p className="text-[32px] font-black leading-none text-white">{clock}</p>
             </div>
-            <div className="flex items-center gap-2.5 rounded-[14px] border border-red-400/90 bg-red-500/24 px-3.5 py-2 text-red-50 shadow-[0_0_32px_rgba(239,68,68,0.72),inset_0_1px_0_rgba(255,255,255,0.14)]">
-              <span className="h-3 w-3 rounded-full bg-red-300 shadow-[0_0_20px_rgba(248,113,113,1)]" />
+            <div className="flex items-center gap-2.5 rounded-[14px] border border-red-400/90 bg-red-500/24 px-3.5 py-2 text-red-50 shadow-[0_0_20px_rgba(239,68,68,0.48),inset_0_1px_0_rgba(255,255,255,0.14)]">
+              <span className="h-3 w-3 rounded-full bg-red-300 shadow-[0_0_12px_rgba(248,113,113,0.72)]" />
               <span className="text-[20px] font-black uppercase tracking-[0.07em]">{statusLabel}</span>
             </div>
             <div className="rounded-[12px] border border-white/10 bg-white/[0.065] px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/52">
@@ -646,15 +707,15 @@ function KdkDisplayBoard() {
                 <span className="rounded-full border border-red-400/35 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-red-100">{statusLabel}</span>
               </div>
               <div className="grid grid-cols-3 gap-3.5">
-                <div className="flex h-[78px] flex-col items-center justify-center rounded-[16px] border border-red-400/45 bg-red-500/14 text-center shadow-[0_0_18px_rgba(239,68,68,0.16),inset_0_1px_0_rgba(255,255,255,0.09)]">
+                <div className="flex h-[78px] flex-col items-center justify-center rounded-[16px] border border-red-400/45 bg-red-500/14 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-red-100/76">Playing</p>
-                  <p className="mt-1 text-[38px] font-black leading-none text-red-50 drop-shadow-[0_0_16px_rgba(248,113,113,0.35)]">{playingCount}</p>
+                  <p className="mt-1 text-[38px] font-black leading-none text-red-50">{playingCount}</p>
                 </div>
-                <div className="flex h-[78px] flex-col items-center justify-center rounded-[16px] border border-[#D8BE78]/40 bg-[#D8BE78]/13 text-center shadow-[0_0_18px_rgba(216,190,120,0.13),inset_0_1px_0_rgba(255,255,255,0.09)]">
+                <div className="flex h-[78px] flex-col items-center justify-center rounded-[16px] border border-[#D8BE78]/40 bg-[#D8BE78]/13 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#FFD66B]/76">Waiting</p>
-                  <p className="mt-1 text-[38px] font-black leading-none text-[#FFF0BF] drop-shadow-[0_0_16px_rgba(255,214,107,0.28)]">{waitingMatches.length}</p>
+                  <p className="mt-1 text-[38px] font-black leading-none text-[#FFF0BF]">{waitingMatches.length}</p>
                 </div>
-                <div className="flex h-[78px] flex-col items-center justify-center rounded-[16px] border border-emerald-400/34 bg-emerald-500/11 text-center shadow-[0_0_18px_rgba(16,185,129,0.1),inset_0_1px_0_rgba(255,255,255,0.09)]">
+                <div className="flex h-[78px] flex-col items-center justify-center rounded-[16px] border border-emerald-400/34 bg-emerald-500/11 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/62">Done</p>
                   <p className="mt-1 text-[38px] font-black leading-none text-white/90">{completedMatches.length}</p>
                 </div>
@@ -670,7 +731,7 @@ function KdkDisplayBoard() {
                 </h2>
                 <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/36">{waitingMatches.length} queued</span>
               </div>
-              <div className="min-h-0 flex-1 space-y-2.5 overflow-hidden">
+              <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
                 {waitingMatches.slice(0, 5).map((match, index) => (
                   <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} playingPlayerIds={playingPlayerIds} />
                 ))}
@@ -692,21 +753,21 @@ function KdkDisplayBoard() {
                 <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">W-L / Diff</span>
               </div>
               {liveRanking.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-[44px_minmax(0,1fr)_72px_56px] items-center gap-3 px-4 text-[9px] font-black uppercase tracking-[0.14em] text-white/34">
+                <div className="mx-auto w-full max-w-[520px] space-y-2">
+                  <div className="grid grid-cols-[48px_minmax(0,230px)_80px_62px] items-center gap-3 px-4 text-[9px] font-black uppercase tracking-[0.14em] text-white/34">
                     <span className="text-center">Rank</span>
-                    <span>Player</span>
-                    <span className="text-center">W/L</span>
-                    <span className="text-center">Diff</span>
+                    <span className="pl-8">Player</span>
+                    <span className="text-right">W/L</span>
+                    <span className="text-right">Diff</span>
                   </div>
                   {liveRanking.slice(0, 5).map((player, index) => (
-                    <div key={player.id} className={`relative grid min-h-[64px] grid-cols-[44px_minmax(0,1fr)_72px_56px] items-center gap-3 overflow-hidden rounded-[14px] border px-4 py-3 ${
+                    <div key={player.id} className={`relative grid min-h-[62px] grid-cols-[48px_minmax(0,230px)_80px_62px] items-center gap-3 overflow-hidden rounded-[14px] border px-4 py-3 ${
                       index === 0
-                        ? 'border-[#FFD66B]/36 bg-[#D8BE78]/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                        ? 'border-[#FFD66B]/30 bg-[#D8BE78]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                         : index === 1
-                          ? 'border-white/16 bg-white/[0.065] shadow-[inset_0_1px_0_rgba(255,255,255,0.065)]'
+                          ? 'border-white/14 bg-white/[0.052] shadow-[inset_0_1px_0_rgba(255,255,255,0.065)]'
                           : index === 2
-                            ? 'border-orange-400/22 bg-orange-400/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                            ? 'border-orange-400/18 bg-orange-400/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                             : 'border-white/8 bg-white/[0.045]'
                     }`}>
                       {index < 3 && (
@@ -716,7 +777,7 @@ function KdkDisplayBoard() {
                       )}
                       <span className={`flex h-9 w-9 items-center justify-center justify-self-center rounded-md text-[17px] font-black leading-none ${
                         index === 0
-                          ? 'bg-[#FFD66B] text-black shadow-[0_0_16px_rgba(255,214,107,0.38)]'
+                          ? 'bg-[#FFD66B] text-black'
                           : index === 1
                             ? 'bg-white/70 text-black'
                             : index === 2
@@ -725,12 +786,12 @@ function KdkDisplayBoard() {
                       }`}>
                         {index + 1}
                       </span>
-                      <div className="min-w-0 self-center">
+                      <div className="min-w-0 self-center pl-8">
                         <p className={`truncate text-[17px] font-black ${index < 3 ? 'text-white' : 'text-white/88'}`}>{player.name}</p>
                         <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/32">PF {player.pointsFor}</p>
                       </div>
-                      <span className="w-full whitespace-nowrap text-center text-[15px] font-black text-white/82">{player.wins}W {player.losses}L</span>
-                      <span className={`w-full text-center text-[19px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
+                      <span className="w-full whitespace-nowrap text-right text-[15px] font-black text-white/82">{player.wins}W {player.losses}L</span>
+                      <span className={`w-full text-right text-[19px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
                         {player.diff > 0 ? '+' : ''}{player.diff}
                       </span>
                     </div>
