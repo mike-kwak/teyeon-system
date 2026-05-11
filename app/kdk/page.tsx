@@ -760,6 +760,111 @@ export default function KDKPage() {
         }
     };
 
+    const normalizeStoredKdkGroup = (value?: string) => {
+        const raw = String(value || '').trim().toUpperCase();
+        if (raw.includes('BLUE') || raw === 'B' || raw.startsWith('B조'.toUpperCase())) return 'B';
+        if (raw.includes('GOLD') || raw === 'A' || raw.startsWith('A조'.toUpperCase())) return 'A';
+        if (raw.includes('B')) return 'B';
+        if (raw.includes('A')) return 'A';
+        return '';
+    };
+
+    const manualGroupCacheRef = useRef<Record<string, Record<string, string>>>({});
+    const manualSessionIdsRef = useRef<Set<string>>(new Set());
+
+    const getManualGroupCacheKey = (targetSessionId: string) => `kdk_manual_group_cache_${targetSessionId}`;
+    const getManualSessionIdsKey = () => 'kdk_manual_session_ids';
+
+    const rememberManualSessionId = (targetSessionId?: string) => {
+        if (!targetSessionId) return;
+        manualSessionIdsRef.current.add(targetSessionId);
+        try {
+            localStorage.setItem(getManualSessionIdsKey(), JSON.stringify(Array.from(manualSessionIdsRef.current)));
+        } catch {}
+    };
+
+    const hydrateManualSessionIds = () => {
+        if (manualSessionIdsRef.current.size > 0) return;
+        try {
+            const raw = localStorage.getItem(getManualSessionIdsKey());
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                manualSessionIdsRef.current = new Set(parsed.filter((value): value is string => typeof value === 'string' && value.trim().length > 0));
+            }
+        } catch {}
+    };
+
+    const isManualSession = (targetSessionId?: string) => {
+        if (!targetSessionId) return false;
+        hydrateManualSessionIds();
+        return manualSessionIdsRef.current.has(targetSessionId);
+    };
+
+    const persistManualGroupCache = (targetSessionId: string, groupMap: Record<string, string>) => {
+        if (!targetSessionId || Object.keys(groupMap).length === 0) return;
+        manualGroupCacheRef.current[targetSessionId] = {
+            ...(manualGroupCacheRef.current[targetSessionId] || {}),
+            ...groupMap,
+        };
+        try {
+            localStorage.setItem(getManualGroupCacheKey(targetSessionId), JSON.stringify(manualGroupCacheRef.current[targetSessionId]));
+        } catch {}
+    };
+
+    const loadManualGroupCache = (targetSessionId?: string) => {
+        if (!targetSessionId) return {};
+        if (manualGroupCacheRef.current[targetSessionId]) {
+            return manualGroupCacheRef.current[targetSessionId];
+        }
+        try {
+            const raw = localStorage.getItem(getManualGroupCacheKey(targetSessionId));
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                manualGroupCacheRef.current[targetSessionId] = parsed;
+                return parsed;
+            }
+        } catch {}
+        return {};
+    };
+
+    const getManualGroupFromCache = (targetSessionId?: string, matchId?: string) => {
+        if (!targetSessionId || !matchId) return '';
+        const cache = loadManualGroupCache(targetSessionId);
+        return normalizeStoredKdkGroup(cache[String(matchId)]);
+    };
+
+    const buildGroupCacheFromRows = (rows: any[]) =>
+        rows.reduce<Record<string, string>>((acc, row) => {
+            const group = normalizeStoredKdkGroup(row?.group_name || row?.groupName || row?.group);
+            if (row?.id && group) acc[String(row.id)] = group;
+            return acc;
+        }, {});
+
+    const resolveDbMatchGroupName = (row: any) => {
+        const direct = normalizeStoredKdkGroup(row?.group_name || row?.groupName || row?.group);
+        if (direct) return direct;
+
+        const cached = getManualGroupFromCache(row?.session_id, String(row?.id ?? ''));
+        if (cached) {
+            console.warn('[Manual KDK Group Restore] Restored missing group from cache', {
+                id: row?.id,
+                session_id: row?.session_id,
+                restored_group: cached,
+            });
+            return cached;
+        }
+
+        console.warn('[Manual KDK Group Missing] Falling back to A', {
+            id: row?.id,
+            session_id: row?.session_id,
+            group_name: row?.group_name,
+            groupName: row?.groupName,
+        });
+        return 'A';
+    };
+
     const mapDbMatchToMatch = (m: any): Match => ({
         id: m.id,
         playerIds: m.player_ids || m.playerIds || [],
@@ -771,7 +876,7 @@ export default function KDKPage() {
         mode: m.mode || 'KDK',
         round: m.round,
         teams: m.teams,
-        groupName: m.group_name || m.groupName || 'A'
+        groupName: resolveDbMatchGroupName(m)
     });
 
     const fetchMatches = async (targetSessionId: string) => {
@@ -788,6 +893,7 @@ export default function KDKPage() {
 
             if (error) throw error;
 
+            persistManualGroupCache(targetSessionId, buildGroupCacheFromRows(data || []));
             const mappedMatches = (data || []).map(mapDbMatchToMatch);
 
             setMatches(mappedMatches);
@@ -874,6 +980,8 @@ export default function KDKPage() {
             const applySession = (targetSessionId: string) => {
                 const currentSession = sessionsMap[targetSessionId];
                 if (!currentSession) return false;
+
+                persistManualGroupCache(targetSessionId, buildGroupCacheFromRows(currentSession.matches));
 
                 const refreshingMatches = currentSession.matches.map(mapDbMatchToMatch);
 
@@ -1257,6 +1365,34 @@ export default function KDKPage() {
         return m?.avatar_url || "";
     };
 
+    const normalizeKdkGroup = (value?: string) => normalizeStoredKdkGroup(value) || 'A';
+
+    const getGroupedMatchesForDisplay = (groupValue?: string) => {
+        const normalizedGroup = normalizeKdkGroup(groupValue);
+        return matches
+            .filter(mx => normalizeKdkGroup(mx.groupName || (mx as any).group) === normalizedGroup)
+            .sort((a, b) => {
+                if ((a.round || 0) !== (b.round || 0)) return (a.round || 0) - (b.round || 0);
+                if ((a.court || 99) !== (b.court || 99)) return (a.court || 99) - (b.court || 99);
+                return String(a.id || '').localeCompare(String(b.id || ''));
+            });
+    };
+
+    const getDisplayMatchNo = (match: Match) => {
+        const groupedMatches = getGroupedMatchesForDisplay(match.groupName || (match as any).group);
+        const index = groupedMatches.findIndex(item => item.id === match.id);
+        return index >= 0 ? index + 1 : 1;
+    };
+
+    const getFallbackGroupFromSupportData = (match: Match) => {
+        const firstPlayerId = match.playerIds?.[0];
+        if (!firstPlayerId) return null;
+        const attendeeGroup = attendeeConfigs[firstPlayerId]?.group;
+        if (attendeeGroup) return attendeeGroup;
+        const memberPosition = allMembers.find(member => member.id === firstPlayerId)?.position;
+        return memberPosition || null;
+    };
+
     const PlayerAvatar = ({ id, size = 20 }: { id: string, size?: number }) => {
         const url = getPlayerAvatar(id);
         return (
@@ -1484,9 +1620,16 @@ export default function KDKPage() {
             const manualGuests = new Map<string, Member>();
             const nextSelectedIds = new Set(selectedIds);
             const nextAttendeeConfigs = { ...attendeeConfigs };
+            const manualRoundByTime = new Map<string, number>();
+            let nextManualRound = 1;
 
             const formattedMatches = manualPastePreview.map((row, index) => {
                 const group = normalizeManualGroup(row.group);
+                const roundKey = row.time?.trim() ? `TIME_${row.time.trim()}` : `ORDER_${row.order || index + 1}`;
+                if (!manualRoundByTime.has(roundKey)) {
+                    manualRoundByTime.set(roundKey, nextManualRound++);
+                }
+                const round = manualRoundByTime.get(roundKey) || 1;
                 const resolvedPlayers = [...row.teamA, ...row.teamB].map(getManualResolvedPlayer);
                 const playerIds = resolvedPlayers.map(player => player.id);
                 const playerNames = resolvedPlayers.map(player => player.name);
@@ -1536,7 +1679,7 @@ export default function KDKPage() {
                     score1: 1,
                     score2: 1,
                     mode: 'KDK',
-                    round: row.order || index + 1,
+                    round,
                     teams: [playerNames.slice(0, 2), playerNames.slice(2, 4)] as [string[], string[]],
                     groupName: group,
                 } as Match;
@@ -1557,6 +1700,16 @@ export default function KDKPage() {
                 score2: m.score2 ?? 1,
                 status: m.status || 'waiting',
             }));
+
+            const manualGroupCache = formattedMatches.reduce<Record<string, string>>((acc, match) => {
+                const group = normalizeStoredKdkGroup(match.groupName);
+                if (group) acc[String(match.id)] = group;
+                return acc;
+            }, {});
+
+            rememberManualSessionId(manualSessionId);
+            persistManualGroupCache(manualSessionId, manualGroupCache);
+
             const { error: fullError } = await supabase
                 .from('matches')
                 .upsert(fullDbMatches, { onConflict: 'id' });
@@ -1667,7 +1820,7 @@ export default function KDKPage() {
                 .from('matches')
                 .update({ status: 'playing', court: nextCourt })
                 .eq('id', String(matchId));
-                
+
             if (updateError) throw updateError;
 
             // Manual Invalidation (sync state from server)
@@ -3759,17 +3912,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         })
                                         .map(({ id: mId, match: m }) => {
                                             if (!m) return null;
-                                            const allMatchesInGroupSorted = matches.filter(mx => {
-                                                const p0 = mx.playerIds?.[0];
-                                                if (!p0) return false;
-                                                const pGroup = attendeeConfigs[p0]?.group || (allMembers || []).find(x => x.id === p0)?.position || 'A';
-                                                const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
-                                                return nGroup === (m.groupName || 'A');
-                                            }).sort((a, b) => {
-                                                if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                                return (a.id || '').localeCompare(b.id || '');
-                                            });
-                                            const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
+                                            const matchNo = getDisplayMatchNo(m);
 
                                             return (
                                                 <PlayingMatchCard 
@@ -3797,14 +3940,12 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <div className="py-10 text-center opacity-10 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">No Matches in Queue</div>
                                 );
 
+                                const isManualLiveSession = isManualSession(activeSessionId || selectedSessionId || sessionId);
+
                                 return ['A', 'B'].map(group => {
-                                    const groupMatches = waitingMatches.filter(m => {
-                                        const p0 = m.playerIds[0];
-                                        const p0Group = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
-                                        const normalizedGroup = (p0Group || 'A').toUpperCase().includes('B') ? 'B' : 'A';
-                                        return normalizedGroup === group;
-                                    }).sort((a, b) => {
+                                    const groupMatches = waitingMatches.filter(m => normalizeKdkGroup(m.groupName || (m as any).group) === group).sort((a, b) => {
                                         if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
+                                        if ((a.court || 99) !== (b.court || 99)) return (a.court || 99) - (b.court || 99);
                                         return a.id.localeCompare(b.id);
                                     });
 
@@ -3816,7 +3957,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     return (
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
-                                                <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>{isB ? 'BLUE' : 'GOLD'} WAITING</h3>
+                                                <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>
+                                                    {isManualLiveSession ? `${group}조 WAITING` : `${isB ? 'BLUE' : 'GOLD'} WAITING`}
+                                                </h3>
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-6">
@@ -3825,23 +3968,14 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     return roundsInGroup.map(roundNum => {
                                                         const matchesInRound = groupMatches.filter(m => (m.round || 1) === roundNum);
                                                         return (
-                                                            <div key={roundNum} className="space-y-3">
+                                                                <div key={roundNum} className="space-y-3">
                                                                 <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
                                                                     <div className="h-[1px] w-4" style={{ background: col }} />
                                                                     <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
                                                                     <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
                                                                 </div>
                                                                 {matchesInRound.map((m, idx) => {
-                                                                    const allMatchesInGroupSorted = matches.filter(mx => {
-                                                                        const p0 = mx.playerIds[0];
-                                                                        const pGroup = attendeeConfigs[p0]?.group || allMembers.find(x => x.id === p0)?.position || 'A';
-                                                                        const nGroup = (pGroup || 'A').toUpperCase().includes('B') ? 'B' : 'A';
-                                                                        return nGroup === group;
-                                                                    }).sort((a, b) => {
-                                                                        if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                                                        return a.id.localeCompare(b.id);
-                                                                    });
-                                                                    const matchNo = allMatchesInGroupSorted.findIndex(x => x.id === m.id) + 1;
+                                                                    const matchNo = getDisplayMatchNo(m);
                                                                     const playingPlayerIdsInMatch = getPlayingPlayerIdsInMatch(m);
                                                                     const hasConflict = busyPlayerIds.has(m.playerIds[0]) || busyPlayerIds.has(m.playerIds[1]) || busyPlayerIds.has(m.playerIds[2]) || busyPlayerIds.has(m.playerIds[3]);
 
@@ -3909,18 +4043,14 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 <div className="grid grid-cols-2 gap-3 mt-4">
                                     {matches.filter(m => m.status === 'complete')
                                         .sort((a, b) => {
-                                            const gA = a.groupName || 'A';
-                                            const gB = b.groupName || 'A';
+                                            const gA = normalizeKdkGroup(a.groupName || (a as any).group);
+                                            const gB = normalizeKdkGroup(b.groupName || (b as any).group);
                                             if (gA !== gB) return gA.localeCompare(gB);
-                                            const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === gA).sort((x, y) => (x.round || 0) - (y.round || 0) || String(x.id).localeCompare(String(y.id)));
+                                            const groupMatchesSorted = getGroupedMatchesForDisplay(gA);
                                             return groupMatchesSorted.findIndex(x => x.id === a.id) - groupMatchesSorted.findIndex(x => x.id === b.id);
                                         })
                                         .map((m, idx) => {
-                                            const groupMatchesSorted = matches.filter(mx => (mx.groupName || 'A') === (m.groupName || 'A')).sort((a, b) => {
-                                                if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
-                                                return String(a.id).localeCompare(String(b.id));
-                                            });
-                                            const gMatchNo = groupMatchesSorted.findIndex(x => x.id === m.id) + 1;
+                                            const gMatchNo = getDisplayMatchNo(m);
 
                                             return (
                                                 <CompletedMatchCard 
