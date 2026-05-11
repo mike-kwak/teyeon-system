@@ -9,6 +9,26 @@ interface CardProps {
     getPlayerName: (id: string, matchId?: string) => string;
 }
 
+const normalizeDisplayGroup = (value?: string) => {
+    const raw = String(value || 'A').trim().toUpperCase();
+    if (raw.includes('BLUE') || raw === 'B') return 'B';
+    if (raw.includes('GOLD') || raw === 'A') return 'A';
+    return raw.includes('B') ? 'B' : 'A';
+};
+
+const getGroupPresentation = (value?: string) => {
+    const normalizedGroup = normalizeDisplayGroup(value);
+    const isGroupB = normalizedGroup === 'B';
+    return {
+        normalizedGroup,
+        isGroupB,
+        label: isGroupB ? 'BLUE / B조' : 'GOLD / A조',
+        shortLabel: isGroupB ? 'BLUE' : 'GOLD',
+        color: isGroupB ? '#00E5FF' : '#C9B075',
+        guestAccent: isGroupB ? '#9BEBFF' : '#C9B075',
+    };
+};
+
 // 1. 진행 중인 경기 카드 (Original MatchCard Rollback)
 export const PlayingMatchCard = ({ 
     match, 
@@ -29,9 +49,8 @@ export const PlayingMatchCard = ({
     showToast?: boolean;
     toastMsg?: string;
 }) => {
-    const normalizedGroup = match.groupName || (match as any).group || 'A';
-    const isGroupB = normalizedGroup === 'B';
-    const groupColor = isGroupB ? '#00E5FF' : '#C9B075';
+    const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
+    const { normalizedGroup, isGroupB, color: groupColor, guestAccent } = groupMeta;
     const cardGlow = isGroupB ? '0 0 15px rgba(0, 229, 255, 0.2)' : '0 0 15px rgba(201, 176, 117, 0.05)';
 
     return (
@@ -50,11 +69,17 @@ export const PlayingMatchCard = ({
             {/* SECTION HEADER BAR */}
             <div className="flex items-center justify-center px-4 py-3 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
                 <div className="flex items-center justify-center gap-2">
-                    <span 
-                        className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" 
+                    <span
+                        className="hidden text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
                         style={{ color: groupColor }}
                     >
                         ROUND {match.round} • {normalizedGroup}조 • {matchNo}경기
+                    </span>
+                    <span
+                        className="truncate text-[10px] font-mono font-bold uppercase tracking-[0.12em] drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
+                        style={{ color: groupColor }}
+                    >
+                        {`ROUND ${match.round || 1} · ${groupMeta.label} · ${Math.max(1, matchNo || 1)}경기`}
                     </span>
                 </div>
                 
@@ -82,11 +107,11 @@ export const PlayingMatchCard = ({
                         <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                 <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[0], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[10px] text-[#C9B075]/90 italic shrink-0">(G)</span>}
+                                {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
                             </div>
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                 <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[1], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[10px] text-[#C9B075]/90 italic shrink-0">(G)</span>}
+                                {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
                             </div>
                         </div>
                     </div>
@@ -98,11 +123,11 @@ export const PlayingMatchCard = ({
                         <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                 <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[2], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[10px] text-[#C9B075]/90 italic shrink-0">(G)</span>}
+                                {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
                             </div>
                             <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                                 <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[3], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[10px] text-[#C9B075]/90 italic shrink-0">(G)</span>}
+                                {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
                             </div>
                         </div>
                     </div>
@@ -153,9 +178,8 @@ export const WaitingMatchCard = ({
     isStartingMatch?: boolean;
     hasConflict?: boolean;
 }) => {
-    const normalizedGroup = match.groupName || (match as any).group || 'A';
-    const isGroupB = normalizedGroup === 'B';
-    const col = isGroupB ? '#00E5FF' : '#C9B075';
+    const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
+    const { normalizedGroup, isGroupB, color: col, guestAccent } = groupMeta;
     const displayIndex = matchNo || index + 1;
 
     return (
@@ -163,25 +187,25 @@ export const WaitingMatchCard = ({
             <div className="flex items-center justify-center">
                 <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
                     <span className="text-[8px] font-black leading-none opacity-40">R{match.round}</span>
-                    <span className="text-[12px] font-[1000] leading-none uppercase">{isGroupB ? 'B' : 'G'}{displayIndex}</span>
+                    <span className="text-[12px] font-[1000] leading-none uppercase">{isGroupB ? 'B' : 'G'}{Math.max(1, displayIndex)}</span>
                 </div>
             </div>
 
             <div className="flex items-center justify-center gap-2 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
                 <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
                     {getPlayerName(match.playerIds[0], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[11px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">(G)</span>}
+                    {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
                     /
                     {getPlayerName(match.playerIds[1], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[11px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">(G)</span>}
+                    {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
                 </span>
                 <span className="text-[8px] font-black uppercase italic tracking-tighter opacity-20 shrink-0" style={{ color: col }}>vs</span>
                 <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
                     {getPlayerName(match.playerIds[2], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[11px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">(G)</span>}
+                    {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
                     /
                     {getPlayerName(match.playerIds[3], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[11px] font-black text-[#C9B075] italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]">(G)</span>}
+                    {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
                 </span>
             </div>
 
@@ -218,7 +242,7 @@ export const CompletedMatchCard = ({
     isAdmin?: boolean;
     onResetStatus?: (id: string) => void;
 }) => {
-    const normalizedGroup = match.groupName || (match as any).group || 'A';
+    const { normalizedGroup, isGroupB } = getGroupPresentation(match.groupName || (match as any).group);
     const displayIndex = matchNo || index + 1;
     const groupColor = normalizedGroup === 'B' ? 'rgba(0, 229, 255, 0.4)' : 'rgba(201, 176, 117, 0.5)';
 
