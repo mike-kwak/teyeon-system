@@ -34,14 +34,14 @@ export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
     const [showToast, setShowToast] = useState(false);
-    const [toastMsg, setToastMsg] = useState("결과가 ?�전?�게 기록?�었?�니??);
+    const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
 
-    // [v12.0] 개방??권한 ?�스?? Admin ?��? ?�별 (ADMIN ?�함)
+    // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (ADMIN 포함)
     const isAdmin = role === 'CEO' || role === 'ADMIN';
     const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
-    // 권한 ?�한 ?�림 ?�퍼
-    const triggerAccessDenied = (msg: string = "관리자�??�진을 ?�성/?�정?????�습?�다.") => {
+    // 권한 제한 알림 헬퍼
+    const triggerAccessDenied = (msg: string = "관리자만 대진을 생성/수정할 수 있습니다.") => {
         setToastMsg(msg);
         setShowToast(true);
         if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
@@ -58,14 +58,14 @@ export default function KDKPage() {
             });
         }
         console.clear();
-        console.log("?�� TEYEON SYSTEM v5.1 STABLE: ALL SYSTEMS GO");
+        console.log("🏁 TEYEON SYSTEM v5.1 STABLE: ALL SYSTEMS GO");
     }, []);
 
     // [v12.0] REDIRECT REMOVED: Guests can now view the portal
     /* 
     useEffect(() => {
         if (role === 'GUEST') {
-            alert("?�회???�상�??�용 가?�한 메뉴?�니?? ?�?�보?�로 ?�동?�니??");
+            alert("정회원 이상만 이용 가능한 메뉴입니다. 대시보드로 이동합니다.");
             router.push('/');
         }
     }, [role, router]);
@@ -123,14 +123,14 @@ export default function KDKPage() {
     const [attendeeConfigs, setAttendeeConfigs] = useState<Record<string, AttendeeConfig>>({});
 
     const [genMode, setGenMode] = useState<KDKConcept>('RANDOM');
-    const [totalCourts, setTotalCourts] = useState(99); // [v17.0] 무제??코트 지??(CEO 지??
+    const [totalCourts, setTotalCourts] = useState(99); // [v17.0] 무제한 코트 지원 (CEO 지시)
     const [totalCourtsInput, setTotalCourtsInput] = useState('99');
     const [matchTime, setMatchTime] = useState(30);
     const [fixedPartners, setFixedPartners] = useState<[string, string][]>([]);
     const [fixedTeamMode, setFixedTeamMode] = useState(false);
     const [partnerSelectSource, setPartnerSelectSource] = useState<string | null>(null);
     const [targetGames, setTargetGames] = useState(4);
-    const [matchRules, setMatchRules] = useState("1:1 ?�작, ?�에?? ?�??3:3 ?�작 7?�인???�승");
+    const [matchRules, setMatchRules] = useState("1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승");
 
     const [manualPasteText, setManualPasteText] = useState("");
     const [manualNameOverrides, setManualNameOverrides] = useState<Record<string, string>>({});
@@ -143,7 +143,7 @@ export default function KDKPage() {
         setTotalCourtsInput(String(totalCourts));
     }, [totalCourts]);
 
-    const [accountInfo, setAccountInfo] = useState("카카?�뱅??3333-01-5235337 (곽�???");
+    const [accountInfo, setAccountInfo] = useState("카카오뱅크 3333-01-5235337 (곽민섭)");
     const [currentTime, setCurrentTime] = useState("");
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
@@ -190,7 +190,7 @@ export default function KDKPage() {
         return ids;
     }, [matches]);
 
-    // [v14.0] ?�목 중복 방�?: ?�동?�로 ?�음 번호(KDK_02 ??�?찾는 ?�퍼
+    // [v14.0] 제목 중복 방지: 자동으로 다음 번호(KDK_02 등)를 찾는 헬퍼
     const getDisplayUrl = () => {
         const targetSessionId = activeSessionId?.trim();
         if (!targetSessionId) return null;
@@ -200,7 +200,7 @@ export default function KDKPage() {
     const openDisplayBoard = () => {
         const displayUrl = getDisplayUrl();
         if (!displayUrl) {
-            alert("먼�? KDK ?�션???�성?�거??불러?� 주세??");
+            alert("먼저 KDK 세션을 생성하거나 불러와 주세요.");
             return;
         }
         window.open(displayUrl, '_blank', 'noopener,noreferrer');
@@ -209,16 +209,16 @@ export default function KDKPage() {
     const copyDisplayBoardUrl = async () => {
         const displayUrl = getDisplayUrl();
         if (!displayUrl) {
-            alert("먼�? KDK ?�션???�성?�거??불러?� 주세??");
+            alert("먼저 KDK 세션을 생성하거나 불러와 주세요.");
             return;
         }
 
         const absoluteUrl = `${window.location.origin}${displayUrl}`;
         try {
             await navigator.clipboard.writeText(absoluteUrl);
-            alert("?�광??주소가 복사?�었?�니??");
+            alert("전광판 주소가 복사되었습니다.");
         } catch {
-            alert(`?�광??주소: ${absoluteUrl}`);
+            alert(`전광판 주소: ${absoluteUrl}`);
         }
     };
 
@@ -235,12 +235,12 @@ export default function KDKPage() {
         
         try {
             setIsCheckingTitle(true);
-            // 1. 로컬 ?�토리�? ?�인
+            // 1. 로컬 스토리지 확인
             const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
             const localTitles = failovers.map((f: any) => f.raw_data?.title || '');
 
             if (hasArchiveError) return;
-            // 2. ?�버 ?�카?�브 ?�인 (최근 20개만) - ?�이블이 ?�을 ???�으므�??�전?�게 처리
+            // 2. 서버 아카이브 확인 (최근 20개만) - 테이블이 없을 수 있으므로 안전하게 처리
             const { data: serverData, error: archiveError } = await supabase
                 .from('teyeon_archive_v1')
                 .select('raw_data')
@@ -252,7 +252,7 @@ export default function KDKPage() {
             }
             const serverTitles = (serverData || []).map(d => d.raw_data?.title || '');
             
-            // 3. ?�재 진행 중인 ?�션???�인
+            // 3. 현재 진행 중인 세션들 확인
             const activeTitles = allActiveSessions.map(s => s.title);
             
             const allTitles = [...localTitles, ...serverTitles, ...activeTitles];
@@ -275,14 +275,14 @@ export default function KDKPage() {
         }
     };
 
-    // --- [v7.0 ABSOLUTE] 12??13�? ?�버 굴복 �?로컬 강제 ?�???�합 ?�퍼 ---
+    // --- [v7.0 ABSOLUTE] 12전 13기: 서버 굴복 및 로컬 강제 저장 통합 헬퍼 ---
     const absoluteSyncRPC = async (data: any) => {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
         
-        // 1. ?�장 DB ID 경보 (CEO Verification)
+        // 1. 현장 DB ID 경보 (CEO Verification)
         const projectId = supabaseUrl.split('//')[1]?.split('.')[0] || 'Unknown';
-        console.log(`?���?[ABSOLUTE] TARGET PROJECT ID: ${projectId}`);
+        console.log(`🏙️ [ABSOLUTE] TARGET PROJECT ID: ${projectId}`);
         console.table(data);
 
         try {
@@ -293,28 +293,28 @@ export default function KDKPage() {
                     'Content-Type': 'application/json',
                     'apikey': supabaseKey,
                     'Authorization': `Bearer ${supabaseKey}`,
-                    'Prefer': 'params=single-object', // 마법???�더: JSON ?�체�??�일 ?�자�?매핑
+                    'Prefer': 'params=single-object', // 마법의 헤더: JSON 전체를 단일 인자로 매핑
                     'x-client-info': 'teyeon-absolute-v7.0'
                 },
-                body: JSON.stringify(data) // ?�핑 ?�이 ?�수 객체 ?�송
+                body: JSON.stringify(data) // 래핑 없이 순수 객체 전송
             });
 
             if (!response.ok) {
                 const errText = await response.text();
                 throw new Error(`HTTP ${response.status}: ${errText}`);
             }
-            console.log("??[ABSOLUTE] SERVER SYNC SUCCESS");
+            console.log("✅ [ABSOLUTE] SERVER SYNC SUCCESS");
             return { error: null };
         } catch (err: any) {
-            console.error("??[ABSOLUTE] SERVER SYNC FAILED, FORCING LOCAL SAVE:", err);
+            console.error("❌ [ABSOLUTE] SERVER SYNC FAILED, FORCING LOCAL SAVE:", err);
             
-            // 3. '12??13�? 로컬 강제 ?�??(Offline First)
+            // 3. '12전 13기' 로컬 강제 저장 (Offline First)
             try {
                 const queue = JSON.parse(localStorage.getItem('teyeon_offline_sync_queue') || '[]');
                 queue.push({ ...data, timestamp: new Date().toISOString() });
                 localStorage.setItem('teyeon_offline_sync_queue', JSON.stringify(queue));
-                console.warn("?���?[ABSOLUTE] DATA SECURED IN LOCAL STORAGE");
-                return { error: null }; // ?�공?�로 간주?�여 ?�면 진행
+                console.warn("🛡️ [ABSOLUTE] DATA SECURED IN LOCAL STORAGE");
+                return { error: null }; // 성공으로 간주하여 화면 진행
             } catch (localErr) {
                 console.error("CRITICAL: Local storage save failed", localErr);
                 return { error: err };
@@ -337,10 +337,10 @@ export default function KDKPage() {
 
     // Stage 2: Official Archive & Shutdown (Admin Only)
     const handleFinalArchive = async () => {
-        if (!confirm("?�� ?�?��? 공식?�으�?종료?�고 '?�층 기록????박제?�시겠습?�까?\n(?�이�??�이?��? ??��?�고 ?�카?�브 ?�털�?즉시 ?�동?�니??)")) return;
+        if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
 
         try {
-            // [CEO ?�장 검�?로직 가??
+            // [CEO 현장 검증 로직 가동]
             setIsGenerating(true);
             const today = new Date();
             const dateStr = today.toISOString().split('T')[0];
@@ -381,19 +381,19 @@ export default function KDKPage() {
                 total_rounds: (matches.length > 0) ? Math.max(...matches.map(m => m.round || 1)) : 1
             };
 
-            // [v10.0 SAVE OR DIE] ?�신 ??로컬??즉시 박제 (Safety First)
+            // [v10.0 SAVE OR DIE] 통신 전 로컬에 즉시 박제 (Safety First)
             try {
                 const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
                 const failoverItem = {
                     id: sessionId,
                     raw_data: rawDataPayload,
-                    failover: true, // ?�버 ?�인 ?�까지???�시 ?�태
+                    failover: true, // 서버 확인 전까지는 임시 상태
                     created_at: new Date().toISOString()
                 };
                 const filtered = failovers.filter((f: any) => f.id !== sessionId);
                 filtered.push(failoverItem);
                 localStorage.setItem('kdk_archive_failover', JSON.stringify(filtered));
-                console.warn("?���?[v10.0] PRE-EMPTIVE LOCAL BACKUP SECURED");
+                console.warn("🛡️ [v10.0] PRE-EMPTIVE LOCAL BACKUP SECURED");
             } catch (err) {
                 console.error("Local backup failed", err);
             }
@@ -417,17 +417,17 @@ export default function KDKPage() {
 
                 if (!response.ok) {
                     const errText = await response.text();
-                    console.error(`??[v14.0] SERVER REJECTED (${response.status}):`, errText);
+                    console.error(`❌ [v14.0] SERVER REJECTED (${response.status}):`, errText);
                     throw new Error(`Server Rejected: ${errText}`);
                 }
-                console.log("??[v14.0] SERVER ARCHIVE SUCCESS");
+                console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
             } catch (err: any) {
-                console.error("??[v14.0] CRITICAL SYNC ERROR:", err);
+                console.error("❌ [v14.0] CRITICAL SYNC ERROR:", err);
                 // [v10.0] CEO Request: Specific wording
-                alert(`?�버 ?�신 지?�으�?기기???�시 ?�?�되?�습?�다. (${err.message})\n?�카?�브?�서 ?�인 가?�합?�다.`);
+                alert(`서버 통신 지연으로 기기에 임시 저장되었습니다. (${err.message})\n아카이브에서 확인 가능합니다.`);
             }
 
-            // [v10.0] Championship Celebration (금색 가�?뿌리�?
+            // [v10.0] Championship Celebration (금색 가루 뿌리기)
             setShowArchiveSuccess(true);
             setShowConfetti(true);
             setCelebrationMode(true);
@@ -447,7 +447,7 @@ export default function KDKPage() {
             router.push(`/archive?session=${sessionId}`);
 
         } catch (err: any) {
-            alert("공식 종료 ?�패: " + err.message);
+            alert("공식 종료 실패: " + err.message);
         } finally {
             setIsGenerating(false);
         }
@@ -464,13 +464,13 @@ export default function KDKPage() {
         const countB = attendees.filter(g => g === 'B').length;
 
         if (countA > 0 && countA < 4) {
-            return { ok: false, msg: "A�??�원??부족합?�다 (최소 4�??�요)" };
+            return { ok: false, msg: "A조 인원이 부족합니다 (최소 4명 필요)" };
         }
         if (countB > 0 && countB < 4) {
-            return { ok: false, msg: "B�??�원??부족합?�다 (최소 4�??�요)" };
+            return { ok: false, msg: "B조 인원이 부족합니다 (최소 4명 필요)" };
         }
         if (countA === 0 && countB === 0) {
-            return { ok: false, msg: "최소 1�??�상??참석?��? ?�요?�니?? };
+            return { ok: false, msg: "최소 1명 이상의 참석자가 필요합니다" };
         }
 
         return { ok: true, msg: "" };
@@ -593,7 +593,7 @@ export default function KDKPage() {
                 window.history.replaceState(null, '', window.location.pathname);
             }
 
-            // [v14.0] 초기 구동 ???�목 중복 체크
+            // [v14.0] 초기 구동 시 제목 중복 체크
             setTimeout(() => {
                 findNextAvailableTitle();
             }, 1500);
@@ -762,8 +762,8 @@ export default function KDKPage() {
 
     const normalizeStoredKdkGroup = (value?: string) => {
         const raw = String(value || '').trim().toUpperCase();
-        if (raw.includes('BLUE') || raw === 'B' || raw.startsWith('B�?.toUpperCase())) return 'B';
-        if (raw.includes('GOLD') || raw === 'A' || raw.startsWith('A�?.toUpperCase())) return 'A';
+        if (raw.includes('BLUE') || raw === 'B' || raw.startsWith('B조'.toUpperCase())) return 'B';
+        if (raw.includes('GOLD') || raw === 'A' || raw.startsWith('A조'.toUpperCase())) return 'A';
         if (raw.includes('B')) return 'B';
         if (raw.includes('A')) return 'A';
         return '';
@@ -1157,7 +1157,7 @@ export default function KDKPage() {
 
     const startNewKdkCreation = () => {
         if (!isAdmin) {
-            triggerAccessDenied("?�로??경기??관리자�??�성 가?�합?�다.");
+            triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
             return;
         }
 
@@ -1184,7 +1184,7 @@ export default function KDKPage() {
     const handleDeleteActiveSession = async () => {
         if (!sessionDeleteTarget) return;
         if (!isAdmin) {
-            triggerAccessDenied("진행 중인 ?�션 ??��??관리자�?가?�합?�다.");
+            triggerAccessDenied("진행 중인 세션 삭제는 관리자만 가능합니다.");
             setSessionDeleteTarget(null);
             return;
         }
@@ -1216,7 +1216,7 @@ export default function KDKPage() {
             await syncActiveSession();
         } catch (error) {
             console.error('[KDK] Active session delete failed:', error);
-            alert("진행 중인 ?�션 ??��???�패?�습?�다. ?�시 ???�시 ?�도??주세??");
+            alert("진행 중인 세션 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         } finally {
             setIsDeletingSession(false);
         }
@@ -1253,9 +1253,9 @@ export default function KDKPage() {
             // Auto-populate attendee config if member has data
             const member = allMembers.find(m => m.id === id);
             if (member && !attendeeConfigs[id]) {
-                const isAwardWinner = (member.achievements || '').includes('?�승') ||
-                    (member.achievements || '').includes('준?�승') ||
-                    (member.achievements || '').includes('?�상');
+                const isAwardWinner = (member.achievements || '').includes('우승') ||
+                    (member.achievements || '').includes('준우승') ||
+                    (member.achievements || '').includes('입상');
 
                 setAttendeeConfigs(prev => ({
                     ...prev,
@@ -1302,7 +1302,7 @@ export default function KDKPage() {
         const trimmed = (value || "").trim();
         if (!trimmed.toLowerCase().startsWith('manual-guest-')) return "";
         const name = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').trim();
-        return name ? `${name}(G)` : "게스??G)";
+        return name ? `${name}(G)` : "게스트(G)";
     };
 
     const stripGuestSuffix = (value?: string) => {
@@ -1351,7 +1351,7 @@ export default function KDKPage() {
         if (!name && manualGuestName) return manualGuestName;
 
         if (!name) {
-            return isLikelyPlayerId(id) ? "?�름 ?�인�? : id;
+            return isLikelyPlayerId(id) ? "이름 확인중" : id;
         }
         
         // [v34.1] More robust guest detection
@@ -1441,13 +1441,13 @@ export default function KDKPage() {
         const countB = selectedAttendees.filter(a => a.group === 'B').length;
 
         if (countA < 4) {
-            setWarningMsg("A�??�원??부족합?�다 (최소 4�??�요)");
+            setWarningMsg("A조 인원이 부족합니다 (최소 4명 필요)");
             setShowWarning(true);
             return;
         }
 
         if (countB > 0 && countB < 4) {
-            setWarningMsg("B�??�원??부족합?�다 (최소 4�??�요)");
+            setWarningMsg("B조 인원이 부족합니다 (최소 4명 필요)");
             setShowWarning(true);
             return;
         }
@@ -1495,7 +1495,7 @@ export default function KDKPage() {
 
                 if (unfulfilledPairs.length > 0) {
                     setTimeout(() => {
-                        setWarningMsg("고정 ?�트?��? ?�무 많아 100% 매칭??불�??�합?�다.\\n?��? ?�진�? ?�동?�로 조정??주세??");
+                        setWarningMsg("고정 파트너가 너무 많아 100% 매칭이 불가능합니다.\\n일부 대진은 수동으로 조정해 주세요.");
                         setShowWarning(true);
                     }, 500);
                 }
@@ -1539,7 +1539,7 @@ export default function KDKPage() {
                     const isSchemaError = fullError.message?.includes('column') || fullError.message?.includes('schema cache');
                     if (isSchemaError) {
                         // [v35.1] Detailed diagnostic for developer/admin
-                        console.warn("?�️ Full sync restricted. Missing columns or stale cache detector on:", fullError.message);
+                        console.warn("⚠️ Full sync restricted. Missing columns or stale cache detector on:", fullError.message);
                         const legacyDbMatches = fullDbMatches.map(({ player_names, mode, group_name, score1, score2, ...rest }: any) => rest);
                         const { error: legacyError } = await supabase
                             .from('matches')
@@ -1549,7 +1549,7 @@ export default function KDKPage() {
                         setIsLegacySync(true);
                         setSyncStatus('WARNING');
                         // setSyncErrorMsg(...) removed to prevent popup
-                        console.log("?�️ Legacy Fallback Sync Active");
+                        console.log("ℹ️ Legacy Fallback Sync Active");
                     } else {
                         throw fullError;
                     }
@@ -1557,20 +1557,20 @@ export default function KDKPage() {
                     setIsLegacySync(false);
                     setSyncStatus('HEALTHY');
                     setSyncErrorMsg(null);
-                    console.log("??Full Live Match Sync Success");
+                    console.log("✅ Full Live Match Sync Success");
                 }
             } catch (err: any) {
                 console.error("Critical Sync Failure:", err);
-                alert(`?�� DB ?�신 중�????�러!\n${err.message}`);
+                alert(`🚨 DB 통신 중대한 에러!\n${err.message}`);
             }
 
-            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // ????
+            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]); // 딩-동!
             setMatches(formattedMatches);
             updateKdkEntryMode('LIVE');
             setStep(3);
         } catch (err: any) {
             console.error(err);
-            alert("?��??�성 ?�패: " + err.message);
+            alert("대진 생성 실패: " + err.message);
         } finally {
             setIsGenerating(false);
         }
@@ -1586,18 +1586,18 @@ export default function KDKPage() {
 
         const title = sessionTitle.trim();
         if (!title) {
-            alert('?�션명을 ?�력??주세??');
+            alert('세션명을 입력해 주세요.');
             return;
         }
 
         if (manualPastePreview.length === 0) {
-            alert('?�?�할 ?�동 ?�진이 ?�습?�다.');
+            alert('저장할 수동 대진이 없습니다.');
             return;
         }
 
         const invalidRow = manualPastePreview.find(row => !row.isValid);
         if (invalidRow) {
-            alert(`?�식???�인??주세?? ${invalidRow.raw}`);
+            alert(`형식을 확인해 주세요: ${invalidRow.raw}`);
             return;
         }
 
@@ -1636,12 +1636,12 @@ export default function KDKPage() {
                 const uniquePlayers = new Set(playerIds);
 
                 if (uniquePlayers.size !== 4) {
-                    throw new Error(`${getManualGroupLabel(group)} ${row.order}�?경기 ?�에 같�? ?�수가 중복?�어 ?�습?�다.`);
+                    throw new Error(`${getManualGroupLabel(group)} ${row.order}번 경기 안에 같은 선수가 중복되어 있습니다.`);
                 }
 
                 const signature = `${group}|${playerIds.join('|')}|${row.time || ''}`;
                 if (seenMatchSignatures.has(signature)) {
-                    throw new Error(`${getManualGroupLabel(group)} ${row.order}�?경기?� 같�? ?�진이 중복?�어 ?�습?�다.`);
+                    throw new Error(`${getManualGroupLabel(group)} ${row.order}번 경기와 같은 대진이 중복되어 있습니다.`);
                 }
                 seenMatchSignatures.add(signature);
 
@@ -1760,12 +1760,12 @@ export default function KDKPage() {
             setStep(3);
 
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
-            alert('?�동 ?�진이 ?�성?�었?�니??');
+            alert('수동 대진이 생성되었습니다.');
         } catch (err: any) {
             if (lastManualError !== err) {
                 console.error('[Manual KDK Save Failure]', summarizeSupabaseError(err));
             }
-            alert(`?�동 ?��??�성 ?�패: ${err.message || String(err)}`);
+            alert(`수동 대진 생성 실패: ${err.message || String(err)}`);
         } finally {
             setIsGenerating(false);
         }
@@ -1779,20 +1779,20 @@ export default function KDKPage() {
         if (!targetMatch) return;
         
         if (targetMatch.status === 'playing') {
-            setToastMsg("?��? ?�성?�된 경기?�니??);
+            setToastMsg("이미 활성화된 경기입니다");
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
             return;
         }
 
-        // 1. Court Limit Check REMOVED (CEO: "코트 ?�는 무제?�이???�각?�면 ??)
+        // 1. Court Limit Check REMOVED (CEO: "코트 수는 무제한이라 생각하면 돼")
         // No check against totalCourts here anymore.
 
         // 2. Participant Conflict Check
         const conflictPlayers = (targetMatch.playerIds || []).filter(pid => busyPlayerIds.has(pid));
         if (conflictPlayers.length > 0) {
             const names = conflictPlayers.map(pid => getPlayerName(pid)).join(', ');
-            setToastMsg(`참여??중복: ${names} ?�수가 ?��? 경기 중입?�다`);
+            setToastMsg(`참여자 중복: ${names} 선수가 이미 경기 중입니다`);
             setShowToast(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
             setTimeout(() => setShowToast(false), 3000);
@@ -1815,7 +1815,7 @@ export default function KDKPage() {
             // Local state update
             setMatches(nextMatches);
 
-            // DB Sync via Native Update (RPC ?�회)
+            // DB Sync via Native Update (RPC 우회)
             const { error: updateError } = await supabase
                 .from('matches')
                 .update({ status: 'playing', court: nextCourt })
@@ -1858,18 +1858,18 @@ export default function KDKPage() {
 
             if (error) throw error;
 
-            console.log("??Full Live Match Sync Success");
+            console.log("✅ Full Live Match Sync Success");
             setIsLegacySync(false);
             setSyncStatus('HEALTHY');
             setSyncErrorMsg(null);
-            setToastMsg("?�이??구조가 ?�공?�으�?복구?�었?�니??");
+            setToastMsg("데이터 구조가 성공적으로 복구되었습니다!");
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
             
             await syncActiveSession();
         } catch (err: any) {
             console.error("Repair Failed:", err);
-            alert(`?�� 복구 ?�패: ${err.message}\n\n[종합 ?�물 ?�트 SQL]??먼�? ?�행?�는지 ?�인??주세??`);
+            alert(`🚨 복구 실패: ${err.message}\n\n[종합 선물 세트 SQL]을 먼저 실행했는지 확인해 주세요.`);
         } finally {
             setIsGenerating(false);
         }
@@ -1879,13 +1879,13 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
-            // 1. Supabase Sync via Native Update (RPC ?�회)
+            // 1. Supabase Sync via Native Update (RPC 우회)
             const { error: syncError } = await supabase
                 .from('matches')
                 .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
                 .eq('id', String(matchId));
 
-            if (syncError) console.error("??Cancel match sync error:", syncError);
+            if (syncError) console.error("❌ Cancel match sync error:", syncError);
 
             // 2. Local State Update & Invalidation (Removed setActiveMatchIds)
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
@@ -1897,12 +1897,12 @@ export default function KDKPage() {
         } catch (err: any) {
             console.error("Cancel match error:", err);
             setSpinningMatchId(null);
-            alert("경기 취소 �??�류가 발생?�습?�다: " + err.message);
+            alert("경기 취소 중 오류가 발생했습니다: " + err.message);
         }
     };
 
     const updateMatchCourt = (matchId: string) => {
-        const courtStr = prompt("변경할 코트 번호�??�력?�세??, "1");
+        const courtStr = prompt("변경할 코트 번호를 입력하세요", "1");
         if (courtStr === null) return;
         const courtNum = parseInt(courtStr) || 1;
         setMatches(prev => prev.map(m => m.id === matchId ? { ...m, court: courtNum } : m));
@@ -1989,7 +1989,7 @@ export default function KDKPage() {
             setMatches(formattedMatches);
             setShowMemberEditModal(false);
         } catch (err: any) {
-            alert("?��??�구???�패: " + err.message);
+            alert("대진 재구성 실패: " + err.message);
         } finally {
             setIsGenerating(false);
         }
@@ -2035,7 +2035,7 @@ export default function KDKPage() {
             // Deterministic Unique ID for Upsert (Session + Round + Court)
             const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
 
-            // 3. DB Sync via Native Update (RPC ?�회)
+            // 3. DB Sync via Native Update (RPC 우회)
             const { error: syncError } = await supabase
                 .from('matches')
                 .update({ status: 'complete', score1: numS1, score2: numS2 })
@@ -2058,7 +2058,7 @@ export default function KDKPage() {
             localStorage.removeItem(`kdk_score_buffer_${matchId}`);
         } catch (err: any) {
             console.error("Critical Finish Match Failure:", err);
-            alert("경기 결과 ?�?�에 ?�패?�습?�다: " + (err.message || "Unknown error"));
+            alert("경기 결과 저장에 실패했습니다: " + (err.message || "Unknown error"));
             // We do NOT revert local state here to avoid confusion, 
             // the user can retry or check the archive later.
         }
@@ -2097,9 +2097,9 @@ export default function KDKPage() {
             const rankingIndex = allPlayersInRanking.findIndex(player => player.id === playerId);
             const rankingPlayer = rankingIndex >= 0 ? allPlayersInRanking[rankingIndex] : null;
             const resolvedName = getPlayerName(playerId);
-            const name = resolvedName && resolvedName !== '?�름 ?�인�?
+            const name = resolvedName && resolvedName !== '이름 확인중'
                 ? resolvedName
-                : (fallbackName || rankingPlayer?.name || '?�름 ?�인�?);
+                : (fallbackName || rankingPlayer?.name || '이름 확인중');
 
             const detail: PlayerDetailedResult = {
                 id: playerId,
@@ -2121,7 +2121,7 @@ export default function KDKPage() {
 
         allPlayersInRanking.forEach((player, index) => {
             const resolvedName = getPlayerName(player.id);
-            const name = resolvedName && resolvedName !== '?�름 ?�인�? ? resolvedName : player.name;
+            const name = resolvedName && resolvedName !== '이름 확인중' ? resolvedName : player.name;
             detailsById.set(player.id, {
                 id: player.id,
                 rank: index + 1,
@@ -2195,29 +2195,29 @@ export default function KDKPage() {
 
     const execCopySchedule = () => {
         if (!matches || matches.length === 0) {
-            alert("?�이?��? 불러?�는 중입?�다...");
+            alert("데이터를 불러오는 중입니다...");
             return;
         }
 
         // [v3.2 - FINAL REQUESTED TEMPLATE]
-        let text = `?�� ?�늘???�진표: ${sessionTitle || 'Live Tournament'}\n`;
-        text += `?�️ 규칙: ${matchRules || '1:1 ?�작, ?�에?? ?�??3:3 ?�작 7?�인???�승'}\n`;
-        text += `?�� ?�벌�? ?�승 ${firstPrize.toLocaleString()} / 벌금 ${bottom25Late.toLocaleString()} / 벌금 ${bottom25Penalty.toLocaleString()}\n`;
-        text += `?�━?�━?�━?�━?�━?�━?�━\n`;
+        let text = `📌 오늘의 대진표: ${sessionTitle || 'Live Tournament'}\n`;
+        text += `⚖️ 규칙: ${matchRules || '1:1 시작, 노에드, 타이 3:3 시작 7포인트 선승'}\n`;
+        text += `💰 상벌금: 우승 ${firstPrize.toLocaleString()} / 벌금 ${bottom25Late.toLocaleString()} / 벌금 ${bottom25Penalty.toLocaleString()}\n`;
+        text += `━━━━━━━━━━━━━━\n`;
 
         const uniqueGroups = [...new Set(matches.map(m => m.groupName || 'A'))].sort();
         const hasMultipleGroups = uniqueGroups.length > 1;
 
         uniqueGroups.forEach(group => {
             if (hasMultipleGroups) {
-                text += `\n?�� '${group}'�??�진표\n`;
+                text += `\n📍 '${group}'조 대진표\n`;
             }
 
             const groupMatches = matches.filter(m => (m.groupName || 'A') === group);
             const rounds = [...new Set(groupMatches.map(m => m.round || 1))].sort((a, b) => a - b);
 
             rounds.forEach(r => {
-                text += `\n?�� ${r}?�운??n`;
+                text += `\n📍 ${r}라운드\n`;
                 const roundMatches = groupMatches.filter(m => m.round === r).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
                 roundMatches.forEach(m => {
                     const teamA = `${getPlayerName(m.playerIds[0])}/${getPlayerName(m.playerIds[1])}`;
@@ -2228,40 +2228,30 @@ export default function KDKPage() {
             });
 
             if (hasMultipleGroups) {
-                text += `\n?�━?�━?�━?�━?�━?�━?�━\n`;
+                text += `\n━━━━━━━━━━━━━━\n`;
             }
         });
 
         text = text.trim();
         if (!hasMultipleGroups) {
-            text += `\n?�━?�━?�━?�━?�━?�━?�━`;
+            text += `\n━━━━━━━━━━━━━━`;
         }
-        text += `\n???�세 결과 ?�인: https://teyeon-system.vercel.app/kdk`;
+        text += `\n※ 상세 결과 확인: https://teyeon-system.vercel.app/kdk`;
 
-        console.log("Copied Match Schedule v3.2 (No Courts, No '지�?)");
+        console.log("Copied Match Schedule v3.2 (No Courts, No '지각')");
         navigator.clipboard.writeText(text);
-        alert("?�시�??�진표가 ?�립보드??복사?�었?�니?? ??);
+        alert("실시간 대진표가 클립보드에 복사되었습니다! ✅");
     };
 
     const copyFinalResults = () => {
         if (!matches || matches.length === 0) {
-            alert("?�이?��? 불러?�는 중입?�다...");
+            alert("데이터를 불러오는 중입니다...");
             return;
         }
 
-        let text = `?�� ?�늘??최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
-        text += `?�� 계좌: ${accountInfo}\n`;
-        text += `?�━?�━?�━?�━?�━?�━?�━\n\n`;
-        const formatFinalResultName = (player: any) => {
-            const resolvedName = getPlayerName(player.id);
-            const sourceName = resolvedName && !isLikelyPlayerId(resolvedName) ? resolvedName : player.name;
-            const manualGuestName = getManualGuestDisplayName(sourceName) || getManualGuestDisplayName(player.id);
-            if (manualGuestName) return manualGuestName;
-            const cleanName = stripGuestSuffix(sourceName);
-            if (!cleanName || isLikelyPlayerId(cleanName)) return "��Ȯ��";
-            const isGuest = player.is_guest || player.id?.startsWith('g-') || player.id?.startsWith('manual-guest-');
-            return isGuest ? `${cleanName}(G)` : cleanName;
-        };
+        let text = `🏆 오늘의 최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
+        text += `🏦 계좌: ${accountInfo}\n`;
+        text += `━━━━━━━━━━━━━━\n\n`;
 
         const sortedPlayers = [...allPlayersInRanking];
         const totalCount = sortedPlayers.length;
@@ -2273,30 +2263,30 @@ export default function KDKPage() {
 
         sortedPlayers.forEach((p, i) => {
             const originalRank = i + 1;
-            let rankPrefix = (originalRank === 1) ? '?�� ' : (originalRank === 2) ? '?�� ' : (originalRank === 3) ? '?�� ' : `${originalRank}??`;
+            let rankPrefix = (originalRank === 1) ? '🥇 ' : (originalRank === 2) ? '🥈 ' : (originalRank === 3) ? '🥉 ' : `${originalRank}위 `;
 
             const isPenaltyTier = i >= (totalCount - penaltyCount);
             const isFineTier = !isPenaltyTier && i >= (totalCount - bottomHalfCount);
 
             let prizePenaltyText = '';
             if (originalRank === 1 && !p.is_guest) {
-                prizePenaltyText = ` [?�� +${firstPrize.toLocaleString()}??`;
+                prizePenaltyText = ` [💰 +${firstPrize.toLocaleString()}원]`;
             } else if (isPenaltyTier) {
-                prizePenaltyText = ` [?�� -${bottom25Penalty.toLocaleString()}??`;
+                prizePenaltyText = ` [💸 -${bottom25Penalty.toLocaleString()}원]`;
             } else if (isFineTier) {
-                prizePenaltyText = ` [?�� -${bottom25Late.toLocaleString()}??`;
+                prizePenaltyText = ` [💸 -${bottom25Late.toLocaleString()}원]`;
             } else {
-                prizePenaltyText = ` [0??`;
+                prizePenaltyText = ` [0원]`;
             }
 
-            text += `${rankPrefix}${formatFinalResultName(p)}: ${p.wins}??${p.losses}??{prizePenaltyText}\n`;
+            text += `${rankPrefix}${p.name}${p.is_guest ? ' (G)' : ''}: ${p.wins}승 ${p.losses}패${prizePenaltyText}\n`;
         });
 
-        text += `\n?�━?�━?�━?�━?�━?�━?�━\n`;
-        text += `???�체 ?�카?�브 ?�인: https://teyeon-system.vercel.app/archive?session=${sessionId}`;
+        text += `\n━━━━━━━━━━━━━━\n`;
+        text += `※ 전체 아카이브 확인: https://teyeon-system.vercel.app/archive?session=${sessionId}`;
 
         navigator.clipboard.writeText(text);
-        alert("최종 결과 �??�산 ?�황??복사?�었?�니?? ??);
+        alert("최종 결과 및 정산 현황이 복사되었습니다! ✅");
     };
 
     function addMinutesToTime(time: string, mins: number) {
@@ -2318,16 +2308,16 @@ export default function KDKPage() {
     };
 
     const normalizeManualGroup = (value?: string) => {
-        const normalized = (value || 'A').trim().replace(/�?/i, '').toUpperCase();
+        const normalized = (value || 'A').trim().replace(/조$/i, '').toUpperCase();
         return /^[A-Z]$/.test(normalized) ? normalized : 'A';
     };
 
-    const getManualGroupLabel = (group?: string) => `${normalizeManualGroup(group)}�?;
+    const getManualGroupLabel = (group?: string) => `${normalizeManualGroup(group)}조`;
 
     const getManualGroupFromToken = (token?: string) => {
         if (!token) return "";
         const trimmed = token.trim();
-        const match = trimmed.match(/^([A-Za-z])\s*�?$/i);
+        const match = trimmed.match(/^([A-Za-z])\s*조?$/i);
         return match ? normalizeManualGroup(match[1]) : "";
     };
 
@@ -2378,7 +2368,7 @@ export default function KDKPage() {
                 let withoutTime = timeToken ? line.replace(timeToken, '').trim() : line;
                 let group = currentGroup;
 
-                const groupPrefixMatch = withoutTime.match(/^([A-Za-z])\s*�?\s+(?=\d)/i);
+                const groupPrefixMatch = withoutTime.match(/^([A-Za-z])\s*조?\s+(?=\d)/i);
                 if (groupPrefixMatch) {
                     group = normalizeManualGroup(groupPrefixMatch[1]);
                     withoutTime = withoutTime.slice(groupPrefixMatch[0].length).trim();
@@ -2495,7 +2485,7 @@ export default function KDKPage() {
 
     const getManualResolvedName = (name: string) => {
         const trimmed = name.trim();
-        if (!trimmed) return '?�인 ?�요';
+        if (!trimmed) return '확인 필요';
         const match = manualNameMatchMap.get(normalizeManualName(trimmed));
         return match?.displayName || trimmed;
     };
@@ -2518,7 +2508,7 @@ export default function KDKPage() {
 
         return {
             id: selectedMember ? selectedMember.id : guestKey,
-            name: isGuest ? (trimmed ? `${trimmed}(G)` : "?�름 ?�인�?) : memberName,
+            name: isGuest ? (trimmed ? `${trimmed}(G)` : "이름 확인중") : memberName,
             rawName: trimmed,
             isGuest,
         };
@@ -2536,17 +2526,17 @@ export default function KDKPage() {
                         onClick={returnToEntryChoice}
                         className="absolute left-6 top-8 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/55 transition-all active:scale-95 hover:border-[#C9B075]/30 hover:text-[#C9B075]"
                     >
-                        ???�로
+                        ← 뒤로
                     </button>
                 )}
                 <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase mb-4 animate-pulse">
                     Live Court
                 </span>
                 <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-2xl">
-                    진행 중인 ?�션 ?�택
+                    진행 중인 세션 선택
                 </h1>
                 <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
-                    Supabase???�?�된 진행 �??�션 기�??�로 ?�영???�진을 ?�택?�니??
+                    Supabase에 저장된 진행 중 세션 기준으로 운영할 대진을 선택합니다.
                 </p>
                 <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
             </header>
@@ -2555,11 +2545,11 @@ export default function KDKPage() {
                 {allActiveSessions.length === 0 ? (
                     <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
                         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-dashed border-white/20 bg-white/[0.03]">
-                            <span className="text-4xl">?��</span>
+                            <span className="text-4xl">🎾</span>
                         </div>
-                        <h2 className="mb-2 text-xl font-black uppercase tracking-tight text-white">진행 중인 ?�진이 ?�습?�다</h2>
+                        <h2 className="mb-2 text-xl font-black uppercase tracking-tight text-white">진행 중인 대진이 없습니다</h2>
                         <p className="max-w-xs text-[12px] font-bold leading-relaxed text-white/42">
-                            ???�진�? 메인 ?�면???��??�성?�서 ?�작??주세??
+                            새 대진은 메인 화면의 대진 생성에서 시작해 주세요.
                         </p>
                         {isAdmin && (
                             <button
@@ -2567,7 +2557,7 @@ export default function KDKPage() {
                                 onClick={startNewKdkCreation}
                                 className="mt-8 w-full max-w-xs rounded-2xl border border-[#C9B075]/45 bg-[#C9B075]/12 px-5 py-4 text-[12px] font-black uppercase tracking-[0.18em] text-[#C9B075] transition-all active:scale-95"
                             >
-                                ?��??�성?�로 ?�동
+                                대진 생성으로 이동
                             </button>
                         )}
                     </div>
@@ -2611,15 +2601,15 @@ export default function KDKPage() {
 
                                     <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-5">
                                         <div className="flex flex-col">
-                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">참�? ?�원</span>
-                                            <span className="text-lg font-black italic text-white">{s.playerCount}<span className="ml-0.5 text-[10px] opacity-30">�?/span></span>
+                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">참가 인원</span>
+                                            <span className="text-lg font-black italic text-white">{s.playerCount}<span className="ml-0.5 text-[10px] opacity-30">명</span></span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">경기 ??/span>
-                                            <span className="text-lg font-black italic text-white">{s.matchCount}<span className="ml-0.5 text-[10px] opacity-30">�?/span></span>
+                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">경기 수</span>
+                                            <span className="text-lg font-black italic text-white">{s.matchCount}<span className="ml-0.5 text-[10px] opacity-30">개</span></span>
                                         </div>
                                         <div className="flex flex-col items-end justify-end">
-                                            <span className="text-[10px] font-black uppercase tracking-tight text-[#C9B075]">?�장?�기 ??/span>
+                                            <span className="text-[10px] font-black uppercase tracking-tight text-[#C9B075]">입장하기 →</span>
                                         </div>
                                     </div>
                                 </button>
@@ -2633,7 +2623,7 @@ export default function KDKPage() {
                                         }}
                                         className="mt-4 w-full rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300/80 transition-all active:scale-95"
                                     >
-                                        ?�션 ??��
+                                        세션 삭제
                                     </button>
                                 )}
                             </div>
@@ -2644,10 +2634,10 @@ export default function KDKPage() {
 
             {sessionDeleteTarget && (
                 <CustomConfirmModal
-                    title="?�션 ??��"
-                    message={`${sessionDeleteTarget.title} ?�션??진행 �?경기 ?�이?��? ??��?�니?? ?�카?�브 ?�이?�는 ??��?��? ?�습?�다.`}
-                    confirmText={isDeletingSession ? "??�� �?.." : "?�션 ??��"}
-                    icon="?���?
+                    title="세션 삭제"
+                    message={`${sessionDeleteTarget.title} 세션의 진행 중 경기 데이터를 삭제합니다. 아카이브 데이터는 삭제하지 않습니다.`}
+                    confirmText={isDeletingSession ? "삭제 중..." : "세션 삭제"}
+                    icon="🗑️"
                     onConfirm={handleDeleteActiveSession}
                     onCancel={() => {
                         if (!isDeletingSession) setSessionDeleteTarget(null);
@@ -2683,10 +2673,10 @@ export default function KDKPage() {
                         KDK Entry
                     </span>
                     <h1 className="text-3xl font-black italic uppercase tracking-tight text-white">
-                        진행 중인 ?�진이 ?�습?�다
+                        진행 중인 대진이 있습니다
                     </h1>
                     <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
-                        기존 ?�진을 ?�어???�영?�거?? ???��??�성 ?�면?�로 ?�동?????�습?�다.
+                        기존 대진을 이어서 운영하거나, 새 대진 생성 화면으로 이동할 수 있습니다.
                     </p>
                 </header>
 
@@ -2700,11 +2690,11 @@ export default function KDKPage() {
                             <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
                                 Live Court
                             </span>
-                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">??/span>
+                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">→</span>
                         </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">기존 ?�이�?코트 보기</h2>
+                        <h2 className="text-2xl font-black tracking-tight text-white">기존 라이브 코트 보기</h2>
                         <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/50">
-                            {sessionCount > 1 ? `${sessionCount}개의 진행 중인 ?�션 �??�택?�니??` : `${primaryTitle || '?�재 ?�션'}???�어???�영?�니??`}
+                            {sessionCount > 1 ? `${sessionCount}개의 진행 중인 세션 중 선택합니다.` : `${primaryTitle || '현재 세션'}을 이어서 운영합니다.`}
                         </p>
                     </Link>
 
@@ -2717,11 +2707,11 @@ export default function KDKPage() {
                             <span className="rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#C9B075]">
                                 New Draw
                             </span>
-                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">??/span>
+                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">→</span>
                         </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">???��??�성?�기</h2>
+                        <h2 className="text-2xl font-black tracking-tight text-white">새 대진 생성하기</h2>
                         <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/50">
-                            기존 ?�션?� 보존?�고, ?�동 ?�성 ?�는 ?�동 구성 Step 0부???�로 ?�작?�니??
+                            기존 세션은 보존하고, 자동 생성 또는 수동 구성 Step 0부터 새로 시작합니다.
                         </p>
                     </Link>
                 </section>
@@ -2739,7 +2729,7 @@ export default function KDKPage() {
                         onClick={handleGenerationModeBack}
                         className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/55 transition-all active:scale-95 hover:border-[#C9B075]/30 hover:text-[#C9B075]"
                     >
-                        ???�로
+                        ← 뒤로
                     </button>
                 </div>
                 <header className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
@@ -2747,10 +2737,10 @@ export default function KDKPage() {
                         KDK Setup
                     </span>
                     <h1 className="text-3xl font-black italic uppercase tracking-tight text-white">
-                        ?�성 방식 ?�택
+                        생성 방식 선택
                     </h1>
                     <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
-                        ?�동 ?�성�??�동 구성??먼�? 분리?�서 ?�정?�으�??�진을 준비합?�다.
+                        자동 생성과 수동 구성을 먼저 분리해서 안정적으로 대진을 준비합니다.
                     </p>
                 </header>
 
@@ -2768,11 +2758,11 @@ export default function KDKPage() {
                             <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
                                 Default
                             </span>
-                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">??/span>
+                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">→</span>
                         </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">?�동 ?�성</h2>
+                        <h2 className="text-2xl font-black tracking-tight text-white">자동 생성</h2>
                         <p className="mt-3 text-[13px] font-bold leading-relaxed text-white/50">
-                            참�??��? 조건???�택?�면 ?�이 기존 KDK 로직?�로 ?�진을 ?�동 ?�성?�니??
+                            참가자와 조건을 선택하면 앱이 기존 KDK 로직으로 대진을 자동 생성합니다.
                         </p>
                     </button>
 
@@ -2791,11 +2781,11 @@ export default function KDKPage() {
                             <span className="rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#C9B075]">
                                 Manual
                             </span>
-                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">??/span>
+                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">→</span>
                         </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">?�동 구성</h2>
+                        <h2 className="text-2xl font-black tracking-tight text-white">수동 구성</h2>
                         <p className="mt-3 text-[13px] font-bold leading-relaxed text-white/50">
-                            직접 만든 ?��? ?��?/?�스??붙여?�기, 캡처 ?�식 방식?�로 ?�진을 구성?�니??
+                            직접 만든 대진, 엑셀/텍스트 붙여넣기, 캡처 인식 방식으로 대진을 구성합니다.
                         </p>
                     </button>
                 </section>
@@ -2829,7 +2819,7 @@ export default function KDKPage() {
                             }}
                             className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] transition-all active:scale-95"
                         >
-                            ??
+                            ←
                         </button>
                     </div>
                     <div className="flex flex-col items-center text-center">
@@ -2837,7 +2827,7 @@ export default function KDKPage() {
                             Manual
                         </span>
                         <h1 className="whitespace-nowrap text-2xl font-black italic uppercase leading-none tracking-tight text-white">
-                            ?�동 구성
+                            수동 구성
                         </h1>
                     </div>
                     <div />
@@ -2856,11 +2846,11 @@ export default function KDKPage() {
                             >
                                 <div className="mb-6 flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]">Preview Ready</span>
-                                    <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black text-black">1�?/span>
+                                    <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black text-black">1차</span>
                                 </div>
-                                <h2 className="text-xl font-black text-white">?��?붙여?�기</h2>
+                                <h2 className="text-xl font-black text-white">대진 붙여넣기</h2>
                                 <p className="mt-2 text-[12px] font-bold leading-relaxed text-white/45">
-                                    ?��?, 카톡, 메모???�스?��? 붙여?�어 경기 ?�서?� ?� 구성??미리 ?�인?�니??
+                                    엑셀, 카톡, 메모장 텍스트를 붙여넣어 경기 순서와 팀 구성을 미리 확인합니다.
                                 </p>
                             </button>
 
@@ -2874,8 +2864,8 @@ export default function KDKPage() {
                                     className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
                                 >
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
-                                    <h3 className="mt-4 text-base font-black text-white">직접 만들�?/h3>
-                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">경기�??� 직접 구성</p>
+                                    <h3 className="mt-4 text-base font-black text-white">직접 만들기</h3>
+                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">경기별 팀 직접 구성</p>
                                 </button>
                                 <button
                                     type="button"
@@ -2886,8 +2876,8 @@ export default function KDKPage() {
                                     className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
                                 >
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
-                                    <h3 className="mt-4 text-base font-black text-white">캡처 ?�식</h3>
-                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">?��?지/OCR 기반 ?�식</p>
+                                    <h3 className="mt-4 text-base font-black text-white">캡처 인식</h3>
+                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">이미지/OCR 기반 인식</p>
                                 </button>
                             </div>
                         </>
@@ -2898,22 +2888,22 @@ export default function KDKPage() {
                             <div className="overflow-visible rounded-[24px] border border-[#C9B075]/20 bg-[#141414] p-5">
                                 <div className="mb-4">
                                     <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Paste Matches</span>
-                                    <h2 className="mt-1 text-xl font-black text-white">?��?붙여?�기</h2>
+                                    <h2 className="mt-1 text-xl font-black text-white">대진 붙여넣기</h2>
                                 </div>
                                 <div className="mb-4 rounded-[16px] border border-[#C9B075]/20 bg-black/30 p-3">
                                     <div className="mb-2 flex items-center justify-between gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#C9B075]">?�력 ?�시</span>
-                                        <span className="text-[9px] font-bold text-white/35">??구분 ?�스??지??/span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#C9B075]">입력 예시</span>
+                                        <span className="text-[9px] font-bold text-white/35">탭 구분 텍스트 지원</span>
                                     </div>
                                      <pre className="whitespace-pre-wrap break-keep text-[11px] font-bold leading-relaxed text-white/55">
-{`A�?
-1 봉�?/?�윤 vs ?�호/광현 19:00
-B�?
-1 민�?/?��? vs 강정??구봉준 20:00
-A    1    봉�?    ?�윤    ?�호    광현    19:00`}
+{`A조
+1 봉준/상윤 vs 영호/광현 19:00
+B조
+1 민준/상준 vs 강정호/구봉준 20:00
+A    1    봉준    상윤    영호    광현    19:00`}
                                      </pre>
                                     <p className="mt-2 text-[10px] font-bold text-white/35">
-                                        �??�기가 ?�으�?A조로 ?�식?�니??
+                                        조 표기가 없으면 A조로 인식됩니다.
                                     </p>
                                  </div>
                                 <textarea
@@ -2923,7 +2913,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                         setManualNameOverrides({});
                                     }}
                                     className="min-h-[160px] w-full resize-y rounded-[18px] border border-white/10 bg-black/35 px-4 py-4 text-[13px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50"
-                                    placeholder={"?? 1 봉�?/?�윤 vs ?�호/광현 19:00"}
+                                    placeholder={"예: 1 봉준/상윤 vs 영호/광현 19:00"}
                                 />
                             </div>
 
@@ -2937,7 +2927,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
 
                                 {manualPasteMatchCount === 0 ? (
                                     <div className="rounded-[18px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
-                                        ?�진을 붙여?�으�?경기 미리보기가 ?�시?�니??
+                                        대진을 붙여넣으면 경기 미리보기가 표시됩니다.
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
@@ -2952,13 +2942,13 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
-                                                            <span className="truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '?�인 ?�요'}</span>
+                                                            <span className="truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
                                                             <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
-                                                            <span className="truncate">{row.teamB.filter(Boolean).join(' / ') || '?�인 ?�요'}</span>
+                                                            <span className="truncate">{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
                                                         </div>
                                                         {!row.isValid && (
                                                             <p className="mt-1 text-center text-[10px] font-bold text-red-300">
-                                                                ?�식???�인??주세??
+                                                                형식을 확인해 주세요.
                                                             </p>
                                                         )}
                                                     </div>
@@ -2989,18 +2979,18 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                             WebkitTextFillColor: canProceedToNameMatching ? '#050505' : 'rgba(255,255,255,0.38)',
                                         }}
                                     >
-                                        ?�음: ?�름 매칭
+                                        다음: 이름 매칭
                                     </button>
                                     {!canProceedToNameMatching && (
                                         <p className="mt-2 text-center text-[10px] font-bold text-white/35">
-                                            ?�진을 1�??�상 붙여?�으�??�름 매칭?�로 ?�동?????�습?�다.
+                                            대진을 1개 이상 붙여넣으면 이름 매칭으로 이동할 수 있습니다.
                                         </p>
                                     )}
                                 </div>
                             </div>
 
                             <p className="px-1 text-[10px] font-bold leading-relaxed text-white/35">
-                                ?�음 ?�계?�서 ?�름??멤버/게스?��? 매칭?�니?? ?�직 ?�?��? ?��? ?�습?�다.
+                                다음 단계에서 이름을 멤버/게스트와 매칭합니다. 아직 저장은 하지 않습니다.
                             </p>
                         </div>
                     )}
@@ -3012,16 +3002,16 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                 onClick={() => setManualStep('INPUT')}
                                 className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black text-white/55 transition-all active:scale-95"
                             >
-                                ??붙여?�기�??�아가�?
+                                ← 붙여넣기로 돌아가기
                             </button>
 
                             <div className="overflow-visible rounded-[24px] border border-[#C9B075]/20 bg-[#141414] p-5">
                                 <div className="mb-4 flex items-start justify-between gap-3">
                                     <div>
                                         <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Name Matching</span>
-                                        <h2 className="mt-1 text-xl font-black text-white">?�름 매칭</h2>
+                                        <h2 className="mt-1 text-xl font-black text-white">이름 매칭</h2>
                                         <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/45">
-                                            붙여?��? ?�름??멤버 ?�는 게스?��? ?�결?�니??
+                                            붙여넣은 이름을 멤버 또는 게스트와 연결합니다.
                                         </p>
                                     </div>
                                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black text-white/45">
@@ -3055,7 +3045,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                                     </option>
                                                 ))}
                                                 <option value="guest" className="bg-[#111111] text-white">
-                                                    {match.originalName}(G) / 게스?�로 ?�용
+                                                    {match.originalName}(G) / 게스트로 사용
                                                 </option>
                                             </select>
                                         </div>
@@ -3105,41 +3095,41 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                     WebkitTextFillColor: '#050505',
                                 }}
                             >
-                                ?�음: �??�정
+                                다음: 룰 설정
                             </button>
                         </div>
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'RULES' && (
                         <div className="rounded-[24px] border border-[#C9B075]/20 bg-[#141414] px-5 py-8 text-center">
-                            <p className="text-lg font-black text-white">�??�정?� ?�음 ?�계?�서 ?�결?�니??</p>
+                            <p className="text-lg font-black text-white">룰 설정은 다음 단계에서 연결됩니다.</p>
                             <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
-                                ?�번 ?�업?�서???�름 매칭�?매칭 ?�용 미리보기까�?�??�???�이 준비했?�니??
+                                이번 작업에서는 이름 매칭과 매칭 적용 미리보기까지만 저장 없이 준비했습니다.
                             </p>
                             <button
                                 type="button"
                                 onClick={() => setManualStep('MATCH_NAMES')}
                                 className="mt-6 rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-[11px] font-black text-white/60 transition-all active:scale-95"
                             >
-                                ?�름 매칭?�로 ?�아가�?
+                                이름 매칭으로 돌아가기
                             </button>
                         </div>
                     )}
 
                     {manualInputMode === 'DIRECT' && (
                         <div className="rounded-[30px] border border-white/10 bg-white/[0.04] px-5 py-8 text-center">
-                            <p className="text-lg font-black text-white">직접 만들�?준�?�?/p>
+                            <p className="text-lg font-black text-white">직접 만들기 준비 중</p>
                             <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
-                                추후 참�??��? ?�택?�고 경기�??�??직접 구성?�는 방식?�로 ?�장?�니??
+                                추후 참가자를 선택하고 경기별 팀을 직접 구성하는 방식으로 확장합니다.
                             </p>
                         </div>
                     )}
 
                     {manualInputMode === 'OCR' && (
                         <div className="rounded-[30px] border border-white/10 bg-white/[0.04] px-5 py-8 text-center">
-                            <p className="text-lg font-black text-white">캡처 ?�식 Coming Soon</p>
+                            <p className="text-lg font-black text-white">캡처 인식 Coming Soon</p>
                             <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
-                                ?��?지/OCR 기반 ?��??�식?� ?�정???�후 별도 ?�계�?검?�합?�다.
+                                이미지/OCR 기반 대진 인식은 안정화 이후 별도 단계로 검토합니다.
                             </p>
                         </div>
                     )}
@@ -3228,14 +3218,14 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             }}
                             className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 active:scale-95 transition-all text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.1)]"
                         >
-                            <span className="text-xl leading-none -mt-0.5">??/span>
+                            <span className="text-xl leading-none -mt-0.5">←</span>
                         </button>
                     </div>
 
                     <div className="text-center flex flex-col items-center gap-2">
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
-                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 ?��??�정</h1>
+                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
                         </div>
                         {isAdmin && (
                             <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_5px_15px_rgba(201,176,117,0.3)] animate-in fade-in zoom-in duration-500">
@@ -3252,10 +3242,10 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                 setShowResetConfirm(true);
                             }}
                             className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
-                            title="?�체 ?�이??초기??
+                            title="전체 데이터 초기화"
                         >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[9px] font-black uppercase tracking-tighter">초기??/span>
+                            <span className="text-[9px] font-black uppercase tracking-tighter">초기화</span>
                         </button>
                     </div>
                 </header>
@@ -3272,7 +3262,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             value={sessionTitle}
                             onChange={(e) => setSessionTitle(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#C9B075]/50 focus:bg-white/[0.08] transition-all outline-none"
-                            placeholder="Ex: 2026-03-27 ?�연 ?�기??
+                            placeholder="Ex: 2026-03-27 테연 정기전"
                         />
                     </section>
 
@@ -3301,7 +3291,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
                                                     style={{ width: '32px', height: '32px', borderRadius: '10px', border: config.isLate ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.1)', background: config.isLate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' }}
-                                                >?��</button>
+                                                >🕒</button>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#0A0A0A', borderRadius: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                                                     <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>
                                                         {timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}
@@ -3366,7 +3356,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             ))}
                             <div style={{ borderRadius: '18px', border: '1px solid rgba(201,176,117,0.18)', background: 'rgba(201,176,117,0.06)', padding: '12px 14px' }}>
                                 <p className="text-[11px] font-bold leading-relaxed text-white/45">
-                                    ?�동 구성?� ?�리 ?�수 6??고정, 1:1 ?�작??기본 ?�제�??�용?�니??
+                                    수동 구성은 승리 점수 6점 고정, 1:1 시작을 기본 전제로 사용합니다.
                                 </p>
                             </div>
                         </div>
@@ -3399,7 +3389,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                             transition: 'all 0.15s'
                                         }}
                                     >
-                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '?�상/비입?? : 'MBTI'}
+                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
                                     </button>
                                 ))}
                             </div>
@@ -3435,7 +3425,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '15px', fontWeight: 1000, color: '#FFFFFF' }}>
                                             <span>{getPlayerName(pair[0])}</span>
-                                            <span style={{ color: '#C9B075', fontSize: '18px' }}>??/span>
+                                            <span style={{ color: '#C9B075', fontSize: '18px' }}>♥</span>
                                             <span>{getPlayerName(pair[1])}</span>
                                         </div>
                                         <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
@@ -3475,7 +3465,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '170px', height: '40px' }}>
-                                    <button type="button" onClick={() => commitTotalCourts(totalCourts - 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
+                                    <button type="button" onClick={() => commitTotalCourts(totalCourts - 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <input
                                         aria-label="Total Courts"
                                         inputMode="numeric"
@@ -3508,7 +3498,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
+                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
                                     <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -3524,7 +3514,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
+                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -3536,7 +3526,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
+                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -3548,7 +3538,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>??/button>
+                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty / 1000).toFixed(0)}k</span>
                                     <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
@@ -3565,7 +3555,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                 value={matchRules}
                                 onChange={(e) => setMatchRules(e.target.value)}
                                 style={{ width: '100%', background: '#141414', border: '1px solid #333', borderRadius: '16px', padding: '16px', fontSize: '14px', fontWeight: 600, color: '#E5E7EB', minHeight: '120px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
-                                placeholder="?�너먼트 규칙???�력?�세??.."
+                                placeholder="토너먼트 규칙을 입력하세요..."
                             />
                         </div>
                     </section>
@@ -3607,7 +3597,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                     boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
                                 }}
                             >
-                                {isManualRulesMode ? (isGenerating ? '?�성 �?..' : '붙여?��? ?�진으�??�성') : isGenerating ? 'GENERATE...' : '최종 ?��??�동 ?�성! ??'}
+                                {isManualRulesMode ? (isGenerating ? '생성 중...' : '붙여넣은 대진으로 생성') : isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
                             </button>
                         </div>
                     </div>
@@ -3661,7 +3651,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             </div>
 
                             <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>
-                                {partnerSelectSource === 'NEW' ? '�?번째 ?�레?�어�??�택?�세?? : (allMembers.find(x => x.id === partnerSelectSource)?.nickname + (allMembers.find(x => x.id === partnerSelectSource)?.is_guest ? ' (G)' : '')) + '???�트?��? ?�택?�세??}
+                                {partnerSelectSource === 'NEW' ? '첫 번째 플레이어를 선택하세요' : (allMembers.find(x => x.id === partnerSelectSource)?.nickname + (allMembers.find(x => x.id === partnerSelectSource)?.is_guest ? ' (G)' : '')) + '의 파트너를 선택하세요'}
                             </p>
                         </div>
                     </div>
@@ -3691,7 +3681,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                         Live Court Gateway
                     </span>
                     <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-2xl">
-                        중계 ?�션 ?�택
+                        중계 세션 선택
                     </h1>
                     <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
                 </header>
@@ -3700,11 +3690,11 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                     {allActiveSessions.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center px-12 opacity-20 group">
                             <div className="w-20 h-20 rounded-full border border-dashed border-white/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <span className="text-4xl">?��</span>
+                                <span className="text-4xl">📡</span>
                             </div>
                             <h2 className="text-lg font-black uppercase tracking-widest mb-2">No Active Matches</h2>
                             <p className="text-[10px] font-medium leading-relaxed uppercase tracking-tighter max-w-xs">
-                                ?�재 진행 중인 공개 ?�션???�습?�다.<br />관리자가 경기�??�성?�면 ?�기???�시?�니??
+                                현재 진행 중인 공개 세션이 없습니다.<br />관리자가 경기를 생성하면 여기에 표시됩니다.
                             </p>
                         </div>
                     ) : (
@@ -3728,7 +3718,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                     <div className="flex items-start justify-between mb-8">
                                         <div className="flex flex-col gap-1">
                                             <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${isLatest ? 'text-[#C9B075]' : 'text-white/40'}`}>
-                                                {s.id.includes('KDK') ? '?�기 KDK 매치' : '?�페??매치'}
+                                                {s.id.includes('KDK') ? '정기 KDK 매치' : '스페셜 매치'}
                                             </span>
                                             <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase group-hover:text-[#C9B075] transition-colors leading-none">
                                                 {s.title}
@@ -3742,15 +3732,15 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
 
                                     <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-6">
                                         <div className="flex flex-col">
-                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">참�? ?�원</span>
-                                            <span className="text-lg font-black text-white italic">{s.playerCount}<span className="text-[10px] ml-0.5 opacity-30">�?/span></span>
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">참가 인원</span>
+                                            <span className="text-lg font-black text-white italic">{s.playerCount}<span className="text-[10px] ml-0.5 opacity-30">명</span></span>
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 font-mono">진행 경기</span>
-                                            <span className="text-lg font-black text-white italic">{s.matchCount}<span className="text-[10px] ml-0.5 opacity-30">??/span></span>
+                                            <span className="text-lg font-black text-white italic">{s.matchCount}<span className="text-[10px] ml-0.5 opacity-30">회</span></span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter mt-2">?�장?�기 ?�️</span>
+                                            <span className="text-[10px] font-black text-[#C9B075] uppercase tracking-tighter mt-2">입장하기 ➡️</span>
                                         </div>
                                     </div>
 
@@ -3770,7 +3760,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             onClick={startNewKdkCreation}
                             className="w-full py-5 rounded-full bg-white/5 border border-white/10 text-white/40 font-black text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                         >
-                            {isAdmin ? '+ ?�로???�???�성?�기' : '준�???경기가 ?�습?�다'}
+                            {isAdmin ? '+ 새로운 대회 생성하기' : '준비 된 경기가 없습니다'}
                         </button>
                     </div>
                 )}
@@ -3797,7 +3787,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                 <button
                                     onClick={() => setShowResetConfirm(true)}
                                     className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/20 transition-all active:scale-90"
-                                    title="초기??
+                                    title="초기화"
                                 >
                                     <RotateCw className="w-3 h-3" />
                                 </button>
@@ -3826,7 +3816,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             onClick={openDisplayBoard}
                             disabled={!activeSessionId}
                             className="shrink-0 rounded-full border border-[#C9B075]/35 bg-[#C9B075]/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#C9B075] shadow-[0_0_12px_rgba(201,176,117,0.08)] transition-all active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25"
-                            title="?�광???�기"
+                            title="전광판 열기"
                         >
                             TV
                         </button>
@@ -3835,7 +3825,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             onClick={copyDisplayBoardUrl}
                             disabled={!activeSessionId}
                             className="hidden shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-white/45 transition-all hover:border-[#C9B075]/30 hover:text-[#C9B075] active:scale-95 disabled:cursor-not-allowed disabled:text-white/20 sm:inline-flex"
-                            title="?�광??주소 복사"
+                            title="전광판 주소 복사"
                         >
                             COPY
                         </button>
@@ -3845,8 +3835,8 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                 {/* RIGHT: ACTION & STATUS INDICATOR */}
                 <div className="flex-1 flex items-center justify-end gap-3">
                     <div className="flex items-center gap-2">
-                        <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 복사">?��</button>
-                        <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 보고">?��</button>
+                        <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 복사">📋</button>
+                        <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 보고">🏆</button>
                     </div>
                     
                     {/* Integrated Sync Indicator */}
@@ -3854,7 +3844,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                         <div className="flex items-center gap-1.5">
                             <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`} />
                             <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">
-                                {syncStatus === 'HEALTHY' ? '?�결?? : syncStatus === 'IDLE' ? '?�기중' : '?�기??�?}
+                                {syncStatus === 'HEALTHY' ? '연결됨' : syncStatus === 'IDLE' ? '대기중' : '동기화 중'}
                             </span>
                         </div>
                         <span className="text-[7px] font-mono text-white/20 leading-none mt-0.5">{lastSyncTime || '--:--'}</span>
@@ -3883,10 +3873,10 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                     <div className="flex items-center gap-3 overflow-hidden">
                         <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
                         <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
-                            {matchRules?.slice(0, 30) || '1:1 ?�작, ?�에?? ?�??3:3'}
+                            {matchRules?.slice(0, 30) || '1:1 시작, 노에드, 타이 3:3'}
                         </span>
                         {adminModeManual && isAdmin && (
-                             <button onClick={() => setShowMemberEditModal(true)} className="flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">?�️</button>
+                             <button onClick={() => setShowMemberEditModal(true)} className="flex items-center justify-center w-5 h-5 bg-white/5 rounded-full text-[#C9B075]/40 hover:text-[#C9B075] text-[10px] transition-all active:scale-90">⚙️</button>
                         )}
                     </div>
                 </div>
@@ -3968,7 +3958,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
                                                 <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>
-                                                    {isManualLiveSession ? `${group}�?WAITING` : `${isB ? 'BLUE' : 'GOLD'} WAITING`}
+                                                    {isManualLiveSession ? `${group}조 WAITING` : `${isB ? 'BLUE' : 'GOLD'} WAITING`}
                                                 </h3>
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
@@ -4001,7 +3991,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                                                             isStartingMatch={isStartingMatch}
                                                                             hasConflict={hasConflict}
                                                                             onStart={(id) => {
-                                                                                if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 ?�입?� 관리자 모드?�서�?가?�합?�다.");
+                                                                                if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드에서만 가능합니다.");
                                                                                 startMatch(id);
                                                                             }}
                                                                         />
@@ -4071,7 +4061,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                                     getPlayerName={getPlayerName}
                                                     isAdmin={isAdmin}
                                                     onResetStatus={(id) => {
-                                                        if (window.confirm("??경기�??�시 '진행 �?ONGOING)' ?�태�??�돌리시겠습?�까?\n(?�수가 1:1�?초기?�되�???��?�서 ?�시 ?�외?�니??")) {
+                                                        if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\n(점수가 1:1로 초기화되며 랭킹에서 일시 제외됩니다)")) {
                                                             supabase.from('matches').update({ status: 'playing', score1: 1, score2: 1 }).eq('id', id).then(() => {
                                                                 setSyncTick(t => t + 1);
                                                             });
@@ -4104,7 +4094,6 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
                             detailedResults={playerDetailedResults}
-                            matches={matches}
                         />
                     </div>
                 )}
@@ -4116,13 +4105,13 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
                     className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
-                    ?�� MATCHES
+                    🔥 MATCHES
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
                     className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
                 >
-                    ?�� RANKING
+                    📊 RANKING
                 </button>
 
             </nav>
@@ -4134,7 +4123,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                         onClick={handleStartCeremony}
                         className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-bold rounded-full shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
                     >
-                        <span>?�� 즉시 ?�위 �?축하 ?�면 보러가�?/span>
+                        <span>🏆 즉시 순위 및 축하 화면 보러가기</span>
                     </button>
                 </div>
             )}
@@ -4158,7 +4147,6 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
                             detailedResults={playerDetailedResults}
-                            matches={matches}
                         />
                     </div>
                 </div>
@@ -4180,7 +4168,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                     <header className="flex items-center justify-between mb-8 border-b border-white/10 pb-6">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Live Management</span>
-                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">참석???�시 ?�정</h2>
+                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">참석자 수시 수정</h2>
                         </div>
                         <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">×</button>
                     </header>
@@ -4196,7 +4184,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                                             key={m.id}
                                             onClick={() => {
                                                 if (isBusy) {
-                                                    alert("?�재 경기 중인 ?�수??기권 처리?????�습?�다. 경기가 ?�난 ??조정??주세??");
+                                                    alert("현재 경기 중인 선수는 기권 처리할 수 없습니다. 경기가 끝난 후 조정해 주세요.");
                                                     return;
                                                 }
                                                 toggleMember(m.id);
@@ -4215,7 +4203,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             </div>
                         </section>
                         <p className="text-[10px] font-bold text-white/30 leading-relaxed uppercase tracking-widest text-center italic">
-                            ?�� ?�수�?추�??�거???�거?�면, <br />?�직 ?�입?��? ?��? 모든 ?�동 ?�진이 ?�시 ?�성?�니??
+                            💡 선수를 추가하거나 제거하면, <br />아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
                         </p>
                     </div>
                     <div className="mt-8">
@@ -4224,7 +4212,7 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                             onClick={handleMemberEditConfirm}
                             className={`w-full py-5 rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#C9B075] text-black'}`}
                         >
-                            {isGenerating ? '?��??�구??�?..' : '?�� ?�시�??�원 변경사???�용'}
+                            {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
                         </button>
                     </div>
                 </div>
@@ -4232,8 +4220,8 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
 
             {showResetConfirm && (
                 <CustomConfirmModal
-                    title="?�진표 초기??
-                    message="?�재 진행 중인 모든 ?�진과 ?�택??멤버 ?�보�???��?�고 처음부???�시 ?�작?�시겠습?�까?"
+                    title="대진표 초기화"
+                    message="현재 진행 중인 모든 대진과 선택된 멤버 정보를 삭제하고 처음부터 다시 시작하시겠습니까?"
                     onConfirm={actualReset}
                     onCancel={() => setShowResetConfirm(false)}
                 />
@@ -4271,14 +4259,14 @@ A    1    봉�?    ?�윤    ?�호    광현    19:00`}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#C9B075]/30 via-transparent to-transparent" />
                     <div className="relative z-10 flex flex-col items-center text-center px-12 space-y-8">
                         <div className="w-40 h-40 rounded-full bg-[#C9B075]/10 border-2 border-[#C9B075]/50 flex items-center justify-center animate-bounce shadow-[0_0_80px_rgba(201,176,117,0.5)]">
-                            <span className="text-8xl drop-shadow-2xl">?��</span>
+                            <span className="text-8xl drop-shadow-2xl">🏆</span>
                         </div>
                         <div className="space-y-4">
                             <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(201,176,117,0.8)]">
                                 Match<br />Completed
                             </h2>
                             <p className="text-[#C9B075] text-xs font-black uppercase tracking-[0.6em] animate-pulse">
-                                ?�연 ?�럽 ?�카?�브 ?�???�료!
+                                테연 클럽 아카이브 저장 완료!
                             </p>
                         </div>
                         <div className="flex gap-3">
