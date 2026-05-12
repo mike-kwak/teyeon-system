@@ -72,7 +72,25 @@ export default function RankingTab({
         }
     }, [ceremonyMode]);
 
+    const guestFee = 10000;
+    const guestFeeLabel = `게스트 ${guestFee.toLocaleString()}`;
+    const isGuestRankedPlayer = (player: any) => {
+        const id = String(player?.id || '');
+        const name = String(player?.name || '');
+        return player?.is_guest === true
+            || player?.isGuest === true
+            || /^manual-guest-/i.test(id)
+            || /^g-/i.test(id)
+            || /^manual-guest-/i.test(name)
+            || /\s*\(G\)$/i.test(name)
+            || /\s+g$/i.test(name);
+    };
+
     const calculateSettlement = (p: any, idx: number, total: number) => {
+        if (isGuestRankedPlayer(p)) {
+            return { amount: -guestFee, isPenaltyTier: false, isFineTier: false };
+        }
+
         let amount = 0;
         const bottomHalfCount = Math.ceil(total / 2);
         const penaltyCount = Math.ceil(bottomHalfCount / 2);
@@ -88,11 +106,7 @@ export default function RankingTab({
             performancePenalty = -(prizes.l1 || 3000);
         }
 
-        if (p.is_guest) {
-            amount = -5000 + performancePenalty;
-        } else {
-            amount = performancePenalty;
-        }
+        amount = performancePenalty;
 
         return { amount, isPenaltyTier, isFineTier };
     };
@@ -257,7 +271,7 @@ export default function RankingTab({
         const trimmed = String(value || '').trim();
         if (!trimmed) return '';
         if (/^manual-guest-/i.test(trimmed)) {
-            const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').trim();
+            const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
             return guestName ? `${guestName}(G)` : '게스트(G)';
         }
         if (/\s+g$/i.test(trimmed)) return `${trimmed.replace(/\s+g$/i, '').trim()}(G)`;
@@ -280,6 +294,13 @@ export default function RankingTab({
         const raw = String(value || '').trim().toUpperCase();
         if (raw.includes('B') || raw.includes('BLUE')) return 'B';
         return 'A';
+    };
+
+    const normalizeExplicitKDKGroup = (value?: string) => {
+        const raw = String(value || '').trim().toUpperCase();
+        if (raw.includes('B') || raw.includes('BLUE')) return 'B';
+        if (raw.includes('A') || raw.includes('GOLD')) return 'A';
+        return '';
     };
 
     const getGroupLabel = (group?: string) => {
@@ -320,33 +341,92 @@ export default function RankingTab({
         return `${getSafeMatchPlayerName(match, startIndex)} / ${getSafeMatchPlayerName(match, startIndex + 1)}`;
     };
 
-    const sortedExportMatches = [...(matches || [])].sort((a, b) => {
-        const roundDiff = (a.round || 0) - (b.round || 0);
-        if (roundDiff !== 0) return roundDiff;
-        const groupDiff = normalizeKDKGroup(a.groupName || a.group).localeCompare(normalizeKDKGroup(b.groupName || b.group));
-        if (groupDiff !== 0) return groupDiff;
-        const courtDiff = (a.court || 99) - (b.court || 99);
-        if (courtDiff !== 0) return courtDiff;
-        return String(a.id).localeCompare(String(b.id));
+    const getMatchSortValue = (match: Match, index: number) => {
+        return Number((match as any).order ?? (match as any).matchNo ?? match.court ?? index + 1) || index + 1;
+    };
+
+    const sortMatchesForExport = (source: Match[], groupFirst: boolean) => {
+        const sourceIndex = new Map(source.map((match, index) => [match.id, index]));
+        return [...source].sort((a, b) => {
+            const aIndex = sourceIndex.get(a.id) ?? 0;
+            const bIndex = sourceIndex.get(b.id) ?? 0;
+            if (groupFirst) {
+                const groupDiff = normalizeKDKGroup(a.groupName || a.group).localeCompare(normalizeKDKGroup(b.groupName || b.group));
+                if (groupDiff !== 0) return groupDiff;
+            }
+            const roundDiff = (a.round || 0) - (b.round || 0);
+            if (roundDiff !== 0) return roundDiff;
+            if (!groupFirst) {
+                const groupDiff = normalizeKDKGroup(a.groupName || a.group).localeCompare(normalizeKDKGroup(b.groupName || b.group));
+                if (groupDiff !== 0) return groupDiff;
+            }
+            const orderDiff = getMatchSortValue(a, aIndex) - getMatchSortValue(b, bIndex);
+            if (orderDiff !== 0) return orderDiff;
+            return String(a.id).localeCompare(String(b.id));
+        });
+    };
+
+    const sortedExportMatches = sortMatchesForExport(matches || [], false);
+
+    const toMatchTableRow = (match: Match, index: number) => ({
+        no: index + 1,
+        group: getGroupLabel(match.groupName || match.group),
+        groupKey: normalizeKDKGroup(match.groupName || match.group),
+        round: `R${match.round || '-'}`,
+        matchNo: `${getMatchSortValue(match, index)}경기`,
+        teamA: getMatchTeamLabel(match, 0),
+        teamB: getMatchTeamLabel(match, 2),
+        score: `${match.score1 ?? 0} : ${match.score2 ?? 0}`,
     });
+
+    const getPlayerGroupKey = (player: RankedPlayer) => {
+        const playerName = formatKDKPlayerName(player.name);
+        const comparableName = playerName.replace(/\s*\(G\)$/i, '').trim();
+        const counts: Record<'A' | 'B', number> = { A: 0, B: 0 };
+        let firstGroup = '';
+
+        (matches || []).forEach((match) => {
+            const groupKey = normalizeExplicitKDKGroup(match.groupName || match.group);
+            if (!groupKey) return;
+            for (let index = 0; index < 4; index += 1) {
+                const matchId = String(match.playerIds?.[index] || '');
+                const matchName = getSafeMatchPlayerName(match, index).replace(/\s*\(G\)$/i, '').trim();
+                if (matchId === player.id || (!!comparableName && matchName === comparableName)) {
+                    counts[groupKey] += 1;
+                    if (!firstGroup) firstGroup = groupKey;
+                }
+            }
+        });
+
+        if (counts.B > counts.A) return 'B';
+        if (counts.A > 0) return 'A';
+        return firstGroup || normalizeKDKGroup(player.group);
+    };
 
     type MatchTableExportKind = 'schedule' | 'results';
 
     const getMatchTableRows = (kind: MatchTableExportKind) => {
-        const sourceMatches = kind === 'results'
-            ? sortedExportMatches.filter((match) => match.status === 'complete')
-            : sortedExportMatches;
+        if (kind === 'results') {
+            const completedMatches = sortMatchesForExport((matches || []).filter((match) => match.status === 'complete'), true);
+            let rowNo = 1;
+            return ['A', 'B'].flatMap((groupKey) => {
+                const groupMatches = completedMatches.filter((match) => normalizeKDKGroup(match.groupName || match.group) === groupKey);
+                if (groupMatches.length === 0) return [];
+                return [
+                    {
+                        isSection: true,
+                        sectionLabel: `${getGroupLabel(groupKey)} 경기 결과`,
+                        groupKey,
+                    },
+                    ...groupMatches.map((match) => ({
+                        ...toMatchTableRow(match, rowNo - 1),
+                        no: rowNo++,
+                    })),
+                ];
+            });
+        }
 
-        return sourceMatches.map((match, index) => ({
-            no: index + 1,
-            group: getGroupLabel(match.groupName || match.group),
-            groupKey: normalizeKDKGroup(match.groupName || match.group),
-            round: `R${match.round || '-'}`,
-            matchNo: `${match.court || index + 1}경기`,
-            teamA: getMatchTeamLabel(match, 0),
-            teamB: getMatchTeamLabel(match, 2),
-            score: `${match.score1 ?? 0} : ${match.score2 ?? 0}`,
-        }));
+        return sortedExportMatches.map((match, index) => toMatchTableRow(match, index));
     };
 
     const getMatchTableExportFileName = (kind: MatchTableExportKind) => {
@@ -455,6 +535,17 @@ export default function RankingTab({
             drawText(isResults ? '완료된 경기가 없습니다' : '대진이 없습니다', tableX + tableWidth / 2, y + rowHeight / 2, { size: 16, weight: 900, color: 'rgba(255,255,255,0.72)' });
         } else {
             rows.forEach((row, rowIndex) => {
+                if ((row as any).isSection) {
+                    const sectionColor = row.groupKey === 'B' ? '#67e8f9' : '#f6df9a';
+                    ctx.fillStyle = row.groupKey === 'B' ? 'rgba(56,217,255,0.14)' : 'rgba(255,214,107,0.13)';
+                    ctx.fillRect(tableX, y, tableWidth, rowHeight);
+                    ctx.strokeStyle = row.groupKey === 'B' ? 'rgba(56,217,255,0.24)' : 'rgba(255,214,107,0.22)';
+                    ctx.strokeRect(tableX, y, tableWidth, rowHeight);
+                    drawText((row as any).sectionLabel, tableX + 18, y + rowHeight / 2, { align: 'left', size: 15, weight: 900, color: sectionColor });
+                    y += rowHeight;
+                    return;
+                }
+
                 const rowAccent = row.groupKey === 'B' ? 'rgba(56,217,255,0.18)' : 'rgba(255,214,107,0.16)';
                 ctx.fillStyle = rowIndex % 2 === 0 ? 'rgba(255,255,255,0.034)' : 'rgba(255,255,255,0.02)';
                 ctx.fillRect(tableX, y, tableWidth, rowHeight);
@@ -735,13 +826,38 @@ export default function RankingTab({
     const createFinalResultImageBlob = async () => {
         if (playersList.length === 0) throw new Error('No final result rows to export.');
 
+        const totalCount = playersList.length;
+        const buildFinalRows = (sourcePlayers: RankedPlayer[]) => {
+            return sourcePlayers.map((player, index) => {
+                const overallIndex = playersList.findIndex((candidate) => candidate.id === player.id);
+                const settlementIndex = overallIndex >= 0 ? overallIndex : index;
+                const amountInfo = calculateSettlement(player, settlementIndex, totalCount);
+                return {
+                    rank: index + 1,
+                    name: getFinalResultPlayerName(player),
+                    wins: player.wins,
+                    losses: player.losses,
+                    amount: amountInfo.amount,
+                };
+            });
+        };
+
+        const groupAPlayers = playersList.filter((player) => getPlayerGroupKey(player) === 'A');
+        const groupBPlayers = playersList.filter((player) => getPlayerGroupKey(player) === 'B');
+        const finalSections = [
+            { title: '전체 최종 순위', groupKey: 'ALL', rows: buildFinalRows(playersList) },
+            ...(groupAPlayers.length > 0 ? [{ title: 'A조 순위', groupKey: 'A', rows: buildFinalRows(groupAPlayers) }] : []),
+            ...(groupBPlayers.length > 0 ? [{ title: 'B조 순위', groupKey: 'B', rows: buildFinalRows(groupBPlayers) }] : []),
+        ];
+        const totalFinalRowCount = finalSections.reduce((sum, section) => sum + 1 + section.rows.length, 0);
+
         const scale = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
         const padding = 36;
-        const rowHeight = 54;
-        const titleHeight = 142;
+        const rowHeight = 50;
+        const titleHeight = 156;
         const footerHeight = 52;
         const width = 920;
-        const height = titleHeight + playersList.length * rowHeight + footerHeight + padding;
+        const height = titleHeight + totalFinalRowCount * rowHeight + footerHeight + padding;
 
         const canvas = document.createElement('canvas');
         canvas.width = Math.ceil(width * scale);
@@ -786,52 +902,51 @@ export default function RankingTab({
         drawText('TEYEON KDK', padding, 38, { size: 14, weight: 900, color: '#c9b075' });
         drawText(sessionTitle || 'KDK SESSION', padding, 70, { size: 30, weight: 900, color: '#ffffff' });
         drawText('오늘의 최종 결과', width - padding, 70, { align: 'right', size: 25, weight: 900, color: '#f6df9a' });
-        drawText(`상금/벌금: 1위 ${prizes.first.toLocaleString()} / L1 ${prizes.l1.toLocaleString()} / L2 ${prizes.l2.toLocaleString()}`, padding, 112, { size: 14, weight: 800, color: 'rgba(255,255,255,0.62)' });
-
-        const totalCount = playersList.length;
-        const rows = playersList.map((player, index) => {
-            const amountInfo = calculateSettlement(player, index, totalCount);
-            return {
-                rank: index + 1,
-                name: getFinalResultPlayerName(player),
-                wins: player.wins,
-                losses: player.losses,
-                amount: amountInfo.amount,
-            };
-        });
+        drawText(`상금/벌금: 1위 ${prizes.first.toLocaleString()} / L1 ${prizes.l1.toLocaleString()} / L2 ${prizes.l2.toLocaleString()} / ${guestFeeLabel}`, padding, 112, { size: 14, weight: 800, color: 'rgba(255,255,255,0.62)' });
 
         let y = titleHeight;
-        rows.forEach((row, index) => {
-            const isTop = row.rank <= 3;
-            ctx.fillStyle = isTop
-                ? row.rank === 1
-                    ? 'rgba(201,176,117,0.16)'
-                    : row.rank === 2
-                        ? 'rgba(255,255,255,0.08)'
-                        : 'rgba(251,146,60,0.08)'
-                : index % 2 === 0 ? 'rgba(255,255,255,0.036)' : 'rgba(255,255,255,0.022)';
+        finalSections.forEach((section) => {
+            const sectionColor = section.groupKey === 'B' ? '#67e8f9' : '#f6df9a';
+            const sectionBg = section.groupKey === 'B' ? 'rgba(56,217,255,0.12)' : 'rgba(201,176,117,0.13)';
+            ctx.fillStyle = sectionBg;
             ctx.fillRect(padding, y, width - padding * 2, rowHeight);
-            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeStyle = section.groupKey === 'B' ? 'rgba(56,217,255,0.22)' : 'rgba(201,176,117,0.22)';
             ctx.strokeRect(padding, y, width - padding * 2, rowHeight);
-
-            const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `${row.rank}위`;
-            drawText(medal, padding + 24, y + rowHeight / 2, { size: row.rank <= 3 ? 23 : 15, weight: 900, color: '#f6df9a', align: 'center' });
-            fitText(row.name, padding + 72, y + rowHeight / 2, 330, { size: 20, minSize: 14, weight: 900, color: '#ffffff' });
-            drawText(`${row.wins}승 ${row.losses}패`, padding + 460, y + rowHeight / 2, { size: 17, weight: 900, color: 'rgba(255,255,255,0.84)' });
-
-            const amountText = row.amount > 0
-                ? `+${row.amount.toLocaleString()}원`
-                : row.amount < 0
-                    ? `-${Math.abs(row.amount).toLocaleString()}원`
-                    : '0원';
-            drawText(amountText, width - padding - 16, y + rowHeight / 2, {
-                align: 'right',
-                size: 18,
-                weight: 900,
-                color: row.amount > 0 ? '#f6df9a' : row.amount < 0 ? '#fca5a5' : 'rgba(255,255,255,0.68)',
-            });
-
+            drawText(section.title, padding + 18, y + rowHeight / 2, { align: 'left', size: 17, weight: 900, color: sectionColor });
             y += rowHeight;
+
+            section.rows.forEach((row, index) => {
+                const isTop = row.rank <= 3;
+                ctx.fillStyle = isTop
+                    ? row.rank === 1
+                        ? 'rgba(201,176,117,0.16)'
+                        : row.rank === 2
+                            ? 'rgba(255,255,255,0.08)'
+                            : 'rgba(251,146,60,0.08)'
+                    : index % 2 === 0 ? 'rgba(255,255,255,0.036)' : 'rgba(255,255,255,0.022)';
+                ctx.fillRect(padding, y, width - padding * 2, rowHeight);
+                ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                ctx.strokeRect(padding, y, width - padding * 2, rowHeight);
+
+                const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `${row.rank}위`;
+                drawText(medal, padding + 24, y + rowHeight / 2, { size: row.rank <= 3 ? 22 : 14, weight: 900, color: '#f6df9a', align: 'center' });
+                fitText(row.name, padding + 72, y + rowHeight / 2, 330, { size: 19, minSize: 14, weight: 900, color: '#ffffff' });
+                drawText(`${row.wins}승 ${row.losses}패`, padding + 460, y + rowHeight / 2, { size: 16, weight: 900, color: 'rgba(255,255,255,0.84)' });
+
+                const amountText = row.amount > 0
+                    ? `+${row.amount.toLocaleString()}원`
+                    : row.amount < 0
+                        ? `-${Math.abs(row.amount).toLocaleString()}원`
+                        : '0원';
+                drawText(amountText, width - padding - 16, y + rowHeight / 2, {
+                    align: 'right',
+                    size: 17,
+                    weight: 900,
+                    color: row.amount > 0 ? '#f6df9a' : row.amount < 0 ? '#fca5a5' : 'rgba(255,255,255,0.68)',
+                });
+
+                y += rowHeight;
+            });
         });
 
         drawText('상세 결과는 Archive에서 확인할 수 있습니다.', padding, height - 36, { size: 13, weight: 800, color: 'rgba(255,255,255,0.48)' });
@@ -1019,12 +1134,18 @@ export default function RankingTab({
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <ButtonPair
                         title="개인별 상세표"
                         disabled={maxDetailGameCount === 0 || activeDetailedResults.length === 0}
                         onDownload={() => handleDetailedResultImageAction('download')}
                         onCopy={() => handleDetailedResultImageAction('copy')}
+                    />
+                    <ButtonPair
+                        title="최종 결과"
+                        disabled={playersList.length === 0}
+                        onDownload={() => handleFinalResultImageAction('download')}
+                        onCopy={() => handleFinalResultImageAction('copy')}
                     />
                     <ButtonPair
                         title="전체 대진표"
