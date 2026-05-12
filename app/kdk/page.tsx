@@ -842,6 +842,13 @@ export default function KDKPage() {
             return acc;
         }, {});
 
+    const buildGroupCacheFromMatches = (sourceMatches: Match[]) =>
+        sourceMatches.reduce<Record<string, string>>((acc, match) => {
+            const group = normalizeStoredKdkGroup(match.groupName || (match as any).group);
+            if (match?.id && group) acc[String(match.id)] = group;
+            return acc;
+        }, {});
+
     const resolveDbMatchGroupName = (row: any) => {
         const direct = normalizeStoredKdkGroup(row?.group_name || row?.groupName || row?.group);
         if (direct) return direct;
@@ -981,7 +988,11 @@ export default function KDKPage() {
                 const currentSession = sessionsMap[targetSessionId];
                 if (!currentSession) return false;
 
+                const localGroupCache = selectedSessionId === targetSessionId || sessionId === targetSessionId
+                    ? buildGroupCacheFromMatches(matches)
+                    : {};
                 persistManualGroupCache(targetSessionId, buildGroupCacheFromRows(currentSession.matches));
+                persistManualGroupCache(targetSessionId, localGroupCache);
 
                 const refreshingMatches = currentSession.matches.map(mapDbMatchToMatch);
 
@@ -1513,6 +1524,8 @@ export default function KDKPage() {
                 groupName: km.group
             })) as any;
 
+            persistManualGroupCache(sessionId, buildGroupCacheFromMatches(formattedMatches));
+
             // [v34.2] Resilient Sync: Try Full Sync first, Fallback to Legacy if DB schema is stale
             try {
                 const fullDbMatches = formattedMatches.map(m => ({
@@ -1814,6 +1827,7 @@ export default function KDKPage() {
             
             // Local state update
             setMatches(nextMatches);
+            persistManualGroupCache(selectedSessionId || sessionId, buildGroupCacheFromMatches(nextMatches));
 
             // DB Sync via Native Update (RPC 우회)
             const { error: updateError } = await supabase
@@ -3975,8 +3989,6 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <div className="py-10 text-center opacity-10 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">No Matches in Queue</div>
                                 );
 
-                                const isManualLiveSession = isManualSession(activeSessionId || selectedSessionId || sessionId);
-
                                 return ['A', 'B'].map(group => {
                                     const groupMatches = waitingMatches.filter(m => normalizeKdkGroup(m.groupName || (m as any).group) === group).sort((a, b) => {
                                         if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
@@ -3993,7 +4005,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
                                                 <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>
-                                                    {isManualLiveSession ? `${group}조 WAITING` : `${isB ? 'BLUE' : 'GOLD'} WAITING`}
+                                                    {`${isB ? 'BLUE / B조' : 'GOLD / A조'} WAITING`}
                                                 </h3>
                                                 <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
