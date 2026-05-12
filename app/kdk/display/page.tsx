@@ -430,6 +430,7 @@ function KdkDisplayBoard() {
   const [lastSync, setLastSync] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('IDLE');
   const [resolvedSessionId, setResolvedSessionId] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fetchMembers = async () => {
     try {
@@ -525,8 +526,59 @@ function KdkDisplayBoard() {
   }, []);
 
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fullscreenDocument = document as Document & { webkitFullscreenElement?: Element | null };
+      setIsFullscreen(Boolean(document.fullscreenElement || fullscreenDocument.webkitFullscreenElement));
+    };
+
+    handleFullscreenChange();
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
     fetchMembers();
   }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      const fullscreenDocument = document as Document & {
+        webkitFullscreenElement?: Element | null;
+        webkitFullscreenEnabled?: boolean;
+        webkitExitFullscreen?: () => Promise<void> | void;
+      };
+      const root = document.documentElement as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void> | void;
+      };
+      const fullscreenElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
+      const fullscreenEnabled = document.fullscreenEnabled || fullscreenDocument.webkitFullscreenEnabled || Boolean(root.requestFullscreen || root.webkitRequestFullscreen);
+
+      if (!fullscreenEnabled) {
+        alert('이 브라우저는 전체화면을 지원하지 않습니다.');
+        return;
+      }
+
+      if (fullscreenElement) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (fullscreenDocument.webkitExitFullscreen) {
+          await fullscreenDocument.webkitExitFullscreen();
+        }
+      } else {
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        } else if (root.webkitRequestFullscreen) {
+          await root.webkitRequestFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('[KDK Display] fullscreen toggle failed:', err);
+    }
+  };
 
   useEffect(() => {
     fetchMatches(sessionId);
@@ -604,6 +656,11 @@ function KdkDisplayBoard() {
   }, [members]);
 
   const liveRanking = useMemo(() => calculateLiveRanking(completedMatches, playerLookup), [completedMatches, playerLookup]);
+  const liveRankingColumns = useMemo(() => {
+    if (liveRanking.length <= 9) return [liveRanking];
+    const splitAt = Math.ceil(liveRanking.length / 2);
+    return [liveRanking.slice(0, splitAt), liveRanking.slice(splitAt)];
+  }, [liveRanking]);
   const playingCount = matches.filter((match) => match.status === 'playing').length;
   const statusLabel = realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : realtimeStatus;
 
@@ -615,11 +672,11 @@ function KdkDisplayBoard() {
       <div className="absolute right-[16%] top-10 h-24 w-[520px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(239,68,68,0.22),rgba(255,214,107,0.2),transparent)] blur-xl" />
 
       <div className="relative flex h-screen flex-col p-4 2xl:p-5">
-        <header className="relative mb-3.5 grid h-[88px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-[22px] border border-[#D8BE78]/28 bg-black/60 px-5 shadow-[0_20px_54px_rgba(0,0,0,0.52),0_0_24px_rgba(216,190,120,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div className="absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(216,190,120,0.2),transparent_55%)]" />
-          <div className="absolute -right-20 top-0 h-full w-[420px] bg-[linear-gradient(105deg,transparent,rgba(239,68,68,0.28),transparent)]" />
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/92 to-transparent shadow-[0_0_22px_rgba(255,214,107,0.72)]" />
-          <div className="absolute right-[34%] top-0 h-full w-[360px] -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,214,107,0.12),rgba(239,68,68,0.1),transparent)]" />
+        <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[88px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-[22px] border border-[#D8BE78]/28 bg-black/60 px-5 shadow-[0_20px_54px_rgba(0,0,0,0.52),0_0_24px_rgba(216,190,120,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(216,190,120,0.2),transparent_55%)]" />
+          <div className="pointer-events-none absolute -right-20 top-0 h-full w-[420px] bg-[linear-gradient(105deg,transparent,rgba(239,68,68,0.28),transparent)]" />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/92 to-transparent shadow-[0_0_22px_rgba(255,214,107,0.72)]" />
+          <div className="pointer-events-none absolute right-[34%] top-0 h-full w-[360px] -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,214,107,0.12),rgba(239,68,68,0.1),transparent)]" />
           <div className="flex min-w-0 items-center gap-4">
             <div
               aria-label="TEYEON Tennis logo"
@@ -641,7 +698,7 @@ function KdkDisplayBoard() {
               </h1>
             </div>
           </div>
-          <div className="grid shrink-0 grid-cols-[auto_auto_auto] items-center gap-8">
+          <div className="grid shrink-0 grid-cols-[auto_auto_auto_auto] items-center gap-6">
             <div className="text-right">
               <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/34">Time</p>
               <p className="text-[32px] font-black leading-none text-white">{clock}</p>
@@ -650,6 +707,13 @@ function KdkDisplayBoard() {
               <span className="h-3 w-3 rounded-full bg-red-300 shadow-[0_0_12px_rgba(248,113,113,0.72)]" />
               <span className="text-[20px] font-black uppercase tracking-[0.07em]">{statusLabel}</span>
             </div>
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="pointer-events-auto relative z-30 rounded-[12px] border border-[#FFD66B]/48 bg-[#D8BE78]/12 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFE7A0] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:border-[#FFD66B]/80 hover:bg-[#D8BE78]/20 active:scale-95"
+            >
+              {isFullscreen ? '전체화면 해제' : '전체화면'}
+            </button>
             <div className="rounded-[12px] border border-white/10 bg-white/[0.065] px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/52">
               Read Only
             </div>
@@ -748,54 +812,61 @@ function KdkDisplayBoard() {
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[17px] font-black uppercase italic tracking-[0.12em] text-[#FFD66B]">
                   <span className="h-5 w-1 rounded-full bg-[#FFD66B]/90 shadow-[0_0_12px_rgba(255,214,107,0.62)]" />
-                  Live Ranking Top 5
+                  Live Ranking
                 </h2>
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">W-L / Diff</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">All {liveRanking.length}</span>
               </div>
               {liveRanking.length > 0 ? (
-                <div className="mx-auto w-full max-w-[520px] space-y-2">
-                  <div className="grid grid-cols-[48px_minmax(0,230px)_80px_62px] items-center gap-3 px-4 text-[9px] font-black uppercase tracking-[0.14em] text-white/34">
-                    <span className="text-center">Rank</span>
-                    <span className="pl-8">Player</span>
-                    <span className="text-right">W/L</span>
-                    <span className="text-right">Diff</span>
-                  </div>
-                  {liveRanking.slice(0, 5).map((player, index) => (
-                    <div key={player.id} className={`relative grid min-h-[62px] grid-cols-[48px_minmax(0,230px)_80px_62px] items-center gap-3 overflow-hidden rounded-[14px] border px-4 py-3 ${
-                      index === 0
-                        ? 'border-[#FFD66B]/30 bg-[#D8BE78]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                        : index === 1
-                          ? 'border-white/14 bg-white/[0.052] shadow-[inset_0_1px_0_rgba(255,255,255,0.065)]'
-                          : index === 2
-                            ? 'border-orange-400/18 bg-orange-400/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
-                            : 'border-white/8 bg-white/[0.045]'
-                    }`}>
-                      {index < 3 && (
-                        <div className={`absolute inset-y-0 left-0 w-1 ${
-                          index === 0 ? 'bg-[#FFD66B]' : index === 1 ? 'bg-white/45' : 'bg-orange-400/65'
-                        }`} />
-                      )}
-                      <span className={`flex h-9 w-9 items-center justify-center justify-self-center rounded-md text-[17px] font-black leading-none ${
-                        index === 0
-                          ? 'bg-[#FFD66B] text-black'
-                          : index === 1
-                            ? 'bg-white/70 text-black'
-                            : index === 2
-                              ? 'bg-orange-400/75 text-black'
-                              : 'bg-white/10 text-white/58'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0 self-center pl-8">
-                        <p className={`truncate text-[17px] font-black ${index < 3 ? 'text-white' : 'text-white/88'}`}>{player.name}</p>
-                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/32">PF {player.pointsFor}</p>
+                <div className={`grid w-full gap-2 ${liveRankingColumns.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {liveRankingColumns.map((column, columnIndex) => {
+                    const rankOffset = liveRankingColumns.slice(0, columnIndex).reduce((sum, items) => sum + items.length, 0);
+                    return (
+                      <div key={`ranking-column-${columnIndex}`} className="min-w-0 space-y-1.5">
+                        <div className="grid grid-cols-[34px_minmax(0,1fr)_52px_40px] items-center gap-2 px-2 text-[8px] font-black uppercase tracking-[0.12em] text-white/32">
+                          <span className="text-center">Rank</span>
+                          <span>Player</span>
+                          <span className="text-right">W/L</span>
+                          <span className="text-right">Diff</span>
+                        </div>
+                        {column.map((player, localIndex) => {
+                          const rankIndex = rankOffset + localIndex;
+                          return (
+                            <div key={player.id} className={`relative grid min-h-[30px] grid-cols-[34px_minmax(0,1fr)_52px_40px] items-center gap-2 overflow-hidden rounded-[10px] border px-2 py-1.5 ${
+                              rankIndex === 0
+                                ? 'border-[#FFD66B]/28 bg-[#D8BE78]/10'
+                                : rankIndex === 1
+                                  ? 'border-white/12 bg-white/[0.052]'
+                                  : rankIndex === 2
+                                    ? 'border-orange-400/16 bg-orange-400/[0.04]'
+                                    : 'border-white/8 bg-white/[0.035]'
+                            }`}>
+                              {rankIndex < 3 && (
+                                <div className={`absolute inset-y-0 left-0 w-0.5 ${
+                                  rankIndex === 0 ? 'bg-[#FFD66B]' : rankIndex === 1 ? 'bg-white/45' : 'bg-orange-400/65'
+                                }`} />
+                              )}
+                              <span className={`flex h-6 w-6 items-center justify-center justify-self-center rounded-md text-[12px] font-black leading-none ${
+                                rankIndex === 0
+                                  ? 'bg-[#FFD66B] text-black'
+                                  : rankIndex === 1
+                                    ? 'bg-white/70 text-black'
+                                    : rankIndex === 2
+                                      ? 'bg-orange-400/75 text-black'
+                                      : 'bg-white/10 text-white/58'
+                              }`}>
+                                {rankIndex + 1}
+                              </span>
+                              <p className={`min-w-0 truncate text-[12px] font-black ${rankIndex < 3 ? 'text-white' : 'text-white/86'}`}>{player.name}</p>
+                              <span className="w-full whitespace-nowrap text-right text-[10px] font-black text-white/76">{player.wins}W {player.losses}L</span>
+                              <span className={`w-full text-right text-[13px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
+                                {player.diff > 0 ? '+' : ''}{player.diff}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <span className="w-full whitespace-nowrap text-right text-[15px] font-black text-white/82">{player.wins}W {player.losses}L</span>
-                      <span className={`w-full text-right text-[19px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
-                        {player.diff > 0 ? '+' : ''}{player.diff}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="py-10 text-center text-[12px] font-black uppercase tracking-[0.2em] text-white/38">No Ranking Yet</p>
