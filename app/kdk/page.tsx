@@ -1301,7 +1301,7 @@ export default function KDKPage() {
     const getManualGuestDisplayName = (value?: string) => {
         const trimmed = (value || "").trim();
         if (!trimmed.toLowerCase().startsWith('manual-guest-')) return "";
-        const name = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').trim();
+        const name = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
         return name ? `${name}(G)` : "게스트(G)";
     };
 
@@ -2251,10 +2251,42 @@ export default function KDKPage() {
 
         let text = `🏆 오늘의 최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
         text += `🏦 계좌: ${accountInfo}\n`;
+        text += `💰 상금/벌금: 1위 ${firstPrize.toLocaleString()} / L1 ${bottom25Late.toLocaleString()} / L2 ${bottom25Penalty.toLocaleString()} / 게스트 10,000\n`;
         text += `━━━━━━━━━━━━━━\n\n`;
 
         const sortedPlayers = [...allPlayersInRanking];
         const totalCount = sortedPlayers.length;
+        const finalResultGuestFee = 10000;
+        const formatFinalResultPlayerName = (p: any) => {
+            const manualFromName = getManualGuestDisplayName(p.name);
+            if (manualFromName) return manualFromName;
+
+            const resolvedById = getPlayerName(p.id);
+            const resolvedClean = cleanDisplayName(resolvedById);
+            const sourceClean = cleanDisplayName(p.name);
+            const baseName = (resolvedClean && resolvedClean !== "이름 확인중" && resolvedClean !== "미확인") ? resolvedClean : sourceClean;
+            if (!baseName) return "미확인";
+
+            const isGuest = p.is_guest
+                || p.isGuest
+                || /^manual-guest-/i.test(String(p.id || ''))
+                || /^g-/i.test(String(p.id || ''))
+                || /^manual-guest-/i.test(String(p.name || ''))
+                || /\s*\(G\)$/i.test(String(p.name || ''))
+                || /\s+g$/i.test(String(p.name || ''))
+                || /\(G\)$/i.test(String(resolvedById || ''));
+
+            return isGuest ? `${stripGuestSuffix(baseName)}(G)` : stripGuestSuffix(baseName);
+        };
+        const isFinalResultGuest = (p: any) => {
+            return p.is_guest === true
+                || p.isGuest === true
+                || /^manual-guest-/i.test(String(p.id || ''))
+                || /^g-/i.test(String(p.id || ''))
+                || /^manual-guest-/i.test(String(p.name || ''))
+                || /\s*\(G\)$/i.test(String(p.name || ''))
+                || /\s+g$/i.test(String(p.name || ''));
+        };
 
         // Logical Settlement Rules (MBTI/AGE/RANDOM Consistency)
         const bottomHalfCount = Math.ceil(totalCount / 2);
@@ -2267,9 +2299,12 @@ export default function KDKPage() {
 
             const isPenaltyTier = i >= (totalCount - penaltyCount);
             const isFineTier = !isPenaltyTier && i >= (totalCount - bottomHalfCount);
+            const isGuestPlayer = isFinalResultGuest(p);
 
             let prizePenaltyText = '';
-            if (originalRank === 1 && !p.is_guest) {
+            if (isGuestPlayer) {
+                prizePenaltyText = ` [💸 -${finalResultGuestFee.toLocaleString()}원]`;
+            } else if (originalRank === 1) {
                 prizePenaltyText = ` [💰 +${firstPrize.toLocaleString()}원]`;
             } else if (isPenaltyTier) {
                 prizePenaltyText = ` [💸 -${bottom25Penalty.toLocaleString()}원]`;
@@ -2279,7 +2314,7 @@ export default function KDKPage() {
                 prizePenaltyText = ` [0원]`;
             }
 
-            text += `${rankPrefix}${p.name}${p.is_guest ? ' (G)' : ''}: ${p.wins}승 ${p.losses}패${prizePenaltyText}\n`;
+            text += `${rankPrefix}${formatFinalResultPlayerName(p)}: ${p.wins}승 ${p.losses}패${prizePenaltyText}\n`;
         });
 
         text += `\n━━━━━━━━━━━━━━\n`;
@@ -4094,6 +4129,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
                             detailedResults={playerDetailedResults}
+                            matches={matches}
                         />
                     </div>
                 )}
@@ -4147,6 +4183,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
                             detailedResults={playerDetailedResults}
+                            matches={matches}
                         />
                     </div>
                 </div>
