@@ -4198,7 +4198,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 {activeTab === 'MATCHES' && (
                     <>
                         <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
-                            <div className="flex flex-col" style={{ marginBottom: '12px' }}>
+                            <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                 <div className="flex items-center gap-3 ml-2">
                                     <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
                                     {activeMatchIds.length > 0 && (
@@ -4208,13 +4208,13 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         </span>
                                     )}
                                 </div>
-                                <div className="mt-1.5 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                             </div>
 
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="mt-3 grid grid-cols-2 gap-x-2.5 gap-y-3 sm:gap-x-3 sm:gap-y-5 sm:mt-4">
+                                <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5">
                                     {activeMatchIds
                                         .map(mId => ({ id: mId, match: matches.find(x => x.id === mId) }))
                                         .filter(x => x.match)
@@ -4245,7 +4245,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </div>
                             )}
                         </section>
-                        <div style={{ marginTop: '24px' }}>
+                        <div style={{ marginTop: '32px' }}>
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -4265,20 +4265,20 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     const col = isB ? '#00E5FF' : '#C9B075';
 
                                     return (
-                                        <div key={group} className="space-y-2.5 sm:space-y-3">
-                                            <div className="flex flex-col" style={{ marginBottom: '12px', marginTop: '24px' }}>
+                                        <div key={group} className="space-y-3">
+                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
                                                 <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>
                                                     {`${isB ? 'BLUE / B조' : 'GOLD / A조'} WAITING`}
                                                 </h3>
-                                                <div className="mt-1.5 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
+                                                <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
-                                            <div className="flex flex-col gap-4 sm:gap-6">
+                                            <div className="flex flex-col gap-6">
                                                 {(() => {
                                                     const roundsInGroup = [...new Set(groupMatches.map(m => m.round || 1))].sort((a, b) => a - b);
                                                     return roundsInGroup.map(roundNum => {
                                                         const matchesInRound = groupMatches.filter(m => (m.round || 1) === roundNum);
                                                         return (
-                                                                <div key={roundNum} className="space-y-2.5 sm:space-y-3">
+                                                                <div key={roundNum} className="space-y-3">
                                                                 <div className="mb-1 ml-2 flex items-center gap-2 opacity-60">
                                                                     <div className="h-[1px] w-4" style={{ background: col }} />
                                                                     <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
@@ -4306,7 +4306,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                                             }}
                                                                         />
                                                                             {playingPlayerIdsInMatch.length > 0 && (
-                                                                                <div className="pointer-events-none absolute left-[48px] right-[72px] top-[10px] z-20 grid grid-cols-[1fr_18px_1fr] items-start sm:left-[58px] sm:right-[86px] sm:top-[18px]">
+                                                                                <div className="pointer-events-none absolute left-[58px] right-[86px] top-[18px] z-20 grid grid-cols-[1fr_18px_1fr] items-start">
                                                                                     <div className="grid grid-cols-2 gap-1 px-1">
                                                                                         {[0, 1].map((playerIndex) => (
                                                                                             <div key={playerIndex} className="flex justify-center">
