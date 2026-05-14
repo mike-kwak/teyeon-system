@@ -1320,11 +1320,16 @@ export default function KDKPage() {
         return (value || "").replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
     };
 
+    const isGenericGuestDisplayName = (value?: string) => {
+        const normalized = stripGuestSuffix(value).trim();
+        return normalized.toLowerCase() === 'guest' || normalized === '게스트';
+    };
+
     const cleanDisplayName = (value?: string) => {
         const manualGuestName = getManualGuestDisplayName(value);
         if (manualGuestName) return stripGuestSuffix(manualGuestName);
         const cleaned = stripGuestSuffix(value);
-        return cleaned && !isLikelyPlayerId(cleaned) ? cleaned : "";
+        return cleaned && !isLikelyPlayerId(cleaned) && !isGenericGuestDisplayName(cleaned) ? cleaned : "";
     };
 
     const findMatchPlayerName = (id: string, matchId?: string) => {
@@ -2273,7 +2278,9 @@ export default function KDKPage() {
         const finalResultGuestFee = 10000;
         const formatFinalResultPlayerName = (p: any) => {
             const manualFromName = getManualGuestDisplayName(p.name);
-            if (manualFromName) return manualFromName;
+            const manualFromId = getManualGuestDisplayName(p.id);
+            if (manualFromName && !isGenericGuestDisplayName(manualFromName)) return manualFromName;
+            if (manualFromId) return manualFromId;
 
             const resolvedById = getPlayerName(p.id);
             const resolvedClean = cleanDisplayName(resolvedById);
@@ -2315,15 +2322,23 @@ export default function KDKPage() {
             const isFineTier = !isPenaltyTier && i >= (totalCount - bottomHalfCount);
             const isGuestPlayer = isFinalResultGuest(p);
 
-            let prizePenaltyText = '';
-            if (isGuestPlayer) {
-                prizePenaltyText = ` [💸 -${finalResultGuestFee.toLocaleString()}원]`;
-            } else if (originalRank === 1) {
-                prizePenaltyText = ` [💰 +${firstPrize.toLocaleString()}원]`;
+            let finalAmount = 0;
+            if (!isGuestPlayer && originalRank === 1) {
+                finalAmount = firstPrize;
             } else if (isPenaltyTier) {
-                prizePenaltyText = ` [💸 -${bottom25Penalty.toLocaleString()}원]`;
+                finalAmount = -bottom25Penalty;
             } else if (isFineTier) {
-                prizePenaltyText = ` [💸 -${bottom25Late.toLocaleString()}원]`;
+                finalAmount = -bottom25Late;
+            }
+            if (isGuestPlayer) {
+                finalAmount -= finalResultGuestFee;
+            }
+
+            let prizePenaltyText = '';
+            if (finalAmount > 0) {
+                prizePenaltyText = ` [💰 +${finalAmount.toLocaleString()}원]`;
+            } else if (finalAmount < 0) {
+                prizePenaltyText = ` [💸 -${Math.abs(finalAmount).toLocaleString()}원]`;
             } else {
                 prizePenaltyText = ` [0원]`;
             }
@@ -3820,7 +3835,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
     return (
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
             {/* [v35.11] Redesigned Master Header: Minimalist 3-Column Layout */}
-            <header className="px-4 py-2.5 flex items-center justify-between gap-3 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-6">
+            <header className="px-3 py-2 flex items-center justify-between gap-2 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-6 sm:py-2.5">
                 {/* LEFT: ADMIN TOGGLE & RESET */}
                 <div className="hidden">
                     <div className="flex shrink-0 items-center gap-2">
@@ -3860,10 +3875,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
 
                 {/* CENTER: SESSION NAME (Strong Emphasis) */}
-                <div className="flex-[1.25] flex min-w-0 flex-col items-start">
+                <div className="flex-[1.05] flex min-w-0 flex-col items-start">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
                     <div className="flex max-w-full min-w-0 items-center justify-start gap-2">
-                        <h1 className="max-w-[240px] whitespace-nowrap text-[clamp(17px,4.8vw,22px)] font-black italic tracking-[-0.055em] text-white uppercase sm:max-w-[320px] sm:text-2xl sm:tracking-tighter leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                        <h1 className="max-w-[48vw] whitespace-nowrap text-[clamp(15px,4.2vw,21px)] font-black italic tracking-[-0.05em] text-white uppercase sm:max-w-[320px] sm:text-2xl sm:tracking-tighter leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
                             {sessionTitle || '260417_KDK_01'}
                         </h1>
                         <button
@@ -3888,12 +3903,12 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
 
                 {/* RIGHT: ACTION & STATUS INDICATOR */}
-                <div className="flex-[1.75] flex flex-wrap items-center justify-end gap-2">
+                <div className="flex-[1.95] flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                     <button
                         type="button"
                         onClick={openDisplayBoard}
                         disabled={!activeSessionId}
-                        className="rounded-full border border-[#C9B075]/45 bg-[#C9B075]/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#C9B075] transition-all hover:bg-[#C9B075]/18 active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25"
+                        className="rounded-full border border-[#C9B075]/45 bg-[#C9B075]/10 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075] transition-all hover:bg-[#C9B075]/18 active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.16em]"
                         title="Open TV display"
                     >
                         TV
@@ -3902,7 +3917,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         type="button"
                         onClick={copyDisplayBoardUrl}
                         disabled={!activeSessionId}
-                        className="rounded-full border border-[#C9B075]/30 bg-white/[0.035] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#C9B075]/85 transition-all hover:border-[#C9B075]/55 hover:bg-[#C9B075]/10 active:scale-95 disabled:cursor-not-allowed disabled:text-white/20"
+                        className="rounded-full border border-[#C9B075]/30 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075]/85 transition-all hover:border-[#C9B075]/55 hover:bg-[#C9B075]/10 active:scale-95 disabled:cursor-not-allowed disabled:text-white/20 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.14em]"
                         title="Copy TV display URL"
                     >
                         COPY
@@ -3910,7 +3925,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <button
                         type="button"
                         onClick={execCopySchedule}
-                        className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95"
+                        className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
                         title="Copy lineup"
                     >
                         LINEUP
@@ -3918,7 +3933,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <button
                         type="button"
                         onClick={copyFinalResults}
-                        className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95"
+                        className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
                         title="Share final result"
                     >
                         RESULT
@@ -3927,7 +3942,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         <button
                             type="button"
                             onClick={() => setShowMemberEditModal(true)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95"
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:h-9 sm:w-9"
                             title="Live setup"
                         >
                             <Settings className="h-3.5 w-3.5" />
@@ -3939,7 +3954,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     </div>
                     
                     {/* Integrated Sync Indicator */}
-                    <div className="flex flex-col items-end pr-1">
+                    <div className="hidden flex-col items-end pr-1 sm:flex">
                         <div className="flex items-center gap-1.5">
                             <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`} />
                             <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">
@@ -3952,7 +3967,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
             </header>
 
             <div
-                className={`w-full px-4 flex flex-col gap-2 relative z-50 py-2.5 ${activeTab === 'RANKING' ? 'border-b border-white/5' : 'border-b border-white/10'}`}
+                className={`w-full px-4 flex flex-col gap-2 relative z-50 py-2 ${activeTab === 'RANKING' ? 'border-b border-white/5' : 'border-b border-white/10'}`}
                 style={{ background: 'rgba(9, 9, 11, 0.85)', backdropFilter: 'blur(32px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
             >
                 <div className="hidden">
@@ -4003,8 +4018,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
 
                 {/* SUB-HEADER: Financials & Rules (Cleaner Integration) */}
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         <div className="flex items-center gap-1">
                             <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">WIN:</span>
                             <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{firstPrize/1000}K</span>
@@ -4021,7 +4036,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="flex items-center gap-2 overflow-hidden">
                         <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
                         <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
                             {matchRules?.slice(0, 30) || '1:1 시작, 노에드, 타이 3:3'}
