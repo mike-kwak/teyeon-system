@@ -4214,7 +4214,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="mt-3 grid grid-cols-1 gap-3 sm:mt-4 sm:grid-cols-2 sm:gap-x-3 sm:gap-y-5">
+                                <div className="mt-3 grid grid-cols-2 gap-x-2.5 gap-y-3 sm:gap-x-3 sm:gap-y-5 sm:mt-4">
                                     {activeMatchIds
                                         .map(mId => ({ id: mId, match: matches.find(x => x.id === mId) }))
                                         .filter(x => x.match)
@@ -4306,7 +4306,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                                             }}
                                                                         />
                                                                             {playingPlayerIdsInMatch.length > 0 && (
-                                                                                <div className="pointer-events-none absolute left-[58px] right-[86px] top-[18px] z-20 grid grid-cols-[1fr_18px_1fr] items-start">
+                                                                                <div className="pointer-events-none absolute left-[48px] right-[72px] top-[10px] z-20 grid grid-cols-[1fr_18px_1fr] items-start sm:left-[58px] sm:right-[86px] sm:top-[18px]">
                                                                                     <div className="grid grid-cols-2 gap-1 px-1">
                                                                                         {[0, 1].map((playerIndex) => (
                                                                                             <div key={playerIndex} className="flex justify-center">
