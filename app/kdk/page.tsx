@@ -171,6 +171,7 @@ export default function KDKPage() {
 
     const [showMemberEditModal, setShowMemberEditModal] = useState(false);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
+    const [archiveSuccessUrl, setArchiveSuccessUrl] = useState("");
     const [showConfetti, setShowConfetti] = useState(false);
     const [celebrationMode, setCelebrationMode] = useState(false);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
@@ -219,6 +220,38 @@ export default function KDKPage() {
             alert("전광판 주소가 복사되었습니다.");
         } catch {
             alert(`전광판 주소: ${absoluteUrl}`);
+        }
+    };
+
+    const getArchiveUrl = (targetSessionId = sessionId) => {
+        const archiveSessionId = targetSessionId?.trim();
+        if (!archiveSessionId) return null;
+        const path = `/archive?session=${encodeURIComponent(archiveSessionId)}`;
+        if (typeof window === 'undefined') return path;
+        return `${window.location.origin}${path}`;
+    };
+
+    const openArchiveSuccessLink = () => {
+        const archiveUrl = archiveSuccessUrl || getArchiveUrl(sessionId);
+        if (!archiveUrl) {
+            alert("Archive 링크를 만들 수 없습니다.");
+            return;
+        }
+        window.location.href = archiveUrl;
+    };
+
+    const copyArchiveSuccessLink = async () => {
+        const archiveUrl = archiveSuccessUrl || getArchiveUrl(sessionId);
+        if (!archiveUrl) {
+            alert("Archive 링크를 만들 수 없습니다.");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(archiveUrl);
+            alert("Archive 링크가 복사되었습니다.");
+        } catch {
+            alert(`Archive 링크: ${archiveUrl}`);
         }
     };
 
@@ -428,23 +461,19 @@ export default function KDKPage() {
             }
 
             // [v10.0] Championship Celebration (금색 가루 뿌리기)
+            const archiveUrl = getArchiveUrl(sessionId);
+            if (archiveUrl) setArchiveSuccessUrl(archiveUrl);
             setShowArchiveSuccess(true);
             setShowConfetti(true);
             setCelebrationMode(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
             
-            // Celebration Delay for pure satisfaction
-            await new Promise(r => setTimeout(r, 4500));
-
             // 3. Cleanup Live Data from Supabase
             const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
             if (delError) console.error("Cleanup Error (Non-Fatal):", delError);
 
-            // 4. Clear Local State
-            actualReset();
-
-            // 5. Redirect to Archive Portal
-            router.push(`/archive?session=${sessionId}`);
+            // 4. Clear live-session cache while keeping Archive actions visible.
+            localStorage.removeItem('kdk_live_session');
 
         } catch (err: any) {
             alert("공식 종료 실패: " + err.message);
@@ -4551,6 +4580,30 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             <p className="text-[#C9B075] text-xs font-black uppercase tracking-[0.6em] animate-pulse">
                                 테연 클럽 아카이브 저장 완료!
                             </p>
+                        </div>
+                        <div className="w-full max-w-[360px] space-y-3 rounded-[28px] border border-[#C9B075]/25 bg-black/60 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
+                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white/80">
+                                Archive 저장 완료
+                            </p>
+                            <p className="break-all text-[11px] font-bold leading-relaxed text-white/45">
+                                {archiveSuccessUrl || getArchiveUrl(sessionId) || '/archive'}
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={openArchiveSuccessLink}
+                                    className="h-12 rounded-2xl border border-[#C9B075]/70 bg-[#C9B075] text-[12px] font-black uppercase tracking-[0.08em] text-black shadow-[0_0_24px_rgba(201,176,117,0.28)] active:scale-95"
+                                >
+                                    Archive 열기
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={copyArchiveSuccessLink}
+                                    className="h-12 rounded-2xl border border-white/15 bg-white/10 text-[12px] font-black uppercase tracking-[0.08em] text-[#C9B075] active:scale-95"
+                                >
+                                    링크 복사
+                                </button>
+                            </div>
                         </div>
                         <div className="flex gap-3">
                             {[...Array(5)].map((_, i) => (
