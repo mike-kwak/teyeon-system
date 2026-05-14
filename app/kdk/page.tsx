@@ -4165,11 +4165,11 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
             </div>
 
-            <div className="flex-1 px-4 space-y-0 overflow-y-auto pb-60 no-scrollbar antialiased" style={{ background: '#14161a', paddingBottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
+            <div className="flex-1 space-y-0 overflow-y-auto px-3 pb-60 antialiased no-scrollbar sm:px-4" style={{ background: '#14161a', paddingBottom: 'calc(260px + env(safe-area-inset-bottom))' }}>
                 {activeTab === 'MATCHES' && (
                     <>
                         <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
-                            <div className="flex flex-col" style={{ marginBottom: '16px' }}>
+                            <div className="flex flex-col" style={{ marginBottom: '12px' }}>
                                 <div className="flex items-center gap-3 ml-2">
                                     <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
                                     {activeMatchIds.length > 0 && (
@@ -4179,13 +4179,13 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         </span>
                                     )}
                                 </div>
-                                <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                <div className="mt-1.5 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
                             </div>
 
                             {activeMatchIds.length === 0 ? (
                                 <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-x-3 gap-y-5 mt-4">
+                                <div className="mt-3 grid grid-cols-2 gap-x-2.5 gap-y-3 sm:gap-x-3 sm:gap-y-5 sm:mt-4">
                                     {activeMatchIds
                                         .map(mId => ({ id: mId, match: matches.find(x => x.id === mId) }))
                                         .filter(x => x.match)
@@ -4216,7 +4216,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </div>
                             )}
                         </section>
-                        <div style={{ marginTop: '32px' }}>
+                        <div style={{ marginTop: '24px' }}>
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -4236,21 +4236,21 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     const col = isB ? '#00E5FF' : '#C9B075';
 
                                     return (
-                                        <div key={group} className="space-y-3">
-                                            <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
+                                        <div key={group} className="space-y-2.5 sm:space-y-3">
+                                            <div className="flex flex-col" style={{ marginBottom: '12px', marginTop: '24px' }}>
                                                 <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>
                                                     {`${isB ? 'BLUE / B조' : 'GOLD / A조'} WAITING`}
                                                 </h3>
-                                                <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
+                                                <div className="mt-1.5 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
                                             </div>
-                                            <div className="flex flex-col gap-6">
+                                            <div className="flex flex-col gap-4 sm:gap-6">
                                                 {(() => {
                                                     const roundsInGroup = [...new Set(groupMatches.map(m => m.round || 1))].sort((a, b) => a - b);
                                                     return roundsInGroup.map(roundNum => {
                                                         const matchesInRound = groupMatches.filter(m => (m.round || 1) === roundNum);
                                                         return (
-                                                                <div key={roundNum} className="space-y-3">
-                                                                <div className="flex items-center gap-2 ml-2 mb-1 opacity-60">
+                                                                <div key={roundNum} className="space-y-2.5 sm:space-y-3">
+                                                                <div className="mb-1 ml-2 flex items-center gap-2 opacity-60">
                                                                     <div className="h-[1px] w-4" style={{ background: col }} />
                                                                     <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
                                                                     <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
@@ -4277,7 +4277,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                                             }}
                                                                         />
                                                                             {playingPlayerIdsInMatch.length > 0 && (
-                                                                                <div className="pointer-events-none absolute left-[58px] right-[86px] top-[18px] z-20 grid grid-cols-[1fr_18px_1fr] items-start">
+                                                                                <div className="pointer-events-none absolute left-[48px] right-[72px] top-[10px] z-20 grid grid-cols-[1fr_18px_1fr] items-start sm:left-[58px] sm:right-[86px] sm:top-[18px]">
                                                                                     <div className="grid grid-cols-2 gap-1 px-1">
                                                                                         {[0, 1].map((playerIndex) => (
                                                                                             <div key={playerIndex} className="flex justify-center">
@@ -4382,16 +4382,16 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
             </div>
 
-            <nav className="fixed bottom-24 bg-white/5 backdrop-blur-2xl border border-white/10 shadow-[0_20px_100px_rgba(0,0,0,0.8)] left-1/2 -translate-x-1/2 rounded-[32px] p-2 w-[94%] max-w-[440px] flex items-center justify-between gap-3 z-[90]">
+            <nav className="fixed bottom-24 left-1/2 z-[90] flex w-[94%] max-w-[440px] -translate-x-1/2 items-center justify-between gap-2 rounded-[28px] border border-white/10 bg-white/5 p-1.5 shadow-[0_20px_100px_rgba(0,0,0,0.8)] backdrop-blur-2xl sm:gap-3 sm:rounded-[32px] sm:p-2">
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[22px] py-4 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-tighter sm:rounded-[24px] sm:py-6 sm:gap-5 ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[18px] sm:text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[17px] sm:text-[20px] hover:text-white/60'}`}
                 >
                     🔥 MATCHES
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[24px] py-6 flex items-center justify-center gap-5 transition-all active:scale-95 uppercase tracking-tighter ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[20px] hover:text-white/60'}`}
+                    className={`flex-1 rounded-[22px] py-4 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-tighter sm:rounded-[24px] sm:py-6 sm:gap-5 ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[18px] sm:text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[17px] sm:text-[20px] hover:text-white/60'}`}
                 >
                     📊 RANKING
                 </button>
