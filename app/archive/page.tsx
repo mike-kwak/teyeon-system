@@ -56,6 +56,68 @@ export default function ArchivePage() {
     if (user) setUserEmail(user.email || null);
   }
 
+  const unknownPlayerName = '\uBBF8\uD655\uC778';
+  const genericGuestName = '\uAC8C\uC2A4\uD2B8';
+
+  const isLikelyArchiveId = (value?: string) => {
+    const raw = String(value || '').trim();
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)
+      || /^[a-z0-9-]{18,}$/i.test(raw);
+  };
+
+  const sanitizeArchivePlayerName = (value?: string) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed || trimmed === '?' || /^unknown$/i.test(trimmed)) return '';
+
+    if (/^manual-guest-/i.test(trimmed)) {
+      const guestName = trimmed
+        .replace(/^manual-guest-/i, '')
+        .replace(/\s*\(G\)$/i, '')
+        .replace(/\s+g$/i, '')
+        .trim();
+      if (!guestName || /^guest$/i.test(guestName) || guestName === genericGuestName) return '';
+      return `${guestName}(G)`;
+    }
+
+    if (/\s+g$/i.test(trimmed)) {
+      const guestName = trimmed.replace(/\s+g$/i, '').trim();
+      return guestName ? `${guestName}(G)` : '';
+    }
+
+    const normalized = trimmed.replace(/\s*\(G\)$/i, '(G)');
+    if (/^guest$/i.test(normalized) || normalized === genericGuestName) return '';
+    if (isLikelyArchiveId(normalized)) return '';
+    return normalized;
+  };
+
+  const resolveArchivePlayerName = (name?: string, playerId?: string, metadata: Record<string, any> = {}) => {
+    const directName = sanitizeArchivePlayerName(name);
+    if (directName) return directName;
+
+    const meta = playerId ? metadata[playerId] : null;
+    const metaName = sanitizeArchivePlayerName(meta?.name || meta?.nickname);
+    if (metaName) return metaName;
+
+    const idName = sanitizeArchivePlayerName(playerId);
+    if (idName) return idName;
+
+    return unknownPlayerName;
+  };
+
+  const normalizeArchiveGroup = (value?: string) => {
+    const raw = String(value || '').trim().toUpperCase();
+    if (raw.includes('B') || raw.includes('BLUE')) return 'B';
+    if (raw.includes('A') || raw.includes('GOLD')) return 'A';
+    return '';
+  };
+
+  const getArchiveGroupLabel = (value?: string) => {
+    const group = normalizeArchiveGroup(value);
+    if (group === 'B') return 'B\uC870';
+    if (group === 'A') return 'A\uC870';
+    return '';
+  };
+
   async function fetchArchives() {
     try {
       setLoading(true);
@@ -83,8 +145,13 @@ export default function ArchivePage() {
           matchesArr.forEach((m: any) => {
               const pIds = m.player_ids || m.playerIds || [];
               const meta = raw.player_metadata || {};
-              const resolvedNames = m.player_names || pIds.map((pid: string) => meta[pid]?.name || 'Unknown');
+              const sourceNames = m.player_names || m.playerNames || [];
+              const playerCount = Math.max(4, pIds.length, sourceNames.length);
+              const resolvedNames = Array.from({ length: playerCount }, (_, idx) => (
+                  resolveArchivePlayerName(sourceNames[idx], pIds[idx], meta)
+              ));
               const resolvedAvatars = m.player_avatars || pIds.map((pid: string) => meta[pid]?.avatar || '');
+              const archiveGroup = normalizeArchiveGroup(m.group_name || m.groupName || m.group);
 
               reconstructedMatches.push({
                   ...m,
@@ -95,7 +162,11 @@ export default function ArchivePage() {
                   isLocal: !!record.isLocal,
                   player_names: resolvedNames,
                   player_ids: pIds,
-                  player_avatars: resolvedAvatars
+                  player_avatars: resolvedAvatars,
+                  group_name: archiveGroup || m.group_name,
+                  archive_group_key: archiveGroup,
+                  archive_ranking_data: raw.ranking_data || [],
+                  archive_player_metadata: meta
               });
           });
       });
@@ -117,7 +188,7 @@ export default function ArchivePage() {
     filteredRecords.forEach(m => {
         const title = m.session_title || "Untitled";
         const dateKey = m.match_date || 'nodate';
-        const groupKey = `${title}_${dateKey}`;
+        const groupKey = m.session_id || `${title}_${dateKey}`;
         if (!groups[groupKey]) {
             groups[groupKey] = { 
                 id: m.session_id, 
@@ -126,12 +197,18 @@ export default function ArchivePage() {
                 created_at: m.created_at, 
                 matches: [], 
                 matchCount: 0,
-                playerSet: new Set()
+                playerSet: new Set(),
+                rankingData: m.archive_ranking_data || [],
+                playerMetadata: m.archive_player_metadata || {}
             };
         }
         groups[groupKey].matches.push(m);
         groups[groupKey].matchCount++;
         (m.player_names || []).forEach((n:string) => groups[groupKey].playerSet.add(n));
+        if ((!groups[groupKey].rankingData || groups[groupKey].rankingData.length === 0) && m.archive_ranking_data?.length) {
+            groups[groupKey].rankingData = m.archive_ranking_data;
+        }
+        groups[groupKey].playerMetadata = { ...(groups[groupKey].playerMetadata || {}), ...(m.archive_player_metadata || {}) };
     });
 
     return Object.values(groups)
@@ -140,6 +217,40 @@ export default function ArchivePage() {
   }, [filteredRecords]);
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
+
+  const buildArchiveRankingResults = (session: any) => {
+    const savedRanking = Array.isArray(session?.rankingData) ? session.rankingData : [];
+    if (savedRanking.length > 0) {
+        return savedRanking.map((p: any) => ({
+            name: resolveArchivePlayerName(p.name, p.id, session?.playerMetadata || {}),
+            wins: Number(p.wins || 0),
+            losses: Number(p.losses || 0),
+            diff: Number(p.diff || 0),
+            avatar: p.avatar || p.avatar_url || '',
+            played: Number(p.games || p.played || 0) || Number(p.wins || 0) + Number(p.losses || 0)
+        }));
+    }
+
+    const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
+    (session?.matches || []).forEach((m: any) => {
+        const pNames = m.player_names || [];
+        const pIds = m.player_ids || m.playerIds || [];
+        const pAvatars = m.player_avatars || [];
+        pNames.forEach((name: string, k: number) => {
+            const safeName = resolveArchivePlayerName(name, pIds[k], session?.playerMetadata || {});
+            if (!stats[safeName]) stats[safeName] = { name: safeName, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[k] || '', played: 0 };
+            const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+            const win = k < 2 ? (s1 > s2) : (s2 > s1);
+            stats[safeName].played++;
+            if (win) stats[safeName].wins++; else stats[safeName].losses++;
+            stats[safeName].pf += (k < 2 ? s1 : s2);
+            stats[safeName].pa += (k < 2 ? s2 : s1);
+            stats[safeName].diff = stats[safeName].pf - stats[safeName].pa;
+        });
+    });
+
+    return Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
+  };
 
   return (
     <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
@@ -198,22 +309,7 @@ export default function ArchivePage() {
                              </div>
      
                              {(() => {
-                                 const stats: Record<string, { name: string, wins: number, losses: number, diff: number, pf: number, pa: number, avatar: string, played: number }> = {};
-                                 selectedSession.matches.forEach((m: any) => {
-                                     const pNames = m.player_names || [];
-                                     const pAvatars = m.player_avatars || [];
-                                     pNames.forEach((name: string, k: number) => {
-                                         if (!stats[name]) stats[name] = { name, wins: 0, losses: 0, diff: 0, pf: 0, pa: 0, avatar: pAvatars[k] || '', played: 0 };
-                                         const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                         const win = k < 2 ? (s1 > s2) : (s2 > s1);
-                                         stats[name].played++;
-                                         if (win) stats[name].wins++; else stats[name].losses++;
-                                         stats[name].pf += (k < 2 ? s1 : s2);
-                                         stats[name].pa += (k < 2 ? s2 : s1);
-                                         stats[name].diff = stats[name].pf - stats[name].pa;
-                                     });
-                                 });
-                                 const sortedResults = Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
+                                 const sortedResults = buildArchiveRankingResults(selectedSession);
                                  const top3 = sortedResults.slice(0, 3);
                                  const others = sortedResults.slice(3);
      
@@ -253,7 +349,7 @@ export default function ArchivePage() {
                                         <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
                                             <span className="text-center">#</span><span className="text-center">PROF</span><span className="text-center">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
                                         </div>
-                                        {others.map((p, i) => (
+                                        {others.map((p: any, i: number) => (
                                             <div key={p.name} className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] items-center px-6 py-4 rounded-2xl bg-zinc-900/30 border border-white/5 mb-2 hover:bg-zinc-800/40 transition-all group relative overflow-hidden">
                                                 <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-zinc-700 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all"></div>
                                                 <span className="text-sm font-[1000] text-zinc-600 italic tracking-tighter text-center">{String(i + 4).padStart(2, '0')}</span>
@@ -288,11 +384,20 @@ export default function ArchivePage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4 pb-40 px-1">
                             {selectedSession.matches.map((m: any, idx: number) => {
-                                const n = m.player_names || ["?","?","?","?"];
+                                const n = Array.from({ length: 4 }, (_, playerIndex) => (
+                                    resolveArchivePlayerName(m.player_names?.[playerIndex], (m.player_ids || m.playerIds || [])[playerIndex], selectedSession.playerMetadata || {})
+                                ));
                                 const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                                const groupLabel = getArchiveGroupLabel(m.group_name || m.groupName || m.group);
+                                const isGroupB = normalizeArchiveGroup(m.group_name || m.groupName || m.group) === 'B';
                                 return (
                                     <div key={m.id || idx} className="rounded-[28px] flex flex-col overflow-hidden border border-white/5 bg-zinc-900/80 shadow-2xl relative group transition-all">
-                                        <div className="px-4 py-1.5 bg-black/40 border-b border-white/[0.03] flex justify-center items-center italic">
+                                        <div className="px-4 py-1.5 bg-black/40 border-b border-white/[0.03] flex justify-center items-center gap-2 italic">
+                                            {groupLabel && (
+                                                <span className={`px-2 py-0.5 rounded-full border text-[7px] font-black tracking-[0.24em] uppercase ${isGroupB ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-200' : 'border-[#C9B075]/40 bg-[#C9B075]/10 text-[#C9B075]'}`}>
+                                                    {groupLabel}
+                                                </span>
+                                            )}
                                             <span className="text-[7px] font-black text-[#C9B075] tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
                                         </div>
                                         <div className="px-3 py-5">
