@@ -1216,14 +1216,14 @@ export default function RankingTab({
             onCopy: () => void;
             disabled?: boolean;
         }) => (
-            <div className="rounded-[20px] border border-white/10 bg-black/24 p-3">
-                <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">{title}</p>
+            <div className="min-w-0 rounded-[20px] border border-white/10 bg-black/24 p-3">
+                <p className="mb-2 min-w-0 truncate text-[11px] font-black uppercase tracking-[0.16em] text-white/58">{title}</p>
                 <div className="grid grid-cols-2 gap-2">
                     <button
                         type="button"
                         disabled={disabled}
                         onClick={onDownload}
-                        className="rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2.5 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
+                        className="overflow-hidden text-ellipsis whitespace-nowrap rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2.5 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
                     >
                         저장
                     </button>
@@ -1231,7 +1231,7 @@ export default function RankingTab({
                         type="button"
                         disabled={disabled}
                         onClick={onCopy}
-                        className="rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2.5 text-[11px] font-black text-black shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
+                        className="overflow-hidden text-ellipsis whitespace-nowrap rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2.5 text-[11px] font-black text-black shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
                     >
                         복사
                     </button>
@@ -1242,17 +1242,17 @@ export default function RankingTab({
         return (
             <section className="mx-4 mt-8 rounded-[28px] border border-[#C9B075]/18 bg-white/[0.03] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
                 <div className="mb-4 flex items-center justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                         <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">Image Share</span>
-                        <h3 className="mt-1 text-lg font-black italic uppercase tracking-tight text-white">이미지 공유</h3>
+                        <h3 className="mt-1 truncate text-lg font-black italic uppercase tracking-tight text-white">이미지 공유</h3>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
+                    <span className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
                         PNG
                     </span>
                 </div>
 
                 {(detailExportStatus || tableExportStatus) && (
-                    <div className="mb-3 rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
+                    <div className="mb-3 overflow-hidden text-ellipsis rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
                         {tableExportStatus || detailExportStatus}
                     </div>
                 )}
@@ -1298,16 +1298,16 @@ export default function RankingTab({
         return (
             <section ref={detailCaptureRef} className="mx-4 mt-8 rounded-[28px] border border-[#C9B075]/18 bg-white/[0.035] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.35)]">
                 <div className="mb-4 flex items-end justify-between gap-3 px-1">
-                    <div>
+                    <div className="min-w-0">
                         <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">
                             Player Detail
                         </span>
-                        <h3 className="mt-1 text-xl font-black italic uppercase tracking-tight text-white">
+                        <h3 className="mt-1 truncate text-xl font-black italic uppercase tracking-tight text-white">
                             개인별 상세 결과표
                         </h3>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
+                        <span className="whitespace-nowrap rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
                             Completed only
                         </span>
                         {maxDetailGameCount > 0 && (
@@ -1315,21 +1315,21 @@ export default function RankingTab({
                                 <button
                                     type="button"
                                     onClick={() => handleDetailedResultImageAction('download')}
-                                    className="rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98]"
+                                    className="whitespace-nowrap rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98]"
                                 >
                                     이미지 저장
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleDetailedResultImageAction('copy')}
-                                    className="rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98]"
+                                    className="whitespace-nowrap rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98]"
                                 >
                                     이미지 복사
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleDetailedResultImageAction('share')}
-                                    className="rounded-xl border border-white/12 bg-white/[0.07] px-3 py-2 text-[11px] font-black text-white/82 transition active:scale-[0.98] md:hidden"
+                                    className="whitespace-nowrap rounded-xl border border-white/12 bg-white/[0.07] px-3 py-2 text-[11px] font-black text-white/82 transition active:scale-[0.98] md:hidden"
                                 >
                                     공유
                                 </button>
@@ -1338,7 +1338,7 @@ export default function RankingTab({
                     </div>
                 </div>
                 {detailExportStatus && (
-                    <div className="mb-3 rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
+                    <div className="mb-3 overflow-hidden text-ellipsis rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
                         {detailExportStatus}
                     </div>
                 )}
@@ -1375,7 +1375,7 @@ export default function RankingTab({
                                 {activeDetailedResults.map((row) => (
                                     <tr key={row.id} className="border-b border-white/5 text-white/72 last:border-b-0">
                                         <td className="border-r border-white/5 px-3 py-3 text-center font-black text-[#C9B075]">{row.displayRank}</td>
-                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-white">{row.name}</td>
+                                        <td className="max-w-[160px] truncate border-r border-white/5 px-3 py-3 text-center font-black text-white">{row.name}</td>
                                         <td className="border-r border-white/5 px-3 py-3 text-center font-black text-emerald-300">{row.wins}</td>
                                         <td className="border-r border-white/5 px-3 py-3 text-center font-black text-red-300">{row.losses}</td>
                                         <DetailScoreCells values={row.pointsForByMatch} />

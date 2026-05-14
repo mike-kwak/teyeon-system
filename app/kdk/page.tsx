@@ -3012,8 +3012,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
                             <div className="overflow-visible rounded-[20px] border border-white/10 bg-[#111111] p-3 sm:rounded-[24px] sm:p-4">
                                 <div className="mb-2 flex items-center justify-between gap-2 px-1 sm:mb-3 sm:gap-3">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
-                                    <span className="text-right text-[9px] font-black text-[#C9B075] sm:text-[10px]">
+                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
+                                    <span className="min-w-0 truncate text-right text-[9px] font-black text-[#C9B075] sm:text-[10px]">
                                         {manualPasteMatchCount} matches · {manualPlayerNames.length} names · {manualGroups.length || 0} groups
                                     </span>
                                 </div>
@@ -3034,10 +3034,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                         {getManualGroupLabel(row.group)} · {row.order}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
-                                                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 text-[11px] font-black text-white sm:gap-2 sm:text-[12px]">
-                                                            <span className="truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
-                                                            <span className="rounded-full border border-[#C9B075]/35 px-1.5 py-0.5 text-[8px] font-black text-[#C9B075] sm:px-2 sm:text-[9px]">VS</span>
-                                                            <span className="truncate">{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 text-[11px] font-black text-white sm:gap-2 sm:text-[12px]">
+                                                            <span className="min-w-0 truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                                            <span className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/35 px-1.5 py-0.5 text-[8px] font-black text-[#C9B075] sm:px-2 sm:text-[9px]">VS</span>
+                                                            <span className="min-w-0 truncate">{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
                                                         </div>
                                                         {!row.isValid && (
                                                             <p className="mt-1 text-center text-[10px] font-bold text-red-300">
@@ -3045,7 +3045,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                             </p>
                                                         )}
                                                     </div>
-                                                    <span className="shrink-0 text-[9px] font-black text-white/40 sm:text-[10px]">{row.time || '--:--'}</span>
+                                                    <span className="shrink-0 whitespace-nowrap text-[9px] font-black text-white/40 sm:text-[10px]">{row.time || '--:--'}</span>
                                                 </div>
                                             </div>
                                         ))}
@@ -3057,7 +3057,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         type="button"
                                         disabled={!canProceedToNameMatching}
                                         onClick={() => setManualStep('MATCH_NAMES')}
-                                        className="flex min-h-[50px] w-full items-center justify-center rounded-[16px] px-4 text-[13px] font-black uppercase tracking-[0.1em] transition-all active:scale-[0.98] disabled:cursor-not-allowed sm:min-h-[54px] sm:rounded-[18px] sm:px-5 sm:text-[14px] sm:tracking-[0.12em]"
+                                        className="flex min-h-[50px] w-full items-center justify-center whitespace-nowrap rounded-[16px] px-4 text-[13px] font-black uppercase tracking-[0.1em] transition-all active:scale-[0.98] disabled:cursor-not-allowed sm:min-h-[54px] sm:rounded-[18px] sm:px-5 sm:text-[14px] sm:tracking-[0.12em]"
                                         style={{
                                             background: canProceedToNameMatching
                                                 ? 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)'
@@ -3148,8 +3148,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
                             <div className="overflow-visible rounded-[24px] border border-white/10 bg-[#111111] p-4">
                                 <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Matched Preview</span>
-                                    <span className="text-[10px] font-black text-[#C9B075]">{manualPastePreview.length} matches · {manualGroups.length || 0} groups</span>
+                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Matched Preview</span>
+                                    <span className="min-w-0 truncate text-right text-[10px] font-black text-[#C9B075]">{manualPastePreview.length} matches · {manualGroups.length || 0} groups</span>
                                 </div>
                                 <div className="space-y-2">
                                     {manualPastePreview.map((row, index) => (
@@ -3159,13 +3159,13 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     {getManualGroupLabel(row.group)} · {row.order}
                                                 </span>
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
-                                                        <span className="truncate text-right">{row.teamA.map(getManualResolvedName).join(' / ')}</span>
-                                                        <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
-                                                        <span className="truncate">{row.teamB.map(getManualResolvedName).join(' / ')}</span>
+                                                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px] font-black text-white">
+                                                        <span className="min-w-0 truncate text-right">{row.teamA.map(getManualResolvedName).join(' / ')}</span>
+                                                        <span className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
+                                                        <span className="min-w-0 truncate">{row.teamB.map(getManualResolvedName).join(' / ')}</span>
                                                     </div>
                                                 </div>
-                                                <span className="shrink-0 text-[10px] font-black text-white/40">{row.time || '--:--'}</span>
+                                                <span className="shrink-0 whitespace-nowrap text-[10px] font-black text-white/40">{row.time || '--:--'}</span>
                                             </div>
                                         </div>
                                     ))}
@@ -3488,10 +3488,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         <div key={`${row.raw}-rules-${group}-${index}`} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <span style={{ width: '28px', height: '28px', borderRadius: '999px', background: '#C9B075', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 1000, flexShrink: 0 }}>{row.order}</span>
                                             <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
-                                                    <span className="truncate text-right">{row.teamAResolved.join(' / ')}</span>
-                                                    <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
-                                                    <span className="truncate">{row.teamBResolved.join(' / ')}</span>
+                                                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px] font-black text-white">
+                                                    <span className="min-w-0 truncate text-right">{row.teamAResolved.join(' / ')}</span>
+                                                    <span className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
+                                                    <span className="min-w-0 truncate">{row.teamBResolved.join(' / ')}</span>
                                                 </div>
                                             </div>
                                             <span style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>{row.time || '--:--'}</span>
@@ -4027,7 +4027,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 <div className="flex-[1.05] flex min-w-0 flex-col items-start">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
                     <div className="flex max-w-full min-w-0 items-center justify-start gap-2">
-                        <h1 className="max-w-[48vw] whitespace-nowrap text-[clamp(15px,4.2vw,21px)] font-black italic tracking-[-0.05em] text-white uppercase sm:max-w-[320px] sm:text-2xl sm:tracking-tighter leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                        <h1 className="min-w-0 max-w-[48vw] truncate whitespace-nowrap text-[clamp(15px,4.2vw,21px)] font-black italic tracking-[-0.05em] text-white uppercase sm:max-w-[320px] sm:text-2xl sm:tracking-tighter leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
                             {sessionTitle || '260417_KDK_01'}
                         </h1>
                         <button
@@ -4057,7 +4057,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         type="button"
                         onClick={openDisplayBoard}
                         disabled={!activeSessionId}
-                        className="rounded-full border border-[#C9B075]/45 bg-[#C9B075]/10 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075] transition-all hover:bg-[#C9B075]/18 active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.16em]"
+                        className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/45 bg-[#C9B075]/10 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075] transition-all hover:bg-[#C9B075]/18 active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.16em]"
                         title="Open TV display"
                     >
                         TV
@@ -4066,7 +4066,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         type="button"
                         onClick={copyDisplayBoardUrl}
                         disabled={!activeSessionId}
-                        className="rounded-full border border-[#C9B075]/30 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075]/85 transition-all hover:border-[#C9B075]/55 hover:bg-[#C9B075]/10 active:scale-95 disabled:cursor-not-allowed disabled:text-white/20 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.14em]"
+                        className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/30 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075]/85 transition-all hover:border-[#C9B075]/55 hover:bg-[#C9B075]/10 active:scale-95 disabled:cursor-not-allowed disabled:text-white/20 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.14em]"
                         title="Copy TV display URL"
                     >
                         COPY
@@ -4074,7 +4074,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <button
                         type="button"
                         onClick={execCopySchedule}
-                        className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
+                        className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
                         title="Copy lineup"
                     >
                         LINEUP
@@ -4082,7 +4082,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <button
                         type="button"
                         onClick={copyFinalResults}
-                        className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
+                        className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
                         title="Share final result"
                     >
                         RESULT
@@ -4185,7 +4185,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden">
                         <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
                         <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
                             {matchRules?.slice(0, 30) || '1:1 시작, 노에드, 타이 3:3'}
