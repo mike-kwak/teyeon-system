@@ -9,6 +9,30 @@ interface RankingRowProps {
 }
 
 export default function RankingRow({ player, rank, amount }: RankingRowProps) {
+    const formatRankingPlayerName = (name?: string, id?: string) => {
+        const normalizeGuest = (value?: string) => {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            if (/^manual-guest-/i.test(raw)) {
+                const guestName = raw.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
+                return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '';
+            }
+            if (/\s+g$/i.test(raw)) {
+                const guestName = raw.replace(/\s+g$/i, '').trim();
+                return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '';
+            }
+            const cleaned = raw.replace(/\s*\(G\)$/i, '(G)');
+            return /^(guest|게스트)(\(G\))?$/i.test(cleaned) ? '' : cleaned;
+        };
+
+        const byName = normalizeGuest(name);
+        if (byName && byName !== id) return byName;
+        const byId = normalizeGuest(id);
+        return byId || '미확인';
+    };
+
+    const displayName = formatRankingPlayerName(player.name, player.id);
+
     const trendIcon = () => {
         if (player.trend === 'up') return <ChevronUp className="w-3 h-3 text-[#4ADE80] animate-bounce" />;
         if (player.trend === 'down') return <ChevronDown className="w-3 h-3 text-[#FB7185] animate-pulse" />;
@@ -31,7 +55,7 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
             <div className="flex items-center justify-center">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
                     {player.avatar ? (
-                        <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
+                        <img src={player.avatar} alt={displayName} className="w-full h-full object-cover" />
                     ) : (
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white/10">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/>
@@ -42,7 +66,7 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
 
             <div className="text-left font-black text-[15px] text-white tracking-tighter leading-tight pl-2 flex items-center gap-1.5 min-w-0">
                 <span className="truncate">
-                    {player.name.startsWith('g-') || player.name === player.id ? '게스트' : player.name}
+                    {displayName}
                 </span>
                 {player.is_guest && (
                     <span className="text-[8px] font-black text-[#C9B075] italic bg-[#C9B075]/10 px-1.5 py-0.5 rounded-full border border-[#C9B075]/20 tracking-tighter uppercase shrink-0">

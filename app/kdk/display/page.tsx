@@ -11,6 +11,7 @@ type RealtimeStatus = 'IDLE' | 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'C
 type RankingEntry = {
   id: string;
   name: string;
+  isGuest?: boolean;
   wins: number;
   losses: number;
   pointsFor: number;
@@ -158,10 +159,15 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
   const rankingMap = new Map<string, RankingEntry>();
 
   const ensurePlayer = (id: string, name: string) => {
+    const isGuest = playerLookup[id]?.isGuest === true
+      || /^manual-guest-/i.test(String(id || ''))
+      || /^g-/i.test(String(id || ''))
+      || /\s*\(G\)$/i.test(String(name || ''));
     if (!rankingMap.has(id)) {
       rankingMap.set(id, {
         id,
         name,
+        isGuest,
         wins: 0,
         losses: 0,
         pointsFor: 0,
@@ -171,6 +177,7 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
     }
     const player = rankingMap.get(id)!;
     player.name = name;
+    player.isGuest = player.isGuest || isGuest;
     return player;
   };
 
@@ -212,6 +219,30 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
     if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
     return a.name.localeCompare(b.name);
   });
+}
+
+function calculateDisplaySettlement(player: RankingEntry, rankIndex: number, total: number) {
+  const firstPrize = 10000;
+  const l1Penalty = 3000;
+  const l2Penalty = 5000;
+  const guestFee = 10000;
+  const bottomHalfCount = Math.ceil(total / 2);
+  const penaltyCount = Math.ceil(bottomHalfCount / 2);
+  const isPenaltyTier = rankIndex >= total - penaltyCount;
+  const isFineTier = !isPenaltyTier && rankIndex >= total - bottomHalfCount;
+  let amount = 0;
+
+  if (!player.isGuest && rankIndex === 0) {
+    amount = firstPrize;
+  } else if (isPenaltyTier) {
+    amount = -l2Penalty;
+  } else if (isFineTier) {
+    amount = -l1Penalty;
+  }
+
+  if (player.isGuest) amount -= guestFee;
+
+  return { amount, isPenalty: amount < 0 };
 }
 
 function CourtCard({ court, match, playerLookup }: { court: number; match?: Match; playerLookup: PlayerLookup }) {
@@ -830,9 +861,12 @@ function KdkDisplayBoard() {
                         </div>
                         {column.map((player, localIndex) => {
                           const rankIndex = rankOffset + localIndex;
+                          const settlement = calculateDisplaySettlement(player, rankIndex, liveRanking.length);
                           return (
                             <div key={player.id} className={`relative grid min-h-[30px] grid-cols-[34px_minmax(0,1fr)_52px_40px] items-center gap-2 overflow-hidden rounded-[10px] border px-2 py-1.5 ${
-                              rankIndex === 0
+                              settlement.isPenalty
+                                ? 'border-red-400/24 bg-red-500/[0.075]'
+                                : rankIndex === 0
                                 ? 'border-[#FFD66B]/28 bg-[#D8BE78]/10'
                                 : rankIndex === 1
                                   ? 'border-white/12 bg-white/[0.052]'
@@ -840,13 +874,15 @@ function KdkDisplayBoard() {
                                     ? 'border-orange-400/16 bg-orange-400/[0.04]'
                                     : 'border-white/8 bg-white/[0.035]'
                             }`}>
-                              {rankIndex < 3 && (
+                              {(rankIndex < 3 || settlement.isPenalty) && (
                                 <div className={`absolute inset-y-0 left-0 w-0.5 ${
-                                  rankIndex === 0 ? 'bg-[#FFD66B]' : rankIndex === 1 ? 'bg-white/45' : 'bg-orange-400/65'
+                                  settlement.isPenalty ? 'bg-red-400' : rankIndex === 0 ? 'bg-[#FFD66B]' : rankIndex === 1 ? 'bg-white/45' : 'bg-orange-400/65'
                                 }`} />
                               )}
                               <span className={`flex h-6 w-6 items-center justify-center justify-self-center rounded-md text-[12px] font-black leading-none ${
-                                rankIndex === 0
+                                settlement.isPenalty
+                                  ? 'bg-red-500/80 text-white'
+                                  : rankIndex === 0
                                   ? 'bg-[#FFD66B] text-black'
                                   : rankIndex === 1
                                     ? 'bg-white/70 text-black'
@@ -856,7 +892,14 @@ function KdkDisplayBoard() {
                               }`}>
                                 {rankIndex + 1}
                               </span>
-                              <p className={`min-w-0 truncate text-[12px] font-black ${rankIndex < 3 ? 'text-white' : 'text-white/86'}`}>{player.name}</p>
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <p className={`min-w-0 truncate text-[12px] font-black ${rankIndex < 3 ? 'text-white' : 'text-white/86'}`}>{player.name}</p>
+                                {settlement.isPenalty && (
+                                  <span className="shrink-0 rounded-full border border-red-300/25 bg-red-500/15 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-200">
+                                    PEN {settlement.amount.toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
                               <span className="w-full whitespace-nowrap text-right text-[10px] font-black text-white/76">{player.wins}W {player.losses}L</span>
                               <span className={`w-full text-right text-[13px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
                                 {player.diff > 0 ? '+' : ''}{player.diff}

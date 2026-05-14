@@ -74,6 +74,42 @@ export default function RankingTab({
 
     const guestFee = 10000;
     const guestFeeLabel = `게스트 ${guestFee.toLocaleString()}`;
+    const finalImageLabels = {
+        personalDetail: '\uAC1C\uC778\uBCC4 \uC0C1\uC138\uD45C',
+        finalOverallButton: '\uCD5C\uC885 \uC804\uCCB4',
+        finalGroupsButton: '\uC870\uBCC4 \uACB0\uACFC',
+        fullSchedule: '\uC804\uCCB4 \uB300\uC9C4\uD45C',
+        matchResults: '\uACBD\uAE30 \uACB0\uACFC\uD45C',
+        overallTitle: '\uC624\uB298\uC758 \uCD5C\uC885 \uACB0\uACFC - \uC804\uCCB4 \uC21C\uC704',
+        groupsTitle: '\uC870\uBCC4 \uCD5C\uC885 \uACB0\uACFC',
+        overallSection: '\uC804\uCCB4 \uCD5C\uC885 \uC21C\uC704',
+        groupASection: 'A\uC870 \uC21C\uC704',
+        groupBSection: 'B\uC870 \uC21C\uC704',
+        prizeLine: '\uC0C1\uAE08/\uBC8C\uAE08',
+        rankSuffix: '\uC704',
+        win: '\uC2B9',
+        loss: '\uD328',
+        won: '\uC6D0',
+        archiveNote: '\uC0C1\uC138 \uACB0\uACFC\uB294 Archive\uC5D0\uC11C \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.',
+    };
+    const reportColors = {
+        page: '#ffffff',
+        border: '#cbd5e1',
+        borderStrong: '#94a3b8',
+        header: '#e5e7eb',
+        headerAlt: '#eef2f7',
+        row: '#ffffff',
+        rowAlt: '#f8fafc',
+        text: '#111827',
+        muted: '#4b5563',
+        goldBg: '#fef3c7',
+        goldText: '#92400e',
+        blueBg: '#e0f2fe',
+        blueText: '#0369a1',
+        penaltyBg: '#fff1f2',
+        penaltyText: '#dc2626',
+        plusText: '#047857',
+    };
     const isGuestRankedPlayer = (player: any) => {
         const id = String(player?.id || '');
         const name = String(player?.name || '');
@@ -87,18 +123,15 @@ export default function RankingTab({
     };
 
     const calculateSettlement = (p: any, idx: number, total: number) => {
-        if (isGuestRankedPlayer(p)) {
-            return { amount: -guestFee, isPenaltyTier: false, isFineTier: false };
-        }
-
         let amount = 0;
         const bottomHalfCount = Math.ceil(total / 2);
         const penaltyCount = Math.ceil(bottomHalfCount / 2);
         const isPenaltyTier = idx >= (total - penaltyCount);
         const isFineTier = !isPenaltyTier && idx >= (total - bottomHalfCount);
+        const isGuest = isGuestRankedPlayer(p);
 
         let performancePenalty = 0;
-        if (idx === 0 && !p.is_guest) {
+        if (idx === 0 && !isGuest) {
             performancePenalty = prizes.first || 10000;
         } else if (isPenaltyTier) {
             performancePenalty = -(prizes.l2 || 5000);
@@ -106,9 +139,52 @@ export default function RankingTab({
             performancePenalty = -(prizes.l1 || 3000);
         }
 
-        amount = performancePenalty;
+        amount = performancePenalty - (isGuest ? guestFee : 0);
 
         return { amount, isPenaltyTier, isFineTier };
+    };
+
+    const unknownPlayerLabel = '\uBBF8\uD655\uC778';
+    const genericGuestLabel = '\uAC8C\uC2A4\uD2B8';
+
+    const isGenericGuestLabel = (value?: string) => {
+        const normalized = String(value || '')
+            .trim()
+            .replace(/\s*\(G\)$/i, '')
+            .replace(/\s+g$/i, '')
+            .trim();
+        return normalized.toLowerCase() === 'guest' || normalized === genericGuestLabel;
+    };
+
+    const formatKDKPlayerName = (value?: string) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return '';
+        if (/^manual-guest-/i.test(trimmed)) {
+            const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
+            return guestName && !isGenericGuestLabel(guestName) ? `${guestName}(G)` : '';
+        }
+        if (/\s+g$/i.test(trimmed)) {
+            const guestName = trimmed.replace(/\s+g$/i, '').trim();
+            return guestName && !isGenericGuestLabel(guestName) ? `${guestName}(G)` : '';
+        }
+        const normalized = trimmed.replace(/\s*\(G\)$/i, '(G)');
+        return isGenericGuestLabel(normalized) ? '' : normalized;
+    };
+
+    const isLikelyKDKId = (value?: string) => {
+        const raw = String(value || '').trim();
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)
+            || /^[a-z0-9-]{18,}$/i.test(raw);
+    };
+
+    const resolveKDKPlayerDisplayName = (name?: string, id?: string) => {
+        const nameCandidate = formatKDKPlayerName(name);
+        if (nameCandidate && !isLikelyKDKId(nameCandidate)) return nameCandidate;
+
+        const idCandidate = formatKDKPlayerName(id);
+        if (idCandidate && !isLikelyKDKId(idCandidate)) return idCandidate;
+
+        return unknownPlayerLabel;
     };
 
     const generatePlayerList = (filterGroup?: string) => {
@@ -130,7 +206,7 @@ export default function RankingTab({
     const RankingTable = ({ players: tablePlayers, title }: { players: RankedPlayer[], title: string }) => {
         // [v34.0] Since useRanking hook now handles deterministic sorting and trends,
         // we simply map the ranks based on the provided array order.
-        const sorted = tablePlayers.map((p, i) => ({ ...p, rk: i + 1 }));
+        const sorted = tablePlayers.map((p, i) => ({ ...p, name: resolveKDKPlayerDisplayName(p.name, p.id), rk: i + 1 }));
         const top3 = sorted.slice(0, 3);
         const others = sorted.slice(3);
 
@@ -243,7 +319,7 @@ export default function RankingTab({
     const activeDetailedResults = (activeRankingTab === 'ALL'
         ? detailedResults
         : detailedResults.filter((row) => row.group === activeRankingTab)
-    ).map((row, index) => ({ ...row, displayRank: index + 1 }));
+    ).map((row, index) => ({ ...row, name: resolveKDKPlayerDisplayName(row.name, row.id), displayRank: index + 1 }));
     const maxDetailGameCount = Math.max(
         0,
         ...activeDetailedResults.map((row) => Math.max(row.pointsForByMatch.length, row.pointsAgainstByMatch.length))
@@ -265,23 +341,6 @@ export default function RankingTab({
             .replace(/[\\/:*?"<>|]/g, '_')
             .replace(/\s+/g, '_');
         return `${safeSessionTitle}_PERSONAL_DETAIL.png`;
-    };
-
-    const formatKDKPlayerName = (value?: string) => {
-        const trimmed = String(value || '').trim();
-        if (!trimmed) return '';
-        if (/^manual-guest-/i.test(trimmed)) {
-            const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
-            return guestName ? `${guestName}(G)` : '게스트(G)';
-        }
-        if (/\s+g$/i.test(trimmed)) return `${trimmed.replace(/\s+g$/i, '').trim()}(G)`;
-        return trimmed.replace(/\s*\(G\)$/i, '(G)');
-    };
-
-    const isLikelyKDKId = (value?: string) => {
-        const raw = String(value || '').trim();
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)
-            || /^[a-z0-9-]{18,}$/i.test(raw);
     };
 
     const getRankedPlayerNameById = (playerId?: string) => {
@@ -439,7 +498,7 @@ export default function RankingTab({
     const createMatchTableImageBlob = async (kind: MatchTableExportKind) => {
         const rows = getMatchTableRows(kind);
         const isResults = kind === 'results';
-        const title = isResults ? '경기 결과표' : '전체 대진표';
+        const title = isResults ? finalImageLabels.matchResults : finalImageLabels.fullSchedule;
         const scale = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
         const padding = 36;
         const rowHeight = 48;
@@ -448,20 +507,20 @@ export default function RankingTab({
         const columns = isResults
             ? [
                 { key: 'no', label: 'No', width: 54 },
-                { key: 'group', label: '조', width: 72 },
-                { key: 'round', label: 'ROUND', width: 90 },
-                { key: 'matchNo', label: '경기', width: 88 },
-                { key: 'teamA', label: '팀1', width: 270 },
-                { key: 'score', label: '점수', width: 110 },
-                { key: 'teamB', label: '팀2', width: 270 },
+                { key: 'group', label: '\uC870', width: 72 },
+                { key: 'round', label: '\uB77C\uC6B4\uB4DC', width: 90 },
+                { key: 'matchNo', label: '\uB300\uC9C4\uBC88\uD638', width: 88 },
+                { key: 'teamA', label: '\uD3001', width: 270 },
+                { key: 'score', label: '\uC810\uC218', width: 110 },
+                { key: 'teamB', label: '\uD3002', width: 270 },
             ]
             : [
                 { key: 'no', label: 'No', width: 54 },
-                { key: 'group', label: '조', width: 72 },
-                { key: 'round', label: 'ROUND', width: 90 },
-                { key: 'matchNo', label: '경기', width: 88 },
-                { key: 'teamA', label: '팀1', width: 305 },
-                { key: 'teamB', label: '팀2', width: 305 },
+                { key: 'group', label: '\uC870', width: 72 },
+                { key: 'round', label: '\uB77C\uC6B4\uB4DC', width: 90 },
+                { key: 'matchNo', label: '\uB300\uC9C4\uBC88\uD638', width: 88 },
+                { key: 'teamA', label: '\uD3001', width: 305 },
+                { key: 'teamB', label: '\uD3002', width: 305 },
             ];
         const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
         const emptyRows = rows.length === 0 ? 1 : 0;
@@ -471,7 +530,7 @@ export default function RankingTab({
         const canvas = document.createElement('canvas');
         canvas.width = Math.ceil(width * scale);
         canvas.height = Math.ceil(height * scale);
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d')!;
         if (!ctx) throw new Error('Canvas context is unavailable.');
         ctx.scale(scale, scale);
 
@@ -481,7 +540,7 @@ export default function RankingTab({
             y: number,
             options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline; maxWidth?: number } = {}
         ) => {
-            ctx.fillStyle = options.color || '#ffffff';
+            ctx.fillStyle = options.color || '#111827';
             ctx.font = `${options.weight || 800} ${options.size || 14}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
             ctx.textAlign = options.align || 'center';
             ctx.textBaseline = options.baseline || 'middle';
@@ -499,59 +558,58 @@ export default function RankingTab({
             drawText(text, x, y, { ...options, size, maxWidth });
         };
 
-        const background = ctx.createLinearGradient(0, 0, width, height);
-        background.addColorStop(0, '#050505');
-        background.addColorStop(0.52, '#10100d');
-        background.addColorStop(1, '#050505');
-        ctx.fillStyle = background;
+        ctx.fillStyle = reportColors.page;
         ctx.fillRect(0, 0, width, height);
-        ctx.strokeStyle = 'rgba(201,176,117,0.35)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = reportColors.borderStrong;
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(padding / 2, padding / 2, width - padding, height - padding);
 
-        drawText('TEYEON KDK', padding, 36, { align: 'left', size: 13, weight: 900, color: '#c9b075' });
-        drawText(sessionTitle || 'KDK SESSION', padding, 66, { align: 'left', size: 28, weight: 900, color: '#ffffff' });
-        drawText(title, width - padding, 66, { align: 'right', size: 23, weight: 900, color: '#f6df9a' });
-        drawText(new Date().toLocaleString('ko-KR'), width - padding, 96, { align: 'right', size: 12, weight: 800, color: 'rgba(255,255,255,0.45)' });
+        drawText('TEYEON KDK', padding, 36, { align: 'left', size: 13, weight: 900, color: '#9a741c' });
+        drawText(sessionTitle || 'KDK SESSION', padding, 66, { align: 'left', size: 28, weight: 900, color: reportColors.text });
+        drawText(title, width - padding, 66, { align: 'right', size: 23, weight: 900, color: reportColors.text });
+        drawText(new Date().toLocaleString('ko-KR'), width - padding, 96, { align: 'right', size: 12, weight: 800, color: reportColors.muted });
 
         const tableX = padding;
         let y = titleHeight;
         let x = tableX;
         columns.forEach((column) => {
-            ctx.fillStyle = 'rgba(201,176,117,0.16)';
+            ctx.fillStyle = reportColors.header;
             ctx.fillRect(x, y, column.width, rowHeight);
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.strokeStyle = reportColors.borderStrong;
+            ctx.lineWidth = 1.3;
             ctx.strokeRect(x, y, column.width, rowHeight);
-            drawText(column.label, x + column.width / 2, y + rowHeight / 2, { size: 13, weight: 900, color: '#f6df9a' });
+            drawText(column.label, x + column.width / 2, y + rowHeight / 2, { size: 13, weight: 900, color: '#1f2937' });
             x += column.width;
         });
 
         y += rowHeight;
         if (rows.length === 0) {
-            ctx.fillStyle = 'rgba(255,255,255,0.035)';
+            ctx.fillStyle = reportColors.rowAlt;
             ctx.fillRect(tableX, y, tableWidth, rowHeight);
-            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.strokeStyle = reportColors.border;
             ctx.strokeRect(tableX, y, tableWidth, rowHeight);
-            drawText(isResults ? '완료된 경기가 없습니다' : '대진이 없습니다', tableX + tableWidth / 2, y + rowHeight / 2, { size: 16, weight: 900, color: 'rgba(255,255,255,0.72)' });
+            drawText(isResults ? '완료된 경기가 없습니다' : '대진이 없습니다', tableX + tableWidth / 2, y + rowHeight / 2, { size: 16, weight: 900, color: reportColors.muted });
         } else {
             rows.forEach((row, rowIndex) => {
                 if ((row as any).isSection) {
-                    const sectionColor = row.groupKey === 'B' ? '#67e8f9' : '#f6df9a';
-                    ctx.fillStyle = row.groupKey === 'B' ? 'rgba(56,217,255,0.14)' : 'rgba(255,214,107,0.13)';
+                    const sectionColor = row.groupKey === 'B' ? reportColors.blueText : reportColors.goldText;
+                    ctx.fillStyle = row.groupKey === 'B' ? reportColors.blueBg : reportColors.goldBg;
                     ctx.fillRect(tableX, y, tableWidth, rowHeight);
-                    ctx.strokeStyle = row.groupKey === 'B' ? 'rgba(56,217,255,0.24)' : 'rgba(255,214,107,0.22)';
+                    ctx.strokeStyle = row.groupKey === 'B' ? '#38bdf8' : '#d97706';
+                    ctx.lineWidth = 1.4;
                     ctx.strokeRect(tableX, y, tableWidth, rowHeight);
                     drawText((row as any).sectionLabel, tableX + 18, y + rowHeight / 2, { align: 'left', size: 15, weight: 900, color: sectionColor });
                     y += rowHeight;
                     return;
                 }
 
-                const rowAccent = row.groupKey === 'B' ? 'rgba(56,217,255,0.18)' : 'rgba(255,214,107,0.16)';
-                ctx.fillStyle = rowIndex % 2 === 0 ? 'rgba(255,255,255,0.034)' : 'rgba(255,255,255,0.02)';
+                const rowAccent = row.groupKey === 'B' ? '#38bdf8' : '#d97706';
+                ctx.fillStyle = rowIndex % 2 === 0 ? reportColors.row : reportColors.rowAlt;
                 ctx.fillRect(tableX, y, tableWidth, rowHeight);
                 ctx.fillStyle = rowAccent;
-                ctx.fillRect(tableX, y, 5, rowHeight);
-                ctx.strokeStyle = 'rgba(255,255,255,0.075)';
+                ctx.fillRect(tableX, y, 6, rowHeight);
+                ctx.strokeStyle = reportColors.border;
+                ctx.lineWidth = 1.1;
                 ctx.strokeRect(tableX, y, tableWidth, rowHeight);
 
                 x = tableX;
@@ -560,14 +618,15 @@ export default function RankingTab({
                     const isTeam = column.key === 'teamA' || column.key === 'teamB';
                     const isScore = column.key === 'score';
                     const color = column.key === 'group'
-                        ? row.groupKey === 'B' ? '#67e8f9' : '#f6df9a'
-                        : isScore ? '#ffffff' : '#f4f4f5';
+                        ? row.groupKey === 'B' ? reportColors.blueText : reportColors.goldText
+                        : isScore ? reportColors.text : '#1f2937';
                     if (isTeam) {
                         fitText(value, x + column.width / 2, y + rowHeight / 2, column.width - 18, { size: 16, minSize: 12, weight: 900, color });
                     } else {
                         drawText(value, x + column.width / 2, y + rowHeight / 2, { size: isScore ? 18 : 14, weight: 900, color });
                     }
-                    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                    ctx.strokeStyle = reportColors.border;
+                    ctx.lineWidth = 1;
                     ctx.strokeRect(x, y, column.width, rowHeight);
                     x += column.width;
                 });
@@ -598,10 +657,10 @@ export default function RankingTab({
         const footerHeight = 28;
         const scoreColWidth = 52;
         const columns = [
-            { label: '순위', width: 66 },
-            { label: '성명', width: 150 },
-            { label: '승', width: 56 },
-            { label: '패', width: 56 },
+            { label: '\uC21C\uC704', width: 66 },
+            { label: '\uC131\uBA85', width: 150 },
+            { label: finalImageLabels.win, width: 56 },
+            { label: finalImageLabels.loss, width: 56 },
         ];
         const pointsWidth = maxDetailGameCount * scoreColWidth + 70;
         const tableWidth = columns.reduce((sum, column) => sum + column.width, 0) + pointsWidth + pointsWidth + 72;
@@ -614,68 +673,82 @@ export default function RankingTab({
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d')!;
         if (!ctx) throw new Error('Canvas context is unavailable.');
         ctx.scale(scale, scale);
-
-        const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number, fillStyle: string, strokeStyle?: string) => {
-            ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + w - r, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-            ctx.lineTo(x + w, y + h - r);
-            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-            ctx.lineTo(x + r, y + h);
-            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
-            ctx.fillStyle = fillStyle;
-            ctx.fill();
-            if (strokeStyle) {
-                ctx.strokeStyle = strokeStyle;
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            }
-        };
 
         const drawText = (
             text: string,
             x: number,
             y: number,
-            options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline } = {}
+            options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline; maxWidth?: number } = {}
         ) => {
-            ctx.fillStyle = options.color || '#ffffff';
+            ctx.fillStyle = options.color || '#111827';
             ctx.font = `${options.weight || 800} ${options.size || 14}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
             ctx.textAlign = options.align || 'center';
             ctx.textBaseline = options.baseline || 'middle';
-            ctx.fillText(text, x, y);
+            ctx.fillText(text, x, y, options.maxWidth);
         };
 
-        const drawCell = (text: string, x: number, y: number, w: number, h: number, color = '#f5f5f5', weight: number | string = 800, size = 14) => {
-            drawText(text, x + w / 2, y + h / 2, { color, weight, size });
+        const fitText = (text: string, x: number, y: number, maxWidth: number, options: { size: number; minSize?: number; weight?: number | string; color?: string; align?: CanvasTextAlign }) => {
+            let size = options.size;
+            const minSize = options.minSize || 11;
+            ctx.font = `${options.weight || 800} ${size}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            while (size > minSize && ctx.measureText(text).width > maxWidth) {
+                size -= 1;
+                ctx.font = `${options.weight || 800} ${size}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
+            }
+            drawText(text, x, y, { ...options, size, maxWidth });
         };
 
-        const backgroundGradient = ctx.createLinearGradient(0, 0, width, height);
-        backgroundGradient.addColorStop(0, '#050505');
-        backgroundGradient.addColorStop(0.5, '#10100d');
-        backgroundGradient.addColorStop(1, '#050505');
-        ctx.fillStyle = backgroundGradient;
+        const drawCell = (
+            text: string,
+            x: number,
+            y: number,
+            w: number,
+            h: number,
+            options: { bg?: string; color?: string; weight?: number | string; size?: number; align?: CanvasTextAlign; fit?: boolean } = {}
+        ) => {
+            ctx.fillStyle = options.bg || reportColors.row;
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = reportColors.border;
+            ctx.lineWidth = 1.1;
+            ctx.strokeRect(x, y, w, h);
+            if (options.fit) {
+                fitText(text, x + w / 2, y + h / 2, w - 12, {
+                    size: options.size || 14,
+                    minSize: 10,
+                    weight: options.weight || 800,
+                    color: options.color || reportColors.text,
+                    align: options.align || 'center',
+                });
+            } else {
+                drawText(text, x + w / 2, y + h / 2, {
+                    color: options.color || reportColors.text,
+                    weight: options.weight || 800,
+                    size: options.size || 14,
+                    align: options.align || 'center',
+                });
+            }
+        };
+
+        ctx.fillStyle = reportColors.page;
         ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = reportColors.borderStrong;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(padding / 2, padding / 2, width - padding, height - padding);
 
-        drawRoundedRect(padding / 2, padding / 2, width - padding, height - padding, 22, 'rgba(255,255,255,0.035)', 'rgba(201,176,117,0.35)');
-        drawText('TEYEON KDK', padding, 36, { align: 'left', size: 13, weight: 900, color: '#c9b075' });
-        drawText(sessionTitle || 'KDK SESSION', padding, 66, { align: 'left', size: 28, weight: 900, color: '#ffffff' });
-        drawText('개인별 상세 결과표', width - padding, 66, { align: 'right', size: 22, weight: 900, color: '#f6df9a' });
+        drawText('TEYEON KDK', padding, 36, { align: 'left', size: 13, weight: 900, color: '#9a741c' });
+        drawText(sessionTitle || 'KDK SESSION', padding, 66, { align: 'left', size: 28, weight: 900, color: reportColors.text });
+        drawText(finalImageLabels.personalDetail, width - padding, 66, { align: 'right', size: 22, weight: 900, color: reportColors.text });
 
         const tableX = padding;
         let y = titleHeight;
-        const drawHeaderCell = (text: string, x: number, cellY: number, w: number, h: number, bg = 'rgba(201,176,117,0.18)') => {
-            ctx.fillStyle = bg;
-            ctx.fillRect(x, cellY, w, h);
-            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        const drawHeaderCell = (text: string, x: number, cellY: number, w: number, h: number, bg = '#e5e7eb') => {
+            drawCell(text, x, cellY, w, h, { bg, color: '#1f2937', weight: 900, size: 13, fit: true });
+            ctx.strokeStyle = reportColors.borderStrong;
+            ctx.lineWidth = 1.4;
             ctx.strokeRect(x, cellY, w, h);
-            drawCell(text, x, cellY, w, h, '#f6df9a', 900, 13);
         };
 
         let x = tableX;
@@ -683,59 +756,60 @@ export default function RankingTab({
             drawHeaderCell(column.label, x, y, column.width, headerTopHeight + headerSubHeight);
             x += column.width;
         });
-        drawHeaderCell('게임득점', x, y, pointsWidth, headerTopHeight);
+        drawHeaderCell('\uAC8C\uC784\uB4DD\uC810', x, y, pointsWidth, headerTopHeight, '#e2e8f0');
         const pfX = x;
         x += pointsWidth;
-        drawHeaderCell('게임실점', x, y, pointsWidth, headerTopHeight);
+        drawHeaderCell('\uAC8C\uC784\uC2E4\uC810', x, y, pointsWidth, headerTopHeight, '#e2e8f0');
         const paX = x;
         x += pointsWidth;
-        drawHeaderCell('득실', x, y, 72, headerTopHeight + headerSubHeight);
+        drawHeaderCell('\uB4DD\uC2E4', x, y, 72, headerTopHeight + headerSubHeight, '#e2e8f0');
 
         y += headerTopHeight;
         x = pfX;
         detailGameColumns.forEach((columnIndex) => {
-            drawHeaderCell(String(columnIndex + 1), x, y, scoreColWidth, headerSubHeight, 'rgba(255,255,255,0.055)');
+            drawHeaderCell(String(columnIndex + 1), x, y, scoreColWidth, headerSubHeight, reportColors.headerAlt);
             x += scoreColWidth;
         });
-        drawHeaderCell('합계', x, y, 70, headerSubHeight, 'rgba(201,176,117,0.12)');
+        drawHeaderCell('\uD569\uACC4', x, y, 70, headerSubHeight, '#fef3c7');
         x = paX;
         detailGameColumns.forEach((columnIndex) => {
-            drawHeaderCell(String(columnIndex + 1), x, y, scoreColWidth, headerSubHeight, 'rgba(255,255,255,0.055)');
+            drawHeaderCell(String(columnIndex + 1), x, y, scoreColWidth, headerSubHeight, reportColors.headerAlt);
             x += scoreColWidth;
         });
-        drawHeaderCell('합계', x, y, 70, headerSubHeight, 'rgba(201,176,117,0.12)');
+        drawHeaderCell('\uD569\uACC4', x, y, 70, headerSubHeight, '#fef3c7');
 
         y += headerSubHeight;
         activeDetailedResults.forEach((row, rowIndex) => {
-            const rowBg = rowIndex % 2 === 0 ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.02)';
-            ctx.fillStyle = rowBg;
-            ctx.fillRect(tableX, y, tableWidth, rowHeight);
-            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-            ctx.strokeRect(tableX, y, tableWidth, rowHeight);
+            const rowBg = rowIndex % 2 === 0 ? reportColors.row : reportColors.rowAlt;
 
             x = tableX;
-            drawCell(String(row.displayRank), x, y, columns[0].width, rowHeight, '#f6df9a', 900, 15);
+            drawCell(String(row.displayRank), x, y, columns[0].width, rowHeight, { bg: rowBg, color: reportColors.goldText, weight: 900, size: 15 });
             x += columns[0].width;
-            drawCell(row.name, x, y, columns[1].width, rowHeight, '#ffffff', 900, 15);
+            drawCell(row.name, x, y, columns[1].width, rowHeight, { bg: rowBg, color: reportColors.text, weight: 900, size: 15, fit: true });
             x += columns[1].width;
-            drawCell(String(row.wins), x, y, columns[2].width, rowHeight, '#86efac', 900, 15);
+            drawCell(String(row.wins), x, y, columns[2].width, rowHeight, { bg: rowBg, color: reportColors.plusText, weight: 900, size: 15 });
             x += columns[2].width;
-            drawCell(String(row.losses), x, y, columns[3].width, rowHeight, '#fca5a5', 900, 15);
+            drawCell(String(row.losses), x, y, columns[3].width, rowHeight, { bg: rowBg, color: reportColors.penaltyText, weight: 900, size: 15 });
             x += columns[3].width;
 
             detailGameColumns.forEach((columnIndex) => {
-                drawCell(String(row.pointsForByMatch[columnIndex] ?? '-'), x, y, scoreColWidth, rowHeight, '#e5e7eb', 800, 14);
+                drawCell(String(row.pointsForByMatch[columnIndex] ?? '-'), x, y, scoreColWidth, rowHeight, { bg: rowBg, color: '#374151', weight: 800, size: 14 });
                 x += scoreColWidth;
             });
-            drawCell(String(row.pointsForTotal), x, y, 70, rowHeight, '#ffffff', 900, 15);
+            drawCell(String(row.pointsForTotal), x, y, 70, rowHeight, { bg: '#fff7ed', color: reportColors.text, weight: 900, size: 15 });
             x += 70;
             detailGameColumns.forEach((columnIndex) => {
-                drawCell(String(row.pointsAgainstByMatch[columnIndex] ?? '-'), x, y, scoreColWidth, rowHeight, '#e5e7eb', 800, 14);
+                drawCell(String(row.pointsAgainstByMatch[columnIndex] ?? '-'), x, y, scoreColWidth, rowHeight, { bg: rowBg, color: '#374151', weight: 800, size: 14 });
                 x += scoreColWidth;
             });
-            drawCell(String(row.pointsAgainstTotal), x, y, 70, rowHeight, '#ffffff', 900, 15);
+            drawCell(String(row.pointsAgainstTotal), x, y, 70, rowHeight, { bg: '#fff7ed', color: reportColors.text, weight: 900, size: 15 });
             x += 70;
-            drawCell(row.diff > 0 ? `+${row.diff}` : String(row.diff), x, y, 72, rowHeight, row.diff > 0 ? '#86efac' : row.diff < 0 ? '#fca5a5' : '#d1d5db', 900, 15);
+            drawCell(row.diff > 0 ? `+${row.diff}` : String(row.diff), x, y, 72, rowHeight, {
+                bg: rowBg,
+                color: row.diff > 0 ? reportColors.plusText : row.diff < 0 ? reportColors.penaltyText : reportColors.muted,
+                weight: 900,
+                size: 15,
+            });
             y += rowHeight;
         });
 
@@ -816,14 +890,16 @@ export default function RankingTab({
         return isGuest && !cleanName.endsWith('(G)') ? `${cleanName}(G)` : cleanName;
     };
 
-    const getFinalResultExportFileName = () => {
+    type FinalResultExportKind = 'overall' | 'groups';
+
+    const getFinalResultExportFileName = (kind: FinalResultExportKind = 'overall') => {
         const safeSessionTitle = (sessionTitle || 'KDK_FINAL_RESULTS')
             .replace(/[\\/:*?"<>|]/g, '_')
             .replace(/\s+/g, '_');
-        return `${safeSessionTitle}_FINAL_RESULTS.png`;
+        return `${safeSessionTitle}_${kind === 'overall' ? 'FINAL_OVERALL' : 'FINAL_GROUPS'}.png`;
     };
 
-    const createFinalResultImageBlob = async () => {
+    const createFinalResultImageBlob = async (kind: FinalResultExportKind = 'overall') => {
         if (playersList.length === 0) throw new Error('No final result rows to export.');
 
         const totalCount = playersList.length;
@@ -844,25 +920,33 @@ export default function RankingTab({
 
         const groupAPlayers = playersList.filter((player) => getPlayerGroupKey(player) === 'A');
         const groupBPlayers = playersList.filter((player) => getPlayerGroupKey(player) === 'B');
-        const finalSections = [
-            { title: '전체 최종 순위', groupKey: 'ALL', rows: buildFinalRows(playersList) },
-            ...(groupAPlayers.length > 0 ? [{ title: 'A조 순위', groupKey: 'A', rows: buildFinalRows(groupAPlayers) }] : []),
-            ...(groupBPlayers.length > 0 ? [{ title: 'B조 순위', groupKey: 'B', rows: buildFinalRows(groupBPlayers) }] : []),
-        ];
-        const totalFinalRowCount = finalSections.reduce((sum, section) => sum + 1 + section.rows.length, 0);
+        const finalSections: Array<{
+            title: string;
+            groupKey: 'ALL' | 'A' | 'B';
+            rows: ReturnType<typeof buildFinalRows>;
+        }> = kind === 'overall'
+            ? [{ title: finalImageLabels.overallSection, groupKey: 'ALL', rows: buildFinalRows(playersList) }]
+            : [
+                ...(groupAPlayers.length > 0 ? [{ title: finalImageLabels.groupASection, groupKey: 'A' as const, rows: buildFinalRows(groupAPlayers) }] : []),
+                ...(groupBPlayers.length > 0 ? [{ title: finalImageLabels.groupBSection, groupKey: 'B' as const, rows: buildFinalRows(groupBPlayers) }] : []),
+            ];
+
+        if (finalSections.length === 0) throw new Error('No final result rows to export.');
 
         const scale = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
         const padding = 36;
         const rowHeight = 50;
+        const sectionHeight = 44;
         const titleHeight = 156;
         const footerHeight = 52;
         const width = 920;
-        const height = titleHeight + totalFinalRowCount * rowHeight + footerHeight + padding;
+        const bodyHeight = finalSections.reduce((sum, section) => sum + sectionHeight + section.rows.length * rowHeight, 0);
+        const height = titleHeight + bodyHeight + footerHeight + padding;
 
         const canvas = document.createElement('canvas');
         canvas.width = Math.ceil(width * scale);
         canvas.height = Math.ceil(height * scale);
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d')!;
         if (!ctx) throw new Error('Canvas context is unavailable.');
         ctx.scale(scale, scale);
 
@@ -872,7 +956,7 @@ export default function RankingTab({
             y: number,
             options: { size?: number; weight?: number | string; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline; maxWidth?: number } = {}
         ) => {
-            ctx.fillStyle = options.color || '#ffffff';
+            ctx.fillStyle = options.color || '#111827';
             ctx.font = `${options.weight || 800} ${options.size || 14}px "Noto Sans KR", "Malgun Gothic", Arial, sans-serif`;
             ctx.textAlign = options.align || 'left';
             ctx.textBaseline = options.baseline || 'middle';
@@ -890,67 +974,106 @@ export default function RankingTab({
             drawText(text, x, y, { ...options, size, maxWidth });
         };
 
-        const bg = ctx.createLinearGradient(0, 0, width, height);
-        bg.addColorStop(0, '#050505');
-        bg.addColorStop(0.5, '#11100d');
-        bg.addColorStop(1, '#050505');
-        ctx.fillStyle = bg;
+        ctx.fillStyle = reportColors.page;
         ctx.fillRect(0, 0, width, height);
-        ctx.strokeStyle = 'rgba(201,176,117,0.38)';
+        ctx.strokeStyle = reportColors.borderStrong;
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(padding / 2, padding / 2, width - padding, height - padding);
 
-        drawText('TEYEON KDK', padding, 38, { size: 14, weight: 900, color: '#c9b075' });
-        drawText(sessionTitle || 'KDK SESSION', padding, 70, { size: 30, weight: 900, color: '#ffffff' });
-        drawText('오늘의 최종 결과', width - padding, 70, { align: 'right', size: 25, weight: 900, color: '#f6df9a' });
-        drawText(`상금/벌금: 1위 ${prizes.first.toLocaleString()} / L1 ${prizes.l1.toLocaleString()} / L2 ${prizes.l2.toLocaleString()} / ${guestFeeLabel}`, padding, 112, { size: 14, weight: 800, color: 'rgba(255,255,255,0.62)' });
+        drawText('TEYEON KDK', padding, 38, { size: 14, weight: 900, color: '#9a741c' });
+        drawText(sessionTitle || 'KDK SESSION', padding, 70, { size: 30, weight: 900, color: reportColors.text });
+        drawText(kind === 'overall' ? finalImageLabels.overallTitle : finalImageLabels.groupsTitle, width - padding, 70, {
+            align: 'right',
+            size: 25,
+            weight: 900,
+            color: reportColors.text,
+        });
+        drawText(`${finalImageLabels.prizeLine}: 1${finalImageLabels.rankSuffix} ${prizes.first.toLocaleString()} / L1 ${prizes.l1.toLocaleString()} / L2 ${prizes.l2.toLocaleString()} / ${guestFeeLabel}`, padding, 118, {
+            size: 14,
+            weight: 800,
+            color: reportColors.muted,
+        });
 
         let y = titleHeight;
         finalSections.forEach((section) => {
-            const sectionColor = section.groupKey === 'B' ? '#67e8f9' : '#f6df9a';
-            const sectionBg = section.groupKey === 'B' ? 'rgba(56,217,255,0.12)' : 'rgba(201,176,117,0.13)';
-            ctx.fillStyle = sectionBg;
-            ctx.fillRect(padding, y, width - padding * 2, rowHeight);
-            ctx.strokeStyle = section.groupKey === 'B' ? 'rgba(56,217,255,0.22)' : 'rgba(201,176,117,0.22)';
-            ctx.strokeRect(padding, y, width - padding * 2, rowHeight);
-            drawText(section.title, padding + 18, y + rowHeight / 2, { align: 'left', size: 17, weight: 900, color: sectionColor });
-            y += rowHeight;
+            const isGroupB = section.groupKey === 'B';
+            const isGroupAll = section.groupKey === 'ALL';
+            ctx.fillStyle = isGroupAll ? reportColors.header : isGroupB ? reportColors.blueBg : reportColors.goldBg;
+            ctx.fillRect(padding, y, width - padding * 2, sectionHeight);
+            ctx.strokeStyle = isGroupAll ? reportColors.borderStrong : isGroupB ? '#38bdf8' : '#d97706';
+            ctx.lineWidth = 1.4;
+            ctx.strokeRect(padding, y, width - padding * 2, sectionHeight);
+            drawText(section.title, padding + 18, y + sectionHeight / 2, {
+                size: 17,
+                weight: 900,
+                color: isGroupAll ? '#1f2937' : isGroupB ? reportColors.blueText : reportColors.goldText,
+            });
+            y += sectionHeight;
 
             section.rows.forEach((row, index) => {
-                const isTop = row.rank <= 3;
-                ctx.fillStyle = isTop
-                    ? row.rank === 1
-                        ? 'rgba(201,176,117,0.16)'
+                const isPenaltyRow = row.amount < 0;
+                ctx.fillStyle = isPenaltyRow
+                    ? reportColors.penaltyBg
+                    : row.rank === 1
+                        ? '#fff7d6'
                         : row.rank === 2
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(251,146,60,0.08)'
-                    : index % 2 === 0 ? 'rgba(255,255,255,0.036)' : 'rgba(255,255,255,0.022)';
+                            ? '#f3f4f6'
+                            : row.rank === 3
+                                ? '#ffedd5'
+                                : index % 2 === 0 ? reportColors.row : reportColors.rowAlt;
                 ctx.fillRect(padding, y, width - padding * 2, rowHeight);
-                ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                if (isPenaltyRow) {
+                    ctx.fillStyle = reportColors.penaltyText;
+                    ctx.fillRect(padding, y, 5, rowHeight);
+                }
+                ctx.strokeStyle = reportColors.border;
+                ctx.lineWidth = 1.1;
                 ctx.strokeRect(padding, y, width - padding * 2, rowHeight);
+                [padding + 64, padding + 470, padding + 585].forEach((lineX) => {
+                    ctx.beginPath();
+                    ctx.moveTo(lineX, y);
+                    ctx.lineTo(lineX, y + rowHeight);
+                    ctx.stroke();
+                });
 
-                const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `${row.rank}위`;
-                drawText(medal, padding + 24, y + rowHeight / 2, { size: row.rank <= 3 ? 22 : 14, weight: 900, color: '#f6df9a', align: 'center' });
-                fitText(row.name, padding + 72, y + rowHeight / 2, 330, { size: 19, minSize: 14, weight: 900, color: '#ffffff' });
-                drawText(`${row.wins}승 ${row.losses}패`, padding + 460, y + rowHeight / 2, { size: 16, weight: 900, color: 'rgba(255,255,255,0.84)' });
+                const rankText = row.rank <= 3 ? `${row.rank}${finalImageLabels.rankSuffix}` : `${row.rank}`;
+                const rankColor = row.rank === 1 ? '#b45309' : row.rank === 2 ? '#4b5563' : row.rank === 3 ? '#c2410c' : reportColors.muted;
+                drawText(rankText, padding + 32, y + rowHeight / 2, {
+                    size: row.rank <= 3 ? 18 : 15,
+                    weight: 900,
+                    color: rankColor,
+                    align: 'center',
+                });
+                fitText(row.name, padding + 76, y + rowHeight / 2, 360, {
+                    size: 20,
+                    minSize: 14,
+                    weight: 900,
+                    color: reportColors.text,
+                });
+                drawText(`${row.wins}${finalImageLabels.win} ${row.losses}${finalImageLabels.loss}`, padding + 488, y + rowHeight / 2, {
+                    size: 16,
+                    weight: 900,
+                    color: reportColors.muted,
+                });
 
                 const amountText = row.amount > 0
-                    ? `+${row.amount.toLocaleString()}원`
+                    ? `+${row.amount.toLocaleString()}${finalImageLabels.won}`
                     : row.amount < 0
-                        ? `-${Math.abs(row.amount).toLocaleString()}원`
-                        : '0원';
-                drawText(amountText, width - padding - 16, y + rowHeight / 2, {
+                        ? `-${Math.abs(row.amount).toLocaleString()}${finalImageLabels.won}`
+                        : `0${finalImageLabels.won}`;
+                drawText(amountText, width - padding - 18, y + rowHeight / 2, {
                     align: 'right',
-                    size: 17,
+                    size: 18,
                     weight: 900,
-                    color: row.amount > 0 ? '#f6df9a' : row.amount < 0 ? '#fca5a5' : 'rgba(255,255,255,0.68)',
+                    color: row.amount > 0 ? reportColors.plusText : row.amount < 0 ? reportColors.penaltyText : reportColors.muted,
                 });
 
                 y += rowHeight;
             });
         });
 
-        drawText('상세 결과는 Archive에서 확인할 수 있습니다.', padding, height - 36, { size: 13, weight: 800, color: 'rgba(255,255,255,0.48)' });
-        drawText(new Date().toLocaleString('ko-KR'), width - padding, height - 36, { align: 'right', size: 12, weight: 800, color: 'rgba(255,255,255,0.38)' });
+        drawText(finalImageLabels.archiveNote, padding, height - 38, { size: 13, weight: 800, color: '#6b7280' });
+        drawText(new Date().toLocaleString('ko-KR'), width - padding, height - 38, { align: 'right', size: 12, weight: 800, color: '#9ca3af' });
 
         return new Promise<Blob>((resolve, reject) => {
             canvas.toBlob((blob) => {
@@ -960,11 +1083,11 @@ export default function RankingTab({
         });
     };
 
-    const handleFinalResultImageAction = async (mode: 'download' | 'copy') => {
+    const handleFinalResultImageAction = async (kind: FinalResultExportKind, mode: 'download' | 'copy') => {
         try {
             setTableExportStatus('최종 결과 이미지를 준비 중입니다.');
-            const blob = await createFinalResultImageBlob();
-            const fileName = getFinalResultExportFileName();
+            const blob = await createFinalResultImageBlob(kind);
+            const fileName = getFinalResultExportFileName(kind);
 
             if (mode === 'copy') {
                 try {
@@ -1134,27 +1257,33 @@ export default function RankingTab({
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                     <ButtonPair
-                        title="개인별 상세표"
+                        title={finalImageLabels.personalDetail}
                         disabled={maxDetailGameCount === 0 || activeDetailedResults.length === 0}
                         onDownload={() => handleDetailedResultImageAction('download')}
                         onCopy={() => handleDetailedResultImageAction('copy')}
                     />
                     <ButtonPair
-                        title="최종 결과"
+                        title={finalImageLabels.finalOverallButton}
                         disabled={playersList.length === 0}
-                        onDownload={() => handleFinalResultImageAction('download')}
-                        onCopy={() => handleFinalResultImageAction('copy')}
+                        onDownload={() => handleFinalResultImageAction('overall', 'download')}
+                        onCopy={() => handleFinalResultImageAction('overall', 'copy')}
                     />
                     <ButtonPair
-                        title="전체 대진표"
+                        title={finalImageLabels.finalGroupsButton}
+                        disabled={playersList.length === 0}
+                        onDownload={() => handleFinalResultImageAction('groups', 'download')}
+                        onCopy={() => handleFinalResultImageAction('groups', 'copy')}
+                    />
+                    <ButtonPair
+                        title={finalImageLabels.fullSchedule}
                         disabled={sortedExportMatches.length === 0}
                         onDownload={() => handleMatchTableImageAction('schedule', 'download')}
                         onCopy={() => handleMatchTableImageAction('schedule', 'copy')}
                     />
                     <ButtonPair
-                        title="경기 결과표"
+                        title={finalImageLabels.matchResults}
                         onDownload={() => handleMatchTableImageAction('results', 'download')}
                         onCopy={() => handleMatchTableImageAction('results', 'copy')}
                     />
