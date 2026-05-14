@@ -416,7 +416,7 @@ function CompactMatch({ match, index, playerLookup, playingPlayerIds }: { match:
           {renderPlayer(3)}
         </div>
       </div>
-      <div className="ml-[46px] mt-1.5 inline-flex max-w-[calc(100%-46px)] truncate rounded-full border bg-black/42 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+      <div className="ml-[46px] mt-1.5 inline-flex max-w-[calc(100%-46px)] overflow-hidden truncate whitespace-nowrap rounded-full border bg-black/42 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
         R{match.round || '-'} - {groupMeta.label}
       </div>
     </div>
@@ -741,11 +741,11 @@ function KdkDisplayBoard() {
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="pointer-events-auto relative z-30 rounded-[12px] border border-[#FFD66B]/48 bg-[#D8BE78]/12 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFE7A0] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:border-[#FFD66B]/80 hover:bg-[#D8BE78]/20 active:scale-95"
+              className="pointer-events-auto relative z-30 whitespace-nowrap rounded-[12px] border border-[#FFD66B]/48 bg-[#D8BE78]/12 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFE7A0] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:border-[#FFD66B]/80 hover:bg-[#D8BE78]/20 active:scale-95"
             >
               {isFullscreen ? '전체화면 해제' : '전체화면'}
             </button>
-            <div className="rounded-[12px] border border-white/10 bg-white/[0.065] px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/52">
+            <div className="whitespace-nowrap rounded-[12px] border border-white/10 bg-white/[0.065] px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/52">
               Read Only
             </div>
           </div>
