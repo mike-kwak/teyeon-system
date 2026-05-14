@@ -2863,7 +2863,7 @@ export default function KDKPage() {
         const canProceedToNameMatching = manualInputMode === 'PASTE' && manualStep === 'INPUT' && manualPasteMatchCount > 0;
 
         return (
-            <main className="flex min-h-screen w-full flex-col overflow-y-auto bg-black px-6 py-6 text-white font-sans" style={{ paddingBottom: 'calc(180px + env(safe-area-inset-bottom))' }}>
+            <main className="flex min-h-screen w-full flex-col overflow-y-auto bg-black px-4 py-4 text-white font-sans sm:px-6 sm:py-6" style={{ paddingBottom: 'calc(220px + env(safe-area-inset-bottom))' }}>
                 <header className="grid h-12 grid-cols-3 items-center">
                     <div className="flex items-center">
                         <button
@@ -2897,7 +2897,7 @@ export default function KDKPage() {
                     <div />
                 </header>
 
-                <section className="mx-auto mt-8 w-full max-w-lg space-y-4 pb-40">
+                <section className="mx-auto mt-5 w-full max-w-lg space-y-3 pb-52 sm:mt-8 sm:space-y-4">
                     {!manualInputMode && (
                         <>
                             <button
@@ -2948,25 +2948,25 @@ export default function KDKPage() {
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'INPUT' && (
-                        <div className="space-y-4">
-                            <div className="overflow-visible rounded-[24px] border border-[#C9B075]/20 bg-[#141414] p-5">
-                                <div className="mb-4">
+                        <div className="space-y-3 pb-[calc(72px+env(safe-area-inset-bottom))] sm:space-y-4">
+                            <div className="overflow-visible rounded-[20px] border border-[#C9B075]/20 bg-[#141414] p-4 sm:rounded-[24px] sm:p-5">
+                                <div className="mb-3 sm:mb-4">
                                     <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Paste Matches</span>
-                                    <h2 className="mt-1 text-xl font-black text-white">대진 붙여넣기</h2>
+                                    <h2 className="mt-1 text-lg font-black text-white sm:text-xl">대진 붙여넣기</h2>
                                 </div>
-                                <div className="mb-4 rounded-[16px] border border-[#C9B075]/20 bg-black/30 p-3">
-                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                <div className="mb-3 rounded-[14px] border border-[#C9B075]/20 bg-black/30 p-2.5 sm:mb-4 sm:p-3">
+                                    <div className="mb-1.5 flex items-center justify-between gap-2">
                                         <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#C9B075]">입력 예시</span>
                                         <span className="text-[9px] font-bold text-white/35">탭 구분 텍스트 지원</span>
                                     </div>
-                                     <pre className="whitespace-pre-wrap break-keep text-[11px] font-bold leading-relaxed text-white/55">
+                                     <pre className="max-h-20 overflow-y-auto whitespace-pre-wrap break-keep text-[10px] font-bold leading-snug text-white/55 sm:max-h-none sm:text-[11px] sm:leading-relaxed">
 {`A조
 1 봉준/상윤 vs 영호/광현 19:00
 B조
 1 민준/상준 vs 강정호/구봉준 20:00
 A    1    봉준    상윤    영호    광현    19:00`}
                                      </pre>
-                                    <p className="mt-2 text-[10px] font-bold text-white/35">
+                                    <p className="mt-1.5 text-[9px] font-bold text-white/35 sm:text-[10px]">
                                         조 표기가 없으면 A조로 인식됩니다.
                                     </p>
                                  </div>
@@ -2976,38 +2976,38 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                         setManualPasteText(e.target.value);
                                         setManualNameOverrides({});
                                     }}
-                                    className="min-h-[160px] w-full resize-y rounded-[18px] border border-white/10 bg-black/35 px-4 py-4 text-[13px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50"
+                                    className="min-h-[128px] w-full resize-y rounded-[16px] border border-white/10 bg-black/35 px-3 py-3 text-[12px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50 sm:min-h-[160px] sm:rounded-[18px] sm:px-4 sm:py-4 sm:text-[13px]"
                                     placeholder={"예: 1 봉준/상윤 vs 영호/광현 19:00"}
                                 />
                             </div>
 
-                            <div className="overflow-visible rounded-[24px] border border-white/10 bg-[#111111] p-4">
-                                <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                            <div className="overflow-visible rounded-[20px] border border-white/10 bg-[#111111] p-3 sm:rounded-[24px] sm:p-4">
+                                <div className="mb-2 flex items-center justify-between gap-2 px-1 sm:mb-3 sm:gap-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
-                                    <span className="text-[10px] font-black text-[#C9B075]">
+                                    <span className="text-right text-[9px] font-black text-[#C9B075] sm:text-[10px]">
                                         {manualPasteMatchCount} matches · {manualPlayerNames.length} names · {manualGroups.length || 0} groups
                                     </span>
                                 </div>
 
                                 {manualPasteMatchCount === 0 ? (
-                                    <div className="rounded-[18px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
+                                    <div className="rounded-[16px] border border-dashed border-white/10 py-6 text-center text-[12px] font-bold text-white/35 sm:py-8">
                                         대진을 붙여넣으면 경기 미리보기가 표시됩니다.
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5 sm:space-y-2">
                                         {manualPastePreview.map((row, index) => (
                                             <div
                                                 key={`${row.raw}-${index}`}
-                                                className={`overflow-visible rounded-[16px] border px-3 py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
+                                                className={`overflow-visible rounded-[14px] border px-2.5 py-2 sm:rounded-[16px] sm:px-3 sm:py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
                                             >
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <span className="flex min-w-[52px] shrink-0 items-center justify-center rounded-full bg-[#C9B075] px-2.5 py-1.5 text-[10px] font-black text-black">
+                                                <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                                    <span className="flex min-w-[46px] shrink-0 items-center justify-center rounded-full bg-[#C9B075] px-2 py-1 text-[9px] font-black text-black sm:min-w-[52px] sm:px-2.5 sm:py-1.5 sm:text-[10px]">
                                                         {getManualGroupLabel(row.group)} · {row.order}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
-                                                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[12px] font-black text-white">
+                                                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 text-[11px] font-black text-white sm:gap-2 sm:text-[12px]">
                                                             <span className="truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
-                                                            <span className="rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
+                                                            <span className="rounded-full border border-[#C9B075]/35 px-1.5 py-0.5 text-[8px] font-black text-[#C9B075] sm:px-2 sm:text-[9px]">VS</span>
                                                             <span className="truncate">{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
                                                         </div>
                                                         {!row.isValid && (
@@ -3016,19 +3016,19 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                             </p>
                                                         )}
                                                     </div>
-                                                    <span className="shrink-0 text-[10px] font-black text-white/40">{row.time || '--:--'}</span>
+                                                    <span className="shrink-0 text-[9px] font-black text-white/40 sm:text-[10px]">{row.time || '--:--'}</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
-                                <div className="mt-4 border-t border-white/10 pt-4">
+                                <div className="mt-3 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
                                     <button
                                         type="button"
                                         disabled={!canProceedToNameMatching}
                                         onClick={() => setManualStep('MATCH_NAMES')}
-                                        className="flex min-h-[54px] w-full items-center justify-center rounded-[18px] px-5 text-[14px] font-black uppercase tracking-[0.12em] transition-all active:scale-[0.98] disabled:cursor-not-allowed"
+                                        className="flex min-h-[50px] w-full items-center justify-center rounded-[16px] px-4 text-[13px] font-black uppercase tracking-[0.1em] transition-all active:scale-[0.98] disabled:cursor-not-allowed sm:min-h-[54px] sm:rounded-[18px] sm:px-5 sm:text-[14px] sm:tracking-[0.12em]"
                                         style={{
                                             background: canProceedToNameMatching
                                                 ? 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)'
@@ -3262,7 +3262,59 @@ A    1    봉준    상윤    영호    광현    19:00`}
             group,
             rows: manualMatchedRows.filter(row => row.group === group),
         }));
-        const isStep2ButtonDisabled = isGenerating;
+        const manualExpectedSummary = (() => {
+            const groupCounts = manualPastePreview.reduce<Record<string, number>>((acc, row) => {
+                const group = normalizeManualGroup(row.group);
+                acc[group] = (acc[group] || 0) + 1;
+                return acc;
+            }, {});
+            const timeList = Array.from(new Set(
+                manualPastePreview
+                    .map(row => row.time?.trim())
+                    .filter((time): time is string => Boolean(time))
+            ));
+            const roundKeys = Array.from(new Set(manualPastePreview.map((row, index) => (
+                row.time?.trim() ? `TIME_${row.time.trim()}` : `ORDER_${row.order || index + 1}`
+            ))));
+            const guestNames = manualNameMatches
+                .filter(match => match.status === 'GUEST')
+                .map(match => match.displayName);
+            const unmatchedNames = manualNameMatches
+                .filter(match => match.status === 'GUEST' && match.candidates.length === 0)
+                .map(match => match.displayName);
+            const invalidRows = manualPastePreview.filter(row => !row.isValid);
+            const rowsWithoutGroup = manualPastePreview.filter(row => !row.group?.trim());
+            const rowsWithoutTime = manualPastePreview.filter(row => !row.time?.trim());
+            const warnings = [
+                ...(manualPastePreview.length === 0 ? ['No manual matches'] : []),
+                ...((groupCounts.A || 0) === 0 ? ['A group has 0 matches'] : []),
+                ...((groupCounts.B || 0) === 0 ? ['B group has 0 matches'] : []),
+                ...(unmatchedNames.length > 0 ? [`Unmatched names: ${unmatchedNames.join(', ')}`] : []),
+                ...(invalidRows.length > 0 ? [`Invalid rows: ${invalidRows.length}`] : []),
+                ...(rowsWithoutGroup.length > 0 ? [`Missing groupName rows: ${rowsWithoutGroup.length}`] : []),
+                ...(rowsWithoutTime.length > 0 ? [`Rows without time: ${rowsWithoutTime.length}`] : []),
+                ...(totalCourts < 1 || totalCourts > 99 ? [`Invalid courts: ${totalCourts}`] : []),
+            ];
+
+            return {
+                totalMatches: manualPastePreview.length,
+                groupA: groupCounts.A || 0,
+                groupB: groupCounts.B || 0,
+                totalRounds: roundKeys.length,
+                timeList,
+                guestNames,
+                unmatchedNames,
+                rowsWithoutGroup,
+                rowsWithoutTime,
+                warnings,
+                isReady: warnings.length === 0,
+            };
+        })();
+        const isStep2ButtonDisabled = isGenerating || (isManualRulesMode && (
+            manualExpectedSummary.totalMatches === 0 ||
+            totalCourts < 1 ||
+            totalCourts > 99
+        ));
         const timeOptions = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00"];
         const availablePlayersForPartnering = [...allMembers, ...tempGuests].filter(m => 
             selectedIds.has(m.id) && (partnerSelectSource === 'NEW' ? true : m.id !== partnerSelectSource)
@@ -3623,6 +3675,74 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             />
                         </div>
                     </section>
+
+                    {isManualRulesMode && (
+                        <section className="rounded-[28px] border border-white/[0.08] bg-[#171717] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/35">Pre-create check</p>
+                                    <h4 className="mt-1 text-[16px] font-black uppercase tracking-[-0.02em] text-white">Manual KDK summary</h4>
+                                </div>
+                                <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                                    manualExpectedSummary.isReady
+                                        ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-300'
+                                        : 'border-red-400/35 bg-red-500/10 text-red-300'
+                                }`}>
+                                    {manualExpectedSummary.isReady ? 'READY' : 'CHECK'}
+                                </span>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                                {[
+                                    ['Total', manualExpectedSummary.totalMatches],
+                                    ['A group', manualExpectedSummary.groupA],
+                                    ['B group', manualExpectedSummary.groupB],
+                                    ['Rounds', manualExpectedSummary.totalRounds],
+                                    ['Guests', manualExpectedSummary.guestNames.length],
+                                    ['Unmatched', manualExpectedSummary.unmatchedNames.length],
+                                    ['Courts', totalCourts],
+                                    ['Group field', manualExpectedSummary.rowsWithoutGroup.length === 0 ? 'OK' : 'MISS'],
+                                ].map(([label, value]) => (
+                                    <div key={label} className="rounded-2xl border border-white/[0.08] bg-black/[0.24] px-3 py-3">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/35">{label}</p>
+                                        <p className="mt-1 text-[15px] font-black text-white">{value}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 space-y-2 rounded-2xl border border-[#C9B075]/15 bg-[#C9B075]/[0.05] p-4">
+                                <div className="flex items-start justify-between gap-3 text-[11px]">
+                                    <span className="shrink-0 font-black uppercase tracking-[0.16em] text-[#C9B075]">Times</span>
+                                    <span className="text-right font-bold text-white/70">
+                                        {manualExpectedSummary.timeList.length > 0 ? manualExpectedSummary.timeList.join(', ') : 'No time'}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3 text-[11px]">
+                                    <span className="shrink-0 font-black uppercase tracking-[0.16em] text-[#C9B075]">Guests</span>
+                                    <span className="text-right font-bold text-white/70">
+                                        {manualExpectedSummary.guestNames.length > 0 ? manualExpectedSummary.guestNames.join(', ') : 'None'}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3 text-[11px]">
+                                    <span className="shrink-0 font-black uppercase tracking-[0.16em] text-[#C9B075]">Rules</span>
+                                    <span className="text-right font-bold text-white/70">
+                                        Win 6 / L1 {(bottom25Late / 1000).toFixed(0)}k / L2 {(bottom25Penalty / 1000).toFixed(0)}k / Guest 10k
+                                    </span>
+                                </div>
+                            </div>
+
+                            {manualExpectedSummary.warnings.length > 0 && (
+                                <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/[0.08] p-4">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-300">Warnings</p>
+                                    <ul className="mt-2 space-y-1 text-[11px] font-bold leading-relaxed text-red-100/85">
+                                        {manualExpectedSummary.warnings.map(warning => (
+                                            <li key={warning}>- {warning}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </section>
+                    )}
 
 
 
