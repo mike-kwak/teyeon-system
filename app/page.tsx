@@ -9,7 +9,6 @@ import {
   CircleDollarSign,
   ClipboardList,
   Clock,
-  Cpu,
   Layout,
   Settings,
   Swords,
@@ -168,10 +167,11 @@ export default function Home() {
                 comingSoon
               />
               <MenuCard
-                label="AI 시드 예측"
-                icon={<Cpu size={36} strokeWidth={1.5} />}
-                path="/prediction"
-                comingSoon
+                label="관리자 설정"
+                description="멤버, 권한, 운영 기준을 관리합니다."
+                icon={<Settings size={36} strokeWidth={1.5} />}
+                path="/admin"
+                badge="ADMIN"
               />
             </div>
 
@@ -262,20 +262,6 @@ export default function Home() {
             </section>
 
             <div className="h-8 w-full shrink-0" />
-
-            <div className="w-full animate-in fade-in duration-1000">
-              <Link
-                href="/admin"
-                className="group relative flex h-16 w-full flex-row items-center justify-center gap-4 rounded-[24px] border border-[#D8BE78]/12 bg-[#242323]/95 shadow-[0_10px_28px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:bg-[#2B2926] active:scale-[0.98]"
-              >
-                <div className="text-[#D8BE78]/70 transition-transform duration-300 group-hover:scale-110 group-hover:text-[#D8BE78]">
-                  <Settings size={28} />
-                </div>
-                <span className="text-center font-['Rajdhani',sans-serif] text-[16px] font-bold uppercase tracking-[0.2em] text-[#F1E7C4]">
-                  관리자 설정
-                </span>
-              </Link>
-            </div>
 
             <div className="h-8 w-full shrink-0" />
           </>
