@@ -453,8 +453,8 @@ export default function TournamentCalendarPage() {
   };
 
   return (
-    <main className="fixed bottom-0 left-1/2 top-[calc(72px+env(safe-area-inset-top))] z-[120] w-screen -translate-x-1/2 overflow-y-auto scroll-pb-[calc(230px+env(safe-area-inset-bottom))] !bg-[#f5f6f8] text-slate-900 lg:top-0 lg:z-[9999] lg:flex lg:justify-center lg:scroll-pb-8">
-      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-2.5 px-3 pb-[calc(230px+env(safe-area-inset-bottom))] pt-3 sm:px-6 lg:mx-0 lg:gap-4 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
+    <main className="fixed bottom-0 left-1/2 top-[calc(72px+env(safe-area-inset-top))] z-[120] w-screen -translate-x-1/2 overflow-y-auto scroll-pb-[calc(300px+env(safe-area-inset-bottom))] !bg-[#f5f6f8] text-slate-900 lg:top-0 lg:z-[9999] lg:flex lg:justify-center lg:scroll-pb-8">
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-2.5 px-3 pb-[calc(280px+env(safe-area-inset-bottom))] pt-3 sm:px-6 lg:mx-0 lg:gap-4 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
         <header className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
           <div className="mb-4 hidden items-center justify-between border-b border-slate-100 pb-3 lg:flex">
             <Link href="/" className="flex items-center gap-3">
@@ -1074,6 +1074,7 @@ export default function TournamentCalendarPage() {
             onDelete={handleDeleteEvent}
           />
         )}
+        <div className="h-[calc(180px+env(safe-area-inset-bottom))] shrink-0 lg:hidden" aria-hidden="true" />
       </div>
     </main>
   );
