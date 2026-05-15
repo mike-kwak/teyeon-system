@@ -253,7 +253,7 @@ export default function ArchivePage() {
   };
 
   return (
-    <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[calc(180px+env(safe-area-inset-bottom))] sm:pb-32">
+    <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar scroll-pb-[calc(260px+env(safe-area-inset-bottom))] pb-[calc(180px+env(safe-area-inset-bottom))] sm:scroll-pb-32 sm:pb-32">
       {/* 럭셔리 라인 헤더 */}
       <header className="px-8 pt-24 pb-2 flex flex-col gap-1 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
           {selectedSessionId ? (
@@ -289,7 +289,7 @@ export default function ArchivePage() {
                ))}
            </nav>
      
-           <section className="flex-1 px-6 sm:px-8 mt-4 pb-[calc(180px+env(safe-area-inset-bottom))] sm:pb-24">
+           <section className="flex-1 px-6 sm:px-8 mt-4 pb-[calc(260px+env(safe-area-inset-bottom))] sm:pb-24">
              {loading ? (
                  <div className="py-24 text-center">
                      <p className="text-[12px] font-black text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
@@ -470,6 +470,7 @@ export default function ArchivePage() {
                 <div className="mt-8 px-8 py-3 bg-black/60 border border-white/5 rounded-2xl inline-block italic text-zinc-500 text-[9px] font-black tracking-widest uppercase animate-pulse">테연 랭킹 업데이트 중...</div>
             </div>
         )}
+        <div className="h-[calc(220px+env(safe-area-inset-bottom))] sm:hidden" aria-hidden="true" />
       </section>
     </main>
   );
