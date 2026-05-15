@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
+  LayoutGrid,
+  List,
   MapPin,
   MessageCircle,
   Plus,
@@ -199,12 +201,12 @@ function EventPill({ event, onClick }: { event: TournamentEvent; onClick: () => 
       className={`group flex w-full overflow-hidden rounded-xl border ${isCanceled ? 'border-rose-200 bg-rose-50/80 text-rose-800' : style.pill} text-left shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.02] transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]`}
     >
       <span className={`w-1.5 shrink-0 self-stretch ${isCanceled ? 'bg-rose-400' : style.accent}`} aria-hidden="true" />
-      <div className="min-w-0 flex-1 px-3 py-2.5">
+      <div className="min-w-0 flex-1 px-2.5 py-2 lg:px-3 lg:py-2.5">
         <div className="flex min-w-0 items-center gap-2 overflow-visible">
           <span className="inline-flex min-w-fit shrink-0 whitespace-nowrap overflow-visible text-[9px] font-[1000] uppercase tracking-[0.08em]">{style.badge}</span>
-          <span className="min-w-0 truncate text-[12px] font-[1000] leading-tight text-slate-950 xl:text-[13px]">{event.title}</span>
+          <span className="min-w-0 truncate text-[11px] font-[1000] leading-tight text-slate-950 lg:text-[12px] xl:text-[13px]">{event.title}</span>
         </div>
-        <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[10px] font-bold text-slate-600">
+        <div className="mt-1 flex min-w-0 items-center gap-2 text-[9px] font-bold text-slate-600 lg:mt-1.5 lg:text-[10px]">
           <span className="truncate">
             {event.division}
             {event.grade ? ` · ${event.grade}` : ''}
@@ -451,9 +453,9 @@ export default function TournamentCalendarPage() {
   };
 
   return (
-    <main className="fixed bottom-0 left-1/2 top-0 z-[120] w-screen -translate-x-1/2 overflow-y-auto !bg-[#f5f6f8] text-slate-900 lg:z-[9999] lg:flex lg:justify-center">
-      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-3 px-3 py-3 pb-[calc(210px+env(safe-area-inset-bottom))] sm:px-6 lg:mx-0 lg:gap-4 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
-        <header className="rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
+    <main className="fixed bottom-0 left-1/2 top-[calc(72px+env(safe-area-inset-top))] z-[120] w-screen -translate-x-1/2 overflow-y-auto scroll-pb-[calc(230px+env(safe-area-inset-bottom))] !bg-[#f5f6f8] text-slate-900 lg:top-0 lg:z-[9999] lg:flex lg:justify-center lg:scroll-pb-8">
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-2.5 px-3 pb-[calc(230px+env(safe-area-inset-bottom))] pt-3 sm:px-6 lg:mx-0 lg:gap-4 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
+        <header className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
           <div className="mb-4 hidden items-center justify-between border-b border-slate-100 pb-3 lg:flex">
             <Link href="/" className="flex items-center gap-3">
               <div>
@@ -480,23 +482,22 @@ export default function TournamentCalendarPage() {
             )}
           </div>
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
-            <div className="flex min-w-0 items-start gap-3">
+          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
+            <div className="flex min-w-0 items-start gap-2.5 lg:gap-3">
               <Link
                 href="/"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 active:scale-95 lg:h-10 lg:w-10"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 active:scale-95 lg:h-10 lg:w-10"
                 aria-label="홈으로"
               >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={17} />
               </Link>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[9px] font-[1000] uppercase tracking-[0.18em] text-amber-700 lg:hidden">
                     TEYEON
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 lg:hidden">Tournament Calendar</span>
                 </div>
-                <h1 className="mt-1 text-[24px] font-[1000] tracking-[-0.05em] text-slate-950 sm:text-[34px] lg:mt-2 lg:text-[38px]">
+                <h1 className="mt-0.5 text-[22px] font-[1000] tracking-[-0.05em] text-slate-950 sm:text-[34px] lg:mt-2 lg:text-[38px]">
                   대회 캘린더
                 </h1>
                 <p className="mt-1 hidden max-w-3xl text-[13px] font-semibold leading-relaxed text-slate-500 sm:block">
@@ -505,39 +506,39 @@ export default function TournamentCalendarPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 lg:justify-end lg:gap-2">
-              <div className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 lg:h-10 lg:gap-2 lg:px-3">
-                <CalendarDays size={15} className="text-amber-600" />
-                <span className="text-[12px] font-[1000] text-slate-900 lg:text-[13px]">{monthLabel(currentMonth)}</span>
+            <div className="flex flex-wrap items-center gap-1 lg:justify-end lg:gap-2">
+              <div className="flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 lg:h-10 lg:gap-2 lg:px-3">
+                <CalendarDays size={14} className="text-amber-600 lg:size-[15px]" />
+                <span className="text-[11px] font-[1000] text-slate-900 lg:text-[13px]">{monthLabel(currentMonth)}</span>
               </div>
               <button
                 type="button"
                 onClick={() => moveMonth(-1)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
                 aria-label="이전 달"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={17} />
               </button>
               <button
                 type="button"
                 onClick={() => setCurrentMonth(new Date())}
-                className="h-9 rounded-full border border-amber-300 bg-amber-50 px-3 text-[10px] font-[1000] uppercase tracking-[0.1em] text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95 lg:h-10 lg:px-4 lg:text-[11px]"
+                className="h-8 rounded-full border border-amber-300 bg-amber-50 px-2.5 text-[9px] font-[1000] uppercase tracking-[0.08em] text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95 lg:h-10 lg:px-4 lg:text-[11px]"
               >
                 이번 달
               </button>
               <button
                 type="button"
                 onClick={() => moveMonth(1)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
                 aria-label="다음 달"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={17} />
               </button>
               {isAdmin && (
                 <button
                   type="button"
                   onClick={openCreateEditor}
-                  className="flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-3 text-[10px] font-[1000] uppercase tracking-[0.1em] text-slate-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95 lg:h-10 lg:gap-2 lg:px-4 lg:text-[11px]"
+                  className="flex h-8 items-center gap-1 whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-2.5 text-[9px] font-[1000] uppercase tracking-[0.08em] text-slate-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95 lg:h-10 lg:gap-2 lg:px-4 lg:text-[11px]"
                   style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}
                 >
                   <Plus size={14} className="shrink-0" style={{ color: '#b45309', stroke: '#b45309' }} />
@@ -547,22 +548,15 @@ export default function TournamentCalendarPage() {
                   </span>
                 </button>
               )}
-              <div className="ml-auto flex w-[116px] rounded-full border border-slate-200 bg-slate-50 p-0.5 lg:hidden">
-                {(['list', 'calendar'] as const).map((mode) => (
-                  <button
-                    type="button"
-                    key={mode}
-                    onClick={() => setViewMode(mode)}
-                    className={`h-7 flex-1 rounded-full text-[10px] font-[1000] transition ${
-                      viewMode === mode
-                        ? 'bg-slate-950 text-white shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    {mode === 'list' ? '리스트' : '월간'}
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setViewMode((mode) => (mode === 'list' ? 'calendar' : 'list'))}
+                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:hidden"
+                aria-label={viewMode === 'list' ? '월간 보기' : '리스트 보기'}
+                title={viewMode === 'list' ? '월간 보기' : '리스트 보기'}
+              >
+                {viewMode === 'list' ? <LayoutGrid size={15} /> : <List size={15} />}
+              </button>
             </div>
           </div>
 
@@ -578,7 +572,7 @@ export default function TournamentCalendarPage() {
             </span>
           </div>
           {dataMessage && (
-            <p className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
+            <p className="mt-2 hidden rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800 lg:block">
               {dataMessage}
             </p>
           )}
@@ -830,19 +824,19 @@ export default function TournamentCalendarPage() {
             </div>
 
             <SideInfoCard title="이번 달 요약" open={openInfoSections.summary} onToggle={() => toggleInfoSection('summary')}>
-              <div className="flex items-end justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 lg:items-end">
                 <div>
-                  <p className="text-[30px] font-[1000] leading-none text-slate-950">{monthSummary.total}</p>
-                  <p className="mt-1.5 text-[12px] font-bold text-slate-500">총 대회 수</p>
+                  <p className="text-[22px] font-[1000] leading-none text-slate-950 lg:text-[30px]">{monthSummary.total}</p>
+                  <p className="mt-1 text-[11px] font-bold text-slate-500 lg:mt-1.5 lg:text-[12px]">총 대회 수</p>
                 </div>
-                <div className="flex flex-col items-end gap-1.5 text-[12px] font-[1000] text-slate-600">
+                <div className="flex flex-col items-end gap-1 text-[11px] font-[1000] text-slate-600 lg:gap-1.5 lg:text-[12px]">
                   <span>접수중 {monthSummary.openCount}개</span>
                   {monthSummary.partnerCount > 0 && (
-                    <span className="text-[10px] font-bold text-slate-400">파트너 구함 {monthSummary.partnerCount}명</span>
+                    <span className="text-[9px] font-bold text-slate-400 lg:text-[10px]">파트너 구함 {monthSummary.partnerCount}명</span>
                   )}
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 hidden flex-wrap gap-2 lg:flex">
                 {Object.entries(organizerStyle).map(([organizer, style]) => {
                   const count = monthSummary.organizerCounts[organizer as TournamentEvent['organizer']] || 0;
                   if (!count) return null;
@@ -953,17 +947,17 @@ export default function TournamentCalendarPage() {
           </aside>
         </section>
 
-        <section className="rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
+        <section className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
           <button
             type="button"
             onClick={() => setIsMonthlySheetOpen((prev) => !prev)}
-            className="flex min-h-12 w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 text-left ring-1 ring-slate-200 transition hover:bg-white"
+            className="flex min-h-10 w-full flex-wrap items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-left ring-1 ring-slate-200 transition hover:bg-white lg:min-h-12 lg:gap-3"
           >
             <div>
-              <p className="text-[10px] font-[1000] uppercase tracking-[0.18em] text-amber-700">Monthly Sheet</p>
-              <h2 className="mt-0.5 text-[18px] font-[1000] tracking-[-0.04em] text-slate-950 lg:text-[20px]">월간 출전 현황표</h2>
+              <p className="text-[9px] font-[1000] uppercase tracking-[0.16em] text-amber-700 lg:text-[10px] lg:tracking-[0.18em]">Monthly Sheet</p>
+              <h2 className="mt-0.5 text-[16px] font-[1000] tracking-[-0.04em] text-slate-950 lg:text-[20px]">월간 출전 현황표</h2>
             </div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-[1000] text-slate-600">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-[1000] text-slate-600 lg:gap-2 lg:px-3 lg:py-1.5 lg:text-[11px]">
               {isMonthlySheetOpen ? '현황표 접기' : '현황표 보기'} · {monthEvents.length}개 대회
               <ChevronDown size={16} className={`transition-transform ${isMonthlySheetOpen ? 'rotate-180' : ''}`} />
             </span>
