@@ -175,89 +175,56 @@ export default function Home() {
               />
             </div>
 
-            <section className="mt-8 w-full rounded-[28px] border border-[#D8BE78]/14 bg-[#242323]/92 p-5 shadow-[0_18px_42px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]">
-              <div className="mb-4 flex items-center justify-between gap-3">
+            <section className="mt-8 w-full overflow-hidden rounded-[28px] border border-[#D8BE78]/18 bg-[#242323]/92 shadow-[0_18px_42px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <div className="flex items-center justify-between gap-3 border-b border-[#D8BE78]/12 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-[9px] font-[1000] uppercase tracking-[0.3em] text-[#D8BE78]/65">
+                  <p className="text-[9px] font-[1000] uppercase tracking-[0.28em] text-[#D8BE78]/65">
                     TEYEON MINI BOARD
                   </p>
-                  <h2 className="mt-1 text-[18px] font-[1000] tracking-[-0.03em] text-[#F1E7C4]">
-                    이번 달 운영 메모
-                  </h2>
                 </div>
-                <Link
-                  href="/tournament-calendar"
-                  className="shrink-0 rounded-full border border-[#D8BE78]/28 bg-[#D8BE78]/10 px-3 py-1.5 text-[10px] font-[1000] uppercase tracking-[0.12em] text-[#E1C982] active:scale-95"
-                >
-                  전체 보기
-                </Link>
+                <span className="shrink-0 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-[1000] uppercase tracking-[0.16em] text-emerald-200">
+                  BOARD
+                </span>
               </div>
 
-              <div className="space-y-3">
-                <div className="rounded-[20px] border border-white/8 bg-black/18 p-3">
-                  <div className="mb-2 flex items-center gap-2 text-[11px] font-[1000] uppercase tracking-[0.16em] text-[#D8BE78]">
-                    <Trophy size={14} />
-                    이번 달 주요 대회
-                  </div>
-                  <div className="space-y-2">
-                    {featuredEvents.map((event) => (
-                      <Link
-                        key={event.id}
-                        href="/tournament-calendar"
-                        className="flex min-w-0 items-center justify-between gap-3 rounded-[14px] bg-white/[0.035] px-3 py-2 active:scale-[0.99]"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-[12px] font-[1000] text-[#F1E7C4]">{event.title}</p>
-                          <p className="mt-0.5 truncate text-[10px] font-bold text-white/40">
-                            {event.organizer} · {event.division}{event.grade ? ` · ${event.grade}` : ''}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-full bg-[#D8BE78]/12 px-2 py-1 text-[10px] font-[1000] text-[#E1C982]">
-                          {event.date.slice(5).replace('-', '.')}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-[18px] border border-white/8 bg-black/16 p-3">
-                    <div className="mb-2 flex items-center gap-2 text-[10px] font-[1000] uppercase tracking-[0.14em] text-white/45">
-                      <Clock size={13} />
-                      접수 임박
-                    </div>
-                    <div className="space-y-1.5">
-                      {upcomingRegistrationEvents.map((event) => (
-                        <p key={event.id} className="truncate text-[11px] font-bold text-white/70">
-                          {getTournamentDday(event.registrationStart)} · {event.title}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-[18px] border border-white/8 bg-black/16 p-3">
-                    <div className="mb-2 flex items-center gap-2 text-[10px] font-[1000] uppercase tracking-[0.14em] text-white/45">
-                      <ClipboardList size={13} />
-                      운영 메모
-                    </div>
-                    <p className="text-[11px] font-bold leading-snug text-white/65">
-                      진행 중 KDK는 LIVE COURT에서 확인
-                    </p>
-                    <p className="mt-1 text-[11px] font-bold leading-snug text-[#D8BE78]/75">
-                      최근 KDK 1등 기록은 Archive 연동 예정
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-[18px] border border-[#D8BE78]/14 bg-[#D8BE78]/7 p-3">
-                  <div className="flex items-center gap-2 text-[10px] font-[1000] uppercase tracking-[0.14em] text-[#D8BE78]">
-                    <UserRoundSearch size={13} />
-                    파트너 구함
-                  </div>
-                  <p className="mt-2 truncate text-[12px] font-bold text-[#F1E7C4]/82">
-                    {featuredEvents.flatMap((event) => event.lookingForPartners).slice(0, 4).join(', ') || '현재 파트너 희망자 없음'}
-                  </p>
-                </div>
+              <div className="divide-y divide-white/8">
+                <MiniBoardLine
+                  label="UP NEXT"
+                  icon={<Trophy size={14} />}
+                  href="/tournament-calendar"
+                  value={
+                    featuredEvents[0]
+                      ? `${featuredEvents[0].date.slice(5).replace('-', '/')} ${featuredEvents[0].title}`
+                      : '이번 달 등록된 주요 대회 없음'
+                  }
+                  meta={
+                    featuredEvents[0]
+                      ? `${featuredEvents[0].organizer} · ${featuredEvents[0].division}${featuredEvents[0].grade ? ` · ${featuredEvents[0].grade}` : ''}`
+                      : 'CALENDAR'
+                  }
+                />
+                <MiniBoardLine
+                  label="ALERT"
+                  icon={<Clock size={14} />}
+                  href="/tournament-calendar"
+                  value={
+                    upcomingRegistrationEvents.length > 0
+                      ? `접수 임박 ${upcomingRegistrationEvents.length}건`
+                      : '접수 임박 일정 없음'
+                  }
+                  meta={
+                    upcomingRegistrationEvents[0]
+                      ? `${getTournamentDday(upcomingRegistrationEvents[0].registrationStart)} · ${upcomingRegistrationEvents[0].title}`
+                      : 'TOURNAMENT'
+                  }
+                />
+                <MiniBoardLine
+                  label="KDK"
+                  icon={<ClipboardList size={14} />}
+                  href="/archive"
+                  value="최근 KDK 결과는 Archive에서 확인"
+                  meta="다음 KDK 준비 중"
+                />
               </div>
             </section>
 
@@ -276,5 +243,36 @@ export default function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+function MiniBoardLine({
+  label,
+  icon,
+  value,
+  meta,
+  href,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  meta: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="grid min-w-0 grid-cols-[68px_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 transition hover:bg-white/[0.035] active:scale-[0.99]"
+    >
+      <div className="flex items-center gap-1.5 text-[10px] font-[1000] uppercase tracking-[0.12em] text-[#D8BE78]">
+        {icon}
+        {label}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[12px] font-[1000] text-[#F1E7C4]">{value}</p>
+        <p className="mt-0.5 truncate text-[10px] font-bold text-white/42">{meta}</p>
+      </div>
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#D8BE78]/70 shadow-[0_0_12px_rgba(216,190,120,0.45)]" />
+    </Link>
   );
 }
