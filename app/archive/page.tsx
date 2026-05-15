@@ -253,7 +253,7 @@ export default function ArchivePage() {
   };
 
   return (
-    <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-32">
+    <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar pb-[calc(180px+env(safe-area-inset-bottom))] sm:pb-32">
       {/* 럭셔리 라인 헤더 */}
       <header className="px-8 pt-24 pb-2 flex flex-col gap-1 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
           {selectedSessionId ? (
@@ -289,7 +289,7 @@ export default function ArchivePage() {
                ))}
            </nav>
      
-           <section className="flex-1 px-6 sm:px-8 mt-4">
+           <section className="flex-1 px-6 sm:px-8 mt-4 pb-[calc(180px+env(safe-area-inset-bottom))] sm:pb-24">
              {loading ? (
                  <div className="py-24 text-center">
                      <p className="text-[12px] font-black text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
