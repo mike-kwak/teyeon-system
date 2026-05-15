@@ -230,6 +230,7 @@ export default function TournamentCalendarPage() {
     upcoming: false,
     pairStatus: false,
     results: false,
+    partnerRequests: false,
   });
   const [isMonthlySheetOpen, setIsMonthlySheetOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
@@ -332,10 +333,18 @@ export default function TournamentCalendarPage() {
 
   const monthlyPairStatus = useMemo(() => {
     return monthEvents
-      .filter((event) => event.pairs.some((pair) => !hasResult(pair)) || event.lookingForPartners.length > 0)
+      .filter((event) => event.pairs.some((pair) => !hasResult(pair)))
       .map((event) => ({
         event,
         plannedPairs: event.pairs.filter((pair) => !hasResult(pair)),
+      }));
+  }, [monthEvents]);
+
+  const monthlyPartnerRequests = useMemo(() => {
+    return monthEvents
+      .filter((event) => event.lookingForPartners.length > 0)
+      .map((event) => ({
+        event,
         lookingForPartners: event.lookingForPartners,
       }));
   }, [monthEvents]);
@@ -371,7 +380,7 @@ export default function TournamentCalendarPage() {
       `부서: ${selectedEvent.division}${selectedEvent.grade ? ` / ${selectedEvent.grade}` : ''}`,
       `접수: ${selectedEvent.registrationStart ? formatTournamentDate(selectedEvent.registrationStart) : '미정'} (${selectedEvent.status})`,
       `참가 예정: ${selectedEvent.pairs.length}팀`,
-      `파트너 구함: ${selectedEvent.lookingForPartners.length}명`,
+      ...(selectedEvent.lookingForPartners.length > 0 ? [`파트너 구함: ${selectedEvent.lookingForPartners.length}명`] : []),
     ].join('\n');
 
     try {
@@ -443,8 +452,8 @@ export default function TournamentCalendarPage() {
 
   return (
     <main className="fixed bottom-0 left-1/2 top-0 z-[120] w-screen -translate-x-1/2 overflow-y-auto !bg-[#f5f6f8] text-slate-900 lg:z-[9999] lg:flex lg:justify-center">
-      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-4 px-3 py-5 pb-[calc(170px+env(safe-area-inset-bottom))] sm:px-6 lg:mx-0 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
-        <header className="rounded-3xl border border-slate-300 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:p-5">
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-3 px-3 py-3 pb-[calc(210px+env(safe-area-inset-bottom))] sm:px-6 lg:mx-0 lg:gap-4 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
+        <header className="rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
           <div className="mb-4 hidden items-center justify-between border-b border-slate-100 pb-3 lg:flex">
             <Link href="/" className="flex items-center gap-3">
               <div>
@@ -471,40 +480,40 @@ export default function TournamentCalendarPage() {
             )}
           </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
             <div className="flex min-w-0 items-start gap-3">
               <Link
                 href="/"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 active:scale-95"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 active:scale-95 lg:h-10 lg:w-10"
                 aria-label="홈으로"
               >
-                <ArrowLeft size={19} />
+                <ArrowLeft size={18} />
               </Link>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-[1000] uppercase tracking-[0.2em] text-amber-700 lg:hidden">
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[9px] font-[1000] uppercase tracking-[0.18em] text-amber-700 lg:hidden">
                     TEYEON
                   </span>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 lg:hidden">Tournament Calendar</span>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 lg:hidden">Tournament Calendar</span>
                 </div>
-                <h1 className="mt-2 text-[30px] font-[1000] tracking-[-0.05em] text-slate-950 sm:text-[42px] lg:text-[38px]">
+                <h1 className="mt-1 text-[24px] font-[1000] tracking-[-0.05em] text-slate-950 sm:text-[34px] lg:mt-2 lg:text-[38px]">
                   대회 캘린더
                 </h1>
-                <p className="mt-1 max-w-3xl text-[13px] font-semibold leading-relaxed text-slate-500">
-                  월별 대회 일정과 참가 예정 페어, 파트너 희망자를 한 화면에서 확인합니다.
+                <p className="mt-1 hidden max-w-3xl text-[13px] font-semibold leading-relaxed text-slate-500 sm:block">
+                  월별 대회 일정과 출전 페어, 성적 현황을 한 화면에서 확인합니다.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
-                <CalendarDays size={16} className="text-amber-600" />
-                <span className="text-[13px] font-[1000] text-slate-900">{monthLabel(currentMonth)}</span>
+            <div className="flex flex-wrap items-center gap-1.5 lg:justify-end lg:gap-2">
+              <div className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 lg:h-10 lg:gap-2 lg:px-3">
+                <CalendarDays size={15} className="text-amber-600" />
+                <span className="text-[12px] font-[1000] text-slate-900 lg:text-[13px]">{monthLabel(currentMonth)}</span>
               </div>
               <button
                 type="button"
                 onClick={() => moveMonth(-1)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
                 aria-label="이전 달"
               >
                 <ChevronLeft size={18} />
@@ -512,14 +521,14 @@ export default function TournamentCalendarPage() {
               <button
                 type="button"
                 onClick={() => setCurrentMonth(new Date())}
-                className="h-10 rounded-full border border-amber-300 bg-amber-50 px-4 text-[11px] font-[1000] uppercase tracking-[0.12em] text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95"
+                className="h-9 rounded-full border border-amber-300 bg-amber-50 px-3 text-[10px] font-[1000] uppercase tracking-[0.1em] text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95 lg:h-10 lg:px-4 lg:text-[11px]"
               >
                 이번 달
               </button>
               <button
                 type="button"
                 onClick={() => moveMonth(1)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
                 aria-label="다음 달"
               >
                 <ChevronRight size={18} />
@@ -528,22 +537,23 @@ export default function TournamentCalendarPage() {
                 <button
                   type="button"
                   onClick={openCreateEditor}
-                  className="flex h-10 items-center gap-2 whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-4 text-[11px] font-[1000] uppercase tracking-[0.12em] text-slate-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95"
+                  className="flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-3 text-[10px] font-[1000] uppercase tracking-[0.1em] text-slate-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95 lg:h-10 lg:gap-2 lg:px-4 lg:text-[11px]"
                   style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}
                 >
-                  <Plus size={15} className="shrink-0" style={{ color: '#b45309', stroke: '#b45309' }} />
+                  <Plus size={14} className="shrink-0" style={{ color: '#b45309', stroke: '#b45309' }} />
                   <span className="inline-block text-slate-950" style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}>
-                    + 대회 등록
+                    <span className="sm:hidden">등록</span>
+                    <span className="hidden sm:inline">+ 대회 등록</span>
                   </span>
                 </button>
               )}
-              <div className="flex basis-full rounded-full border border-slate-200 bg-slate-50 p-1 lg:hidden">
+              <div className="ml-auto flex w-[116px] rounded-full border border-slate-200 bg-slate-50 p-0.5 lg:hidden">
                 {(['list', 'calendar'] as const).map((mode) => (
                   <button
                     type="button"
                     key={mode}
                     onClick={() => setViewMode(mode)}
-                    className={`h-9 flex-1 rounded-full text-[11px] font-[1000] transition ${
+                    className={`h-7 flex-1 rounded-full text-[10px] font-[1000] transition ${
                       viewMode === mode
                         ? 'bg-slate-950 text-white shadow-sm'
                         : 'text-slate-500'
@@ -556,7 +566,7 @@ export default function TournamentCalendarPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <div className="mt-4 hidden flex-wrap items-center gap-2 border-t border-slate-100 pt-3 lg:flex">
             <span className="mr-1 text-[10px] font-[1000] uppercase tracking-[0.18em] text-slate-400">Organizer</span>
             {Object.entries(organizerStyle).map(([key, style]) => (
               <span key={key} className={`rounded-full border px-2.5 py-1 text-[9px] font-[1000] uppercase tracking-[0.1em] ${style.chip}`}>
@@ -575,26 +585,26 @@ export default function TournamentCalendarPage() {
         </header>
 
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className={`${viewMode === 'list' ? 'block' : 'hidden'} min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:hidden`}>
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className={`${viewMode === 'list' ? 'block' : 'hidden'} min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:hidden`}>
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-[1000] uppercase tracking-[0.22em] text-amber-600">Monthly List</p>
-                <h2 className="mt-1 text-[22px] font-[1000] tracking-[-0.04em] text-slate-950">{monthLabel(currentMonth)}</h2>
+                <p className="text-[9px] font-[1000] uppercase tracking-[0.18em] text-amber-600">Monthly List</p>
+                <h2 className="mt-0.5 text-[20px] font-[1000] tracking-[-0.04em] text-slate-950">{monthLabel(currentMonth)}</h2>
               </div>
-              <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-[1000] text-amber-700">
+              <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[9px] font-[1000] text-amber-700">
                 {monthEvents.length} events
               </span>
             </div>
 
             {monthEventsByDate.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {monthEventsByDate.map(({ date, events }) => (
-                  <div key={date} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className="text-[13px] font-[1000] text-slate-900">{formatTournamentDate(date)}</p>
+                  <div key={date} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[12px] font-[1000] text-slate-900">{formatTournamentDate(date)}</p>
                       <span className="text-[10px] font-bold text-slate-400">{events.length}개 대회</span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {events.map((event) => (
                         <EventPill key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
                       ))}
@@ -694,53 +704,107 @@ export default function TournamentCalendarPage() {
             </div>
           </div>
 
-          <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
-            <div className="rounded-3xl border border-slate-300 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
+          <aside className="min-w-0 space-y-3 lg:sticky lg:top-4 lg:space-y-4 lg:self-start">
+            <div className="rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
               {selectedEvent ? (
-                <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-3 lg:gap-5">
                   <div>
-                    <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-                      <span className={`rounded-full border px-3 py-1 text-[10px] font-[1000] uppercase tracking-[0.12em] ${organizerStyle[selectedEvent.organizer].chip}`}>
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2 lg:mb-3 lg:gap-2 lg:pb-3">
+                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-[1000] uppercase tracking-[0.12em] lg:px-3 lg:py-1 lg:text-[10px] ${organizerStyle[selectedEvent.organizer].chip}`}>
                         {selectedEvent.organizer}
                       </span>
-                      <span className={`rounded-full border px-3 py-1 text-[10px] font-[1000] ${statusStyle[selectedEvent.status]}`}>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-[1000] lg:px-3 lg:py-1 lg:text-[10px] ${statusStyle[selectedEvent.status]}`}>
                         {selectedEvent.status}
                       </span>
                     </div>
-                    <h2 className="text-[26px] font-[1000] leading-tight tracking-[-0.04em] text-slate-950">
+                    <h2 className="text-[21px] font-[1000] leading-tight tracking-[-0.04em] text-slate-950 lg:text-[26px]">
                       {selectedEvent.title}
                     </h2>
-                    <p className="mt-2 flex items-center gap-2 text-[12px] font-bold text-slate-500">
-                      <MapPin size={14} />
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 lg:mt-2 lg:gap-2 lg:text-[12px]">
+                      <MapPin size={13} className="shrink-0 lg:size-[14px]" />
                       {selectedEvent.venue}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2 lg:gap-3">
                     <InfoBox label="일자" value={formatTournamentDate(selectedEvent.date)} />
                     <InfoBox label="부서" value={`${selectedEvent.division}${selectedEvent.grade ? ` / ${selectedEvent.grade}` : ''}`} />
                     <InfoBox label="접수 시작" value={selectedEvent.registrationStart ? `${formatTournamentDate(selectedEvent.registrationStart)} · ${getTournamentDday(selectedEvent.registrationStart)}` : '미정'} />
-                    <InfoBox label="현황" value={`${selectedEvent.pairs.length}팀 · 파트너 ${selectedEvent.lookingForPartners.length}명`} />
+                    <InfoBox
+                      label="현황"
+                      value={`${selectedEvent.pairs.length}팀${selectedEvent.lookingForPartners.length > 0 ? ` · 파트너 ${selectedEvent.lookingForPartners.length}명` : ''}`}
+                    />
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="hidden rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:block">
                     <p className="mb-2 text-[10px] font-[1000] uppercase tracking-[0.18em] text-amber-700">Memo</p>
                     <p className="text-[12px] font-bold leading-relaxed text-slate-600">{selectedEvent.memo || '등록된 메모가 없습니다.'}</p>
                   </div>
 
-                  <ListBlock
-                    title="출전 페어"
-                    icon={<UsersRound size={14} />}
-                    items={selectedEvent.pairs.map((pair) => `${pairLabel(pair)} · ${hasResult(pair) ? pair.result : '참가 예정'}`)}
-                    empty="아직 출전 페어가 없습니다."
-                  />
-                  <ListBlock title="파트너 구함" icon={<Search size={14} />} items={selectedEvent.lookingForPartners} empty="현재 파트너 희망자가 없습니다." />
+                  <div className="hidden lg:block">
+                    <ListBlock
+                      title="출전 페어"
+                      icon={<UsersRound size={14} />}
+                      items={selectedEvent.pairs.map((pair) => `${pairLabel(pair)} · ${hasResult(pair) ? pair.result : '참가 예정'}`)}
+                      empty="아직 출전 페어가 없습니다."
+                    />
+                  </div>
+                  {selectedEvent.lookingForPartners.length > 0 && (
+                    <div className="hidden lg:block">
+                      <ListBlock title="파트너 구함" icon={<Search size={14} />} items={selectedEvent.lookingForPartners} empty="현재 파트너 희망자가 없습니다." compact />
+                    </div>
+                  )}
+
+                  <div className="space-y-2 lg:hidden">
+                    <details className="rounded-2xl border border-slate-200 bg-slate-50">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[12px] font-[1000] text-slate-900">
+                        <span className="flex items-center gap-2">
+                          <UsersRound size={13} className="text-amber-700" />
+                          출전 페어
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] text-slate-500">
+                          {selectedEvent.pairs.length}팀
+                        </span>
+                      </summary>
+                      <div className="space-y-1.5 border-t border-slate-200 px-3 py-2">
+                        {selectedEvent.pairs.length > 0 ? (
+                          selectedEvent.pairs.map((pair) => (
+                            <p key={`${pair.player1}-${pair.player2}-${pair.result || 'planned'}`} className="rounded-xl bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600">
+                              {pairLabel(pair)} · {hasResult(pair) ? pair.result : '참가 예정'}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-[11px] font-bold text-slate-400">아직 출전 페어가 없습니다.</p>
+                        )}
+                      </div>
+                    </details>
+                    {selectedEvent.lookingForPartners.length > 0 && (
+                      <details className="rounded-2xl border border-slate-200 bg-slate-50">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[12px] font-[1000] text-slate-900">
+                          <span className="flex items-center gap-2">
+                            <Search size={13} className="text-amber-700" />
+                            파트너 구함
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] text-slate-500">
+                            {selectedEvent.lookingForPartners.length}명
+                          </span>
+                        </summary>
+                        <div className="flex flex-wrap gap-1.5 border-t border-slate-200 px-3 py-2">
+                          {selectedEvent.lookingForPartners.map((name) => (
+                            <span key={name} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={shareSelectedEvent}
-                      className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-[12px] font-[1000] uppercase tracking-[0.14em] text-amber-800 shadow-sm transition hover:bg-amber-100 active:scale-[0.98]"
+                      className="flex h-10 items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-[11px] font-[1000] uppercase tracking-[0.12em] text-amber-800 shadow-sm transition hover:bg-amber-100 active:scale-[0.98] lg:h-12 lg:text-[12px] lg:tracking-[0.14em]"
                     >
                       <MessageCircle size={16} />
                       카톡 공유
@@ -749,7 +813,7 @@ export default function TournamentCalendarPage() {
                       <button
                         type="button"
                         onClick={openEditEditor}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-slate-50 text-[12px] font-[1000] uppercase tracking-[0.14em] text-slate-950 shadow-sm transition hover:bg-slate-100 active:scale-[0.98]"
+                        className="flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-slate-50 text-[11px] font-[1000] uppercase tracking-[0.12em] text-slate-950 shadow-sm transition hover:bg-slate-100 active:scale-[0.98] lg:h-12 lg:text-[12px] lg:tracking-[0.14em]"
                         style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}
                       >
                         <Edit3 size={15} className="shrink-0" style={{ color: '#475569', stroke: '#475569' }} />
@@ -773,7 +837,9 @@ export default function TournamentCalendarPage() {
                 </div>
                 <div className="flex flex-col items-end gap-1.5 text-[12px] font-[1000] text-slate-600">
                   <span>접수중 {monthSummary.openCount}개</span>
-                  <span>파트너 {monthSummary.partnerCount}명</span>
+                  {monthSummary.partnerCount > 0 && (
+                    <span className="text-[10px] font-bold text-slate-400">파트너 구함 {monthSummary.partnerCount}명</span>
+                  )}
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -787,65 +853,6 @@ export default function TournamentCalendarPage() {
                   );
                 })}
               </div>
-            </SideInfoCard>
-
-            <SideInfoCard title="접수 임박" open={openInfoSections.upcoming} onToggle={() => toggleInfoSection('upcoming')}>
-              {upcomingRegistrations.length > 0 ? (
-                <div className="space-y-2">
-                  {upcomingRegistrations.map(({ event, dday }) => (
-                    <button
-                      type="button"
-                      key={event.id}
-                      onClick={() => setSelectedEvent(event)}
-                      className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
-                    >
-                      <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-[1000] text-amber-700">
-                        {dday}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
-                        <p className="mt-0.5 truncate text-[10px] font-bold text-slate-500">{formatTournamentDate(event.registrationStart || event.date)} · {event.status}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[12px] font-bold text-slate-400">접수 예정 대회가 없습니다.</p>
-              )}
-            </SideInfoCard>
-
-            <SideInfoCard title="이번 달 파트너 현황" open={openInfoSections.pairStatus} onToggle={() => toggleInfoSection('pairStatus')}>
-                {monthlyPairStatus.length > 0 ? (
-                  <div className="space-y-3">
-                    {monthlyPairStatus.slice(0, 5).map(({ event, plannedPairs, lookingForPartners }) => (
-                      <button
-                        type="button"
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
-                      >
-                        <div className="flex min-w-0 items-center justify-between gap-3">
-                          <p className="min-w-0 truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
-                          <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-[1000] text-slate-500">
-                            예정 {plannedPairs.length}팀
-                          </span>
-                        </div>
-                        <div className="mt-1.5 space-y-1 text-[11px] font-bold leading-relaxed text-slate-600">
-                          <p className="line-clamp-2">
-                            <span className="text-slate-400">출전 예정</span>{' '}
-                            {plannedPairs.length > 0 ? plannedPairs.map(pairLabel).join(', ') : '없음'}
-                          </p>
-                          <p className="line-clamp-2">
-                            <span className="text-slate-400">파트너 구함</span>{' '}
-                            {lookingForPartners.length > 0 ? lookingForPartners.join(', ') : '없음'}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[12px] font-bold text-slate-400">이번 달 출전 예정/파트너 희망자가 없습니다.</p>
-                )}
             </SideInfoCard>
 
             <SideInfoCard title="이번 달 출전 결과" open={openInfoSections.results} onToggle={() => toggleInfoSection('results')}>
@@ -873,10 +880,80 @@ export default function TournamentCalendarPage() {
                 )}
             </SideInfoCard>
 
+            <SideInfoCard title="이번 달 출전 예정" open={openInfoSections.pairStatus} onToggle={() => toggleInfoSection('pairStatus')}>
+                {monthlyPairStatus.length > 0 ? (
+                  <div className="space-y-3">
+                    {monthlyPairStatus.slice(0, 5).map(({ event, plannedPairs }) => (
+                      <button
+                        type="button"
+                        key={event.id}
+                        onClick={() => setSelectedEvent(event)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
+                      >
+                        <div className="flex min-w-0 items-center justify-between gap-3">
+                          <p className="min-w-0 truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
+                          <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-[1000] text-slate-500">
+                            예정 {plannedPairs.length}팀
+                          </span>
+                        </div>
+                        <p className="mt-1.5 line-clamp-2 text-[11px] font-bold leading-relaxed text-slate-600">
+                          {plannedPairs.length > 0 ? plannedPairs.map(pairLabel).join(', ') : '참가 예정 없음'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[12px] font-bold text-slate-400">이번 달 출전 예정 페어가 없습니다.</p>
+                )}
+            </SideInfoCard>
+
+            <SideInfoCard title="접수 임박" open={openInfoSections.upcoming} onToggle={() => toggleInfoSection('upcoming')}>
+              {upcomingRegistrations.length > 0 ? (
+                <div className="space-y-2">
+                  {upcomingRegistrations.map(({ event, dday }) => (
+                    <button
+                      type="button"
+                      key={event.id}
+                      onClick={() => setSelectedEvent(event)}
+                      className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
+                    >
+                      <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-[1000] text-amber-700">
+                        {dday}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
+                        <p className="mt-0.5 truncate text-[10px] font-bold text-slate-500">{formatTournamentDate(event.registrationStart || event.date)} · {event.status}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] font-bold text-slate-400">접수 예정 대회가 없습니다.</p>
+              )}
+            </SideInfoCard>
+
+            {monthSummary.partnerCount > 0 && (
+              <SideInfoCard title="파트너 구함" open={openInfoSections.partnerRequests} onToggle={() => toggleInfoSection('partnerRequests')}>
+                <div className="space-y-2">
+                  {monthlyPartnerRequests.slice(0, 5).map(({ event, lookingForPartners }) => (
+                    <button
+                      type="button"
+                      key={event.id}
+                      onClick={() => setSelectedEvent(event)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
+                    >
+                      <p className="truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
+                      <p className="mt-1 line-clamp-2 text-[11px] font-bold text-slate-500">{lookingForPartners.join(', ')}</p>
+                    </button>
+                  ))}
+                </div>
+              </SideInfoCard>
+            )}
+
           </aside>
         </section>
 
-        <section className="rounded-3xl border border-slate-300 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:p-5">
+        <section className="rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
           <button
             type="button"
             onClick={() => setIsMonthlySheetOpen((prev) => !prev)}
@@ -895,7 +972,7 @@ export default function TournamentCalendarPage() {
           {isMonthlySheetOpen && (
             <div className="mt-4 border-t border-slate-200 pt-4">
               <div className="hidden overflow-hidden rounded-2xl border border-slate-300 lg:block">
-                <div className="grid grid-cols-[72px_1.15fr_70px_88px_88px_1.8fr_1.1fr_1.4fr] bg-slate-100 text-[11px] font-[1000] text-slate-700">
+                <div className="grid grid-cols-[72px_1.15fr_70px_88px_88px_2fr_0.78fr_1.55fr] bg-slate-100 text-[11px] font-[1000] text-slate-700">
                   {['일자', '대회명', '등급', '주관', '부서', '출전 페어', '파트너 구함', '성적'].map((header) => (
                     <div key={header} className="border-r border-slate-300 px-3 py-2 last:border-r-0">
                       {header}
@@ -910,7 +987,7 @@ export default function TournamentCalendarPage() {
                       type="button"
                       key={event.id}
                       onClick={() => setSelectedEvent(event)}
-                      className={`grid w-full grid-cols-[72px_1.15fr_70px_88px_88px_1.8fr_1.1fr_1.4fr] text-left text-[12px] font-bold text-slate-700 transition hover:bg-amber-50/60 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}
+                      className={`grid w-full grid-cols-[72px_1.15fr_70px_88px_88px_2fr_0.78fr_1.55fr] text-left text-[12px] font-bold text-slate-700 transition hover:bg-amber-50/60 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}
                     >
                       <div className="border-r border-t border-slate-200 px-3 py-2 text-slate-500">{monthDayLabel(event.date)}</div>
                       <div className="min-w-0 border-r border-t border-slate-200 px-3 py-2">
@@ -971,7 +1048,9 @@ export default function TournamentCalendarPage() {
                       </div>
                       <div className="space-y-1.5 text-[12px] font-bold text-slate-600">
                         <p><span className="text-slate-400">출전</span> {plannedPairs.map(pairLabel).join(', ') || '참가 예정 없음'}</p>
-                        <p><span className="text-slate-400">파트너</span> {event.lookingForPartners.join(', ') || '-'}</p>
+                        {event.lookingForPartners.length > 0 && (
+                          <p className="text-[11px]"><span className="text-slate-400">파트너</span> {event.lookingForPartners.join(', ')}</p>
+                        )}
                         <div className="flex flex-wrap gap-1.5">
                           <span className="text-slate-400">성적</span>
                           {resultPairs.length > 0 ? resultPairs.map((pair) => (
@@ -1294,9 +1373,9 @@ function SelectField({
 
 function InfoBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-[9px] font-[1000] uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-1 truncate text-[12px] font-[1000] text-slate-900">{value}</p>
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2.5 lg:rounded-2xl lg:p-3">
+      <p className="text-[8px] font-[1000] uppercase tracking-[0.14em] text-slate-400 lg:text-[9px] lg:tracking-[0.16em]">{label}</p>
+      <p className="mt-0.5 truncate text-[11px] font-[1000] text-slate-900 lg:mt-1 lg:text-[12px]">{value}</p>
     </div>
   );
 }
@@ -1313,19 +1392,19 @@ function SideInfoCard({
   onToggle?: () => void;
 }) {
   return (
-    <section className="rounded-3xl border border-slate-300 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] lg:p-4">
+    <section className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] lg:rounded-3xl lg:p-4">
       <button
         type="button"
         onClick={onToggle}
         disabled={!onToggle}
-        className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 text-left ring-1 ring-slate-200 transition hover:bg-white ${open ? 'mb-3 border-b border-slate-200 pb-3 ring-slate-300' : ''}`}
+        className={`flex min-h-9 w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 text-left ring-1 ring-slate-200 transition hover:bg-white lg:min-h-10 ${open ? 'mb-2 border-b border-slate-200 pb-2 ring-slate-300 lg:mb-3 lg:pb-3' : ''}`}
       >
         <span className="flex min-w-0 items-center gap-2">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
-          <span className="truncate text-[14px] font-[1000] tracking-[-0.02em] text-slate-950 lg:text-[15px]">{title}</span>
+          <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400 lg:h-2.5 lg:w-2.5" />
+          <span className="truncate text-[13px] font-[1000] tracking-[-0.02em] text-slate-950 lg:text-[15px]">{title}</span>
         </span>
         {onToggle && (
-          <ChevronDown size={17} className={`shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown size={16} className={`shrink-0 text-slate-500 transition-transform lg:size-[17px] ${open ? 'rotate-180' : ''}`} />
         )}
       </button>
       {open && children}
@@ -1333,17 +1412,17 @@ function SideInfoCard({
   );
 }
 
-function ListBlock({ title, icon, items, empty }: { title: string; icon: React.ReactNode; items: string[]; empty: string }) {
+function ListBlock({ title, icon, items, empty, compact = false }: { title: string; icon: React.ReactNode; items: string[]; empty: string; compact?: boolean }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center gap-2 text-[10px] font-[1000] uppercase tracking-[0.16em] text-amber-700">
+    <div className={`rounded-2xl border border-slate-200 bg-white ${compact ? 'p-3' : 'p-4'}`}>
+      <div className={`${compact ? 'mb-2 text-[9px] text-slate-500' : 'mb-3 text-[10px] text-amber-700'} flex items-center gap-2 font-[1000] uppercase tracking-[0.16em]`}>
         {icon}
         {title}
       </div>
       {items.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {items.map((item) => (
-            <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-600">
+            <span key={item} className={`rounded-full border border-slate-200 bg-slate-50 font-bold text-slate-600 ${compact ? 'px-2.5 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]'}`}>
               {item}
             </span>
           ))}
