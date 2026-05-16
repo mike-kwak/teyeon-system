@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { styled, keyframes } from '@/stitches.config';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { supabase } from '@/lib/supabase';
+import { calculateKdkArchiveStats, KdkArchiveRow, KdkArchiveStats } from '@/lib/kdkArchiveStats';
 
 const fadeIn = keyframes({
   from: { opacity: 0, transform: 'scale(0.95) translateY(10px)' },
@@ -242,18 +244,97 @@ const GreetingSubtitle = styled('p', {
   }
 });
 
-export default function ProfilePage() {
-  const { user, role, signOut, isLoading, signInWithKakao } = useAuth();
-  const [filter, setFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+type LinkedMember = {
+  id: string;
+  nickname: string;
+  email?: string | null;
+};
 
-  const stats = useMemo(() => {
-    const base = {
-      weekly: { wins: 4, losses: 1, winRate: '80%' },
-      monthly: { wins: 18, losses: 4, winRate: '82%' },
-      yearly: { wins: 142, losses: 41, winRate: '78%' },
+const formatSignedNumber = (value: number) => {
+  if (value > 0) return `+${value}`;
+  return String(value);
+};
+
+const formatAverage = (value: number) => {
+  const rounded = Math.round(value * 10) / 10;
+  if (rounded > 0) return `+${rounded}`;
+  return String(rounded);
+};
+
+export default function ProfilePage() {
+  const { user, role, signOut, isLoading } = useAuth();
+  const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
+  const [kdkStats, setKdkStats] = useState<KdkArchiveStats | null>(null);
+  const [kdkLoading, setKdkLoading] = useState(false);
+  const [kdkError, setKdkError] = useState('');
+  const [memberLookupDone, setMemberLookupDone] = useState(false);
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    let cancelled = false;
+
+    const loadOfficialKdkStats = async () => {
+      setKdkLoading(true);
+      setKdkError('');
+      setMemberLookupDone(false);
+
+      try {
+        const { data: members, error: memberError } = await supabase
+          .from('members')
+          .select('id, nickname, email')
+          .eq('email', user.email)
+          .limit(1);
+
+        if (memberError) throw memberError;
+
+        const member = members?.[0] as LinkedMember | undefined;
+        if (!member) {
+          if (!cancelled) {
+            setLinkedMember(null);
+            setKdkStats(null);
+            setMemberLookupDone(true);
+          }
+          return;
+        }
+
+        const { data: archives, error: archiveError } = await supabase
+          .from('teyeon_archive_v1')
+          .select('id, created_at, raw_data, is_official, archive_type')
+          .eq('archive_type', 'kdk')
+          .eq('is_official', true)
+          .order('created_at', { ascending: false });
+
+        if (archiveError) throw archiveError;
+
+        const stats = calculateKdkArchiveStats((archives || []) as KdkArchiveRow[], {
+          id: member.id,
+          name: member.nickname,
+        });
+
+        if (!cancelled) {
+          setLinkedMember(member);
+          setKdkStats(stats);
+          setMemberLookupDone(true);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setKdkError(err?.message || '공식 KDK 기록을 불러오지 못했습니다.');
+          setLinkedMember(null);
+          setKdkStats(null);
+          setMemberLookupDone(true);
+        }
+      } finally {
+        if (!cancelled) setKdkLoading(false);
+      }
     };
-    return base[filter];
-  }, [filter]);
+
+    loadOfficialKdkStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
 
   if (isLoading) {
     return (
@@ -314,59 +395,96 @@ export default function ProfilePage() {
         </div>
       </StyledGreetingCard>
 
-      <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Performance Baseline</SectionTitle>
-      
-      <FilterContainer>
-        <FilterButton active={filter === 'weekly'} onClick={() => setFilter('weekly')} style={{ fontFamily: 'var(--font-rajdhani)' }}>WEEKLY</FilterButton>
-        <FilterButton active={filter === 'monthly'} onClick={() => setFilter('monthly')} style={{ fontFamily: 'var(--font-rajdhani)' }}>MONTHLY</FilterButton>
-        <FilterButton active={filter === 'yearly'} onClick={() => setFilter('yearly')} style={{ fontFamily: 'var(--font-rajdhani)' }}>YEARLY</FilterButton>
-      </FilterContainer>
+      <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Official KDK Records</SectionTitle>
 
-      <StatsGrid>
-        <StatCard>
-          <StatValue highlight style={{ fontFamily: 'var(--font-orbitron)' }}>{stats.winRate}</StatValue>
-          <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Win Rate</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{stats.wins}</StatValue>
-          <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Wins</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{stats.losses}</StatValue>
-          <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Losses</StatLabel>
-        </StatCard>
-      </StatsGrid>
-
-      <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Recent Telemetry Data</SectionTitle>
-      <section>
-        {[
-          { date: 'SEP 14', opponent: 'Alex Rivera', result: 'W', score: '6-4' },
-          { date: 'SEP 12', opponent: 'David Chen', result: 'L', score: '4-6' },
-          { date: 'SEP 08', opponent: 'Jannik Sinner', result: 'W', score: '2-0' },
-        ].map((m, idx) => (
-          <MatchRecord key={idx}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              <div style={{ textAlign: 'center', minWidth: '45px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 950, color: 'rgba(255,255,255,0.25)', marginBottom: '4px', fontFamily: 'var(--font-rajdhani)' }}>{m.date.split(' ')[0]}</p>
-                <p style={{ fontSize: '18px', fontWeight: 950, color: '$white', fontFamily: 'var(--font-orbitron)' }}>{m.date.split(' ')[1]}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: '17px', fontWeight: 950, letterSpacing: '-0.01em', fontFamily: 'var(--font-rajdhani)' }}>vs. {m.opponent}</p>
-                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '4px', fontFamily: 'var(--font-rajdhani)' }}>Championship Series</p>
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '20px', fontWeight: 950, color: m.result === 'W' ? '$goldGlint' : '$error', fontFamily: 'var(--font-orbitron)' }}>{m.result}</p>
-              <p style={{ fontSize: '12px', fontWeight: 950, opacity: 0.4, fontFamily: 'var(--font-orbitron)' }}>{m.score}</p>
-            </div>
-          </MatchRecord>
-        ))}
-      </section>
-
-      <div style={{ marginTop: '60px', background: 'linear-gradient(135deg, $gold, $goldGlint)', color: '$black', padding: '32px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(212, 175, 55, 0.4)' }}>
-        <p style={{ fontSize: '16px', fontWeight: 950, letterSpacing: '0.2em', fontFamily: 'var(--font-rajdhani)' }}>UPGRADE TO PRO ELITE</p>
-        <p style={{ fontSize: '11px', opacity: 0.9, marginTop: '8px', fontWeight: 800, fontFamily: 'var(--font-rajdhani)' }}>Unlock Advanced AI Predictive Analytics</p>
+      <div style={{ marginBottom: '24px', padding: '16px 18px', borderRadius: '18px', border: '1px solid rgba(212,175,55,0.16)', background: 'rgba(212,175,55,0.05)', color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontWeight: 800, lineHeight: 1.6, fontFamily: 'var(--font-rajdhani)' }}>
+        공식 Archive로 확정된 KDK만 프로필 기록에 반영됩니다.
       </div>
+
+      {kdkLoading ? (
+        <div className="animate-pulse w-full h-[150px] bg-white/5 rounded-[24px] mb-8" />
+      ) : kdkError ? (
+        <MatchRecord>
+          <div>
+            <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', fontFamily: 'var(--font-rajdhani)' }}>기록을 불러오지 못했습니다</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontFamily: 'var(--font-rajdhani)' }}>{kdkError}</p>
+          </div>
+        </MatchRecord>
+      ) : memberLookupDone && !linkedMember ? (
+        <MatchRecord>
+          <div>
+            <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', fontFamily: 'var(--font-rajdhani)' }}>멤버 연결이 필요합니다</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontFamily: 'var(--font-rajdhani)' }}>카카오 계정과 멤버 프로필이 연결되면 공식 KDK 기록이 표시됩니다.</p>
+          </div>
+        </MatchRecord>
+      ) : kdkStats && kdkStats.totalSessions > 0 ? (
+        <>
+          <StatsGrid>
+            <StatCard>
+              <StatValue highlight style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.totalSessions}</StatValue>
+              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Sessions</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.totalWins}/{kdkStats.totalLosses}</StatValue>
+              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>W / L</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue style={{ fontFamily: 'var(--font-orbitron)', color: kdkStats.totalDiff > 0 ? '#D4AF37' : kdkStats.totalDiff < 0 ? '#ef4444' : '#fff' }}>{formatSignedNumber(kdkStats.totalDiff)}</StatValue>
+              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Total Diff</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{formatAverage(kdkStats.averageDiff)}</StatValue>
+              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Avg Diff</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.firstPlaceCount}</StatValue>
+              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>1st</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.top3Count}</StatValue>
+              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Top 3</StatLabel>
+            </StatCard>
+          </StatsGrid>
+
+          <div style={{ marginBottom: '28px', padding: '18px 22px', borderRadius: '20px', background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(255,255,255,0.03))', border: '1px solid rgba(212,175,55,0.14)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 16px 30px rgba(0,0,0,0.35)' }}>
+            <div>
+              <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: 'var(--font-rajdhani)' }}>Latest Rank</p>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', marginTop: '4px', fontWeight: 800, fontFamily: 'var(--font-rajdhani)' }}>{linkedMember?.nickname} 공식 KDK 기준</p>
+            </div>
+            <p style={{ fontSize: '34px', fontWeight: 950, color: '#D4AF37', fontFamily: 'var(--font-orbitron)' }}>{kdkStats.latestRank ? `${kdkStats.latestRank}위` : '-'}</p>
+          </div>
+
+          <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Recent Official KDK</SectionTitle>
+          <section>
+            {kdkStats.recentSessions.map(session => (
+              <Link key={session.archiveId} href={`/archive?session=${session.archiveId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <MatchRecord>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: '10px', fontWeight: 950, color: '#D4AF37', marginBottom: '4px', fontFamily: 'var(--font-rajdhani)', letterSpacing: '0.12em' }}>{session.date || '날짜 없음'}</p>
+                    <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-rajdhani)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '260px' }}>{session.title}</p>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: '5px', fontFamily: 'var(--font-rajdhani)' }}>
+                      {session.groupName ? `${session.groupName}조 · ` : ''}{session.totalPlayers} players
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p style={{ fontSize: '18px', fontWeight: 950, color: session.rank && session.rank <= 3 ? '#D4AF37' : '#fff', fontFamily: 'var(--font-orbitron)' }}>{session.rank ? `${session.rank}위` : '-'}</p>
+                    <p style={{ fontSize: '11px', fontWeight: 950, opacity: 0.45, fontFamily: 'var(--font-rajdhani)', whiteSpace: 'nowrap' }}>
+                      {session.ranked ? `${session.wins}승 ${session.losses}패 · ${formatSignedNumber(session.diff || 0)}` : '참가 확인'}
+                    </p>
+                  </div>
+                </MatchRecord>
+              </Link>
+            ))}
+          </section>
+        </>
+      ) : (
+        <MatchRecord>
+          <div>
+            <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', fontFamily: 'var(--font-rajdhani)' }}>아직 공식 KDK 기록이 없습니다</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontFamily: 'var(--font-rajdhani)' }}>Archive에서 공식 기록으로 확정된 세션만 이곳에 누적됩니다.</p>
+          </div>
+        </MatchRecord>
+      )}
 
     </Container>
   );
