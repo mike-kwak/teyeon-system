@@ -70,6 +70,23 @@ const FEATURE_REGISTRY: Record<string, { label: string, icon: string }> = {
 
 const ALL_FEATURES = ['notice', 'profile', 'tournament', 'kdk', 'live_court', 'archive', 'finance', 'stats', 'admin'] as const;
 
+const ADMIN_TAB_LABELS = {
+  members: '멤버 관리',
+  accounts: '앱 계정',
+  permissions: '기능 권한',
+  menu: '메뉴 순서',
+  history: '운영 로그'
+} as const;
+
+const MANAGEMENT_LINKS = [
+  { label: 'KDK 운영 설정', href: '/kdk', meta: '승리 점수, 벌금, 코트 운영 기준', status: '운영 화면' },
+  { label: '공식 Archive 관리', href: '/archive', meta: '공식/비공식/테스트 기록 확인', status: '바로가기' },
+  { label: '대회 캘린더 관리', href: '/tournament-calendar', meta: '대회, 출전 페어, 성적 관리', status: '바로가기' },
+  { label: '프로필 기록 관리', href: '/profile', meta: '공식 KDK 기록 반영 상태 확인', status: '준비중' },
+  { label: '재무 관리', href: '/finance', meta: '상금, 벌금, 게스트비 정산 연동 예정', status: '준비중' },
+  { label: '운영 통계', href: '/admin/stats', meta: '방문 기록과 운영 지표 확인', status: 'CEO' }
+] as const;
+
 export default function AdminPage() {
   const { user, role, appConfig, isLoading, refreshConfig } = useAuth();
   const router = useRouter();
@@ -272,17 +289,17 @@ export default function AdminPage() {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="flex px-4 mt-6 border-b border-white/10 sticky top-[73px] z-30 bg-black/95">
+      <nav className="flex px-4 mt-6 border-b border-white/10 sticky top-[73px] z-30 bg-black/95 overflow-x-auto">
         {(['members', 'accounts', 'permissions', 'menu', 'history'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`
-              flex-1 pb-4 text-[11px] font-black tracking-[0.1em] transition-all relative mt-2
+              flex-1 min-w-fit px-2 pb-4 text-[10px] sm:text-[11px] font-black tracking-[0.1em] transition-all relative mt-2 whitespace-nowrap
               ${activeTab === tab ? 'text-[#D4AF37]' : 'text-white/40 hover:text-white'}
             `}
           >
-            {tab === 'members' ? '인사' : tab === 'accounts' ? '계정' : tab === 'permissions' ? '권한' : tab === 'menu' ? '순서' : '방문 통계'}
+            {ADMIN_TAB_LABELS[tab]}
             {activeTab === tab && (
               <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.8)]"></div>
             )}
@@ -290,12 +307,44 @@ export default function AdminPage() {
         ))}
       </nav>
 
-      <div className="px-5 py-6 flex-1">
+      <div className="px-5 py-6 flex-1 w-full max-w-5xl mx-auto">
+        <section className="mb-7 rounded-[32px] border border-[#D4AF37]/15 bg-white/[0.025] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-[#D4AF37]/70">OPERATIONS HUB</p>
+              <h2 className="mt-1 text-[16px] font-black tracking-tight text-white">운영 관리 바로가기</h2>
+            </div>
+            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-white/35">
+              1차 기반
+            </span>
+          </div>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {MANAGEMENT_LINKS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group rounded-[22px] border border-white/7 bg-black/25 p-4 transition-all hover:border-[#D4AF37]/35 hover:bg-[#D4AF37]/5 active:scale-[0.98]"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-[12px] font-black text-white/90">{item.label}</p>
+                  <span className="shrink-0 rounded-full border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-2 py-0.5 text-[8px] font-black text-[#D4AF37]/80">
+                    {item.status}
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-[10px] font-bold leading-snug text-white/38">{item.meta}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* Tab 1: Personnel */}
         {activeTab === 'members' && (
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center justify-between mb-6 px-1">
-                <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Member Directory</h3>
+            <div className="flex items-start justify-between mb-6 px-1 gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">멤버 관리</h3>
+                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-white/35">이 값은 앱 접근 권한이 아니라 클럽 내 회원 직책/회원 구분입니다.</p>
+                </div>
                 <div className="flex items-center gap-2">
                     {fetchingMembers && <div className="w-2.5 h-2.5 border border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
                     <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 uppercase">Total {members.length}</span>
@@ -314,7 +363,7 @@ export default function AdminPage() {
                             <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={40} className="rounded-full shrink-0 border border-white/10 shadow-sm" fallbackIcon="👤" />
                             <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-black tracking-tight">{m.nickname}{m.is_guest ? ' (G)' : ''}</p>
-                                <p className="text-[9px] text-[#A3E635] font-black tracking-[0.1em] mt-0.5 truncate uppercase">{m.role}</p>
+                                <p className="text-[9px] text-[#A3E635] font-black tracking-[0.1em] mt-0.5 truncate uppercase">클럽 직책 · {m.role}</p>
                             </div>
                             <select 
                                 value={m.role}
@@ -341,8 +390,11 @@ export default function AdminPage() {
         {/* Tab 2: Login Accounts */}
         {activeTab === 'accounts' && (
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center justify-between mb-6 px-1">
-                <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Login Accounts</h3>
+            <div className="flex items-start justify-between mb-6 px-1 gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">앱 계정 권한</h3>
+                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-white/35">앱 권한은 화면 접근과 관리 기능 노출에 사용됩니다.</p>
+                </div>
                 <div className="flex items-center gap-2">
                     {fetchingProfiles && <div className="w-2.5 h-2.5 border border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
                     <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 uppercase">Total {profiles.length}</span>
@@ -385,8 +437,11 @@ export default function AdminPage() {
         {activeTab === 'permissions' && (
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-5">
             <div className="px-1 mb-2">
-                <h3 className="text-xs font-black text-white uppercase tracking-[0.3em]">Authorization Matrix</h3>
-                <p className="text-[9px] text-[#A3E635] font-black mt-1 uppercase tracking-widest opacity-60 italic">Live Security Controller</p>
+                <h3 className="text-xs font-black text-white uppercase tracking-[0.3em]">기능 권한</h3>
+                <p className="text-[9px] text-[#A3E635] font-black mt-1 uppercase tracking-widest opacity-60 italic">앱 기능별 읽기/쓰기/숨김 제어</p>
+                <p className="mt-2 rounded-2xl border border-amber-300/15 bg-amber-300/5 px-4 py-3 text-[10px] font-bold leading-relaxed text-amber-100/55">
+                  일부 기능 권한 키는 과거 구조가 남아 있어 추후 AuthContext 기준으로 정비 예정입니다. 이번 단계에서는 기존 저장 방식만 유지합니다.
+                </p>
             </div>
             {ALL_FEATURES.map(feat => {
                 const reg = FEATURE_REGISTRY[feat] || { label: feat, icon: '🛡️' };
@@ -434,7 +489,10 @@ export default function AdminPage() {
         {/* Tab 3: Orchestration (Menu Order) */}
         {activeTab === 'menu' && (
           <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <h3 className="text-xs font-black text-white uppercase tracking-[0.3em] mb-7 px-1 opacity-80">Orchestration Tower</h3>
+            <div className="mb-7 px-1">
+              <h3 className="text-xs font-black text-white uppercase tracking-[0.3em] opacity-80">메뉴 순서</h3>
+              <p className="mt-2 text-[10px] font-bold leading-relaxed text-white/35">역할별 메인 메뉴 노출 순서를 조정합니다.</p>
+            </div>
             {(['ADMIN', 'MEMBER', 'GUEST'] as const).map(roleKey => (
                 <div key={roleKey} className="mb-12 last:mb-0">
                     <h4 className="text-[10px] font-black text-[#D4AF37] tracking-[0.2em] uppercase mb-4 px-2">{roleKey} VIEW SEQUENCE</h4>
@@ -486,7 +544,7 @@ export default function AdminPage() {
                     <p className="text-sm font-black text-[#D4AF37] uppercase tracking-tighter shadow-sm mb-1">CEO EXCLUSIVE VAULT</p>
                     <p className="text-[10px] text-white/30 font-medium font-sans">관리자 탭 중 방문 통계는 오직 회장님만 열람 가능합니다.</p>
                 </div>
-                <button onClick={() => setActiveTab('members')} className="text-[11px] font-bold text-white/40 hover:text-white underline decoration-[#D4AF37] underline-offset-8 transition-all px-8 py-3 bg-white/5 rounded-full">인사 관리로 돌아가기</button>
+                <button onClick={() => setActiveTab('members')} className="text-[11px] font-bold text-white/40 hover:text-white underline decoration-[#D4AF37] underline-offset-8 transition-all px-8 py-3 bg-white/5 rounded-full">멤버 관리로 돌아가기</button>
               </div>
             ) : (
             <div className="flex flex-col gap-9">
