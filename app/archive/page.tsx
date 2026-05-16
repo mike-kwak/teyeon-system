@@ -19,6 +19,7 @@ export default function ArchivePage() {
   const [archives, setArchives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState<'RECORDS' | 'RANKING'>('RECORDS');
+  const [recordFilter, setRecordFilter] = useState<'ALL' | 'OFFICIAL'>('ALL');
   
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -118,6 +119,36 @@ export default function ArchivePage() {
     return '';
   };
 
+  const getArchiveStatusMeta = (archive: any) => {
+    if (archive?.is_test) {
+      return {
+        label: '테스트',
+        className: 'border-red-400/40 bg-red-500/10 text-red-200'
+      };
+    }
+
+    if (archive?.is_official) {
+      return {
+        label: '공식 기록',
+        className: 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'
+      };
+    }
+
+    return {
+      label: '비공식',
+      className: 'border-zinc-500/40 bg-zinc-700/30 text-zinc-300'
+    };
+  };
+
+  const renderArchiveStatusBadge = (archive: any) => {
+    const status = getArchiveStatusMeta(archive);
+    return (
+      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] italic ${status.className}`}>
+        {status.label}
+      </span>
+    );
+  };
+
   async function fetchArchives() {
     try {
       setLoading(true);
@@ -129,7 +160,12 @@ export default function ArchivePage() {
       if (error) throw error;
       
       const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
-      const combinedData: any[] = [...failovers.map((f:any) => ({...f, isLocal: true})), ...(data || [])];
+      const serverRecords = data || [];
+      const serverIds = new Set(serverRecords.map((record: any) => record.id));
+      const localOnlyRecords = failovers
+        .map((f:any) => ({...f, isLocal: true}))
+        .filter((record: any) => !serverIds.has(record.id));
+      const combinedData: any[] = [...serverRecords, ...localOnlyRecords];
       
       combinedData.sort((a,b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
@@ -166,7 +202,13 @@ export default function ArchivePage() {
                   group_name: archiveGroup || m.group_name,
                   archive_group_key: archiveGroup,
                   archive_ranking_data: raw.ranking_data || [],
-                  archive_player_metadata: meta
+                  archive_player_metadata: meta,
+                  archive_type: record.archive_type || raw.archive_type || 'kdk',
+                  is_official: Boolean(record.is_official ?? raw.is_official ?? false),
+                  is_test: Boolean(record.is_test ?? raw.is_test ?? false),
+                  confirmed_at: record.confirmed_at || raw.confirmed_at || null,
+                  confirmed_by: record.confirmed_by || raw.confirmed_by || '',
+                  profile_reflected: Boolean(record.profile_reflected ?? raw.profile_reflected ?? false)
               });
           });
       });
@@ -180,7 +222,9 @@ export default function ArchivePage() {
 
   const filteredRecords = archives.filter(m => {
     const mDate = new Date(m.match_date);
-    return mDate.getFullYear() === selectedYear && (mDate.getMonth() + 1) === selectedMonth;
+    const inSelectedMonth = mDate.getFullYear() === selectedYear && (mDate.getMonth() + 1) === selectedMonth;
+    const passesRecordFilter = recordFilter === 'ALL' || !!m.is_official;
+    return inSelectedMonth && passesRecordFilter;
   });
 
   const sessions = useMemo(() => {
@@ -199,7 +243,14 @@ export default function ArchivePage() {
                 matchCount: 0,
                 playerSet: new Set(),
                 rankingData: m.archive_ranking_data || [],
-                playerMetadata: m.archive_player_metadata || {}
+                playerMetadata: m.archive_player_metadata || {},
+                archive_type: m.archive_type || 'kdk',
+                is_official: !!m.is_official,
+                is_test: !!m.is_test,
+                confirmed_at: m.confirmed_at || null,
+                confirmed_by: m.confirmed_by || '',
+                profile_reflected: !!m.profile_reflected,
+                isLocal: !!m.isLocal
             };
         }
         groups[groupKey].matches.push(m);
@@ -301,6 +352,51 @@ export default function ArchivePage() {
                              <div className="flex flex-col gap-1 px-2 mt-4">
                                  <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
                                  <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
+                                 <div className="mt-3 flex flex-wrap items-center gap-2">
+                                     {renderArchiveStatusBadge(selectedSession)}
+                                     {isAdmin && !selectedSession.isLocal && (
+                                         <>
+                                             {selectedSession.is_official ? (
+                                                 <button
+                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'unofficial')}
+                                                     className="rounded-full border border-zinc-600/60 bg-zinc-900/80 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-zinc-200 transition-all active:scale-95"
+                                                 >
+                                                     공식 해제
+                                                 </button>
+                                             ) : (
+                                                 <button
+                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'official')}
+                                                     className="rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-emerald-200 transition-all active:scale-95"
+                                                 >
+                                                     공식 기록으로 확정
+                                                 </button>
+                                             )}
+                                             {selectedSession.is_test ? (
+                                                 <button
+                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'unofficial')}
+                                                     className="rounded-full border border-zinc-600/60 bg-zinc-900/80 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-zinc-200 transition-all active:scale-95"
+                                                 >
+                                                     테스트 해제
+                                                 </button>
+                                             ) : !selectedSession.is_official ? (
+                                                 <button
+                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'test')}
+                                                     className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-red-200 transition-all active:scale-95"
+                                                 >
+                                                     테스트 기록
+                                                 </button>
+                                             ) : null}
+                                         </>
+                                     )}
+                                     {selectedSession.confirmed_at && (
+                                         <span className="text-[9px] font-black uppercase tracking-[0.24em] italic text-zinc-600">
+                                             CONFIRMED {new Date(selectedSession.confirmed_at).toLocaleDateString()}
+                                         </span>
+                                     )}
+                                 </div>
+                                 <p className="mt-2 text-[10px] font-bold leading-relaxed text-zinc-600">
+                                     공식 기록만 추후 프로필 누적 기록에 반영됩니다. 삭제는 잘못 저장한 기록 제거용입니다.
+                                 </p>
                              </div>
      
                              <div className="flex flex-col gap-1 px-4 relative mt-4">
@@ -425,6 +521,26 @@ export default function ArchivePage() {
                     </div>
                 ) : (
                     <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
+                        <div className="rounded-[24px] border border-white/5 bg-zinc-900/40 p-1.5 shadow-xl backdrop-blur-3xl">
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {(['ALL', 'OFFICIAL'] as const).map(filter => (
+                                    <button
+                                        key={filter}
+                                        onClick={() => {
+                                            setRecordFilter(filter);
+                                            setSelectedSessionId(null);
+                                        }}
+                                        className={`rounded-[18px] py-3 text-[12px] font-black uppercase tracking-[0.2em] italic transition-all active:scale-95 ${
+                                            recordFilter === filter
+                                                ? 'border border-[#C9B075]/40 bg-[#C9B075]/10 text-[#C9B075] shadow-[0_0_18px_rgba(201,176,117,0.12)]'
+                                                : 'border border-transparent text-zinc-600 hover:text-zinc-300'
+                                        }`}
+                                    >
+                                        {filter === 'ALL' ? '전체' : '공식'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         <section className="bg-zinc-900/40 border border-white/5 rounded-[32px] p-6 flex gap-4 shadow-xl backdrop-blur-3xl mb-8">
                             <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
                                 <span className="text-[9px] text-zinc-700 uppercase tracking-[0.4em] mb-1">TEMPORAL YEAR</span>
@@ -440,12 +556,27 @@ export default function ArchivePage() {
                             </div>
                         </section>
                         <div className="space-y-6 pb-20">
-                            {sessions.map((s, index) => (
+                            {sessions.length === 0 ? (
+                                <div className="rounded-[32px] border border-white/5 bg-zinc-900/30 px-6 py-16 text-center shadow-xl">
+                                    <p className="text-[11px] font-black uppercase tracking-[0.35em] italic text-zinc-600">
+                                        {recordFilter === 'OFFICIAL' ? '공식 기록이 없습니다' : '저장된 기록이 없습니다'}
+                                    </p>
+                                </div>
+                            ) : sessions.map((s, index) => (
                                 <div key={s.id} onClick={() => setSelectedSessionId(s.id)} className="group relative backdrop-blur-3xl bg-zinc-900/40 border border-white/5 rounded-xl p-7 pt-10 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/30 shadow-2xl">
                                     <div className="flex justify-between items-start mb-4 ml-1">
                                         <div className="px-1 border-l-2 border-[#C9B075]/40 pl-3"><span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest italic">{s.date}</span></div>
                                         <div className="flex items-center gap-2 mr-1">
-                                            {index === 0 && <span className="text-[9px] font-black text-[#C9B075] uppercase tracking-widest italic opacity-60">LATEST SYSTEM RECORD</span>}
+                                            {renderArchiveStatusBadge(s)}
+                                            {index === 0 && <span className="hidden sm:inline text-[9px] font-black text-[#C9B075] uppercase tracking-widest italic opacity-60">LATEST SYSTEM RECORD</span>}
+                                            {isAdmin && !s.isLocal && (
+                                                <button
+                                                    onClick={(e)=>{e.stopPropagation(); updateArchiveRecordStatus(s.id, s.is_official ? 'unofficial' : 'official');}}
+                                                    className={`rounded-xl border px-2.5 py-2 text-[9px] font-black uppercase tracking-widest italic transition-all ${s.is_official ? 'border-zinc-600/60 bg-black/20 text-zinc-500' : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200'}`}
+                                                >
+                                                    {s.is_official ? '해제' : '공식'}
+                                                </button>
+                                            )}
                                             {isAdmin && <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2 rounded-xl bg-black/20 border border-white/5 text-zinc-700 hover:text-red-900 transition-all"><Trash2 size={14} /></button>}
                                         </div>
                                     </div>
@@ -474,6 +605,49 @@ export default function ArchivePage() {
       </section>
     </main>
   );
+
+  async function updateArchiveRecordStatus(sessionId: string, status: 'official' | 'unofficial' | 'test') {
+    if (!isAdmin) return;
+
+    const confirmedBy = userEmail || user?.email || user?.id || '';
+    const payload =
+      status === 'official'
+        ? {
+            is_official: true,
+            is_test: false,
+            confirmed_at: new Date().toISOString(),
+            confirmed_by: confirmedBy,
+            archive_type: 'kdk'
+          }
+        : status === 'test'
+          ? {
+              is_official: false,
+              is_test: true,
+              confirmed_at: null,
+              confirmed_by: null,
+              profile_reflected: false,
+              archive_type: 'kdk'
+            }
+          : {
+              is_official: false,
+              is_test: false,
+              confirmed_at: null,
+              confirmed_by: null,
+              profile_reflected: false
+            };
+
+    try {
+      const { error } = await supabase
+        .from('teyeon_archive_v1')
+        .update(payload)
+        .eq('id', sessionId);
+
+      if (error) throw error;
+      await fetchArchives();
+    } catch (err: any) {
+      alert(`Archive 상태 변경 실패: ${err.message || err}`);
+    }
+  }
 
   async function deleteSession(sessionId: string, title: string) {
     if (!isAdmin) return;
