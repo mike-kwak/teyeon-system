@@ -116,6 +116,45 @@ export interface FinanceMonthlyReportSnapshot {
   public_note?: string;
 }
 
+export interface FinanceCategoryBreakdown {
+  category: FinanceCategory | string;
+  amount: number;
+  count: number;
+  ratio: number;
+}
+
+export interface FinanceTopExpense {
+  id?: string;
+  date: string;
+  description: string;
+  category: FinanceCategory | string;
+  amount: number;
+}
+
+export interface FinanceMonthlyDraftSummary {
+  year: number;
+  month: number;
+  transactionCount: number;
+  opening_balance: number;
+  income_total: number;
+  expense_total: number;
+  net_change: number;
+  closing_balance: number;
+  needs_review_count: number;
+  income_breakdown: FinanceCategoryBreakdown[];
+  expense_breakdown: FinanceCategoryBreakdown[];
+  top_expenses: FinanceTopExpense[];
+}
+
+export interface FinanceMonthlyReportRecord extends FinanceMonthlyReportSnapshot {
+  id?: string;
+  note?: string;
+  confirmed_at?: string;
+  confirmed_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface FinanceReceivable {
   id?: string;
   member_id?: string;

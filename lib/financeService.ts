@@ -1,7 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import {
   FinanceCategory,
+  FinanceCategoryBreakdown,
   FinanceImportPreviewRow,
+  FinanceMonthlyDraftSummary,
+  FinanceMonthlyReportRecord,
+  FinanceTopExpense,
   FinanceTransaction,
 } from '@/lib/financeTypes';
 
@@ -32,11 +36,44 @@ function normalizeFinanceError(error: any) {
     code === '42P01' ||
     lowerMessage.includes('could not find the table') ||
     lowerMessage.includes('relation "finance_transactions" does not exist') ||
-    lowerMessage.includes('relation "public.finance_transactions" does not exist');
+    lowerMessage.includes('relation "public.finance_transactions" does not exist') ||
+    lowerMessage.includes('relation "finance_monthly_reports" does not exist') ||
+    lowerMessage.includes('relation "public.finance_monthly_reports" does not exist');
 
   if (isMissingFinanceTable) return '재무 테이블이 아직 생성되지 않았습니다. finance_schema.sql을 Supabase에 먼저 적용해주세요.';
 
   return message || '재무 거래 처리 중 오류가 발생했습니다.';
+}
+
+function parseTransactionTimestamp(row: FinanceTransaction) {
+  return `${row.transaction_date || '0000-00-00'}T${row.transaction_time || '00:00:00'}`;
+}
+
+function getFinanceCategory(row: FinanceTransaction) {
+  return row.category || row.suggested_category || '미분류';
+}
+
+function getAbsoluteAmount(row: FinanceTransaction) {
+  return Math.abs(Number(row.amount || 0));
+}
+
+function getSignedAmount(row: FinanceTransaction) {
+  const amount = getAbsoluteAmount(row);
+  return row.transaction_type === 'EXPENSE' ? -amount : amount;
+}
+
+function toBreakdown(
+  totals: Map<string, { amount: number; count: number }>,
+  baseTotal: number
+): FinanceCategoryBreakdown[] {
+  return Array.from(totals.entries())
+    .map(([category, value]) => ({
+      category,
+      amount: value.amount,
+      count: value.count,
+      ratio: baseTotal > 0 ? Math.round((value.amount / baseTotal) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 function getNextMonthStart(month: string) {
@@ -179,6 +216,158 @@ export async function fetchFinanceTransactions(month?: string): Promise<FinanceT
   }
 
   return (data || []) as FinanceTransaction[];
+}
+
+export function buildFinanceMonthlyDraftSummary(
+  rows: FinanceTransaction[],
+  year: number,
+  month: number
+): FinanceMonthlyDraftSummary {
+  const sortedAsc = [...rows].sort((a, b) => parseTransactionTimestamp(a).localeCompare(parseTransactionTimestamp(b)));
+  const sortedDesc = [...rows].sort((a, b) => parseTransactionTimestamp(b).localeCompare(parseTransactionTimestamp(a)));
+  const incomeTotals = new Map<string, { amount: number; count: number }>();
+  const expenseTotals = new Map<string, { amount: number; count: number }>();
+
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+  let needsReviewCount = 0;
+
+  rows.forEach((row) => {
+    const amount = getAbsoluteAmount(row);
+    const category = getFinanceCategory(row);
+
+    if (row.classification_status === 'NEEDS_REVIEW') {
+      needsReviewCount += 1;
+    }
+
+    if (row.transaction_type === 'INCOME') {
+      incomeTotal += amount;
+      const prev = incomeTotals.get(category) || { amount: 0, count: 0 };
+      incomeTotals.set(category, { amount: prev.amount + amount, count: prev.count + 1 });
+    } else {
+      expenseTotal += amount;
+      const prev = expenseTotals.get(category) || { amount: 0, count: 0 };
+      expenseTotals.set(category, { amount: prev.amount + amount, count: prev.count + 1 });
+    }
+  });
+
+  const firstRow = sortedAsc.find((row) => typeof row.balance_after === 'number');
+  const lastRow = sortedDesc.find((row) => typeof row.balance_after === 'number');
+  const netChange = incomeTotal - expenseTotal;
+  const openingBalance =
+    firstRow && typeof firstRow.balance_after === 'number'
+      ? Number(firstRow.balance_after) - getSignedAmount(firstRow)
+      : 0;
+  const closingBalance =
+    lastRow && typeof lastRow.balance_after === 'number'
+      ? Number(lastRow.balance_after)
+      : openingBalance + netChange;
+
+  const topExpenses: FinanceTopExpense[] = rows
+    .filter((row) => row.transaction_type === 'EXPENSE')
+    .sort((a, b) => getAbsoluteAmount(b) - getAbsoluteAmount(a))
+    .slice(0, 3)
+    .map((row) => ({
+      id: row.id,
+      date: row.transaction_date,
+      description: row.description || row.counterparty || '내용 없음',
+      category: getFinanceCategory(row),
+      amount: getAbsoluteAmount(row),
+    }));
+
+  return {
+    year,
+    month,
+    transactionCount: rows.length,
+    opening_balance: openingBalance,
+    income_total: incomeTotal,
+    expense_total: expenseTotal,
+    net_change: netChange,
+    closing_balance: closingBalance,
+    needs_review_count: needsReviewCount,
+    income_breakdown: toBreakdown(incomeTotals, incomeTotal),
+    expense_breakdown: toBreakdown(expenseTotals, expenseTotal),
+    top_expenses: topExpenses,
+  };
+}
+
+export async function fetchFinanceMonthlyReport(
+  year: number,
+  month: number
+): Promise<FinanceMonthlyReportRecord | null> {
+  const { data, error } = await supabase
+    .from('finance_monthly_reports')
+    .select('*')
+    .eq('year', year)
+    .eq('month', month)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return (data || null) as FinanceMonthlyReportRecord | null;
+}
+
+export async function saveFinanceMonthlyDraft(
+  summary: FinanceMonthlyDraftSummary,
+  options: { actorId?: string; publicNote?: string } = {}
+): Promise<FinanceMonthlyReportRecord> {
+  const existingReport = await fetchFinanceMonthlyReport(summary.year, summary.month);
+
+  if (existingReport?.status === 'CONFIRMED') {
+    throw new Error('이미 확정된 월간 리포트입니다. 수정하려면 확정 해제가 필요합니다.');
+  }
+
+  const now = new Date().toISOString();
+  const payload = {
+    year: summary.year,
+    month: summary.month,
+    opening_balance: summary.opening_balance,
+    income_total: summary.income_total,
+    expense_total: summary.expense_total,
+    closing_balance: summary.closing_balance,
+    status: 'DRAFT',
+    income_breakdown: summary.income_breakdown,
+    expense_breakdown: summary.expense_breakdown,
+    top_expenses: summary.top_expenses,
+    public_note: options.publicNote || null,
+    note:
+      summary.needs_review_count > 0
+        ? `확인 필요 거래 ${summary.needs_review_count}건 포함`
+        : null,
+    updated_at: now,
+  };
+
+  if (existingReport?.id) {
+    const { data, error } = await supabase
+      .from('finance_monthly_reports')
+      .update(payload)
+      .eq('id', existingReport.id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(normalizeFinanceError(error));
+    }
+
+    return data as FinanceMonthlyReportRecord;
+  }
+
+  const { data, error } = await supabase
+    .from('finance_monthly_reports')
+    .insert({
+      ...payload,
+      created_at: now,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceMonthlyReportRecord;
 }
 
 export async function updateFinanceTransactionCategory(
