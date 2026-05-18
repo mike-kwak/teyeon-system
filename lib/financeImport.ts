@@ -73,10 +73,41 @@ function parseCsvRows(text: string) {
   return rows;
 }
 
+function parsePastedRows(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (KAKAO_REQUIRED_HEADERS.every((header) => line.includes(header))) {
+        return KAKAO_REQUIRED_HEADERS;
+      }
+
+      if (line.includes('\t')) {
+        return line.split(/\t+/).map((cell) => cell.trim());
+      }
+
+      const multiSpaceCells = line.split(/\s{2,}/).map((cell) => cell.trim()).filter(Boolean);
+      if (multiSpaceCells.length >= KAKAO_REQUIRED_HEADERS.length) {
+        return multiSpaceCells;
+      }
+
+      const looseMatch = line.match(
+        /^(.+?\d{1,2}:\d{2}(?::\d{2})?)\s+(입금|출금)\s+([\d,()원₩-]+)\s+([\d,()원₩-]+)\s+(\S+)\s+(.+)$/
+      );
+      if (looseMatch) {
+        return looseMatch.slice(1).map((cell) => cell.trim());
+      }
+
+      return multiSpaceCells.length > 0 ? multiSpaceCells : [line];
+    });
+}
+
 function findHeaderIndex(rows: string[][]) {
   return rows.findIndex((row) => {
     const normalized = row.map(normalizeHeader);
-    return KAKAO_REQUIRED_HEADERS.every((header) => normalized.includes(header));
+    const joined = normalized.join(' ');
+    return KAKAO_REQUIRED_HEADERS.every((header) => normalized.includes(header) || joined.includes(header));
   });
 }
 
@@ -109,7 +140,7 @@ function parseDateTime(value: string) {
   return { date, time };
 }
 
-function createSourceHash(parts: string[]) {
+function createSourceHash(parts: string[], sourcePrefix = 'kb') {
   const input = parts.join('|');
   let hash = 2166136261;
 
@@ -118,7 +149,7 @@ function createSourceHash(parts: string[]) {
     hash = Math.imul(hash, 16777619);
   }
 
-  return `kb_${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return `${sourcePrefix}_${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 function looksLikeNameOnly(value: string) {
@@ -204,19 +235,19 @@ export function suggestFinanceCategory(
   };
 }
 
-export function parseKakaoBankCsv(
-  text: string,
-  fileName = '',
-  settings: FinanceSettings = DEFAULT_FINANCE_SETTINGS
+function parseKakaoBankRows(
+  rows: string[][],
+  sourceName: string,
+  source: 'kakaobank_upload' | 'kakaobank_paste',
+  settings: FinanceSettings
 ): FinanceImportResult {
-  const rows = parseCsvRows(text);
   const headerIndex = findHeaderIndex(rows);
   const errors: string[] = [];
 
   if (headerIndex < 0) {
     return {
       rows: [],
-      errors: ['카카오뱅크 CSV 헤더를 찾지 못했습니다. 거래일시, 구분, 거래금액, 거래 후 잔액, 거래구분, 내용 컬럼이 필요합니다.'],
+      errors: ['거래일시, 구분, 거래금액, 거래 후 잔액, 거래구분, 내용 헤더가 포함된 표를 붙여넣어 주세요.'],
       detectedHeaderIndex: -1,
     };
   }
@@ -268,10 +299,10 @@ export function parseKakaoBankCsv(
       classification_status: suggestion.status,
       is_ambiguous: suggestion.isAmbiguous,
       review_reason: suggestion.reviewReason,
-      source: 'kakaobank_upload',
-      source_file_name: fileName,
+      source,
+      source_file_name: sourceName,
       source_row_index: rowNumber,
-      source_hash: createSourceHash([dateTimeRaw, amountRaw, balanceRaw, description]),
+      source_hash: createSourceHash([source, dateTimeRaw, amountRaw, balanceRaw, description], source === 'kakaobank_paste' ? 'kp' : 'kb'),
       raw: {
         거래일시: dateTimeRaw,
         구분: typeRaw,
@@ -288,6 +319,30 @@ export function parseKakaoBankCsv(
     errors,
     detectedHeaderIndex: headerIndex,
   };
+}
+
+export function parseKakaoBankCsv(
+  text: string,
+  fileName = '',
+  settings: FinanceSettings = DEFAULT_FINANCE_SETTINGS
+): FinanceImportResult {
+  return parseKakaoBankRows(parseCsvRows(text), fileName, 'kakaobank_upload', settings);
+}
+
+export function parseKakaoBankPastedText(
+  text: string,
+  settings: FinanceSettings = DEFAULT_FINANCE_SETTINGS
+): FinanceImportResult {
+  const result = parseKakaoBankRows(parsePastedRows(text), 'pasted_text', 'kakaobank_paste', settings);
+
+  if (result.detectedHeaderIndex >= 0 && result.rows.length === 0 && result.errors.length === 0) {
+    return {
+      ...result,
+      errors: ['분석 가능한 거래가 없습니다. 헤더 아래 거래 행까지 함께 붙여넣어 주세요.'],
+    };
+  }
+
+  return result;
 }
 
 export function summarizeFinancePreview(rows: FinanceImportPreviewRow[]): FinanceMonthlySummary {
