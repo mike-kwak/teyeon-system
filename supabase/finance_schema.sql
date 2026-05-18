@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS public.finance_settings (
     monthly_fee_amount INTEGER NOT NULL DEFAULT 10000,
     yearly_fee_amount INTEGER NOT NULL DEFAULT 120000,
     guest_fee_amount INTEGER NOT NULL DEFAULT 10000,
+    default_penalty_amount INTEGER NOT NULL DEFAULT 5000,
+    sojeong_penalty_amount INTEGER NOT NULL DEFAULT 10000,
     penalty_l1_amount INTEGER NOT NULL DEFAULT 3000,
     penalty_l2_amount INTEGER NOT NULL DEFAULT 5000,
     effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -99,6 +101,12 @@ CREATE TABLE IF NOT EXISTS public.finance_settings (
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE public.finance_settings
+ADD COLUMN IF NOT EXISTS default_penalty_amount INTEGER NOT NULL DEFAULT 5000;
+
+ALTER TABLE public.finance_settings
+ADD COLUMN IF NOT EXISTS sojeong_penalty_amount INTEGER NOT NULL DEFAULT 10000;
 
 CREATE TABLE IF NOT EXISTS public.finance_receivables (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

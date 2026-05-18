@@ -22,15 +22,13 @@ function normalizeFinanceError(error: any) {
   const message = String(error?.message || '');
   const code = String(error?.code || '');
   const lowerMessage = message.toLowerCase();
-
-  if (
+  const isMissingFinanceTable =
     code === '42P01' ||
-    lowerMessage.includes('finance_transactions') ||
-    lowerMessage.includes('relation') ||
-    lowerMessage.includes('does not exist')
-  ) {
-    return '재무 테이블이 아직 생성되지 않았습니다. finance_schema.sql을 Supabase에 먼저 적용해주세요.';
-  }
+    lowerMessage.includes('could not find the table') ||
+    lowerMessage.includes('relation "finance_transactions" does not exist') ||
+    lowerMessage.includes('relation "public.finance_transactions" does not exist');
+
+  if (isMissingFinanceTable) return '재무 테이블이 아직 생성되지 않았습니다. finance_schema.sql을 Supabase에 먼저 적용해주세요.';
 
   return message || '재무 거래 처리 중 오류가 발생했습니다.';
 }
