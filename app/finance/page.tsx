@@ -155,7 +155,7 @@ export default function FinancePage() {
     setNotice(
       result.rows.length > 0
         ? `${result.rows.length}건을 분석했습니다. 기존 미리보기/월간 요약과 같은 방식으로 확인합니다.`
-        : '분석 가능한 거래가 없습니다.'
+        : '거래일시로 시작하는 거래 행을 찾지 못했습니다. 카카오뱅크 거래내역 표를 복사해 붙여넣어 주세요.'
     );
     if (result.rows.length > 0) setAdminTab('review');
   };
