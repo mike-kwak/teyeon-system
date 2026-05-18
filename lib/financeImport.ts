@@ -111,6 +111,26 @@ function findHeaderIndex(rows: string[][]) {
   });
 }
 
+function normalizeHeaderlessTransactionRow(row: string[]) {
+  const joined = row.map((cell) => cell.trim()).filter(Boolean).join(' ');
+  const match = joined.match(
+    /^(\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(입금|출금)\s+(-?[\d,()원₩]+)\s+(-?[\d,()원₩]+)\s+(\S+)\s+(.+)$/
+  );
+
+  if (!match) return null;
+
+  const [, datePart, timePart, typeRaw, amountRaw, balanceRaw, method, description] = match;
+
+  return {
+    dateTimeRaw: `${datePart} ${timePart}`,
+    typeRaw,
+    amountRaw,
+    balanceRaw,
+    method,
+    description,
+  };
+}
+
 function parseMoney(value?: string) {
   const normalized = String(value || '')
     .replace(/[,\s원₩]/g, '')
@@ -321,6 +341,81 @@ function parseKakaoBankRows(
   };
 }
 
+function parseHeaderlessKakaoBankRows(
+  rows: string[][],
+  sourceName: string,
+  settings: FinanceSettings
+): FinanceImportResult {
+  const parsedRows: FinanceImportPreviewRow[] = [];
+  const errors: string[] = [];
+
+  rows.forEach((row, index) => {
+    const normalized = normalizeHeaderlessTransactionRow(row);
+    if (!normalized) return;
+
+    const rowNumber = index + 1;
+    const { dateTimeRaw, typeRaw, amountRaw, balanceRaw, method, description } = normalized;
+    const { date, time } = parseDateTime(dateTimeRaw);
+
+    if (!date) {
+      errors.push(`${rowNumber}행 거래일시를 해석하지 못했습니다.`);
+      return;
+    }
+
+    const type = typeRaw.includes('출금') ? 'EXPENSE' : 'INCOME';
+    const rawAmount = parseMoney(amountRaw);
+    const amount = type === 'EXPENSE' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+    const balanceAfter = parseMoney(balanceRaw);
+    const suggestion = suggestFinanceCategory(
+      { description, transactionMethod: method, amount, transactionType: type },
+      settings
+    );
+
+    parsedRows.push({
+      row_number: rowNumber,
+      transaction_date: date,
+      transaction_time: time,
+      transaction_type: type,
+      amount,
+      balance_after: balanceAfter,
+      transaction_method: method,
+      description,
+      counterparty: description,
+      category: null,
+      suggested_category: suggestion.suggestedCategory,
+      classification_status: suggestion.status,
+      is_ambiguous: suggestion.isAmbiguous,
+      review_reason: suggestion.reviewReason,
+      source: 'kakaobank_paste',
+      source_file_name: sourceName,
+      source_row_index: rowNumber,
+      source_hash: createSourceHash(['kakaobank_paste', dateTimeRaw, amountRaw, balanceRaw, description], 'kp'),
+      raw: {
+        거래일시: dateTimeRaw,
+        구분: typeRaw,
+        거래금액: amountRaw,
+        '거래 후 잔액': balanceRaw,
+        거래구분: method,
+        내용: description,
+      },
+    });
+  });
+
+  if (parsedRows.length === 0) {
+    return {
+      rows: [],
+      errors: ['거래일시로 시작하는 거래 행을 찾지 못했습니다. 카카오뱅크 거래내역 표를 복사해 붙여넣어 주세요.'],
+      detectedHeaderIndex: -1,
+    };
+  }
+
+  return {
+    rows: parsedRows,
+    errors,
+    detectedHeaderIndex: -1,
+  };
+}
+
 export function parseKakaoBankCsv(
   text: string,
   fileName = '',
@@ -333,7 +428,12 @@ export function parseKakaoBankPastedText(
   text: string,
   settings: FinanceSettings = DEFAULT_FINANCE_SETTINGS
 ): FinanceImportResult {
-  const result = parseKakaoBankRows(parsePastedRows(text), 'pasted_text', 'kakaobank_paste', settings);
+  const rows = parsePastedRows(text);
+  const result = parseKakaoBankRows(rows, 'pasted_text', 'kakaobank_paste', settings);
+
+  if (result.detectedHeaderIndex < 0) {
+    return parseHeaderlessKakaoBankRows(rows, 'pasted_text', settings);
+  }
 
   if (result.detectedHeaderIndex >= 0 && result.rows.length === 0 && result.errors.length === 0) {
     return {
