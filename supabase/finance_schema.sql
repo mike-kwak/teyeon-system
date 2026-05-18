@@ -91,9 +91,8 @@ CREATE TABLE IF NOT EXISTS public.finance_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     monthly_fee_amount INTEGER NOT NULL DEFAULT 10000,
     yearly_fee_amount INTEGER NOT NULL DEFAULT 120000,
-    guest_fee_amount INTEGER NOT NULL DEFAULT 10000,
-    default_penalty_amount INTEGER NOT NULL DEFAULT 5000,
-    sojeong_penalty_amount INTEGER NOT NULL DEFAULT 10000,
+    guest_fee_amount INTEGER NOT NULL DEFAULT 5000,
+    sojeong_guest_fee_amount INTEGER NOT NULL DEFAULT 10000,
     penalty_l1_amount INTEGER NOT NULL DEFAULT 3000,
     penalty_l2_amount INTEGER NOT NULL DEFAULT 5000,
     effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -103,10 +102,14 @@ CREATE TABLE IF NOT EXISTS public.finance_settings (
 );
 
 ALTER TABLE public.finance_settings
-ADD COLUMN IF NOT EXISTS default_penalty_amount INTEGER NOT NULL DEFAULT 5000;
+ADD COLUMN IF NOT EXISTS sojeong_guest_fee_amount INTEGER NOT NULL DEFAULT 10000;
 
 ALTER TABLE public.finance_settings
-ADD COLUMN IF NOT EXISTS sojeong_penalty_amount INTEGER NOT NULL DEFAULT 10000;
+ALTER COLUMN guest_fee_amount SET DEFAULT 5000;
+
+-- Deprecated if a previous draft migration was already applied:
+-- default_penalty_amount and sojeong_penalty_amount are not used by the app.
+-- Do not drop them automatically here; review production data first if cleanup is needed.
 
 CREATE TABLE IF NOT EXISTS public.finance_receivables (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

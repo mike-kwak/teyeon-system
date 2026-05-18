@@ -12,9 +12,8 @@ const KAKAO_REQUIRED_HEADERS = ['거래일시', '구분', '거래금액', '거�
 export const DEFAULT_FINANCE_SETTINGS: FinanceSettings = {
   monthly_fee_amount: 10000,
   yearly_fee_amount: 120000,
-  guest_fee_amount: 10000,
-  default_penalty_amount: 5000,
-  sojeong_penalty_amount: 10000,
+  guest_fee_amount: 5000,
+  sojeong_guest_fee_amount: 10000,
   penalty_l1_amount: 3000,
   penalty_l2_amount: 5000,
   effective_from: '2026-01-01',
@@ -216,26 +215,36 @@ export function suggestFinanceCategory(
   if (/예금이자|이자/.test(text)) return suggested('이자');
 
   const kdkCandidateAmounts = [
+    settings.penalty_l1_amount,
+    settings.penalty_l2_amount,
     settings.guest_fee_amount,
+    settings.sojeong_guest_fee_amount,
     settings.guest_fee_amount + settings.penalty_l1_amount,
     settings.guest_fee_amount + settings.penalty_l2_amount,
-    settings.default_penalty_amount,
-    settings.sojeong_penalty_amount,
+    settings.sojeong_guest_fee_amount + settings.penalty_l1_amount,
+    settings.sojeong_guest_fee_amount + settings.penalty_l2_amount,
   ];
   const isFeeCandidate = absAmount === settings.monthly_fee_amount || absAmount === settings.yearly_fee_amount;
   const isKdkCandidate = kdkCandidateAmounts.includes(absAmount);
-  const isPenaltyCandidate =
-    absAmount === settings.default_penalty_amount ||
-    absAmount === settings.sojeong_penalty_amount;
+  const isPenaltyOnlyCandidate =
+    absAmount === settings.penalty_l1_amount ||
+    absAmount === settings.penalty_l2_amount;
+  const isGuestOnlyCandidate =
+    absAmount === settings.guest_fee_amount ||
+    absAmount === settings.sojeong_guest_fee_amount;
+  const isGuestPenaltyCandidate =
+    absAmount === settings.guest_fee_amount + settings.penalty_l1_amount ||
+    absAmount === settings.guest_fee_amount + settings.penalty_l2_amount ||
+    absAmount === settings.sojeong_guest_fee_amount + settings.penalty_l1_amount ||
+    absAmount === settings.sojeong_guest_fee_amount + settings.penalty_l2_amount;
 
   if (params.transactionType === 'INCOME' && looksLikeNameOnly(params.description) && (isFeeCandidate || isKdkCandidate)) {
     const category =
-      absAmount === settings.guest_fee_amount + settings.penalty_l1_amount ||
-      absAmount === settings.guest_fee_amount + settings.penalty_l2_amount
+      isGuestPenaltyCandidate
         ? '게스트비+벌금'
-        : absAmount === settings.guest_fee_amount
+        : isGuestOnlyCandidate
           ? '게스트비'
-          : isPenaltyCandidate
+          : isPenaltyOnlyCandidate
             ? '벌금'
             : '월회비';
 
@@ -250,9 +259,9 @@ export function suggestFinanceCategory(
   if (params.transactionType === 'INCOME' && isKdkCandidate) {
     return {
       suggestedCategory:
-        absAmount === settings.guest_fee_amount
+        isGuestOnlyCandidate
           ? '게스트비'
-          : isPenaltyCandidate
+          : isPenaltyOnlyCandidate
             ? '벌금'
             : '게스트비+벌금',
       status: 'NEEDS_REVIEW',

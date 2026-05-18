@@ -468,7 +468,7 @@ function AdminFinanceView({
           {reviewRows.length === 0 ? (
             <EmptyState
               title="확인 필요 거래가 없습니다"
-              body="CSV를 업로드하면 애매한 거래가 이곳에 모입니다. 10,000원 입금처럼 월회비와 게스트비가 겹칠 수 있는 거래를 우선 확인합니다."
+              body="CSV를 업로드하면 애매한 거래가 이곳에 모입니다. 5,000원/10,000원 입금처럼 게스트비와 벌금, 월회비 후보가 겹칠 수 있는 거래를 우선 확인합니다."
             />
           ) : (
             <TransactionList rows={reviewRows} updateRowCategory={updateRowCategory} />
@@ -541,16 +541,15 @@ function AdminFinanceView({
         <AdminPlaceholder
           eyebrow="FINANCE SETTINGS"
           title="재무 설정"
-          body="월회비와 벌금은 운영 장소/월별 기준에 따라 바뀔 수 있으므로 설정값과 적용 시작일 기준으로 관리하는 구조를 준비했습니다."
+          body="벌금은 기존 KDK L1/L2 기준을 유지하고, 코트 상황에 따라 달라지는 값은 게스트비 기준으로 분리합니다."
           items={[
             `월회비 기본값 ${DEFAULT_FINANCE_SETTINGS.monthly_fee_amount.toLocaleString()}원`,
             '월회비는 추후 20,000원으로 변경될 수 있음',
             `연회비 기본값 ${DEFAULT_FINANCE_SETTINGS.yearly_fee_amount.toLocaleString()}원`,
-            `게스트비 ${DEFAULT_FINANCE_SETTINGS.guest_fee_amount.toLocaleString()}원`,
-            `기본 벌금 ${DEFAULT_FINANCE_SETTINGS.default_penalty_amount.toLocaleString()}원`,
-            `소정코트 벌금 ${DEFAULT_FINANCE_SETTINGS.sojeong_penalty_amount.toLocaleString()}원`,
+            `기본 게스트비 ${DEFAULT_FINANCE_SETTINGS.guest_fee_amount.toLocaleString()}원`,
+            `소정코트 게스트비 ${DEFAULT_FINANCE_SETTINGS.sojeong_guest_fee_amount.toLocaleString()}원`,
             `벌금 L1 ${DEFAULT_FINANCE_SETTINGS.penalty_l1_amount.toLocaleString()}원 / L2 ${DEFAULT_FINANCE_SETTINGS.penalty_l2_amount.toLocaleString()}원`,
-            '5,000원/10,000원 입금은 벌금 후보로 추천하되 재무 담당자가 최종 확정',
+            '3,000원/5,000원/10,000원/13,000원/15,000원 입금은 후보로 추천하되 재무 담당자가 최종 확정',
           ]}
         />
       )}

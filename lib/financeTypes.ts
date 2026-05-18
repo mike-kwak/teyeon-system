@@ -32,8 +32,7 @@ export interface FinanceSettings {
   monthly_fee_amount: number;
   yearly_fee_amount: number;
   guest_fee_amount: number;
-  default_penalty_amount: number;
-  sojeong_penalty_amount: number;
+  sojeong_guest_fee_amount: number;
   penalty_l1_amount: number;
   penalty_l2_amount: number;
   effective_from?: string;
