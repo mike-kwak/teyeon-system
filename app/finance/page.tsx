@@ -1,228 +1,701 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Match, Player, calculateRankings, calculateSettlements, Settlement } from '@/lib/kdk';
-import { styled, keyframes } from '@/stitches.config';
+import React, { ChangeEvent, useMemo, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import {
+  DEFAULT_FINANCE_SETTINGS,
+  parseKakaoBankCsv,
+  summarizeFinancePreview,
+} from '@/lib/financeImport';
+import {
+  FINANCE_CATEGORIES,
+  FinanceCategory,
+  FinanceImportPreviewRow,
+  FinanceReceivable,
+} from '@/lib/financeTypes';
 
-const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'translateY(15px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
-});
+type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'receivables' | 'reports' | 'settings';
+type MemberFinanceTab = 'public-report' | 'public-receivables';
 
-const Container = styled('main', {
-  display: 'flex',
-  flexDirection: 'column',
-  minHeight: '100dvh',
-  padding: '$8 $5',
-  maxWidth: '500px',
-  margin: '0 auto',
-  width: '100%',
-  backgroundColor: '$black',
-  paddingBottom: '250px',
-});
+const adminTabs: Array<{ id: AdminFinanceTab; label: string }> = [
+  { id: 'upload', label: '업로드' },
+  { id: 'review', label: '확인 필요' },
+  { id: 'ledger', label: '거래 원장' },
+  { id: 'receivables', label: '미수금' },
+  { id: 'reports', label: '월간 리포트' },
+  { id: 'settings', label: '설정' },
+];
 
-const BalanceSection = styled('section', {
-  textAlign: 'center',
-  padding: '$10 0',
-  marginBottom: '$10',
-});
+const memberTabs: Array<{ id: MemberFinanceTab; label: string }> = [
+  { id: 'public-report', label: '월간 리포트' },
+  { id: 'public-receivables', label: '미납 현황' },
+];
 
-const BalanceLabel = styled('div', {
-  fontSize: '11px',
-  fontWeight: '$black',
-  color: 'rgba(255, 255, 255, 0.3)',
-  textTransform: 'uppercase',
-  letterSpacing: '$mega',
-  marginBottom: '$4',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '$2',
-});
+const emptyPublicReceivables: FinanceReceivable[] = [];
 
-const BalanceAmount = styled('div', {
-  fontSize: '48px',
-  fontWeight: '$black',
-  letterSpacing: '$tight',
-  color: '$white',
-  lineHeight: '1',
-  marginBottom: '$8',
-});
+function canManageFinance(role?: string | null) {
+  return role === 'CEO' || role === 'ADMIN' || role === 'FINANCE_MANAGER';
+}
 
-const ButtonGroup = styled('div', {
-  display: 'flex',
-  gap: '$3',
-});
+function formatMoney(value: number) {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}${Math.abs(value).toLocaleString()}원`;
+}
 
-const ActionButton = styled('button', {
-  flex: 1,
-  padding: '$4',
-  borderRadius: '$2xl',
-  fontSize: '13px',
-  fontWeight: '$black',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+function statusLabel(status: FinanceImportPreviewRow['classification_status']) {
+  if (status === 'SUGGESTED') return '추천됨';
+  if (status === 'NEEDS_REVIEW') return '확인 필요';
+  if (status === 'CONFIRMED') return '수동 확정';
+  return '미분류';
+}
 
-  variants: {
-    primary: {
-      true: {
-        background: '$gold',
-        color: '$black',
-        boxShadow: '$goldGlow',
-        '&:hover': { transform: 'translateY(-2px) scale(1.02)' },
-      },
-      false: {
-        background: 'rgba(255, 255, 255, 0.03)',
-        color: 'rgba(255, 255, 255, 0.6)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
-        '&:hover': { background: 'rgba(255, 255, 255, 0.05)', color: '$white' },
-      },
-    },
-  },
-});
+function statusClass(status: FinanceImportPreviewRow['classification_status']) {
+  if (status === 'SUGGESTED') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-200';
+  if (status === 'NEEDS_REVIEW') return 'border-amber-300/35 bg-amber-300/10 text-amber-100';
+  if (status === 'CONFIRMED') return 'border-[#D8BE78]/40 bg-[#D8BE78]/15 text-[#E8D18D]';
+  return 'border-white/10 bg-white/5 text-white/45';
+}
 
-const StatsCard = styled('section', {
-  background: 'linear-gradient(135deg, $gray850, $black)',
-  borderRadius: '$3xl',
-  padding: '$7',
-  borderGlow: 'rgba(255, 255, 255, 0.03)',
-  boxShadow: '$glass',
-  marginBottom: '$10',
-});
-
-const ProgressBar = styled('div', {
-  height: '8px',
-  width: '100%',
-  background: 'rgba(255, 255, 255, 0.03)',
-  borderRadius: '$full',
-  overflow: 'hidden',
-  display: 'flex',
-  margin: '$6 0 $4',
-});
-
-const TransactionItem = styled('div', {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '$4 0',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
-  animation: `${fadeIn} 0.5s ease-out`,
-  transition: 'all 0.3s ease',
-
-  '&:hover': {
-    paddingLeft: '$2',
-    '& .title': { color: '$gold' },
-  },
-});
+function readFileAsText(file: File, encoding: string) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file, encoding);
+  });
+}
 
 export default function FinancePage() {
-  const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [balance] = useState({
-    total: 825000,
-    income: 1450000,
-    expense: 625000
-  });
+  const { role, isLoading } = useAuth();
+  const isFinanceManager = canManageFinance(role);
+  const [adminTab, setAdminTab] = useState<AdminFinanceTab>('upload');
+  const [memberTab, setMemberTab] = useState<MemberFinanceTab>('public-report');
+  const [fileName, setFileName] = useState('');
+  const [previewRows, setPreviewRows] = useState<FinanceImportPreviewRow[]>([]);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
 
-  useEffect(() => {
-    const savedMatches = localStorage.getItem('teyeon_matches');
-    const savedPlayers = localStorage.getItem('teyeon_players');
-    if (savedMatches && savedPlayers) {
-      const matches: Match[] = JSON.parse(savedMatches);
-      const players: Player[] = JSON.parse(savedPlayers);
-      const rankings = calculateRankings(matches, players);
-      const result = calculateSettlements(rankings);
-      setSettlements(result);
-    } else {
-      setSettlements([
-        { name: '곽민섭', amount: 30000, type: 'reward', note: '🏆 Season Champion' },
-        { name: '가내현', amount: 15000, type: 'reward', note: '🥈 Runner Up' },
-        { name: 'Guest 1', amount: -10000, type: 'penalty', note: '⚠️ Trial Penalty' },
-      ]);
+  const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
+  const reviewRows = useMemo(
+    () => previewRows.filter((row) => row.classification_status === 'NEEDS_REVIEW'),
+    [previewRows]
+  );
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    setParseErrors([]);
+    setNotice(null);
+    setIsParsing(true);
+
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+      setPreviewRows([]);
+      setNotice('현재는 CSV 우선 지원입니다. 카카오뱅크 거래내역을 CSV로 저장해 업로드해주세요.');
+      setIsParsing(false);
+      event.target.value = '';
+      return;
     }
-  }, []);
+
+    if (!lowerName.endsWith('.csv')) {
+      setPreviewRows([]);
+      setNotice('CSV 파일만 업로드할 수 있습니다. XLSX 처리는 샘플 검증 후 다음 단계에서 진행합니다.');
+      setIsParsing(false);
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      let text = await readFileAsText(file, 'utf-8');
+      let result = parseKakaoBankCsv(text, file.name, DEFAULT_FINANCE_SETTINGS);
+
+      if (result.rows.length === 0 && result.detectedHeaderIndex < 0) {
+        text = await readFileAsText(file, 'euc-kr');
+        result = parseKakaoBankCsv(text, file.name, DEFAULT_FINANCE_SETTINGS);
+      }
+
+      setPreviewRows(result.rows);
+      setParseErrors(result.errors);
+      setNotice(
+        result.rows.length > 0
+          ? `${result.rows.length}건을 읽었습니다. 자동 분류는 추천값이며 아직 저장되지 않습니다.`
+          : '거래내역을 읽지 못했습니다. 카카오뱅크 CSV 컬럼을 확인해주세요.'
+      );
+      if (result.rows.length > 0) setAdminTab('review');
+    } catch (error: any) {
+      setPreviewRows([]);
+      setParseErrors([error?.message || 'CSV 파일을 읽는 중 오류가 발생했습니다.']);
+    } finally {
+      setIsParsing(false);
+      event.target.value = '';
+    }
+  };
+
+  const updateRowCategory = (rowNumber: number, category: FinanceCategory | '') => {
+    setPreviewRows((prev) =>
+      prev.map((row) =>
+        row.row_number === rowNumber
+          ? {
+              ...row,
+              category: category || null,
+              classification_status: category
+                ? 'CONFIRMED'
+                : row.is_ambiguous
+                  ? 'NEEDS_REVIEW'
+                  : row.suggested_category
+                    ? 'SUGGESTED'
+                    : 'UNCLASSIFIED',
+            }
+          : row
+      )
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[520px] items-center justify-center bg-[#151514] px-5 text-white">
+        <p className="text-[12px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">Loading Finance...</p>
+      </main>
+    );
+  }
 
   return (
-    <Container>
-      <header style={{ marginBottom: '40px' }}>
-         <h1 style={{ fontSize: '32px', fontWeight: 900, color: '#fff', fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: '1', textAlign: 'center' }}>
-           Financial <span style={{ color: '#D4AF37' }}>Elite</span>
-         </h1>
+    <main
+      className="mx-auto flex min-h-screen w-full max-w-[560px] flex-col bg-[#151514] px-5 pt-7 text-white"
+      style={{ paddingBottom: '250px' }}
+    >
+      <header className="mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#D8BE78]/70">TEYEON FINANCE</p>
+            <h1 className="mt-2 text-[30px] font-[1000] leading-none tracking-tight text-white">
+              클럽 재무 <span className="text-[#D8BE78]">관리</span>
+            </h1>
+          </div>
+          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/55">
+            {isFinanceManager ? 'MANAGER' : 'MEMBER'}
+          </span>
+        </div>
+        <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/45">
+          재무 담당자는 거래를 업로드하고 확정합니다. 회원에게는 확정된 월간 리포트와 공개 미납 현황만 보여줍니다.
+        </p>
       </header>
 
-      <BalanceSection>
-        <BalanceLabel>
-          CURRENT LIQUIDITY <span style={{ width: '4px', height: '4px', background: '#D4AF37', borderRadius: '100px' }}></span>
-        </BalanceLabel>
-        <BalanceAmount>
-          ₩{balance.total.toLocaleString()}
-        </BalanceAmount>
-        <ButtonGroup>
-          <ActionButton primary={true}>Deposit Fund</ActionButton>
-          <ActionButton primary={false}>Elite Transfer</ActionButton>
-        </ButtonGroup>
-      </BalanceSection>
+      {isFinanceManager ? (
+        <AdminFinanceView
+          adminTab={adminTab}
+          setAdminTab={setAdminTab}
+          fileName={fileName}
+          previewRows={previewRows}
+          reviewRows={reviewRows}
+          summary={summary}
+          parseErrors={parseErrors}
+          notice={notice}
+          isParsing={isParsing}
+          handleFileChange={handleFileChange}
+          updateRowCategory={updateRowCategory}
+        />
+      ) : (
+        <MemberFinanceView memberTab={memberTab} setMemberTab={setMemberTab} publicReceivables={emptyPublicReceivables} />
+      )}
 
-      <StatsCard>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255, 255, 255, 0.2)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Analytics</span>
-          <span style={{ fontSize: '18px', fontWeight: 900, color: '#fff' }}>Income is <span style={{ color: '#D4AF37' }}>+42%</span> Higher</span>
-        </div>
-        <ProgressBar>
-          <div style={{ height: '100%', background: '#D4AF37', width: '70%', boxShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}></div>
-          <div style={{ height: '100%', background: 'rgba(255, 255, 255, 0.1)', width: '30%' }}></div>
-        </ProgressBar>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.3)' }}>
-          <span>Income 1.45M</span>
-          <span>Expense 0.62M</span>
-        </div>
-      </StatsCard>
+      <div className="h-10" />
+    </main>
+  );
+}
 
-      <section>
-        <h3 style={{ fontSize: '13px', fontWeight: 900, color: '#fff', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>History</h3>
-        <div>
-          {[
-            { date: '03.24', title: 'Court Reservation (Elite Grass)', amount: -45000, type: 'out' },
-            { date: '03.24', title: 'Monthly Membership (Gold Class)', amount: 150000, type: 'in' },
-            { date: '03.22', title: 'Premium Ball Procurement', amount: -82000, type: 'out' },
-            { date: '03.20', title: 'Corporate Sponsorship (Teyeon)', amount: 500000, type: 'in' },
-          ].map((item, idx) => (
-            <TransactionItem key={idx}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255, 255, 255, 0.1)' }}>{item.date}</span>
-                <div>
-                  <p className="title" style={{ fontSize: '14px', fontWeight: 900, color: '#fff', transition: 'color 0.3s' }}>{item.title}</p>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.2)', textTransform: 'uppercase' }}>Elite Banking</p>
-                </div>
-              </div>
-              <span style={{ fontSize: '16px', fontWeight: 900, color: item.type === 'in' ? '#D4AF37' : '#fff', opacity: item.type === 'in' ? 1 : 0.4 }}>
-                {item.amount > 0 ? `+${item.amount.toLocaleString()}` : item.amount.toLocaleString()}
-              </span>
-            </TransactionItem>
+function AdminFinanceView({
+  adminTab,
+  setAdminTab,
+  fileName,
+  previewRows,
+  reviewRows,
+  summary,
+  parseErrors,
+  notice,
+  isParsing,
+  handleFileChange,
+  updateRowCategory,
+}: {
+  adminTab: AdminFinanceTab;
+  setAdminTab: (tab: AdminFinanceTab) => void;
+  fileName: string;
+  previewRows: FinanceImportPreviewRow[];
+  reviewRows: FinanceImportPreviewRow[];
+  summary: ReturnType<typeof summarizeFinancePreview>;
+  parseErrors: string[];
+  notice: string | null;
+  isParsing: boolean;
+  handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  updateRowCategory: (rowNumber: number, category: FinanceCategory | '') => void;
+}) {
+  return (
+    <>
+      <section className="mb-5 rounded-[28px] border border-[#D8BE78]/15 bg-[#242323]/90 p-3 shadow-[0_14px_34px_rgba(0,0,0,0.36)]">
+        <div className="grid grid-cols-3 gap-2">
+          {adminTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setAdminTab(tab.id)}
+              className={`rounded-2xl px-2 py-3 text-[11px] font-black tracking-tight transition-all active:scale-95 ${
+                adminTab === tab.id
+                  ? 'bg-[#D8BE78] text-black shadow-[0_10px_24px_rgba(216,190,120,0.18)]'
+                  : 'border border-white/10 bg-black/20 text-white/45'
+              }`}
+            >
+              {tab.label}
+            </button>
           ))}
         </div>
       </section>
 
-      <button style={{ 
-        width: '100%', 
-        marginTop: '32px',
-        background: 'rgba(255, 255, 255, 0.02)', 
-        border: '1px dashed rgba(255, 255, 255, 0.1)', 
-        color: 'rgba(255, 255, 255, 0.3)', 
-        padding: '20px', 
-        borderRadius: '24px',
-        fontSize: '11px',
-        fontWeight: 900,
-        textTransform: 'uppercase',
-        letterSpacing: '0.2em'
-      }}>
-        Add Manual Transaction
-      </button>
+      {notice && <NoticeBox>{notice}</NoticeBox>}
+      {parseErrors.length > 0 && (
+        <div className="mb-4 rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+          {parseErrors.slice(0, 4).map((error) => (
+            <p key={error}>{error}</p>
+          ))}
+        </div>
+      )}
 
-      <footer style={{ marginTop: 'auto', padding: '60px 0', textAlign: 'center', opacity: 0.15 }}>
-        <p style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.4em' }}>TEYEON FINANCIAL CORE</p>
-      </footer>
-    </Container>
+      {adminTab === 'upload' && (
+        <section className="space-y-4">
+          <UploadPanel fileName={fileName} isParsing={isParsing} onFileChange={handleFileChange} />
+          {previewRows.length > 0 && (
+            <PreviewSummaryCard summary={summary} onGoPreview={() => setAdminTab('review')} />
+          )}
+        </section>
+      )}
+
+      {adminTab === 'review' && (
+        <section className="space-y-3">
+          <SectionTitle eyebrow="NEEDS REVIEW" title="확인 필요 거래" count={`${reviewRows.length}건`} />
+          {reviewRows.length === 0 ? (
+            <EmptyState
+              title="확인 필요 거래가 없습니다"
+              body="CSV를 업로드하면 애매한 거래가 이곳에 모입니다. 10,000원 입금처럼 월회비와 게스트비가 겹칠 수 있는 거래를 우선 확인합니다."
+            />
+          ) : (
+            <TransactionList rows={reviewRows} updateRowCategory={updateRowCategory} />
+          )}
+        </section>
+      )}
+
+      {adminTab === 'ledger' && (
+        <section className="space-y-3">
+          <SectionTitle eyebrow="LEDGER" title="거래 원장" count={`${previewRows.length}건`} />
+          {previewRows.length === 0 ? (
+            <EmptyState
+              title="저장된 거래 원장은 다음 단계에서 연결됩니다"
+              body="현재는 업로드한 CSV 미리보기 데이터만 화면에서 확인합니다. DB 저장과 원장 필터는 다음 단계에서 진행합니다."
+            />
+          ) : (
+            <TransactionList rows={previewRows} updateRowCategory={updateRowCategory} />
+          )}
+        </section>
+      )}
+
+      {adminTab === 'receivables' && (
+        <AdminPlaceholder
+          eyebrow="RECEIVABLES"
+          title="미수금 관리"
+          body="확정된 미수금만 회원에게 공개합니다. 자동 추정 미납은 공개하지 않고, 재무 담당자가 직접 확정한 항목만 OPEN 상태로 관리합니다."
+          items={['OPEN / PAID / WAIVED 상태 관리', 'is_public + is_confirmed 기준 공개', 'KDK Archive 연결은 2차 작업']}
+        />
+      )}
+
+      {adminTab === 'reports' && (
+        <section className="space-y-4">
+          <AdminPlaceholder
+            eyebrow="MONTHLY REPORT"
+            title="월간 리포트 확정"
+            body="회원에게 공개되는 재무 화면은 CONFIRMED 월간 리포트만 사용합니다. DRAFT 생성과 확정/해제는 다음 단계에서 연결합니다."
+            items={['수입/지출/잔액 스냅샷', '카테고리별 비중', '주요 지출 TOP 3', '공개 미납 현황']}
+          />
+          <SummaryPanel summary={summary} />
+        </section>
+      )}
+
+      {adminTab === 'settings' && (
+        <AdminPlaceholder
+          eyebrow="FINANCE SETTINGS"
+          title="재무 설정"
+          body="월회비는 10,000원에서 20,000원으로 변경될 수 있으므로 설정값과 적용 시작일 기준으로 관리하는 구조를 준비했습니다."
+          items={[
+            `월회비 기본값 ${DEFAULT_FINANCE_SETTINGS.monthly_fee_amount.toLocaleString()}원`,
+            `연회비 기본값 ${DEFAULT_FINANCE_SETTINGS.yearly_fee_amount.toLocaleString()}원`,
+            `게스트비 ${DEFAULT_FINANCE_SETTINGS.guest_fee_amount.toLocaleString()}원`,
+            `벌금 L1 ${DEFAULT_FINANCE_SETTINGS.penalty_l1_amount.toLocaleString()}원 / L2 ${DEFAULT_FINANCE_SETTINGS.penalty_l2_amount.toLocaleString()}원`,
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+function MemberFinanceView({
+  memberTab,
+  setMemberTab,
+  publicReceivables,
+}: {
+  memberTab: MemberFinanceTab;
+  setMemberTab: (tab: MemberFinanceTab) => void;
+  publicReceivables: FinanceReceivable[];
+}) {
+  return (
+    <>
+      <section className="mb-5 rounded-[28px] border border-[#D8BE78]/15 bg-[#242323]/90 p-3">
+        <div className="grid grid-cols-2 gap-2">
+          {memberTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setMemberTab(tab.id)}
+              className={`rounded-2xl px-2 py-3 text-[11px] font-black tracking-tight transition-all active:scale-95 ${
+                memberTab === tab.id
+                  ? 'bg-[#D8BE78] text-black'
+                  : 'border border-white/10 bg-black/20 text-white/45'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {memberTab === 'public-report' && (
+        <section className="space-y-4">
+          <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">PUBLIC REPORT</p>
+                <h2 className="mt-1 text-[19px] font-black text-white">확정 월간 리포트</h2>
+              </div>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[9px] font-black text-white/45">
+                CONFIRMED ONLY
+              </span>
+            </div>
+
+            <EmptyState
+              title="아직 확정된 월간 재무 리포트가 없습니다"
+              body="회원에게는 재무 담당자가 확정한 월간 리포트만 공개됩니다. 확인 필요 거래나 거래 원장은 공개되지 않습니다."
+            />
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <PublicMetric label="수입 총액" value="-원" />
+              <PublicMetric label="지출 총액" value="-원" />
+              <PublicMetric label="현재 잔액" value="-원" />
+              <PublicMetric label="주요 지출" value="준비중" />
+            </div>
+          </div>
+
+          <PublicInfoCard />
+        </section>
+      )}
+
+      {memberTab === 'public-receivables' && (
+        <section className="space-y-4">
+          <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">PUBLIC RECEIVABLES</p>
+            <h2 className="mt-1 text-[19px] font-black text-white">공개 미납 현황</h2>
+            <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/40">
+              공개 조건: OPEN 상태, 공개 허용, 재무 담당자 확정 완료.
+            </p>
+
+            {publicReceivables.length === 0 ? (
+              <EmptyState
+                title="공개된 미납 항목이 없습니다"
+                body="자동 추정 미납이나 확인 필요 거래는 회원에게 공개하지 않습니다."
+              />
+            ) : (
+              <div className="mt-4 space-y-2">
+                {publicReceivables.map((item) => (
+                  <div key={item.id || `${item.player_name}-${item.amount}`} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-black text-white">{item.player_name}</span>
+                      <span className="font-black text-red-200">{item.amount.toLocaleString()}원</span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-bold text-white/40">
+                      {item.reason} · {item.target_month || item.kdk_archive_id || '기준 미지정'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function UploadPanel({
+  fileName,
+  isParsing,
+  onFileChange,
+}: {
+  fileName: string;
+  isParsing: boolean;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="rounded-[30px] border border-white/10 bg-[#242323]/85 p-5">
+      <div className="mb-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">KAKAO BANK CSV</p>
+        <h2 className="mt-1 text-[18px] font-black text-white">거래내역 업로드</h2>
+        <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/40">
+          필요 컬럼: 거래일시, 구분, 거래금액, 거래 후 잔액, 거래구분, 내용
+        </p>
+      </div>
+
+      <label className="flex min-h-[150px] cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-[#D8BE78]/30 bg-black/20 px-5 text-center transition-all hover:border-[#D8BE78]/60 hover:bg-[#D8BE78]/5">
+        <input
+          type="file"
+          accept=".csv,.xlsx,.xls,text/csv"
+          className="sr-only"
+          onChange={onFileChange}
+          disabled={isParsing}
+        />
+        <span className="text-[13px] font-black text-[#F1E7C4]">
+          {isParsing ? '파일 분석 중...' : 'CSV 파일 선택'}
+        </span>
+        <span className="mt-2 text-[10px] font-bold text-white/35">
+          XLSX는 다음 단계에서 지원 예정입니다.
+        </span>
+      </label>
+
+      {fileName && (
+        <p className="mt-4 truncate rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] font-bold text-white/55">
+          최근 파일: {fileName}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TransactionList({
+  rows,
+  updateRowCategory,
+}: {
+  rows: FinanceImportPreviewRow[];
+  updateRowCategory: (rowNumber: number, category: FinanceCategory | '') => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <article
+          key={`${row.source_hash}-${row.row_number}`}
+          className="rounded-[26px] border border-white/10 bg-[#242323]/90 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
+        >
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-black text-white">{row.description || '내용 없음'}</p>
+              <p className="mt-1 text-[10px] font-bold text-white/35">
+                {row.transaction_date} {row.transaction_time || ''} · {row.transaction_method || '거래'}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className={`text-[15px] font-black ${row.transaction_type === 'INCOME' ? 'text-emerald-200' : 'text-red-200'}`}>
+                {formatMoney(row.amount)}
+              </p>
+              <p className="mt-1 text-[9px] font-bold text-white/30">잔액 {row.balance_after?.toLocaleString() || 0}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[1fr_150px]">
+            <div className={`rounded-2xl border px-3 py-2 ${statusClass(row.classification_status)}`}>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em]">{statusLabel(row.classification_status)}</p>
+              <p className="mt-1 text-[11px] font-black">추천: {row.suggested_category || '없음'}</p>
+              {row.review_reason && <p className="mt-1 text-[10px] font-bold leading-relaxed opacity-75">{row.review_reason}</p>}
+            </div>
+
+            <select
+              value={row.category || ''}
+              onChange={(event) => updateRowCategory(row.row_number, event.target.value as FinanceCategory | '')}
+              className="h-full min-h-[58px] rounded-2xl border border-white/10 bg-black/30 px-3 text-[11px] font-black text-[#F1E7C4] outline-none"
+            >
+              <option value="">수동 선택 안 함</option>
+              {FINANCE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function SummaryPanel({ summary }: { summary: ReturnType<typeof summarizeFinancePreview> }) {
+  return (
+    <section className="space-y-4">
+      <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">UPLOAD SUMMARY</p>
+        <h2 className="mt-1 text-[18px] font-black text-white">업로드 기준 요약</h2>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <SummaryBox label="입금 합계" value={formatMoney(summary.incomeTotal)} tone="income" />
+          <SummaryBox label="출금 합계" value={formatMoney(-summary.expenseTotal)} tone="expense" />
+          <SummaryBox label="순증감" value={formatMoney(summary.netChange)} tone={summary.netChange >= 0 ? 'income' : 'expense'} />
+          <SummaryBox label="확인 필요" value={`${summary.needsReviewCount}건`} tone="review" />
+        </div>
+      </div>
+
+      <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-[13px] font-black text-white">카테고리별 합계</h3>
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[9px] font-black text-white/40">
+            {summary.rowCount}건
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {Object.entries(summary.byCategory).length === 0 ? (
+            <p className="py-8 text-center text-[11px] font-bold text-white/30">업로드 데이터가 없습니다.</p>
+          ) : (
+            Object.entries(summary.byCategory)
+              .sort((a, b) => b[1] - a[1])
+              .map(([category, total]) => (
+                <div key={category} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <span className="text-[12px] font-black text-white/75">{category}</span>
+                  <span className="text-[12px] font-black text-[#D8BE78]">{total.toLocaleString()}원</span>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PreviewSummaryCard({
+  summary,
+  onGoPreview,
+}: {
+  summary: ReturnType<typeof summarizeFinancePreview>;
+  onGoPreview: () => void;
+}) {
+  return (
+    <div className="rounded-[26px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-black text-[#F1E7C4]">{summary.rowCount}건 미리보기 준비</p>
+          <p className="mt-1 text-[10px] font-bold text-[#F1E7C4]/60">
+            확인 필요 {summary.needsReviewCount}건 · 미분류 {summary.unclassifiedCount}건
+          </p>
+        </div>
+        <button onClick={onGoPreview} className="rounded-2xl bg-[#D8BE78] px-4 py-3 text-[11px] font-black text-black">
+          확인하기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdminPlaceholder({
+  eyebrow,
+  title,
+  body,
+  items,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  items: string[];
+}) {
+  return (
+    <section className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">{eyebrow}</p>
+      <h2 className="mt-1 text-[19px] font-black text-white">{title}</h2>
+      <p className="mt-3 text-[11px] font-bold leading-relaxed text-white/45">{body}</p>
+      <div className="mt-5 space-y-2">
+        {items.map((item) => (
+          <div key={item} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] font-bold text-white/60">
+            {item}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PublicInfoCard() {
+  return (
+    <div className="rounded-[24px] border border-emerald-300/15 bg-emerald-300/5 p-4">
+      <p className="text-[11px] font-black text-emerald-100">회원 공개 기준</p>
+      <p className="mt-2 text-[11px] font-bold leading-relaxed text-emerald-100/60">
+        DRAFT 리포트, 확인 필요 거래, 거래 원문은 공개하지 않습니다. 확정된 월간 리포트와 확정 공개 미수금만 표시합니다.
+      </p>
+    </div>
+  );
+}
+
+function NoticeBox({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-4 rounded-[22px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-[#E8D18D]">
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({ eyebrow, title, count }: { eyebrow: string; title: string; count?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-1">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/35">{eyebrow}</p>
+        <h2 className="text-[17px] font-black text-white">{title}</h2>
+      </div>
+      {count && (
+        <span className="rounded-full border border-[#D8BE78]/25 bg-[#D8BE78]/10 px-3 py-1 text-[10px] font-black text-[#D8BE78]">
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="mt-4 rounded-[26px] border border-white/10 bg-black/20 px-5 py-10 text-center">
+      <p className="text-[13px] font-black text-white/75">{title}</p>
+      <p className="mx-auto mt-2 max-w-[340px] text-[11px] font-bold leading-relaxed text-white/35">{body}</p>
+    </div>
+  );
+}
+
+function PublicMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/30">{label}</p>
+      <p className="mt-2 text-[16px] font-black tracking-tight text-[#D8BE78]">{value}</p>
+    </div>
+  );
+}
+
+function SummaryBox({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: 'income' | 'expense' | 'review';
+}) {
+  const color =
+    tone === 'income'
+      ? 'text-emerald-200'
+      : tone === 'expense'
+        ? 'text-red-200'
+        : 'text-amber-100';
+
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/30">{label}</p>
+      <p className={`mt-2 text-[18px] font-black tracking-tight ${color}`}>{value}</p>
+    </div>
   );
 }
