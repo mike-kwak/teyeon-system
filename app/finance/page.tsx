@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   DEFAULT_FINANCE_SETTINGS,
   parseKakaoBankCsv,
+  parseKakaoBankPastedText,
   summarizeFinancePreview,
 } from '@/lib/financeImport';
 import {
@@ -16,6 +17,7 @@ import {
 
 type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'receivables' | 'reports' | 'settings';
 type MemberFinanceTab = 'public-report' | 'public-receivables';
+type FinanceInputMode = 'csv' | 'paste';
 
 const adminTabs: Array<{ id: AdminFinanceTab; label: string }> = [
   { id: 'upload', label: '업로드' },
@@ -75,6 +77,8 @@ export default function FinancePage() {
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [inputMode, setInputMode] = useState<FinanceInputMode>('csv');
+  const [pastedText, setPastedText] = useState('');
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -94,7 +98,7 @@ export default function FinancePage() {
     const lowerName = file.name.toLowerCase();
     if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
       setPreviewRows([]);
-      setNotice('현재는 CSV 우선 지원입니다. 카카오뱅크 거래내역을 CSV로 저장해 업로드해주세요.');
+      setNotice('XLSX 파일은 엑셀에서 열어 거래내역 표를 복사한 뒤 붙여넣기 모드를 사용해주세요. 직접 XLSX 업로드는 추후 지원 예정입니다.');
       setIsParsing(false);
       event.target.value = '';
       return;
@@ -132,6 +136,28 @@ export default function FinancePage() {
       setIsParsing(false);
       event.target.value = '';
     }
+  };
+
+  const handlePasteAnalyze = () => {
+    setParseErrors([]);
+    setNotice(null);
+
+    if (!pastedText.trim()) {
+      setPreviewRows([]);
+      setParseErrors(['붙여넣은 거래내역이 없습니다. 카카오뱅크 거래내역 표를 복사해 붙여넣어 주세요.']);
+      return;
+    }
+
+    const result = parseKakaoBankPastedText(pastedText, DEFAULT_FINANCE_SETTINGS);
+    setPreviewRows(result.rows);
+    setParseErrors(result.errors);
+    setFileName('붙여넣기 거래내역');
+    setNotice(
+      result.rows.length > 0
+        ? `${result.rows.length}건을 분석했습니다. 기존 미리보기/월간 요약과 같은 방식으로 확인합니다.`
+        : '분석 가능한 거래가 없습니다.'
+    );
+    if (result.rows.length > 0) setAdminTab('review');
   };
 
   const updateRowCategory = (rowNumber: number, category: FinanceCategory | '') => {
@@ -195,7 +221,12 @@ export default function FinancePage() {
           parseErrors={parseErrors}
           notice={notice}
           isParsing={isParsing}
+          inputMode={inputMode}
+          pastedText={pastedText}
+          setInputMode={setInputMode}
+          setPastedText={setPastedText}
           handleFileChange={handleFileChange}
+          handlePasteAnalyze={handlePasteAnalyze}
           updateRowCategory={updateRowCategory}
         />
       ) : (
@@ -217,7 +248,12 @@ function AdminFinanceView({
   parseErrors,
   notice,
   isParsing,
+  inputMode,
+  pastedText,
+  setInputMode,
+  setPastedText,
   handleFileChange,
+  handlePasteAnalyze,
   updateRowCategory,
 }: {
   adminTab: AdminFinanceTab;
@@ -229,7 +265,12 @@ function AdminFinanceView({
   parseErrors: string[];
   notice: string | null;
   isParsing: boolean;
+  inputMode: FinanceInputMode;
+  pastedText: string;
+  setInputMode: (mode: FinanceInputMode) => void;
+  setPastedText: (value: string) => void;
   handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  handlePasteAnalyze: () => void;
   updateRowCategory: (rowNumber: number, category: FinanceCategory | '') => void;
 }) {
   return (
@@ -242,8 +283,8 @@ function AdminFinanceView({
               onClick={() => setAdminTab(tab.id)}
               className={`rounded-2xl px-2 py-3 text-[11px] font-black tracking-tight transition-all active:scale-95 ${
                 adminTab === tab.id
-                  ? 'bg-[#D8BE78] text-black shadow-[0_10px_24px_rgba(216,190,120,0.18)]'
-                  : 'border border-white/10 bg-black/20 text-white/45'
+                  ? 'border border-[#D8BE78]/55 bg-[#D8BE78]/15 text-[#F1E7C4] shadow-[0_10px_24px_rgba(216,190,120,0.12)]'
+                  : 'border border-zinc-700/80 bg-zinc-950/70 text-zinc-300 hover:border-[#D8BE78]/35 hover:text-zinc-100'
               }`}
             >
               {tab.label}
@@ -263,7 +304,16 @@ function AdminFinanceView({
 
       {adminTab === 'upload' && (
         <section className="space-y-4">
-          <UploadPanel fileName={fileName} isParsing={isParsing} onFileChange={handleFileChange} />
+          <UploadPanel
+            fileName={fileName}
+            isParsing={isParsing}
+            inputMode={inputMode}
+            pastedText={pastedText}
+            setInputMode={setInputMode}
+            setPastedText={setPastedText}
+            onFileChange={handleFileChange}
+            onPasteAnalyze={handlePasteAnalyze}
+          />
           {previewRows.length > 0 && (
             <PreviewSummaryCard summary={summary} onGoPreview={() => setAdminTab('review')} />
           )}
@@ -355,8 +405,8 @@ function MemberFinanceView({
               onClick={() => setMemberTab(tab.id)}
               className={`rounded-2xl px-2 py-3 text-[11px] font-black tracking-tight transition-all active:scale-95 ${
                 memberTab === tab.id
-                  ? 'bg-[#D8BE78] text-black'
-                  : 'border border-white/10 bg-black/20 text-white/45'
+                  ? 'border border-[#D8BE78]/55 bg-[#D8BE78]/15 text-[#F1E7C4]'
+                  : 'border border-zinc-700/80 bg-zinc-950/70 text-zinc-300 hover:border-[#D8BE78]/35 hover:text-zinc-100'
               }`}
             >
               {tab.label}
@@ -434,37 +484,93 @@ function MemberFinanceView({
 function UploadPanel({
   fileName,
   isParsing,
+  inputMode,
+  pastedText,
+  setInputMode,
+  setPastedText,
   onFileChange,
+  onPasteAnalyze,
 }: {
   fileName: string;
   isParsing: boolean;
+  inputMode: FinanceInputMode;
+  pastedText: string;
+  setInputMode: (mode: FinanceInputMode) => void;
+  setPastedText: (value: string) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onPasteAnalyze: () => void;
 }) {
   return (
     <div className="rounded-[30px] border border-white/10 bg-[#242323]/85 p-5">
       <div className="mb-5">
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">KAKAO BANK CSV</p>
-        <h2 className="mt-1 text-[18px] font-black text-white">거래내역 업로드</h2>
+        <h2 className="mt-1 text-[18px] font-black text-white">거래내역 입력</h2>
         <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/40">
           필요 컬럼: 거래일시, 구분, 거래금액, 거래 후 잔액, 거래구분, 내용
         </p>
       </div>
 
-      <label className="flex min-h-[150px] cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-[#D8BE78]/30 bg-black/20 px-5 text-center transition-all hover:border-[#D8BE78]/60 hover:bg-[#D8BE78]/5">
-        <input
-          type="file"
-          accept=".csv,.xlsx,.xls,text/csv"
-          className="sr-only"
-          onChange={onFileChange}
-          disabled={isParsing}
-        />
-        <span className="text-[13px] font-black text-[#F1E7C4]">
-          {isParsing ? '파일 분석 중...' : 'CSV 파일 선택'}
-        </span>
-        <span className="mt-2 text-[10px] font-bold text-white/35">
-          XLSX는 다음 단계에서 지원 예정입니다.
-        </span>
-      </label>
+      <div className="mb-4 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-black/20 p-1.5">
+        <button
+          type="button"
+          onClick={() => setInputMode('csv')}
+          className={`rounded-2xl px-3 py-2.5 text-[11px] font-black transition-all ${
+            inputMode === 'csv'
+              ? 'border border-[#D8BE78]/55 bg-[#D8BE78]/15 text-[#F1E7C4]'
+              : 'border border-transparent text-zinc-300 hover:text-zinc-100'
+          }`}
+        >
+          CSV 업로드
+        </button>
+        <button
+          type="button"
+          onClick={() => setInputMode('paste')}
+          className={`rounded-2xl px-3 py-2.5 text-[11px] font-black transition-all ${
+            inputMode === 'paste'
+              ? 'border border-[#D8BE78]/55 bg-[#D8BE78]/15 text-[#F1E7C4]'
+              : 'border border-transparent text-zinc-300 hover:text-zinc-100'
+          }`}
+        >
+          붙여넣기
+        </button>
+      </div>
+
+      {inputMode === 'csv' ? (
+        <label className="flex min-h-[150px] cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-[#D8BE78]/35 bg-zinc-950/70 px-5 text-center transition-all hover:border-[#D8BE78]/60 hover:bg-[#D8BE78]/5">
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls,text/csv"
+            className="sr-only"
+            onChange={onFileChange}
+            disabled={isParsing}
+          />
+          <span className="text-[13px] font-black text-[#F1E7C4]">
+            {isParsing ? '파일 분석 중...' : 'CSV 파일 선택'}
+          </span>
+          <span className="mt-2 max-w-[330px] text-[10px] font-bold leading-relaxed text-white/35">
+            XLSX 파일은 엑셀에서 열어 거래내역 표를 복사한 뒤 붙여넣기 모드를 사용해주세요. 직접 XLSX 업로드는 추후 지원 예정입니다.
+          </span>
+        </label>
+      ) : (
+        <div className="space-y-3">
+          <textarea
+            value={pastedText}
+            onChange={(event) => setPastedText(event.target.value)}
+            placeholder="카카오뱅크 거래내역 엑셀에서 거래일시~내용 영역을 복사해 붙여넣으세요."
+            className="min-h-[210px] w-full resize-y rounded-[24px] border border-[#D8BE78]/25 bg-zinc-950/80 px-4 py-4 font-mono text-[12px] font-bold leading-relaxed text-zinc-100 caret-[#F1E7C4] outline-none placeholder:text-zinc-500 focus:border-[#D8BE78]/60 focus:bg-zinc-950"
+          />
+          <button
+            type="button"
+            onClick={onPasteAnalyze}
+            className="w-full rounded-[22px] border border-[#D8BE78]/60 bg-[#D8BE78]/20 px-4 py-4 text-[12px] font-black text-[#F1E7C4] shadow-[0_12px_26px_rgba(216,190,120,0.12)] active:scale-[0.98]"
+          >
+            붙여넣기 내용 분석
+          </button>
+          <p className="text-[10px] font-bold leading-relaxed text-white/35">
+            탭으로 복사된 엑셀 표를 우선 인식하고, 여러 공백으로 나뉜 표도 보조로 처리합니다.
+          </p>
+        </div>
+      )}
 
       {fileName && (
         <p className="mt-4 truncate rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] font-bold text-white/55">
@@ -514,11 +620,11 @@ function TransactionList({
             <select
               value={row.category || ''}
               onChange={(event) => updateRowCategory(row.row_number, event.target.value as FinanceCategory | '')}
-              className="h-full min-h-[58px] rounded-2xl border border-white/10 bg-black/30 px-3 text-[11px] font-black text-[#F1E7C4] outline-none"
+              className="h-full min-h-[58px] rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[11px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
             >
-              <option value="">수동 선택 안 함</option>
+              <option value="" className="bg-zinc-950 text-zinc-100">수동 선택 안 함</option>
               {FINANCE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
+                <option key={category} value={category} className="bg-zinc-950 text-zinc-100">
                   {category}
                 </option>
               ))}
@@ -588,7 +694,7 @@ function PreviewSummaryCard({
             확인 필요 {summary.needsReviewCount}건 · 미분류 {summary.unclassifiedCount}건
           </p>
         </div>
-        <button onClick={onGoPreview} className="rounded-2xl bg-[#D8BE78] px-4 py-3 text-[11px] font-black text-black">
+        <button onClick={onGoPreview} className="rounded-2xl border border-[#D8BE78]/55 bg-[#D8BE78]/20 px-4 py-3 text-[11px] font-black text-[#F1E7C4]">
           확인하기
         </button>
       </div>
