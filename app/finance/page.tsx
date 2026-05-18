@@ -91,6 +91,7 @@ export default function FinancePage() {
   const [ledgerRows, setLedgerRows] = useState<FinanceTransaction[]>([]);
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [hasLoadedLedger, setHasLoadedLedger] = useState(false);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -109,8 +110,10 @@ export default function FinancePage() {
     try {
       const rows = await fetchFinanceTransactions();
       setLedgerRows(rows);
+      setHasLoadedLedger(true);
     } catch (error: any) {
       setLedgerRows([]);
+      setHasLoadedLedger(true);
       setLedgerError(error?.message || '거래 원장을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setIsLoadingLedger(false);
@@ -215,9 +218,8 @@ export default function FinancePage() {
       const result = await saveFinanceTransactions(previewRows, { actorId });
       setSaveResult(result);
       setNotice(`저장 ${result.savedCount}건 · 중복 제외 ${result.skippedCount}건 · 실패 ${result.failedCount}건`);
-      if (result.savedCount > 0) {
-        await loadLedgerRows();
-      }
+      await loadLedgerRows();
+      setAdminTab('ledger');
     } catch (error: any) {
       const message = error?.message || '거래내역 저장 중 오류가 발생했습니다.';
       setSaveResult({
@@ -229,6 +231,7 @@ export default function FinancePage() {
         errorMessage: message,
       });
       setParseErrors([message]);
+      setNotice(message);
     } finally {
       setIsSavingTransactions(false);
     }
@@ -320,6 +323,7 @@ export default function FinancePage() {
           summary={summary}
           parseErrors={parseErrors}
           ledgerError={ledgerError}
+          hasLoadedLedger={hasLoadedLedger}
           notice={notice}
           isParsing={isParsing}
           isSavingTransactions={isSavingTransactions}
@@ -355,6 +359,7 @@ function AdminFinanceView({
   summary,
   parseErrors,
   ledgerError,
+  hasLoadedLedger,
   notice,
   isParsing,
   isSavingTransactions,
@@ -380,6 +385,7 @@ function AdminFinanceView({
   summary: ReturnType<typeof summarizeFinancePreview>;
   parseErrors: string[];
   ledgerError: string | null;
+  hasLoadedLedger: boolean;
   notice: string | null;
   isParsing: boolean;
   isSavingTransactions: boolean;
@@ -483,6 +489,9 @@ function AdminFinanceView({
               {isLoadingLedger ? '불러오는 중' : '새로고침'}
             </button>
           </div>
+          <div className="rounded-[22px] border border-[#D8BE78]/15 bg-[#D8BE78]/10 px-4 py-3 text-[10px] font-bold leading-relaxed text-[#F1E7C4]/65">
+            원장은 Supabase DB에 저장된 거래만 표시합니다. 업로드/붙여넣기 미리보기 데이터는 저장 전까지 원장에 나오지 않습니다.
+          </div>
           {ledgerError && (
             <div className="rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
               {ledgerError}
@@ -492,8 +501,14 @@ function AdminFinanceView({
             <EmptyState title="거래 원장을 불러오는 중입니다" body="저장된 카카오뱅크 거래내역을 확인하고 있습니다." />
           ) : ledgerRows.length === 0 ? (
             <EmptyState
-              title="저장된 거래 원장이 없습니다"
-              body="업로드 또는 붙여넣기로 거래내역을 분석한 뒤 거래내역 저장을 눌러 원장에 남길 수 있습니다."
+              title={ledgerError ? '거래 원장을 불러오지 못했습니다' : hasLoadedLedger ? '저장된 거래가 없습니다' : '거래 원장을 아직 불러오지 않았습니다'}
+              body={
+                ledgerError
+                  ? '위 오류 메시지를 확인해주세요. finance_schema.sql 적용 또는 Supabase 권한 설정이 필요할 수 있습니다.'
+                  : saveResult?.savedCount
+                    ? '저장은 완료됐지만 조회 결과가 0건입니다. Supabase SELECT/RLS 정책 또는 현재 계정 권한을 확인해주세요.'
+                    : '업로드 또는 붙여넣기로 거래내역을 분석한 뒤 거래내역 저장을 눌러 원장에 남길 수 있습니다. 현재는 전체 거래 기준으로 조회합니다.'
+              }
             />
           ) : (
             <LedgerTransactionList rows={ledgerRows} updateLedgerCategory={updateLedgerCategory} />
@@ -526,12 +541,16 @@ function AdminFinanceView({
         <AdminPlaceholder
           eyebrow="FINANCE SETTINGS"
           title="재무 설정"
-          body="월회비는 10,000원에서 20,000원으로 변경될 수 있으므로 설정값과 적용 시작일 기준으로 관리하는 구조를 준비했습니다."
+          body="월회비와 벌금은 운영 장소/월별 기준에 따라 바뀔 수 있으므로 설정값과 적용 시작일 기준으로 관리하는 구조를 준비했습니다."
           items={[
             `월회비 기본값 ${DEFAULT_FINANCE_SETTINGS.monthly_fee_amount.toLocaleString()}원`,
+            '월회비는 추후 20,000원으로 변경될 수 있음',
             `연회비 기본값 ${DEFAULT_FINANCE_SETTINGS.yearly_fee_amount.toLocaleString()}원`,
             `게스트비 ${DEFAULT_FINANCE_SETTINGS.guest_fee_amount.toLocaleString()}원`,
+            `기본 벌금 ${DEFAULT_FINANCE_SETTINGS.default_penalty_amount.toLocaleString()}원`,
+            `소정코트 벌금 ${DEFAULT_FINANCE_SETTINGS.sojeong_penalty_amount.toLocaleString()}원`,
             `벌금 L1 ${DEFAULT_FINANCE_SETTINGS.penalty_l1_amount.toLocaleString()}원 / L2 ${DEFAULT_FINANCE_SETTINGS.penalty_l2_amount.toLocaleString()}원`,
+            '5,000원/10,000원 입금은 벌금 후보로 추천하되 재무 담당자가 최종 확정',
           ]}
         />
       )}
