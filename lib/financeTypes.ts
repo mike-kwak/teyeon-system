@@ -10,6 +10,16 @@ export type FinanceMonthlyReportStatus = 'DRAFT' | 'CONFIRMED';
 
 export type FinanceReceivableStatus = 'OPEN' | 'PAID' | 'WAIVED';
 
+export type FinancePaymentStatus =
+  | 'UNCONFIRMED'
+  | 'UNPAID'
+  | 'PARTIAL'
+  | 'PAID'
+  | 'WAIVED'
+  | 'YEARLY_PAID';
+
+export type FinanceFeeType = 'MONTHLY' | 'YEARLY';
+
 export const FINANCE_CATEGORIES = [
   '월회비',
   '연회비',
@@ -122,5 +132,39 @@ export interface FinanceReceivable {
   confirmed_by?: string;
   confirmed_at?: string;
   paid_at?: string;
+  memo?: string;
+}
+
+export interface FinanceMemberPayment {
+  id?: string;
+  target_month: string;
+  member_id: string;
+  member_name: string;
+  fee_type: FinanceFeeType;
+  expected_amount: number;
+  paid_amount: number;
+  payment_status: FinancePaymentStatus;
+  is_yearly_payer: boolean;
+  matched_transaction_ids?: string[];
+  is_public: boolean;
+  is_confirmed: boolean;
+  confirmed_by?: string;
+  confirmed_at?: string;
+  memo?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FinanceMemberPaymentRow {
+  member_id: string;
+  member_name: string;
+  member_role?: string | null;
+  target_month: string;
+  expected_amount: number;
+  paid_amount: number;
+  payment_status: FinancePaymentStatus;
+  is_yearly_payer: boolean;
+  is_confirmed: boolean;
+  matched_transaction_count: number;
   memo?: string;
 }
