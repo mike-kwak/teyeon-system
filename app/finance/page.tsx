@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ChangeEvent, useMemo, useState } from 'react';
+import React, { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
   DEFAULT_FINANCE_SETTINGS,
@@ -9,10 +9,17 @@ import {
   summarizeFinancePreview,
 } from '@/lib/financeImport';
 import {
+  fetchFinanceTransactions,
+  saveFinanceTransactions,
+  SaveFinanceTransactionsResult,
+  updateFinanceTransactionCategory,
+} from '@/lib/financeService';
+import {
   FINANCE_CATEGORIES,
   FinanceCategory,
   FinanceImportPreviewRow,
   FinanceReceivable,
+  FinanceTransaction,
 } from '@/lib/financeTypes';
 
 type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'receivables' | 'reports' | 'settings';
@@ -68,7 +75,7 @@ function readFileAsText(file: File, encoding: string) {
 }
 
 export default function FinancePage() {
-  const { role, isLoading } = useAuth();
+  const { role, isLoading, user } = useAuth();
   const isFinanceManager = canManageFinance(role);
   const [adminTab, setAdminTab] = useState<AdminFinanceTab>('upload');
   const [memberTab, setMemberTab] = useState<MemberFinanceTab>('public-report');
@@ -79,12 +86,42 @@ export default function FinancePage() {
   const [isParsing, setIsParsing] = useState(false);
   const [inputMode, setInputMode] = useState<FinanceInputMode>('csv');
   const [pastedText, setPastedText] = useState('');
+  const [isSavingTransactions, setIsSavingTransactions] = useState(false);
+  const [saveResult, setSaveResult] = useState<SaveFinanceTransactionsResult | null>(null);
+  const [ledgerRows, setLedgerRows] = useState<FinanceTransaction[]>([]);
+  const [isLoadingLedger, setIsLoadingLedger] = useState(false);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
     () => previewRows.filter((row) => row.classification_status === 'NEEDS_REVIEW'),
     [previewRows]
   );
+
+  const actorId = user?.id || user?.email || undefined;
+
+  const loadLedgerRows = async () => {
+    if (!isFinanceManager) return;
+
+    setIsLoadingLedger(true);
+    setLedgerError(null);
+
+    try {
+      const rows = await fetchFinanceTransactions();
+      setLedgerRows(rows);
+    } catch (error: any) {
+      setLedgerRows([]);
+      setLedgerError(error?.message || '거래 원장을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingLedger(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isFinanceManager && adminTab === 'ledger') {
+      void loadLedgerRows();
+    }
+  }, [adminTab, isFinanceManager]);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -93,6 +130,7 @@ export default function FinancePage() {
     setFileName(file.name);
     setParseErrors([]);
     setNotice(null);
+    setSaveResult(null);
     setIsParsing(true);
 
     const lowerName = file.name.toLowerCase();
@@ -141,6 +179,7 @@ export default function FinancePage() {
   const handlePasteAnalyze = () => {
     setParseErrors([]);
     setNotice(null);
+    setSaveResult(null);
 
     if (!pastedText.trim()) {
       setPreviewRows([]);
@@ -158,6 +197,66 @@ export default function FinancePage() {
         : '거래일시로 시작하는 거래 행을 찾지 못했습니다. 카카오뱅크 거래내역 표를 복사해 붙여넣어 주세요.'
     );
     if (result.rows.length > 0) setAdminTab('review');
+  };
+
+  const handleSaveTransactions = async () => {
+    if (!isFinanceManager) return;
+
+    if (previewRows.length === 0) {
+      setNotice('저장할 거래내역이 없습니다. CSV 업로드 또는 붙여넣기 분석을 먼저 진행해주세요.');
+      return;
+    }
+
+    setIsSavingTransactions(true);
+    setSaveResult(null);
+    setParseErrors([]);
+
+    try {
+      const result = await saveFinanceTransactions(previewRows, { actorId });
+      setSaveResult(result);
+      setNotice(`저장 ${result.savedCount}건 · 중복 제외 ${result.skippedCount}건 · 실패 ${result.failedCount}건`);
+      if (result.savedCount > 0) {
+        await loadLedgerRows();
+      }
+    } catch (error: any) {
+      const message = error?.message || '거래내역 저장 중 오류가 발생했습니다.';
+      setSaveResult({
+        savedCount: 0,
+        skippedCount: 0,
+        failedCount: previewRows.length,
+        savedHashes: [],
+        skippedHashes: [],
+        errorMessage: message,
+      });
+      setParseErrors([message]);
+    } finally {
+      setIsSavingTransactions(false);
+    }
+  };
+
+  const updateLedgerCategory = async (id: string, category: FinanceCategory | '') => {
+    const previousRows = ledgerRows;
+
+    setLedgerError(null);
+    setLedgerRows((prev) =>
+      prev.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              category: category || null,
+              classification_status: category ? 'CONFIRMED' : 'UNCLASSIFIED',
+            }
+          : row
+      )
+    );
+
+    try {
+      const updated = await updateFinanceTransactionCategory(id, category || null, undefined, actorId);
+      setLedgerRows((prev) => prev.map((row) => (row.id === id ? updated : row)));
+    } catch (error: any) {
+      setLedgerRows(previousRows);
+      setLedgerError(error?.message || '카테고리 수정 중 오류가 발생했습니다.');
+    }
   };
 
   const updateRowCategory = (rowNumber: number, category: FinanceCategory | '') => {
@@ -217,17 +316,25 @@ export default function FinancePage() {
           fileName={fileName}
           previewRows={previewRows}
           reviewRows={reviewRows}
+          ledgerRows={ledgerRows}
           summary={summary}
           parseErrors={parseErrors}
+          ledgerError={ledgerError}
           notice={notice}
           isParsing={isParsing}
+          isSavingTransactions={isSavingTransactions}
+          isLoadingLedger={isLoadingLedger}
+          saveResult={saveResult}
           inputMode={inputMode}
           pastedText={pastedText}
           setInputMode={setInputMode}
           setPastedText={setPastedText}
           handleFileChange={handleFileChange}
           handlePasteAnalyze={handlePasteAnalyze}
+          handleSaveTransactions={handleSaveTransactions}
+          refreshLedger={loadLedgerRows}
           updateRowCategory={updateRowCategory}
+          updateLedgerCategory={updateLedgerCategory}
         />
       ) : (
         <MemberFinanceView memberTab={memberTab} setMemberTab={setMemberTab} publicReceivables={emptyPublicReceivables} />
@@ -244,34 +351,50 @@ function AdminFinanceView({
   fileName,
   previewRows,
   reviewRows,
+  ledgerRows,
   summary,
   parseErrors,
+  ledgerError,
   notice,
   isParsing,
+  isSavingTransactions,
+  isLoadingLedger,
+  saveResult,
   inputMode,
   pastedText,
   setInputMode,
   setPastedText,
   handleFileChange,
   handlePasteAnalyze,
+  handleSaveTransactions,
+  refreshLedger,
   updateRowCategory,
+  updateLedgerCategory,
 }: {
   adminTab: AdminFinanceTab;
   setAdminTab: (tab: AdminFinanceTab) => void;
   fileName: string;
   previewRows: FinanceImportPreviewRow[];
   reviewRows: FinanceImportPreviewRow[];
+  ledgerRows: FinanceTransaction[];
   summary: ReturnType<typeof summarizeFinancePreview>;
   parseErrors: string[];
+  ledgerError: string | null;
   notice: string | null;
   isParsing: boolean;
+  isSavingTransactions: boolean;
+  isLoadingLedger: boolean;
+  saveResult: SaveFinanceTransactionsResult | null;
   inputMode: FinanceInputMode;
   pastedText: string;
   setInputMode: (mode: FinanceInputMode) => void;
   setPastedText: (value: string) => void;
   handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handlePasteAnalyze: () => void;
+  handleSaveTransactions: () => void;
+  refreshLedger: () => void;
   updateRowCategory: (rowNumber: number, category: FinanceCategory | '') => void;
+  updateLedgerCategory: (id: string, category: FinanceCategory | '') => void;
 }) {
   return (
     <>
@@ -315,7 +438,13 @@ function AdminFinanceView({
             onPasteAnalyze={handlePasteAnalyze}
           />
           {previewRows.length > 0 && (
-            <PreviewSummaryCard summary={summary} onGoPreview={() => setAdminTab('review')} />
+            <PreviewSummaryCard
+              summary={summary}
+              isSaving={isSavingTransactions}
+              saveResult={saveResult}
+              onGoPreview={() => setAdminTab('review')}
+              onSave={handleSaveTransactions}
+            />
           )}
         </section>
       )}
@@ -323,6 +452,13 @@ function AdminFinanceView({
       {adminTab === 'review' && (
         <section className="space-y-3">
           <SectionTitle eyebrow="NEEDS REVIEW" title="확인 필요 거래" count={`${reviewRows.length}건`} />
+          {previewRows.length > 0 && (
+            <SaveTransactionsBar
+              isSaving={isSavingTransactions}
+              saveResult={saveResult}
+              onSave={handleSaveTransactions}
+            />
+          )}
           {reviewRows.length === 0 ? (
             <EmptyState
               title="확인 필요 거래가 없습니다"
@@ -336,14 +472,31 @@ function AdminFinanceView({
 
       {adminTab === 'ledger' && (
         <section className="space-y-3">
-          <SectionTitle eyebrow="LEDGER" title="거래 원장" count={`${previewRows.length}건`} />
-          {previewRows.length === 0 ? (
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle eyebrow="LEDGER" title="거래 원장" count={`${ledgerRows.length}건`} />
+            <button
+              type="button"
+              onClick={refreshLedger}
+              disabled={isLoadingLedger}
+              className="shrink-0 rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-200 disabled:opacity-45"
+            >
+              {isLoadingLedger ? '불러오는 중' : '새로고침'}
+            </button>
+          </div>
+          {ledgerError && (
+            <div className="rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+              {ledgerError}
+            </div>
+          )}
+          {isLoadingLedger ? (
+            <EmptyState title="거래 원장을 불러오는 중입니다" body="저장된 카카오뱅크 거래내역을 확인하고 있습니다." />
+          ) : ledgerRows.length === 0 ? (
             <EmptyState
-              title="저장된 거래 원장은 다음 단계에서 연결됩니다"
-              body="현재는 업로드한 CSV 미리보기 데이터만 화면에서 확인합니다. DB 저장과 원장 필터는 다음 단계에서 진행합니다."
+              title="저장된 거래 원장이 없습니다"
+              body="업로드 또는 붙여넣기로 거래내역을 분석한 뒤 거래내역 저장을 눌러 원장에 남길 수 있습니다."
             />
           ) : (
-            <TransactionList rows={previewRows} updateRowCategory={updateRowCategory} />
+            <LedgerTransactionList rows={ledgerRows} updateLedgerCategory={updateLedgerCategory} />
           )}
         </section>
       )}
@@ -636,6 +789,98 @@ function TransactionList({
   );
 }
 
+function SaveTransactionsBar({
+  isSaving,
+  saveResult,
+  onSave,
+}: {
+  isSaving: boolean;
+  saveResult: SaveFinanceTransactionsResult | null;
+  onSave: () => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-300/5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-black text-emerald-100">분석된 거래내역 저장</p>
+          <p className="mt-1 text-[10px] font-bold text-emerald-100/55">
+            추천/확인 필요 상태 그대로 저장하며, 직접 확정 전까지 CONFIRMED로 바꾸지 않습니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving}
+          className="rounded-2xl border border-emerald-300/40 bg-emerald-300/10 px-4 py-3 text-[11px] font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {isSaving ? '저장 중' : '거래내역 저장'}
+        </button>
+      </div>
+      {saveResult && (
+        <p className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-bold text-emerald-100/65">
+          저장 {saveResult.savedCount}건 · 중복 제외 {saveResult.skippedCount}건 · 실패 {saveResult.failedCount}건
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LedgerTransactionList({
+  rows,
+  updateLedgerCategory,
+}: {
+  rows: FinanceTransaction[];
+  updateLedgerCategory: (id: string, category: FinanceCategory | '') => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <article
+          key={row.id || row.source_hash}
+          className="rounded-[26px] border border-white/10 bg-[#242323]/90 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
+        >
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-black text-white">{row.description || '내용 없음'}</p>
+              <p className="mt-1 text-[10px] font-bold text-white/35">
+                {row.transaction_date} {row.transaction_time || ''} · {row.transaction_method || '거래'}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className={`text-[15px] font-black ${row.transaction_type === 'INCOME' ? 'text-emerald-200' : 'text-red-200'}`}>
+                {formatMoney(row.amount)}
+              </p>
+              <p className="mt-1 text-[9px] font-bold text-white/30">잔액 {row.balance_after?.toLocaleString() || 0}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[1fr_150px]">
+            <div className={`rounded-2xl border px-3 py-2 ${statusClass(row.classification_status)}`}>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em]">{statusLabel(row.classification_status)}</p>
+              <p className="mt-1 text-[11px] font-black">추천: {row.suggested_category || '없음'}</p>
+              <p className="mt-1 text-[10px] font-bold opacity-70">최종: {row.category || '미확정'}</p>
+              {row.review_reason && <p className="mt-1 text-[10px] font-bold leading-relaxed opacity-75">{row.review_reason}</p>}
+            </div>
+
+            <select
+              value={row.category || ''}
+              onChange={(event) => row.id && updateLedgerCategory(row.id, event.target.value as FinanceCategory | '')}
+              className="h-full min-h-[58px] rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[11px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+            >
+              <option value="" className="bg-zinc-950 text-zinc-100">수동 선택 안 함</option>
+              {FINANCE_CATEGORIES.map((category) => (
+                <option key={category} value={category} className="bg-zinc-950 text-zinc-100">
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function SummaryPanel({ summary }: { summary: ReturnType<typeof summarizeFinancePreview> }) {
   return (
     <section className="space-y-4">
@@ -680,10 +925,16 @@ function SummaryPanel({ summary }: { summary: ReturnType<typeof summarizeFinance
 
 function PreviewSummaryCard({
   summary,
+  isSaving,
+  saveResult,
   onGoPreview,
+  onSave,
 }: {
   summary: ReturnType<typeof summarizeFinancePreview>;
+  isSaving: boolean;
+  saveResult: SaveFinanceTransactionsResult | null;
   onGoPreview: () => void;
+  onSave: () => void;
 }) {
   return (
     <div className="rounded-[26px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 p-4">
@@ -694,10 +945,25 @@ function PreviewSummaryCard({
             확인 필요 {summary.needsReviewCount}건 · 미분류 {summary.unclassifiedCount}건
           </p>
         </div>
-        <button onClick={onGoPreview} className="rounded-2xl border border-[#D8BE78]/55 bg-[#D8BE78]/20 px-4 py-3 text-[11px] font-black text-[#F1E7C4]">
-          확인하기
-        </button>
+        <div className="grid shrink-0 gap-2">
+          <button onClick={onGoPreview} className="rounded-2xl border border-[#D8BE78]/55 bg-[#D8BE78]/20 px-4 py-3 text-[11px] font-black text-[#F1E7C4]">
+            확인하기
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className="rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-[11px] font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isSaving ? '저장 중' : '거래내역 저장'}
+          </button>
+        </div>
       </div>
+      {saveResult && (
+        <p className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-bold text-[#F1E7C4]/70">
+          저장 {saveResult.savedCount}건 · 중복 제외 {saveResult.skippedCount}건 · 실패 {saveResult.failedCount}건
+        </p>
+      )}
     </div>
   );
 }
