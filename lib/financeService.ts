@@ -7,6 +7,7 @@ import {
   FinanceMonthlyReportRecord,
   FinanceTopExpense,
   FinanceTransaction,
+  FinanceTransactionMonthOption,
 } from '@/lib/financeTypes';
 
 export interface SaveFinanceTransactionsResult {
@@ -216,6 +217,40 @@ export async function fetchFinanceTransactions(month?: string): Promise<FinanceT
   }
 
   return (data || []) as FinanceTransaction[];
+}
+
+export async function fetchFinanceTransactionMonths(): Promise<FinanceTransactionMonthOption[]> {
+  const { data, error } = await supabase
+    .from('finance_transactions')
+    .select('transaction_date')
+    .order('transaction_date', { ascending: false })
+    .limit(5000);
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  const monthCounts = new Map<string, number>();
+
+  (data || []).forEach((row: { transaction_date?: string | null }) => {
+    if (!row.transaction_date) return;
+    const monthKey = row.transaction_date.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(monthKey)) return;
+    monthCounts.set(monthKey, (monthCounts.get(monthKey) || 0) + 1);
+  });
+
+  return Array.from(monthCounts.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([monthKey, count]) => {
+      const [year, monthNumber] = monthKey.split('-').map(Number);
+      return {
+        month: monthKey,
+        year,
+        monthNumber,
+        count,
+        label: `${year}년 ${monthNumber}월 · ${count}건`,
+      };
+    });
 }
 
 export function buildFinanceMonthlyDraftSummary(
