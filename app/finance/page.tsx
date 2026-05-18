@@ -13,6 +13,7 @@ import {
   fetchFinanceMembersForPayments,
   FinanceMemberForPayment,
   fetchFinanceMonthlyReport,
+  fetchFinanceTransactionMonths,
   fetchFinanceTransactions,
   saveFinanceTransactions,
   saveFinanceMonthlyDraft,
@@ -28,6 +29,7 @@ import {
   FinanceMemberPaymentRow,
   FinanceReceivable,
   FinanceTransaction,
+  FinanceTransactionMonthOption,
 } from '@/lib/financeTypes';
 
 type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'dues' | 'receivables' | 'reports' | 'settings';
@@ -128,6 +130,9 @@ export default function FinancePage() {
   const [isSavingReportDraft, setIsSavingReportDraft] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportNotice, setReportNotice] = useState<string | null>(null);
+  const [reportMonthOptions, setReportMonthOptions] = useState<FinanceTransactionMonthOption[]>([]);
+  const [isLoadingReportMonths, setIsLoadingReportMonths] = useState(false);
+  const [reportMonthOptionsError, setReportMonthOptionsError] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -185,6 +190,33 @@ export default function FinancePage() {
     }
   }, [adminTab, isFinanceManager]);
 
+  const loadReportMonthOptions = async () => {
+    if (!isFinanceManager) return;
+
+    setIsLoadingReportMonths(true);
+    setReportMonthOptionsError(null);
+
+    try {
+      const monthOptions = await fetchFinanceTransactionMonths();
+      setReportMonthOptions(monthOptions);
+
+      if (monthOptions.length > 0 && !monthOptions.some((option) => option.month === reportMonth)) {
+        setReportMonth(monthOptions[0].month);
+      }
+    } catch (error: any) {
+      setReportMonthOptions([]);
+      setReportMonthOptionsError(error?.message || '거래가 있는 월 목록을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingReportMonths(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isFinanceManager && adminTab === 'reports') {
+      void loadReportMonthOptions();
+    }
+  }, [adminTab, isFinanceManager]);
+
   const loadMonthlyReportDraft = async () => {
     if (!isFinanceManager) return;
 
@@ -207,7 +239,11 @@ export default function FinancePage() {
       setPublicReportNote(existingReport?.public_note || '');
 
       if (transactions.length === 0) {
-        setReportNotice('해당 월 저장된 거래가 없습니다.');
+        setReportNotice(
+          reportMonthOptions.length > 0
+            ? '해당 월 저장된 거래가 없습니다. 거래 원장에는 다른 월 거래가 있습니다. 기준 월을 변경해 주세요.'
+            : '해당 월 저장된 거래가 없습니다.'
+        );
       } else if (existingReport?.status === 'CONFIRMED') {
         setReportNotice('이미 확정된 월간 리포트입니다. 수정하려면 확정 해제가 필요합니다.');
       } else {
@@ -227,7 +263,7 @@ export default function FinancePage() {
     if (isFinanceManager && adminTab === 'reports') {
       void loadMonthlyReportDraft();
     }
-  }, [adminTab, isFinanceManager, reportMonth]);
+  }, [adminTab, isFinanceManager, reportMonth, reportMonthOptions.length]);
 
   const handleSaveMonthlyDraft = async () => {
     if (!isFinanceManager || !reportSummary) return;
@@ -481,9 +517,12 @@ export default function FinancePage() {
           reportSummary={reportSummary}
           existingMonthlyReport={existingMonthlyReport}
           publicReportNote={publicReportNote}
+          reportMonthOptions={reportMonthOptions}
+          reportMonthOptionsError={reportMonthOptionsError}
           reportError={reportError}
           reportNotice={reportNotice}
           isLoadingReport={isLoadingReport}
+          isLoadingReportMonths={isLoadingReportMonths}
           isSavingReportDraft={isSavingReportDraft}
           notice={notice}
           isParsing={isParsing}
@@ -506,6 +545,7 @@ export default function FinancePage() {
           updateLedgerCategory={updateLedgerCategory}
           refreshDuesMembers={loadDuesMembers}
           refreshMonthlyReport={loadMonthlyReportDraft}
+          refreshReportMonths={loadReportMonthOptions}
           saveMonthlyDraft={handleSaveMonthlyDraft}
         />
       ) : (
@@ -538,9 +578,12 @@ function AdminFinanceView({
   reportSummary,
   existingMonthlyReport,
   publicReportNote,
+  reportMonthOptions,
+  reportMonthOptionsError,
   reportError,
   reportNotice,
   isLoadingReport,
+  isLoadingReportMonths,
   isSavingReportDraft,
   notice,
   isParsing,
@@ -563,6 +606,7 @@ function AdminFinanceView({
   updateLedgerCategory,
   refreshDuesMembers,
   refreshMonthlyReport,
+  refreshReportMonths,
   saveMonthlyDraft,
 }: {
   adminTab: AdminFinanceTab;
@@ -585,9 +629,12 @@ function AdminFinanceView({
   reportSummary: FinanceMonthlyDraftSummary | null;
   existingMonthlyReport: FinanceMonthlyReportRecord | null;
   publicReportNote: string;
+  reportMonthOptions: FinanceTransactionMonthOption[];
+  reportMonthOptionsError: string | null;
   reportError: string | null;
   reportNotice: string | null;
   isLoadingReport: boolean;
+  isLoadingReportMonths: boolean;
   isSavingReportDraft: boolean;
   notice: string | null;
   isParsing: boolean;
@@ -610,6 +657,7 @@ function AdminFinanceView({
   updateLedgerCategory: (id: string, category: FinanceCategory | '') => void;
   refreshDuesMembers: () => void;
   refreshMonthlyReport: () => void;
+  refreshReportMonths: () => void;
   saveMonthlyDraft: () => void;
 }) {
   return (
@@ -755,13 +803,17 @@ function AdminFinanceView({
           summary={reportSummary}
           existingReport={existingMonthlyReport}
           publicNote={publicReportNote}
+          monthOptions={reportMonthOptions}
+          monthOptionsError={reportMonthOptionsError}
           error={reportError}
           notice={reportNotice}
           isLoading={isLoadingReport}
+          isLoadingMonths={isLoadingReportMonths}
           isSaving={isSavingReportDraft}
           setMonth={setReportMonth}
           setPublicNote={setPublicReportNote}
           refresh={refreshMonthlyReport}
+          refreshMonths={refreshReportMonths}
           saveDraft={saveMonthlyDraft}
         />
       )}
@@ -1296,13 +1348,17 @@ function MonthlyDraftReportPanel({
   summary,
   existingReport,
   publicNote,
+  monthOptions,
+  monthOptionsError,
   error,
   notice,
   isLoading,
+  isLoadingMonths,
   isSaving,
   setMonth,
   setPublicNote,
   refresh,
+  refreshMonths,
   saveDraft,
 }: {
   month: string;
@@ -1310,17 +1366,23 @@ function MonthlyDraftReportPanel({
   summary: FinanceMonthlyDraftSummary | null;
   existingReport: FinanceMonthlyReportRecord | null;
   publicNote: string;
+  monthOptions: FinanceTransactionMonthOption[];
+  monthOptionsError: string | null;
   error: string | null;
   notice: string | null;
   isLoading: boolean;
+  isLoadingMonths: boolean;
   isSaving: boolean;
   setMonth: (value: string) => void;
   setPublicNote: (value: string) => void;
   refresh: () => void;
+  refreshMonths: () => void;
   saveDraft: () => void;
 }) {
   const isConfirmed = existingReport?.status === 'CONFIRMED';
   const canSaveDraft = Boolean(summary && transactions.length > 0 && !isConfirmed && !isSaving);
+  const selectedMonthOption = monthOptions.find((option) => option.month === month);
+  const { year: selectedYear, month: selectedMonth } = parseMonthKey(month);
 
   return (
     <section className="space-y-4">
@@ -1346,15 +1408,40 @@ function MonthlyDraftReportPanel({
           )}
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <label className="grid gap-1.5">
             <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">기준 월</span>
-            <input
-              type="month"
+            <select
               value={month}
               onChange={(event) => setMonth(event.target.value)}
               className="rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-4 py-3 text-[12px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
-            />
+            >
+              {monthOptions.length === 0 ? (
+                <option value={month} className="bg-zinc-950 text-zinc-100">
+                  {selectedYear}년 {selectedMonth}월 · 0건
+                </option>
+              ) : (
+                <>
+                  {!selectedMonthOption && (
+                    <option value={month} className="bg-zinc-950 text-zinc-100">
+                      {selectedYear}년 {selectedMonth}월 · 0건
+                    </option>
+                  )}
+                  {monthOptions.map((option) => (
+                    <option key={option.month} value={option.month} className="bg-zinc-950 text-zinc-100">
+                      {option.label}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+            <span className="text-[10px] font-bold text-white/35">
+              {monthOptions.length > 0
+                ? `거래가 있는 월 ${monthOptions.length}개`
+                : isLoadingMonths
+                  ? '거래 월 목록을 불러오는 중'
+                  : '저장된 거래 월이 없습니다'}
+            </span>
           </label>
           <button
             type="button"
@@ -1364,8 +1451,21 @@ function MonthlyDraftReportPanel({
           >
             {isLoading ? '불러오는 중' : '해당 월 거래 불러오기'}
           </button>
+          <button
+            type="button"
+            onClick={refreshMonths}
+            disabled={isLoadingMonths}
+            className="self-end rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-4 py-3 text-[11px] font-black text-zinc-100 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isLoadingMonths ? '월 목록 확인 중' : '월 목록 새로고침'}
+          </button>
         </div>
 
+        {monthOptionsError && (
+          <div className="mt-4 rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+            {monthOptionsError}
+          </div>
+        )}
         {notice && (
           <div className="mt-4 rounded-[22px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-[#F1E7C4]/75">
             {notice}

@@ -155,6 +155,14 @@ export interface FinanceMonthlyReportRecord extends FinanceMonthlyReportSnapshot
   updated_at?: string;
 }
 
+export interface FinanceTransactionMonthOption {
+  month: string;
+  year: number;
+  monthNumber: number;
+  count: number;
+  label: string;
+}
+
 export interface FinanceReceivable {
   id?: string;
   member_id?: string;
