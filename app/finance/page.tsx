@@ -9,10 +9,13 @@ import {
   summarizeFinancePreview,
 } from '@/lib/financeImport';
 import {
+  buildFinanceMonthlyDraftSummary,
   fetchFinanceMembersForPayments,
   FinanceMemberForPayment,
+  fetchFinanceMonthlyReport,
   fetchFinanceTransactions,
   saveFinanceTransactions,
+  saveFinanceMonthlyDraft,
   SaveFinanceTransactionsResult,
   updateFinanceTransactionCategory,
 } from '@/lib/financeService';
@@ -20,6 +23,8 @@ import {
   FINANCE_CATEGORIES,
   FinanceCategory,
   FinanceImportPreviewRow,
+  FinanceMonthlyDraftSummary,
+  FinanceMonthlyReportRecord,
   FinanceMemberPaymentRow,
   FinanceReceivable,
   FinanceTransaction,
@@ -49,6 +54,14 @@ const emptyPublicReceivables: FinanceReceivable[] = [];
 function getCurrentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function parseMonthKey(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number);
+  return {
+    year: year || new Date().getFullYear(),
+    month: month || new Date().getMonth() + 1,
+  };
 }
 
 function canManageFinance(role?: string | null) {
@@ -106,6 +119,15 @@ export default function FinancePage() {
   const [duesMembers, setDuesMembers] = useState<FinanceMemberForPayment[]>([]);
   const [isLoadingDuesMembers, setIsLoadingDuesMembers] = useState(false);
   const [duesError, setDuesError] = useState<string | null>(null);
+  const [reportMonth, setReportMonth] = useState(getCurrentMonthKey());
+  const [reportTransactions, setReportTransactions] = useState<FinanceTransaction[]>([]);
+  const [reportSummary, setReportSummary] = useState<FinanceMonthlyDraftSummary | null>(null);
+  const [existingMonthlyReport, setExistingMonthlyReport] = useState<FinanceMonthlyReportRecord | null>(null);
+  const [publicReportNote, setPublicReportNote] = useState('');
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [isSavingReportDraft, setIsSavingReportDraft] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -162,6 +184,76 @@ export default function FinancePage() {
       void loadDuesMembers();
     }
   }, [adminTab, isFinanceManager]);
+
+  const loadMonthlyReportDraft = async () => {
+    if (!isFinanceManager) return;
+
+    setIsLoadingReport(true);
+    setReportError(null);
+    setReportNotice(null);
+
+    const { year, month } = parseMonthKey(reportMonth);
+
+    try {
+      const [transactions, existingReport] = await Promise.all([
+        fetchFinanceTransactions(reportMonth),
+        fetchFinanceMonthlyReport(year, month),
+      ]);
+      const draftSummary = buildFinanceMonthlyDraftSummary(transactions, year, month);
+
+      setReportTransactions(transactions);
+      setReportSummary(draftSummary);
+      setExistingMonthlyReport(existingReport);
+      setPublicReportNote(existingReport?.public_note || '');
+
+      if (transactions.length === 0) {
+        setReportNotice('해당 월 저장된 거래가 없습니다.');
+      } else if (existingReport?.status === 'CONFIRMED') {
+        setReportNotice('이미 확정된 월간 리포트입니다. 수정하려면 확정 해제가 필요합니다.');
+      } else {
+        setReportNotice(`${year}년 ${month}월 거래 ${transactions.length}건을 불러왔습니다.`);
+      }
+    } catch (error: any) {
+      setReportTransactions([]);
+      setReportSummary(null);
+      setExistingMonthlyReport(null);
+      setReportError(error?.message || '월간 리포트 데이터를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isFinanceManager && adminTab === 'reports') {
+      void loadMonthlyReportDraft();
+    }
+  }, [adminTab, isFinanceManager, reportMonth]);
+
+  const handleSaveMonthlyDraft = async () => {
+    if (!isFinanceManager || !reportSummary) return;
+
+    if (reportTransactions.length === 0) {
+      setReportNotice('해당 월 저장된 거래가 없습니다.');
+      return;
+    }
+
+    setIsSavingReportDraft(true);
+    setReportError(null);
+    setReportNotice(null);
+
+    try {
+      const savedReport = await saveFinanceMonthlyDraft(reportSummary, {
+        actorId,
+        publicNote: publicReportNote,
+      });
+      setExistingMonthlyReport(savedReport);
+      setReportNotice(`${reportSummary.year}년 ${reportSummary.month}월 DRAFT 리포트를 생성/갱신했습니다.`);
+    } catch (error: any) {
+      setReportError(error?.message || 'DRAFT 리포트 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingReportDraft(false);
+    }
+  };
 
   const duesRows = useMemo<FinanceMemberPaymentRow[]>(() => {
     return duesMembers
@@ -384,6 +476,15 @@ export default function FinancePage() {
           duesRows={duesRows}
           duesError={duesError}
           isLoadingDuesMembers={isLoadingDuesMembers}
+          reportMonth={reportMonth}
+          reportTransactions={reportTransactions}
+          reportSummary={reportSummary}
+          existingMonthlyReport={existingMonthlyReport}
+          publicReportNote={publicReportNote}
+          reportError={reportError}
+          reportNotice={reportNotice}
+          isLoadingReport={isLoadingReport}
+          isSavingReportDraft={isSavingReportDraft}
           notice={notice}
           isParsing={isParsing}
           isSavingTransactions={isSavingTransactions}
@@ -395,6 +496,8 @@ export default function FinancePage() {
           setPastedText={setPastedText}
           setDuesMonth={setDuesMonth}
           setDuesMonthlyFee={setDuesMonthlyFee}
+          setReportMonth={setReportMonth}
+          setPublicReportNote={setPublicReportNote}
           handleFileChange={handleFileChange}
           handlePasteAnalyze={handlePasteAnalyze}
           handleSaveTransactions={handleSaveTransactions}
@@ -402,6 +505,8 @@ export default function FinancePage() {
           updateRowCategory={updateRowCategory}
           updateLedgerCategory={updateLedgerCategory}
           refreshDuesMembers={loadDuesMembers}
+          refreshMonthlyReport={loadMonthlyReportDraft}
+          saveMonthlyDraft={handleSaveMonthlyDraft}
         />
       ) : (
         <MemberFinanceView memberTab={memberTab} setMemberTab={setMemberTab} publicReceivables={emptyPublicReceivables} />
@@ -428,6 +533,15 @@ function AdminFinanceView({
   duesRows,
   duesError,
   isLoadingDuesMembers,
+  reportMonth,
+  reportTransactions,
+  reportSummary,
+  existingMonthlyReport,
+  publicReportNote,
+  reportError,
+  reportNotice,
+  isLoadingReport,
+  isSavingReportDraft,
   notice,
   isParsing,
   isSavingTransactions,
@@ -439,6 +553,8 @@ function AdminFinanceView({
   setPastedText,
   setDuesMonth,
   setDuesMonthlyFee,
+  setReportMonth,
+  setPublicReportNote,
   handleFileChange,
   handlePasteAnalyze,
   handleSaveTransactions,
@@ -446,6 +562,8 @@ function AdminFinanceView({
   updateRowCategory,
   updateLedgerCategory,
   refreshDuesMembers,
+  refreshMonthlyReport,
+  saveMonthlyDraft,
 }: {
   adminTab: AdminFinanceTab;
   setAdminTab: (tab: AdminFinanceTab) => void;
@@ -462,6 +580,15 @@ function AdminFinanceView({
   duesRows: FinanceMemberPaymentRow[];
   duesError: string | null;
   isLoadingDuesMembers: boolean;
+  reportMonth: string;
+  reportTransactions: FinanceTransaction[];
+  reportSummary: FinanceMonthlyDraftSummary | null;
+  existingMonthlyReport: FinanceMonthlyReportRecord | null;
+  publicReportNote: string;
+  reportError: string | null;
+  reportNotice: string | null;
+  isLoadingReport: boolean;
+  isSavingReportDraft: boolean;
   notice: string | null;
   isParsing: boolean;
   isSavingTransactions: boolean;
@@ -473,6 +600,8 @@ function AdminFinanceView({
   setPastedText: (value: string) => void;
   setDuesMonth: (value: string) => void;
   setDuesMonthlyFee: (value: number) => void;
+  setReportMonth: (value: string) => void;
+  setPublicReportNote: (value: string) => void;
   handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handlePasteAnalyze: () => void;
   handleSaveTransactions: () => void;
@@ -480,6 +609,8 @@ function AdminFinanceView({
   updateRowCategory: (rowNumber: number, category: FinanceCategory | '') => void;
   updateLedgerCategory: (id: string, category: FinanceCategory | '') => void;
   refreshDuesMembers: () => void;
+  refreshMonthlyReport: () => void;
+  saveMonthlyDraft: () => void;
 }) {
   return (
     <>
@@ -618,15 +749,21 @@ function AdminFinanceView({
       )}
 
       {adminTab === 'reports' && (
-        <section className="space-y-4">
-          <AdminPlaceholder
-            eyebrow="MONTHLY REPORT"
-            title="월간 리포트 확정"
-            body="회원에게 공개되는 재무 화면은 CONFIRMED 월간 리포트만 사용합니다. DRAFT 생성과 확정/해제는 다음 단계에서 연결합니다."
-            items={['수입/지출/잔액 스냅샷', '카테고리별 비중', '주요 지출 TOP 3', '공개 미납 현황']}
-          />
-          <SummaryPanel summary={summary} />
-        </section>
+        <MonthlyDraftReportPanel
+          month={reportMonth}
+          transactions={reportTransactions}
+          summary={reportSummary}
+          existingReport={existingMonthlyReport}
+          publicNote={publicReportNote}
+          error={reportError}
+          notice={reportNotice}
+          isLoading={isLoadingReport}
+          isSaving={isSavingReportDraft}
+          setMonth={setReportMonth}
+          setPublicNote={setPublicReportNote}
+          refresh={refreshMonthlyReport}
+          saveDraft={saveMonthlyDraft}
+        />
       )}
 
       {adminTab === 'settings' && (
@@ -1150,6 +1287,237 @@ function MemberDuesPanel({
         )}
       </div>
     </section>
+  );
+}
+
+function MonthlyDraftReportPanel({
+  month,
+  transactions,
+  summary,
+  existingReport,
+  publicNote,
+  error,
+  notice,
+  isLoading,
+  isSaving,
+  setMonth,
+  setPublicNote,
+  refresh,
+  saveDraft,
+}: {
+  month: string;
+  transactions: FinanceTransaction[];
+  summary: FinanceMonthlyDraftSummary | null;
+  existingReport: FinanceMonthlyReportRecord | null;
+  publicNote: string;
+  error: string | null;
+  notice: string | null;
+  isLoading: boolean;
+  isSaving: boolean;
+  setMonth: (value: string) => void;
+  setPublicNote: (value: string) => void;
+  refresh: () => void;
+  saveDraft: () => void;
+}) {
+  const isConfirmed = existingReport?.status === 'CONFIRMED';
+  const canSaveDraft = Boolean(summary && transactions.length > 0 && !isConfirmed && !isSaving);
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">MONTHLY DRAFT</p>
+            <h2 className="mt-1 text-[19px] font-black text-white">월간 리포트 DRAFT 생성</h2>
+            <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/40">
+              저장된 거래 원장을 기준으로 회원 공개 전 검토용 월간 리포트 초안을 만듭니다.
+            </p>
+          </div>
+          {existingReport && (
+            <span
+              className={`rounded-full border px-3 py-1 text-[9px] font-black ${
+                isConfirmed
+                  ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                  : 'border-[#D8BE78]/30 bg-[#D8BE78]/10 text-[#F1E7C4]'
+              }`}
+            >
+              {existingReport.status}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <label className="grid gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">기준 월</span>
+            <input
+              type="month"
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+              className="rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-4 py-3 text-[12px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={isLoading}
+            className="self-end rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-4 py-3 text-[11px] font-black text-zinc-100 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isLoading ? '불러오는 중' : '해당 월 거래 불러오기'}
+          </button>
+        </div>
+
+        {notice && (
+          <div className="mt-4 rounded-[22px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-[#F1E7C4]/75">
+            {notice}
+          </div>
+        )}
+        {error && (
+          <div className="mt-4 rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+            {error}
+          </div>
+        )}
+      </div>
+
+      {isLoading ? (
+        <EmptyState title="월간 거래를 불러오는 중입니다" body="선택한 월의 저장된 거래내역을 확인하고 있습니다." />
+      ) : !summary || transactions.length === 0 ? (
+        <EmptyState
+          title="해당 월 저장된 거래가 없습니다"
+          body="CSV 업로드 또는 붙여넣기 분석 후 거래내역 저장을 먼저 진행하면 월간 리포트 DRAFT를 만들 수 있습니다."
+        />
+      ) : (
+        <>
+          <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/35">DRAFT SNAPSHOT</p>
+                <h3 className="text-[16px] font-black text-white">
+                  {summary.year}년 {summary.month}월 집계
+                </h3>
+              </div>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[9px] font-black text-white/45">
+                거래 {summary.transactionCount}건
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <SummaryBox label="수입 합계" value={formatMoney(summary.income_total)} tone="income" />
+              <SummaryBox label="지출 합계" value={formatMoney(-summary.expense_total)} tone="expense" />
+              <SummaryBox label="순증감" value={formatMoney(summary.net_change)} tone={summary.net_change >= 0 ? 'income' : 'expense'} />
+              <SummaryBox label="월말 잔액" value={`${summary.closing_balance.toLocaleString()}원`} tone="review" />
+              <SummaryBox label="확인 필요" value={`${summary.needs_review_count}건`} tone="review" />
+              <SummaryBox label="월초 잔액" value={`${summary.opening_balance.toLocaleString()}원`} tone="review" />
+            </div>
+
+            {summary.needs_review_count > 0 && (
+              <div className="mt-4 rounded-[22px] border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-amber-100/80">
+                확인 필요 거래가 있습니다. DRAFT 생성은 가능하지만, 확정 전에는 재무 담당자 검토가 필요합니다.
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CategoryBreakdownCard title="수입 카테고리" rows={summary.income_breakdown} emptyText="수입 거래가 없습니다." />
+            <CategoryBreakdownCard title="지출 카테고리" rows={summary.expense_breakdown} emptyText="지출 거래가 없습니다." />
+          </div>
+
+          <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">TOP EXPENSES</p>
+                <h3 className="text-[15px] font-black text-white">주요 지출 TOP 3</h3>
+              </div>
+            </div>
+            {summary.top_expenses.length === 0 ? (
+              <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-8 text-center text-[11px] font-bold text-white/35">
+                지출 거래가 없습니다.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {summary.top_expenses.map((expense, index) => (
+                  <div key={`${expense.date}-${expense.description}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[12px] font-black text-white/80">{expense.description}</p>
+                      <p className="mt-1 text-[10px] font-bold text-white/35">
+                        {expense.date} · {expense.category}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[12px] font-black text-red-200">{formatMoney(-expense.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[30px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 p-5">
+            <label className="grid gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F1E7C4]/70">PUBLIC NOTE</span>
+              <textarea
+                value={publicNote}
+                onChange={(event) => setPublicNote(event.target.value)}
+                rows={3}
+                placeholder="회원 공개 리포트에 남길 메모를 입력하세요."
+                className="resize-none rounded-2xl border border-[#D8BE78]/20 bg-zinc-950/70 px-4 py-3 text-[12px] font-bold leading-relaxed text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-[#D8BE78]/55"
+              />
+            </label>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={saveDraft}
+                disabled={!canSaveDraft}
+                className="rounded-2xl border border-[#D8BE78]/45 bg-[#D8BE78]/20 px-4 py-3 text-[11px] font-black text-[#F1E7C4] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {isSaving ? 'DRAFT 저장 중' : existingReport?.status === 'DRAFT' ? 'DRAFT 리포트 갱신' : 'DRAFT 리포트 생성'}
+              </button>
+              <button
+                type="button"
+                disabled
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[11px] font-black text-white/35"
+              >
+                확정 기능은 다음 단계
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function CategoryBreakdownCard({
+  title,
+  rows,
+  emptyText,
+}: {
+  title: string;
+  rows: FinanceMonthlyDraftSummary['income_breakdown'];
+  emptyText: string;
+}) {
+  return (
+    <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+      <h3 className="mb-4 text-[15px] font-black text-white">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-8 text-center text-[11px] font-bold text-white/35">
+          {emptyText}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((row) => (
+            <div key={row.category} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0 truncate text-[12px] font-black text-white/80">{row.category}</span>
+                <span className="shrink-0 text-[12px] font-black text-[#D8BE78]">{row.amount.toLocaleString()}원</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-white/35">
+                <span>{row.count}건</span>
+                <span>{row.ratio}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
