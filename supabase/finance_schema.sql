@@ -132,6 +132,28 @@ CREATE TABLE IF NOT EXISTS public.finance_receivables (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.finance_member_payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    target_month TEXT NOT NULL,
+    member_id TEXT NOT NULL,
+    member_name TEXT NOT NULL,
+    fee_type TEXT NOT NULL DEFAULT 'MONTHLY' CHECK (fee_type IN ('MONTHLY', 'YEARLY')),
+    expected_amount INTEGER NOT NULL DEFAULT 0,
+    paid_amount INTEGER NOT NULL DEFAULT 0,
+    payment_status TEXT NOT NULL DEFAULT 'UNCONFIRMED'
+      CHECK (payment_status IN ('UNCONFIRMED', 'UNPAID', 'PARTIAL', 'PAID', 'WAIVED', 'YEARLY_PAID')),
+    is_yearly_payer BOOLEAN NOT NULL DEFAULT false,
+    matched_transaction_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_public BOOLEAN NOT NULL DEFAULT true,
+    is_confirmed BOOLEAN NOT NULL DEFAULT false,
+    confirmed_by TEXT,
+    confirmed_at TIMESTAMPTZ,
+    memo TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (target_month, member_id, fee_type)
+);
+
 CREATE INDEX IF NOT EXISTS finance_transactions_date_idx
 ON public.finance_transactions (transaction_date DESC);
 
@@ -153,6 +175,12 @@ ON public.finance_receivables (status, is_public, is_confirmed);
 CREATE INDEX IF NOT EXISTS finance_receivables_target_month_idx
 ON public.finance_receivables (target_month);
 
+CREATE INDEX IF NOT EXISTS finance_member_payments_month_idx
+ON public.finance_member_payments (target_month DESC);
+
+CREATE INDEX IF NOT EXISTS finance_member_payments_public_idx
+ON public.finance_member_payments (target_month DESC, is_public, is_confirmed, payment_status);
+
 CREATE INDEX IF NOT EXISTS finance_settings_effective_from_idx
 ON public.finance_settings (effective_from DESC);
 
@@ -160,6 +188,7 @@ ON public.finance_settings (effective_from DESC);
 -- Recommended direction:
 -- - Members can SELECT finance_monthly_reports where status = 'CONFIRMED'.
 -- - Members can SELECT finance_receivables where status = 'OPEN' AND is_public = true AND is_confirmed = true.
+-- - Members can SELECT finance_member_payments only for public, confirmed unpaid/partial rows if 공개 미납 현황 is needed.
 -- - finance_transactions and DRAFT reports should be visible only to CEO, ADMIN, and future FINANCE_MANAGER.
 -- - INSERT/UPDATE/DELETE should be restricted to CEO, ADMIN, and future FINANCE_MANAGER.
 -- This MVP creates the schema only; policies are intentionally left for a separate reviewed migration.

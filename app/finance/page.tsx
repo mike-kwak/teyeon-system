@@ -9,6 +9,8 @@ import {
   summarizeFinancePreview,
 } from '@/lib/financeImport';
 import {
+  fetchFinanceMembersForPayments,
+  FinanceMemberForPayment,
   fetchFinanceTransactions,
   saveFinanceTransactions,
   SaveFinanceTransactionsResult,
@@ -18,11 +20,12 @@ import {
   FINANCE_CATEGORIES,
   FinanceCategory,
   FinanceImportPreviewRow,
+  FinanceMemberPaymentRow,
   FinanceReceivable,
   FinanceTransaction,
 } from '@/lib/financeTypes';
 
-type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'receivables' | 'reports' | 'settings';
+type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'dues' | 'receivables' | 'reports' | 'settings';
 type MemberFinanceTab = 'public-report' | 'public-receivables';
 type FinanceInputMode = 'csv' | 'paste';
 
@@ -30,6 +33,7 @@ const adminTabs: Array<{ id: AdminFinanceTab; label: string }> = [
   { id: 'upload', label: '업로드' },
   { id: 'review', label: '확인 필요' },
   { id: 'ledger', label: '거래 원장' },
+  { id: 'dues', label: '납부 현황' },
   { id: 'receivables', label: '미수금' },
   { id: 'reports', label: '월간 리포트' },
   { id: 'settings', label: '설정' },
@@ -41,6 +45,11 @@ const memberTabs: Array<{ id: MemberFinanceTab; label: string }> = [
 ];
 
 const emptyPublicReceivables: FinanceReceivable[] = [];
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 
 function canManageFinance(role?: string | null) {
   return role === 'CEO' || role === 'ADMIN' || role === 'FINANCE_MANAGER';
@@ -92,6 +101,11 @@ export default function FinancePage() {
   const [isLoadingLedger, setIsLoadingLedger] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [hasLoadedLedger, setHasLoadedLedger] = useState(false);
+  const [duesMonth, setDuesMonth] = useState(getCurrentMonthKey());
+  const [duesMonthlyFee, setDuesMonthlyFee] = useState(DEFAULT_FINANCE_SETTINGS.monthly_fee_amount);
+  const [duesMembers, setDuesMembers] = useState<FinanceMemberForPayment[]>([]);
+  const [isLoadingDuesMembers, setIsLoadingDuesMembers] = useState(false);
+  const [duesError, setDuesError] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -125,6 +139,47 @@ export default function FinancePage() {
       void loadLedgerRows();
     }
   }, [adminTab, isFinanceManager]);
+
+  const loadDuesMembers = async () => {
+    if (!isFinanceManager) return;
+
+    setIsLoadingDuesMembers(true);
+    setDuesError(null);
+
+    try {
+      const members = await fetchFinanceMembersForPayments();
+      setDuesMembers(members);
+    } catch (error: any) {
+      setDuesMembers([]);
+      setDuesError(error?.message || '회원별 납부 현황을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingDuesMembers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isFinanceManager && adminTab === 'dues') {
+      void loadDuesMembers();
+    }
+  }, [adminTab, isFinanceManager]);
+
+  const duesRows = useMemo<FinanceMemberPaymentRow[]>(() => {
+    return duesMembers
+      .filter((member) => member.role !== '게스트')
+      .map((member) => ({
+        member_id: member.id,
+        member_name: member.nickname || '이름 없음',
+        member_role: member.role,
+        target_month: duesMonth,
+        expected_amount: duesMonthlyFee,
+        paid_amount: 0,
+        payment_status: 'UNCONFIRMED',
+        is_yearly_payer: false,
+        is_confirmed: false,
+        matched_transaction_count: 0,
+        memo: '거래 매칭/수동 확정 전',
+      }));
+  }, [duesMembers, duesMonth, duesMonthlyFee]);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -324,6 +379,11 @@ export default function FinancePage() {
           parseErrors={parseErrors}
           ledgerError={ledgerError}
           hasLoadedLedger={hasLoadedLedger}
+          duesMonth={duesMonth}
+          duesMonthlyFee={duesMonthlyFee}
+          duesRows={duesRows}
+          duesError={duesError}
+          isLoadingDuesMembers={isLoadingDuesMembers}
           notice={notice}
           isParsing={isParsing}
           isSavingTransactions={isSavingTransactions}
@@ -333,12 +393,15 @@ export default function FinancePage() {
           pastedText={pastedText}
           setInputMode={setInputMode}
           setPastedText={setPastedText}
+          setDuesMonth={setDuesMonth}
+          setDuesMonthlyFee={setDuesMonthlyFee}
           handleFileChange={handleFileChange}
           handlePasteAnalyze={handlePasteAnalyze}
           handleSaveTransactions={handleSaveTransactions}
           refreshLedger={loadLedgerRows}
           updateRowCategory={updateRowCategory}
           updateLedgerCategory={updateLedgerCategory}
+          refreshDuesMembers={loadDuesMembers}
         />
       ) : (
         <MemberFinanceView memberTab={memberTab} setMemberTab={setMemberTab} publicReceivables={emptyPublicReceivables} />
@@ -360,6 +423,11 @@ function AdminFinanceView({
   parseErrors,
   ledgerError,
   hasLoadedLedger,
+  duesMonth,
+  duesMonthlyFee,
+  duesRows,
+  duesError,
+  isLoadingDuesMembers,
   notice,
   isParsing,
   isSavingTransactions,
@@ -369,12 +437,15 @@ function AdminFinanceView({
   pastedText,
   setInputMode,
   setPastedText,
+  setDuesMonth,
+  setDuesMonthlyFee,
   handleFileChange,
   handlePasteAnalyze,
   handleSaveTransactions,
   refreshLedger,
   updateRowCategory,
   updateLedgerCategory,
+  refreshDuesMembers,
 }: {
   adminTab: AdminFinanceTab;
   setAdminTab: (tab: AdminFinanceTab) => void;
@@ -386,6 +457,11 @@ function AdminFinanceView({
   parseErrors: string[];
   ledgerError: string | null;
   hasLoadedLedger: boolean;
+  duesMonth: string;
+  duesMonthlyFee: number;
+  duesRows: FinanceMemberPaymentRow[];
+  duesError: string | null;
+  isLoadingDuesMembers: boolean;
   notice: string | null;
   isParsing: boolean;
   isSavingTransactions: boolean;
@@ -395,12 +471,15 @@ function AdminFinanceView({
   pastedText: string;
   setInputMode: (mode: FinanceInputMode) => void;
   setPastedText: (value: string) => void;
+  setDuesMonth: (value: string) => void;
+  setDuesMonthlyFee: (value: number) => void;
   handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handlePasteAnalyze: () => void;
   handleSaveTransactions: () => void;
   refreshLedger: () => void;
   updateRowCategory: (rowNumber: number, category: FinanceCategory | '') => void;
   updateLedgerCategory: (id: string, category: FinanceCategory | '') => void;
+  refreshDuesMembers: () => void;
 }) {
   return (
     <>
@@ -514,6 +593,19 @@ function AdminFinanceView({
             <LedgerTransactionList rows={ledgerRows} updateLedgerCategory={updateLedgerCategory} />
           )}
         </section>
+      )}
+
+      {adminTab === 'dues' && (
+        <MemberDuesPanel
+          month={duesMonth}
+          monthlyFee={duesMonthlyFee}
+          rows={duesRows}
+          isLoading={isLoadingDuesMembers}
+          error={duesError}
+          setMonth={setDuesMonth}
+          setMonthlyFee={setDuesMonthlyFee}
+          refresh={refreshDuesMembers}
+        />
       )}
 
       {adminTab === 'receivables' && (
@@ -896,6 +988,168 @@ function LedgerTransactionList({
         </article>
       ))}
     </div>
+  );
+}
+
+function paymentStatusLabel(status: FinanceMemberPaymentRow['payment_status']) {
+  if (status === 'PAID') return '완납';
+  if (status === 'PARTIAL') return '부분납';
+  if (status === 'UNPAID') return '미납';
+  if (status === 'WAIVED') return '면제';
+  if (status === 'YEARLY_PAID') return '연회비';
+  return '확인 전';
+}
+
+function paymentStatusClass(status: FinanceMemberPaymentRow['payment_status']) {
+  if (status === 'PAID' || status === 'YEARLY_PAID') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  if (status === 'PARTIAL') return 'border-amber-300/30 bg-amber-300/10 text-amber-100';
+  if (status === 'UNPAID') return 'border-red-300/25 bg-red-300/10 text-red-100';
+  if (status === 'WAIVED') return 'border-sky-300/25 bg-sky-300/10 text-sky-100';
+  return 'border-white/10 bg-white/5 text-white/45';
+}
+
+function MemberDuesPanel({
+  month,
+  monthlyFee,
+  rows,
+  isLoading,
+  error,
+  setMonth,
+  setMonthlyFee,
+  refresh,
+}: {
+  month: string;
+  monthlyFee: number;
+  rows: FinanceMemberPaymentRow[];
+  isLoading: boolean;
+  error: string | null;
+  setMonth: (value: string) => void;
+  setMonthlyFee: (value: number) => void;
+  refresh: () => void;
+}) {
+  const confirmedRows = rows.filter((row) => row.is_confirmed);
+  const paidRows = rows.filter((row) => row.payment_status === 'PAID' || row.payment_status === 'YEARLY_PAID');
+  const unpaidRows = rows.filter((row) => row.payment_status === 'UNPAID');
+  const expectedTotal = rows.reduce((sum, row) => sum + row.expected_amount, 0);
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">MEMBER DUES</p>
+            <h2 className="mt-1 text-[19px] font-black text-white">회원별 월 납부 현황</h2>
+            <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/40">
+              거래 원장과 별도로 재무 담당자가 월회비/연회비 납부 상태를 수동 확정하는 관리판입니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={isLoading}
+            className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-200 disabled:opacity-45"
+          >
+            {isLoading ? '불러오는 중' : '회원 새로고침'}
+          </button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">기준 월</span>
+            <input
+              type="month"
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+              className="rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-4 py-3 text-[12px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">월별 기준 금액</span>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={monthlyFee}
+              onChange={(event) => setMonthlyFee(Number(event.target.value || 0))}
+              className="rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-4 py-3 text-[12px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <SummaryBox label="대상 회원" value={`${rows.length}명`} tone="review" />
+          <SummaryBox label="예상 월회비" value={formatMoney(expectedTotal)} tone="income" />
+          <SummaryBox label="수동 확정" value={`${confirmedRows.length}명`} tone="review" />
+          <SummaryBox label="완납/연회비" value={`${paidRows.length}명`} tone="income" />
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4 rounded-[22px] border border-[#D8BE78]/15 bg-[#D8BE78]/10 px-4 py-3 text-[10px] font-bold leading-relaxed text-[#F1E7C4]/65">
+          연회비 납부자는 월별 미납으로 잡히지 않도록 별도 상태로 관리합니다. 거래내역 자동 매칭은 추천만 하고, 최종 확정은 재무 담당자가 수행합니다.
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[30px] border border-white/10 bg-[#242323]/90">
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">PAYMENT BOARD</p>
+            <h3 className="text-[15px] font-black text-white">월별 납부 현황표</h3>
+          </div>
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[9px] font-black text-white/45">
+            미납 {unpaidRows.length}명
+          </span>
+        </div>
+
+        {isLoading ? (
+          <EmptyState title="회원 목록을 불러오는 중입니다" body="멤버 목록을 기준으로 월 납부 현황표를 준비하고 있습니다." />
+        ) : rows.length === 0 ? (
+          <EmptyState title="표시할 회원이 없습니다" body="members 테이블의 회원 목록을 확인해주세요." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] w-full text-left text-[11px]">
+              <thead className="bg-black/35 text-[9px] font-black uppercase tracking-[0.14em] text-white/35">
+                <tr>
+                  <th className="px-4 py-3">회원</th>
+                  <th className="px-4 py-3 text-right">월 기준액</th>
+                  <th className="px-4 py-3 text-right">납부액</th>
+                  <th className="px-4 py-3">상태</th>
+                  <th className="px-4 py-3">거래 매칭</th>
+                  <th className="px-4 py-3">확정</th>
+                  <th className="px-4 py-3">메모</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {rows.map((row) => (
+                  <tr key={row.member_id} className="bg-white/[0.02]">
+                    <td className="px-4 py-3">
+                      <p className="font-black text-white">{row.member_name}</p>
+                      <p className="mt-0.5 text-[9px] font-bold text-white/35">{row.member_role || '직책 없음'}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right font-black text-white/70">{row.expected_amount.toLocaleString()}원</td>
+                    <td className="px-4 py-3 text-right font-black text-white/45">{row.paid_amount.toLocaleString()}원</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black ${paymentStatusClass(row.payment_status)}`}>
+                        {paymentStatusLabel(row.payment_status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-white/45">
+                      {row.matched_transaction_count > 0 ? `${row.matched_transaction_count}건` : '수동 매칭 예정'}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-white/45">{row.is_confirmed ? '확정' : '미확정'}</td>
+                    <td className="px-4 py-3 font-bold text-white/35">{row.memo || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

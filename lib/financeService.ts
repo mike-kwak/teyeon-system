@@ -18,6 +18,12 @@ interface FinanceSaveOptions {
   actorId?: string;
 }
 
+export interface FinanceMemberForPayment {
+  id: string;
+  nickname: string;
+  role?: string | null;
+}
+
 function normalizeFinanceError(error: any) {
   const message = String(error?.message || '');
   const code = String(error?.code || '');
@@ -206,4 +212,17 @@ export async function updateFinanceTransactionCategory(
   }
 
   return data as FinanceTransaction;
+}
+
+export async function fetchFinanceMembersForPayments(): Promise<FinanceMemberForPayment[]> {
+  const { data, error } = await supabase
+    .from('members')
+    .select('id, nickname, role')
+    .order('nickname', { ascending: true });
+
+  if (error) {
+    throw new Error(error?.message || '회원 목록을 불러오는 중 오류가 발생했습니다.');
+  }
+
+  return (data || []) as FinanceMemberForPayment[];
 }
