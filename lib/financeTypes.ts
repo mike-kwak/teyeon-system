@@ -182,6 +182,24 @@ export interface FinanceReceivable {
   memo?: string;
 }
 
+export interface FinanceReceivableInput {
+  member_id?: string | null;
+  member_name?: string | null;
+  player_name: string;
+  amount: number;
+  reason: string;
+  category?: FinanceCategory | string | null;
+  target_month?: string | null;
+  kdk_archive_id?: string | null;
+  status?: FinanceReceivableStatus;
+  is_public: boolean;
+  is_confirmed: boolean;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  paid_at?: string | null;
+  memo?: string | null;
+}
+
 export interface FinanceMemberPayment {
   id?: string;
   target_month: string;

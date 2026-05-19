@@ -6,6 +6,7 @@ import {
   FinanceMonthlyDraftSummary,
   FinanceMonthlyReportRecord,
   FinanceReceivable,
+  FinanceReceivableInput,
   FinanceTopExpense,
   FinanceTransaction,
   FinanceTransactionMonthOption,
@@ -530,4 +531,114 @@ export async function fetchPublicReceivables(): Promise<FinanceReceivable[]> {
   }
 
   return (data || []) as FinanceReceivable[];
+}
+
+export async function fetchReceivables(status?: FinanceReceivable['status'] | 'ALL'): Promise<FinanceReceivable[]> {
+  let query = supabase
+    .from('finance_receivables')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (status && status !== 'ALL') {
+    query = query.eq('status', status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return (data || []) as FinanceReceivable[];
+}
+
+function toReceivablePayload(input: FinanceReceivableInput) {
+  return {
+    member_id: input.member_id || null,
+    member_name: input.member_name || null,
+    player_name: input.player_name,
+    amount: Number(input.amount || 0),
+    reason: input.reason,
+    category: input.category || null,
+    target_month: input.target_month || null,
+    kdk_archive_id: input.kdk_archive_id || null,
+    status: input.status || 'OPEN',
+    is_public: Boolean(input.is_public),
+    is_confirmed: Boolean(input.is_confirmed),
+    confirmed_by: input.is_confirmed ? input.confirmed_by || null : null,
+    confirmed_at: input.is_confirmed ? input.confirmed_at || new Date().toISOString() : null,
+    paid_at: input.paid_at || null,
+    memo: input.memo || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export async function createReceivable(input: FinanceReceivableInput): Promise<FinanceReceivable> {
+  const { data, error } = await supabase
+    .from('finance_receivables')
+    .insert({
+      ...toReceivablePayload(input),
+      created_at: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceReceivable;
+}
+
+export async function updateReceivable(id: string, input: FinanceReceivableInput): Promise<FinanceReceivable> {
+  const { data, error } = await supabase
+    .from('finance_receivables')
+    .update(toReceivablePayload(input))
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceReceivable;
+}
+
+export async function markReceivablePaid(id: string): Promise<FinanceReceivable> {
+  const { data, error } = await supabase
+    .from('finance_receivables')
+    .update({
+      status: 'PAID',
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceReceivable;
+}
+
+export async function waiveReceivable(id: string): Promise<FinanceReceivable> {
+  const { data, error } = await supabase
+    .from('finance_receivables')
+    .update({
+      status: 'WAIVED',
+      paid_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceReceivable;
 }
