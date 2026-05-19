@@ -151,7 +151,7 @@ export default function Home() {
               <MenuCard
                 label="스페셜 매치"
                 icon={<Layout size={36} strokeWidth={1.5} />}
-                path="/special"
+                path="/special-match"
                 badge="MANUAL"
               />
               <MenuCard
