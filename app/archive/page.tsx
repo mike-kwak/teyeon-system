@@ -149,6 +149,18 @@ export default function ArchivePage() {
     );
   };
 
+  const removeLocalArchiveFailover = (sessionId: string) => {
+    try {
+      const failovers = JSON.parse(localStorage.getItem('kdk_archive_failover') || '[]');
+      const nextFailovers = Array.isArray(failovers)
+        ? failovers.filter((record: any) => record?.id !== sessionId)
+        : [];
+      localStorage.setItem('kdk_archive_failover', JSON.stringify(nextFailovers));
+    } catch (error) {
+      console.warn('[Archive] local failover cleanup skipped:', error);
+    }
+  };
+
   async function fetchArchives() {
     try {
       setLoading(true);
@@ -388,15 +400,23 @@ export default function ArchivePage() {
                                              ) : null}
                                          </>
                                      )}
-                                     {selectedSession.confirmed_at && (
-                                         <span className="text-[9px] font-black uppercase tracking-[0.24em] italic text-zinc-600">
-                                             CONFIRMED {new Date(selectedSession.confirmed_at).toLocaleDateString()}
-                                         </span>
-                                     )}
-                                 </div>
-                                 <p className="mt-2 text-[10px] font-bold leading-relaxed text-zinc-600">
-                                     공식 기록만 추후 프로필 누적 기록에 반영됩니다. 삭제는 잘못 저장한 기록 제거용입니다.
-                                 </p>
+                                      {selectedSession.confirmed_at && (
+                                          <span className="text-[9px] font-black uppercase tracking-[0.24em] italic text-zinc-600">
+                                              CONFIRMED {new Date(selectedSession.confirmed_at).toLocaleDateString()}
+                                          </span>
+                                      )}
+                                      {isAdmin && !selectedSession.is_official && (
+                                          <button
+                                              onClick={() => deleteSession(selectedSession)}
+                                              className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-red-200 transition-all active:scale-95"
+                                          >
+                                              삭제
+                                          </button>
+                                      )}
+                                  </div>
+                                  <p className="mt-2 text-[10px] font-bold leading-relaxed text-zinc-600">
+                                      공식 기록만 추후 프로필 누적 기록에 반영됩니다. 삭제는 잘못 저장한 기록 제거용입니다.
+                                  </p>
                              </div>
      
                              <div className="flex flex-col gap-1 px-4 relative mt-4">
@@ -577,7 +597,7 @@ export default function ArchivePage() {
                                                     {s.is_official ? '해제' : '공식'}
                                                 </button>
                                             )}
-                                            {isAdmin && <button onClick={(e)=>{e.stopPropagation(); deleteSession(s.id, s.title);}} className="p-2 rounded-xl bg-black/20 border border-white/5 text-zinc-700 hover:text-red-900 transition-all"><Trash2 size={14} /></button>}
+                                            {isAdmin && !s.is_official && <button onClick={(e)=>{e.stopPropagation(); deleteSession(s);}} className="p-2 rounded-xl bg-black/20 border border-white/5 text-zinc-700 hover:text-red-900 transition-all"><Trash2 size={14} /></button>}
                                         </div>
                                     </div>
                                     <div className="mb-10 px-2 mt-2"><h3 className="text-3xl font-[1000] text-zinc-100 tracking-tighter uppercase italic leading-none group-hover:text-white transition-colors break-all drop-shadow-lg">{s.title}</h3></div>
@@ -649,12 +669,26 @@ export default function ArchivePage() {
     }
   }
 
-  async function deleteSession(sessionId: string, title: string) {
+  async function deleteSession(session: any) {
     if (!isAdmin) return;
-    if (!confirm(`[${title}] 전체 대진 기록을 삭제하시겠습니까?`)) return;
+    const sessionId = String(session?.id || '');
+    const title = session?.title || 'Archive';
+    if (!sessionId) return;
+    if (session?.is_official) {
+      alert('공식 기록은 먼저 공식 해제 후 삭제하세요.');
+      return;
+    }
+    if (!confirm(`[${title}] 이 Archive 기록을 삭제할까요? 삭제 후 복구할 수 없습니다.`)) return;
     try {
-        await supabase.from('teyeon_archive_v1').delete().eq('id', sessionId);
-        fetchArchives();
+        if (session?.isLocal) {
+            removeLocalArchiveFailover(sessionId);
+        } else {
+            const { error } = await supabase.from('teyeon_archive_v1').delete().eq('id', sessionId);
+            if (error) throw error;
+            removeLocalArchiveFailover(sessionId);
+        }
+        if (selectedSessionId === sessionId) setSelectedSessionId(null);
+        await fetchArchives();
     } catch (err: any) { alert("삭제 실패: " + err.message); }
   }
 }
