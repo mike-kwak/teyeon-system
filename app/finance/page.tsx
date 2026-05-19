@@ -11,6 +11,7 @@ import {
 import {
   buildFinanceMonthlyDraftSummary,
   confirmMonthlyReport,
+  createReceivable,
   fetchFinanceMembersForPayments,
   FinanceMemberForPayment,
   fetchFinanceMonthlyReport,
@@ -18,11 +19,15 @@ import {
   fetchFinanceTransactions,
   fetchConfirmedMonthlyReports,
   fetchPublicReceivables,
+  fetchReceivables,
+  markReceivablePaid,
   saveFinanceTransactions,
   saveFinanceMonthlyDraft,
   SaveFinanceTransactionsResult,
   unconfirmMonthlyReport,
   updateFinanceTransactionCategory,
+  updateReceivable,
+  waiveReceivable,
 } from '@/lib/financeService';
 import {
   FINANCE_CATEGORIES,
@@ -32,6 +37,7 @@ import {
   FinanceMonthlyReportRecord,
   FinanceMemberPaymentRow,
   FinanceReceivable,
+  FinanceReceivableInput,
   FinanceTransaction,
   FinanceTransactionMonthOption,
 } from '@/lib/financeTypes';
@@ -39,6 +45,7 @@ import {
 type AdminFinanceTab = 'upload' | 'review' | 'ledger' | 'dues' | 'receivables' | 'reports' | 'settings';
 type MemberFinanceTab = 'public-report' | 'public-receivables';
 type FinanceInputMode = 'csv' | 'paste';
+type ReceivableFilter = 'ALL' | 'OPEN' | 'PAID' | 'WAIVED';
 
 const adminTabs: Array<{ id: AdminFinanceTab; label: string }> = [
   { id: 'upload', label: '업로드' },
@@ -55,6 +62,21 @@ const memberTabs: Array<{ id: MemberFinanceTab; label: string }> = [
   { id: 'public-receivables', label: '미납 현황' },
 ];
 
+const receivableFilters: Array<{ id: ReceivableFilter; label: string }> = [
+  { id: 'ALL', label: '전체' },
+  { id: 'OPEN', label: '미납' },
+  { id: 'PAID', label: '납부완료' },
+  { id: 'WAIVED', label: '면제' },
+];
+
+const receivableCategoryOptions: Array<FinanceCategory | string> = [
+  '월회비',
+  '게스트비',
+  '벌금',
+  '게스트비+벌금',
+  '기타',
+];
+
 function getCurrentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -65,6 +87,23 @@ function parseMonthKey(monthKey: string) {
   return {
     year: year || new Date().getFullYear(),
     month: month || new Date().getMonth() + 1,
+  };
+}
+
+function createEmptyReceivableForm(month = getCurrentMonthKey()): FinanceReceivableInput {
+  return {
+    player_name: '',
+    member_id: null,
+    member_name: null,
+    amount: 0,
+    reason: '',
+    category: null,
+    target_month: month,
+    kdk_archive_id: null,
+    status: 'OPEN',
+    is_public: true,
+    is_confirmed: false,
+    memo: null,
   };
 }
 
@@ -143,6 +182,15 @@ export default function FinancePage() {
   const [publicReceivables, setPublicReceivables] = useState<FinanceReceivable[]>([]);
   const [isLoadingPublicReceivables, setIsLoadingPublicReceivables] = useState(false);
   const [publicReceivablesError, setPublicReceivablesError] = useState<string | null>(null);
+  const [receivableRows, setReceivableRows] = useState<FinanceReceivable[]>([]);
+  const [receivableFilter, setReceivableFilter] = useState<ReceivableFilter>('ALL');
+  const [isLoadingReceivables, setIsLoadingReceivables] = useState(false);
+  const [receivablesError, setReceivablesError] = useState<string | null>(null);
+  const [receivablesNotice, setReceivablesNotice] = useState<string | null>(null);
+  const [isReceivableEditorOpen, setIsReceivableEditorOpen] = useState(false);
+  const [editingReceivable, setEditingReceivable] = useState<FinanceReceivable | null>(null);
+  const [receivableForm, setReceivableForm] = useState<FinanceReceivableInput>(() => createEmptyReceivableForm());
+  const [isSavingReceivable, setIsSavingReceivable] = useState(false);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -338,6 +386,149 @@ export default function FinancePage() {
       setReportError(error?.message || '월간 리포트 확정 해제 중 오류가 발생했습니다.');
     } finally {
       setIsUpdatingReportStatus(false);
+    }
+  };
+
+  const loadReceivables = async () => {
+    if (!isFinanceManager) return;
+
+    setIsLoadingReceivables(true);
+    setReceivablesError(null);
+
+    try {
+      const rows = await fetchReceivables(receivableFilter);
+      setReceivableRows(rows);
+    } catch (error: any) {
+      setReceivableRows([]);
+      setReceivablesError(error?.message || '미수금 목록을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingReceivables(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isFinanceManager && adminTab === 'receivables') {
+      void loadReceivables();
+    }
+  }, [adminTab, isFinanceManager, receivableFilter]);
+
+  const openCreateReceivable = () => {
+    setEditingReceivable(null);
+    setReceivableForm(createEmptyReceivableForm(reportMonth || getCurrentMonthKey()));
+    setIsReceivableEditorOpen(true);
+    setReceivablesNotice(null);
+    setReceivablesError(null);
+  };
+
+  const openEditReceivable = (item: FinanceReceivable) => {
+    setEditingReceivable(item);
+    setReceivableForm({
+      member_id: item.member_id || null,
+      member_name: item.member_name || null,
+      player_name: item.player_name || '',
+      amount: item.amount || 0,
+      reason: item.reason || item.category || '',
+      category: item.category || null,
+      target_month: item.target_month || getCurrentMonthKey(),
+      kdk_archive_id: item.kdk_archive_id || null,
+      status: item.status || 'OPEN',
+      is_public: item.is_public,
+      is_confirmed: item.is_confirmed,
+      confirmed_by: item.confirmed_by || null,
+      confirmed_at: item.confirmed_at || null,
+      paid_at: item.paid_at || null,
+      memo: item.memo || null,
+    });
+    setReceivablesNotice(null);
+    setReceivablesError(null);
+    setIsReceivableEditorOpen(true);
+  };
+
+  const closeReceivableEditor = () => {
+    setEditingReceivable(null);
+    setReceivableForm(createEmptyReceivableForm(reportMonth || getCurrentMonthKey()));
+    setIsReceivableEditorOpen(false);
+  };
+
+  const handleSaveReceivable = async () => {
+    if (!isFinanceManager) return;
+
+    const playerName = receivableForm.player_name.trim();
+    const amount = Number(receivableForm.amount);
+    const reason = (receivableForm.reason || receivableForm.category || '기타').trim();
+
+    if (!playerName || !amount || amount <= 0) {
+      setReceivablesError('이름과 1원 이상의 금액을 입력해 주세요.');
+      return;
+    }
+
+    setIsSavingReceivable(true);
+    setReceivablesError(null);
+    setReceivablesNotice(null);
+
+    const payload: FinanceReceivableInput = {
+      ...receivableForm,
+      player_name: playerName,
+      amount,
+      reason,
+      member_id: receivableForm.member_id?.trim() || null,
+      member_name: receivableForm.member_name?.trim() || null,
+      target_month: receivableForm.target_month || getCurrentMonthKey(),
+      kdk_archive_id: receivableForm.kdk_archive_id?.trim() || null,
+      memo: receivableForm.memo?.trim() || null,
+      confirmed_by: receivableForm.is_confirmed ? actorId || receivableForm.confirmed_by || null : null,
+      confirmed_at: receivableForm.is_confirmed ? receivableForm.confirmed_at || new Date().toISOString() : null,
+      paid_at: receivableForm.status === 'PAID' ? receivableForm.paid_at || new Date().toISOString() : null,
+    };
+
+    try {
+      if (editingReceivable?.id) {
+        await updateReceivable(editingReceivable.id, payload);
+        setReceivablesNotice('미수금 항목을 수정했습니다.');
+      } else {
+        await createReceivable(payload);
+        setReceivablesNotice('미수금 항목을 등록했습니다.');
+      }
+      closeReceivableEditor();
+      await loadReceivables();
+    } catch (error: any) {
+      setReceivablesError(error?.message || '미수금 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingReceivable(false);
+    }
+  };
+
+  const handleMarkReceivablePaid = async (item: FinanceReceivable) => {
+    if (!item.id) return;
+    const ok = window.confirm(`${item.player_name} 미수금을 납부 완료로 처리할까요?`);
+    if (!ok) return;
+
+    setReceivablesError(null);
+    setReceivablesNotice(null);
+
+    try {
+      await markReceivablePaid(item.id);
+      setReceivablesNotice('납부 완료로 처리했습니다.');
+      await loadReceivables();
+    } catch (error: any) {
+      setReceivablesError(error?.message || '납부 완료 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleWaiveReceivable = async (item: FinanceReceivable) => {
+    if (!item.id) return;
+    const ok = window.confirm(`${item.player_name} 미수금을 면제 처리할까요?`);
+    if (!ok) return;
+
+    setReceivablesError(null);
+    setReceivablesNotice(null);
+
+    try {
+      await waiveReceivable(item.id);
+      setReceivablesNotice('면제 처리했습니다.');
+      await loadReceivables();
+    } catch (error: any) {
+      setReceivablesError(error?.message || '면제 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -623,6 +814,15 @@ export default function FinancePage() {
           reportMonthOptionsError={reportMonthOptionsError}
           reportError={reportError}
           reportNotice={reportNotice}
+          receivableRows={receivableRows}
+          receivableFilter={receivableFilter}
+          receivableForm={receivableForm}
+          isReceivableEditorOpen={isReceivableEditorOpen}
+          editingReceivable={editingReceivable}
+          receivablesError={receivablesError}
+          receivablesNotice={receivablesNotice}
+          isLoadingReceivables={isLoadingReceivables}
+          isSavingReceivable={isSavingReceivable}
           isLoadingReport={isLoadingReport}
           isLoadingReportMonths={isLoadingReportMonths}
           isSavingReportDraft={isSavingReportDraft}
@@ -640,6 +840,8 @@ export default function FinancePage() {
           setDuesMonthlyFee={setDuesMonthlyFee}
           setReportMonth={setReportMonth}
           setPublicReportNote={setPublicReportNote}
+          setReceivableFilter={setReceivableFilter}
+          setReceivableForm={setReceivableForm}
           handleFileChange={handleFileChange}
           handlePasteAnalyze={handlePasteAnalyze}
           handleSaveTransactions={handleSaveTransactions}
@@ -652,6 +854,13 @@ export default function FinancePage() {
           saveMonthlyDraft={handleSaveMonthlyDraft}
           confirmReport={handleConfirmMonthlyReport}
           unconfirmReport={handleUnconfirmMonthlyReport}
+          refreshReceivables={loadReceivables}
+          openCreateReceivable={openCreateReceivable}
+          openEditReceivable={openEditReceivable}
+          closeReceivableEditor={closeReceivableEditor}
+          saveReceivable={handleSaveReceivable}
+          markReceivablePaid={handleMarkReceivablePaid}
+          waiveReceivable={handleWaiveReceivable}
         />
       ) : (
         <MemberFinanceView
@@ -700,6 +909,15 @@ function AdminFinanceView({
   reportMonthOptionsError,
   reportError,
   reportNotice,
+  receivableRows,
+  receivableFilter,
+  receivableForm,
+  isReceivableEditorOpen,
+  editingReceivable,
+  receivablesError,
+  receivablesNotice,
+  isLoadingReceivables,
+  isSavingReceivable,
   isLoadingReport,
   isLoadingReportMonths,
   isSavingReportDraft,
@@ -717,6 +935,8 @@ function AdminFinanceView({
   setDuesMonthlyFee,
   setReportMonth,
   setPublicReportNote,
+  setReceivableFilter,
+  setReceivableForm,
   handleFileChange,
   handlePasteAnalyze,
   handleSaveTransactions,
@@ -729,6 +949,13 @@ function AdminFinanceView({
   saveMonthlyDraft,
   confirmReport,
   unconfirmReport,
+  refreshReceivables,
+  openCreateReceivable,
+  openEditReceivable,
+  closeReceivableEditor,
+  saveReceivable,
+  markReceivablePaid,
+  waiveReceivable,
 }: {
   adminTab: AdminFinanceTab;
   setAdminTab: (tab: AdminFinanceTab) => void;
@@ -754,6 +981,15 @@ function AdminFinanceView({
   reportMonthOptionsError: string | null;
   reportError: string | null;
   reportNotice: string | null;
+  receivableRows: FinanceReceivable[];
+  receivableFilter: ReceivableFilter;
+  receivableForm: FinanceReceivableInput;
+  isReceivableEditorOpen: boolean;
+  editingReceivable: FinanceReceivable | null;
+  receivablesError: string | null;
+  receivablesNotice: string | null;
+  isLoadingReceivables: boolean;
+  isSavingReceivable: boolean;
   isLoadingReport: boolean;
   isLoadingReportMonths: boolean;
   isSavingReportDraft: boolean;
@@ -771,6 +1007,8 @@ function AdminFinanceView({
   setDuesMonthlyFee: (value: number) => void;
   setReportMonth: (value: string) => void;
   setPublicReportNote: (value: string) => void;
+  setReceivableFilter: (value: ReceivableFilter) => void;
+  setReceivableForm: React.Dispatch<React.SetStateAction<FinanceReceivableInput>>;
   handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handlePasteAnalyze: () => void;
   handleSaveTransactions: () => void;
@@ -783,6 +1021,13 @@ function AdminFinanceView({
   saveMonthlyDraft: () => void;
   confirmReport: () => void;
   unconfirmReport: () => void;
+  refreshReceivables: () => void;
+  openCreateReceivable: () => void;
+  openEditReceivable: (item: FinanceReceivable) => void;
+  closeReceivableEditor: () => void;
+  saveReceivable: () => void;
+  markReceivablePaid: (item: FinanceReceivable) => void;
+  waiveReceivable: (item: FinanceReceivable) => void;
 }) {
   return (
     <>
@@ -912,11 +1157,25 @@ function AdminFinanceView({
       )}
 
       {adminTab === 'receivables' && (
-        <AdminPlaceholder
-          eyebrow="RECEIVABLES"
-          title="미수금 관리"
-          body="확정된 미수금만 회원에게 공개합니다. 자동 추정 미납은 공개하지 않고, 재무 담당자가 직접 확정한 항목만 OPEN 상태로 관리합니다."
-          items={['OPEN / PAID / WAIVED 상태 관리', 'is_public + is_confirmed 기준 공개', 'KDK Archive 연결은 2차 작업']}
+        <AdminReceivablesPanel
+          rows={receivableRows}
+          filter={receivableFilter}
+          form={receivableForm}
+          isEditorOpen={isReceivableEditorOpen}
+          editingItem={editingReceivable}
+          error={receivablesError}
+          notice={receivablesNotice}
+          isLoading={isLoadingReceivables}
+          isSaving={isSavingReceivable}
+          setFilter={setReceivableFilter}
+          setForm={setReceivableForm}
+          refresh={refreshReceivables}
+          openCreate={openCreateReceivable}
+          openEdit={openEditReceivable}
+          closeEditor={closeReceivableEditor}
+          save={saveReceivable}
+          markPaid={markReceivablePaid}
+          waive={waiveReceivable}
         />
       )}
 
@@ -1636,6 +1895,349 @@ function MemberDuesPanel({
           </div>
         )}
       </div>
+    </section>
+  );
+}
+
+function AdminReceivablesPanel({
+  rows,
+  filter,
+  form,
+  isEditorOpen,
+  editingItem,
+  error,
+  notice,
+  isLoading,
+  isSaving,
+  setFilter,
+  setForm,
+  refresh,
+  openCreate,
+  openEdit,
+  closeEditor,
+  save,
+  markPaid,
+  waive,
+}: {
+  rows: FinanceReceivable[];
+  filter: ReceivableFilter;
+  form: FinanceReceivableInput;
+  isEditorOpen: boolean;
+  editingItem: FinanceReceivable | null;
+  error: string | null;
+  notice: string | null;
+  isLoading: boolean;
+  isSaving: boolean;
+  setFilter: (value: ReceivableFilter) => void;
+  setForm: React.Dispatch<React.SetStateAction<FinanceReceivableInput>>;
+  refresh: () => void;
+  openCreate: () => void;
+  openEdit: (item: FinanceReceivable) => void;
+  closeEditor: () => void;
+  save: () => void;
+  markPaid: (item: FinanceReceivable) => void;
+  waive: (item: FinanceReceivable) => void;
+}) {
+  const statusLabelMap: Record<ReceivableFilter, string> = {
+    ALL: '전체',
+    OPEN: '미납',
+    PAID: '납부완료',
+    WAIVED: '면제',
+  };
+  const statusClassMap: Record<FinanceReceivable['status'], string> = {
+    OPEN: 'border-red-300/30 bg-red-300/10 text-red-100',
+    PAID: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
+    WAIVED: 'border-zinc-500/35 bg-zinc-500/10 text-zinc-200',
+  };
+  return (
+    <section className="space-y-4">
+      <div className="rounded-[28px] border border-white/10 bg-[#242323]/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.32)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">RECEIVABLES</p>
+            <h2 className="mt-1 text-[19px] font-black text-white">미수금 관리</h2>
+            <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/45">
+              자동 추정은 공개하지 않고, 재무 담당자가 직접 확정한 OPEN 항목만 회원 미납 현황에 표시합니다.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={isLoading}
+              className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-100 disabled:opacity-45"
+            >
+              {isLoading ? '불러오는 중' : '새로고침'}
+            </button>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="rounded-2xl border border-[#D8BE78]/45 bg-[#D8BE78]/15 px-4 py-2 text-[10px] font-black text-[#F1E7C4]"
+            >
+              미수금 등록
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {receivableFilters.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setFilter(item.id)}
+              className={`rounded-2xl border px-3 py-2 text-[10px] font-black transition ${
+                filter === item.id
+                  ? 'border-[#D8BE78]/55 bg-[#D8BE78]/15 text-[#F1E7C4]'
+                  : 'border-zinc-700/80 bg-zinc-950/70 text-zinc-300'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/5 px-4 py-3 text-[10px] font-bold leading-relaxed text-emerald-100/65">
+          회원 공개 조건: 상태 OPEN · 공개 ON · 확정 ON. 거래 원문이나 확인 필요 거래는 회원에게 보이지 않습니다.
+        </div>
+      </div>
+
+      {notice && <NoticeBox>{notice}</NoticeBox>}
+      {error && (
+        <div className="rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+          {error}
+        </div>
+      )}
+
+      {isEditorOpen && (
+        <div className="rounded-[28px] border border-[#D8BE78]/20 bg-[#242323]/95 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.34)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D8BE78]/65">
+                {editingItem ? 'EDIT RECEIVABLE' : 'NEW RECEIVABLE'}
+              </p>
+              <h3 className="text-[16px] font-black text-white">{editingItem ? '미수금 수정' : '미수금 등록'}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={closeEditor}
+              className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-200"
+            >
+              닫기
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">이름</span>
+              <input
+                value={form.player_name}
+                onChange={(event) => setForm((prev) => ({ ...prev, player_name: event.target.value }))}
+                placeholder="예: 박강진"
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">금액</span>
+              <input
+                type="number"
+                value={form.amount || ''}
+                onChange={(event) => setForm((prev) => ({ ...prev, amount: Number(event.target.value) || 0 }))}
+                placeholder="10000"
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">항목</span>
+              <select
+                value={form.category || ''}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    category: event.target.value as FinanceCategory | '',
+                    reason: prev.reason || event.target.value,
+                  }))
+                }
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+              >
+                <option value="">항목 선택</option>
+                {receivableCategoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">기준월</span>
+              <input
+                type="month"
+                value={form.target_month || ''}
+                onChange={(event) => setForm((prev) => ({ ...prev, target_month: event.target.value }))}
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">사유</span>
+              <input
+                value={form.reason}
+                onChange={(event) => setForm((prev) => ({ ...prev, reason: event.target.value }))}
+                placeholder="예: 5월 월회비"
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">회원 ID optional</span>
+              <input
+                value={form.member_id || ''}
+                onChange={(event) => setForm((prev) => ({ ...prev, member_id: event.target.value }))}
+                placeholder="members.id"
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">관련 KDK Archive ID optional</span>
+              <input
+                value={form.kdk_archive_id || ''}
+                onChange={(event) => setForm((prev) => ({ ...prev, kdk_archive_id: event.target.value }))}
+                placeholder="archive id"
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">메모</span>
+              <textarea
+                value={form.memo || ''}
+                onChange={(event) => setForm((prev) => ({ ...prev, memo: event.target.value }))}
+                rows={3}
+                placeholder="공개 가능한 짧은 메모 또는 내부 메모"
+                className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 py-3 text-[13px] font-bold text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[#D8BE78]/55"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] font-black text-white/70">
+              <input
+                type="checkbox"
+                checked={form.is_public}
+                onChange={(event) => setForm((prev) => ({ ...prev, is_public: event.target.checked }))}
+              />
+              회원 공개
+            </label>
+            <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] font-black text-white/70">
+              <input
+                type="checkbox"
+                checked={form.is_confirmed}
+                onChange={(event) => setForm((prev) => ({ ...prev, is_confirmed: event.target.checked }))}
+              />
+              확정
+            </label>
+            <label className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">상태</span>
+              <select
+                value={form.status || 'OPEN'}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, status: event.target.value as FinanceReceivable['status'] }))
+                }
+                className="h-12 w-full rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-3 text-[13px] font-bold text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+              >
+                <option value="OPEN">미납</option>
+                <option value="PAID">납부완료</option>
+                <option value="WAIVED">면제</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeEditor}
+              className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-4 py-3 text-[11px] font-black text-zinc-200"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={isSaving}
+              className="rounded-2xl border border-[#D8BE78]/45 bg-[#D8BE78]/15 px-4 py-3 text-[11px] font-black text-[#F1E7C4] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isSaving ? '저장 중' : editingItem ? '수정 저장' : '등록'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <EmptyState title="미수금 목록을 불러오는 중입니다" body="finance_receivables 테이블의 항목을 확인하고 있습니다." />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title={`${statusLabelMap[filter]} 미수금 항목이 없습니다`}
+          body="등록 버튼으로 수동 미수금을 추가할 수 있습니다. 회원에게는 확정 공개된 미납 항목만 표시됩니다."
+        />
+      ) : (
+        <div className="space-y-3">
+          {rows.map((item) => (
+            <article
+              key={item.id || `${item.player_name}-${item.amount}-${item.target_month}`}
+              className="rounded-[26px] border border-white/10 bg-[#242323]/90 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.28)]"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black ${statusClassMap[item.status]}`}>
+                      {statusLabelMap[item.status]}
+                    </span>
+                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black ${item.is_public ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100' : 'border-zinc-500/35 bg-zinc-500/10 text-zinc-300'}`}>
+                      {item.is_public ? '공개' : '비공개'}
+                    </span>
+                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black ${item.is_confirmed ? 'border-[#D8BE78]/35 bg-[#D8BE78]/10 text-[#F1E7C4]' : 'border-amber-300/25 bg-amber-300/10 text-amber-100'}`}>
+                      {item.is_confirmed ? '확정' : '미확정'}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 truncate text-[16px] font-black text-white">{item.player_name}</h3>
+                  <p className="mt-1 text-[11px] font-bold text-white/45">
+                    {item.reason || item.category || '항목 없음'} · {item.target_month || item.kdk_archive_id || '기준 미지정'}
+                  </p>
+                  {item.memo && <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/55">{item.memo}</p>}
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[18px] font-black text-red-200">{item.amount.toLocaleString()}원</p>
+                  <p className="mt-1 text-[10px] font-bold text-white/35">{item.category || '기타'}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEdit(item)}
+                  className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-100"
+                >
+                  수정
+                </button>
+                {item.status !== 'PAID' && (
+                  <button
+                    type="button"
+                    onClick={() => markPaid(item)}
+                    className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-[10px] font-black text-emerald-100"
+                  >
+                    납부 완료
+                  </button>
+                )}
+                {item.status !== 'WAIVED' && (
+                  <button
+                    type="button"
+                    onClick={() => waive(item)}
+                    className="rounded-2xl border border-zinc-500/35 bg-zinc-500/10 px-3 py-2 text-[10px] font-black text-zinc-200"
+                  >
+                    면제
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
