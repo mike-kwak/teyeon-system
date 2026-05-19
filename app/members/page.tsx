@@ -142,6 +142,7 @@ interface Member {
   position?: string;
   achievements?: string;
   avatar_url?: string;
+  profile_avatar_url?: string;
 }
 
 const EXE_PRIORITY: Record<string, number> = {
@@ -181,11 +182,12 @@ const MemberCard = React.memo(({ member }: { member: Member }) => {
   }, [roleLabels.primary, member.is_admin]);
 
   const finalAvatar = useMemo(() => {
+    if (member.avatar_url) return member.avatar_url;
     if (user?.email && member.email && user.email === member.email) {
-      return user.user_metadata?.avatar_url || user.user_metadata?.picture || member.avatar_url;
+      return user.user_metadata?.avatar_url || user.user_metadata?.picture || member.profile_avatar_url;
     }
-    return member.avatar_url;
-  }, [user?.email, user?.user_metadata, member.email, member.avatar_url]);
+    return member.profile_avatar_url;
+  }, [user?.email, user?.user_metadata, member.email, member.avatar_url, member.profile_avatar_url]);
 
   return (
     <StyledMemberCard>
@@ -245,7 +247,36 @@ export default function MembersPage() {
       if (error) throw error;
       
       if (data && data.length > 0) {
-        const sortedData = [...data].sort((a, b) => {
+        const memberEmails = Array.from(new Set(
+          data
+            .map((member: Member) => member.email)
+            .filter((email): email is string => Boolean(email))
+        ));
+        let profileAvatarByEmail = new Map<string, string>();
+
+        if (memberEmails.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('email, avatar_url')
+            .in('email', memberEmails);
+
+          if (profilesError) {
+            console.warn('[Members] Profile avatar fallback skipped:', profilesError);
+          } else {
+            profileAvatarByEmail = new Map(
+              (profilesData || [])
+                .filter((profile: any) => profile.email && profile.avatar_url)
+                .map((profile: any) => [profile.email, profile.avatar_url])
+            );
+          }
+        }
+
+        const enrichedData = data.map((member: Member) => ({
+          ...member,
+          profile_avatar_url: member.email ? profileAvatarByEmail.get(member.email) : undefined,
+        }));
+
+        const sortedData = [...enrichedData].sort((a, b) => {
           const aP = getMemberPriority(a);
           const bP = getMemberPriority(b);
           if (aP !== bP) return aP - bP;

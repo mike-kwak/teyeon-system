@@ -119,6 +119,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (appConfig.permissions[role] as any)[feature] || 'HIDE';
   };
 
+  const syncMemberAvatarIfMissing = async (email?: string | null, candidateAvatarUrl?: string | null) => {
+    if (!email || !candidateAvatarUrl) return;
+
+    try {
+      const { data: linkedMembers, error: linkedMembersError } = await withAuthTimeout(
+        supabase
+          .from('members')
+          .select('id, avatar_url')
+          .eq('email', email)
+          .limit(5),
+        'Member avatar lookup',
+        5000
+      );
+
+      if (linkedMembersError) {
+        console.warn('[Auth/AvatarSync] Member avatar lookup failed:', linkedMembersError);
+        return;
+      }
+
+      const membersWithoutAvatar = (linkedMembers || []).filter((member: any) => {
+        return !String(member?.avatar_url || '').trim();
+      });
+
+      const updateResults = await Promise.all(
+        membersWithoutAvatar.map((member: any) => {
+          const query = supabase
+            .from('members')
+            .update({ avatar_url: candidateAvatarUrl })
+            .eq('id', member.id);
+
+          const guardedQuery = member.avatar_url === null || member.avatar_url === undefined
+            ? query.is('avatar_url', null)
+            : query.eq('avatar_url', member.avatar_url);
+
+          return withAuthTimeout(guardedQuery, 'Member avatar update', 5000);
+        })
+      );
+
+      updateResults.forEach((result: any) => {
+        if (result?.error) {
+          console.warn('[Auth/AvatarSync] Member avatar update failed:', result.error);
+        }
+      });
+    } catch (err) {
+      console.warn('[Auth/AvatarSync] Member avatar sync skipped:', err);
+    }
+  };
+
   const getRestrictionMessage = (feature: string): string => {
     if (role === 'GUEST') return "정회원 전용 메뉴입니다. 클럽 가입 후 이용해 주세요!";
     if (role === 'MEMBER') return "운영진 전용 메뉴입니다. 권한이 필요합니다.";
@@ -175,7 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: idProfile, error: idProfileError } = await withAuthTimeout(
         supabase
           .from('profiles')
-          .select('id, email, role')
+          .select('id, email, role, avatar_url')
           .eq('id', currentUser.id)
           .maybeSingle(),
         'Profile lookup by id'
@@ -204,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: emailProfiles, error: emailProfileError } = await withAuthTimeout(
           supabase
             .from('profiles')
-            .select('id, email, role')
+            .select('id, email, role, avatar_url')
             .eq('email', currentUser.email)
             .limit(1),
           'Profile lookup by email'
@@ -284,6 +332,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (profileUpdateError) {
               console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
             }
+
+            await syncMemberAvatarIfMissing(
+              currentUser.email,
+              avatarUrl || (profile as any)?.avatar_url || null
+            );
           } catch (displaySyncError) {
             console.warn('[Auth/DirectSync] Profile display sync skipped:', displaySyncError);
           }
@@ -306,6 +359,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (insertError) throw insertError;
         finalRole = normalizeRole(insertedProfile?.role);
+        void syncMemberAvatarIfMissing(currentUser.email, avatarUrl);
       }
 
       if (!roleApplied) {
@@ -433,7 +487,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-      await supabase.from('members').update({ email: user.email, avatar_url: avatarUrl }).eq('id', memberId);
+      const { data: linkedMember, error: linkedMemberError } = await supabase
+        .from('members')
+        .select('avatar_url')
+        .eq('id', memberId)
+        .maybeSingle();
+
+      if (linkedMemberError) {
+        console.warn('[Auth] Member avatar precheck failed:', linkedMemberError);
+      }
+
+      const updatePayload: Record<string, any> = { email: user.email };
+      if (avatarUrl && !String((linkedMember as any)?.avatar_url || '').trim()) {
+        updatePayload.avatar_url = avatarUrl;
+      }
+
+      await supabase.from('members').update(updatePayload).eq('id', memberId);
       await syncProfile(user);
       setIsPendingMatching(false);
     } catch (err) {
