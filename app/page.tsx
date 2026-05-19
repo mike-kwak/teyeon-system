@@ -162,9 +162,9 @@ export default function Home() {
               />
               <MenuCard
                 label="클럽 재무"
+                description="회비, 미납, 월간 재무 리포트를 관리합니다."
                 icon={<CircleDollarSign size={36} strokeWidth={1.5} />}
                 path="/finance"
-                comingSoon
               />
               <MenuCard
                 label="관리자 설정"
