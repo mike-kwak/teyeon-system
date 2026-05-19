@@ -769,7 +769,7 @@ export default function FinancePage() {
   return (
     <main
       className="mx-auto flex min-h-screen w-full max-w-[560px] flex-col bg-[#151514] px-5 pt-7 text-white"
-      style={{ paddingBottom: '250px' }}
+      style={{ paddingBottom: 'calc(250px + env(safe-area-inset-bottom))' }}
     >
       <header className="mb-6">
         <div className="flex items-start justify-between gap-4">
