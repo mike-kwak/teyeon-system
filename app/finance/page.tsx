@@ -10,14 +10,18 @@ import {
 } from '@/lib/financeImport';
 import {
   buildFinanceMonthlyDraftSummary,
+  confirmMonthlyReport,
   fetchFinanceMembersForPayments,
   FinanceMemberForPayment,
   fetchFinanceMonthlyReport,
   fetchFinanceTransactionMonths,
   fetchFinanceTransactions,
+  fetchConfirmedMonthlyReports,
+  fetchPublicReceivables,
   saveFinanceTransactions,
   saveFinanceMonthlyDraft,
   SaveFinanceTransactionsResult,
+  unconfirmMonthlyReport,
   updateFinanceTransactionCategory,
 } from '@/lib/financeService';
 import {
@@ -50,8 +54,6 @@ const memberTabs: Array<{ id: MemberFinanceTab; label: string }> = [
   { id: 'public-report', label: '월간 리포트' },
   { id: 'public-receivables', label: '미납 현황' },
 ];
-
-const emptyPublicReceivables: FinanceReceivable[] = [];
 
 function getCurrentMonthKey() {
   const now = new Date();
@@ -133,6 +135,14 @@ export default function FinancePage() {
   const [reportMonthOptions, setReportMonthOptions] = useState<FinanceTransactionMonthOption[]>([]);
   const [isLoadingReportMonths, setIsLoadingReportMonths] = useState(false);
   const [reportMonthOptionsError, setReportMonthOptionsError] = useState<string | null>(null);
+  const [isUpdatingReportStatus, setIsUpdatingReportStatus] = useState(false);
+  const [publicReports, setPublicReports] = useState<FinanceMonthlyReportRecord[]>([]);
+  const [selectedPublicReportId, setSelectedPublicReportId] = useState('');
+  const [isLoadingPublicReports, setIsLoadingPublicReports] = useState(false);
+  const [publicReportError, setPublicReportError] = useState<string | null>(null);
+  const [publicReceivables, setPublicReceivables] = useState<FinanceReceivable[]>([]);
+  const [isLoadingPublicReceivables, setIsLoadingPublicReceivables] = useState(false);
+  const [publicReceivablesError, setPublicReceivablesError] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeFinancePreview(previewRows), [previewRows]);
   const reviewRows = useMemo(
@@ -290,6 +300,98 @@ export default function FinancePage() {
       setIsSavingReportDraft(false);
     }
   };
+
+  const handleConfirmMonthlyReport = async () => {
+    if (!isFinanceManager || !existingMonthlyReport?.id) return;
+    const ok = window.confirm('이 월간 리포트를 CONFIRMED로 확정하고 회원에게 공개할까요?');
+    if (!ok) return;
+
+    setIsUpdatingReportStatus(true);
+    setReportError(null);
+    setReportNotice(null);
+
+    try {
+      const updatedReport = await confirmMonthlyReport(existingMonthlyReport.id, actorId);
+      setExistingMonthlyReport(updatedReport);
+      setReportNotice('월간 리포트를 확정했습니다. 이제 회원 공개 화면에 표시됩니다.');
+    } catch (error: any) {
+      setReportError(error?.message || '월간 리포트 확정 중 오류가 발생했습니다.');
+    } finally {
+      setIsUpdatingReportStatus(false);
+    }
+  };
+
+  const handleUnconfirmMonthlyReport = async () => {
+    if (!isFinanceManager || !existingMonthlyReport?.id) return;
+    const ok = window.confirm('확정된 월간 리포트를 DRAFT로 되돌릴까요? 회원 공개 화면에서는 숨겨집니다.');
+    if (!ok) return;
+
+    setIsUpdatingReportStatus(true);
+    setReportError(null);
+    setReportNotice(null);
+
+    try {
+      const updatedReport = await unconfirmMonthlyReport(existingMonthlyReport.id);
+      setExistingMonthlyReport(updatedReport);
+      setReportNotice('월간 리포트 확정을 해제했습니다. 다시 DRAFT 상태입니다.');
+    } catch (error: any) {
+      setReportError(error?.message || '월간 리포트 확정 해제 중 오류가 발생했습니다.');
+    } finally {
+      setIsUpdatingReportStatus(false);
+    }
+  };
+
+  const loadPublicMonthlyReports = async () => {
+    if (isFinanceManager) return;
+
+    setIsLoadingPublicReports(true);
+    setPublicReportError(null);
+
+    try {
+      const reports = await fetchConfirmedMonthlyReports();
+      setPublicReports(reports);
+      setSelectedPublicReportId((current) =>
+        current && reports.some((report) => report.id === current)
+          ? current
+          : reports[0]?.id || ''
+      );
+    } catch (error: any) {
+      setPublicReports([]);
+      setSelectedPublicReportId('');
+      setPublicReportError(error?.message || '확정 월간 리포트를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingPublicReports(false);
+    }
+  };
+
+  const loadPublicReceivables = async () => {
+    if (isFinanceManager) return;
+
+    setIsLoadingPublicReceivables(true);
+    setPublicReceivablesError(null);
+
+    try {
+      const rows = await fetchPublicReceivables();
+      setPublicReceivables(rows);
+    } catch (error: any) {
+      setPublicReceivables([]);
+      setPublicReceivablesError(error?.message || '공개 미납 현황을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingPublicReceivables(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoading && !isFinanceManager && memberTab === 'public-report') {
+      void loadPublicMonthlyReports();
+    }
+  }, [isLoading, isFinanceManager, memberTab]);
+
+  useEffect(() => {
+    if (!isLoading && !isFinanceManager && memberTab === 'public-receivables') {
+      void loadPublicReceivables();
+    }
+  }, [isLoading, isFinanceManager, memberTab]);
 
   const duesRows = useMemo<FinanceMemberPaymentRow[]>(() => {
     return duesMembers
@@ -524,6 +626,7 @@ export default function FinancePage() {
           isLoadingReport={isLoadingReport}
           isLoadingReportMonths={isLoadingReportMonths}
           isSavingReportDraft={isSavingReportDraft}
+          isUpdatingReportStatus={isUpdatingReportStatus}
           notice={notice}
           isParsing={isParsing}
           isSavingTransactions={isSavingTransactions}
@@ -547,9 +650,24 @@ export default function FinancePage() {
           refreshMonthlyReport={loadMonthlyReportDraft}
           refreshReportMonths={loadReportMonthOptions}
           saveMonthlyDraft={handleSaveMonthlyDraft}
+          confirmReport={handleConfirmMonthlyReport}
+          unconfirmReport={handleUnconfirmMonthlyReport}
         />
       ) : (
-        <MemberFinanceView memberTab={memberTab} setMemberTab={setMemberTab} publicReceivables={emptyPublicReceivables} />
+        <MemberFinanceView
+          memberTab={memberTab}
+          setMemberTab={setMemberTab}
+          publicReports={publicReports}
+          selectedPublicReportId={selectedPublicReportId}
+          setSelectedPublicReportId={setSelectedPublicReportId}
+          isLoadingPublicReports={isLoadingPublicReports}
+          publicReportError={publicReportError}
+          refreshPublicReports={loadPublicMonthlyReports}
+          publicReceivables={publicReceivables}
+          isLoadingPublicReceivables={isLoadingPublicReceivables}
+          publicReceivablesError={publicReceivablesError}
+          refreshPublicReceivables={loadPublicReceivables}
+        />
       )}
 
       <div className="h-10" />
@@ -585,6 +703,7 @@ function AdminFinanceView({
   isLoadingReport,
   isLoadingReportMonths,
   isSavingReportDraft,
+  isUpdatingReportStatus,
   notice,
   isParsing,
   isSavingTransactions,
@@ -608,6 +727,8 @@ function AdminFinanceView({
   refreshMonthlyReport,
   refreshReportMonths,
   saveMonthlyDraft,
+  confirmReport,
+  unconfirmReport,
 }: {
   adminTab: AdminFinanceTab;
   setAdminTab: (tab: AdminFinanceTab) => void;
@@ -636,6 +757,7 @@ function AdminFinanceView({
   isLoadingReport: boolean;
   isLoadingReportMonths: boolean;
   isSavingReportDraft: boolean;
+  isUpdatingReportStatus: boolean;
   notice: string | null;
   isParsing: boolean;
   isSavingTransactions: boolean;
@@ -659,6 +781,8 @@ function AdminFinanceView({
   refreshMonthlyReport: () => void;
   refreshReportMonths: () => void;
   saveMonthlyDraft: () => void;
+  confirmReport: () => void;
+  unconfirmReport: () => void;
 }) {
   return (
     <>
@@ -810,11 +934,14 @@ function AdminFinanceView({
           isLoading={isLoadingReport}
           isLoadingMonths={isLoadingReportMonths}
           isSaving={isSavingReportDraft}
+          isUpdatingStatus={isUpdatingReportStatus}
           setMonth={setReportMonth}
           setPublicNote={setPublicReportNote}
           refresh={refreshMonthlyReport}
           refreshMonths={refreshReportMonths}
           saveDraft={saveMonthlyDraft}
+          confirmReport={confirmReport}
+          unconfirmReport={unconfirmReport}
         />
       )}
 
@@ -841,12 +968,32 @@ function AdminFinanceView({
 function MemberFinanceView({
   memberTab,
   setMemberTab,
+  publicReports,
+  selectedPublicReportId,
+  setSelectedPublicReportId,
+  isLoadingPublicReports,
+  publicReportError,
+  refreshPublicReports,
   publicReceivables,
+  isLoadingPublicReceivables,
+  publicReceivablesError,
+  refreshPublicReceivables,
 }: {
   memberTab: MemberFinanceTab;
   setMemberTab: (tab: MemberFinanceTab) => void;
+  publicReports: FinanceMonthlyReportRecord[];
+  selectedPublicReportId: string;
+  setSelectedPublicReportId: (id: string) => void;
+  isLoadingPublicReports: boolean;
+  publicReportError: string | null;
+  refreshPublicReports: () => void;
   publicReceivables: FinanceReceivable[];
+  isLoadingPublicReceivables: boolean;
+  publicReceivablesError: string | null;
+  refreshPublicReceivables: () => void;
 }) {
+  const selectedReport = publicReports.find((report) => report.id === selectedPublicReportId) || publicReports[0] || null;
+
   return (
     <>
       <section className="mb-5 rounded-[28px] border border-[#D8BE78]/15 bg-[#242323]/90 p-3">
@@ -868,6 +1015,18 @@ function MemberFinanceView({
       </section>
 
       {memberTab === 'public-report' && (
+        <PublicMonthlyReportPanel
+          reports={publicReports}
+          selectedReport={selectedReport}
+          selectedReportId={selectedPublicReportId}
+          setSelectedReportId={setSelectedPublicReportId}
+          isLoading={isLoadingPublicReports}
+          error={publicReportError}
+          refresh={refreshPublicReports}
+        />
+      )}
+
+      {false && memberTab === 'public-report' && (
         <section className="space-y-4">
           <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
             <div className="mb-5 flex items-start justify-between gap-3">
@@ -906,7 +1065,26 @@ function MemberFinanceView({
               공개 조건: OPEN 상태, 공개 허용, 재무 담당자 확정 완료.
             </p>
 
-            {publicReceivables.length === 0 ? (
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={refreshPublicReceivables}
+                disabled={isLoadingPublicReceivables}
+                className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-100 disabled:opacity-45"
+              >
+                {isLoadingPublicReceivables ? '불러오는 중' : '새로고침'}
+              </button>
+            </div>
+
+            {publicReceivablesError && (
+              <div className="mt-4 rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+                {publicReceivablesError}
+              </div>
+            )}
+
+            {isLoadingPublicReceivables ? (
+              <EmptyState title="미납 현황을 불러오는 중입니다" body="확정 공개된 미납 항목만 확인하고 있습니다." />
+            ) : publicReceivables.length === 0 ? (
               <EmptyState
                 title="공개된 미납 항목이 없습니다"
                 body="자동 추정 미납이나 확인 필요 거래는 회원에게 공개하지 않습니다."
@@ -930,6 +1108,126 @@ function MemberFinanceView({
         </section>
       )}
     </>
+  );
+}
+
+function PublicMonthlyReportPanel({
+  reports,
+  selectedReport,
+  selectedReportId,
+  setSelectedReportId,
+  isLoading,
+  error,
+  refresh,
+}: {
+  reports: FinanceMonthlyReportRecord[];
+  selectedReport: FinanceMonthlyReportRecord | null;
+  selectedReportId: string;
+  setSelectedReportId: (id: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  refresh: () => void;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="rounded-[30px] border border-white/10 bg-[#242323]/90 p-5">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#D8BE78]/70">PUBLIC REPORT</p>
+            <h2 className="mt-1 text-[19px] font-black text-white">확정 월간 리포트</h2>
+            <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/40">
+              CONFIRMED 상태의 월간 재무 리포트만 표시합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={isLoading}
+            className="shrink-0 rounded-2xl border border-zinc-700/80 bg-zinc-950/70 px-3 py-2 text-[10px] font-black text-zinc-100 disabled:opacity-45"
+          >
+            {isLoading ? '불러오는 중' : '새로고침'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-[22px] border border-red-400/25 bg-red-400/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-red-100">
+            {error}
+          </div>
+        )}
+
+        {isLoading ? (
+          <EmptyState title="확정 리포트를 불러오는 중입니다" body="재무 담당자가 확정한 월간 리포트만 확인하고 있습니다." />
+        ) : reports.length === 0 || !selectedReport ? (
+          <EmptyState
+            title="아직 확정된 월간 재무 리포트가 없습니다"
+            body="DRAFT 리포트, 확인 필요 거래, 거래 원장은 회원에게 공개하지 않습니다."
+          />
+        ) : (
+          <>
+            <label className="mb-4 grid gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">조회 월</span>
+              <select
+                value={selectedReportId || selectedReport.id || ''}
+                onChange={(event) => setSelectedReportId(event.target.value)}
+                className="rounded-2xl border border-zinc-700/80 bg-zinc-950/90 px-4 py-3 text-[12px] font-black text-zinc-100 outline-none focus:border-[#D8BE78]/55"
+              >
+                {reports.map((report) => (
+                  <option key={report.id || `${report.year}-${report.month}`} value={report.id || ''} className="bg-zinc-950 text-zinc-100">
+                    {report.year}년 {report.month}월
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <PublicMetric label="수입 총액" value={formatMoney(selectedReport.income_total)} />
+              <PublicMetric label="지출 총액" value={formatMoney(-selectedReport.expense_total)} />
+              <PublicMetric label="현재 잔액" value={`${selectedReport.closing_balance.toLocaleString()}원`} />
+              <PublicMetric label="순증감" value={formatMoney(selectedReport.income_total - selectedReport.expense_total)} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CategoryBreakdownCard title="수입 비중" rows={(selectedReport.income_breakdown || []) as FinanceMonthlyDraftSummary['income_breakdown']} emptyText="수입 내역이 없습니다." />
+              <CategoryBreakdownCard title="지출 비중" rows={(selectedReport.expense_breakdown || []) as FinanceMonthlyDraftSummary['income_breakdown']} emptyText="지출 내역이 없습니다." />
+            </div>
+
+            <div className="mt-4 rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-[13px] font-black text-white">주요 지출 TOP 3</h3>
+                {selectedReport.confirmed_at && (
+                  <span className="text-[9px] font-black text-white/35">
+                    확정 {selectedReport.confirmed_at.slice(0, 10)}
+                  </span>
+                )}
+              </div>
+              {(selectedReport.top_expenses || []).length === 0 ? (
+                <p className="py-5 text-center text-[11px] font-bold text-white/35">주요 지출 내역이 없습니다.</p>
+              ) : (
+                <div className="space-y-2">
+                  {(selectedReport.top_expenses || []).map((expense: any, index) => (
+                    <div key={`${expense.date}-${expense.description || expense.memo}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] font-black text-white/80">{expense.description || expense.memo || '내용 없음'}</p>
+                        <p className="mt-1 text-[10px] font-bold text-white/35">{expense.date} · {expense.category || '미분류'}</p>
+                      </div>
+                      <span className="shrink-0 text-[12px] font-black text-red-200">{formatMoney(-Math.abs(Number(expense.amount || 0)))}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedReport.public_note && (
+              <div className="mt-4 rounded-[24px] border border-[#D8BE78]/20 bg-[#D8BE78]/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-[#F1E7C4]/75">
+                {selectedReport.public_note}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <PublicInfoCard />
+    </section>
   );
 }
 
@@ -1355,11 +1653,14 @@ function MonthlyDraftReportPanel({
   isLoading,
   isLoadingMonths,
   isSaving,
+  isUpdatingStatus,
   setMonth,
   setPublicNote,
   refresh,
   refreshMonths,
   saveDraft,
+  confirmReport,
+  unconfirmReport,
 }: {
   month: string;
   transactions: FinanceTransaction[];
@@ -1373,14 +1674,19 @@ function MonthlyDraftReportPanel({
   isLoading: boolean;
   isLoadingMonths: boolean;
   isSaving: boolean;
+  isUpdatingStatus: boolean;
   setMonth: (value: string) => void;
   setPublicNote: (value: string) => void;
   refresh: () => void;
   refreshMonths: () => void;
   saveDraft: () => void;
+  confirmReport: () => void;
+  unconfirmReport: () => void;
 }) {
   const isConfirmed = existingReport?.status === 'CONFIRMED';
   const canSaveDraft = Boolean(summary && transactions.length > 0 && !isConfirmed && !isSaving);
+  const canConfirm = Boolean(existingReport?.id && existingReport.status === 'DRAFT' && !isUpdatingStatus);
+  const canUnconfirm = Boolean(existingReport?.id && existingReport.status === 'CONFIRMED' && !isUpdatingStatus);
   const selectedMonthOption = monthOptions.find((option) => option.month === month);
   const { year: selectedYear, month: selectedMonth } = parseMonthKey(month);
 
@@ -1403,7 +1709,12 @@ function MonthlyDraftReportPanel({
                   : 'border-[#D8BE78]/30 bg-[#D8BE78]/10 text-[#F1E7C4]'
               }`}
             >
-              {existingReport.status}
+              {isConfirmed ? '확정 완료' : '검토중 DRAFT'}
+            </span>
+          )}
+          {!existingReport && (
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[9px] font-black text-white/35">
+              리포트 없음
             </span>
           )}
         </div>
@@ -1514,6 +1825,11 @@ function MonthlyDraftReportPanel({
                 확인 필요 거래가 있습니다. DRAFT 생성은 가능하지만, 확정 전에는 재무 담당자 검토가 필요합니다.
               </div>
             )}
+            {isConfirmed && (
+              <div className="mt-4 rounded-[22px] border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-[11px] font-bold leading-relaxed text-emerald-100/80">
+                확정 완료된 리포트입니다. 현재 회원 공개 화면에 표시되며, DRAFT를 다시 생성/갱신하려면 먼저 확정 해제가 필요합니다.
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1572,11 +1888,22 @@ function MonthlyDraftReportPanel({
               </button>
               <button
                 type="button"
-                disabled
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[11px] font-black text-white/35"
+                onClick={confirmReport}
+                disabled={!canConfirm}
+                className="rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-[11px] font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-35"
               >
-                확정 기능은 다음 단계
+                {isUpdatingStatus ? '상태 변경 중' : 'CONFIRMED 확정'}
               </button>
+              {isConfirmed && (
+                <button
+                  type="button"
+                  onClick={unconfirmReport}
+                  disabled={!canUnconfirm}
+                  className="rounded-2xl border border-amber-300/35 bg-amber-300/10 px-4 py-3 text-[11px] font-black text-amber-100 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  {isUpdatingStatus ? '상태 변경 중' : '확정 해제'}
+                </button>
+              )}
             </div>
           </div>
         </>
@@ -1591,7 +1918,7 @@ function CategoryBreakdownCard({
   emptyText,
 }: {
   title: string;
-  rows: FinanceMonthlyDraftSummary['income_breakdown'];
+  rows: Array<{ category: FinanceCategory | string; amount: number; count?: number; ratio?: number }>;
   emptyText: string;
 }) {
   return (
@@ -1610,8 +1937,8 @@ function CategoryBreakdownCard({
                 <span className="shrink-0 text-[12px] font-black text-[#D8BE78]">{row.amount.toLocaleString()}원</span>
               </div>
               <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-white/35">
-                <span>{row.count}건</span>
-                <span>{row.ratio}%</span>
+                <span>{row.count ?? 0}건</span>
+                <span>{row.ratio ?? 0}%</span>
               </div>
             </div>
           ))}

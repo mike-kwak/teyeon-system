@@ -5,6 +5,7 @@ import {
   FinanceImportPreviewRow,
   FinanceMonthlyDraftSummary,
   FinanceMonthlyReportRecord,
+  FinanceReceivable,
   FinanceTopExpense,
   FinanceTransaction,
   FinanceTransactionMonthOption,
@@ -39,7 +40,9 @@ function normalizeFinanceError(error: any) {
     lowerMessage.includes('relation "finance_transactions" does not exist') ||
     lowerMessage.includes('relation "public.finance_transactions" does not exist') ||
     lowerMessage.includes('relation "finance_monthly_reports" does not exist') ||
-    lowerMessage.includes('relation "public.finance_monthly_reports" does not exist');
+    lowerMessage.includes('relation "public.finance_monthly_reports" does not exist') ||
+    lowerMessage.includes('relation "finance_receivables" does not exist') ||
+    lowerMessage.includes('relation "public.finance_receivables" does not exist');
 
   if (isMissingFinanceTable) return '재무 테이블이 아직 생성되지 않았습니다. finance_schema.sql을 Supabase에 먼저 적용해주세요.';
 
@@ -344,6 +347,68 @@ export async function fetchFinanceMonthlyReport(
   return (data || null) as FinanceMonthlyReportRecord | null;
 }
 
+export async function fetchMonthlyReport(
+  year: number,
+  month: number
+): Promise<FinanceMonthlyReportRecord | null> {
+  return fetchFinanceMonthlyReport(year, month);
+}
+
+export async function fetchConfirmedMonthlyReports(): Promise<FinanceMonthlyReportRecord[]> {
+  const { data, error } = await supabase
+    .from('finance_monthly_reports')
+    .select('*')
+    .eq('status', 'CONFIRMED')
+    .order('year', { ascending: false })
+    .order('month', { ascending: false });
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return (data || []) as FinanceMonthlyReportRecord[];
+}
+
+export async function confirmMonthlyReport(id: string, userLabel?: string): Promise<FinanceMonthlyReportRecord> {
+  const { data, error } = await supabase
+    .from('finance_monthly_reports')
+    .update({
+      status: 'CONFIRMED',
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: userLabel || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceMonthlyReportRecord;
+}
+
+export async function unconfirmMonthlyReport(id: string): Promise<FinanceMonthlyReportRecord> {
+  const { data, error } = await supabase
+    .from('finance_monthly_reports')
+    .update({
+      status: 'DRAFT',
+      confirmed_at: null,
+      confirmed_by: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return data as FinanceMonthlyReportRecord;
+}
+
 export async function saveFinanceMonthlyDraft(
   summary: FinanceMonthlyDraftSummary,
   options: { actorId?: string; publicNote?: string } = {}
@@ -449,4 +514,20 @@ export async function fetchFinanceMembersForPayments(): Promise<FinanceMemberFor
   }
 
   return (data || []) as FinanceMemberForPayment[];
+}
+
+export async function fetchPublicReceivables(): Promise<FinanceReceivable[]> {
+  const { data, error } = await supabase
+    .from('finance_receivables')
+    .select('*')
+    .eq('status', 'OPEN')
+    .eq('is_public', true)
+    .eq('is_confirmed', true)
+    .order('target_month', { ascending: false });
+
+  if (error) {
+    throw new Error(normalizeFinanceError(error));
+  }
+
+  return (data || []) as FinanceReceivable[];
 }
