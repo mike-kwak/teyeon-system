@@ -5,6 +5,7 @@
 ALTER TABLE public.finance_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finance_monthly_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finance_receivables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.finance_member_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finance_settings ENABLE ROW LEVEL SECURITY;
 
 -- FINANCE_MANAGER is intentionally left as a TODO in active RLS conditions.
@@ -213,6 +214,81 @@ WITH CHECK (
 
 CREATE POLICY finance_receivables_admin_delete
 ON public.finance_receivables
+FOR DELETE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE profiles.id::text = auth.uid()::text
+      AND profiles.role IN ('CEO', 'ADMIN')
+  )
+);
+
+DROP POLICY IF EXISTS finance_member_payments_admin_select ON public.finance_member_payments;
+DROP POLICY IF EXISTS finance_member_payments_admin_insert ON public.finance_member_payments;
+DROP POLICY IF EXISTS finance_member_payments_admin_update ON public.finance_member_payments;
+DROP POLICY IF EXISTS finance_member_payments_admin_delete ON public.finance_member_payments;
+DROP POLICY IF EXISTS finance_member_payments_member_public_confirmed_select ON public.finance_member_payments;
+
+CREATE POLICY finance_member_payments_admin_select
+ON public.finance_member_payments
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE profiles.id::text = auth.uid()::text
+      AND profiles.role IN ('CEO', 'ADMIN')
+  )
+);
+
+CREATE POLICY finance_member_payments_member_public_confirmed_select
+ON public.finance_member_payments
+FOR SELECT
+TO authenticated
+USING (
+  is_public = true
+  AND is_confirmed = true
+);
+
+CREATE POLICY finance_member_payments_admin_insert
+ON public.finance_member_payments
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE profiles.id::text = auth.uid()::text
+      AND profiles.role IN ('CEO', 'ADMIN')
+  )
+);
+
+CREATE POLICY finance_member_payments_admin_update
+ON public.finance_member_payments
+FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE profiles.id::text = auth.uid()::text
+      AND profiles.role IN ('CEO', 'ADMIN')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE profiles.id::text = auth.uid()::text
+      AND profiles.role IN ('CEO', 'ADMIN')
+  )
+);
+
+CREATE POLICY finance_member_payments_admin_delete
+ON public.finance_member_payments
 FOR DELETE
 TO authenticated
 USING (
