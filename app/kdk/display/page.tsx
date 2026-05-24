@@ -111,14 +111,14 @@ function getDisplayGroupMeta(value?: string) {
   return {
     normalizedGroup,
     isGroupB,
-    label: isGroupB ? 'GROUP B / BLUE' : 'GROUP A / GOLD',
-    groupLabel: isGroupB ? 'GROUP B' : 'GROUP A',
-    accent: isGroupB ? '#38D9FF' : '#FFD66B',
-    accentStrong: isGroupB ? '#1CA7FF' : '#F0B93F',
-    accentSoft: isGroupB ? 'rgba(56, 217, 255, 0.11)' : 'rgba(255, 214, 107, 0.11)',
-    accentMid: isGroupB ? 'rgba(56, 217, 255, 0.2)' : 'rgba(255, 214, 107, 0.2)',
-    border: isGroupB ? 'rgba(56, 217, 255, 0.82)' : 'rgba(255, 214, 107, 0.72)',
-    panel: 'linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.03)_46%,rgba(0,0,0,0.3))',
+    label: isGroupB ? 'B조 / BLUE' : 'A조 / GOLD',
+    groupLabel: isGroupB ? 'B조' : 'A조',
+    accent: isGroupB ? '#38BFFF' : '#F0B93F',
+    accentStrong: isGroupB ? '#22A7F2' : '#FFD66B',
+    accentSoft: isGroupB ? 'rgba(56, 191, 255, 0.13)' : 'rgba(240, 185, 63, 0.13)',
+    accentMid: isGroupB ? 'rgba(56, 191, 255, 0.24)' : 'rgba(240, 185, 63, 0.24)',
+    border: isGroupB ? 'rgba(56, 191, 255, 0.68)' : 'rgba(240, 185, 63, 0.66)',
+    panel: 'linear-gradient(180deg,rgba(17,31,52,0.92),rgba(9,14,26,0.95)_54%,rgba(6,10,18,0.98))',
   };
 }
 
@@ -252,114 +252,87 @@ function CourtCard({ court, match, playerLookup }: { court: number; match?: Matc
   const teamB = match ? teamPlayers(match, 2, playerLookup) : [];
 
   return (
-    <section className={`group relative min-h-0 overflow-hidden rounded-[20px] border bg-[#090908] ${
-      match
-        ? 'shadow-[0_18px_48px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.055)]'
-        : 'border-[#D8BE78]/46 shadow-[0_0_0_1px_rgba(216,190,120,0.14),0_18px_40px_rgba(0,0,0,0.5),inset_0_0_0_1px_rgba(255,255,255,0.04)]'
-    }`} style={match ? { borderColor: groupMeta.border, boxShadow: `0 0 0 1px ${groupMeta.accentMid}, 0 18px 48px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.055)` } : undefined}>
-      <div
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.07),transparent 34%,rgba(255,255,255,0.025)),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.045),transparent 40%)' }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(118deg,transparent 0%,transparent 46%,rgba(255,255,255,0.035) 48%,transparent 52%)' }}
-      />
-      <div className="absolute inset-x-5 top-0 h-[3px] bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
-      {match && (
-        <>
-          <div
-            className="absolute inset-x-0 bottom-0 h-[4px]"
-            style={{
-              backgroundImage: `linear-gradient(to right, rgba(220,38,38,0.82), ${groupMeta.accent}, rgba(220,38,38,0.82))`,
-              boxShadow: '0 0 16px rgba(239,68,68,0.56)',
-            }}
-          />
-          <div className="absolute inset-x-12 bottom-1 h-10 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.34),transparent_70%)]" />
-          <div className="absolute bottom-0 left-0 h-20 w-20 bg-[radial-gradient(circle_at_0%_100%,rgba(239,68,68,0.38),transparent_72%)]" />
-          <div className="absolute bottom-0 right-0 h-20 w-20 bg-[radial-gradient(circle_at_100%_100%,rgba(239,68,68,0.3),transparent_72%)]" />
-          <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-red-400/72 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-red-400/56 to-transparent" />
-          <div className="absolute inset-y-5 left-0 w-[4px] rounded-r-full" style={{ background: `linear-gradient(to bottom, transparent, ${groupMeta.accent}, transparent)` }} />
-        </>
-      )}
-      <div className="absolute -bottom-7 left-9 right-9 h-24 border-x border-t opacity-85" style={{ borderColor: groupMeta.border }} />
-      <div className="absolute bottom-7 left-1/2 h-16 w-px -translate-x-1/2" style={{ backgroundColor: groupMeta.border }} />
-      <div className="absolute bottom-7 left-[18%] right-[18%] h-px" style={{ backgroundColor: groupMeta.border }} />
-      <div className="absolute bottom-12 left-[16%] right-[16%] h-px" style={{ backgroundColor: groupMeta.accentSoft }} />
-      <div className="absolute bottom-[54px] left-[16%] right-[16%] h-px" style={{ backgroundColor: groupMeta.accentSoft.replace('0.18', '0.1') }} />
+    <section
+      className="group relative min-h-0 overflow-hidden rounded-[18px] border bg-[#101A2B] shadow-[0_18px_46px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.075)]"
+      style={match ? { borderColor: groupMeta.border, boxShadow: `0 0 0 1px ${groupMeta.accentSoft}, 0 18px 46px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.075)` } : { borderColor: 'rgba(240,185,63,0.24)' }}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.07),transparent_34%,rgba(56,191,255,0.035)),radial-gradient(circle_at_50%_100%,rgba(240,185,63,0.08),transparent_44%)]" />
+      <div className="absolute inset-x-0 top-0 h-[4px]" style={{ background: `linear-gradient(to right, transparent, ${match ? groupMeta.accent : 'rgba(240,185,63,0.42)'}, transparent)` }} />
+      <div className="absolute inset-4 rounded-[14px] border border-white/[0.055]" />
+      {match && <div className="absolute inset-y-6 left-0 w-[4px] rounded-r-[6px]" style={{ background: `linear-gradient(to bottom, transparent, ${groupMeta.accent}, transparent)` }} />}
 
-      <div className="relative flex h-full min-h-0 flex-col p-3 2xl:p-3.5">
-        <div className={`absolute right-5 top-5 z-20 rounded-[14px] border px-4 py-2.5 text-[13px] font-black uppercase tracking-[0.16em] ${
-          match
-            ? 'border-red-400/82 bg-red-500/22 text-red-50 shadow-[0_0_20px_rgba(239,68,68,0.58),inset_0_1px_0_rgba(255,255,255,0.14)]'
-            : 'border-emerald-400/62 bg-emerald-500/14 text-emerald-100 shadow-[0_0_14px_rgba(16,185,129,0.22),inset_0_1px_0_rgba(255,255,255,0.1)]'
-        }`}>
-          {match ? 'LIVE' : 'READY'}
-        </div>
-        <div className="relative flex min-h-[58px] items-center border-b pb-2 pr-32" style={{ borderColor: groupMeta.accentSoft }}>
-          <div className="flex items-end gap-3">
-            <span className="text-[12px] font-black uppercase tracking-[0.2em] text-white/82">Court</span>
-            <span className="text-[38px] font-black leading-[0.8]" style={{ color: groupMeta.accent }}>{court}</span>
+      <div className="relative flex h-full min-h-0 flex-col p-3.5 2xl:p-4">
+        <div className="flex min-w-0 items-start justify-between gap-3 border-b border-white/8 pb-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-20 shrink-0 items-center justify-center rounded-[10px] border bg-white/[0.055] text-[12px] font-black uppercase tracking-[0.16em] text-white/82" style={{ borderColor: match ? groupMeta.border : 'rgba(255,255,255,0.12)' }}>
+              Court {court}
+            </span>
+            {match ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="rounded-[8px] border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]" style={{ borderColor: groupMeta.border, background: groupMeta.accentSoft, color: groupMeta.accentStrong }}>
+                  {groupMeta.groupLabel}
+                </span>
+                <span className="rounded-[8px] border border-white/10 bg-black/24 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/70">
+                  R{match.round || '-'}
+                </span>
+                <span className="rounded-[8px] border border-emerald-300/24 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-200">
+                  Playing
+                </span>
+              </div>
+            ) : (
+              <span className="rounded-[8px] border border-emerald-300/22 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-200/82">
+                Ready
+              </span>
+            )}
           </div>
           {match && (
-            <div className="absolute left-1/2 top-1.5 flex max-w-[56%] -translate-x-1/2 items-center justify-center gap-2.5">
-              <span className="whitespace-nowrap rounded-lg border bg-black/46 px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.1em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
-                Round {match.round || '-'}
-              </span>
-              <span className="max-w-[172px] truncate rounded-lg border bg-black/46 px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.1em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
-                {groupMeta.label}
-              </span>
-            </div>
+            <span className="shrink-0 rounded-full border border-red-400/48 bg-red-500/16 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-red-100 shadow-[0_0_14px_rgba(239,68,68,0.28)]">
+              LIVE
+            </span>
           )}
         </div>
 
         {match ? (
-          <div className="relative flex min-h-0 flex-1 flex-col justify-center pt-0">
-            <div className="relative mt-3 rounded-[20px] border px-4 py-3.5 shadow-[0_14px_28px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] 2xl:mt-4 2xl:px-5 2xl:py-4" style={{ borderColor: groupMeta.border, background: groupMeta.panel, boxShadow: `0 14px 28px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)` }}>
-              <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
-              <div className="grid grid-cols-[minmax(0,1fr)_74px_minmax(0,1fr)] items-start gap-4">
-                <div className="flex min-h-[78px] min-w-0 flex-col justify-center overflow-hidden rounded-[16px] border border-white/10 bg-black/28 px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] 2xl:min-h-[82px] 2xl:px-4 2xl:py-3">
-                  {teamA.map((name, index) => (
-                    <p key={index} className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(18px,1.45vw,29px)] font-black leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)]">
-                      {name}
-                    </p>
-                  ))}
-                </div>
-                <div className="flex h-[82px] items-center justify-center">
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full border bg-black/68 text-[21px] font-black uppercase tracking-[0.04em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
-                    VS
-                  </span>
-                </div>
-                <div className="flex min-h-[78px] min-w-0 flex-col justify-center overflow-hidden rounded-[16px] border border-white/10 bg-black/28 px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] 2xl:min-h-[82px] 2xl:px-4 2xl:py-3">
-                  {teamB.map((name, index) => (
-                    <p key={index} className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(18px,1.45vw,29px)] font-black leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)]">
-                      {name}
-                    </p>
-                  ))}
-                </div>
+          <div className="relative flex min-h-0 flex-1 items-center py-3">
+            <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_70px_minmax(0,1fr)] items-center gap-3 2xl:grid-cols-[minmax(0,1fr)_82px_minmax(0,1fr)] 2xl:gap-4">
+              <div className="relative flex min-h-[122px] min-w-0 flex-col justify-center overflow-hidden rounded-[14px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(12,24,41,0.82))] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-16px_28px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-white/[0.04]" style={{ borderColor: groupMeta.accentMid }}>
+                <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+                {teamA.map((name, index) => (
+                  <p key={index} className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(21px,1.55vw,34px)] font-black leading-[1.16] text-[#FFF8E8]">
+                    {name}
+                  </p>
+                ))}
               </div>
-              <div className="mt-4 grid grid-cols-[minmax(0,1fr)_74px_minmax(0,1fr)] items-center gap-4">
-                <span className="text-center text-[clamp(46px,3.8vw,66px)] font-black leading-none text-[#FFF4C8]">
-                  {match.score1 ?? 1}
+              <div className="flex min-w-0 flex-col items-center justify-center gap-2">
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent" />
+                <span className="flex h-[60px] w-[60px] items-center justify-center rounded-full border bg-[#050B14]/92 text-[18px] font-black uppercase tracking-[0.08em] shadow-[0_0_16px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.12)] 2xl:h-[68px] 2xl:w-[68px] 2xl:text-[20px]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+                  VS
                 </span>
-                <span className="text-center text-[22px] font-black leading-none text-white/28">:</span>
-                <span className="text-center text-[clamp(46px,3.8vw,66px)] font-black leading-none text-[#FFF4C8]">
-                  {match.score2 ?? 1}
+                <span className="whitespace-nowrap text-[8px] font-black uppercase tracking-[0.18em] text-white/32">
+                  Assignment
                 </span>
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent" />
               </div>
+              <div className="relative flex min-h-[122px] min-w-0 flex-col justify-center overflow-hidden rounded-[14px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(12,24,41,0.82))] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-16px_28px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-white/[0.04]" style={{ borderColor: groupMeta.accentMid }}>
+                <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+                {teamB.map((name, index) => (
+                  <p key={index} className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(21px,1.55vw,34px)] font-black leading-[1.16] text-[#FFF8E8]">
+                    {name}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className="absolute bottom-1 left-0 right-0 flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/28">
+              <span>Live court assignment</span>
+              <span>Score {match.score1 ?? 1}:{match.score2 ?? 1}</span>
             </div>
           </div>
         ) : (
-          <div className="relative flex flex-1 flex-col items-center justify-center gap-2.5 text-center">
-            <div className="relative h-7 w-11">
-              <span className="absolute left-4 top-0 h-8 w-1 -rotate-45 rounded-full bg-[#EAD8A2]/62 shadow-[0_0_16px_rgba(216,190,120,0.25)]" />
-              <span className="absolute right-4 top-0 h-8 w-1 rotate-45 rounded-full bg-[#EAD8A2]/62 shadow-[0_0_16px_rgba(216,190,120,0.25)]" />
-            </div>
-            <p className="text-[clamp(28px,2.45vw,42px)] font-black uppercase tracking-[0.15em] text-[#F1DC9C]">Standby</p>
-            <div className="h-px w-56 bg-gradient-to-r from-transparent via-[#FFD66B]/72 to-transparent shadow-[0_0_18px_rgba(255,214,107,0.42)]" />
-            <p className="rounded-full border border-[#D8BE78]/34 bg-black/48 px-8 py-3 text-[18px] font-black uppercase tracking-[0.14em] text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              Waiting for match
+          <div className="relative flex flex-1 flex-col items-center justify-center gap-3 text-center">
+            <p className="text-[clamp(24px,2.2vw,40px)] font-black uppercase tracking-[0.16em] text-[#F0B93F]/86">Standby</p>
+            <div className="h-px w-48 bg-gradient-to-r from-transparent via-[#F0B93F]/48 to-transparent" />
+            <p className="rounded-[10px] border border-white/10 bg-white/[0.035] px-6 py-2 text-[12px] font-black uppercase tracking-[0.16em] text-white/42">
+              Waiting for assignment
             </p>
           </div>
         )}
@@ -371,53 +344,52 @@ function CourtCard({ court, match, playerLookup }: { court: number; match?: Matc
 function CompactMatch({ match, index, playerLookup, playingPlayerIds }: { match: Match; index: number; playerLookup: PlayerLookup; playingPlayerIds: Set<string> }) {
   const groupMeta = getDisplayGroupMeta(match.groupName || match.group || 'A');
   const hasActivePlayer = (match.playerIds || []).some((playerId) => playingPlayerIds.has(playerId));
-  const renderPlayer = (playerIndex: number) => {
-    const playerId = match.playerIds?.[playerIndex] || '';
-    const isPlaying = !!playerId && playingPlayerIds.has(playerId);
-
-    return (
-      <span className="flex min-w-0 items-center justify-center gap-1 overflow-hidden">
-        {isPlaying && (
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.42)]" />
-        )}
-        <span className="max-w-full truncate">{playerName(match, playerIndex, playerLookup)}</span>
-      </span>
-    );
-  };
+  const isNext = index === 0;
+  const teamOne = teamLabel(match, 0, playerLookup);
+  const teamTwo = teamLabel(match, 2, playerLookup);
 
   return (
-    <div className={`relative min-h-[72px] overflow-hidden rounded-[15px] border px-3.5 py-2 shadow-[0_9px_20px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.085)] ${
-      hasActivePlayer
-        ? 'border-red-400/42 bg-[linear-gradient(135deg,#140D0D,rgba(239,68,68,0.085)_46%,#080808)]'
-        : ''
-    }`} style={{ borderColor: groupMeta.border }}>
-      {!hasActivePlayer && (
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#11110F,rgba(255,255,255,0.035)_55%,#080808)]" />
-      )}
-      <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
-      <div className={`absolute inset-y-3 left-0 w-px bg-gradient-to-b from-transparent ${
-        hasActivePlayer
-          ? 'via-red-400/72 to-transparent shadow-[0_0_12px_rgba(239,68,68,0.48)]'
-          : ''
-      }`} style={!hasActivePlayer ? { backgroundImage: `linear-gradient(to bottom, transparent, ${groupMeta.accent}, transparent)` } : undefined} />
-      <div className="grid grid-cols-[34px_minmax(0,1fr)_34px_minmax(0,1fr)] items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md border text-[12px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ borderColor: groupMeta.border, background: groupMeta.accentSoft, color: groupMeta.accent }}>
-          {String(index + 1).padStart(2, '0')}
-        </span>
-        <div className="grid min-w-0 grid-cols-2 items-end gap-1.5 break-keep text-center text-[clamp(15px,0.98vw,19px)] font-black leading-snug text-white">
-          {renderPlayer(0)}
-          {renderPlayer(1)}
+    <div
+      className={`relative min-h-[94px] overflow-hidden rounded-[14px] border px-3.5 py-2.5 shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.085),inset_0_-12px_24px_rgba(0,0,0,0.1)] ${
+        isNext
+          ? 'border-[#F0B93F]/90 bg-[linear-gradient(135deg,rgba(240,185,63,0.29),rgba(16,26,43,0.98)_42%,rgba(10,19,33,0.99))] shadow-[0_0_32px_rgba(240,185,63,0.28),0_12px_28px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-12px_24px_rgba(0,0,0,0.12)]'
+          : hasActivePlayer
+            ? 'border-[#F0B93F]/34 bg-[linear-gradient(135deg,rgba(240,185,63,0.1),rgba(15,27,45,0.98)_46%,#0A1424)]'
+            : 'bg-[linear-gradient(135deg,rgba(18,31,51,0.94),rgba(10,18,31,0.99))]'
+      }`}
+      style={!isNext ? { borderColor: hasActivePlayer ? 'rgba(240,185,63,0.34)' : groupMeta.border } : undefined}
+    >
+      {isNext && <div className="absolute inset-y-3 left-0 w-[5px] rounded-r-[8px] bg-[#F0B93F] shadow-[0_0_16px_rgba(240,185,63,0.45)]" />}
+      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${isNext ? '#F0B93F' : groupMeta.accent}, transparent)` }} />
+      <div className="relative flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`flex h-8 w-9 shrink-0 items-center justify-center rounded-[8px] border text-[13px] font-black ${isNext ? 'border-[#F0B93F]/78 bg-[#F0B93F] text-[#07101D]' : 'bg-white/[0.055]'}`} style={!isNext ? { borderColor: groupMeta.border, color: groupMeta.accent } : undefined}>
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          {isNext && (
+            <span className="shrink-0 rounded-[7px] border border-[#F0B93F]/68 bg-[#F0B93F]/20 px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-[#FFE7A0] shadow-[0_0_12px_rgba(240,185,63,0.18)]">
+              NEXT
+            </span>
+          )}
+          <span className="shrink-0 rounded-[7px] border border-white/10 bg-black/22 px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-white/56">
+            Court {match.court || '-'}
+          </span>
         </div>
-        <span className="flex h-7 w-7 items-center justify-center justify-self-center rounded-full border bg-black/76 text-[9px] font-black" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
+        <span className="shrink-0 rounded-[7px] border px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em]" style={{ borderColor: groupMeta.border, background: groupMeta.accentSoft, color: groupMeta.accentStrong }}>
+          {groupMeta.groupLabel} · R{match.round || '-'}
+        </span>
+      </div>
+
+      <div className="relative mt-2.5 grid min-w-0 grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] items-center gap-2">
+        <p className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap break-keep text-right text-[clamp(12px,0.78vw,16px)] font-black leading-tight text-white">
+          {teamOne}
+        </p>
+        <span className="flex h-8 w-8 items-center justify-center justify-self-center rounded-[9px] border bg-[#050B14]/82 text-[9px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]" style={{ borderColor: isNext ? '#F0B93F' : groupMeta.border, color: isNext ? '#FFE7A0' : groupMeta.accent }}>
           VS
         </span>
-        <div className="grid min-w-0 grid-cols-2 items-end gap-1.5 break-keep text-center text-[clamp(15px,0.98vw,19px)] font-black leading-snug text-white/90">
-          {renderPlayer(2)}
-          {renderPlayer(3)}
-        </div>
-      </div>
-      <div className="ml-[46px] mt-1.5 inline-flex max-w-[calc(100%-46px)] overflow-hidden truncate whitespace-nowrap rounded-full border bg-black/42 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
-        R{match.round || '-'} - {groupMeta.label}
+        <p className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap break-keep text-left text-[clamp(12px,0.78vw,16px)] font-black leading-tight text-white/92">
+          {teamTwo}
+        </p>
       </div>
     </div>
   );
@@ -426,23 +398,25 @@ function CompactMatch({ match, index, playerLookup, playingPlayerIds }: { match:
 function CompletedMiniCard({ match, playerLookup }: { match: Match; playerLookup: PlayerLookup }) {
   const groupMeta = getDisplayGroupMeta(match.groupName || match.group || 'A');
   return (
-    <div className="relative min-w-0 overflow-hidden rounded-[20px] border bg-[linear-gradient(135deg,#11110F,rgba(255,255,255,0.035)_52%,#080808)] p-4 shadow-[0_16px_34px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-18px_38px_rgba(0,0,0,0.2)]" style={{ borderColor: groupMeta.border }}>
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
-      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent to-transparent" style={{ backgroundImage: `linear-gradient(to right, transparent, ${groupMeta.accent}, transparent)` }} />
-      <div className="absolute inset-x-12 bottom-1 h-8 opacity-55" style={{ background: `radial-gradient(ellipse at center, ${groupMeta.accentSoft}, transparent 72%)` }} />
-      <div className="relative mb-2.5 flex items-center justify-start gap-3">
-        <span className="rounded-md border border-emerald-300/20 bg-emerald-400/12 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/82">Done</span>
-        <span className="absolute left-1/2 max-w-[72%] -translate-x-1/2 truncate rounded-md border bg-black/24 px-2.5 py-1 text-center text-[9px] font-black uppercase tracking-[0.16em]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>R{match.round || '-'} / {groupMeta.label}</span>
+    <div className="relative min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(135deg,rgba(18,30,49,0.78),rgba(13,23,39,0.92))] p-3.5 shadow-[0_10px_22px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.06)]" style={{ borderColor: groupMeta.accentMid }}>
+      <div className="absolute inset-y-4 left-0 w-[3px] rounded-r-[6px] opacity-80" style={{ background: groupMeta.accent }} />
+      <div className="relative mb-2 flex min-w-0 items-center justify-between gap-2">
+        <span className="shrink-0 rounded-[7px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em]" style={{ borderColor: groupMeta.border, background: groupMeta.accentSoft, color: groupMeta.accentStrong }}>
+          {groupMeta.groupLabel} · R{match.round || '-'}
+        </span>
+        <span className="shrink-0 rounded-[7px] border border-emerald-300/18 bg-emerald-400/[0.075] px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-200/82">
+          Final
+        </span>
       </div>
-      <div className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] items-stretch gap-3">
-        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-[16px] border bg-black/28 px-3 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" style={{ borderColor: groupMeta.accentMid }}>
-          <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[clamp(13px,0.9vw,20px)] font-black leading-none tracking-[-0.04em] text-white">{teamLabel(match, 0, playerLookup)}</p>
+      <div className="grid min-h-[82px] grid-cols-[minmax(0,1fr)_68px_minmax(0,1fr)] items-stretch gap-2.5">
+        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-[10px] border border-white/7 bg-[#0B1626]/62 px-3 py-2 text-center">
+          <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(13px,0.86vw,18px)] font-black leading-tight text-white">{teamLabel(match, 0, playerLookup)}</p>
         </div>
-        <span className="flex shrink-0 items-center justify-center rounded-[16px] border bg-black/46 text-center text-[38px] font-black leading-none text-[#FFF4C8] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ borderColor: groupMeta.accentMid }}>
+        <span className="flex shrink-0 items-center justify-center rounded-[10px] border bg-[#081321]/74 text-center text-[25px] font-black leading-none text-[#FFE7A0]/90" style={{ borderColor: groupMeta.accentMid }}>
           {match.score1 ?? 0}:{match.score2 ?? 0}
         </span>
-        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-[16px] border bg-black/28 px-3 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" style={{ borderColor: groupMeta.accentMid }}>
-          <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[clamp(13px,0.9vw,20px)] font-black leading-none tracking-[-0.04em] text-white/88">{teamLabel(match, 2, playerLookup)}</p>
+        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-[10px] border border-white/7 bg-[#0B1626]/62 px-3 py-2 text-center">
+          <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(13px,0.86vw,18px)] font-black leading-tight text-white/88">{teamLabel(match, 2, playerLookup)}</p>
         </div>
       </div>
     </div>
@@ -693,81 +667,100 @@ function KdkDisplayBoard() {
     return [liveRanking.slice(0, splitAt), liveRanking.slice(splitAt)];
   }, [liveRanking]);
   const playingCount = matches.filter((match) => match.status === 'playing').length;
+  const totalMatches = matches.length;
+  const progressPercent = totalMatches > 0 ? Math.round((completedMatches.length / totalMatches) * 100) : 0;
   const statusLabel = realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : realtimeStatus;
 
   return (
-    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#050505] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(216,190,120,0.22),transparent_26%),radial-gradient(circle_at_100%_18%,rgba(239,68,68,0.16),transparent_22%),linear-gradient(135deg,#050505_0%,#11110F_48%,#070707_100%)]" />
-      <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(90deg,rgba(216,190,120,0.22)_1px,transparent_1px),linear-gradient(rgba(216,190,120,0.12)_1px,transparent_1px)] [background-size:72px_72px]" />
-      <div className="absolute left-0 right-0 top-[104px] h-px bg-gradient-to-r from-transparent via-[#FFD66B] to-transparent shadow-[0_0_28px_rgba(255,214,107,0.8)]" />
-      <div className="absolute right-[16%] top-10 h-24 w-[520px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(239,68,68,0.22),rgba(255,214,107,0.2),transparent)] blur-xl" />
+    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#0E1828] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(240,185,63,0.16),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(56,191,255,0.14),transparent_26%),linear-gradient(135deg,#0E1828_0%,#101A2B_46%,#0B1320_100%)]" />
+      <div className="absolute inset-0 opacity-[0.13] [background-image:linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.1)_1px,transparent_1px)] [background-size:76px_76px]" />
+      <div className="absolute left-0 right-0 top-[104px] h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent shadow-[0_0_22px_rgba(240,185,63,0.55)]" />
+      <div className="absolute right-[24%] top-8 h-24 w-[460px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(56,191,255,0.14),rgba(240,185,63,0.14),transparent)] blur-xl" />
 
       <div className="relative flex h-screen flex-col p-4 2xl:p-5">
-        <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[88px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-[22px] border border-[#D8BE78]/28 bg-black/60 px-5 shadow-[0_20px_54px_rgba(0,0,0,0.52),0_0_24px_rgba(216,190,120,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(216,190,120,0.2),transparent_55%)]" />
-          <div className="pointer-events-none absolute -right-20 top-0 h-full w-[420px] bg-[linear-gradient(105deg,transparent,rgba(239,68,68,0.28),transparent)]" />
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/92 to-transparent shadow-[0_0_22px_rgba(255,214,107,0.72)]" />
-          <div className="pointer-events-none absolute right-[34%] top-0 h-full w-[360px] -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,214,107,0.12),rgba(239,68,68,0.1),transparent)]" />
+        <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[88px] grid-cols-[minmax(0,1fr)_minmax(760px,auto)] items-center gap-5 overflow-hidden rounded-[18px] border border-[#F0B93F]/24 bg-[#101A2B]/88 px-5 shadow-[0_20px_54px_rgba(0,0,0,0.38),0_0_24px_rgba(240,185,63,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(240,185,63,0.16),transparent_55%)]" />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent" />
           <div className="flex min-w-0 items-center gap-4">
             <div
               aria-label="TEYEON Tennis logo"
-              className="relative h-[62px] w-[198px] shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/65 shadow-[0_0_34px_rgba(216,190,120,0.18),inset_0_1px_0_rgba(255,255,255,0.08)]"
+              className="relative h-[60px] w-[190px] shrink-0 overflow-hidden rounded-[14px] border border-white/10 bg-[#0A1220]/82 shadow-[0_0_28px_rgba(240,185,63,0.13),inset_0_1px_0_rgba(255,255,255,0.08)]"
               role="img"
               style={{
                 backgroundImage: "url('/logo.png')",
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                backgroundSize: '216px 216px',
+                backgroundSize: '210px 210px',
               }}
             >
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.06),transparent_34%,rgba(239,68,68,0.08))]" />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.05),transparent_34%,rgba(56,191,255,0.07))]" />
             </div>
             <div className="relative min-w-0">
-              <p className="text-[13px] font-black uppercase italic tracking-[0.16em] text-[#FFD66B] drop-shadow-[0_0_14px_rgba(255,214,107,0.28)]">TEYEON Live Board</p>
-              <h1 className="mt-1 truncate text-[clamp(29px,2.8vw,46px)] font-black uppercase leading-none tracking-[0.02em] text-white [text-shadow:0_0_20px_rgba(255,255,255,0.14)]">
+              <p className="text-[12px] font-black uppercase italic tracking-[0.18em] text-[#F0B93F]">TEYEON Arena Live Board</p>
+              <h1 className="mt-1 truncate text-[clamp(28px,2.6vw,44px)] font-black uppercase leading-none tracking-[0.01em] text-[#FFF8E8]">
                 {sessionTitle || sessionId || 'No Session'}
               </h1>
             </div>
           </div>
-          <div className="grid shrink-0 grid-cols-[auto_auto_auto_auto] items-center gap-6">
-            <div className="text-right">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/34">Time</p>
-              <p className="text-[32px] font-black leading-none text-white">{clock}</p>
+          <div className="grid shrink-0 grid-cols-[minmax(470px,1fr)_auto_auto_auto_auto] items-center gap-3">
+            <div className="grid grid-cols-4 gap-2 rounded-[14px] border border-white/10 bg-[#07101D]/58 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className="rounded-[9px] border border-red-400/26 bg-red-500/10 px-3 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-red-200/72">Playing</p>
+                <p className="text-[24px] font-black leading-none text-red-100">{playingCount}</p>
+              </div>
+              <div className="rounded-[9px] border border-[#F0B93F]/24 bg-[#F0B93F]/10 px-3 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-[#FFE7A0]/72">Waiting</p>
+                <p className="text-[24px] font-black leading-none text-[#FFE7A0]">{waitingMatches.length}</p>
+              </div>
+              <div className="rounded-[9px] border border-emerald-400/24 bg-emerald-500/10 px-3 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-200/72">Done</p>
+                <p className="text-[24px] font-black leading-none text-emerald-200">{completedMatches.length}</p>
+              </div>
+              <div className="rounded-[9px] border border-cyan-300/22 bg-cyan-400/10 px-3 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-cyan-100/72">Progress</p>
+                <p className="text-[24px] font-black leading-none text-cyan-100">{progressPercent}%</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5 rounded-[14px] border border-red-400/90 bg-red-500/24 px-3.5 py-2 text-red-50 shadow-[0_0_20px_rgba(239,68,68,0.48),inset_0_1px_0_rgba(255,255,255,0.14)]">
-              <span className="h-3 w-3 rounded-full bg-red-300 shadow-[0_0_12px_rgba(248,113,113,0.72)]" />
-              <span className="text-[20px] font-black uppercase tracking-[0.07em]">{statusLabel}</span>
+            <div className="text-right">
+              <p className="text-[8px] font-black uppercase tracking-[0.22em] text-white/34">Time</p>
+              <p className="text-[30px] font-black leading-none text-white">{clock}</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-[13px] border border-red-400/78 bg-red-500/22 px-3 py-2 text-red-50 shadow-[0_0_18px_rgba(239,68,68,0.38),inset_0_1px_0_rgba(255,255,255,0.12)]">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-300 shadow-[0_0_12px_rgba(248,113,113,0.7)]" />
+              <span className="text-[17px] font-black uppercase tracking-[0.08em]">{statusLabel}</span>
             </div>
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="pointer-events-auto relative z-30 whitespace-nowrap rounded-[12px] border border-[#FFD66B]/48 bg-[#D8BE78]/12 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFE7A0] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:border-[#FFD66B]/80 hover:bg-[#D8BE78]/20 active:scale-95"
+              className="pointer-events-auto relative z-30 whitespace-nowrap rounded-[12px] border border-[#F0B93F]/48 bg-[#F0B93F]/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#FFE7A0] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:border-[#F0B93F]/80 hover:bg-[#F0B93F]/20 active:scale-95"
             >
               {isFullscreen ? '전체화면 해제' : '전체화면'}
             </button>
-            <div className="whitespace-nowrap rounded-[12px] border border-white/10 bg-white/[0.065] px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/52">
+            <div className="whitespace-nowrap rounded-[12px] border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/52">
               Read Only
             </div>
           </div>
         </header>
 
-        <section className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_600px] gap-4">
-          <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_238px] gap-4 2xl:grid-rows-[auto_minmax(0,1fr)_248px]">
+        <section className="grid min-h-0 flex-1 grid-cols-[minmax(0,54fr)_minmax(320px,21fr)_minmax(420px,25fr)] grid-rows-[minmax(0,1fr)_220px] gap-4 2xl:grid-rows-[minmax(0,1fr)_232px]">
+          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/22 bg-[#101A2B]/70 p-4 shadow-[0_18px_46px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.075)]">
+            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/82 to-transparent" />
             <div className="flex items-center justify-between px-1">
-              <h2 className="flex items-center gap-3 text-[21px] font-black uppercase italic tracking-[0.18em] text-[#FFD66B] drop-shadow-[0_0_16px_rgba(255,214,107,0.28)]">
-                <span className="h-7 w-1.5 rounded-full bg-[#FFD66B] shadow-[0_0_18px_rgba(255,214,107,0.8)]" />
-                Now Playing
+              <h2 className="flex items-center gap-3 text-[20px] font-black uppercase italic tracking-[0.17em] text-[#FFE7A0]">
+                <span className="h-7 w-1.5 rounded-[4px] bg-[#F0B93F] shadow-[0_0_16px_rgba(240,185,63,0.52)]" />
+                Court Arena
               </h2>
-              <span className="rounded-full border border-[#D8BE78]/22 bg-[#D8BE78]/8 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-white/45">4 Court Live Operation</span>
+              <span className="rounded-[8px] border border-[#F0B93F]/22 bg-[#F0B93F]/8 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/44">현재 진행 중인 경기</span>
             </div>
 
-            <div className="grid min-h-0 grid-cols-2 grid-rows-2 gap-4">
+            <div className="mt-3 grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-4">
               {[1, 2, 3, 4].map((court) => (
                 <CourtCard key={court} court={court} match={playingByCourt.get(court)} playerLookup={playerLookup} />
               ))}
             </div>
 
-            <section className="relative min-h-0 overflow-hidden rounded-[20px] border border-[#D8BE78]/30 bg-black/58 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.44),0_0_22px_rgba(216,190,120,0.08),inset_0_1px_0_rgba(255,255,255,0.075)] 2xl:p-[18px]">
+            <section className="hidden">
               <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/88 to-transparent" />
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[16px] font-black uppercase italic tracking-[0.18em] text-[#FFD66B]">
@@ -788,11 +781,35 @@ function KdkDisplayBoard() {
                 </div>
               )}
             </section>
-          </div>
+          </section>
 
-          <aside className="relative grid min-h-0 grid-rows-[132px_minmax(0,1fr)_350px] gap-3.5">
+          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/30 bg-[#0F1B2D]/86 p-4 shadow-[0_18px_46px_rgba(0,0,0,0.34),0_0_20px_rgba(240,185,63,0.055),inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-18px_34px_rgba(0,0,0,0.12)]">
+            <div className="absolute inset-y-8 left-0 w-[4px] rounded-r-[6px] bg-gradient-to-b from-transparent via-[#F0B93F]/82 to-transparent" />
+            <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/62 to-transparent" />
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-[10px] border border-white/8 bg-white/[0.035] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <h2 className="flex min-w-0 items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.13em] text-[#FFE7A0]">
+                <span className="h-5 w-1 rounded-[4px] bg-[#F0B93F] shadow-[0_0_12px_rgba(240,185,63,0.5)]" />
+                Up Next Lane
+              </h2>
+              <span className="shrink-0 rounded-[8px] border border-white/10 bg-white/[0.045] px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/42">
+                {waitingMatches.length} queued
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
+              {waitingMatches.slice(0, 6).map((match, index) => (
+                <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} playingPlayerIds={playingPlayerIds} />
+              ))}
+              {!loading && waitingMatches.length === 0 && (
+                <div className="rounded-[14px] border border-dashed border-[#F0B93F]/20 bg-white/[0.025] py-12 text-center text-[12px] font-black uppercase tracking-[0.2em] text-white/36">
+                  No Waiting Matches
+                </div>
+              )}
+            </div>
+          </section>
+
+          <aside className="row-span-2 relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/30 bg-[#0C1727]/88 p-4 shadow-[0_22px_54px_rgba(0,0,0,0.36),0_0_28px_rgba(240,185,63,0.08),inset_0_1px_0_rgba(255,255,255,0.075)]">
             <div className="pointer-events-none absolute -left-5 bottom-2 top-2 w-10 rounded-full bg-[linear-gradient(90deg,transparent,rgba(216,190,120,0.065),transparent)] blur-md" />
-            <section className="relative min-h-0 overflow-hidden rounded-[20px] border border-[#D8BE78]/22 bg-black/58 p-4 shadow-[0_16px_38px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <section className="hidden">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/62 to-transparent" />
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.14em] text-[#FFD66B]">
@@ -817,7 +834,7 @@ function KdkDisplayBoard() {
               </div>
             </section>
 
-            <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-[#D8BE78]/22 bg-black/58 p-4 shadow-[0_16px_38px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <section className="hidden">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/62 to-transparent" />
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.14em] text-[#FFD66B]">
@@ -838,84 +855,122 @@ function KdkDisplayBoard() {
               </div>
             </section>
 
-            <section className="relative overflow-hidden rounded-[20px] border border-[#D8BE78]/22 bg-black/58 p-4 shadow-[0_16px_38px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/62 to-transparent" />
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-[17px] font-black uppercase italic tracking-[0.12em] text-[#FFD66B]">
-                  <span className="h-5 w-1 rounded-full bg-[#FFD66B]/90 shadow-[0_0_12px_rgba(255,214,107,0.62)]" />
-                  Live Ranking
+            <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[#F0B93F]/28 bg-[#0C1727]/76 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.4),0_0_24px_rgba(240,185,63,0.07),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-18px_34px_rgba(0,0,0,0.18)]">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/76 to-transparent" />
+              <div className="absolute inset-x-4 top-[42px] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <div className="mb-3 flex items-center justify-between rounded-[10px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.015))] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <h2 className="flex items-center text-[19px] font-black uppercase italic tracking-[0.12em] text-[#FFE7A0]">
+                  Ranking Tower
                 </h2>
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">All {liveRanking.length}</span>
+                <span className="rounded-[7px] border border-[#F0B93F]/24 bg-[#F0B93F]/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/44">All {liveRanking.length}</span>
               </div>
               {liveRanking.length > 0 ? (
-                <div className={`grid h-full w-full gap-2 ${liveRankingColumns.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {liveRankingColumns.map((column, columnIndex) => {
-                    const rankOffset = liveRankingColumns.slice(0, columnIndex).reduce((sum, items) => sum + items.length, 0);
-                    return (
-                      <div key={`ranking-column-${columnIndex}`} className="min-w-0 space-y-1.5">
-                        <div className="grid grid-cols-[30px_minmax(0,1fr)_48px_36px] items-center gap-2 px-2 text-[8px] font-black uppercase tracking-[0.12em] text-white/32">
-                          <span className="text-center">Rank</span>
-                          <span>Player</span>
-                          <span className="text-right">W/L</span>
-                          <span className="text-right">Diff</span>
+                <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {liveRanking.slice(0, 3).map((player, index) => {
+                      const tone = index === 0
+                        ? 'border-[#F0B93F]/78 bg-[linear-gradient(180deg,rgba(240,185,63,0.24),rgba(11,19,32,0.92))] text-[#FFE7A0] shadow-[0_0_22px_rgba(240,185,63,0.18),inset_0_1px_0_rgba(255,255,255,0.12)]'
+                        : index === 1
+                          ? 'border-slate-200/42 bg-[linear-gradient(180deg,rgba(226,232,240,0.16),rgba(13,23,39,0.92))] text-slate-100'
+                          : 'border-orange-300/42 bg-[linear-gradient(180deg,rgba(251,146,60,0.16),rgba(13,23,39,0.92))] text-orange-200';
+                      const totalPlayed = Math.max(1, player.wins + player.losses);
+                      const winRate = Math.round((player.wins / totalPlayed) * 100);
+                      return (
+                        <div key={player.id} className={`relative min-w-0 overflow-hidden rounded-[14px] border px-3 py-3 text-center ${tone}`}>
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] opacity-74">{index === 0 ? 'Leader' : `Top ${index + 1}`}</div>
+                          <div className="mx-auto mt-2 flex h-12 w-12 items-center justify-center rounded-[14px] border border-current bg-black/26 text-[25px] font-black leading-none">
+                            {index + 1}
+                          </div>
+                          <p className="mt-2 min-w-0 truncate text-[14px] font-black text-white">{player.name}</p>
+                          <p className="mt-1 text-[11px] font-black text-white/62">{player.wins}W {player.losses}L</p>
+                          <div className="mx-auto mt-2 h-1.5 w-16 overflow-hidden rounded-[3px] bg-black/34">
+                            <div className="h-full rounded-[3px] bg-current" style={{ width: `${winRate}%` }} />
+                          </div>
+                          <p className={`mt-1 text-[16px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/60'}`}>
+                            {player.diff > 0 ? '+' : ''}{player.diff}
+                          </p>
                         </div>
-                        {column.map((player, localIndex) => {
-                          const rankIndex = rankOffset + localIndex;
-                          const settlement = calculateDisplaySettlement(player, rankIndex, liveRanking.length);
-                          return (
-                            <div key={player.id} className={`relative grid min-h-[28px] grid-cols-[30px_minmax(0,1fr)_48px_36px] items-center gap-2 overflow-hidden rounded-[10px] border px-2 py-1 ${
-                              settlement.isPenalty
-                                ? 'border-red-400/24 bg-red-500/[0.075]'
-                                : rankIndex === 0
-                                ? 'border-[#FFD66B]/28 bg-[#D8BE78]/10'
-                                : rankIndex === 1
-                                  ? 'border-white/12 bg-white/[0.052]'
-                                  : rankIndex === 2
-                                    ? 'border-orange-400/16 bg-orange-400/[0.04]'
-                                    : 'border-white/8 bg-white/[0.035]'
-                            }`}>
-                              {(rankIndex < 3 || settlement.isPenalty) && (
-                                <div className={`absolute inset-y-0 left-0 w-0.5 ${
-                                  settlement.isPenalty ? 'bg-red-400' : rankIndex === 0 ? 'bg-[#FFD66B]' : rankIndex === 1 ? 'bg-white/45' : 'bg-orange-400/65'
-                                }`} />
-                              )}
-                              <span className={`flex h-6 w-6 items-center justify-center justify-self-center rounded-md text-[11px] font-black leading-none ${
-                                settlement.isPenalty
-                                  ? 'bg-red-500/80 text-white'
-                                  : rankIndex === 0
-                                  ? 'bg-[#FFD66B] text-black'
-                                  : rankIndex === 1
-                                    ? 'bg-white/70 text-black'
-                                    : rankIndex === 2
-                                      ? 'bg-orange-400/75 text-black'
-                                      : 'bg-white/10 text-white/58'
-                              }`}>
-                                {rankIndex + 1}
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-[36px_44px_minmax(80px,0.85fr)_78px_30px_30px_42px] items-center gap-1.5 border-b border-white/8 px-2.5 pb-1.5 text-[8px] font-black uppercase tracking-[0.13em] text-white/38">
+                    <span className="text-center">Rank</span>
+                    <span className="text-center">변동</span>
+                    <span>Name</span>
+                    <span className="text-center">Rate</span>
+                    <span className="text-center">W</span>
+                    <span className="text-center">L</span>
+                    <span className="text-right">Diff</span>
+                  </div>
+                  <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
+                    {liveRanking.slice(3).map((player, index) => {
+                      const rankIndex = index + 3;
+                      const settlement = calculateDisplaySettlement(player, rankIndex, liveRanking.length);
+                      const totalPlayed = Math.max(1, player.wins + player.losses);
+                      const winRate = Math.round((player.wins / totalPlayed) * 100);
+                      const movementAmount = Math.min(3, Math.max(1, Math.ceil(Math.abs(player.diff) / 5)));
+                      const moveLabel = player.diff > 0 ? `\u25B2${movementAmount}` : player.diff < 0 ? `\u25BC${movementAmount}` : '\u2014';
+                      const moveClass = player.diff > 0 ? 'text-red-300' : player.diff < 0 ? 'text-cyan-300' : 'text-white/36';
+                      return (
+                        <div key={player.id} className={`relative grid h-[34px] grid-cols-[36px_44px_minmax(80px,0.85fr)_78px_30px_30px_42px] items-center gap-1.5 overflow-hidden rounded-[7px] border px-2.5 py-1 ${
+                          settlement.isPenalty
+                            ? 'border-red-400/18 bg-red-500/[0.052]'
+                            : 'border-white/8 bg-white/[0.036]'
+                        }`}>
+                          {settlement.isPenalty && <div className="absolute inset-y-0 left-0 w-0.5 bg-red-400" />}
+                          <span className={`flex h-6 w-7 items-center justify-center justify-self-center rounded-[6px] text-[12px] font-black leading-none ${settlement.isPenalty ? 'bg-red-500/70 text-white' : 'bg-white/9 text-white/62'}`}>
+                            {rankIndex + 1}
+                          </span>
+                          <span className={`text-center text-[11px] font-black leading-none tracking-[-0.02em] ${moveClass}`}>{moveLabel}</span>
+                          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                            <p className="min-w-0 truncate text-[13px] font-black text-white/90">{player.name}</p>
+                            {settlement.isPenalty && (
+                                <span className="shrink-0 rounded-[5px] border border-red-300/22 bg-red-500/12 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-200">
+                                PEN
                               </span>
-                              <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                                <p className={`min-w-0 truncate text-[11px] font-black ${rankIndex < 3 ? 'text-white' : 'text-white/86'}`}>{player.name}</p>
-                                {settlement.isPenalty && (
-                                  <span className="shrink-0 rounded-full border border-red-300/25 bg-red-500/15 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-200">
-                                    PEN
-                                  </span>
-                                )}
-                              </div>
-                              <span className="w-full whitespace-nowrap text-right text-[9px] font-black text-white/76">{player.wins}W {player.losses}L</span>
-                              <span className={`w-full text-right text-[12px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
-                                {player.diff > 0 ? '+' : ''}{player.diff}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
+                            )}
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-[2px] bg-black/34">
+                            <div className="h-full rounded-[2px] bg-[#F0B93F]/80" style={{ width: `${winRate}%` }} />
+                          </div>
+                          <span className="w-full text-center text-[12px] font-black text-white/74">{player.wins}</span>
+                          <span className="w-full text-center text-[12px] font-black text-white/58">{player.losses}</span>
+                          <span className={`w-full text-right text-[13px] font-black ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
+                            {player.diff > 0 ? '+' : ''}{player.diff}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <p className="py-10 text-center text-[12px] font-black uppercase tracking-[0.2em] text-white/38">No Ranking Yet</p>
               )}
             </section>
           </aside>
+
+          <section className="col-span-2 relative min-h-0 overflow-hidden rounded-[18px] border border-white/10 bg-[#101A2B]/60 p-4 shadow-[0_16px_34px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/42 to-transparent" />
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-[17px] font-black uppercase italic tracking-[0.16em] text-[#FFE7A0]/86">
+                <span className="h-5 w-1 rounded-[4px] bg-emerald-400/78 shadow-[0_0_10px_rgba(52,211,153,0.32)]" />
+                Completed Recent
+              </h2>
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">{completedMatches.length} done</span>
+            </div>
+            {completedMatches.length > 0 ? (
+              <div className="grid grid-cols-4 gap-3">
+                {completedMatches.slice(0, 4).map((match) => (
+                  <CompletedMiniCard key={match.id} match={match} playerLookup={playerLookup} />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[14px] border border-dashed border-[#F0B93F]/14 bg-white/[0.025] py-10 text-center text-[13px] font-black uppercase tracking-[0.22em] text-white/38">
+                No Results Yet
+              </div>
+            )}
+          </section>
         </section>
 
         {error && (
