@@ -672,14 +672,14 @@ function KdkDisplayBoard() {
   const statusLabel = realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : realtimeStatus;
 
   return (
-    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#0E1828] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(240,185,63,0.16),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(56,191,255,0.14),transparent_26%),linear-gradient(135deg,#0E1828_0%,#101A2B_46%,#0B1320_100%)]" />
-      <div className="absolute inset-0 opacity-[0.13] [background-image:linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.1)_1px,transparent_1px)] [background-size:76px_76px]" />
+    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#070C18] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(240,185,63,0.20),transparent_30%),radial-gradient(circle_at_84%_14%,rgba(56,191,255,0.16),transparent_28%),linear-gradient(135deg,#070C18_0%,#0C1524_46%,#050A13_100%)]" />
+      <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:72px_72px]" />
       <div className="absolute left-0 right-0 top-[104px] h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent shadow-[0_0_22px_rgba(240,185,63,0.55)]" />
       <div className="absolute right-[24%] top-8 h-24 w-[460px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(56,191,255,0.14),rgba(240,185,63,0.14),transparent)] blur-xl" />
 
       <div className="relative flex h-screen flex-col p-4 2xl:p-5">
-        <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[88px] grid-cols-[minmax(0,1fr)_minmax(760px,auto)] items-center gap-5 overflow-hidden rounded-[18px] border border-[#F0B93F]/24 bg-[#101A2B]/88 px-5 shadow-[0_20px_54px_rgba(0,0,0,0.38),0_0_24px_rgba(240,185,63,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[88px] grid-cols-[minmax(0,1fr)_minmax(760px,auto)] items-center gap-5 overflow-hidden rounded-[18px] border border-[#F0B93F]/32 bg-[#09131F]/95 px-5 shadow-[0_24px_64px_rgba(0,0,0,0.58),0_0_32px_rgba(240,185,63,0.12),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(240,185,63,0.08)]">
           <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(240,185,63,0.16),transparent_55%)]" />
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent" />
           <div className="flex min-w-0 items-center gap-4">
@@ -744,11 +744,11 @@ function KdkDisplayBoard() {
         </header>
 
         <section className="grid min-h-0 flex-1 grid-cols-[minmax(0,54fr)_minmax(320px,21fr)_minmax(420px,25fr)] grid-rows-[minmax(0,1fr)_220px] gap-4 2xl:grid-rows-[minmax(0,1fr)_232px]">
-          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/22 bg-[#101A2B]/70 p-4 shadow-[0_18px_46px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.075)]">
-            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/82 to-transparent" />
-            <div className="flex items-center justify-between px-1">
+          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/28 bg-[#050B17]/94 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.95),0_0_0_3px_rgba(240,185,63,0.16),0_26px_64px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-32px_52px_rgba(0,0,0,0.26)]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#F0B93F]/65 to-transparent" />
+            <div className="flex items-center justify-between rounded-[10px] border border-[#F0B93F]/20 bg-black/52 px-3 py-2 shadow-[0_3px_10px_rgba(0,0,0,0.52),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-1px_0_rgba(0,0,0,0.32)]">
               <h2 className="flex items-center gap-3 text-[20px] font-black uppercase italic tracking-[0.17em] text-[#FFE7A0]">
-                <span className="h-7 w-1.5 rounded-[4px] bg-[#F0B93F] shadow-[0_0_16px_rgba(240,185,63,0.52)]" />
+                <span className="h-7 w-1.5 rounded-[4px] bg-[#F0B93F] shadow-[0_0_14px_rgba(240,185,63,0.48)]" />
                 Court Arena
               </h2>
               <span className="rounded-[8px] border border-[#F0B93F]/22 bg-[#F0B93F]/8 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/44">현재 진행 중인 경기</span>
@@ -783,10 +783,10 @@ function KdkDisplayBoard() {
             </section>
           </section>
 
-          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/30 bg-[#0F1B2D]/86 p-4 shadow-[0_18px_46px_rgba(0,0,0,0.34),0_0_20px_rgba(240,185,63,0.055),inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-18px_34px_rgba(0,0,0,0.12)]">
-            <div className="absolute inset-y-8 left-0 w-[4px] rounded-r-[6px] bg-gradient-to-b from-transparent via-[#F0B93F]/82 to-transparent" />
-            <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/62 to-transparent" />
-            <div className="mb-3 flex items-center justify-between gap-2 rounded-[10px] border border-white/8 bg-white/[0.035] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/32 bg-[#050A18]/95 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.95),0_0_0_3px_rgba(240,185,63,0.14),0_24px_60px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-28px_48px_rgba(0,0,0,0.28)]">
+            <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-[4px] bg-gradient-to-b from-transparent via-[#F0B93F]/72 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#F0B93F]/55 via-[#F0B93F]/28 to-transparent" />
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-[10px] border border-[#F0B93F]/20 bg-black/50 px-3 py-2 shadow-[0_3px_10px_rgba(0,0,0,0.52),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-1px_0_rgba(0,0,0,0.32)]">
               <h2 className="flex min-w-0 items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.13em] text-[#FFE7A0]">
                 <span className="h-5 w-1 rounded-[4px] bg-[#F0B93F] shadow-[0_0_12px_rgba(240,185,63,0.5)]" />
                 Up Next Lane
@@ -807,8 +807,9 @@ function KdkDisplayBoard() {
             </div>
           </section>
 
-          <aside className="row-span-2 relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/30 bg-[#0C1727]/88 p-4 shadow-[0_22px_54px_rgba(0,0,0,0.36),0_0_28px_rgba(240,185,63,0.08),inset_0_1px_0_rgba(255,255,255,0.075)]">
-            <div className="pointer-events-none absolute -left-5 bottom-2 top-2 w-10 rounded-full bg-[linear-gradient(90deg,transparent,rgba(216,190,120,0.065),transparent)] blur-md" />
+          <aside className="row-span-2 relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/38 bg-[#040810]/98 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.98),0_0_0_3px_rgba(240,185,63,0.18),0_28px_68px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(240,185,63,0.06)]">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent" />
+            <div className="pointer-events-none absolute -left-5 bottom-2 top-2 w-10 rounded-full bg-[linear-gradient(90deg,transparent,rgba(216,190,120,0.08),transparent)] blur-md" />
             <section className="hidden">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/62 to-transparent" />
               <div className="mb-3 flex items-center justify-between">
@@ -855,14 +856,14 @@ function KdkDisplayBoard() {
               </div>
             </section>
 
-            <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[#F0B93F]/28 bg-[#0C1727]/76 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.4),0_0_24px_rgba(240,185,63,0.07),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-18px_34px_rgba(0,0,0,0.18)]">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/76 to-transparent" />
-              <div className="absolute inset-x-4 top-[42px] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-              <div className="mb-3 flex items-center justify-between rounded-[10px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.015))] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[#F0B93F]/32 bg-[#020610]/92 p-4 shadow-[0_0_0_1px_rgba(1,3,8,0.98),0_0_0_3px_rgba(240,185,63,0.15),0_22px_52px_rgba(0,0,0,0.70),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-32px_56px_rgba(0,0,0,0.36)]">
+              <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#F0B93F]/85 to-transparent" />
+              <div className="absolute inset-x-4 top-[46px] h-px bg-gradient-to-r from-[#F0B93F]/20 via-[#F0B93F]/10 to-transparent" />
+              <div className="mb-3 flex items-center justify-between rounded-[10px] border border-[#F0B93F]/24 bg-[linear-gradient(180deg,rgba(0,0,0,0.65),rgba(0,0,0,0.45))] px-3 py-2 shadow-[0_3px_10px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-1px_0_rgba(0,0,0,0.36)]">
                 <h2 className="flex items-center text-[19px] font-black uppercase italic tracking-[0.12em] text-[#FFE7A0]">
                   Ranking Tower
                 </h2>
-                <span className="rounded-[7px] border border-[#F0B93F]/24 bg-[#F0B93F]/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/44">All {liveRanking.length}</span>
+                <span className="rounded-[7px] border border-[#F0B93F]/28 bg-[#F0B93F]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#FFE7A0]/60">All {liveRanking.length}</span>
               </div>
               {liveRanking.length > 0 ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-2.5">
@@ -950,9 +951,9 @@ function KdkDisplayBoard() {
             </section>
           </aside>
 
-          <section className="col-span-2 relative min-h-0 overflow-hidden rounded-[18px] border border-white/10 bg-[#101A2B]/60 p-4 shadow-[0_16px_34px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.06)]">
-            <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/42 to-transparent" />
-            <div className="mb-3 flex items-center justify-between">
+          <section className="col-span-2 relative min-h-0 overflow-hidden rounded-[18px] border border-[#F0B93F]/22 bg-[#050A15]/88 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.95),0_0_0_3px_rgba(240,185,63,0.10),0_20px_46px_rgba(0,0,0,0.60),inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-20px_36px_rgba(0,0,0,0.22)]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#F0B93F]/42 to-transparent" />
+            <div className="mb-3 flex items-center justify-between rounded-[10px] border border-white/10 bg-black/50 px-3 py-2 shadow-[0_3px_10px_rgba(0,0,0,0.52),inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(0,0,0,0.30)]">
               <h2 className="flex items-center gap-2 text-[17px] font-black uppercase italic tracking-[0.16em] text-[#FFE7A0]/86">
                 <span className="h-5 w-1 rounded-[4px] bg-emerald-400/78 shadow-[0_0_10px_rgba(52,211,153,0.32)]" />
                 Completed Recent
