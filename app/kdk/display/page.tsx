@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Match, Member } from '@/lib/tournament_types';
@@ -19,6 +19,9 @@ type RankingEntry = {
   diff: number;
 };
 type PlayerLookup = Record<string, { name: string; isGuest: boolean }>;
+
+const DESIGN_WIDTH = 1920;
+const DESIGN_HEIGHT = 1080;
 
 const formatClock = () => {
   return new Date().toLocaleTimeString('ko-KR', {
@@ -488,6 +491,33 @@ function KdkDisplayBoard() {
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('IDLE');
   const [resolvedSessionId, setResolvedSessionId] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [zoom, setZoom] = useState({ userZoom: 1, panX: 0, panY: 0 });
+
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const gestureRef = useRef<{
+    isPinching: boolean;
+    isDragging: boolean;
+    lastTapTime: number;
+    initialPinchDist: number;
+    startUserZoom: number;
+    dragStartX: number;
+    dragStartY: number;
+    startPanX: number;
+    startPanY: number;
+  }>({
+    isPinching: false,
+    isDragging: false,
+    lastTapTime: 0,
+    initialPinchDist: 0,
+    startUserZoom: 1,
+    dragStartX: 0,
+    dragStartY: 0,
+    startPanX: 0,
+    startPanY: 0,
+  });
 
   const fetchMembers = async () => {
     try {
@@ -602,6 +632,92 @@ function KdkDisplayBoard() {
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const calcScale = () => {
+      const sw = window.innerWidth / DESIGN_WIDTH;
+      const sh = window.innerHeight / DESIGN_HEIGHT;
+      setScale(Math.min(sw, sh, 1));
+    };
+    calcScale();
+    window.addEventListener('resize', calcScale);
+    return () => window.removeEventListener('resize', calcScale);
+  }, []);
+
+  useEffect(() => {
+    const el = viewerRef.current;
+    if (!el) return;
+
+    const pinchDist = (touches: TouchList) =>
+      Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      const g = gestureRef.current;
+      const { userZoom, panX, panY } = zoomRef.current;
+
+      if (e.touches.length === 2) {
+        g.isPinching = true;
+        g.isDragging = false;
+        g.initialPinchDist = pinchDist(e.touches);
+        g.startUserZoom = userZoom;
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - g.lastTapTime < 300) {
+          setZoom({ userZoom: 1, panX: 0, panY: 0 });
+          g.lastTapTime = 0;
+          return;
+        }
+        g.lastTapTime = now;
+        g.isPinching = false;
+        g.isDragging = true;
+        g.dragStartX = e.touches[0].clientX;
+        g.dragStartY = e.touches[0].clientY;
+        g.startPanX = panX;
+        g.startPanY = panY;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const g = gestureRef.current;
+
+      if (g.isPinching && e.touches.length === 2) {
+        const ratio = pinchDist(e.touches) / g.initialPinchDist;
+        const newUserZoom = Math.min(3, Math.max(1, g.startUserZoom * ratio));
+        setZoom((prev) => ({
+          ...prev,
+          userZoom: newUserZoom,
+          ...(newUserZoom <= 1 ? { panX: 0, panY: 0 } : {}),
+        }));
+      } else if (g.isDragging && e.touches.length === 1) {
+        if (zoomRef.current.userZoom <= 1) return;
+        const dx = e.touches[0].clientX - g.dragStartX;
+        const dy = e.touches[0].clientY - g.dragStartY;
+        setZoom((prev) => ({
+          ...prev,
+          panX: g.startPanX + dx,
+          panY: g.startPanY + dy,
+        }));
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      const g = gestureRef.current;
+      if (e.touches.length < 2) g.isPinching = false;
+      if (e.touches.length === 0) g.isDragging = false;
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
     };
   }, []);
 
@@ -830,13 +946,28 @@ function KdkDisplayBoard() {
   );
 
   return (
-    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#070C18] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(240,185,63,0.20),transparent_30%),radial-gradient(circle_at_84%_14%,rgba(56,191,255,0.16),transparent_28%),linear-gradient(135deg,#070C18_0%,#0C1524_46%,#050A13_100%)]" />
-      <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:72px_72px]" />
-      <div className="absolute left-0 right-0 top-[104px] h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent shadow-[0_0_22px_rgba(240,185,63,0.55)]" />
-      <div className="absolute right-[24%] top-8 h-24 w-[460px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(56,191,255,0.14),rgba(240,185,63,0.14),transparent)] blur-xl" />
+    <div
+      ref={viewerRef}
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[#070C18]"
+      style={{ touchAction: 'none' }}
+    >
+      <div
+        style={{
+          width: DESIGN_WIDTH,
+          height: DESIGN_HEIGHT,
+          transform: `translate(${zoom.panX}px, ${zoom.panY}px) scale(${scale * zoom.userZoom})`,
+          transformOrigin: 'center center',
+          flexShrink: 0,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(240,185,63,0.20),transparent_30%),radial-gradient(circle_at_84%_14%,rgba(56,191,255,0.16),transparent_28%),linear-gradient(135deg,#070C18_0%,#0C1524_46%,#050A13_100%)]" />
+        <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute left-0 right-0 top-[104px] h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent shadow-[0_0_22px_rgba(240,185,63,0.55)]" />
+        <div className="absolute right-[24%] top-8 h-24 w-[460px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(56,191,255,0.14),rgba(240,185,63,0.14),transparent)] blur-xl" />
 
-      <div className="relative flex h-screen flex-col p-4 2xl:p-5">
+        <div className="relative flex h-full flex-col p-4 text-white">
         <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[64px] grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-6 overflow-hidden rounded-[18px] border border-[#F0B93F]/32 bg-[#09131F]/95 px-5 shadow-[0_24px_64px_rgba(0,0,0,0.58),0_0_32px_rgba(240,185,63,0.12),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(240,185,63,0.08)]">
           <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(240,185,63,0.16),transparent_55%)]" />
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent" />
@@ -1160,8 +1291,9 @@ function KdkDisplayBoard() {
             {error}
           </div>
         )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
 
