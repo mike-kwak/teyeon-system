@@ -491,11 +491,14 @@ function KdkDisplayBoard() {
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('IDLE');
   const [resolvedSessionId, setResolvedSessionId] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [tickerMessage, setTickerMessage] = useState('');
   const [scale, setScale] = useState(1);
   const [zoom, setZoom] = useState({ userZoom: 1, panX: 0, panY: 0 });
 
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef(zoom);
+  const tickerGroupRef = useRef<HTMLDivElement>(null);
+  const [tickerDuration, setTickerDuration] = useState(18);
   zoomRef.current = zoom;
   const gestureRef = useRef<{
     isPinching: boolean;
@@ -518,6 +521,16 @@ function KdkDisplayBoard() {
     startPanX: 0,
     startPanY: 0,
   });
+
+  const fetchTickerMessage = async (sid: string) => {
+    if (!sid) return;
+    const { data } = await supabase
+      .from('kdk_session_meta')
+      .select('ticker_message')
+      .eq('session_id', sid)
+      .maybeSingle();
+    setTickerMessage(data?.ticker_message ?? '');
+  };
 
   const fetchMembers = async () => {
     try {
@@ -598,6 +611,7 @@ function KdkDisplayBoard() {
       setResolvedSessionId(nextResolvedSessionId);
       setMatches(nextMatches);
       setSessionTitle(data?.[0]?.session_title || targetSessionId);
+      fetchTickerMessage(nextResolvedSessionId);
       setLastSync(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
     } catch (err: any) {
       console.error('[KDK Display] fetchMatches failed:', err);
@@ -613,11 +627,38 @@ function KdkDisplayBoard() {
   }, []);
 
   useEffect(() => {
-    const style = document.createElement('style');
-    style.dataset.id = 'ticker-marquee';
-    style.textContent = '@keyframes ticker-scroll{0%{transform:translateX(-50%)}100%{transform:translateX(0)}}';
-    document.head.appendChild(style);
-    return () => { if (style.parentNode) style.remove(); };
+    const applyKeyframe = (w: number) => {
+      let st = document.querySelector('style[data-id="ticker-marquee"]') as HTMLStyleElement | null;
+      if (!st) {
+        st = document.createElement('style');
+        st.dataset.id = 'ticker-marquee';
+        document.head.appendChild(st);
+      }
+      // right-scroll: from -w (one group left) to 0
+      st.textContent = `@keyframes ticker-scroll{from{transform:translateX(-${w}px)}to{transform:translateX(0)}}`;
+      setTickerDuration(Math.max(10, Math.round(w / 80)));
+    };
+
+    const measure = () => {
+      const el = tickerGroupRef.current;
+      if (!el || el.offsetWidth === 0) return;
+      applyKeyframe(el.offsetWidth);
+    };
+
+    const raf = requestAnimationFrame(measure);
+
+    const ro = new ResizeObserver(() => {
+      const el = tickerGroupRef.current;
+      if (el && el.offsetWidth > 0) applyKeyframe(el.offsetWidth);
+    });
+    if (tickerGroupRef.current) ro.observe(tickerGroupRef.current);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      const s = document.querySelector('style[data-id="ticker-marquee"]');
+      if (s?.parentNode) s.parentNode.removeChild(s);
+    };
   }, []);
 
   useEffect(() => {
@@ -783,6 +824,16 @@ function KdkDisplayBoard() {
           fetchMatches(activeRealtimeSessionId);
         }
       })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'kdk_session_meta',
+        filter: `session_id=eq.${activeRealtimeSessionId}`,
+      }, (payload: any) => {
+        if (payload.new) {
+          setTickerMessage(payload.new.ticker_message ?? '');
+        }
+      })
       .subscribe((status) => {
         setRealtimeStatus(status);
         console.log('[KDK Display] Realtime status:', status);
@@ -887,9 +938,15 @@ function KdkDisplayBoard() {
     return guests;
   }, [matches, playerLookup]);
 
+  // 각 블록 앞에 오는 구분자 — 루프 이음매도 이 패턴으로 통일
+  const tickerBall = (
+    <span style={{ flexShrink: 0, margin: '0 52px', fontSize: '15px', lineHeight: 1, opacity: 0.9 }}>🎾</span>
+  );
+
   const tickerGroupContent = (
     <>
-      {/* Block 1: UP NEXT — 핵심 정보, 가장 먼저 */}
+      {/* 🎾 UP NEXT */}
+      {tickerBall}
       <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
         <span className="font-extrabold text-[#FFE7A0]">UP NEXT</span>
         {tickerNextMatchNum > 0 && (
@@ -911,10 +968,10 @@ function KdkDisplayBoard() {
           <span className="text-white/42" style={{ marginLeft: '16px' }}>대기 경기 없음</span>
         )}
       </div>
-      {/* Separator + Block 2: LEADER */}
+      {/* 🎾 LEADER */}
       {tickerLeader && (
         <>
-          <span className="shrink-0 text-white/15" style={{ margin: '0 56px' }}>·</span>
+          {tickerBall}
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <span className="font-extrabold text-[#FFE7A0]">LEADER</span>
             <span className="text-white/82" style={{ marginLeft: '16px' }}>{tickerLeader.name}</span>
@@ -927,8 +984,8 @@ function KdkDisplayBoard() {
           </div>
         </>
       )}
-      {/* Separator + Block 3: WELCOME — 게스트 있으면 이름, 없으면 fallback */}
-      <span className="shrink-0 text-white/15" style={{ margin: '0 56px' }}>·</span>
+      {/* 🎾 WELCOME */}
+      {tickerBall}
       <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
         <span className="font-extrabold text-[#FFE7A0]">WELCOME</span>
         <span className="text-white/82" style={{ marginLeft: '16px' }}>
@@ -937,11 +994,20 @@ function KdkDisplayBoard() {
             : 'TEYEON PLAYERS'}
         </span>
       </div>
-      {/* Separator + Block 4: TEYEON KDK LIVE — 브랜드 꼬리 */}
-      <span className="shrink-0 text-white/15" style={{ margin: '0 56px' }}>·</span>
+      {/* 🎾 TEYEON KDK LIVE */}
+      {tickerBall}
       <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
         <span className="font-black text-[#FFE7A0]/52">TEYEON KDK LIVE</span>
       </div>
+      {/* 🎾 운영자 메시지 (NOTICE 라벨 제거) */}
+      {tickerMessage && (
+        <>
+          {tickerBall}
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <span className="text-white/85">{tickerMessage}</span>
+          </div>
+        </>
+      )}
     </>
   );
 
@@ -983,12 +1049,12 @@ function KdkDisplayBoard() {
             <div className="min-w-0 flex-1 overflow-hidden">
               <div
                 className="flex shrink-0 items-center whitespace-nowrap text-[13px] font-bold leading-none tracking-wide"
-                style={{ animation: 'ticker-scroll 38s linear infinite' }}
+                style={{ animation: `ticker-scroll ${tickerDuration}s linear infinite`, willChange: 'transform' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginRight: '200px' }}>
+                <div ref={tickerGroupRef} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, paddingRight: '160px' }}>
                   {tickerGroupContent}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginRight: '200px' }} aria-hidden="true">
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, paddingRight: '160px' }} aria-hidden="true">
                   {tickerGroupContent}
                 </div>
               </div>

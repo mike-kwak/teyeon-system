@@ -163,6 +163,9 @@ export default function RankingTab({
             const guestName = trimmed.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
             return guestName && !isGenericGuestLabel(guestName) ? `${guestName}(G)` : '';
         }
+        if (/^g-\d+/i.test(trimmed)) {
+            return '게스트(G)';
+        }
         if (/\s+g$/i.test(trimmed)) {
             const guestName = trimmed.replace(/\s+g$/i, '').trim();
             return guestName && !isGenericGuestLabel(guestName) ? `${guestName}(G)` : '';
