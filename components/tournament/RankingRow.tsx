@@ -15,14 +15,18 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
             if (!raw) return '';
             if (/^manual-guest-/i.test(raw)) {
                 const guestName = raw.replace(/^manual-guest-/i, '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').trim();
-                return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '';
+                return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '게스트(G)';
+            }
+            if (/^g-\d+/i.test(raw)) {
+                return '게스트(G)';
             }
             if (/\s+g$/i.test(raw)) {
                 const guestName = raw.replace(/\s+g$/i, '').trim();
-                return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '';
+                return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '게스트(G)';
             }
             const cleaned = raw.replace(/\s*\(G\)$/i, '(G)');
-            return /^(guest|게스트)(\(G\))?$/i.test(cleaned) ? '' : cleaned;
+            // Keep '게스트(G)' as-is; only suppress the bare generic label '게스트'/'guest'
+            return /^(guest|게스트)$/i.test(cleaned.replace(/\(G\)$/i, '').trim()) && !cleaned.endsWith('(G)') ? '' : cleaned;
         };
 
         const byName = normalizeGuest(name);

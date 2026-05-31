@@ -88,6 +88,14 @@ export default function KDKPage() {
     const [syncTick, setSyncTick] = useState(0);
     const [adminModeManual, setAdminModeManual] = useState(true); // [v35.11] Admin UI Visibility Toggle
 
+    const [isMobileTitle, setIsMobileTitle] = useState(false);
+    useEffect(() => {
+        const check = () => setIsMobileTitle(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+
     // [v25.0] React Stale Closure Resolution for Realtime Sync
     useEffect(() => {
         if (syncTick > 0) syncActiveSession();
@@ -181,6 +189,11 @@ export default function KDKPage() {
     const [isCheckingTitle, setIsCheckingTitle] = useState(false);
     const [isStartingMatch, setIsStartingMatch] = useState(false);
 
+    // 전광판 티커 수동 메시지
+    const [tickerMsg, setTickerMsg] = useState('');
+    const [tickerSaving, setTickerSaving] = useState(false);
+    const [tickerSaveOk, setTickerSaveOk] = useState(false);
+
     // [v16.0] Real-time participation tracker
     const busyPlayerIds = useMemo(() => {
         const playing = matches.filter(m => m.status === 'playing');
@@ -196,6 +209,36 @@ export default function KDKPage() {
         const targetSessionId = activeSessionId?.trim();
         if (!targetSessionId) return null;
         return `/kdk/display?session=${encodeURIComponent(targetSessionId)}`;
+    };
+
+    const loadTickerMsg = async (sid: string) => {
+        if (!sid) return;
+        const { data } = await supabase
+            .from('kdk_session_meta')
+            .select('ticker_message')
+            .eq('session_id', sid)
+            .maybeSingle();
+        setTickerMsg(data?.ticker_message ?? '');
+    };
+
+    const saveTickerMsg = async () => {
+        if (!activeSessionId) return;
+        setTickerSaving(true);
+        try {
+            const { error } = await supabase
+                .from('kdk_session_meta')
+                .upsert(
+                    { session_id: activeSessionId, club_id: clubId, ticker_message: tickerMsg.trim(), updated_at: new Date().toISOString() },
+                    { onConflict: 'session_id' }
+                );
+            if (error) throw error;
+            setTickerSaveOk(true);
+            setTimeout(() => setTickerSaveOk(false), 2000);
+        } catch {
+            // silent
+        } finally {
+            setTickerSaving(false);
+        }
     };
 
     const openDisplayBoard = () => {
@@ -687,6 +730,13 @@ export default function KDKPage() {
             supabase.removeChannel(matchesChannel);
         };
     }, [activeSessionId, showGateway, kdkEntryMode]);
+
+    // 전광판 ticker 메시지: 세션 진입 시 로드
+    useEffect(() => {
+        if (activeSessionId && kdkEntryMode === 'LIVE') {
+            loadTickerMsg(activeSessionId);
+        }
+    }, [activeSessionId, kdkEntryMode]);
 
     // [v25.0] Guest Access Auto Router
     useEffect(() => {
@@ -2120,6 +2170,24 @@ export default function KDKPage() {
         selectedIds,
         attendeeConfigs
     );
+
+    // Enrich allPlayersInRanking names via getPlayerName (resolves real guest names from match metadata)
+    const resolvedRanking = useMemo(() => {
+        return allPlayersInRanking.map(player => {
+            const resolved = getPlayerName(player.id);
+            if (resolved && resolved !== '이름 확인중') {
+                return { ...player, name: resolved };
+            }
+            const isRawId = !player.name
+                || player.name === player.id
+                || /^g-\d+/i.test(player.name)
+                || /^manual-guest-/i.test(player.name);
+            if (isRawId && (player.is_guest || /^g-\d+/i.test(player.id) || /^manual-guest-/i.test(player.id))) {
+                return { ...player, name: '게스트(G)' };
+            }
+            return player;
+        });
+    }, [allPlayersInRanking, allMembers, tempGuests, attendeeConfigs, matches]);
 
     type PlayerDetailedResult = {
         id: string;
@@ -3984,7 +4052,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
     return (
         <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
             {/* [v35.11] Redesigned Master Header: Minimalist 3-Column Layout */}
-            <header className="px-3 py-2 flex items-center justify-between gap-2 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-6 sm:py-2.5">
+            <header className="px-3 py-2 flex flex-row items-center justify-between gap-2 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-6 sm:py-2.5">
                 {/* LEFT: ADMIN TOGGLE & RESET */}
                 <div className="hidden">
                     <div className="flex shrink-0 items-center gap-2">
@@ -4024,10 +4092,19 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
 
                 {/* CENTER: SESSION NAME (Strong Emphasis) */}
-                <div className="flex-[1.05] flex min-w-0 flex-col items-start">
+                <div className="min-w-0 flex-[1.45] sm:flex-[1.05]">
                     <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
-                    <div className="flex max-w-full min-w-0 items-center justify-start gap-2">
-                        <h1 className="min-w-0 max-w-[48vw] truncate whitespace-nowrap text-[clamp(15px,4.2vw,21px)] font-black italic tracking-[-0.05em] text-white uppercase sm:max-w-[320px] sm:text-2xl sm:tracking-tighter leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)]">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <h1
+                            data-debug-session-title="kdk-header-title"
+                            className="flex-none font-black italic tracking-tight text-white uppercase leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)] md:min-w-0 md:flex-1 md:truncate md:whitespace-nowrap md:text-2xl md:tracking-tighter md:max-w-[320px]"
+                            style={{
+                                fontSize: '20px',
+                                overflow: 'visible',
+                                textOverflow: 'clip',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
                             {sessionTitle || '260417_KDK_01'}
                         </h1>
                         <button
@@ -4052,7 +4129,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
 
                 {/* RIGHT: ACTION & STATUS INDICATOR */}
-                <div className="flex-[1.95] flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-1.5 flex-[1.5] sm:flex-[1.95] sm:gap-2">
                     <button
                         type="button"
                         onClick={openDisplayBoard}
@@ -4192,6 +4269,36 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         </span>
                     </div>
                 </div>
+
+                {/* 전광판 티커 수동 메시지 — 관리자 전용 */}
+                {isAdmin && kdkEntryMode === 'LIVE' && (
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <span className="shrink-0 text-[8px] font-black uppercase tracking-widest text-[#C9B075] opacity-50">TICKER:</span>
+                            <input
+                                type="text"
+                                value={tickerMsg}
+                                onChange={(e) => setTickerMsg(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') saveTickerMsg(); }}
+                                maxLength={120}
+                                placeholder="전광판 티커 메시지 입력..."
+                                className="min-w-0 flex-1 rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-bold text-white placeholder-white/20 outline-none focus:border-[#C9B075]/40"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={saveTickerMsg}
+                            disabled={tickerSaving || !activeSessionId}
+                            className={`shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
+                                tickerSaveOk
+                                    ? 'border-emerald-400/45 text-emerald-300'
+                                    : 'border-[#C9B075]/35 text-[#C9B075]'
+                            }`}
+                        >
+                            {tickerSaveOk ? 'SAVED' : tickerSaving ? '···' : 'SAVE'}
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 space-y-0 overflow-y-auto px-3 pb-60 antialiased no-scrollbar sm:px-4" style={{ background: '#14161a', paddingBottom: 'calc(260px + env(safe-area-inset-bottom))' }}>
@@ -4393,7 +4500,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 {activeTab === 'RANKING' && (
                     <div className="flex-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
                         <RankingTab
-                            players={allPlayersInRanking}
+                            players={resolvedRanking}
                             sessionTitle={sessionTitle}
                             isArchive={false}
                             isAdmin={isAdmin}
@@ -4447,7 +4554,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     </header>
                     <div className="flex-1 overflow-y-auto p-4">
                         <RankingTab
-                            players={allPlayersInRanking}
+                            players={resolvedRanking}
                             sessionTitle={sessionTitle}
                             isArchive={false}
                             isAdmin={role === 'CEO'}
