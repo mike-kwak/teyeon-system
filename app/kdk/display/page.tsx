@@ -277,18 +277,7 @@ function CourtCard({ court, match, playerLookup, matchNumber }: { court: number;
               Court {court}
             </span>
             {match ? (
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {matchNumber && matchNumber > 0 && (
-                  <span className="flex h-[28px] items-center rounded-[8px] border border-[#F0B93F]/55 bg-[#F0B93F]/15 px-3.5 text-[14px] font-black uppercase tracking-[0.06em] text-[#FFE7A0] shadow-[0_0_12px_rgba(240,185,63,0.20)]">
-                    M{String(matchNumber).padStart(2, '0')}
-                  </span>
-                )}
-                <span className="rounded-[7px] border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: groupMeta.accentMid, background: groupMeta.accentSoft, color: groupMeta.accentStrong }}>
-                  {groupMeta.groupLabel}
-                </span>
-                <span className="rounded-[7px] border border-white/[0.06] bg-transparent px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-white/42">
-                  R{match.round || '-'}
-                </span>
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="rounded-[8px] border border-emerald-300/24 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-200">
                   Playing
                 </span>
@@ -303,6 +292,13 @@ function CourtCard({ court, match, playerLookup, matchNumber }: { court: number;
 
         {match ? (
           <div className="relative flex min-h-0 flex-1 items-center py-3">
+            {matchNumber && matchNumber > 0 && (
+              <div className="pointer-events-none absolute inset-x-0 top-[10px] z-[5] flex justify-center">
+                <span className="rounded-full border border-[#F0B93F]/18 bg-[#F0B93F]/[0.04] px-4 py-1 text-[20px] font-black uppercase tracking-[0.18em] text-[#FFE7A0]/82">
+                  {groupMeta.groupLabel}&nbsp;·&nbsp;R{match.round || '-'}&nbsp;·&nbsp;M{String(matchNumber).padStart(2, '0')}
+                </span>
+              </div>
+            )}
             <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_70px_minmax(0,1fr)] items-center gap-3 2xl:grid-cols-[minmax(0,1fr)_82px_minmax(0,1fr)] 2xl:gap-4">
               <div className="relative flex min-h-[122px] min-w-0 flex-col justify-center overflow-hidden rounded-[14px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(12,24,41,0.82))] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-16px_28px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-white/[0.04]" style={{ borderColor: groupMeta.accentMid }}>
                 <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
@@ -1081,7 +1077,7 @@ function KdkDisplayBoard() {
           <div className="mx-3 flex h-[38px] min-w-0 max-w-[880px] items-center overflow-hidden rounded-[8px] border border-white/[0.07] bg-white/[0.022]">
             <div className="min-w-0 flex-1 overflow-hidden">
               <div
-                className="flex shrink-0 items-center whitespace-nowrap text-[13px] font-bold leading-none tracking-wide"
+                className="flex shrink-0 items-center whitespace-nowrap text-[15px] font-bold leading-none tracking-wide"
                 style={{ animation: `ticker-scroll ${tickerDuration}s linear infinite`, willChange: 'transform' }}
               >
                 <div ref={tickerGroupRef} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, paddingRight: '160px' }}>
