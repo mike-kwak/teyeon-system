@@ -6,6 +6,7 @@ import GlobalHeader from "@/components/GlobalHeader";
 import BottomNav from "@/components/BottomNav";
 import StitchesRegistry from "./registry";
 import ThemeProvider from "@/components/ThemeProvider";
+import SplashScreen from "@/components/SplashScreen";
 import { styled } from "@/stitches.config";
 
 const rajdhani = Rajdhani({
@@ -178,6 +179,7 @@ export default function RootLayout({
                 overflowX: 'hidden',
                 margin: '0 auto'
               }}>
+                <SplashScreen />
                 <GlobalHeader />
                 <GlobalMain id="main-container">
                   {children}
