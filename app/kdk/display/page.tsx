@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Match, Member } from '@/lib/tournament_types';
 
@@ -499,6 +499,7 @@ function KdkDisplayBoard() {
   const zoomRef = useRef(zoom);
   const tickerGroupRef = useRef<HTMLDivElement>(null);
   const [tickerDuration, setTickerDuration] = useState(18);
+  const edgeSwipeRef = useRef({ isEdge: false, startX: 0, startY: 0 });
   zoomRef.current = zoom;
   const gestureRef = useRef<{
     isPinching: boolean;
@@ -687,6 +688,12 @@ function KdkDisplayBoard() {
     return () => window.removeEventListener('resize', calcScale);
   }, []);
 
+  const router = useRouter();
+  const handleBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push('/kdk');
+  };
+
   useEffect(() => {
     const el = viewerRef.current;
     if (!el) return;
@@ -718,6 +725,9 @@ function KdkDisplayBoard() {
         g.dragStartY = e.touches[0].clientY;
         g.startPanX = panX;
         g.startPanY = panY;
+        // edge swipe back tracking
+        const ex = e.touches[0].clientX;
+        edgeSwipeRef.current = { isEdge: ex < 32, startX: ex, startY: e.touches[0].clientY };
       }
     };
 
@@ -748,7 +758,22 @@ function KdkDisplayBoard() {
     const onTouchEnd = (e: TouchEvent) => {
       const g = gestureRef.current;
       if (e.touches.length < 2) g.isPinching = false;
-      if (e.touches.length === 0) g.isDragging = false;
+      if (e.touches.length === 0) {
+        g.isDragging = false;
+        // edge swipe back: left edge (< 32px) → swipe right ≥ 90px, not zoomed, not pinching
+        const es = edgeSwipeRef.current;
+        if (es.isEdge && !g.isPinching && zoomRef.current.userZoom === 1 && e.changedTouches.length > 0) {
+          const t = e.changedTouches[0];
+          const dx = t.clientX - es.startX;
+          const dy = t.clientY - es.startY;
+          if (dx > 90 && Math.abs(dy) < 60) {
+            edgeSwipeRef.current.isEdge = false;
+            if (window.history.length > 1) router.back();
+            else router.push('/kdk');
+          }
+        }
+        edgeSwipeRef.current.isEdge = false;
+      }
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -1017,6 +1042,14 @@ function KdkDisplayBoard() {
       className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[#070C18]"
       style={{ touchAction: 'none' }}
     >
+      {/* 모바일 전용 뒤로가기 버튼 — 데스크톱(md+)에서는 숨김 */}
+      <button
+        onClick={handleBack}
+        className="fixed z-[10000] flex items-center gap-1 rounded-full border border-white/15 bg-black/50 px-3 py-2 text-[13px] font-bold text-white/80 backdrop-blur-sm transition-all active:scale-95 md:hidden"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)', left: 'calc(env(safe-area-inset-left, 0px) + 8px)' }}
+      >
+        ← BACK
+      </button>
       <div
         style={{
           width: DESIGN_WIDTH,
