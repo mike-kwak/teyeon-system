@@ -32,6 +32,17 @@ export const metadata: Metadata = {
   title: "TEYEON v1.20.5",
   description: "The Ultimate Tournament Database v1.20.5",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico",       sizes: "any" },
+      { url: "/favicon-32x32.png", sizes: "32x32",  type: "image/png" },
+      { url: "/favicon.png",       sizes: "96x96",   type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
