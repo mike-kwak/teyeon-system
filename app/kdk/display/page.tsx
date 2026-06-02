@@ -959,76 +959,97 @@ function KdkDisplayBoard() {
     return guests;
   }, [matches, playerLookup]);
 
-  // 각 블록 앞에 오는 구분자 — 루프 이음매도 이 패턴으로 통일
-  const tickerBall = (
-    <span style={{ flexShrink: 0, margin: '0 52px', fontSize: '15px', lineHeight: 1, opacity: 0.9 }}>🎾</span>
+  // trim 기준으로 빈 메시지 판별 — 공백만 있는 문자열도 제거
+  const manualTicker = tickerMessage?.trim() || '';
+
+  // 각 item 내부 leading icon — 별도 separator block이 아닌 item 앞 아이콘
+  const ball = (
+    <span style={{ flexShrink: 0, fontSize: '14px', lineHeight: 1, opacity: 0.88, marginRight: '8px' }}>🎾</span>
   );
 
-  const tickerGroupContent = (
-    <>
-      {/* 🎾 UP NEXT */}
-      {tickerBall}
-      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <span className="font-extrabold text-[#FFE7A0]">UP NEXT</span>
-        {tickerNextMatchNum > 0 && (
-          <span className="text-[#FFE7A0]/70" style={{ marginLeft: '8px' }}>
-            M{String(tickerNextMatchNum).padStart(2, '0')}
-          </span>
-        )}
-        {tickerNextMatch ? (
-          <>
-            <span className="text-white/82" style={{ marginLeft: '20px' }}>
-              {teamLabel(tickerNextMatch, 0, playerLookup).replace(/ \/ /g, '/')}
-            </span>
-            <span className="text-white/45" style={{ margin: '0 10px' }}>vs</span>
-            <span className="text-white/82">
-              {teamLabel(tickerNextMatch, 2, playerLookup).replace(/ \/ /g, '/')}
-            </span>
-          </>
-        ) : (
-          <span className="text-white/42" style={{ marginLeft: '16px' }}>대기 경기 없음</span>
-        )}
-      </div>
-      {/* 🎾 LEADER */}
-      {tickerLeader && (
-        <>
-          {tickerBall}
-          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <span className="font-extrabold text-[#FFE7A0]">LEADER</span>
-            <span className="text-white/82" style={{ marginLeft: '16px' }}>{tickerLeader.name}</span>
-            <span
-              className={`font-extrabold ${tickerLeader.diff > 0 ? 'text-emerald-300' : tickerLeader.diff < 0 ? 'text-red-300' : 'text-white/40'}`}
-              style={{ marginLeft: '8px' }}
-            >
-              {tickerLeader.diff > 0 ? '+' : ''}{tickerLeader.diff}
-            </span>
-          </div>
-        </>
+  // 표시할 아이템 배열 — 조건부 항목은 if로 추가, 🎾는 각 item 내부 첫 요소
+  const tickerItems: React.ReactNode[] = [];
+
+  // UP NEXT (항상 표시)
+  tickerItems.push(
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      {ball}
+      <span className="font-extrabold text-[#FFE7A0]">UP NEXT</span>
+      {tickerNextMatchNum > 0 && (
+        <span className="text-[#FFE7A0]/70" style={{ marginLeft: '6px' }}>
+          M{String(tickerNextMatchNum).padStart(2, '0')}
+        </span>
       )}
-      {/* 🎾 WELCOME */}
-      {tickerBall}
+      {tickerNextMatch ? (
+        <>
+          <span className="text-white/82" style={{ marginLeft: '14px' }}>
+            {teamLabel(tickerNextMatch, 0, playerLookup).replace(/ \/ /g, '/')}
+          </span>
+          <span className="text-white/45" style={{ margin: '0 8px' }}>vs</span>
+          <span className="text-white/82">
+            {teamLabel(tickerNextMatch, 2, playerLookup).replace(/ \/ /g, '/')}
+          </span>
+        </>
+      ) : (
+        <span className="text-white/42" style={{ marginLeft: '10px' }}>대기 경기 없음</span>
+      )}
+    </div>
+  );
+
+  // LEADER — 랭킹 1위 존재할 때만
+  if (tickerLeader) {
+    tickerItems.push(
       <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <span className="font-extrabold text-[#FFE7A0]">WELCOME</span>
-        <span className="text-white/82" style={{ marginLeft: '16px' }}>
-          {tickerGuests.length > 0
-            ? `${tickerGuests.slice(0, 3).join(', ')}${tickerGuests.length > 3 ? ` 외 ${tickerGuests.length - 3}명` : ''}`
-            : 'TEYEON PLAYERS'}
+        {ball}
+        <span className="font-extrabold text-[#FFE7A0]">LEADER</span>
+        <span className="text-white/82" style={{ marginLeft: '10px' }}>{tickerLeader.name}</span>
+        <span
+          className={`font-extrabold ${tickerLeader.diff > 0 ? 'text-emerald-300' : tickerLeader.diff < 0 ? 'text-red-300' : 'text-white/40'}`}
+          style={{ marginLeft: '6px' }}
+        >
+          {tickerLeader.diff > 0 ? '+' : ''}{tickerLeader.diff}
         </span>
       </div>
-      {/* 🎾 TEYEON KDK LIVE */}
-      {tickerBall}
+    );
+  }
+
+  // WELCOME (항상 표시, 게스트 최대 5명)
+  tickerItems.push(
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      {ball}
+      <span className="font-extrabold text-[#FFE7A0]">WELCOME</span>
+      <span className="text-white/82" style={{ marginLeft: '10px' }}>
+        {tickerGuests.length > 0
+          ? `${tickerGuests.slice(0, 5).join(', ')}${tickerGuests.length > 5 ? ` 외 ${tickerGuests.length - 5}명` : ''}`
+          : 'TEYEON PLAYERS'}
+      </span>
+    </div>
+  );
+
+  // TEYEON KDK LIVE (항상 표시)
+  tickerItems.push(
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      {ball}
+      <span className="font-black text-[#FFE7A0]/52">TEYEON KDK LIVE</span>
+    </div>
+  );
+
+  // 운영자 메시지 — trim 후 값이 있을 때만 추가 (빈 블록/공백 방지)
+  if (manualTicker) {
+    tickerItems.push(
       <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <span className="font-black text-[#FFE7A0]/52">TEYEON KDK LIVE</span>
+        {ball}
+        <span className="text-white/85">{manualTicker}</span>
       </div>
-      {/* 🎾 운영자 메시지 (NOTICE 라벨 제거) */}
-      {tickerMessage && (
-        <>
-          {tickerBall}
-          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <span className="text-white/85">{tickerMessage}</span>
-          </div>
-        </>
-      )}
+    );
+  }
+
+  // item 간 gap은 외부 flex container에서 통일 — 🎾가 item 안에 있으므로 별도 separator 없음
+  const tickerGroupContent = (
+    <>
+      {tickerItems.map((item, i) => (
+        <React.Fragment key={i}>{item}</React.Fragment>
+      ))}
     </>
   );
 
@@ -1080,10 +1101,10 @@ function KdkDisplayBoard() {
                 className="flex shrink-0 items-center whitespace-nowrap text-[15px] font-bold leading-none tracking-wide"
                 style={{ animation: `ticker-scroll ${tickerDuration}s linear infinite`, willChange: 'transform' }}
               >
-                <div ref={tickerGroupRef} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, paddingRight: '160px' }}>
+                <div ref={tickerGroupRef} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '48px', paddingRight: '80px' }}>
                   {tickerGroupContent}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, paddingRight: '160px' }} aria-hidden="true">
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '48px', paddingRight: '80px' }} aria-hidden="true">
                   {tickerGroupContent}
                 </div>
               </div>
