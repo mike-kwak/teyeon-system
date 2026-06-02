@@ -6,6 +6,9 @@ import GlobalHeader from "@/components/GlobalHeader";
 import BottomNav from "@/components/BottomNav";
 import StitchesRegistry from "./registry";
 import ThemeProvider from "@/components/ThemeProvider";
+import SplashScreen from "@/components/SplashScreen";
+import LoadingOverlay from "@/components/LoadingOverlay";
+import { LoadingProvider } from "@/context/LoadingContext";
 import { styled } from "@/stitches.config";
 
 const rajdhani = Rajdhani({
@@ -166,11 +169,12 @@ export default function RootLayout({
         <StitchesRegistry>
           <AuthProvider>
             <ThemeProvider>
-              <div style={{ 
-                width: '100%', 
-                maxWidth: '450px', 
-                minHeight: '100dvh', 
-                backgroundColor: '#121212', 
+            <LoadingProvider>
+              <div style={{
+                width: '100%',
+                maxWidth: '450px',
+                minHeight: '100dvh',
+                backgroundColor: '#121212',
                 position: 'relative',
                 boxShadow: '0 0 100px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.4)',
                 display: 'flex',
@@ -178,12 +182,15 @@ export default function RootLayout({
                 overflowX: 'hidden',
                 margin: '0 auto'
               }}>
+                <SplashScreen />
+                <LoadingOverlay />
                 <GlobalHeader />
                 <GlobalMain id="main-container">
                   {children}
                 </GlobalMain>
                 <BottomNav />
               </div>
+            </LoadingProvider>
             </ThemeProvider>
           </AuthProvider>
         </StitchesRegistry>

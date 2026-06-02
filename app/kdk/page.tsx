@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useLoading } from '@/context/LoadingContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import { RotateCw, CheckCircle2, Settings } from 'lucide-react';
 import PremiumSpinner from '@/components/PremiumSpinner';
@@ -33,6 +34,7 @@ type KdkEntryBackTarget = 'ENTRY_CHOICE' | 'MAIN' | null;
 export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
+    const { showLoading, hideLoading } = useLoading();
     const [showToast, setShowToast] = useState(false);
     const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
 
@@ -184,6 +186,15 @@ export default function KDKPage() {
     const [celebrationMode, setCelebrationMode] = useState(false);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
     const [isMembersError, setIsMembersError] = useState(false);
+    // isMembersLoading → LoadingOverlay 연동 (fetchMembers 로직 무변경)
+    useEffect(() => {
+        if (isMembersLoading) showLoading();
+        else hideLoading();
+
+        return () => {
+            hideLoading();
+        };
+    }, [isMembersLoading, showLoading, hideLoading]);
     const [showCeremony, setShowCeremony] = useState(false);
     const [spinningMatchId, setSpinningMatchId] = useState<string | null>(null);
     const [isCheckingTitle, setIsCheckingTitle] = useState(false);
