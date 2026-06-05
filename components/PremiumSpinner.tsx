@@ -1,37 +1,71 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
+
+const LOGO_SRC = '/logos/teyeon-logo-transparent.png';
+
+const LOGO_STYLE: React.CSSProperties = {
+  objectFit: 'contain',
+  width: 'clamp(112px, 28vw, 128px)',
+  height: 'clamp(112px, 28vw, 128px)',
+  filter: 'drop-shadow(0 2px 8px rgba(60,70,120,0.10))',
+};
 
 interface PremiumSpinnerProps {
   message?: string;
   isWhiteTheme?: boolean;
 }
 
-const PremiumSpinner: React.FC<PremiumSpinnerProps> = ({ message = "Syncing Data...", isWhiteTheme = false }) => {
+const PremiumSpinner: React.FC<PremiumSpinnerProps> = ({ message = 'TEYEON 준비 중...' }) => {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-[5000] backdrop-blur-sm ${isWhiteTheme ? 'bg-white/80' : 'bg-[#0F0F1A]/80'}`}>
-      <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-500">
-        <div className="relative w-20 h-20">
-          {/* Main Gold Ring */}
-          <div className={`absolute inset-0 border-4 border-t-transparent rounded-full animate-spin ${isWhiteTheme ? 'border-slate-200 border-t-[#B45309]' : 'border-white/5 border-t-[#D4AF37]'}`}></div>
-          
-          {/* Inner Pulsing Core */}
-          <div className={`absolute inset-4 rounded-full animate-pulse transition-colors ${isWhiteTheme ? 'bg-[#B45309]/20' : 'bg-[#D4AF37]/20'}`}></div>
-          
-          {/* Rotating Sparkle */}
-          <div className="absolute inset-0 animate-[spin_3s_linear_infinite]">
-            <div className={`absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full blur-[2px] ${isWhiteTheme ? 'bg-[#B45309]' : 'bg-[#D4AF37]'}`}></div>
-          </div>
-        </div>
-        
-        <div className="flex flex-col items-center gap-2">
-          <span className={`text-[10px] font-black uppercase tracking-[0.4em] animate-pulse ${isWhiteTheme ? 'text-[#B45309]' : 'text-[#D4AF37]'}`}>
-            {message}
-          </span>
-          <div className={`h-[1px] w-12 bg-gradient-to-r from-transparent via-${isWhiteTheme ? '[#B45309]' : '[#D4AF37]'}/40 to-transparent animate-shimmer`}></div>
-        </div>
+    <>
+      <style>{`@keyframes ps-spin { to { transform: rotate(360deg) } }`}</style>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 5000,
+          backgroundColor: '#F2F4F7',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '14px',
+        }}
+      >
+        <Image
+          src={LOGO_SRC}
+          alt="TEYEON"
+          width={128}
+          height={128}
+          priority
+          style={LOGO_STYLE}
+        />
+        <span
+          style={{
+            fontFamily: 'var(--font-rajdhani), sans-serif',
+            fontSize: '11px',
+            fontWeight: 700,
+            letterSpacing: '0.3em',
+            textTransform: 'uppercase',
+            color: 'rgba(55,65,95,0.45)',
+          }}
+        >
+          {message}
+        </span>
+        <div
+          style={{
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            border: '1.5px solid rgba(55,65,95,0.12)',
+            borderTopColor: 'rgba(55,65,95,0.42)',
+            animation: 'ps-spin 0.75s linear infinite',
+          }}
+        />
       </div>
-    </div>
+    </>
   );
 };
 
