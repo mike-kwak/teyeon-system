@@ -60,7 +60,7 @@ export const viewport = {
 
 const GlobalMain = styled('main', {
   flex: 1,
-  backgroundColor: '#121212',
+  backgroundColor: '#F2F4F7',
   minHeight: '100dvh',
   position: 'relative',
   overflowX: 'hidden',
@@ -79,7 +79,7 @@ export default function RootLayout({
     <html
       lang="ko"
       className={`${geist.variable} ${rajdhani.variable} ${orbitron.variable} h-full antialiased`}
-      style={{ backgroundColor: '#0A0A0A', colorScheme: 'dark' }}
+      style={{ backgroundColor: '#0A0A0A', colorScheme: 'light' }}
     >
       <body style={{ 
         backgroundColor: '#000000', 
@@ -185,9 +185,9 @@ export default function RootLayout({
                 width: '100%',
                 maxWidth: '450px',
                 minHeight: '100dvh',
-                backgroundColor: '#121212',
+                backgroundColor: '#F2F4F7',
                 position: 'relative',
-                boxShadow: '0 0 100px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.4)',
+                boxShadow: '0 0 60px rgba(0,0,0,0.30), 0 0 20px rgba(0,0,0,0.15)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflowX: 'hidden',
