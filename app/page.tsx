@@ -6,22 +6,14 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   CalendarDays,
+  ChevronRight,
   CircleDollarSign,
-  ClipboardList,
-  Clock,
   Layout,
   Settings,
   Swords,
-  Trophy,
-  UserRoundSearch,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import {
-  getMonthlyFeaturedEvents,
-  getTournamentDday,
-  getUpcomingRegistrationEvents,
-} from '@/lib/tournamentCalendarData';
 
 export default function Home() {
   const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
@@ -29,8 +21,6 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
-  const featuredEvents = getMonthlyFeaturedEvents(new Date(), 3);
-  const upcomingRegistrationEvents = getUpcomingRegistrationEvents(new Date(), 2);
 
   useEffect(() => {
     setIsMounted(true);
@@ -57,6 +47,7 @@ export default function Home() {
     path,
     comingSoon,
     badge,
+    accent = 'teal',
   }: {
     label: string;
     description?: string;
@@ -64,215 +55,459 @@ export default function Home() {
     path: string;
     comingSoon?: boolean;
     badge?: string;
+    accent?: 'teal' | 'gold';
   }) => (
     <Link
       href={path}
-      className={`relative flex h-[160px] flex-col items-center justify-center gap-3 rounded-[24px] border border-[#D8BE78]/12 bg-[#242323]/95 px-3 shadow-[0_10px_28px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:bg-[#2B2926] active:scale-[0.98] group ${comingSoon ? 'opacity-85' : ''}`}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        borderRadius: 14,
+        backgroundColor: '#FFFFFF',
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 5px rgba(0,0,0,0.05)',
+        padding: '13px 16px 13px 16px',
+        textDecoration: 'none',
+        transition: 'box-shadow 0.18s',
+        opacity: comingSoon ? 0.68 : 1,
+      }}
+      className="active:scale-[0.982]"
     >
-      {comingSoon && (
-        <span className="absolute right-4 top-4 rounded-full border border-[#FF8A8A]/35 bg-[#3A2424] px-[10px] py-[4px] text-[9px] font-[1000] tracking-[0.08em] text-[#FF8A8A] shadow-[0_0_14px_rgba(239,68,68,0.18)]">
-          COMING SOON
-        </span>
-      )}
-      {badge && !comingSoon && (
-        <span className="absolute right-4 top-4 rounded-full border border-[#D8BE78]/40 bg-[#D8BE78]/16 px-[10px] py-[4px] text-[9px] font-[1000] tracking-[0.12em] text-[#E1C982] shadow-[0_0_12px_rgba(216,190,120,0.12)]">
-          {badge}
-        </span>
-      )}
-      <div className="text-[#D8BE78] drop-shadow-[0_2px_10px_rgba(216,190,120,0.24)] transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110">
+      {/* Icon container */}
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          minWidth: 42,
+          borderRadius: 11,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor:
+            accent === 'gold'
+              ? 'rgba(201,168,76,0.10)'
+              : 'rgba(13,148,136,0.09)',
+          color: accent === 'gold' ? '#C9A84C' : '#0D9488',
+        }}
+      >
         {icon}
       </div>
-      <span className="px-2 text-center text-[16px] font-bold tracking-wide text-[#F1E7C4]">
-        {label}
-      </span>
-      {description && (
-        <span className="line-clamp-2 text-center text-[10px] font-bold leading-snug text-[#B8B0A0]/65">
-          {description}
-        </span>
-      )}
+
+      {/* Text block */}
+      <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            flexWrap: 'nowrap',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: '#1E293B',
+              letterSpacing: '-0.01em',
+              lineHeight: 1.3,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {label}
+          </span>
+          {badge && !comingSoon && (
+            <span
+              style={{
+                flexShrink: 0,
+                fontSize: 8,
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                padding: '2px 6px',
+                borderRadius: 5,
+                backgroundColor:
+                  accent === 'gold'
+                    ? 'rgba(201,168,76,0.10)'
+                    : 'rgba(13,148,136,0.09)',
+                color: accent === 'gold' ? '#B8891C' : '#0D9488',
+                border:
+                  accent === 'gold'
+                    ? '1px solid rgba(201,168,76,0.24)'
+                    : '1px solid rgba(13,148,136,0.20)',
+              }}
+            >
+              {badge}
+            </span>
+          )}
+          {comingSoon && (
+            <span
+              style={{
+                flexShrink: 0,
+                fontSize: 8,
+                fontWeight: 800,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                padding: '2px 6px',
+                borderRadius: 5,
+                backgroundColor: 'rgba(239,68,68,0.08)',
+                color: '#EF4444',
+                border: '1px solid rgba(239,68,68,0.18)',
+              }}
+            >
+              SOON
+            </span>
+          )}
+        </div>
+        {description && (
+          <p
+            style={{
+              marginTop: 3,
+              fontSize: 11,
+              fontWeight: 500,
+              color: '#94A3B8',
+              lineHeight: 1.4,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {description}
+          </p>
+        )}
+      </div>
+
+      {/* Chevron */}
+      <ChevronRight
+        size={14}
+        style={{ flexShrink: 0, color: '#CBD5E1', marginLeft: 4 }}
+      />
     </Link>
   );
 
   if (!isMounted) return null;
 
+  const tickerText = '한산모시배 · KDK 결과는 ARCHIVE에서 확인';
+
   return (
     <main
-      className="relative mx-auto flex min-h-screen w-full max-w-[480px] flex-col items-center overflow-x-hidden bg-[#181816] px-5 pt-0"
-      style={{ paddingBottom: '250px' }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: '100dvh',
+        backgroundColor: '#F2F4F7',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        overflowX: 'hidden',
+        paddingBottom: 8,
+      }}
     >
-      <div className="mx-auto flex w-full max-w-[430px] flex-col items-center">
+      {/* Slim ticker — light teal tint strip */}
+      <style>{`
+        @keyframes home-ticker {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+      `}</style>
+      <div
+        style={{
+          width: '100%',
+          height: 30,
+          backgroundColor: 'rgba(13,148,136,0.07)',
+          borderBottom: '1px solid rgba(13,148,136,0.11)',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            whiteSpace: 'nowrap',
+            animation: 'home-ticker 24s linear infinite',
+          }}
+        >
+          {[tickerText, tickerText].map((text, i) => (
+            <span
+              key={i}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                paddingRight: 72,
+                fontFamily: 'var(--font-rajdhani), sans-serif',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                color: '#475569',
+              }}
+            >
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  backgroundColor: '#0D9488',
+                  display: 'inline-block',
+                  flexShrink: 0,
+                }}
+              />
+              {text}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Page content */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 430,
+          padding: '0 16px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Intro card */}
+        <div
+          style={{
+            marginTop: 18,
+            marginBottom: 20,
+            borderRadius: 14,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.06)',
+            borderTop: '2px solid #0D9488',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.055)',
+            padding: '18px 20px 16px 20px',
+          }}
+        >
+          <p
+            style={{
+              fontFamily: 'var(--font-rajdhani), sans-serif',
+              fontSize: 8.5,
+              fontWeight: 700,
+              letterSpacing: '0.30em',
+              textTransform: 'uppercase',
+              color: '#0D9488',
+              marginBottom: 7,
+            }}
+          >
+            TEYEON TENNIS CLUB
+          </p>
+          <h1
+            style={{
+              fontFamily: 'var(--font-geist), var(--font-rajdhani), sans-serif',
+              fontSize: 21,
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              color: '#0F172A',
+              lineHeight: 1.22,
+              margin: 0,
+            }}
+          >
+            테니스로 이어진 인연.
+          </h1>
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: '1px solid rgba(0,0,0,0.055)',
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#64748B',
+                lineHeight: 1.7,
+              }}
+            >
+              {'활동 회원 '}
+              <strong style={{ color: '#0F172A', fontWeight: 800 }}>82명</strong>
+              {' · 누적 KDK '}
+              <strong style={{ color: '#0F172A', fontWeight: 800 }}>14회</strong>
+              {' · 다음 '}
+              <strong style={{ color: '#0D9488', fontWeight: 700 }}>
+                한산모시배
+              </strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Loading skeleton */}
         {isLoading && (
-          <div className="flex w-full animate-pulse flex-col gap-6">
-            <div className="mb-2 h-[60px] w-full rounded-xl border border-[#D8BE78]/10 bg-[#242323]/60" />
-            <div className="grid w-full grid-cols-2 gap-6">
-              {[...Array(6)].map((_, index) => (
-                <div
-                  key={index}
-                  className="h-[160px] rounded-[24px] border border-[#D8BE78]/10 bg-[#242323]/70 shadow-[0_4px_12px_rgba(216,190,120,0.06)] backdrop-blur-md"
-                />
-              ))}
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  height: 68,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(0,0,0,0.055)',
+                }}
+                className="animate-pulse"
+              />
+            ))}
           </div>
         )}
 
+        {/* Not logged in */}
         {!isLoading && !user && (
-          <div className="relative mt-6 flex min-h-[40vh] w-full flex-col items-center justify-center overflow-hidden rounded-[32px] border border-[#D8BE78]/12 bg-gradient-to-b from-[#242323]/95 to-[#191917]/90 px-6 py-12 shadow-[0_20px_40px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
-            <div className="absolute top-0 h-[1px] w-full bg-gradient-to-r from-transparent via-[#D8BE78]/45 to-transparent" />
-            <p className="mb-12 text-center font-['Rajdhani',sans-serif] text-[16px] font-[900] tracking-[0.2em] text-[#F1E7C4] drop-shadow-md">
+          <div
+            style={{
+              borderRadius: 14,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.06)',
+              boxShadow: '0 2px 14px rgba(0,0,0,0.055)',
+              padding: '28px 20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+            }}
+          >
+            <p
+              style={{
+                fontFamily: 'var(--font-rajdhani), sans-serif',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.20em',
+                textTransform: 'uppercase',
+                color: '#64748B',
+                textAlign: 'center',
+                lineHeight: 1.5,
+              }}
+            >
               TEYEON에 오신 것을 환영합니다
             </p>
             <button
               onClick={() => signInWithKakao()}
-              className="flex w-full max-w-[320px] items-center justify-center gap-4 rounded-full border border-[#D8BE78]/35 bg-gradient-to-r from-[#25231F] to-[#1B1A18] py-5 font-['Rajdhani',sans-serif] text-[15px] font-[1000] tracking-widest text-[#E1C982] shadow-[0_8px_30px_rgba(0,0,0,0.55),inset_0_0_20px_rgba(216,190,120,0.06)] transition-all hover:-translate-y-1 hover:border-[#D8BE78]/75 hover:shadow-[0_15px_40px_rgba(216,190,120,0.18)] active:scale-[0.98]"
+              style={{
+                width: '100%',
+                maxWidth: 260,
+                padding: '13px 0',
+                borderRadius: 99,
+                backgroundColor: '#0D9488',
+                border: 'none',
+                fontFamily: 'var(--font-rajdhani), sans-serif',
+                fontSize: 12,
+                fontWeight: 900,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                boxShadow: '0 3px 14px rgba(13,148,136,0.24)',
+                transition: 'all 0.18s',
+              }}
+              className="active:scale-[0.97] hover:brightness-105"
             >
               카카오 계정으로 접속
             </button>
-            <span className="mt-8 font-['Rajdhani',sans-serif] text-[10px] font-bold uppercase tracking-widest text-[#A8A39A]">
+            <span
+              style={{
+                fontFamily: 'var(--font-rajdhani), sans-serif',
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.26em',
+                textTransform: 'uppercase',
+                color: '#94A3B8',
+              }}
+            >
               Authorized Personnel Only
             </span>
           </div>
         )}
 
+        {/* Logged in */}
         {!isLoading && user && (
           <>
-            <div className="mt-6 grid w-full animate-in grid-cols-2 gap-6 duration-700 slide-in-from-bottom-4">
+            {/* Menu card stack */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               <MenuCard
                 label="대회 캘린더"
                 description="월별 대회 일정과 참가/파트너 현황을 확인합니다."
-                icon={<CalendarDays size={36} strokeWidth={1.5} />}
+                icon={<CalendarDays size={21} strokeWidth={1.7} />}
                 path="/tournament-calendar"
                 badge="CALENDAR"
+                accent="teal"
               />
               <MenuCard
                 label="멤버 프로필"
-                icon={<Users size={36} strokeWidth={1.5} />}
+                description="클럽 멤버 프로필 및 랭킹을 조회합니다."
+                icon={<Users size={21} strokeWidth={1.7} />}
                 path="/members"
+                accent="teal"
               />
               <MenuCard
                 label="스페셜 매치"
-                icon={<Layout size={36} strokeWidth={1.5} />}
+                description="수동 매치 운영 및 결과 기록."
+                icon={<Layout size={21} strokeWidth={1.7} />}
                 path="/special-match"
                 badge="MANUAL"
+                accent="teal"
               />
               <MenuCard
                 label="대진 생성"
-                icon={<Swords size={36} strokeWidth={1.5} />}
+                description="KDK 대진표 생성 및 실시간 운영."
+                icon={<Swords size={21} strokeWidth={1.7} />}
                 path="/kdk"
                 badge="KDK"
+                accent="teal"
               />
               <MenuCard
                 label="클럽 재무"
                 description="회비, 미납, 월간 재무 리포트를 관리합니다."
-                icon={<CircleDollarSign size={36} strokeWidth={1.5} />}
+                icon={<CircleDollarSign size={21} strokeWidth={1.7} />}
                 path="/finance"
+                accent="gold"
               />
               <MenuCard
                 label="관리자 설정"
                 description="멤버, 권한, 운영 기준을 관리합니다."
-                icon={<Settings size={36} strokeWidth={1.5} />}
+                icon={<Settings size={21} strokeWidth={1.7} />}
                 path="/admin"
                 badge="ADMIN"
+                accent="gold"
               />
             </div>
 
-            <section className="mt-8 w-full overflow-hidden rounded-[28px] border border-[#D8BE78]/18 bg-[#242323]/92 shadow-[0_18px_42px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]">
-              <div className="flex items-center justify-between gap-3 border-b border-[#D8BE78]/12 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-[9px] font-[1000] uppercase tracking-[0.28em] text-[#D8BE78]/65">
-                    TEYEON MINI BOARD
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-[1000] uppercase tracking-[0.16em] text-emerald-200">
-                  BOARD
-                </span>
-              </div>
-
-              <div className="divide-y divide-white/8">
-                <MiniBoardLine
-                  label="UP NEXT"
-                  icon={<Trophy size={14} />}
-                  href="/tournament-calendar"
-                  value={
-                    featuredEvents[0]
-                      ? `${featuredEvents[0].date.slice(5).replace('-', '/')} ${featuredEvents[0].title}`
-                      : '이번 달 등록된 주요 대회 없음'
-                  }
-                  meta={
-                    featuredEvents[0]
-                      ? `${featuredEvents[0].organizer} · ${featuredEvents[0].division}${featuredEvents[0].grade ? ` · ${featuredEvents[0].grade}` : ''}`
-                      : 'CALENDAR'
-                  }
-                />
-                <MiniBoardLine
-                  label="ALERT"
-                  icon={<Clock size={14} />}
-                  href="/tournament-calendar"
-                  value={
-                    upcomingRegistrationEvents.length > 0
-                      ? `접수 임박 ${upcomingRegistrationEvents.length}건`
-                      : '접수 임박 일정 없음'
-                  }
-                  meta={
-                    upcomingRegistrationEvents[0]
-                      ? `${getTournamentDday(upcomingRegistrationEvents[0].registrationStart)} · ${upcomingRegistrationEvents[0].title}`
-                      : 'TOURNAMENT'
-                  }
-                />
-                <MiniBoardLine
-                  label="KDK"
-                  icon={<ClipboardList size={14} />}
-                  href="/archive"
-                  value="최근 KDK 결과는 Archive에서 확인"
-                  meta="다음 KDK 준비 중"
-                />
-              </div>
-            </section>
-
-            <div className="h-8 w-full shrink-0" />
-
-            <div className="h-8 w-full shrink-0" />
           </>
         )}
-
-        <div className="h-12 w-full shrink-0" />
       </div>
 
+      {/* Toast */}
       {(toast || systemMessage) && (
-        <div className="fixed bottom-[115px] left-1/2 z-[2000] w-[92%] max-w-[420px] -translate-x-1/2 rounded-xl bg-[#D8BE78] p-[16px] text-center font-['Rajdhani',sans-serif] text-[14px] font-black tracking-wider text-black shadow-[0_20px_50px_rgba(0,0,0,0.65)]">
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 88,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 2000,
+            width: '92%',
+            maxWidth: 420,
+            backgroundColor: '#0F766E',
+            borderRadius: 11,
+            padding: '12px 20px',
+            textAlign: 'center',
+            fontFamily: 'var(--font-rajdhani), sans-serif',
+            fontSize: 13,
+            fontWeight: 900,
+            letterSpacing: '0.06em',
+            color: '#FFFFFF',
+            boxShadow: '0 6px 24px rgba(13,148,136,0.28)',
+          }}
+        >
           {toast || systemMessage}
         </div>
       )}
     </main>
-  );
-}
-
-function MiniBoardLine({
-  label,
-  icon,
-  value,
-  meta,
-  href,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  value: string;
-  meta: string;
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="grid min-w-0 grid-cols-[68px_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 transition hover:bg-white/[0.035] active:scale-[0.99]"
-    >
-      <div className="flex items-center gap-1.5 text-[10px] font-[1000] uppercase tracking-[0.12em] text-[#D8BE78]">
-        {icon}
-        {label}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[12px] font-[1000] text-[#F1E7C4]">{value}</p>
-        <p className="mt-0.5 truncate text-[10px] font-bold text-white/42">{meta}</p>
-      </div>
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#D8BE78]/70 shadow-[0_0_12px_rgba(216,190,120,0.45)]" />
-    </Link>
   );
 }

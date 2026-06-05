@@ -2,165 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-import { styled, keyframes } from '@/stitches.config';
 import ProfileAvatar from './ProfileAvatar';
-
-const shimmer = keyframes({
-  '0%': { backgroundPosition: '-100% 0' },
-  '100%': { backgroundPosition: '100% 0' },
-});
-
-const HeaderContainer = styled('header', {
-  position: 'sticky',
-  top: 0,
-  width: '100%',
-  height: '72px',
-  background: 'rgba(0, 0, 0, 0.85)',
-  backdropFilter: 'blur(30px) saturate(200%)',
-  borderBottom: '1px solid rgba(255, 215, 0, 0.15)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '0',
-  zIndex: '$sticky',
-  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.8)',
-
-  '@supports (padding-top: env(safe-area-inset-top))': {
-    height: 'calc(72px + env(safe-area-inset-top))',
-    paddingTop: 'env(safe-area-inset-top)',
-  },
-});
-
-const LogoLink = styled(Link, {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$3',
-  textDecoration: 'none',
-  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-
-  '&:hover': {
-    transform: 'scale(1.05)',
-    '& .logo-box': {
-      boxShadow: '0 0 25px rgba(255, 215, 0, 0.5)',
-      transform: 'rotate(-5deg) scale(1.1)',
-    }
-  },
-});
-
-const LogoBox = styled('div', {
-  width: '36px',
-  height: '36px',
-  background: 'linear-gradient(135deg, #FFD700 0%, #D4AF37 100%)',
-  borderRadius: '10px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '20px',
-  boxShadow: '0 0 15px rgba(255, 215, 0, 0.3)',
-  transition: 'all 0.4s ease',
-  color: '#000',
-  fontWeight: 950,
-  fontFamily: '$display',
-});
-
-const LogoText = styled('span', {
-  fontSize: '24px',
-  fontFamily: '$sporty',
-  fontWeight: 900,
-  color: '$white',
-  letterSpacing: '$tighter',
-  textTransform: 'uppercase',
-  fontStyle: 'italic',
-  paddingRight: '8px', /* Prevents italic overhang from being clipped by background-clip: text */
-  background: 'linear-gradient(90deg, #FFFFFF 0%, #D4AF37 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-});
-
-const UserSection = styled('div', {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$4',
-});
-
-const RoleBadge = styled('div', {
-  padding: '4px 12px',
-  borderRadius: '$full',
-  fontSize: '11px',
-  fontFamily: '$sporty',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '0.15em',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '$2',
-  background: 'rgba(0, 0, 0, 0.5)',
-  border: '1px solid rgba(255, 215, 0, 0.3)',
-  color: '$goldGlint',
-  boxShadow: 'inset 0 0 10px rgba(255, 215, 0, 0.1)',
-});
-
-const StatusDot = styled('div', {
-  width: '6px',
-  height: '6px',
-  borderRadius: '$full',
-  background: '#4CAF50',
-  boxShadow: '0 0 10px #4CAF50',
-});
-
-const LogoTextContainer = styled('span', {
-  fontSize: '20px',
-  fontFamily: '$sporty',
-  fontWeight: 950,
-  color: '$white',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  fontStyle: 'italic',
-  display: 'flex',
-  alignItems: 'baseline',
-  gap: '4px',
-  background: 'linear-gradient(90deg, #FFFFFF 0%, #D4AF37 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  dropShadow: '0 0 20px rgba(212, 175, 55, 0.4)',
-});
-
-const GlowBadge = styled('div', {
-  padding: '6px 16px',
-  borderRadius: '$full',
-  fontSize: '10px',
-  fontFamily: '$sporty',
-  fontWeight: 950,
-  textTransform: 'uppercase',
-  letterSpacing: '0.2em',
-  background: 'rgba(212, 175, 55, 0.1)',
-  border: '1px solid rgba(212, 175, 55, 0.4)',
-  color: '#D4AF37',
-  boxShadow: '0 0 15px rgba(212, 175, 55, 0.2), inset 0 0 10px rgba(212, 175, 55, 0.1)',
-  transition: 'all 0.3s ease',
-  cursor: 'pointer',
-  position: 'relative',
-  overflow: 'hidden',
-
-  '&:hover': {
-    background: 'rgba(212, 175, 55, 0.2)',
-    boxShadow: '0 0 25px rgba(212, 175, 55, 0.5), inset 0 0 15px rgba(212, 175, 55, 0.2)',
-    transform: 'translateY(-1px) scale(1.05)',
-  },
-
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    top: '-50%',
-    left: '-50%',
-    width: '200%',
-    height: '200%',
-    background: 'linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent)',
-    transform: 'rotate(45deg)',
-    animation: `${shimmer} 3s infinite`,
-  }
-});
 
 export default function GlobalHeader() {
   const { user, role, isLoading } = useAuth();
@@ -169,7 +13,7 @@ export default function GlobalHeader() {
   React.useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(registrations => {
-        for(let registration of registrations) {
+        for (let registration of registrations) {
           registration.unregister();
           console.log("💀 GHOST PURGED: Service Worker Unregistered");
         }
@@ -178,34 +22,129 @@ export default function GlobalHeader() {
   }, []);
 
   return (
-    <HeaderContainer>
-      <div className="flex items-center justify-between w-full px-8">
-        <LogoLink href="/">
-           <LogoTextContainer>
-             TEYEON
-             <span className="text-[8px] opacity-30 font-light lowercase tracking-normal bg-none WebkitTextFillColor-white">v7.0 (absolute)</span>
-           </LogoTextContainer>
-        </LogoLink>
+    <header
+      style={{
+        position: 'sticky',
+        top: 0,
+        width: '100%',
+        height: 'calc(64px + env(safe-area-inset-top))',
+        paddingTop: 'env(safe-area-inset-top)',
+        backgroundColor: 'rgba(242,244,247,0.96)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        borderBottom: '1px solid rgba(0,0,0,0.07)',
+        display: 'flex',
+        alignItems: 'center',
+        zIndex: 200,
+        boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          maxWidth: 430,
+          margin: '0 auto',
+          padding: '0 16px',
+        }}
+      >
+        {/* Left: Logo box + Brand */}
+        <Link
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            textDecoration: 'none',
+            minWidth: 0,
+          }}
+        >
+          <Image
+            src="/logos/teyeon-logo-transparent.png"
+            alt="TEYEON"
+            width={42}
+            height={42}
+            priority
+            style={{
+              objectFit: 'contain',
+              flexShrink: 0,
+              filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.12))',
+            }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-orbitron), var(--font-rajdhani), sans-serif',
+                fontSize: 17,
+                fontWeight: 800,
+                color: '#0F172A',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              TEYEON
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-rajdhani), sans-serif',
+                fontSize: 7.5,
+                fontWeight: 600,
+                color: '#94A3B8',
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              TENNIS CLUB · SINCE 2025
+            </span>
+          </div>
+        </Link>
 
-        <UserSection>
+        {/* Right: Role badge + Avatar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {user && !isLoading && (
-            <div className="flex items-center gap-4">
-              <GlowBadge>
-                 {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
-              </GlowBadge>
+            <>
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.16em',
+                  textTransform: 'uppercase',
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  backgroundColor:
+                    role === 'CEO'
+                      ? 'rgba(201,168,76,0.10)'
+                      : 'rgba(13,148,136,0.08)',
+                  color: role === 'CEO' ? '#B8891C' : '#0D9488',
+                  border:
+                    role === 'CEO'
+                      ? '1px solid rgba(201,168,76,0.26)'
+                      : '1px solid rgba(13,148,136,0.20)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
+              </span>
               <Link href="/profile">
-                <ProfileAvatar 
-                  src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-                  alt={user.user_metadata?.full_name} 
-                  size={36}
+                <ProfileAvatar
+                  src={user.user_metadata?.avatar_url || user.user_metadata?.picture}
+                  alt={user.user_metadata?.full_name}
+                  size={34}
                   fallbackIcon={role === 'CEO' ? '👑' : '👤'}
-                  className="border-2 border-[#D4AF37]/30 shadow-[0_0_20px_rgba(212,175,55,0.3)] rounded-full transition-all hover:scale-110 hover:border-[#D4AF37] active:scale-95"
+                  className="rounded-full border border-slate-200 shadow-sm transition-all hover:scale-105 active:scale-95"
                 />
               </Link>
-            </div>
+            </>
           )}
-        </UserSection>
+        </div>
       </div>
-    </HeaderContainer>
+    </header>
   );
 }
