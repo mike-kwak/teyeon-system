@@ -14,13 +14,28 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export default function Home() {
   const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [activeMemberCount, setActiveMemberCount] = useState<number>(23);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
+
+  useEffect(() => {
+    // is_guest = true가 아닌 회원을 활동 회원으로 집계
+    const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
+    supabase
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('club_id', CLUB_ID)
+      .not('is_guest', 'eq', true)
+      .then(({ count, error }) => {
+        if (!error && count !== null) setActiveMemberCount(count);
+      });
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -330,7 +345,7 @@ export default function Home() {
               }}
             >
               {'활동 회원 '}
-              <strong style={{ color: '#0F172A', fontWeight: 800 }}>23명</strong>
+              <strong style={{ color: '#0F172A', fontWeight: 800 }}>{activeMemberCount}명</strong>
               {' · 누적 KDK '}
               <strong style={{ color: '#0F172A', fontWeight: 800 }}>14회</strong>
               {' · 다음 '}
