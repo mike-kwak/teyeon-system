@@ -14,7 +14,6 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { getMonthlyFeaturedEvents } from '@/lib/tournamentCalendarData';
 
 export default function Home() {
   const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
@@ -22,7 +21,6 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
-  const featuredEvents = getMonthlyFeaturedEvents(new Date(), 3);
 
   useEffect(() => {
     setIsMounted(true);
@@ -337,9 +335,7 @@ export default function Home() {
               <strong style={{ color: '#0F172A', fontWeight: 800 }}>14회</strong>
               {' · 다음 '}
               <strong style={{ color: '#0D9488', fontWeight: 700 }}>
-                {featuredEvents[0]
-                  ? `${featuredEvents[0].date.slice(5).replace('-', '/')} ${featuredEvents[0].title}`
-                  : '한산모시배'}
+                한산모시배
               </strong>
             </p>
           </div>
