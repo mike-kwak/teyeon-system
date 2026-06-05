@@ -87,8 +87,8 @@ export default function SplashScreen() {
                     onError={() => setLogoSrc(LOGO_FALLBACK)}
                     style={{
                         objectFit: 'contain',
-                        width: 'clamp(100px, 30vw, 140px)',
-                        height: 'clamp(100px, 30vw, 140px)',
+                        width: 'clamp(112px, 28vw, 128px)',
+                        height: 'clamp(112px, 28vw, 128px)',
                         filter: 'drop-shadow(0 2px 8px rgba(60,70,120,0.10))',
                     }}
                 />
