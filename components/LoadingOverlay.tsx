@@ -35,24 +35,24 @@ export default function LoadingOverlay() {
                 <Image
                     src={LOGO_SRC}
                     alt="TEYEON"
-                    width={72}
-                    height={72}
+                    width={120}
+                    height={120}
                     priority
                     style={{
                         objectFit: 'contain',
-                        maxWidth: '28vw',
-                        height: 'auto',
-                        filter: 'drop-shadow(0 1px 6px rgba(60,70,120,0.08))',
+                        width: 'clamp(100px, 30vw, 140px)',
+                        height: 'clamp(100px, 30vw, 140px)',
+                        filter: 'drop-shadow(0 2px 8px rgba(60,70,120,0.10))',
                     }}
                 />
                 <span
                     style={{
                         fontFamily: 'var(--font-rajdhani), sans-serif',
-                        fontSize: '10px',
+                        fontSize: '11px',
                         fontWeight: 700,
                         letterSpacing: '0.3em',
                         textTransform: 'uppercase',
-                        color: 'rgba(55,65,95,0.48)',
+                        color: 'rgba(55,65,95,0.45)',
                     }}
                 >
                     TEYEON 준비 중...

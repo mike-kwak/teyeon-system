@@ -81,15 +81,15 @@ export default function SplashScreen() {
                 <Image
                     src={logoSrc}
                     alt="TEYEON"
-                    width={180}
-                    height={90}
+                    width={140}
+                    height={140}
                     priority
                     onError={() => setLogoSrc(LOGO_FALLBACK)}
                     style={{
                         objectFit: 'contain',
-                        maxWidth: '64vw',
-                        height: 'auto',
-                        filter: 'drop-shadow(0 2px 12px rgba(60,70,120,0.10))',
+                        width: 'clamp(100px, 30vw, 140px)',
+                        height: 'clamp(100px, 30vw, 140px)',
+                        filter: 'drop-shadow(0 2px 8px rgba(60,70,120,0.10))',
                     }}
                 />
                 <span
