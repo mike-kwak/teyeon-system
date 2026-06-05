@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLoading } from '@/context/LoadingContext';
 
@@ -9,8 +10,31 @@ const LOGO_SRC = '/logos/teyeon-logo-transparent.png';
 export default function LoadingOverlay() {
     const pathname = usePathname();
     const { isLoading } = useLoading();
+    const [mounted, setMounted] = useState(false);
+    const [visible, setVisible] = useState(false);
+    const showRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (isLoading) {
+            if (hideRef.current) clearTimeout(hideRef.current);
+            setMounted(true);
+            // 100ms 지연 — 짧은 로딩은 overlay 표시 안 함
+            showRef.current = setTimeout(() => setVisible(true), 100);
+        } else {
+            if (showRef.current) clearTimeout(showRef.current);
+            setVisible(false);
+            // fade-out 완료(200ms) 후 DOM에서 제거
+            hideRef.current = setTimeout(() => setMounted(false), 220);
+        }
+        return () => {
+            if (showRef.current) clearTimeout(showRef.current);
+            if (hideRef.current) clearTimeout(hideRef.current);
+        };
+    }, [isLoading]);
 
     if (pathname?.startsWith('/kdk/display')) return null;
+    if (!mounted) return null;
 
     return (
         <>
@@ -26,11 +50,11 @@ export default function LoadingOverlay() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '14px',
-                    transition: 'opacity 260ms cubic-bezier(0.4,0,0.2,1)',
-                    opacity: isLoading ? 1 : 0,
-                    pointerEvents: isLoading ? 'auto' : 'none',
+                    transition: 'opacity 200ms cubic-bezier(0.4,0,0.2,1)',
+                    opacity: visible ? 1 : 0,
+                    pointerEvents: visible ? 'auto' : 'none',
                 }}
-                aria-hidden={!isLoading}
+                aria-hidden={!visible}
             >
                 <Image
                     src={LOGO_SRC}
