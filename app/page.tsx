@@ -21,6 +21,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [activeMemberCount, setActiveMemberCount] = useState<number>(23);
+  const [totalKdkCount, setTotalKdkCount] = useState<number>(0);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
 
@@ -34,6 +35,20 @@ export default function Home() {
       .not('is_guest', 'eq', true)
       .then(({ count, error }) => {
         if (!error && count !== null) setActiveMemberCount(count);
+      });
+
+    // 공식 KDK 세션 수: teyeon_archive_v1에서 is_official=true, is_test=false 기준 (1 row = 1 세션)
+    supabase
+      .from('teyeon_archive_v1')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_official', true)
+      .eq('is_test', false)
+      .then(({ count, error }) => {
+        if (error) {
+          console.warn('[Home] KDK count 조회 실패 — fallback 0 유지:', error.message);
+          return;
+        }
+        if (count !== null) setTotalKdkCount(count);
       });
   }, []);
 
@@ -347,7 +362,7 @@ export default function Home() {
               {'활동 회원 '}
               <strong style={{ color: '#0F172A', fontWeight: 800 }}>{activeMemberCount}명</strong>
               {' · 누적 KDK '}
-              <strong style={{ color: '#0F172A', fontWeight: 800 }}>14회</strong>
+              <strong style={{ color: '#0F172A', fontWeight: 800 }}>{totalKdkCount}회</strong>
               {' · 다음 '}
               <strong style={{ color: '#0D9488', fontWeight: 700 }}>
                 한산모시배
