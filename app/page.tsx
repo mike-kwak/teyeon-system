@@ -330,7 +330,7 @@ export default function Home() {
               }}
             >
               {'활동 회원 '}
-              <strong style={{ color: '#0F172A', fontWeight: 800 }}>82명</strong>
+              <strong style={{ color: '#0F172A', fontWeight: 800 }}>23명</strong>
               {' · 누적 KDK '}
               <strong style={{ color: '#0F172A', fontWeight: 800 }}>14회</strong>
               {' · 다음 '}

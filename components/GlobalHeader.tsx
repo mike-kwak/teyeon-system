@@ -65,20 +65,20 @@ export default function GlobalHeader() {
           <Image
             src="/logos/teyeon-logo-transparent.png"
             alt="TEYEON"
-            width={42}
-            height={42}
+            width={44}
+            height={44}
             priority
             style={{
               objectFit: 'contain',
               flexShrink: 0,
-              filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.12))',
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.10))',
             }}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
             <span
               style={{
                 fontFamily: 'var(--font-orbitron), var(--font-rajdhani), sans-serif',
-                fontSize: 17,
+                fontSize: 19,
                 fontWeight: 800,
                 color: '#0F172A',
                 letterSpacing: '0.05em',
@@ -92,10 +92,10 @@ export default function GlobalHeader() {
             <span
               style={{
                 fontFamily: 'var(--font-rajdhani), sans-serif',
-                fontSize: 7.5,
+                fontSize: 10,
                 fontWeight: 600,
                 color: '#94A3B8',
-                letterSpacing: '0.22em',
+                letterSpacing: '0.17em',
                 textTransform: 'uppercase',
                 lineHeight: 1,
                 whiteSpace: 'nowrap',
