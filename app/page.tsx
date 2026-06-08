@@ -11,6 +11,7 @@ import {
   Layout,
   Settings,
   Swords,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -461,18 +462,19 @@ export default function Home() {
             {/* Menu card stack */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               <MenuCard
+                label="대진 생성"
+                description="KDK 대진표 생성 및 실시간 운영."
+                icon={<Swords size={21} strokeWidth={1.7} />}
+                path="/kdk"
+                badge="KDK"
+                accent="teal"
+              />
+              <MenuCard
                 label="대회 캘린더"
                 description="월별 대회 일정과 참가/파트너 현황을 확인합니다."
                 icon={<CalendarDays size={21} strokeWidth={1.7} />}
                 path="/tournament-calendar"
                 badge="CALENDAR"
-                accent="teal"
-              />
-              <MenuCard
-                label="멤버 프로필"
-                description="클럽 멤버 프로필 및 랭킹을 조회합니다."
-                icon={<Users size={21} strokeWidth={1.7} />}
-                path="/members"
                 accent="teal"
               />
               <MenuCard
@@ -484,11 +486,10 @@ export default function Home() {
                 accent="teal"
               />
               <MenuCard
-                label="대진 생성"
-                description="KDK 대진표 생성 및 실시간 운영."
-                icon={<Swords size={21} strokeWidth={1.7} />}
-                path="/kdk"
-                badge="KDK"
+                label="멤버 프로필"
+                description="클럽 멤버 프로필 및 랭킹을 조회합니다."
+                icon={<Users size={21} strokeWidth={1.7} />}
+                path="/members"
                 accent="teal"
               />
               <MenuCard
@@ -497,6 +498,14 @@ export default function Home() {
                 icon={<CircleDollarSign size={21} strokeWidth={1.7} />}
                 path="/finance"
                 accent="gold"
+              />
+              <MenuCard
+                label="GUEST JOIN"
+                description="TEYEON 게스트 참여 신청"
+                icon={<UserPlus size={21} strokeWidth={1.7} />}
+                path="/guest"
+                badge="OPEN"
+                accent="teal"
               />
               <MenuCard
                 label="관리자 설정"
