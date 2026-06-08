@@ -1,3 +1,5 @@
+// Tournament Schedule 전용 서비스 — tournament_events / tournament_pairs / tournament_partner_requests 테이블 대상.
+// TODO: Club Schedule (정모/KDK/번개 등) 은 club_events 별도 테이블 + clubScheduleService.ts 로 분리 예정.
 import { supabase } from './supabase';
 import {
   TournamentDivision,
@@ -195,6 +197,31 @@ export async function saveTournamentEvent(input: TournamentEventInput, userId?: 
   }
 
   return savedEventId;
+}
+
+// CSV 업로드 시 사용 — 이벤트 메타데이터만 업데이트하고 pairs/partner_requests는 보존
+export async function updateTournamentEventMeta(
+  eventId: string,
+  input: TournamentEventInput,
+  userId?: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('tournament_events')
+    .update({
+      title: input.title.trim(),
+      event_date: input.date,
+      venue: input.venue?.trim() || null,
+      organizer: input.organizer,
+      division: input.division,
+      grade: input.grade?.trim() || null,
+      registration_start: input.registrationStart || null,
+      status: input.status,
+      memo: input.memo?.trim() || null,
+      updated_by: userId || null,
+    })
+    .eq('id', eventId);
+
+  if (error) throw error;
 }
 
 export async function deleteTournamentEvent(eventId: string) {

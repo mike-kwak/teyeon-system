@@ -5,22 +5,19 @@ export const dynamic = 'force-dynamic';
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  CalendarDays,
+  Bell,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Edit3,
-  LayoutGrid,
-  List,
   MapPin,
   MessageCircle,
   Plus,
-  Search,
   Trash2,
+  Upload,
   X,
-  UsersRound,
 } from 'lucide-react';
+import TournamentCSVUploadModal from '@/components/TournamentCSVUploadModal';
 import {
   formatTournamentDate,
   getTournamentDday,
@@ -36,66 +33,51 @@ import {
   TournamentEventInput,
 } from '@/lib/tournamentCalendarService';
 import { useAuth } from '@/context/AuthContext';
-import ProfileAvatar from '@/components/ProfileAvatar';
 
-const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+// ─── TEYEON Calendar 아키텍처 TODO ────────────────────────────────────────────
+// 현재 이 페이지는 Tournament Schedule (외부 대회 일정) 전용.
+// 향후 TEYEON Calendar = Tournament Schedule + Club Schedule (정모/KDK/번개 등) 구조로 확장 예정.
+// Club Schedule은 별도 /club-schedule 경로 + club_events 테이블로 분리 — 이 파일은 건드리지 말 것.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const organizerStyle: Record<TournamentEvent['organizer'], { badge: string; chip: string; pill: string; accent: string }> = {
-  KATO: {
-    badge: 'KATO',
-    chip: 'border-amber-300 bg-amber-50 text-amber-700',
-    pill: 'border-amber-200 bg-amber-50/80 text-amber-800',
-    accent: 'bg-amber-400',
-  },
-  KATA: {
-    badge: 'KATA',
-    chip: 'border-sky-300 bg-sky-50 text-sky-700',
-    pill: 'border-sky-200 bg-sky-50/80 text-sky-800',
-    accent: 'bg-sky-400',
-  },
-  KTA: {
-    badge: 'KTA',
-    chip: 'border-rose-300 bg-rose-50 text-rose-700',
-    pill: 'border-rose-200 bg-rose-50/80 text-rose-800',
-    accent: 'bg-rose-400',
-  },
-  지역대회: {
-    badge: 'LOCAL',
-    chip: 'border-emerald-300 bg-emerald-50 text-emerald-700',
-    pill: 'border-emerald-200 bg-emerald-50/80 text-emerald-800',
-    accent: 'bg-emerald-400',
-  },
-  비랭킹: {
-    badge: 'NON-RANK',
-    chip: 'border-slate-300 bg-slate-100 text-slate-600',
-    pill: 'border-slate-200 bg-slate-50 text-slate-700',
-    accent: 'bg-slate-400',
-  },
+// ─── Style maps (inline — Cool Light theme) ───────────────────────────────────
+
+const ORG_STYLE: Record<TournamentEvent['organizer'], { badge: string; bg: string; color: string; border: string }> = {
+  KATO:   { badge: 'KATO',     bg: 'rgba(245,158,11,0.09)',  color: '#92400E', border: 'rgba(245,158,11,0.28)' },
+  KATA:   { badge: 'KATA',     bg: 'rgba(14,165,233,0.09)',  color: '#0C4A6E', border: 'rgba(14,165,233,0.28)' },
+  KTA:    { badge: 'KTA',      bg: 'rgba(239,68,68,0.09)',   color: '#991B1B', border: 'rgba(239,68,68,0.26)'  },
+  지역대회: { badge: 'LOCAL',  bg: 'rgba(16,185,129,0.09)',  color: '#065F46', border: 'rgba(16,185,129,0.24)' },
+  비랭킹:  { badge: 'NON-RNK', bg: 'rgba(100,116,139,0.09)', color: '#334155', border: 'rgba(100,116,139,0.22)' },
 };
 
-const statusStyle: Record<TournamentEvent['status'], string> = {
-  접수예정: 'border-amber-200 bg-amber-50 text-amber-700',
-  접수중: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  접수종료: 'border-slate-200 bg-slate-100 text-slate-500',
-  대회진행중: 'border-rose-200 bg-rose-50 text-rose-700',
-  대회종료: 'border-slate-200 bg-slate-50 text-slate-400',
-  대회취소: 'border-rose-200 bg-rose-50 text-rose-700',
+const STATUS_STYLE: Record<TournamentEvent['status'], { bg: string; color: string; border: string }> = {
+  접수예정:   { bg: 'rgba(245,158,11,0.08)',  color: '#92400E', border: 'rgba(245,158,11,0.22)' },
+  접수중:    { bg: 'rgba(13,148,136,0.09)',   color: '#134E4A', border: 'rgba(13,148,136,0.22)' },
+  접수종료:  { bg: 'rgba(100,116,139,0.08)',  color: '#475569', border: 'rgba(100,116,139,0.18)' },
+  대회진행중: { bg: 'rgba(239,68,68,0.08)',   color: '#991B1B', border: 'rgba(239,68,68,0.20)'  },
+  대회종료:  { bg: 'rgba(100,116,139,0.06)',  color: '#94A3B8', border: 'rgba(100,116,139,0.14)' },
+  대회취소:  { bg: 'rgba(239,68,68,0.08)',    color: '#991B1B', border: 'rgba(239,68,68,0.20)'  },
 };
 
-const resultStyle = {
-  우승: 'border-amber-300 bg-amber-50 text-amber-800',
-  준우승: 'border-slate-300 bg-slate-100 text-slate-700',
-  Finalist: 'border-emerald-300 bg-emerald-50 text-emerald-700',
-  취소: 'border-rose-200 bg-rose-50 text-rose-700',
-  X: 'border-rose-200 bg-rose-50 text-rose-700',
-  default: 'border-slate-200 bg-white text-slate-600',
+const RESULT_STYLE: Record<string, { bg: string; color: string; border: string }> = {
+  우승:     { bg: 'rgba(245,158,11,0.10)',  color: '#92400E', border: 'rgba(245,158,11,0.26)'  },
+  준우승:   { bg: 'rgba(100,116,139,0.10)', color: '#334155', border: 'rgba(100,116,139,0.22)' },
+  Finalist: { bg: 'rgba(16,185,129,0.09)',  color: '#065F46', border: 'rgba(16,185,129,0.22)'  },
+  취소:     { bg: 'rgba(239,68,68,0.08)',   color: '#991B1B', border: 'rgba(239,68,68,0.20)'   },
+  X:        { bg: 'rgba(239,68,68,0.08)',   color: '#991B1B', border: 'rgba(239,68,68,0.20)'   },
+  default:  { bg: 'rgba(100,116,139,0.07)', color: '#475569', border: 'rgba(100,116,139,0.16)' },
 };
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const organizerOptions: TournamentEvent['organizer'][] = ['KATO', 'KATA', 'KTA', '지역대회', '비랭킹'];
-const divisionOptions: TournamentEvent['division'][] = ['신인부', '오픈부', '단체전', '기타'];
+const divisionOptions: TournamentEvent['division'][] = ['신인부', '오픈부', '단체전'];
 const gradeOptions = ['', 'MA', 'A', '1', '2', '3', '비랭킹'];
 const statusOptions: TournamentEvent['status'][] = ['접수예정', '접수중', '접수종료', '대회진행중', '대회종료', '대회취소'];
 const resultOptions: Array<TournamentPair['result'] | ''> = ['', '예정', '64', '32', '16', '8', 'Finalist', '준우승', '우승', '취소', 'X'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function canManageTournamentCalendar(role?: string | null) {
   return role === 'CEO' || role === 'ADMIN' || role === 'TOURNAMENT_MANAGER' || role === 'CALENDAR_MANAGER';
@@ -109,31 +91,28 @@ function hasResult(pair: TournamentPair) {
   return Boolean(pair.result && pair.result !== '예정');
 }
 
-function resultBadgeClass(result?: TournamentPair['result']) {
-  if (!result || result === '예정') return 'border-slate-200 bg-slate-50 text-slate-500';
-  return resultStyle[result as keyof typeof resultStyle] || resultStyle.default;
-}
-
-function monthDayLabel(date: string) {
-  const parsed = parseTournamentDate(date);
-  return `${parsed.getMonth() + 1}/${parsed.getDate()}`;
-}
-
-function monthLabel(date: Date) {
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
-}
-
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function pickInitialEvent(events: TournamentEvent[]) {
-  const today = new Date();
-  const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const upcoming = events
-    .filter((event) => parseTournamentDate(event.date).getTime() >= todayTime)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  return upcoming[0] || events[0] || null;
+function buildCalendarCells(currentMonth: Date) {
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const cells: Array<{ date: Date; inMonth: boolean }> = [];
+
+  for (let index = firstDay.getDay(); index > 0; index -= 1) {
+    cells.push({ date: new Date(year, month, 1 - index), inMonth: false });
+  }
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    cells.push({ date: new Date(year, month, day), inMonth: true });
+  }
+  while (cells.length % 7 !== 0 || cells.length < 35) {
+    const nextIndex = cells.length - firstDay.getDay() + 1;
+    cells.push({ date: new Date(year, month, nextIndex), inMonth: false });
+  }
+  return cells;
 }
 
 function toEditorInput(event?: TournamentEvent | null): TournamentEventInput {
@@ -149,242 +128,130 @@ function toEditorInput(event?: TournamentEvent | null): TournamentEventInput {
     status: event?.status || '접수예정',
     memo: event?.memo || '',
     pairs: event?.pairs?.length
-      ? event.pairs.map((pair) => ({
-          id: pair.id,
-          player1: pair.player1,
-          player2: pair.player2,
-          result: pair.result,
-        }))
+      ? event.pairs.map((pair) => ({ id: pair.id, player1: pair.player1, player2: pair.player2, result: pair.result }))
       : [{ player1: '', player2: '', result: undefined }],
     partnerRequests: event?.partnerRequests?.length
-      ? event.partnerRequests.map((request) => ({
-          id: request.id,
-          name: request.name,
-          memo: request.memo || '',
-        }))
+      ? event.partnerRequests.map((req) => ({ id: req.id, name: req.name, memo: req.memo || '' }))
       : (event?.lookingForPartners || []).map((name) => ({ name, memo: '' })),
   };
 }
 
-function buildCalendarCells(currentMonth: Date) {
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const cells: Array<{ date: Date; inMonth: boolean }> = [];
-
-  for (let index = firstDay.getDay(); index > 0; index -= 1) {
-    cells.push({ date: new Date(year, month, 1 - index), inMonth: false });
-  }
-
-  for (let day = 1; day <= lastDay.getDate(); day += 1) {
-    cells.push({ date: new Date(year, month, day), inMonth: true });
-  }
-
-  while (cells.length % 7 !== 0 || cells.length < 35) {
-    const nextIndex = cells.length - firstDay.getDay() + 1;
-    cells.push({ date: new Date(year, month, nextIndex), inMonth: false });
-  }
-
-  return cells;
+function formatDayLabel(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${m}월 ${d}일 (${WEEK_DAYS[date.getDay()]})`;
 }
 
-function EventPill({ event, onClick }: { event: TournamentEvent; onClick: () => void }) {
-  const style = organizerStyle[event.organizer];
-  const dday = getTournamentDday(event.registrationStart);
-  const isCanceled = event.status === '대회취소';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group flex w-full overflow-hidden rounded-xl border ${isCanceled ? 'border-rose-200 bg-rose-50/80 text-rose-800' : style.pill} text-left shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.02] transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]`}
-    >
-      <span className={`w-1.5 shrink-0 self-stretch ${isCanceled ? 'bg-rose-400' : style.accent}`} aria-hidden="true" />
-      <div className="min-w-0 flex-1 px-2.5 py-2 lg:px-3 lg:py-2.5">
-        <div className="flex min-w-0 items-center gap-2 overflow-visible">
-          <span className="inline-flex min-w-fit shrink-0 whitespace-nowrap overflow-visible text-[9px] font-[1000] uppercase tracking-[0.08em]">{style.badge}</span>
-          <span className="min-w-0 truncate text-[11px] font-[1000] leading-tight text-slate-950 lg:text-[12px] xl:text-[13px]">{event.title}</span>
-        </div>
-        <div className="mt-1 flex min-w-0 items-center gap-2 text-[9px] font-bold text-slate-600 lg:mt-1.5 lg:text-[10px]">
-          <span className="truncate">
-            {event.division}
-            {event.grade ? ` · ${event.grade}` : ''}
-          </span>
-          {isCanceled && <span className="shrink-0 text-rose-700">대회취소</span>}
-          {dday && <span className="shrink-0 text-amber-700">{dday}</span>}
-        </div>
-      </div>
-    </button>
-  );
-}
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TournamentCalendarPage() {
-  const { user, role, isLoading } = useAuth();
+  const { user, role } = useAuth();
   const isAdmin = canManageTournamentCalendar(role);
+  // TODO: CALENDAR_MANAGER 역할 도입 시 이 조건에 추가 — profiles.role 컬럼 값 'CALENDAR_MANAGER' 확인 필요
+  const canEditEvent = role === 'CEO' || role === 'ADMIN';
+  // CSV 업로드: MVP에서 CEO/ADMIN 전용 (TODO: CALENDAR_MANAGER 확장 시 추가)
+  const canUploadCSV = role === 'CEO' || role === 'ADMIN';
+
   const [events, setEvents] = useState<TournamentEvent[]>(tournamentEvents);
   const [dataSource, setDataSource] = useState<'db' | 'demo'>('demo');
-  const [dataMessage, setDataMessage] = useState('');
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [selectedEvent, setSelectedEvent] = useState<TournamentEvent | null>(() => pickInitialEvent(tournamentEvents));
-  const [openInfoSections, setOpenInfoSections] = useState({
-    summary: true,
-    upcoming: false,
-    pairStatus: false,
-    results: false,
-    partnerRequests: false,
-  });
-  const [isMonthlySheetOpen, setIsMonthlySheetOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [selectedDate, setSelectedDate] = useState<string>(() => dateKey(new Date()));
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set());
+  const [isMonthListOpen, setIsMonthListOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TournamentEvent | null>(null);
+  const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false);
   const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
+  // ── Data loading (unchanged logic) ──
   const loadEvents = async () => {
     try {
       const dbEvents = await fetchTournamentEvents();
       if (dbEvents.length > 0) {
         setEvents(dbEvents);
         setDataSource('db');
-        setDataMessage('');
         return dbEvents;
-      } else {
-        setEvents(tournamentEvents);
-        setDataSource('demo');
-        setDataMessage('DB에 등록된 대회가 없어 더미 데이터를 표시 중입니다.');
-        return tournamentEvents;
       }
-    } catch (error) {
-      console.warn('[Tournament Calendar] DB fetch failed. Using demo data.', error);
       setEvents(tournamentEvents);
       setDataSource('demo');
-      setDataMessage('DB 연결 전까지 더미 데이터를 표시 중입니다.');
+      return tournamentEvents;
+    } catch {
+      setEvents(tournamentEvents);
+      setDataSource('demo');
       return tournamentEvents;
     }
   };
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
+  useEffect(() => { loadEvents(); }, []);
 
-  useEffect(() => {
-    setSelectedEvent((prev) => {
-      if (prev) {
-        const updated = events.find((event) => event.id === prev.id);
-        if (updated) return updated;
-      }
-      return pickInitialEvent(events);
-    });
+  // ── Derived sets for calendar dots ──
+  const eventDateSet = useMemo(() => {
+    const s = new Set<string>();
+    events.forEach((e) => s.add(e.date));
+    return s;
   }, [events]);
 
-  const cells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
-  const eventsByDate = useMemo(() => {
-    return events.reduce<Record<string, TournamentEvent[]>>((acc, event) => {
-      acc[event.date] = [...(acc[event.date] || []), event].sort((a, b) => a.title.localeCompare(b.title));
-      return acc;
-    }, {});
+  const regStartDateSet = useMemo(() => {
+    const s = new Set<string>();
+    events.forEach((e) => { if (e.registrationStart) s.add(e.registrationStart); });
+    return s;
   }, [events]);
 
+  // ── Events for the selected date (경기일 OR 접수시작일 기준) ──
+  const selectedDateEvents = useMemo(() => {
+    return events.filter((e) => e.date === selectedDate || e.registrationStart === selectedDate);
+  }, [events, selectedDate]);
+
+  // ── Events for the displayed month (monthly list) ──
   const monthEvents = useMemo(() => {
     return events
-      .filter((event) => {
-        const date = parseTournamentDate(event.date);
-        return date.getFullYear() === currentMonth.getFullYear() && date.getMonth() === currentMonth.getMonth();
+      .filter((e) => {
+        const d = parseTournamentDate(e.date);
+        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
       })
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [currentMonth, events]);
+  }, [events, currentMonth]);
 
-  const monthEventsByDate = useMemo(() => {
-    return monthEvents.reduce<Array<{ date: string; events: TournamentEvent[] }>>((acc, event) => {
-      const existing = acc.find((item) => item.date === event.date);
-      if (existing) {
-        existing.events.push(event);
-      } else {
-        acc.push({ date: event.date, events: [event] });
-      }
-      return acc;
-    }, []);
-  }, [monthEvents]);
+  const cells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
 
-  const monthSummary = useMemo(() => {
-    const organizerCounts = monthEvents.reduce<Partial<Record<TournamentEvent['organizer'], number>>>((acc, event) => {
-      acc[event.organizer] = (acc[event.organizer] || 0) + 1;
-      return acc;
-    }, {});
-    const openCount = monthEvents.filter((event) => event.status === '접수중').length;
-    const partnerCount = monthEvents.reduce((sum, event) => sum + event.lookingForPartners.length, 0);
+  const todayKey = useMemo(() => dateKey(new Date()), []);
 
-    return {
-      organizerCounts,
-      openCount,
-      partnerCount,
-      total: monthEvents.length,
-    };
-  }, [monthEvents]);
-
-  const upcomingRegistrations = useMemo(() => {
-    const now = new Date();
-    return events
-      .filter((event) => event.registrationStart)
-      .map((event) => ({ event, dday: getTournamentDday(event.registrationStart, now) }))
-      .filter(({ dday }) => dday && !dday.startsWith('D+'))
-      .sort((a, b) => (a.event.registrationStart || '').localeCompare(b.event.registrationStart || ''))
-      .slice(0, 4);
-  }, [events]);
-
-  const monthlyPairStatus = useMemo(() => {
-    return monthEvents
-      .filter((event) => event.pairs.some((pair) => !hasResult(pair)))
-      .map((event) => ({
-        event,
-        plannedPairs: event.pairs.filter((pair) => !hasResult(pair)),
-      }));
-  }, [monthEvents]);
-
-  const monthlyPartnerRequests = useMemo(() => {
-    return monthEvents
-      .filter((event) => event.lookingForPartners.length > 0)
-      .map((event) => ({
-        event,
-        lookingForPartners: event.lookingForPartners,
-      }));
-  }, [monthEvents]);
-
-  const monthlyResultPairs = useMemo(() => {
-    return monthEvents
-      .flatMap((event) =>
-        event.pairs
-          .filter(hasResult)
-          .map((pair) => ({
-            event,
-            pair,
-          }))
-      )
-      .slice(0, 8);
-  }, [monthEvents]);
-
+  // ── Handlers ──
   const moveMonth = (offset: number) => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
   };
 
-  const toggleInfoSection = (section: keyof typeof openInfoSections) => {
-    setOpenInfoSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  const selectDate = (key: string, cellDate: Date) => {
+    setSelectedDate(key);
+    setExpandedCardId(null);
+    const cy = cellDate.getFullYear();
+    const cm = cellDate.getMonth();
+    if (cy !== currentMonth.getFullYear() || cm !== currentMonth.getMonth()) {
+      setCurrentMonth(new Date(cy, cm, 1));
+    }
   };
 
-  const shareSelectedEvent = async () => {
-    if (!selectedEvent) return;
-    const text = [
-      `[TEYEON 대회 캘린더] ${selectedEvent.title}`,
-      `일자: ${formatTournamentDate(selectedEvent.date)}`,
-      `장소: ${selectedEvent.venue}`,
-      `주관: ${selectedEvent.organizer}`,
-      `부서: ${selectedEvent.division}${selectedEvent.grade ? ` / ${selectedEvent.grade}` : ''}`,
-      `접수: ${selectedEvent.registrationStart ? formatTournamentDate(selectedEvent.registrationStart) : '미정'} (${selectedEvent.status})`,
-      `참가 예정: ${selectedEvent.pairs.length}팀`,
-      ...(selectedEvent.lookingForPartners.length > 0 ? [`파트너 구함: ${selectedEvent.lookingForPartners.length}명`] : []),
-    ].join('\n');
+  const toggleNotify = (eventId: string) => {
+    setNotifiedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId); else next.add(eventId);
+      return next;
+    });
+  };
 
+  const shareEvent = async (event: TournamentEvent) => {
+    const text = [
+      `[TEYEON 대회 캘린더] ${event.title}`,
+      `일자: ${formatTournamentDate(event.date)}`,
+      `장소: ${event.venue}`,
+      `주관: ${event.organizer}`,
+      `부서: ${event.division}${event.grade ? ` / ${event.grade}` : ''}`,
+      `접수: ${event.registrationStart ? formatTournamentDate(event.registrationStart) : '미정'} (${event.status})`,
+      `참가 예정: ${event.pairs.length}팀`,
+      ...(event.lookingForPartners.length > 0 ? [`파트너 구함: ${event.lookingForPartners.length}명`] : []),
+    ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
       alert('대회 정보가 복사되었습니다. 카카오톡 채팅방에 붙여넣기 해주세요.');
@@ -393,35 +260,22 @@ export default function TournamentCalendarPage() {
     }
   };
 
-  const openCreateEditor = () => {
-    setEditingEvent(null);
-    setIsEditorOpen(true);
-  };
-
-  const openEditEditor = () => {
-    if (!selectedEvent) return;
-    setEditingEvent(selectedEvent);
-    setIsEditorOpen(true);
-  };
+  const openCreateEditor = () => { setEditingEvent(null); setIsEditorOpen(true); };
+  const openEditEditor = (event: TournamentEvent) => { setEditingEvent(event); setIsEditorOpen(true); };
 
   const handleSaveEvent = async (input: TournamentEventInput) => {
     if (!isAdmin) return;
-    if (!input.title.trim()) {
-      alert('대회명을 입력해 주세요.');
-      return;
-    }
-    if (!input.date) {
-      alert('대회일을 입력해 주세요.');
-      return;
-    }
-
+    if (!input.title.trim()) { alert('대회명을 입력해 주세요.'); return; }
+    if (!input.date) { alert('대회일을 입력해 주세요.'); return; }
     setIsSavingEvent(true);
     try {
-      const savedId = await saveTournamentEvent(input, user?.id);
-      const nextEvents = await loadEvents();
-      setSelectedEvent(nextEvents.find((event) => event.id === savedId) || pickInitialEvent(nextEvents));
+      await saveTournamentEvent(input, user?.id);
+      await loadEvents();
       setIsEditorOpen(false);
       setEditingEvent(null);
+      const [y, m] = input.date.split('-').map(Number);
+      setSelectedDate(input.date);
+      setCurrentMonth(new Date(y, m - 1, 1));
       alert('대회 일정이 저장되었습니다.');
     } catch (error) {
       console.error('[Tournament Calendar] Save failed', error);
@@ -433,14 +287,12 @@ export default function TournamentCalendarPage() {
 
   const handleDeleteEvent = async (eventId: string) => {
     if (!isAdmin) return;
-    const ok = window.confirm('정말 이 대회를 삭제할까요? 실제 대회 취소는 삭제 대신 상태를 대회취소로 변경하는 것을 권장합니다.');
+    const ok = window.confirm('정말 이 대회를 삭제할까요? 실제 취소는 상태를 대회취소로 변경하는 것을 권장합니다.');
     if (!ok) return;
-
     setIsDeletingEvent(true);
     try {
       await deleteTournamentEvent(eventId);
-      const nextEvents = await loadEvents();
-      setSelectedEvent(pickInitialEvent(nextEvents));
+      await loadEvents();
       setIsEditorOpen(false);
       setEditingEvent(null);
       alert('대회가 삭제되었습니다.');
@@ -452,633 +304,850 @@ export default function TournamentCalendarPage() {
     }
   };
 
+  const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+
   return (
-    <main className="fixed bottom-0 left-1/2 top-[calc(72px+env(safe-area-inset-top))] z-[120] w-screen -translate-x-1/2 overflow-y-auto scroll-pb-[calc(300px+env(safe-area-inset-bottom))] !bg-[#f5f6f8] text-slate-900 lg:top-0 lg:z-[9999] lg:flex lg:justify-center lg:scroll-pb-8">
-      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-2.5 px-3 pb-[calc(280px+env(safe-area-inset-bottom))] pt-3 sm:px-6 lg:mx-0 lg:gap-4 lg:px-6 lg:py-4 lg:pb-8 xl:px-8">
-        <header className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
-          <div className="mb-4 hidden items-center justify-between border-b border-slate-100 pb-3 lg:flex">
-            <Link href="/" className="flex items-center gap-3">
-              <div>
-                <p className="text-[24px] font-[1000] italic leading-none tracking-[-0.06em] text-slate-950">TEYEON</p>
-                <p className="mt-1 text-[10px] font-[1000] uppercase tracking-[0.22em] text-amber-700">Tournament Calendar</p>
-              </div>
+    <main
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: '50%',
+        top: 'calc(72px + env(safe-area-inset-top))',
+        zIndex: 120,
+        width: '100vw',
+        transform: 'translateX(-50%)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        backgroundColor: '#F2F4F7',
+        WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 430,
+          margin: '0 auto',
+          padding: '12px 14px calc(96px + env(safe-area-inset-bottom))',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          boxSizing: 'border-box',
+          width: '100%',
+        }}
+      >
+        {/* ── Header card ── */}
+        <div
+          style={{
+            borderRadius: 16,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.06)',
+            borderTop: '2px solid #0D9488',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            padding: '9px 13px 8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <Link
+              href="/"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                minWidth: 32,
+                borderRadius: '50%',
+                backgroundColor: '#F1F5F9',
+                border: '1px solid rgba(0,0,0,0.07)',
+                color: '#475569',
+                textDecoration: 'none',
+                flexShrink: 0,
+              }}
+            >
+              <ChevronLeft size={17} />
             </Link>
-
-            {user && !isLoading && (
-              <div className="flex items-center gap-3">
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-[1000] uppercase tracking-[0.16em] text-amber-700">
-                  {role === 'CEO' ? 'CEO' : (role || 'GUEST')}
-                </span>
-                <Link href="/profile" className="shrink-0">
-                  <ProfileAvatar
-                    src={user.user_metadata?.avatar_url || user.user_metadata?.picture}
-                    alt={user.user_metadata?.full_name}
-                    size={36}
-                    fallbackIcon={role === 'CEO' ? 'T' : 'U'}
-                    className="rounded-full border-2 border-amber-200 shadow-sm"
-                  />
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
-            <div className="flex min-w-0 items-start gap-2.5 lg:gap-3">
-              <Link
-                href="/"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 active:scale-95 lg:h-10 lg:w-10"
-                aria-label="홈으로"
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              <h1
+                style={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  color: '#0F172A',
+                  margin: 0,
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap',
+                }}
               >
-                <ArrowLeft size={17} />
-              </Link>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[9px] font-[1000] uppercase tracking-[0.18em] text-amber-700 lg:hidden">
-                    TEYEON
-                  </span>
-                </div>
-                <h1 className="mt-0.5 text-[22px] font-[1000] tracking-[-0.05em] text-slate-950 sm:text-[34px] lg:mt-2 lg:text-[38px]">
-                  대회 캘린더
-                </h1>
-                <p className="mt-1 hidden max-w-3xl text-[13px] font-semibold leading-relaxed text-slate-500 sm:block">
-                  월별 대회 일정과 출전 페어, 성적 현황을 한 화면에서 확인합니다.
-                </p>
-              </div>
+                대회 캘린더
+              </h1>
+              <p
+                style={{
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: '#94A3B8',
+                  margin: '1px 0 0',
+                  lineHeight: 1,
+                }}
+              >
+                월별 대회 일정 · 접수 현황
+              </p>
             </div>
-
-            <div className="flex flex-wrap items-center gap-1 lg:justify-end lg:gap-2">
-              <div className="flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 lg:h-10 lg:gap-2 lg:px-3">
-                <CalendarDays size={14} className="text-amber-600 lg:size-[15px]" />
-                <span className="text-[11px] font-[1000] text-slate-900 lg:text-[13px]">{monthLabel(currentMonth)}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => moveMonth(-1)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
-                aria-label="이전 달"
-              >
-                <ChevronLeft size={17} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentMonth(new Date())}
-                className="h-8 rounded-full border border-amber-300 bg-amber-50 px-2.5 text-[9px] font-[1000] uppercase tracking-[0.08em] text-amber-700 shadow-sm transition hover:bg-amber-100 active:scale-95 lg:h-10 lg:px-4 lg:text-[11px]"
-              >
-                이번 달
-              </button>
-              <button
-                type="button"
-                onClick={() => moveMonth(1)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:h-10 lg:w-10"
-                aria-label="다음 달"
-              >
-                <ChevronRight size={17} />
-              </button>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              {/* CSV 업로드: CEO / ADMIN 전용 */}
+              {canUploadCSV && (
+                <button
+                  type="button"
+                  onClick={() => setIsCSVUploadOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: 28,
+                    padding: '0 10px',
+                    borderRadius: 99,
+                    backgroundColor: 'rgba(13,148,136,0.07)',
+                    border: '1px solid rgba(13,148,136,0.18)',
+                    color: '#0D9488',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <Upload size={11} />
+                  가져오기
+                </button>
+              )}
+              {/* 직접 등록: 캘린더 관리자 이상 */}
               {isAdmin && (
                 <button
                   type="button"
                   onClick={openCreateEditor}
-                  className="flex h-8 items-center gap-1 whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-2.5 text-[9px] font-[1000] uppercase tracking-[0.08em] text-slate-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95 lg:h-10 lg:gap-2 lg:px-4 lg:text-[11px]"
-                  style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: 28,
+                    padding: '0 10px',
+                    borderRadius: 99,
+                    backgroundColor: 'rgba(13,148,136,0.09)',
+                    border: '1px solid rgba(13,148,136,0.22)',
+                    color: '#0D9488',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
-                  <Plus size={14} className="shrink-0" style={{ color: '#b45309', stroke: '#b45309' }} />
-                  <span className="inline-block text-slate-950" style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}>
-                    <span className="sm:hidden">등록</span>
-                    <span className="hidden sm:inline">+ 대회 등록</span>
-                  </span>
+                  <Plus size={11} />
+                  추가
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginTop: 7,
+              paddingTop: 6,
+              borderTop: '1px solid rgba(0,0,0,0.05)',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#0D9488', display: 'inline-block', flexShrink: 0 }} />
+              접수 시작
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#C9A84C', display: 'inline-block', flexShrink: 0 }} />
+              경기일
+            </span>
+          </div>
+        </div>
+
+        {/* ── Calendar card ── */}
+        <div
+          style={{
+            borderRadius: 16,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.06)',
+            boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+            padding: '13px 10px 10px',
+          }}
+        >
+          {/* Month navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <button
+              type="button"
+              onClick={() => moveMonth(-1)}
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                border: '1px solid rgba(0,0,0,0.08)',
+                backgroundColor: '#F8FAFC',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#64748B', cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', margin: 0, lineHeight: 1.2 }}>
+                {monthLabel}
+              </p>
               <button
                 type="button"
-                onClick={() => setViewMode((mode) => (mode === 'list' ? 'calendar' : 'list'))}
-                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-95 lg:hidden"
-                aria-label={viewMode === 'list' ? '월간 보기' : '리스트 보기'}
-                title={viewMode === 'list' ? '월간 보기' : '리스트 보기'}
+                onClick={() => { setCurrentMonth(new Date()); setSelectedDate(todayKey); setExpandedCardId(null); }}
+                style={{
+                  marginTop: 3, padding: '1px 8px', borderRadius: 99,
+                  backgroundColor: 'rgba(13,148,136,0.08)',
+                  border: '1px solid rgba(13,148,136,0.18)',
+                  fontSize: 9, fontWeight: 700, color: '#0D9488',
+                  cursor: 'pointer', letterSpacing: '0.06em',
+                }}
               >
-                {viewMode === 'list' ? <LayoutGrid size={15} /> : <List size={15} />}
+                오늘
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => moveMonth(1)}
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                border: '1px solid rgba(0,0,0,0.08)',
+                backgroundColor: '#F8FAFC',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#64748B', cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
 
-          <div className="mt-4 hidden flex-wrap items-center gap-2 border-t border-slate-100 pt-3 lg:flex">
-            <span className="mr-1 text-[10px] font-[1000] uppercase tracking-[0.18em] text-slate-400">Organizer</span>
-            {Object.entries(organizerStyle).map(([key, style]) => (
-              <span key={key} className={`rounded-full border px-2.5 py-1 text-[9px] font-[1000] uppercase tracking-[0.1em] ${style.chip}`}>
-                {style.badge}
-              </span>
+          {/* Weekday header */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 3 }}>
+            {WEEK_DAYS.map((day, i) => (
+              <div
+                key={day}
+                style={{
+                  textAlign: 'center',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: i === 0 ? '#EF4444' : i === 6 ? '#3B82F6' : '#94A3B8',
+                  padding: '3px 0',
+                }}
+              >
+                {day}
+              </div>
             ))}
-            <span className="ml-auto rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-[1000] uppercase tracking-[0.12em] text-slate-500">
-              {dataSource === 'db' ? 'DB LIVE' : 'DEMO FALLBACK'}
-            </span>
-          </div>
-          {dataMessage && (
-            <p className="mt-2 hidden rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800 lg:block">
-              {dataMessage}
-            </p>
-          )}
-        </header>
-
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className={`${viewMode === 'list' ? 'block' : 'hidden'} min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:hidden`}>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[9px] font-[1000] uppercase tracking-[0.18em] text-amber-600">Monthly List</p>
-                <h2 className="mt-0.5 text-[20px] font-[1000] tracking-[-0.04em] text-slate-950">{monthLabel(currentMonth)}</h2>
-              </div>
-              <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[9px] font-[1000] text-amber-700">
-                {monthEvents.length} events
-              </span>
-            </div>
-
-            {monthEventsByDate.length > 0 ? (
-              <div className="space-y-2.5">
-                {monthEventsByDate.map(({ date, events }) => (
-                  <div key={date} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[12px] font-[1000] text-slate-900">{formatTournamentDate(date)}</p>
-                      <span className="text-[10px] font-bold text-slate-400">{events.length}개 대회</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {events.map((event) => (
-                        <EventPill key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-[13px] font-bold text-slate-400">
-                이번 달 등록된 대회가 없습니다.
-              </div>
-            )}
           </div>
 
-          <div className={`${viewMode === 'calendar' ? 'block' : 'hidden'} min-w-0 overflow-x-auto rounded-3xl lg:block lg:overflow-visible`}>
-            <div className="min-w-[900px] rounded-3xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:min-w-0 xl:p-4">
-            <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
-              <div>
-                <p className="text-[10px] font-[1000] uppercase tracking-[0.18em] text-amber-700">Monthly Board</p>
-                <h2 className="mt-0.5 text-[18px] font-[1000] tracking-[-0.04em] text-slate-950">{monthLabel(currentMonth)} 일정</h2>
-              </div>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-[1000] text-slate-500">
-                {monthEvents.length} events
-              </span>
-            </div>
-            <div className="grid grid-cols-7 gap-2 border-b border-slate-200 pb-3 text-center text-[11px] font-[1000] uppercase tracking-[0.16em] xl:gap-3">
-              {weekDays.map((day, index) => (
-                <div
-                  key={day}
-                  className={`rounded-xl border border-slate-300 bg-slate-100/80 py-2 ${
-                    index === 0 ? 'text-rose-500' : index === 6 ? 'text-sky-500' : 'text-slate-600'
-                  }`}
+          {/* Date grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px 0' }}>
+            {cells.map(({ date, inMonth }) => {
+              const key = dateKey(date);
+              const isToday = key === todayKey;
+              const isSelected = key === selectedDate;
+              const hasEv = eventDateSet.has(key);
+              const hasReg = regStartDateSet.has(key);
+              const dow = date.getDay();
+
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => selectDate(key, date)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '5px 1px',
+                    borderRadius: 9,
+                    cursor: 'pointer',
+                    border: isToday && !isSelected ? '1.5px solid #0D9488' : '1.5px solid transparent',
+                    backgroundColor: isSelected ? '#0D9488' : 'transparent',
+                    opacity: inMonth ? 1 : 0.28,
+                    outline: 'none',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
                 >
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 grid grid-cols-7 gap-2 xl:gap-3">
-              {cells.map(({ date, inMonth }) => {
-                const key = dateKey(date);
-                const dayEvents = eventsByDate[key] || [];
-                const visibleEvents = dayEvents.slice(0, 3);
-                const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
-                const isToday = key === dateKey(new Date());
-                const isSelectedDate = selectedEvent?.date === key;
-                const dayOfWeek = date.getDay();
-
-                return (
-                  <div
-                    key={key}
-                    className={`min-h-[126px] rounded-2xl border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition xl:min-h-[138px] ${
-                      inMonth ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50/80 opacity-60'
-                    } ${isToday ? 'ring-2 ring-amber-300' : ''} ${isSelectedDate ? 'border-amber-300 bg-amber-50/55' : ''}`}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: isSelected || isToday ? 800 : 500,
+                      lineHeight: 1,
+                      color: isSelected
+                        ? '#FFFFFF'
+                        : isToday
+                        ? '#0D9488'
+                        : dow === 0
+                        ? '#EF4444'
+                        : dow === 6
+                        ? '#3B82F6'
+                        : '#1E293B',
+                    }}
                   >
-                    <div className="mb-2 flex items-center justify-between gap-1">
+                    {date.getDate()}
+                  </span>
+                  {/* Dots */}
+                  <div style={{ display: 'flex', gap: 2, marginTop: 3, minHeight: 5, alignItems: 'center' }}>
+                    {hasReg && (
                       <span
-                        className={`text-[14px] font-[1000] ${
-                          isToday
-                            ? 'text-amber-700'
-                            : dayOfWeek === 0
-                              ? 'text-rose-500'
-                              : dayOfWeek === 6
-                                ? 'text-sky-500'
-                                : inMonth
-                                  ? 'text-slate-800'
-                                  : 'text-slate-300'
-                        }`}
+                        style={{
+                          width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+                          backgroundColor: isSelected ? 'rgba(255,255,255,0.80)' : '#0D9488',
+                        }}
+                      />
+                    )}
+                    {hasEv && (
+                      <span
+                        style={{
+                          width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+                          backgroundColor: isSelected ? 'rgba(255,255,255,0.80)' : '#C9A84C',
+                        }}
+                      />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Selected date label ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#334155', margin: 0 }}>
+            {formatDayLabel(selectedDate)}
+          </p>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>
+            {selectedDateEvents.length > 0 ? `${selectedDateEvents.length}개 대회` : '일정 없음'}
+          </span>
+        </div>
+
+        {/* ── Selected date event cards ── */}
+        {selectedDateEvents.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {selectedDateEvents.map((event) => {
+              const org = ORG_STYLE[event.organizer];
+              const st = STATUS_STYLE[event.status];
+              const isExpanded = expandedCardId === event.id;
+              const isNotified = notifiedIds.has(event.id);
+              const isEventDate = event.date === selectedDate;
+              const isRegDate = event.registrationStart === selectedDate;
+
+              // 경기일 D-day badge — D+ (지난 날짜)는 숨김
+              const rawEventDday = isEventDate ? getTournamentDday(event.date) : null;
+              const eventBadgeLabel: string | null = (() => {
+                if (!rawEventDday || rawEventDday.startsWith('D+')) return null;
+                if (rawEventDday === 'D-DAY') return '오늘 경기';
+                return `경기 ${rawEventDday}`;
+              })();
+
+              // 접수 시작 badge — 선택 날짜가 접수시작일이면 항상 표시
+              const rawRegDday = isRegDate ? getTournamentDday(event.registrationStart) : null;
+              const regBadgeLabel: string | null = (() => {
+                if (!isRegDate) return null;
+                if (!rawRegDday || rawRegDday.startsWith('D+')) return '접수 시작';
+                if (rawRegDday === 'D-DAY') return '접수 시작 · 오늘';
+                return `접수 시작 · ${rawRegDday}`;
+              })();
+
+              return (
+                <div
+                  key={event.id}
+                  style={{
+                    borderRadius: 14,
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                    boxShadow: '0 1px 5px rgba(0,0,0,0.05)',
+                    overflow: 'hidden',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {/* Card body */}
+                  <div style={{ padding: '12px 14px' }}>
+                    {/* Chips row */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                      <span
+                        style={{
+                          fontSize: 9, fontWeight: 800, letterSpacing: '0.10em',
+                          textTransform: 'uppercase', padding: '2px 7px', borderRadius: 5,
+                          backgroundColor: org.bg, color: org.color,
+                          border: `1px solid ${org.border}`,
+                          whiteSpace: 'nowrap',
+                        }}
                       >
-                        {date.getDate()}
+                        {org.badge}
                       </span>
-                      {dayEvents.length > 0 && (
-                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-[1000] text-amber-700">
-                          {dayEvents.length}
+                      {event.division && (
+                        <span
+                          style={{
+                            fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                            backgroundColor: 'rgba(100,116,139,0.07)',
+                            color: '#475569',
+                            border: '1px solid rgba(100,116,139,0.15)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {event.division}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                          backgroundColor: st.bg, color: st.color,
+                          border: `1px solid ${st.border}`,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {event.status}
+                      </span>
+                      {eventBadgeLabel && (
+                        <span
+                          style={{
+                            fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
+                            padding: '2px 7px', borderRadius: 5,
+                            backgroundColor: 'rgba(201,168,76,0.10)', color: '#92400E',
+                            border: '1px solid rgba(201,168,76,0.26)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {eventBadgeLabel}
+                        </span>
+                      )}
+                      {regBadgeLabel && (
+                        <span
+                          style={{
+                            fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
+                            padding: '2px 7px', borderRadius: 5,
+                            backgroundColor: 'rgba(13,148,136,0.09)', color: '#0D9488',
+                            border: '1px solid rgba(13,148,136,0.22)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {regBadgeLabel}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-1.5">
-                      {visibleEvents.map((event) => (
-                        <EventPill key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
-                      ))}
-                      {hiddenCount > 0 && (
+                    {/* Title */}
+                    <p
+                      style={{
+                        fontSize: 16, fontWeight: 800, color: '#0F172A',
+                        letterSpacing: '-0.02em', lineHeight: 1.25,
+                        margin: '0 0 8px',
+                        wordBreak: 'keep-all',
+                        overflowWrap: 'break-word',
+                      }}
+                    >
+                      {event.title}
+                    </p>
+
+                    {/* Dates */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: '#94A3B8', marginRight: 3 }}>경기</span>
+                        {formatTournamentDate(event.date)}
+                      </span>
+                      {event.registrationStart && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                          <span style={{ color: '#94A3B8', marginRight: 3 }}>접수</span>
+                          {formatTournamentDate(event.registrationStart)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Venue */}
+                    {event.venue && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 5, marginBottom: 6 }}>
+                        <MapPin size={11} style={{ color: '#94A3B8', flexShrink: 0, marginTop: 1 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                          {event.venue}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Collapsed summary */}
+                    {!isExpanded && (
+                      <p style={{ fontSize: 11, fontWeight: 500, color: '#94A3B8', margin: 0 }}>
+                        출전 {event.pairs.length}팀
+                        {event.lookingForPartners.length > 0 && ` · 파트너 구함 ${event.lookingForPartners.length}명`}
+                      </p>
+                    )}
+
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                        {/* Division + Grade */}
+                        {(event.division || event.grade) && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
+                            {event.division && (
+                              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                                <span style={{ color: '#94A3B8', marginRight: 3 }}>부서</span>
+                                {event.division}
+                              </span>
+                            )}
+                            {event.grade && (
+                              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                                <span style={{ color: '#94A3B8', marginRight: 3 }}>등급</span>
+                                {event.grade}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {/* Pairs */}
+                        {event.pairs.length > 0 && (
+                          <div style={{ marginBottom: 10 }}>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', marginBottom: 6, margin: '0 0 6px' }}>
+                              출전 페어
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {event.pairs.map((pair) => {
+                                const rs = hasResult(pair) ? (RESULT_STYLE[pair.result!] || RESULT_STYLE.default) : null;
+                                return (
+                                  <div
+                                    key={`${pair.player1}-${pair.player2}-${pair.result}`}
+                                    style={{
+                                      display: 'flex', alignItems: 'center',
+                                      justifyContent: 'space-between', gap: 8,
+                                      backgroundColor: '#F8FAFC', borderRadius: 8,
+                                      padding: '5px 9px',
+                                    }}
+                                  >
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {pairLabel(pair)}
+                                    </span>
+                                    {rs ? (
+                                      <span
+                                        style={{
+                                          fontSize: 9, fontWeight: 800,
+                                          padding: '1px 6px', borderRadius: 4, flexShrink: 0,
+                                          backgroundColor: rs.bg, color: rs.color, border: `1px solid ${rs.border}`,
+                                        }}
+                                      >
+                                        {pair.result}
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: 9, fontWeight: 600, color: '#CBD5E1', flexShrink: 0 }}>예정</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Partner requests */}
+                        {event.lookingForPartners.length > 0 && (
+                          <div style={{ marginBottom: 10 }}>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', margin: '0 0 6px' }}>
+                              파트너 구함
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                              {event.lookingForPartners.map((name) => (
+                                <span
+                                  key={name}
+                                  style={{
+                                    fontSize: 11, fontWeight: 600,
+                                    padding: '3px 9px', borderRadius: 99,
+                                    backgroundColor: '#F1F5F9',
+                                    border: '1px solid rgba(0,0,0,0.07)',
+                                    color: '#475569',
+                                  }}
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Memo */}
+                        {event.memo && (
+                          <div
+                            style={{
+                              padding: '8px 10px', borderRadius: 8,
+                              backgroundColor: '#F8FAFC',
+                              border: '1px solid rgba(0,0,0,0.05)',
+                            }}
+                          >
+                            <p style={{ fontSize: 11, fontWeight: 500, color: '#64748B', lineHeight: 1.65, margin: 0, wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                              {event.memo}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card action footer */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      borderTop: '1px solid rgba(0,0,0,0.05)',
+                      backgroundColor: '#FAFAFA',
+                    }}
+                  >
+                    {/* 상세 보기 */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCardId(isExpanded ? null : event.id)}
+                      style={{
+                        flex: 1, height: 38, fontSize: 11, fontWeight: 700,
+                        color: isExpanded ? '#0D9488' : '#64748B',
+                        cursor: 'pointer', border: 'none',
+                        backgroundColor: 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                        whiteSpace: 'nowrap',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <ChevronDown
+                        size={13}
+                        style={{ transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'none', flexShrink: 0 }}
+                      />
+                      {isExpanded ? '접기' : '상세 보기'}
+                    </button>
+
+                    <div style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.05)', alignSelf: 'stretch' }} />
+
+                    {/* 알림 받기 */}
+                    <button
+                      type="button"
+                      onClick={() => toggleNotify(event.id)}
+                      style={{
+                        flex: 1, height: 38, fontSize: 11, fontWeight: 700,
+                        color: isNotified ? '#0D9488' : '#64748B',
+                        cursor: 'pointer', border: 'none',
+                        backgroundColor: 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                        whiteSpace: 'nowrap',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <Bell
+                        size={12}
+                        style={{ flexShrink: 0, fill: isNotified ? '#0D9488' : 'none', color: isNotified ? '#0D9488' : '#64748B' }}
+                      />
+                      {isNotified ? '알림 ON' : '알림'}
+                    </button>
+
+                    <div style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.05)', alignSelf: 'stretch' }} />
+
+                    {/* 카톡 공유 */}
+                    <button
+                      type="button"
+                      onClick={() => shareEvent(event)}
+                      style={{
+                        flex: 1, height: 38, fontSize: 11, fontWeight: 700,
+                        color: '#64748B', cursor: 'pointer',
+                        border: 'none', backgroundColor: 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                        whiteSpace: 'nowrap',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <MessageCircle size={12} style={{ flexShrink: 0 }} />
+                      공유
+                    </button>
+
+                    {/* 수정 아이콘: CEO / ADMIN 전용 */}
+                    {canEditEvent && (
+                      <>
+                        <div style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.05)', alignSelf: 'stretch' }} />
                         <button
                           type="button"
-                          onClick={() => setSelectedEvent(dayEvents[3])}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-left text-[10px] font-[1000] text-slate-500 transition hover:bg-slate-100"
+                          onClick={() => openEditEditor(event)}
+                          style={{
+                            width: 42, height: 38,
+                            color: '#94A3B8', cursor: 'pointer',
+                            border: 'none', backgroundColor: 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
                         >
-                          +{hiddenCount} 더보기
+                          <Edit3 size={13} />
                         </button>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-            </div>
+                </div>
+              );
+            })}
           </div>
+        ) : (
+          <div
+            style={{
+              borderRadius: 14, backgroundColor: '#FFFFFF',
+              border: '1px dashed rgba(0,0,0,0.10)',
+              padding: '28px 20px',
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', margin: 0 }}>
+              이 날은 대회 일정이 없습니다
+            </p>
+          </div>
+        )}
 
-          <aside className="min-w-0 space-y-3 lg:sticky lg:top-4 lg:space-y-4 lg:self-start">
-            <div className="rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
-              {selectedEvent ? (
-                <div className="flex flex-col gap-3 lg:gap-5">
-                  <div>
-                    <div className="mb-2 flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2 lg:mb-3 lg:gap-2 lg:pb-3">
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-[1000] uppercase tracking-[0.12em] lg:px-3 lg:py-1 lg:text-[10px] ${organizerStyle[selectedEvent.organizer].chip}`}>
-                        {selectedEvent.organizer}
-                      </span>
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-[1000] lg:px-3 lg:py-1 lg:text-[10px] ${statusStyle[selectedEvent.status]}`}>
-                        {selectedEvent.status}
-                      </span>
-                    </div>
-                    <h2 className="text-[21px] font-[1000] leading-tight tracking-[-0.04em] text-slate-950 lg:text-[26px]">
-                      {selectedEvent.title}
-                    </h2>
-                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 lg:mt-2 lg:gap-2 lg:text-[12px]">
-                      <MapPin size={13} className="shrink-0 lg:size-[14px]" />
-                      {selectedEvent.venue}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                    <InfoBox label="일자" value={formatTournamentDate(selectedEvent.date)} />
-                    <InfoBox label="부서" value={`${selectedEvent.division}${selectedEvent.grade ? ` / ${selectedEvent.grade}` : ''}`} />
-                    <InfoBox label="접수 시작" value={selectedEvent.registrationStart ? `${formatTournamentDate(selectedEvent.registrationStart)} · ${getTournamentDday(selectedEvent.registrationStart)}` : '미정'} />
-                    <InfoBox
-                      label="현황"
-                      value={`${selectedEvent.pairs.length}팀${selectedEvent.lookingForPartners.length > 0 ? ` · 파트너 ${selectedEvent.lookingForPartners.length}명` : ''}`}
-                    />
-                  </div>
-
-                  <div className="hidden rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:block">
-                    <p className="mb-2 text-[10px] font-[1000] uppercase tracking-[0.18em] text-amber-700">Memo</p>
-                    <p className="text-[12px] font-bold leading-relaxed text-slate-600">{selectedEvent.memo || '등록된 메모가 없습니다.'}</p>
-                  </div>
-
-                  <div className="hidden lg:block">
-                    <ListBlock
-                      title="출전 페어"
-                      icon={<UsersRound size={14} />}
-                      items={selectedEvent.pairs.map((pair) => `${pairLabel(pair)} · ${hasResult(pair) ? pair.result : '참가 예정'}`)}
-                      empty="아직 출전 페어가 없습니다."
-                    />
-                  </div>
-                  {selectedEvent.lookingForPartners.length > 0 && (
-                    <div className="hidden lg:block">
-                      <ListBlock title="파트너 구함" icon={<Search size={14} />} items={selectedEvent.lookingForPartners} empty="현재 파트너 희망자가 없습니다." compact />
-                    </div>
-                  )}
-
-                  <div className="space-y-2 lg:hidden">
-                    <details className="rounded-2xl border border-slate-200 bg-slate-50">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[12px] font-[1000] text-slate-900">
-                        <span className="flex items-center gap-2">
-                          <UsersRound size={13} className="text-amber-700" />
-                          출전 페어
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] text-slate-500">
-                          {selectedEvent.pairs.length}팀
-                        </span>
-                      </summary>
-                      <div className="space-y-1.5 border-t border-slate-200 px-3 py-2">
-                        {selectedEvent.pairs.length > 0 ? (
-                          selectedEvent.pairs.map((pair) => (
-                            <p key={`${pair.player1}-${pair.player2}-${pair.result || 'planned'}`} className="rounded-xl bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600">
-                              {pairLabel(pair)} · {hasResult(pair) ? pair.result : '참가 예정'}
-                            </p>
-                          ))
-                        ) : (
-                          <p className="text-[11px] font-bold text-slate-400">아직 출전 페어가 없습니다.</p>
-                        )}
-                      </div>
-                    </details>
-                    {selectedEvent.lookingForPartners.length > 0 && (
-                      <details className="rounded-2xl border border-slate-200 bg-slate-50">
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[12px] font-[1000] text-slate-900">
-                          <span className="flex items-center gap-2">
-                            <Search size={13} className="text-amber-700" />
-                            파트너 구함
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] text-slate-500">
-                            {selectedEvent.lookingForPartners.length}명
-                          </span>
-                        </summary>
-                        <div className="flex flex-wrap gap-1.5 border-t border-slate-200 px-3 py-2">
-                          {selectedEvent.lookingForPartners.map((name) => (
-                            <span key={name} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600">
-                              {name}
-                            </span>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={shareSelectedEvent}
-                      className="flex h-10 items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-[11px] font-[1000] uppercase tracking-[0.12em] text-amber-800 shadow-sm transition hover:bg-amber-100 active:scale-[0.98] lg:h-12 lg:text-[12px] lg:tracking-[0.14em]"
-                    >
-                      <MessageCircle size={16} />
-                      카톡 공유
-                    </button>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={openEditEditor}
-                        className="flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-slate-50 text-[11px] font-[1000] uppercase tracking-[0.12em] text-slate-950 shadow-sm transition hover:bg-slate-100 active:scale-[0.98] lg:h-12 lg:text-[12px] lg:tracking-[0.14em]"
-                        style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}
-                      >
-                        <Edit3 size={15} className="shrink-0" style={{ color: '#475569', stroke: '#475569' }} />
-                        <span className="inline-block text-slate-950" style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}>
-                          수정
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="py-16 text-center text-[13px] font-bold text-slate-400">대회를 선택해 주세요.</div>
-              )}
-            </div>
-
-            <SideInfoCard title="이번 달 요약" open={openInfoSections.summary} onToggle={() => toggleInfoSection('summary')}>
-              <div className="flex items-center justify-between gap-3 lg:items-end">
-                <div>
-                  <p className="text-[22px] font-[1000] leading-none text-slate-950 lg:text-[30px]">{monthSummary.total}</p>
-                  <p className="mt-1 text-[11px] font-bold text-slate-500 lg:mt-1.5 lg:text-[12px]">총 대회 수</p>
-                </div>
-                <div className="flex flex-col items-end gap-1 text-[11px] font-[1000] text-slate-600 lg:gap-1.5 lg:text-[12px]">
-                  <span>접수중 {monthSummary.openCount}개</span>
-                  {monthSummary.partnerCount > 0 && (
-                    <span className="text-[9px] font-bold text-slate-400 lg:text-[10px]">파트너 구함 {monthSummary.partnerCount}명</span>
-                  )}
-                </div>
-              </div>
-              <div className="mt-4 hidden flex-wrap gap-2 lg:flex">
-                {Object.entries(organizerStyle).map(([organizer, style]) => {
-                  const count = monthSummary.organizerCounts[organizer as TournamentEvent['organizer']] || 0;
-                  if (!count) return null;
-                  return (
-                    <span key={organizer} className={`rounded-full border px-2.5 py-1 text-[10px] font-[1000] ${style.chip}`}>
-                      {style.badge} {count}
-                    </span>
-                  );
-                })}
-              </div>
-            </SideInfoCard>
-
-            <SideInfoCard title="이번 달 출전 결과" open={openInfoSections.results} onToggle={() => toggleInfoSection('results')}>
-                {monthlyResultPairs.length > 0 ? (
-                  <div className="space-y-2">
-                    {monthlyResultPairs.map(({ event, pair }) => (
-                      <button
-                        type="button"
-                        key={`${event.id}-${pair.player1}-${pair.player2}-${pair.result}`}
-                        onClick={() => setSelectedEvent(event)}
-                        className="flex w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-[12px] font-[1000] text-slate-950">{pairLabel(pair)}</p>
-                          <p className="mt-0.5 truncate text-[10px] font-bold text-slate-500">{event.title}</p>
-                        </div>
-                        <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-[1000] text-amber-700">
-                          {pair.result}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[12px] font-bold text-slate-400">아직 입력된 출전 결과가 없습니다.</p>
-                )}
-            </SideInfoCard>
-
-            <SideInfoCard title="이번 달 출전 예정" open={openInfoSections.pairStatus} onToggle={() => toggleInfoSection('pairStatus')}>
-                {monthlyPairStatus.length > 0 ? (
-                  <div className="space-y-3">
-                    {monthlyPairStatus.slice(0, 5).map(({ event, plannedPairs }) => (
-                      <button
-                        type="button"
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
-                      >
-                        <div className="flex min-w-0 items-center justify-between gap-3">
-                          <p className="min-w-0 truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
-                          <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-[1000] text-slate-500">
-                            예정 {plannedPairs.length}팀
-                          </span>
-                        </div>
-                        <p className="mt-1.5 line-clamp-2 text-[11px] font-bold leading-relaxed text-slate-600">
-                          {plannedPairs.length > 0 ? plannedPairs.map(pairLabel).join(', ') : '참가 예정 없음'}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[12px] font-bold text-slate-400">이번 달 출전 예정 페어가 없습니다.</p>
-                )}
-            </SideInfoCard>
-
-            <SideInfoCard title="접수 임박" open={openInfoSections.upcoming} onToggle={() => toggleInfoSection('upcoming')}>
-              {upcomingRegistrations.length > 0 ? (
-                <div className="space-y-2">
-                  {upcomingRegistrations.map(({ event, dday }) => (
-                    <button
-                      type="button"
-                      key={event.id}
-                      onClick={() => setSelectedEvent(event)}
-                      className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
-                    >
-                      <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-[1000] text-amber-700">
-                        {dday}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
-                        <p className="mt-0.5 truncate text-[10px] font-bold text-slate-500">{formatTournamentDate(event.registrationStart || event.date)} · {event.status}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[12px] font-bold text-slate-400">접수 예정 대회가 없습니다.</p>
-              )}
-            </SideInfoCard>
-
-            {monthSummary.partnerCount > 0 && (
-              <SideInfoCard title="파트너 구함" open={openInfoSections.partnerRequests} onToggle={() => toggleInfoSection('partnerRequests')}>
-                <div className="space-y-2">
-                  {monthlyPartnerRequests.slice(0, 5).map(({ event, lookingForPartners }) => (
-                    <button
-                      type="button"
-                      key={event.id}
-                      onClick={() => setSelectedEvent(event)}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-white hover:shadow-sm"
-                    >
-                      <p className="truncate text-[12px] font-[1000] text-slate-950">{event.title}</p>
-                      <p className="mt-1 line-clamp-2 text-[11px] font-bold text-slate-500">{lookingForPartners.join(', ')}</p>
-                    </button>
-                  ))}
-                </div>
-              </SideInfoCard>
-            )}
-
-          </aside>
-        </section>
-
-        <section className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:rounded-3xl lg:p-5">
+        {/* ── Monthly list (collapsible) ── */}
+        <div
+          style={{
+            borderRadius: 14,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.06)',
+            boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+            overflow: 'hidden',
+          }}
+        >
           <button
             type="button"
-            onClick={() => setIsMonthlySheetOpen((prev) => !prev)}
-            className="flex min-h-10 w-full flex-wrap items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-left ring-1 ring-slate-200 transition hover:bg-white lg:min-h-12 lg:gap-3"
+            onClick={() => setIsMonthListOpen((prev) => !prev)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', padding: '11px 14px',
+              border: 'none', backgroundColor: 'transparent',
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
           >
-            <div>
-              <p className="text-[9px] font-[1000] uppercase tracking-[0.16em] text-amber-700 lg:text-[10px] lg:tracking-[0.18em]">Monthly Sheet</p>
-              <h2 className="mt-0.5 text-[16px] font-[1000] tracking-[-0.04em] text-slate-950 lg:text-[20px]">월간 출전 현황표</h2>
+            <div style={{ textAlign: 'left', minWidth: 0 }}>
+              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#0D9488', margin: 0 }}>
+                MONTHLY
+              </p>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', margin: '1px 0 0', letterSpacing: '-0.01em' }}>
+                {monthLabel} 전체 목록
+              </p>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-[1000] text-slate-600 lg:gap-2 lg:px-3 lg:py-1.5 lg:text-[11px]">
-              {isMonthlySheetOpen ? '현황표 접기' : '현황표 보기'} · {monthEvents.length}개 대회
-              <ChevronDown size={16} className={`transition-transform ${isMonthlySheetOpen ? 'rotate-180' : ''}`} />
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+              <span
+                style={{
+                  fontSize: 10, fontWeight: 700, color: '#0D9488',
+                  padding: '2px 8px', borderRadius: 99,
+                  backgroundColor: 'rgba(13,148,136,0.09)',
+                  border: '1px solid rgba(13,148,136,0.18)',
+                }}
+              >
+                {monthEvents.length}개
+              </span>
+              <ChevronDown
+                size={15}
+                style={{ color: '#94A3B8', transition: 'transform 0.2s', transform: isMonthListOpen ? 'rotate(180deg)' : 'none' }}
+              />
+            </div>
           </button>
 
-          {isMonthlySheetOpen && (
-            <div className="mt-4 border-t border-slate-200 pt-4">
-              <div className="hidden overflow-hidden rounded-2xl border border-slate-300 lg:block">
-                <div className="grid grid-cols-[72px_1.15fr_70px_88px_88px_2fr_0.78fr_1.55fr] bg-slate-100 text-[11px] font-[1000] text-slate-700">
-                  {['일자', '대회명', '등급', '주관', '부서', '출전 페어', '파트너 구함', '성적'].map((header) => (
-                    <div key={header} className="border-r border-slate-300 px-3 py-2 last:border-r-0">
-                      {header}
-                    </div>
-                  ))}
-                </div>
-                {monthEvents.map((event, index) => {
-                  const resultPairs = event.pairs.filter(hasResult);
-                  const plannedPairs = event.pairs.filter((pair) => !hasResult(pair));
+          {isMonthListOpen && (
+            <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+              {monthEvents.length > 0 ? (
+                monthEvents.map((event, idx) => {
+                  const org = ORG_STYLE[event.organizer];
+                  const st = STATUS_STYLE[event.status];
+                  const [, mm, dd] = event.date.split('-');
                   return (
                     <button
                       type="button"
                       key={event.id}
-                      onClick={() => setSelectedEvent(event)}
-                      className={`grid w-full grid-cols-[72px_1.15fr_70px_88px_88px_2fr_0.78fr_1.55fr] text-left text-[12px] font-bold text-slate-700 transition hover:bg-amber-50/60 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}
+                      onClick={() => {
+                        setSelectedDate(event.date);
+                        setExpandedCardId(null);
+                        setIsMonthListOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center',
+                        gap: 10, padding: '10px 14px',
+                        border: 'none', backgroundColor: idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
+                        cursor: 'pointer', borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.04)',
+                        textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+                        boxSizing: 'border-box',
+                      }}
                     >
-                      <div className="border-r border-t border-slate-200 px-3 py-2 text-slate-500">{monthDayLabel(event.date)}</div>
-                      <div className="min-w-0 border-r border-t border-slate-200 px-3 py-2">
-                        <p className="truncate font-[1000] text-slate-950">{event.title}</p>
-                      </div>
-                      <div className="border-r border-t border-slate-200 px-3 py-2 text-center">{event.grade || '-'}</div>
-                      <div className="border-r border-t border-slate-200 px-3 py-2">
-                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-[1000] ${organizerStyle[event.organizer].chip}`}>
-                          {organizerStyle[event.organizer].badge}
-                        </span>
-                      </div>
-                      <div className="border-r border-t border-slate-200 px-3 py-2">{event.division}</div>
-                      <div className="min-w-0 border-r border-t border-slate-200 px-3 py-2">
-                        <p className="line-clamp-2 leading-relaxed">
-                          {plannedPairs.length > 0 ? plannedPairs.map(pairLabel).join(', ') : '참가 예정 없음'}
+                      <div style={{ textAlign: 'center', flexShrink: 0, width: 28 }}>
+                        <p style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', margin: 0, lineHeight: 1 }}>
+                          {parseInt(dd)}
+                        </p>
+                        <p style={{ fontSize: 9, fontWeight: 600, color: '#94A3B8', margin: '1px 0 0' }}>
+                          {parseInt(mm)}월
                         </p>
                       </div>
-                      <div className="min-w-0 border-r border-t border-slate-200 px-3 py-2">
-                        <p className="line-clamp-2 leading-relaxed">{event.lookingForPartners.join(', ') || '-'}</p>
+                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {event.title}
+                        </p>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {event.venue}
+                        </p>
                       </div>
-                      <div className="border-t border-slate-200 px-3 py-2">
-                        {resultPairs.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {resultPairs.map((pair) => (
-                              <span key={`${pair.player1}-${pair.player2}-${pair.result}`} className={`rounded-full border px-2 py-0.5 text-[10px] font-[1000] ${resultBadgeClass(pair.result)}`}>
-                                {pairLabel(pair)} {pair.result}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">결과 없음</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-3 lg:hidden">
-                {monthEvents.map((event) => {
-                  const resultPairs = event.pairs.filter(hasResult);
-                  const plannedPairs = event.pairs.filter((pair) => !hasResult(pair));
-                  return (
-                    <button
-                      type="button"
-                      key={event.id}
-                      onClick={() => setSelectedEvent(event)}
-                      className="w-full rounded-2xl border border-slate-300 bg-slate-50 p-3 text-left shadow-sm"
-                    >
-                      <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-[1000] text-amber-700">{monthDayLabel(event.date)}</p>
-                          <p className="truncate text-[14px] font-[1000] text-slate-950">{event.title}</p>
-                        </div>
-                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-[1000] ${organizerStyle[event.organizer].chip}`}>
-                          {organizerStyle[event.organizer].badge}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        <span
+                          style={{
+                            fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
+                            textTransform: 'uppercase', padding: '1px 5px', borderRadius: 4,
+                            backgroundColor: org.bg, color: org.color, border: `1px solid ${org.border}`,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {org.badge}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                            backgroundColor: st.bg, color: st.color, border: `1px solid ${st.border}`,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {event.status}
                         </span>
                       </div>
-                      <div className="space-y-1.5 text-[12px] font-bold text-slate-600">
-                        <p><span className="text-slate-400">출전</span> {plannedPairs.map(pairLabel).join(', ') || '참가 예정 없음'}</p>
-                        {event.lookingForPartners.length > 0 && (
-                          <p className="text-[11px]"><span className="text-slate-400">파트너</span> {event.lookingForPartners.join(', ')}</p>
-                        )}
-                        <div className="flex flex-wrap gap-1.5">
-                          <span className="text-slate-400">성적</span>
-                          {resultPairs.length > 0 ? resultPairs.map((pair) => (
-                            <span key={`${pair.player1}-${pair.player2}-${pair.result}`} className={`rounded-full border px-2 py-0.5 text-[10px] font-[1000] ${resultBadgeClass(pair.result)}`}>
-                              {pairLabel(pair)} {pair.result}
-                            </span>
-                          )) : <span>결과 없음</span>}
-                        </div>
-                      </div>
                     </button>
                   );
-                })}
-              </div>
+                })
+              ) : (
+                <div style={{ padding: '24px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', margin: 0 }}>
+                    이번 달 등록된 대회가 없습니다
+                  </p>
+                </div>
+              )}
             </div>
           )}
-        </section>
-        {isEditorOpen && (
-          <TournamentEventEditorModal
-            event={editingEvent}
-            isSaving={isSavingEvent || isDeletingEvent}
-            onClose={() => {
-              if (isSavingEvent || isDeletingEvent) return;
-              setIsEditorOpen(false);
-              setEditingEvent(null);
-            }}
-            onSave={handleSaveEvent}
-            onDelete={handleDeleteEvent}
-          />
-        )}
-        <div className="h-[calc(180px+env(safe-area-inset-bottom))] shrink-0 lg:hidden" aria-hidden="true" />
+        </div>
       </div>
+
+      {/* ── Editor modal ── */}
+      {isEditorOpen && (
+        <TournamentEventEditorModal
+          event={editingEvent}
+          isSaving={isSavingEvent || isDeletingEvent}
+          onClose={() => {
+            if (isSavingEvent || isDeletingEvent) return;
+            setIsEditorOpen(false);
+            setEditingEvent(null);
+          }}
+          onSave={handleSaveEvent}
+          onDelete={handleDeleteEvent}
+        />
+      )}
+
+      {/* ── CSV upload modal (CEO / ADMIN 전용) ── */}
+      {isCSVUploadOpen && (
+        <TournamentCSVUploadModal
+          existingEvents={events}
+          userId={user?.id}
+          onComplete={() => { loadEvents(); }}
+          onClose={() => setIsCSVUploadOpen(false)}
+        />
+      )}
     </main>
   );
 }
+
+// ─── TournamentEventEditorModal (원본 유지) ───────────────────────────────────
 
 function TournamentEventEditorModal({
   event,
@@ -1174,8 +1243,22 @@ function TournamentEventEditorModal({
                 placeholder="예: 보령종합테니스장"
               />
             </label>
-            <SelectField label="주관" value={form.organizer} options={organizerOptions} onChange={(value) => updateField('organizer', value as TournamentEvent['organizer'])} />
-            <SelectField label="부서" value={form.division} options={divisionOptions} onChange={(value) => updateField('division', value as TournamentEvent['division'])} />
+            <div className="sm:col-span-2">
+              <ChipSelector
+                label="주관"
+                value={form.organizer}
+                options={organizerOptions}
+                onChange={(v) => updateField('organizer', v as TournamentEvent['organizer'])}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <ChipSelector
+                label="부서"
+                value={form.division}
+                options={divisionOptions}
+                onChange={(v) => updateField('division', v as TournamentEvent['division'])}
+              />
+            </div>
             <SelectField label="등급" value={form.grade || ''} options={gradeOptions} onChange={(value) => updateField('grade', value)} />
             <SelectField label="상태" value={form.status} options={statusOptions} onChange={(value) => updateField('status', value as TournamentEvent['status'])} />
             <label className="sm:col-span-2">
@@ -1337,6 +1420,74 @@ function TournamentEventEditorModal({
   );
 }
 
+// ─── ChipSelector ─────────────────────────────────────────────────────────────
+
+function ChipSelector<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  note,
+}: {
+  label: string;
+  value: T;
+  options: T[];
+  onChange: (value: T) => void;
+  note?: string;
+}) {
+  return (
+    <div>
+      <span
+        style={{
+          display: 'block',
+          marginBottom: 8,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase' as const,
+          color: '#64748B',
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+        {options.map((option) => {
+          const active = value === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onChange(option)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: active ? '1.5px solid #0D9488' : '1px solid rgba(0,0,0,0.12)',
+                backgroundColor: active ? 'rgba(13,148,136,0.09)' : '#FFFFFF',
+                color: active ? '#0D9488' : '#475569',
+                fontSize: 13,
+                fontWeight: active ? 700 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.14s',
+                whiteSpace: 'nowrap' as const,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      {note && (
+        <p style={{ marginTop: 6, fontSize: 10, fontWeight: 600, color: '#D97706' }}>
+          {note}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── SelectField (원본 유지) ──────────────────────────────────────────────────
+
 function SelectField({
   label,
   value,
@@ -1363,68 +1514,5 @@ function SelectField({
         ))}
       </select>
     </label>
-  );
-}
-
-function InfoBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2.5 lg:rounded-2xl lg:p-3">
-      <p className="text-[8px] font-[1000] uppercase tracking-[0.14em] text-slate-400 lg:text-[9px] lg:tracking-[0.16em]">{label}</p>
-      <p className="mt-0.5 truncate text-[11px] font-[1000] text-slate-900 lg:mt-1 lg:text-[12px]">{value}</p>
-    </div>
-  );
-}
-
-function SideInfoCard({
-  title,
-  children,
-  open = true,
-  onToggle,
-}: {
-  title: string;
-  children: React.ReactNode;
-  open?: boolean;
-  onToggle?: () => void;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-300 bg-white p-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] lg:rounded-3xl lg:p-4">
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={!onToggle}
-        className={`flex min-h-9 w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 text-left ring-1 ring-slate-200 transition hover:bg-white lg:min-h-10 ${open ? 'mb-2 border-b border-slate-200 pb-2 ring-slate-300 lg:mb-3 lg:pb-3' : ''}`}
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400 lg:h-2.5 lg:w-2.5" />
-          <span className="truncate text-[13px] font-[1000] tracking-[-0.02em] text-slate-950 lg:text-[15px]">{title}</span>
-        </span>
-        {onToggle && (
-          <ChevronDown size={16} className={`shrink-0 text-slate-500 transition-transform lg:size-[17px] ${open ? 'rotate-180' : ''}`} />
-        )}
-      </button>
-      {open && children}
-    </section>
-  );
-}
-
-function ListBlock({ title, icon, items, empty, compact = false }: { title: string; icon: React.ReactNode; items: string[]; empty: string; compact?: boolean }) {
-  return (
-    <div className={`rounded-2xl border border-slate-200 bg-white ${compact ? 'p-3' : 'p-4'}`}>
-      <div className={`${compact ? 'mb-2 text-[9px] text-slate-500' : 'mb-3 text-[10px] text-amber-700'} flex items-center gap-2 font-[1000] uppercase tracking-[0.16em]`}>
-        {icon}
-        {title}
-      </div>
-      {items.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {items.map((item) => (
-            <span key={item} className={`rounded-full border border-slate-200 bg-slate-50 font-bold text-slate-600 ${compact ? 'px-2.5 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]'}`}>
-              {item}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p className="text-[12px] font-bold text-slate-400">{empty}</p>
-      )}
-    </div>
   );
 }
