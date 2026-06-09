@@ -12,6 +12,8 @@ import { ChevronLeft, ChevronRight, Lock, Users, X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type VisibilityLevel = 'public' | 'partial' | 'private';
+
 interface Member {
   id: string;
   nickname: string;
@@ -27,24 +29,14 @@ interface Member {
   bio?: string;
   avatar_url?: string;
   profile_avatar_url?: string;
+  profile_visibility_level?: VisibilityLevel;
   // TODO: 아래 stat 필드는 teyeon_archive_v1 집계 쿼리로 채울 예정
   // total_matches?: number;
   // wins?: number;
   // attended_sessions?: number;
 }
 
-// TODO: profiles 테이블에 아래 필드 추가 후 연동 예정
-// type VisibilityLevel = 'public' | 'partial' | 'private';
-// interface ProfileVisibility {
-//   show_rank: boolean;
-//   show_win_rate: boolean;
-//   show_match_record: boolean;
-//   show_attendance: boolean;
-//   show_badges: boolean;
-//   show_recent_matches: boolean;
-// }
-
-// ─── Sorting helpers (unchanged) ──────────────────────────────────────────────
+// ─── Sorting helpers ──────────────────────────────────────────────────────────
 
 const EXE_PRIORITY: Record<string, number> = {
   '회장': 1, '부회장': 2, '총무': 3, '재무': 4, '경기': 5, '섭외': 6,
@@ -105,6 +97,225 @@ const ACCENT: Record<BadgeVariant, string> = {
   muted: '#94A3B8',
 };
 
+// ─── VisibilitySettingModal ───────────────────────────────────────────────────
+
+const VISIBILITY_OPTIONS: { level: VisibilityLevel; title: string; desc: string }[] = [
+  {
+    level: 'public',
+    title: '전체 공개',
+    desc: '랭킹, 승률, 출석, 전적, 배지를 모두 보여줍니다.',
+  },
+  {
+    level: 'partial',
+    title: '일부 공개',
+    desc: '대표 배지와 일부 활동 정보만 보여주고, 승률·전적은 가립니다.',
+  },
+  {
+    level: 'private',
+    title: '기본 정보만 공개',
+    desc: '이름, 역할, 한 줄 소개만 보여줍니다.',
+  },
+];
+
+function VisibilitySettingModal({
+  currentLevel,
+  onSave,
+  onCancel,
+  isSaving,
+  saveError,
+}: {
+  currentLevel: VisibilityLevel;
+  onSave: (level: VisibilityLevel) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+  saveError: string | null;
+}) {
+  const [selected, setSelected] = useState<VisibilityLevel>(currentLevel);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 3000,
+        backgroundColor: 'rgba(15,23,42,0.55)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+      } as React.CSSProperties}
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 430,
+          backgroundColor: '#FFFFFF',
+          borderRadius: '20px 20px 0 0',
+          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.14)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Handle bar */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.10)' }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ padding: '14px 20px 0' }}>
+          <p style={{
+            fontSize: 15,
+            fontWeight: 800,
+            color: '#0F172A',
+            margin: '0 0 6px',
+            letterSpacing: '-0.02em',
+          }}>
+            프로필 공개 범위 설정
+          </p>
+          <p style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: '#64748B',
+            margin: 0,
+            lineHeight: 1.55,
+          }}>
+            내 KDK 기록과 활동 정보를 다른 회원에게 어떻게 보여줄지 선택할 수 있어요.
+            본인은 항상 전체 기록을 확인할 수 있습니다.
+          </p>
+        </div>
+
+        {/* Options */}
+        <div style={{ padding: '14px 20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {VISIBILITY_OPTIONS.map((opt) => {
+            const isSelected = selected === opt.level;
+            return (
+              <button
+                key={opt.level}
+                type="button"
+                onClick={() => setSelected(opt.level)}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  border: isSelected ? '1.5px solid #0D9488' : '1.5px solid rgba(0,0,0,0.08)',
+                  backgroundColor: isSelected ? 'rgba(13,148,136,0.06)' : '#FAFAFA',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  WebkitTapHighlightColor: 'transparent',
+                  transition: 'border-color 0.15s, background-color 0.15s',
+                }}
+              >
+                {/* Radio indicator */}
+                <div
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    border: isSelected ? '5px solid #0D9488' : '1.5px solid rgba(0,0,0,0.20)',
+                    flexShrink: 0,
+                    marginTop: 2,
+                    backgroundColor: '#FFFFFF',
+                    boxSizing: 'border-box',
+                  } as React.CSSProperties}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: isSelected ? '#0D9488' : '#1E293B',
+                    margin: '0 0 3px',
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {opt.title}
+                  </p>
+                  <p style={{
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    color: '#64748B',
+                    margin: 0,
+                    lineHeight: 1.45,
+                  }}>
+                    {opt.desc}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Error message */}
+        {saveError && (
+          <p style={{
+            margin: '10px 20px 0',
+            fontSize: 11,
+            fontWeight: 500,
+            color: '#EF4444',
+            textAlign: 'center',
+            lineHeight: 1.4,
+          }}>
+            {saveError}
+          </p>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 8, padding: '16px 20px 0' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isSaving}
+            style={{
+              flex: 1,
+              height: 44,
+              borderRadius: 11,
+              border: '1.5px solid rgba(0,0,0,0.10)',
+              backgroundColor: '#F8FAFC',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#475569',
+              cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+              opacity: isSaving ? 0.5 : 1,
+            }}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(selected)}
+            disabled={isSaving}
+            style={{
+              flex: 2,
+              height: 44,
+              borderRadius: 11,
+              border: 'none',
+              backgroundColor: '#0D9488',
+              fontSize: 13,
+              fontWeight: 800,
+              color: '#FFFFFF',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+              opacity: isSaving ? 0.7 : 1,
+              letterSpacing: '-0.01em',
+              boxShadow: '0 3px 12px rgba(13,148,136,0.22)',
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {isSaving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PlayerCardModal ──────────────────────────────────────────────────────────
 
 interface PlayerCardModalProps {
@@ -112,9 +323,11 @@ interface PlayerCardModalProps {
   finalAvatar?: string;
   isOwnCard: boolean;
   onClose: () => void;
+  onVisibilitySaved: (level: VisibilityLevel) => void;
 }
 
-function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCardModalProps) {
+function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose, onVisibilitySaved }: PlayerCardModalProps) {
+  const { user } = useAuth();
   const roleLabel   = getRoleLabel(member);
   const variant     = getBadgeVariant(roleLabel, member.is_admin);
   const accentColor = ACCENT[variant];
@@ -122,11 +335,50 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
   const [perspective, setPerspective] = useState<'self' | 'other'>(
     isOwnCard ? 'self' : 'other',
   );
-  const [showPrivacyHint, setShowPrivacyHint] = useState(false);
+  const [isVisibilityModalOpen, setIsVisibilityModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Mock: MVP hardcodes 'public'. Replace when profiles.visibility_level is added.
-  const visibilityLevel: 'public' | 'partial' | 'private' = 'public';
-  const showStats = perspective === 'self' || visibilityLevel === 'public';
+  const visibilityLevel: VisibilityLevel = member.profile_visibility_level ?? 'public';
+
+  // Effective visibility: own perspective always reveals full stats
+  const effectiveVisibility: VisibilityLevel = perspective === 'self' ? 'public' : visibilityLevel;
+
+  const isStatVisible = (stat: string): boolean => {
+    if (effectiveVisibility === 'public') return true;
+    if (effectiveVisibility === 'partial') return stat === 'ATTEND';
+    return false;
+  };
+
+  const showBadges    = effectiveVisibility !== 'private';
+  const showPrivacyNote = effectiveVisibility !== 'public';
+
+  const handleVisibilitySave = async (level: VisibilityLevel) => {
+    if (!user?.email) {
+      setSaveError('로그인 정보를 확인할 수 없어요.');
+      return;
+    }
+    // Security guard: only allow own profile update
+    if (user.email !== member.email) {
+      setSaveError('본인 프로필만 변경할 수 있어요.');
+      return;
+    }
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ profile_visibility_level: level })
+        .eq('email', user.email);
+      if (error) throw error;
+      onVisibilitySaved(level);
+      setIsVisibilityModalOpen(false);
+    } catch {
+      setSaveError('저장에 실패했어요. 다시 시도해주세요.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Tilt: direct DOM mutation for performance (avoids re-render on every pointermove)
   const tiltRef          = useRef<HTMLDivElement>(null);
@@ -149,13 +401,11 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
   }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    // Capture pointer so touch events keep routing here even if finger drifts outside
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (reducedMotionRef.current) return;
-    // Prevent the browser from treating this touch as a scroll gesture
     if (e.cancelable) e.preventDefault();
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -163,7 +413,6 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
     const dy   = (e.clientY - (rect.top  + rect.height / 2)) / (rect.height / 2);
     const rotX = +(Math.max(-8, Math.min(8, -dy * 8))).toFixed(2);
     const rotY = +(Math.max(-8, Math.min(8,  dx * 8))).toFixed(2);
-    // Clamp shine coords to [0,100] — pointer may drift outside card with pointer capture
     const sx   = Math.max(0, Math.min(100, +((e.clientX - rect.left) / rect.width  * 100).toFixed(1)));
     const sy   = Math.max(0, Math.min(100, +((e.clientY - rect.top)  / rect.height * 100).toFixed(1)));
 
@@ -318,7 +567,7 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
               transformStyle: 'preserve-3d',
               willChange: 'transform',
               flexShrink: 0,
-              touchAction: 'none',        // tell browser: no scroll/pan on this element
+              touchAction: 'none',
               userSelect: 'none',
               WebkitUserSelect: 'none',
               WebkitTapHighlightColor: 'transparent',
@@ -558,7 +807,7 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
                     </div>
                   </div>
 
-                  {/* Stats row — 4 cells */}
+                  {/* Stats row — 4 cells, per-stat visibility */}
                   <div
                     style={{
                       display: 'flex',
@@ -594,7 +843,7 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
                         >
                           {label}
                         </span>
-                        {showStats ? (
+                        {isStatVisible(label) ? (
                           <span
                             style={{
                               fontSize: 18,
@@ -607,7 +856,6 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
                             --
                           </span>
                         ) : (
-                          /* TODO: 실제 통계 연동 후 값 표시 */
                           <span
                             style={{
                               display: 'inline-flex',
@@ -626,8 +874,8 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
                     ))}
                   </div>
 
-                  {/* Privacy note */}
-                  {!showStats && (
+                  {/* Privacy note — only when some stats are hidden */}
+                  {showPrivacyNote && (
                     <p
                       style={{
                         margin: '0 0 10px',
@@ -643,8 +891,8 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
                     </p>
                   )}
 
-                  {/* Badges */}
-                  {(member.achievements || member.mbti) && (
+                  {/* Badges — hidden on private */}
+                  {showBadges && (member.achievements || member.mbti) && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 14 }}>
                       {member.achievements && (
                         <span
@@ -684,44 +932,30 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
                     </div>
                   )}
 
-                  {/* 프로필 공개 범위 설정 (own card) */}
+                  {/* 프로필 공개 범위 설정 (own card only) */}
                   {isOwnCard && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowPrivacyHint((v) => !v)}
-                        style={{
-                          width: '100%',
-                          height: 40,
-                          borderRadius: 11,
-                          border: '1.5px solid rgba(13,148,136,0.24)',
-                          background: 'linear-gradient(135deg, rgba(13,148,136,0.06) 0%, rgba(13,148,136,0.03) 100%)',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: '#0D9488',
-                          cursor: 'pointer',
-                          WebkitTapHighlightColor: 'transparent',
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        프로필 공개 범위 설정
-                        {/* TODO: 다음 단계에서 DB 저장 연결 */}
-                      </button>
-                      {showPrivacyHint && (
-                        <p
-                          style={{
-                            marginTop: 8,
-                            fontSize: 10,
-                            fontWeight: 500,
-                            color: '#0D9488',
-                            textAlign: 'center',
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          공개 범위 설정은 다음 업데이트에서 연결됩니다.
-                        </p>
-                      )}
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSaveError(null);
+                        setIsVisibilityModalOpen(true);
+                      }}
+                      style={{
+                        width: '100%',
+                        height: 40,
+                        borderRadius: 11,
+                        border: '1.5px solid rgba(13,148,136,0.24)',
+                        background: 'linear-gradient(135deg, rgba(13,148,136,0.06) 0%, rgba(13,148,136,0.03) 100%)',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#0D9488',
+                        cursor: 'pointer',
+                        WebkitTapHighlightColor: 'transparent',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      프로필 공개 범위 설정
+                    </button>
                   )}
                 </div>
               </div>
@@ -756,6 +990,17 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
           </div>
         </div>
       </div>
+
+      {/* ── Visibility Setting Bottom Sheet ── */}
+      {isVisibilityModalOpen && (
+        <VisibilitySettingModal
+          currentLevel={visibilityLevel}
+          onSave={handleVisibilitySave}
+          onCancel={() => setIsVisibilityModalOpen(false)}
+          isSaving={isSaving}
+          saveError={saveError}
+        />
+      )}
     </>
   );
 }
@@ -925,7 +1170,7 @@ const MemberCard = React.memo(function MemberCard({
           minHeight: 0,
         } as React.CSSProperties}
       >
-        {introText || ' '}
+        {introText || ' '}
       </p>
 
       {/* Footer: achievement + chevron */}
@@ -991,8 +1236,8 @@ const MemberCard = React.memo(function MemberCard({
 
 export default function MembersPage() {
   const { user } = useAuth();
-  const [members, setMembers]             = useState<Member[]>([]);
-  const [loading, setLoading]             = useState(true);
+  const [members, setMembers]               = useState<Member[]>([]);
+  const [loading, setLoading]               = useState(true);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   useEffect(() => { fetchMembers(); }, []);
@@ -1015,28 +1260,37 @@ export default function MembersPage() {
             .map((m: Member) => m.email)
             .filter((e): e is string => Boolean(e))
         ));
-        let profileAvatarByEmail = new Map<string, string>();
+
+        type ProfileRow = { avatar_url?: string; profile_visibility_level?: string };
+        let profileDataByEmail = new Map<string, ProfileRow>();
 
         if (memberEmails.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select('email, avatar_url')
+            .select('email, avatar_url, profile_visibility_level')
             .in('email', memberEmails);
           if (profilesError) {
-            console.warn('[Members] Profile avatar fallback skipped:', profilesError);
+            console.warn('[Members] Profile fetch skipped:', profilesError);
           } else {
-            profileAvatarByEmail = new Map(
-              (profilesData || [])
-                .filter((p: any) => p.email && p.avatar_url)
-                .map((p: any) => [p.email, p.avatar_url])
-            );
+            for (const p of (profilesData || []) as (ProfileRow & { email?: string })[]) {
+              if (p.email) {
+                profileDataByEmail.set(p.email, {
+                  avatar_url: p.avatar_url || undefined,
+                  profile_visibility_level: p.profile_visibility_level || undefined,
+                });
+              }
+            }
           }
         }
 
-        const enriched = data.map((m: Member) => ({
-          ...m,
-          profile_avatar_url: m.email ? profileAvatarByEmail.get(m.email) : undefined,
-        }));
+        const enriched = data.map((m: Member) => {
+          const pd = m.email ? profileDataByEmail.get(m.email) : undefined;
+          return {
+            ...m,
+            profile_avatar_url: pd?.avatar_url,
+            profile_visibility_level: (pd?.profile_visibility_level as VisibilityLevel) ?? undefined,
+          };
+        });
 
         const sorted = [...enriched].sort((a, b) => {
           const diff = getMemberPriority(a) - getMemberPriority(b);
@@ -1057,6 +1311,17 @@ export default function MembersPage() {
 
   const handleOpen  = useCallback((m: Member) => setSelectedMember(m), []);
   const handleClose = useCallback(() => setSelectedMember(null), []);
+
+  const handleVisibilitySaved = useCallback((level: VisibilityLevel) => {
+    setSelectedMember((prev) => prev ? { ...prev, profile_visibility_level: level } : prev);
+    setMembers((prev) =>
+      prev.map((m) =>
+        selectedMember && m.id === selectedMember.id
+          ? { ...m, profile_visibility_level: level }
+          : m
+      )
+    );
+  }, [selectedMember]);
 
   const selectedAvatar = useMemo(() => {
     if (!selectedMember) return undefined;
@@ -1250,6 +1515,7 @@ export default function MembersPage() {
           finalAvatar={selectedAvatar}
           isOwnCard={isOwnCard}
           onClose={handleClose}
+          onVisibilitySaved={handleVisibilitySaved}
         />
       )}
     </>
