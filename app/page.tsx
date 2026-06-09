@@ -21,19 +21,19 @@ export default function Home() {
   const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [activeMemberCount, setActiveMemberCount] = useState<number>(23);
+  const [activeMemberCount, setActiveMemberCount] = useState<number>(24);
   const [totalKdkCount, setTotalKdkCount] = useState<number>(0);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
 
   useEffect(() => {
-    // is_guest = true가 아닌 회원을 활동 회원으로 집계
+    // 활동 회원 = 정회원 + 준회원 (role 기준); role = '게스트' 제외
     const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
     supabase
       .from('members')
       .select('*', { count: 'exact', head: true })
       .eq('club_id', CLUB_ID)
-      .not('is_guest', 'eq', true)
+      .neq('role', '게스트')
       .then(({ count, error }) => {
         if (!error && count !== null) setActiveMemberCount(count);
       });
