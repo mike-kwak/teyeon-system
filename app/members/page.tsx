@@ -137,15 +137,35 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
     reducedMotionRef.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
+  const resetTilt = useCallback(() => {
+    if (tiltRef.current) {
+      tiltRef.current.style.transform  = 'perspective(700px) rotateX(0deg) rotateY(0deg)';
+      tiltRef.current.style.transition = 'transform 0.5s ease';
+    }
+    if (shineRef.current) {
+      shineRef.current.style.background = 'radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.10) 0%, rgba(13,148,136,0.06) 35%, transparent 70%)';
+      shineRef.current.style.transition = 'background 0.5s ease';
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // Capture pointer so touch events keep routing here even if finger drifts outside
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+  }, []);
+
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (reducedMotionRef.current) return;
+    // Prevent the browser from treating this touch as a scroll gesture
+    if (e.cancelable) e.preventDefault();
+
     const rect = e.currentTarget.getBoundingClientRect();
     const dx   = (e.clientX - (rect.left + rect.width  / 2)) / (rect.width  / 2);
     const dy   = (e.clientY - (rect.top  + rect.height / 2)) / (rect.height / 2);
-    const rotX = +(Math.max(-7, Math.min(7, -dy * 7))).toFixed(2);
-    const rotY = +(Math.max(-7, Math.min(7,  dx * 7))).toFixed(2);
-    const sx   = +((e.clientX - rect.left) / rect.width  * 100).toFixed(1);
-    const sy   = +((e.clientY - rect.top)  / rect.height * 100).toFixed(1);
+    const rotX = +(Math.max(-8, Math.min(8, -dy * 8))).toFixed(2);
+    const rotY = +(Math.max(-8, Math.min(8,  dx * 8))).toFixed(2);
+    // Clamp shine coords to [0,100] — pointer may drift outside card with pointer capture
+    const sx   = Math.max(0, Math.min(100, +((e.clientX - rect.left) / rect.width  * 100).toFixed(1)));
+    const sy   = Math.max(0, Math.min(100, +((e.clientY - rect.top)  / rect.height * 100).toFixed(1)));
 
     if (tiltRef.current) {
       tiltRef.current.style.transform  = `perspective(700px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
@@ -157,16 +177,17 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
     }
   }, []);
 
-  const handlePointerLeave = useCallback(() => {
-    if (tiltRef.current) {
-      tiltRef.current.style.transform  = 'perspective(700px) rotateX(0deg) rotateY(0deg)';
-      tiltRef.current.style.transition = 'transform 0.5s ease';
-    }
-    if (shineRef.current) {
-      shineRef.current.style.background = 'radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.10) 0%, rgba(13,148,136,0.06) 35%, transparent 70%)';
-      shineRef.current.style.transition = 'background 0.5s ease';
-    }
-  }, []);
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    resetTilt();
+  }, [resetTilt]);
+
+  const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    resetTilt();
+  }, [resetTilt]);
+
+  const handlePointerLeave = useCallback(() => { resetTilt(); }, [resetTilt]);
 
   return (
     <>
@@ -288,9 +309,21 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
           {/* ── Tilt wrapper ── */}
           <div
             ref={tiltRef}
+            onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
             onPointerLeave={handlePointerLeave}
-            style={{ transformStyle: 'preserve-3d', willChange: 'transform', flexShrink: 0 }}
+            style={{
+              transformStyle: 'preserve-3d',
+              willChange: 'transform',
+              flexShrink: 0,
+              touchAction: 'none',        // tell browser: no scroll/pan on this element
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTapHighlightColor: 'transparent',
+              overscrollBehavior: 'contain',
+            } as React.CSSProperties}
           >
             {/* Gradient border */}
             <div
