@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -119,429 +119,611 @@ function PlayerCardModal({ member, finalAvatar, isOwnCard, onClose }: PlayerCard
   const variant     = getBadgeVariant(roleLabel, member.is_admin);
   const accentColor = ACCENT[variant];
 
-  // Mock visibility: MVP is always 'public'.
-  // TODO: load from profiles.profile_visibility_level
-  const visibilityLevel: 'public' | 'partial' | 'private' = 'public';
-
   const [perspective, setPerspective] = useState<'self' | 'other'>(
-    isOwnCard ? 'self' : 'other'
+    isOwnCard ? 'self' : 'other',
   );
+  const [showPrivacyHint, setShowPrivacyHint] = useState(false);
 
-  const showStats =
-    perspective === 'self' || visibilityLevel === 'public';
+  // Mock: MVP hardcodes 'public'. Replace when profiles.visibility_level is added.
+  const visibilityLevel: 'public' | 'partial' | 'private' = 'public';
+  const showStats = perspective === 'self' || visibilityLevel === 'public';
 
-  const statLabelStyle: React.CSSProperties = {
-    fontSize: 8,
-    fontWeight: 800,
-    letterSpacing: '0.20em',
-    textTransform: 'uppercase',
-    color: '#94A3B8',
-    marginBottom: 4,
-  };
+  // Tilt: direct DOM mutation for performance (avoids re-render on every pointermove)
+  const tiltRef          = useRef<HTMLDivElement>(null);
+  const shineRef         = useRef<HTMLDivElement>(null);
+  const reducedMotionRef = useRef(false);
 
-  const statValueStyle: React.CSSProperties = {
-    fontSize: 20,
-    fontWeight: 900,
-    color: '#0F172A',
-    letterSpacing: '-0.03em',
-    lineHeight: 1,
-  };
+  useEffect(() => {
+    reducedMotionRef.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
 
-  const lockedCell = (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 3,
-        fontSize: 9,
-        fontWeight: 600,
-        color: '#94A3B8',
-      }}
-    >
-      <Lock size={9} />
-      본인만 공개
-    </span>
-  );
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (reducedMotionRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dx   = (e.clientX - (rect.left + rect.width  / 2)) / (rect.width  / 2);
+    const dy   = (e.clientY - (rect.top  + rect.height / 2)) / (rect.height / 2);
+    const rotX = +(Math.max(-7, Math.min(7, -dy * 7))).toFixed(2);
+    const rotY = +(Math.max(-7, Math.min(7,  dx * 7))).toFixed(2);
+    const sx   = +((e.clientX - rect.left) / rect.width  * 100).toFixed(1);
+    const sy   = +((e.clientY - rect.top)  / rect.height * 100).toFixed(1);
+
+    if (tiltRef.current) {
+      tiltRef.current.style.transform  = `perspective(700px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      tiltRef.current.style.transition = 'none';
+    }
+    if (shineRef.current) {
+      shineRef.current.style.background  = `radial-gradient(ellipse at ${sx}% ${sy}%, rgba(201,168,76,0.22) 0%, rgba(13,148,136,0.14) 35%, transparent 70%)`;
+      shineRef.current.style.transition  = 'none';
+    }
+  }, []);
+
+  const handlePointerLeave = useCallback(() => {
+    if (tiltRef.current) {
+      tiltRef.current.style.transform  = 'perspective(700px) rotateX(0deg) rotateY(0deg)';
+      tiltRef.current.style.transition = 'transform 0.5s ease';
+    }
+    if (shineRef.current) {
+      shineRef.current.style.background = 'radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.10) 0%, rgba(13,148,136,0.06) 35%, transparent 70%)';
+      shineRef.current.style.transition = 'background 0.5s ease';
+    }
+  }, []);
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 2000,
-        backgroundColor: 'rgba(15,23,42,0.58)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-        overflowY: 'auto',
-      } as React.CSSProperties}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: 340,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 0,
-        }}
-      >
-        {/* Close */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            style={{
-              width: 34, height: 34,
-              borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.14)',
-              border: '1px solid rgba(255,255,255,0.22)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            <X size={15} />
-          </button>
-        </div>
+    <>
+      <style>{`
+        @keyframes player-card-in {
+          from { opacity: 0; transform: scale(0.93) translateY(16px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);    }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .player-card-animate { animation: none !important; opacity: 1 !important; }
+        }
+      `}</style>
 
-        {/* Perspective toggle — own card only */}
-        {isOwnCard && (
+      {/* ── Overlay ── */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2000,
+          backgroundColor: 'rgba(15,23,42,0.48)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          overflowY: 'auto',
+        } as React.CSSProperties}
+      >
+        {/* Content wrapper — entrance animation */}
+        <div
+          className="player-card-animate"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: '100%',
+            maxWidth: 320,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            animation: 'player-card-in 0.30s cubic-bezier(0.34,1.56,0.64,1) both',
+          }}
+        >
+          {/* ── Top bar: toggle + close ── */}
           <div
             style={{
               display: 'flex',
-              backgroundColor: 'rgba(255,255,255,0.11)',
-              borderRadius: 99,
-              padding: 3,
+              alignItems: 'center',
+              gap: 8,
               marginBottom: 10,
-              border: '1px solid rgba(255,255,255,0.16)',
+              flexShrink: 0,
             }}
           >
-            {(['self', 'other'] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPerspective(p)}
+            {isOwnCard ? (
+              <div
                 style={{
+                  display: 'flex',
                   flex: 1,
-                  height: 30,
+                  backgroundColor: 'rgba(255,255,255,0.11)',
                   borderRadius: 99,
-                  border: 'none',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
-                  backgroundColor: perspective === p ? '#FFFFFF' : 'transparent',
-                  color: perspective === p ? '#0F172A' : 'rgba(255,255,255,0.60)',
-                  transition: 'background-color 0.18s, color 0.18s',
+                  padding: '3px',
+                  border: '1px solid rgba(255,255,255,0.16)',
                 }}
               >
-                {p === 'self' ? '내 카드' : '다른 회원 시점'}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* ═══ THE CARD ═══ */}
-        {/* Gradient border simulation */}
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${accentColor} 0%, #0D9488 45%, ${accentColor} 80%, #0D9488 100%)`,
-            padding: 1.5,
-            borderRadius: 22,
-            boxShadow: `0 14px 48px rgba(0,0,0,0.24), 0 6px 20px ${accentColor}3A`,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 20.5,
-              overflow: 'hidden',
-              position: 'relative',
-              background: 'linear-gradient(160deg, #FFFFFF 0%, #F8FAFC 55%, #F0F9FF 100%)',
-            }}
-          >
-            {/* Glass shimmer */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0, left: 0, right: 0, height: '42%',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0) 100%)',
-                pointerEvents: 'none',
-                zIndex: 1,
-              }}
-            />
-
-            {/* Top accent strip */}
-            <div
-              style={{
-                height: 5,
-                background: `linear-gradient(90deg, #0D9488, ${accentColor}, #0D9488)`,
-              }}
-            />
-
-            {/* Card body */}
-            <div style={{ padding: '16px 18px 18px', position: 'relative', zIndex: 2 }}>
-
-              {/* Header row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <p
-                  style={{
-                    fontFamily: 'var(--font-rajdhani), sans-serif',
-                    fontSize: 8.5,
-                    fontWeight: 900,
-                    letterSpacing: '0.30em',
-                    textTransform: 'uppercase',
-                    color: '#0D9488',
-                    margin: 0,
-                  }}
-                >
-                  TEYEON
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span
-                    style={{
-                      ...BADGE_STYLES[variant],
-                      fontSize: 8,
-                      fontWeight: 800,
-                      letterSpacing: '0.10em',
-                      textTransform: 'uppercase',
-                      padding: '2px 7px',
-                      borderRadius: 4,
-                    }}
-                  >
-                    {roleLabel}
-                  </span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#94A3B8' }}>
-                    KDK&nbsp;--
-                    {/* TODO: teyeon_archive_v1 집계 후 실제 랭킹 표시 */}
-                  </span>
-                </div>
-              </div>
-
-              {/* Avatar + name */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <div
-                  style={{
-                    width: 80, height: 80,
-                    borderRadius: '50%',
-                    padding: 2.5,
-                    background: `linear-gradient(135deg, ${accentColor}40, #0D948826)`,
-                    boxShadow: `0 0 0 1px ${accentColor}30, 0 4px 16px ${accentColor}1A`,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 75, height: 75,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      backgroundColor: `${accentColor}14`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <ProfileAvatar
-                      src={finalAvatar}
-                      alt={member.nickname}
-                      size={75}
-                      fallbackIcon={
-                        <span
-                          style={{
-                            fontSize: 30,
-                            fontWeight: 900,
-                            color: accentColor,
-                            lineHeight: 1,
-                          }}
-                        >
-                          {(member.nickname || '?').charAt(0)}
-                        </span>
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'center' }}>
-                  <p
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 900,
-                      color: '#0F172A',
-                      margin: 0,
-                      letterSpacing: '-0.02em',
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    {member.nickname}
-                    {member.is_guest && (
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', marginLeft: 4 }}>
-                        (G)
-                      </span>
-                    )}
-                  </p>
-                  {(member.affiliation || member.mbti) && (
-                    <p
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: '#94A3B8',
-                        margin: '4px 0 0',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {[member.affiliation, member.mbti].filter(Boolean).join(' · ')}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats row */}
-              <div
-                style={{
-                  display: 'flex',
-                  backgroundColor: '#F8FAFC',
-                  borderRadius: 12,
-                  border: '1px solid rgba(0,0,0,0.06)',
-                  marginBottom: 14,
-                  overflow: 'hidden',
-                }}
-              >
-                {(['WIN RATE', 'ATTEND', 'RECORD'] as const).map((label, idx) => (
-                  <div
-                    key={label}
+                {(['self', 'other'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPerspective(p)}
                     style={{
                       flex: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      padding: '9px 4px',
-                      borderLeft: idx > 0 ? '1px solid rgba(0,0,0,0.06)' : undefined,
+                      height: 28,
+                      borderRadius: 99,
+                      border: 'none',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      WebkitTapHighlightColor: 'transparent',
+                      backgroundColor: perspective === p ? '#FFFFFF' : 'transparent',
+                      color: perspective === p ? '#0D9488' : 'rgba(255,255,255,0.55)',
+                      transition: 'background-color 0.18s, color 0.18s',
+                      letterSpacing: '-0.01em',
+                      whiteSpace: 'nowrap',
+                      padding: '0 6px',
                     }}
                   >
-                    <span style={statLabelStyle}>{label}</span>
-                    {showStats ? (
-                      <span style={statValueStyle}>--</span>
-                    ) : (
-                      /* TODO: 실제 통계 연동 후 값 표시, privacy 설정에 따라 잠금 처리 */
-                      lockedCell
-                    )}
-                  </div>
+                    {p === 'self' ? '본인 시점' : '다른 회원 시점'}
+                  </button>
                 ))}
               </div>
+            ) : (
+              <div style={{ flex: 1 }} />
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              style={{
+                width: 36,
+                height: 36,
+                flexShrink: 0,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.24)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
 
-              {/* Privacy note — shown only when stats are locked in other-perspective */}
-              {!showStats && (
-                <p
+          {/* ── Tilt wrapper ── */}
+          <div
+            ref={tiltRef}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            style={{ transformStyle: 'preserve-3d', willChange: 'transform', flexShrink: 0 }}
+          >
+            {/* Gradient border */}
+            <div
+              style={{
+                background: `linear-gradient(135deg, ${accentColor} 0%, #0D9488 40%, ${accentColor} 70%, #0D9488 100%)`,
+                padding: '1.5px',
+                borderRadius: 22,
+                boxShadow: `0 16px 52px rgba(0,0,0,0.26), 0 6px 24px ${accentColor}40`,
+              }}
+            >
+              {/* Card surface */}
+              <div
+                style={{
+                  borderRadius: '20.5px',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  background: 'linear-gradient(160deg, #FFFEF9 0%, #F8FAFC 50%, #EEF2FF 100%)',
+                }}
+              >
+                {/* BG layer 0: court grid */}
+                <div
                   style={{
-                    margin: '0 0 10px',
-                    fontSize: 9,
-                    fontWeight: 500,
-                    color: '#94A3B8',
-                    textAlign: 'center',
-                    lineHeight: 1.4,
-                    letterSpacing: '-0.01em',
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundImage: 'linear-gradient(rgba(13,148,136,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(13,148,136,0.028) 1px, transparent 1px)',
+                    backgroundSize: '28px 28px',
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                  }}
+                />
+
+                {/* BG layer 1: diagonal holographic stripe */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'repeating-linear-gradient(45deg, transparent 0px, transparent 14px, rgba(201,168,76,0.04) 14px, rgba(201,168,76,0.04) 15px)',
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                  }}
+                />
+
+                {/* BG layer 2: holographic radial shine (moves with pointer) */}
+                <div
+                  ref={shineRef}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(ellipse at 50% 50%, rgba(201,168,76,0.10) 0%, rgba(13,148,136,0.06) 35%, transparent 70%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }}
+                />
+
+                {/* BG layer 3: static glass shimmer */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, right: 0, height: '40%',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0) 100%)',
+                    pointerEvents: 'none',
+                    zIndex: 2,
+                  }}
+                />
+
+                {/* ── Teal header band ── */}
+                <div
+                  style={{
+                    position: 'relative',
+                    zIndex: 3,
+                    background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 55%, #115E59 100%)',
+                    padding: '13px 16px 15px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  일부 기록은 본인만 확인할 수 있어요
-                </p>
-              )}
+                  <div>
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-rajdhani), sans-serif',
+                        fontSize: 18,
+                        fontWeight: 900,
+                        letterSpacing: '0.20em',
+                        textTransform: 'uppercase',
+                        color: '#FFFFFF',
+                        margin: 0,
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      TEYEON
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-rajdhani), sans-serif',
+                        fontSize: 7.5,
+                        fontWeight: 700,
+                        letterSpacing: '0.22em',
+                        textTransform: 'uppercase',
+                        color: 'rgba(255,255,255,0.52)',
+                        margin: '2px 0 0',
+                      }}
+                    >
+                      TENNIS CLUB
+                    </p>
+                  </div>
 
-              {/* Badges */}
-              {(member.achievements || member.mbti) && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 14 }}>
-                  {member.achievements && (
+                  <div style={{ textAlign: 'right' }}>
                     <span
                       style={{
-                        fontSize: 9,
-                        fontWeight: 700,
+                        display: 'inline-block',
+                        fontSize: 8,
+                        fontWeight: 800,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
                         padding: '3px 8px',
                         borderRadius: 5,
-                        backgroundColor: 'rgba(201,168,76,0.10)',
-                        color: '#B8891C',
-                        border: '1px solid rgba(201,168,76,0.22)',
-                        maxWidth: '100%',
+                        backgroundColor: variant === 'gold' ? 'rgba(201,168,76,0.24)' : 'rgba(255,255,255,0.14)',
+                        color: variant === 'gold' ? '#F5D87A' : 'rgba(255,255,255,0.92)',
+                        border: variant === 'gold' ? '1px solid rgba(201,168,76,0.42)' : '1px solid rgba(255,255,255,0.22)',
+                        maxWidth: 100,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      🏆 {member.achievements}
+                      {roleLabel}
                     </span>
-                  )}
-                  {member.mbti && !member.affiliation && (
-                    <span
+                    <p
                       style={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        padding: '3px 8px',
-                        borderRadius: 5,
-                        backgroundColor: 'rgba(13,148,136,0.08)',
-                        color: '#0D9488',
-                        border: '1px solid rgba(13,148,136,0.18)',
+                        fontSize: 7.5,
+                        fontWeight: 600,
+                        color: 'rgba(255,255,255,0.42)',
+                        margin: '4px 0 0',
+                        letterSpacing: '0.10em',
                       }}
                     >
-                      {member.mbti}
-                    </span>
+                      {/* TODO: teyeon_archive_v1 집계 후 실제 순위 */}
+                      KDK&nbsp;--
+                    </p>
+                  </div>
+                </div>
+
+                {/* ── Card body ── */}
+                <div style={{ padding: '16px 18px 18px', position: 'relative', zIndex: 3 }}>
+
+                  {/* Avatar + name */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 10,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 88, height: 88,
+                        borderRadius: '50%',
+                        padding: 3,
+                        background: `linear-gradient(135deg, ${accentColor} 0%, #0D9488 50%, ${accentColor}88 100%)`,
+                        boxShadow: `0 0 0 1px ${accentColor}28, 0 6px 20px ${accentColor}28`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 82, height: 82,
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          border: '2px solid rgba(255,255,255,0.88)',
+                          backgroundColor: `${accentColor}14`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ProfileAvatar
+                          src={finalAvatar}
+                          alt={member.nickname}
+                          size={82}
+                          fallbackIcon={
+                            <span
+                              style={{
+                                fontSize: 34,
+                                fontWeight: 900,
+                                color: accentColor,
+                                lineHeight: 1,
+                              }}
+                            >
+                              {(member.nickname || '?').charAt(0)}
+                            </span>
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', maxWidth: '100%', overflow: 'hidden' }}>
+                      <p
+                        style={{
+                          fontSize: 22,
+                          fontWeight: 900,
+                          color: '#0F172A',
+                          margin: 0,
+                          letterSpacing: '-0.025em',
+                          lineHeight: 1.15,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {member.nickname}
+                        {member.is_guest && (
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#94A3B8', marginLeft: 5 }}>
+                            (G)
+                          </span>
+                        )}
+                      </p>
+                      {(member.affiliation || member.mbti) && (
+                        <p
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: '#64748B',
+                            margin: '4px 0 0',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {[member.affiliation, member.mbti].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats row — 4 cells */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      backgroundColor: 'rgba(248,250,252,0.88)',
+                      borderRadius: 12,
+                      border: '1px solid rgba(0,0,0,0.07)',
+                      marginBottom: 14,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {(['KDK RANK', 'WIN RATE', 'ATTEND', 'RECORD'] as const).map((label, idx) => (
+                      <div
+                        key={label}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          padding: '8px 2px',
+                          borderLeft: idx > 0 ? '1px solid rgba(0,0,0,0.06)' : undefined,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 6.5,
+                            fontWeight: 800,
+                            letterSpacing: '0.14em',
+                            textTransform: 'uppercase',
+                            color: '#94A3B8',
+                            marginBottom: 4,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {label}
+                        </span>
+                        {showStats ? (
+                          <span
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 900,
+                              color: '#0F172A',
+                              letterSpacing: '-0.03em',
+                              lineHeight: 1,
+                            }}
+                          >
+                            --
+                          </span>
+                        ) : (
+                          /* TODO: 실제 통계 연동 후 값 표시 */
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 2,
+                              fontSize: 8,
+                              fontWeight: 600,
+                              color: '#94A3B8',
+                            }}
+                          >
+                            <Lock size={8} />
+                            비공개
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Privacy note */}
+                  {!showStats && (
+                    <p
+                      style={{
+                        margin: '0 0 10px',
+                        fontSize: 9,
+                        fontWeight: 500,
+                        color: '#94A3B8',
+                        textAlign: 'center',
+                        lineHeight: 1.4,
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      일부 기록은 본인만 확인할 수 있어요
+                    </p>
+                  )}
+
+                  {/* Badges */}
+                  {(member.achievements || member.mbti) && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 14 }}>
+                      {member.achievements && (
+                        <span
+                          style={{
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            padding: '3px 9px',
+                            borderRadius: 5,
+                            backgroundColor: 'rgba(201,168,76,0.10)',
+                            color: '#B8891C',
+                            border: '1px solid rgba(201,168,76,0.22)',
+                            display: 'inline-block',
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          🏆 {member.achievements}
+                        </span>
+                      )}
+                      {member.mbti && (
+                        <span
+                          style={{
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            padding: '3px 9px',
+                            borderRadius: 5,
+                            backgroundColor: 'rgba(13,148,136,0.08)',
+                            color: '#0D9488',
+                            border: '1px solid rgba(13,148,136,0.18)',
+                          }}
+                        >
+                          {member.mbti}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 프로필 공개 범위 설정 (own card) */}
+                  {isOwnCard && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivacyHint((v) => !v)}
+                        style={{
+                          width: '100%',
+                          height: 40,
+                          borderRadius: 11,
+                          border: '1.5px solid rgba(13,148,136,0.24)',
+                          background: 'linear-gradient(135deg, rgba(13,148,136,0.06) 0%, rgba(13,148,136,0.03) 100%)',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#0D9488',
+                          cursor: 'pointer',
+                          WebkitTapHighlightColor: 'transparent',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        프로필 공개 범위 설정
+                        {/* TODO: 다음 단계에서 DB 저장 연결 */}
+                      </button>
+                      {showPrivacyHint && (
+                        <p
+                          style={{
+                            marginTop: 8,
+                            fontSize: 10,
+                            fontWeight: 500,
+                            color: '#0D9488',
+                            textAlign: 'center',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          공개 범위 설정은 다음 업데이트에서 연결됩니다.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
-              )}
-
-              {/* Own card actions */}
-              {isOwnCard && (
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    height: 38,
-                    borderRadius: 10,
-                    border: '1.5px solid rgba(13,148,136,0.22)',
-                    backgroundColor: 'rgba(13,148,136,0.06)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#0D9488',
-                    cursor: 'pointer',
-                    WebkitTapHighlightColor: 'transparent',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  기록 공개 설정
-                  {/* TODO: privacy 설정 모달/drawer 연결 */}
-                </button>
-              )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card ID footer */}
-        <p
-          style={{
-            marginTop: 8,
-            textAlign: 'center',
-            fontSize: 8,
-            fontWeight: 700,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.28)',
-          }}
-        >
-          TEYEON MEMBER CARD · {member.id.slice(0, 8).toUpperCase()}
-        </p>
+          {/* ── Card footer ── */}
+          <div style={{ marginTop: 10, textAlign: 'center', flexShrink: 0 }}>
+            <p
+              style={{
+                fontSize: 8,
+                fontWeight: 700,
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.28)',
+                margin: 0,
+              }}
+            >
+              TEYEON MEMBER CARD · {member.id.slice(0, 8).toUpperCase()}
+            </p>
+            <p
+              style={{
+                margin: '5px 0 0',
+                fontSize: 10,
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.55)',
+                lineHeight: 1.4,
+              }}
+            >
+              카드를 움직여보세요
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
