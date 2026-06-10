@@ -32,12 +32,28 @@ import {
   saveTournamentEvent,
   TournamentEventInput,
 } from '@/lib/tournamentCalendarService';
+import {
+  ClubSchedule,
+  CLUB_TYPE_STYLE,
+  CLUB_DOT_COLOR,
+  demoClubSchedules,
+  formatClubTimeRange,
+} from '@/lib/clubScheduleData';
+import {
+  fetchClubSchedules,
+  saveClubSchedule as saveClubScheduleToDb,
+  deleteClubSchedule as deleteClubScheduleFromDb,
+  ClubScheduleInput,
+} from '@/lib/clubScheduleService';
+import ClubScheduleEditorModal from '@/components/ClubScheduleEditorModal';
 import { useAuth } from '@/context/AuthContext';
 
-// ─── TEYEON Calendar 아키텍처 TODO ────────────────────────────────────────────
-// 현재 이 페이지는 Tournament Schedule (외부 대회 일정) 전용.
-// 향후 TEYEON Calendar = Tournament Schedule + Club Schedule (정모/KDK/번개 등) 구조로 확장 예정.
-// Club Schedule은 별도 /club-schedule 경로 + club_events 테이블로 분리 — 이 파일은 건드리지 말 것.
+// ─── TEYEON Calendar 구조 ─────────────────────────────────────────────────────
+// Tournament Schedule (대외 대회 일정) + Club Schedule (정모/번개 등) 통합 뷰.
+// Tournament: tournament_events / tournament_pairs / tournament_partner_requests 테이블
+// Club:       club_schedules 테이블 (supabase/add_club_schedules.sql 적용 필요)
+// TODO: 정모 참석 체크 (참석/불참/미정), KDK 세션→정모 연결, Archive·Finance 연동 예정
+// TODO: CALENDAR_MANAGER 역할 도입 시 canEditClubSchedule 조건에 추가
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Style maps (inline — Cool Light theme) ───────────────────────────────────
@@ -151,6 +167,8 @@ export default function TournamentCalendarPage() {
   const canEditEvent = role === 'CEO' || role === 'ADMIN';
   // CSV 업로드: MVP에서 CEO/ADMIN 전용 (TODO: CALENDAR_MANAGER 확장 시 추가)
   const canUploadCSV = role === 'CEO' || role === 'ADMIN';
+  // Club Schedule 등록/수정: CEO/ADMIN 전용 (TODO: CALENDAR_MANAGER 확장 시 추가)
+  const canEditClubSchedule = role === 'CEO' || role === 'ADMIN';
 
   const [events, setEvents] = useState<TournamentEvent[]>(tournamentEvents);
   const [dataSource, setDataSource] = useState<'db' | 'demo'>('demo');
@@ -165,7 +183,13 @@ export default function TournamentCalendarPage() {
   const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
-  // ── Data loading (unchanged logic) ──
+  // ── Club Schedule state ──
+  const [clubSchedules, setClubSchedules] = useState<ClubSchedule[]>(demoClubSchedules);
+  const [isClubEditorOpen, setIsClubEditorOpen] = useState(false);
+  const [editingClubSchedule, setEditingClubSchedule] = useState<ClubSchedule | null>(null);
+  const [isSavingClub, setIsSavingClub] = useState(false);
+
+  // ── Data loading ──
   const loadEvents = async () => {
     try {
       const dbEvents = await fetchTournamentEvents();
@@ -184,7 +208,17 @@ export default function TournamentCalendarPage() {
     }
   };
 
-  useEffect(() => { loadEvents(); }, []);
+  const loadClubSchedules = async () => {
+    try {
+      const data = await fetchClubSchedules();
+      setClubSchedules(data.length > 0 ? data : demoClubSchedules);
+    } catch {
+      // club_schedules 테이블 미적용 시 demo 데이터 유지
+      setClubSchedules(demoClubSchedules);
+    }
+  };
+
+  useEffect(() => { loadEvents(); loadClubSchedules(); }, []);
 
   // ── Derived sets for calendar dots ──
   const eventDateSet = useMemo(() => {
@@ -198,6 +232,19 @@ export default function TournamentCalendarPage() {
     events.forEach((e) => { if (e.registrationStart) s.add(e.registrationStart); });
     return s;
   }, [events]);
+
+  // ── Club schedule date set ──
+  const clubScheduleDateSet = useMemo(() => {
+    const s = new Set<string>();
+    clubSchedules.forEach((cs) => s.add(cs.schedule_date));
+    return s;
+  }, [clubSchedules]);
+
+  // ── Club schedules for selected date ──
+  const selectedDateClubSchedules = useMemo(
+    () => clubSchedules.filter((cs) => cs.schedule_date === selectedDate),
+    [clubSchedules, selectedDate]
+  );
 
   // ── Events for the selected date (경기일 OR 접수시작일 기준) ──
   const selectedDateEvents = useMemo(() => {
@@ -304,6 +351,47 @@ export default function TournamentCalendarPage() {
     }
   };
 
+  const handleSaveClubSchedule = async (input: ClubScheduleInput) => {
+    if (!canEditClubSchedule) return;
+    if (!input.title.trim()) { alert('일정명을 입력해 주세요.'); return; }
+    if (!input.schedule_date) { alert('날짜를 입력해 주세요.'); return; }
+    setIsSavingClub(true);
+    try {
+      await saveClubScheduleToDb(input, user?.id);
+      await loadClubSchedules();
+      setIsClubEditorOpen(false);
+      setEditingClubSchedule(null);
+      const [y, m] = input.schedule_date.split('-').map(Number);
+      setSelectedDate(input.schedule_date);
+      setCurrentMonth(new Date(y, m - 1, 1));
+      alert('클럽 일정이 저장되었습니다.');
+    } catch (error) {
+      console.error('[Club Schedule] Save failed', error);
+      alert('저장에 실패했습니다. Supabase schema 적용 여부를 확인해 주세요.');
+    } finally {
+      setIsSavingClub(false);
+    }
+  };
+
+  const handleDeleteClubSchedule = async (id: string) => {
+    if (!canEditClubSchedule) return;
+    const ok = window.confirm('이 클럽 일정을 삭제할까요?');
+    if (!ok) return;
+    setIsSavingClub(true);
+    try {
+      await deleteClubScheduleFromDb(id);
+      await loadClubSchedules();
+      setIsClubEditorOpen(false);
+      setEditingClubSchedule(null);
+      alert('클럽 일정이 삭제되었습니다.');
+    } catch (error) {
+      console.error('[Club Schedule] Delete failed', error);
+      alert('클럽 일정 삭제에 실패했습니다.');
+    } finally {
+      setIsSavingClub(false);
+    }
+  };
+
   const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
 
   return (
@@ -345,6 +433,7 @@ export default function TournamentCalendarPage() {
             padding: '9px 13px 8px',
           }}
         >
+          {/* Title row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <Link
               href="/"
@@ -365,7 +454,7 @@ export default function TournamentCalendarPage() {
             >
               <ChevronLeft size={17} />
             </Link>
-            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <h1
                 style={{
                   fontSize: 17,
@@ -377,7 +466,7 @@ export default function TournamentCalendarPage() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                대회 캘린더
+                TEYEON Calendar
               </h1>
               <p
                 style={{
@@ -388,10 +477,14 @@ export default function TournamentCalendarPage() {
                   lineHeight: 1,
                 }}
               >
-                월별 대회 일정 · 접수 현황
+                대회 일정 · 클럽 일정
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          </div>
+
+          {/* Action buttons row — flex-wrap so they flow on narrow screens */}
+          {(canUploadCSV || isAdmin || canEditClubSchedule) && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
               {/* CSV 업로드: CEO / ADMIN 전용 */}
               {canUploadCSV && (
                 <button
@@ -401,7 +494,7 @@ export default function TournamentCalendarPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4,
-                    height: 28,
+                    height: 30,
                     padding: '0 10px',
                     borderRadius: 99,
                     backgroundColor: 'rgba(13,148,136,0.07)',
@@ -417,7 +510,7 @@ export default function TournamentCalendarPage() {
                   가져오기
                 </button>
               )}
-              {/* 직접 등록: 캘린더 관리자 이상 */}
+              {/* 대회 직접 등록: 캘린더 관리자 이상 */}
               {isAdmin && (
                 <button
                   type="button"
@@ -426,7 +519,7 @@ export default function TournamentCalendarPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4,
-                    height: 28,
+                    height: 30,
                     padding: '0 10px',
                     borderRadius: 99,
                     backgroundColor: 'rgba(13,148,136,0.09)',
@@ -439,21 +532,48 @@ export default function TournamentCalendarPage() {
                   }}
                 >
                   <Plus size={11} />
-                  추가
+                  대회+
+                </button>
+              )}
+              {/* 클럽 일정 등록: CEO / ADMIN 전용 */}
+              {canEditClubSchedule && (
+                <button
+                  type="button"
+                  onClick={() => { setEditingClubSchedule(null); setIsClubEditorOpen(true); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: 30,
+                    padding: '0 10px',
+                    borderRadius: 99,
+                    backgroundColor: 'rgba(99,102,241,0.09)',
+                    border: '1px solid rgba(99,102,241,0.22)',
+                    color: '#4338CA',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <Plus size={11} />
+                  클럽+
                 </button>
               )}
             </div>
-          </div>
+          )}
 
           {/* Legend */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 10,
               marginTop: 7,
               paddingTop: 6,
               borderTop: '1px solid rgba(0,0,0,0.05)',
+              flexWrap: 'nowrap',
+              overflowX: 'auto',
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>
@@ -463,6 +583,10 @@ export default function TournamentCalendarPage() {
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#C9A84C', display: 'inline-block', flexShrink: 0 }} />
               경기일
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: CLUB_DOT_COLOR, display: 'inline-block', flexShrink: 0 }} />
+              클럽 일정
             </span>
           </div>
         </div>
@@ -553,6 +677,7 @@ export default function TournamentCalendarPage() {
               const isSelected = key === selectedDate;
               const hasEv = eventDateSet.has(key);
               const hasReg = regStartDateSet.has(key);
+              const hasClub = clubScheduleDateSet.has(key);
               const dow = date.getDay();
 
               return (
@@ -592,7 +717,7 @@ export default function TournamentCalendarPage() {
                   >
                     {date.getDate()}
                   </span>
-                  {/* Dots */}
+                  {/* Dots: teal=접수시작, gold=경기일, indigo=클럽일정 */}
                   <div style={{ display: 'flex', gap: 2, marginTop: 3, minHeight: 5, alignItems: 'center' }}>
                     {hasReg && (
                       <span
@@ -610,6 +735,14 @@ export default function TournamentCalendarPage() {
                         }}
                       />
                     )}
+                    {hasClub && (
+                      <span
+                        style={{
+                          width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+                          backgroundColor: isSelected ? 'rgba(255,255,255,0.80)' : CLUB_DOT_COLOR,
+                        }}
+                      />
+                    )}
                   </div>
                 </button>
               );
@@ -623,12 +756,17 @@ export default function TournamentCalendarPage() {
             {formatDayLabel(selectedDate)}
           </p>
           <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>
-            {selectedDateEvents.length > 0 ? `${selectedDateEvents.length}개 대회` : '일정 없음'}
+            {(selectedDateEvents.length + selectedDateClubSchedules.length) > 0
+              ? [
+                  selectedDateEvents.length > 0 ? `대회 ${selectedDateEvents.length}` : '',
+                  selectedDateClubSchedules.length > 0 ? `클럽 ${selectedDateClubSchedules.length}` : '',
+                ].filter(Boolean).join(' · ')
+              : '일정 없음'}
           </span>
         </div>
 
-        {/* ── Selected date event cards ── */}
-        {selectedDateEvents.length > 0 ? (
+        {/* ── Tournament event cards ── */}
+        {selectedDateEvents.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {selectedDateEvents.map((event) => {
               const org = ORG_STYLE[event.organizer];
@@ -980,7 +1118,153 @@ export default function TournamentCalendarPage() {
               );
             })}
           </div>
-        ) : (
+        )}
+
+        {/* ── Club schedule cards ── */}
+        {selectedDateClubSchedules.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {selectedDateClubSchedules.map((cs) => {
+              const typeStyle = CLUB_TYPE_STYLE[cs.schedule_type];
+              const timeRange = formatClubTimeRange(cs.start_time, cs.end_time);
+              return (
+                <div
+                  key={cs.id}
+                  style={{
+                    borderRadius: 14,
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid rgba(99,102,241,0.12)',
+                    borderLeft: '3px solid #6366F1',
+                    boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ padding: '12px 14px' }}>
+                    {/* Type chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                      <span
+                        style={{
+                          fontSize: 9, fontWeight: 800, letterSpacing: '0.10em',
+                          textTransform: 'uppercase', padding: '2px 7px', borderRadius: 5,
+                          backgroundColor: 'rgba(99,102,241,0.09)', color: '#3730A3',
+                          border: '1px solid rgba(99,102,241,0.22)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        CLUB
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 5,
+                          backgroundColor: typeStyle.bg, color: typeStyle.color,
+                          border: `1px solid ${typeStyle.border}`,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {typeStyle.badge}
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <p
+                      style={{
+                        fontSize: 16, fontWeight: 800, color: '#0F172A',
+                        letterSpacing: '-0.02em', lineHeight: 1.25,
+                        margin: '0 0 8px',
+                        wordBreak: 'keep-all',
+                        overflowWrap: 'break-word',
+                      }}
+                    >
+                      {cs.title}
+                    </p>
+
+                    {/* Time + court */}
+                    {(timeRange || cs.court_count) && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 6 }}>
+                        {timeRange && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                            <span style={{ color: '#94A3B8', marginRight: 3 }}>시간</span>
+                            {timeRange}
+                          </span>
+                        )}
+                        {cs.court_count && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                            <span style={{ color: '#94A3B8', marginRight: 3 }}>코트</span>
+                            {cs.court_count}면
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Location */}
+                    {cs.location && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 5, marginBottom: 6 }}>
+                        <MapPin size={11} style={{ color: '#94A3B8', flexShrink: 0, marginTop: 1 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                          {cs.location}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Guest info */}
+                    {cs.guest_enabled && (
+                      <p style={{ fontSize: 11, fontWeight: 500, color: '#4338CA', margin: '0 0 5px' }}>
+                        게스트 가능 · {cs.guest_limit != null ? `${cs.guest_limit}명` : '제한 없음'}
+                        {cs.fee_amount ? ` · 게스트비 ${cs.fee_amount.toLocaleString()}원` : ''}
+                      </p>
+                    )}
+
+                    {/* Fee (members, non-guest) */}
+                    {cs.fee_amount && !cs.guest_enabled && (
+                      <p style={{ fontSize: 11, fontWeight: 500, color: '#64748B', margin: '0 0 5px' }}>
+                        참가비 {cs.fee_amount.toLocaleString()}원
+                      </p>
+                    )}
+
+                    {/* Memo */}
+                    {cs.memo && (
+                      <div
+                        style={{
+                          padding: '8px 10px', borderRadius: 8,
+                          backgroundColor: '#F8FAFC',
+                          border: '1px solid rgba(0,0,0,0.05)',
+                          marginTop: 6,
+                        }}
+                      >
+                        <p style={{ fontSize: 11, fontWeight: 500, color: '#64748B', lineHeight: 1.65, margin: 0, wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                          {cs.memo}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit footer: CEO / ADMIN 전용 */}
+                  {canEditClubSchedule && (
+                    <div style={{ display: 'flex', borderTop: '1px solid rgba(0,0,0,0.05)', backgroundColor: '#FAFAFA' }}>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingClubSchedule(cs); setIsClubEditorOpen(true); }}
+                        style={{
+                          flex: 1, height: 38, fontSize: 11, fontWeight: 700,
+                          color: '#94A3B8', cursor: 'pointer',
+                          border: 'none', backgroundColor: 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                          whiteSpace: 'nowrap',
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        <Edit3 size={13} />
+                        수정
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Empty state (대회 + 클럽 모두 없을 때) ── */}
+        {selectedDateEvents.length === 0 && selectedDateClubSchedules.length === 0 && (
           <div
             style={{
               borderRadius: 14, backgroundColor: '#FFFFFF',
@@ -990,7 +1274,7 @@ export default function TournamentCalendarPage() {
             }}
           >
             <p style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', margin: 0 }}>
-              이 날은 대회 일정이 없습니다
+              이 날은 등록된 일정이 없습니다
             </p>
           </div>
         )}
@@ -1020,7 +1304,7 @@ export default function TournamentCalendarPage() {
                 MONTHLY
               </p>
               <p style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', margin: '1px 0 0', letterSpacing: '-0.01em' }}>
-                {monthLabel} 전체 목록
+                {monthLabel} 대회 목록
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
@@ -1119,7 +1403,7 @@ export default function TournamentCalendarPage() {
         </div>
       </div>
 
-      {/* ── Editor modal ── */}
+      {/* ── Tournament Editor modal ── */}
       {isEditorOpen && (
         <TournamentEventEditorModal
           event={editingEvent}
@@ -1141,6 +1425,21 @@ export default function TournamentCalendarPage() {
           userId={user?.id}
           onComplete={() => { loadEvents(); }}
           onClose={() => setIsCSVUploadOpen(false)}
+        />
+      )}
+
+      {/* ── Club Schedule Editor modal ── */}
+      {isClubEditorOpen && (
+        <ClubScheduleEditorModal
+          schedule={editingClubSchedule}
+          isSaving={isSavingClub}
+          onClose={() => {
+            if (isSavingClub) return;
+            setIsClubEditorOpen(false);
+            setEditingClubSchedule(null);
+          }}
+          onSave={handleSaveClubSchedule}
+          onDelete={handleDeleteClubSchedule}
         />
       )}
     </main>
