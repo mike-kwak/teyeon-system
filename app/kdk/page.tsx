@@ -2688,119 +2688,254 @@ export default function KDKPage() {
 
 
     const renderActiveSessionSelector = () => (
-        <main className="flex min-h-screen w-full flex-col bg-black text-white font-sans relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900 opacity-50" />
-
-            <header className="relative z-10 p-8 flex flex-col items-center text-center">
-                {sessionSelectorBackTarget === 'ENTRY_CHOICE' && (
-                    <button
-                        type="button"
-                        onClick={returnToEntryChoice}
-                        className="absolute left-6 top-8 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/55 transition-all active:scale-95 hover:border-[#C9B075]/30 hover:text-[#C9B075]"
+        <main
+            className="relative w-full font-sans"
+            style={{
+                minHeight: '100dvh',
+                marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                backgroundColor: '#F4F8FC',
+                color: '#0F2747',
+                boxSizing: 'border-box',
+            }}
+        >
+            <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '20px 16px var(--page-bottom-safe)', boxSizing: 'border-box' }}>
+                {/* HEADER ROW */}
+                <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    {sessionSelectorBackTarget === 'ENTRY_CHOICE' ? (
+                        <button
+                            type="button"
+                            onClick={returnToEntryChoice}
+                            aria-label="뒤로"
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                width: 44, height: 44, borderRadius: '50%',
+                                border: '1px solid #DCE8F5', backgroundColor: '#FFFFFF',
+                                color: '#3B5A85', boxShadow: '0 4px 12px rgba(15,45,85,0.06)',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <span style={{ fontSize: 20, lineHeight: 1 }}>←</span>
+                        </button>
+                    ) : <span style={{ width: 44, height: 44 }} />}
+                    <span
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            borderRadius: 999, padding: '6px 12px',
+                            border: '1px solid #F4C7C7', background: '#FDEEEE',
+                            fontSize: 10, fontWeight: 900,
+                            letterSpacing: '0.2em', textTransform: 'uppercase',
+                            color: '#C0392B',
+                        }}
                     >
-                        ← 뒤로
-                    </button>
-                )}
-                <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.5em] uppercase mb-4 animate-pulse">
-                    Live Court
-                </span>
-                <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-2xl">
-                    진행 중인 세션 선택
-                </h1>
-                <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
-                    Supabase에 저장된 진행 중 세션 기준으로 운영할 대진을 선택합니다.
-                </p>
-                <div className="mt-4 h-1 w-24 bg-gradient-to-r from-transparent via-[#C9B075] to-transparent opacity-40" />
-            </header>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
+                        LIVE COURT
+                    </span>
+                </header>
 
-            <div className="relative z-10 flex-1 px-6 pb-32 flex flex-col gap-5 overflow-y-auto custom-scrollbar" style={{ paddingBottom: 'calc(150px + env(safe-area-inset-bottom))' }}>
-                {allActiveSessions.length === 0 ? (
-                    <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-                        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-dashed border-white/20 bg-white/[0.03]">
-                            <span className="text-4xl">🎾</span>
+                {/* HERO CARD */}
+                <section
+                    style={{
+                        width: '100%', boxSizing: 'border-box',
+                        borderRadius: 24, background: '#FFFFFF',
+                        border: '1px solid #DCE8F5', padding: 20,
+                        marginBottom: 18,
+                        boxShadow: '0 14px 32px rgba(15,45,85,0.07)',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                width: 48, height: 48, flexShrink: 0, borderRadius: 14,
+                                background: 'linear-gradient(135deg, #3B82F6 0%, #22B8CF 100%)',
+                                color: '#FFFFFF', boxShadow: '0 8px 18px rgba(37,99,235,0.24)',
+                                fontSize: 22,
+                            }}
+                        >
+                            🎾
                         </div>
-                        <h2 className="mb-2 text-xl font-black uppercase tracking-tight text-white">진행 중인 대진이 없습니다</h2>
-                        <p className="max-w-xs text-[12px] font-bold leading-relaxed text-white/42">
-                            새 대진은 메인 화면의 대진 생성에서 시작해 주세요.
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>
+                                ACTIVE SESSIONS
+                            </p>
+                            <h1 style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.02em', color: '#0F2747' }}>
+                                진행 중인 세션 선택
+                            </h1>
+                        </div>
+                    </div>
+                    <p style={{ margin: '12px 0 0', fontSize: 12.5, fontWeight: 700, lineHeight: 1.55, color: '#3F5B82' }}>
+                        기존 KDK 세션을 선택해 이어서 운영합니다.
+                    </p>
+                </section>
+
+                {/* SESSION LIST */}
+                {allActiveSessions.length === 0 ? (
+                    <section
+                        style={{
+                            width: '100%', boxSizing: 'border-box',
+                            borderRadius: 22, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: '28px 20px',
+                            textAlign: 'center',
+                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: 64, height: 64, margin: '0 auto 14px',
+                                borderRadius: '50%', border: '1px dashed #C7DCF1',
+                                background: '#F6FAFD',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 28,
+                            }}
+                        >
+                            🎾
+                        </div>
+                        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em' }}>
+                            진행 중인 세션이 없습니다
+                        </h2>
+                        <p style={{ margin: '8px 0 0', fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                            새 대진을 생성해 LIVE COURT를 시작하세요.
                         </p>
                         {isAdmin && (
                             <button
                                 type="button"
                                 onClick={startNewKdkCreation}
-                                className="mt-8 w-full max-w-xs rounded-2xl border border-[#C9B075]/45 bg-[#C9B075]/12 px-5 py-4 text-[12px] font-black uppercase tracking-[0.18em] text-[#C9B075] transition-all active:scale-95"
+                                style={{
+                                    marginTop: 18,
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                    width: '100%', maxWidth: 320, height: 52, borderRadius: 16,
+                                    background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                    color: '#FFFFFF', fontSize: 14, fontWeight: 800,
+                                    letterSpacing: '0.02em', border: 'none', cursor: 'pointer',
+                                    boxShadow: '0 12px 26px rgba(37,99,235,0.24)',
+                                }}
                             >
-                                대진 생성으로 이동
+                                대진 생성으로 이동 →
                             </button>
                         )}
-                    </div>
+                    </section>
                 ) : (
-                    allActiveSessions.map((s, idx) => {
-                        const isLatest = idx === 0;
-                        const lastActivityLabel = s.lastActivity
-                            ? new Date(s.lastActivity).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-                            : '--';
-                        return (
-                            <div
-                                key={s.id}
-                                className={`relative rounded-[24px] p-6 text-left transition-all group overflow-hidden bg-white/5 backdrop-blur-3xl border-t border-t-white/20 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] ${isLatest ? 'border-[#C9B075]/30' : ''}`}
-                            >
-                                {isLatest && (
-                                    <div className="absolute -inset-[3px] rounded-[28px] bg-gradient-to-b from-[#C9B075] via-[#C9B075]/10 to-transparent -z-10 opacity-40 blur-[4px]" />
-                                )}
-
-                                <button
-                                    type="button"
-                                    onClick={() => enterSession(s.id)}
-                                    className="w-full text-left transition-all active:scale-[0.99]"
+                    <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {allActiveSessions.map((s, idx) => {
+                            const isLatest = idx === 0;
+                            const lastActivityLabel = s.lastActivity
+                                ? new Date(s.lastActivity).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                                : '--';
+                            return (
+                                <div
+                                    key={s.id}
+                                    style={{
+                                        width: '100%', boxSizing: 'border-box',
+                                        borderRadius: 22, background: '#FFFFFF',
+                                        border: isLatest ? '2px solid #2563EB' : '1px solid #DCE8F5',
+                                        padding: 16,
+                                        boxShadow: isLatest
+                                            ? '0 12px 28px rgba(37,99,235,0.14)'
+                                            : '0 8px 20px rgba(15,45,85,0.05)',
+                                    }}
                                 >
-                                    <div className="mb-7 flex items-start justify-between gap-4">
-                                        <div className="flex min-w-0 flex-col gap-1">
-                                            <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${isLatest ? 'text-[#C9B075]' : 'text-white/40'}`}>
-                                                {isLatest ? 'Latest Session' : 'Active Session'}
-                                            </span>
-                                            <h2 className="truncate text-2xl font-black italic tracking-tighter text-white uppercase transition-colors group-hover:text-[#C9B075] leading-none">
-                                                {s.title}
-                                            </h2>
-                                            <span className="mt-1 text-[10px] font-bold text-white/32">
-                                                {lastActivityLabel}
-                                            </span>
-                                        </div>
-                                        <div className="flex shrink-0 items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
-                                            <div className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" />
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-red-500/80">LIVE</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-5">
-                                        <div className="flex flex-col">
-                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">참가 인원</span>
-                                            <span className="text-lg font-black italic text-white">{s.playerCount}<span className="ml-0.5 text-[10px] opacity-30">명</span></span>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/20">경기 수</span>
-                                            <span className="text-lg font-black italic text-white">{s.matchCount}<span className="ml-0.5 text-[10px] opacity-30">개</span></span>
-                                        </div>
-                                        <div className="flex flex-col items-end justify-end">
-                                            <span className="text-[10px] font-black uppercase tracking-tight text-[#C9B075]">입장하기 →</span>
-                                        </div>
-                                    </div>
-                                </button>
-
-                                {isAdmin && (
                                     <button
                                         type="button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            setSessionDeleteTarget(s);
+                                        onClick={() => enterSession(s.id)}
+                                        style={{
+                                            width: '100%', textAlign: 'left',
+                                            background: 'transparent', border: 'none',
+                                            padding: 0, cursor: 'pointer',
                                         }}
-                                        className="mt-4 w-full rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300/80 transition-all active:scale-95"
                                     >
-                                        세션 삭제
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                                            <span style={{
+                                                fontSize: 10, fontWeight: 900,
+                                                letterSpacing: '0.22em', textTransform: 'uppercase',
+                                                color: isLatest ? '#1F5FB5' : '#7A93B3',
+                                            }}>
+                                                {isLatest ? 'LATEST SESSION' : 'ACTIVE SESSION'}
+                                            </span>
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                borderRadius: 999, padding: '4px 10px',
+                                                border: '1px solid #F4C7C7', background: '#FDEEEE',
+                                                fontSize: 9, fontWeight: 900,
+                                                letterSpacing: '0.18em', textTransform: 'uppercase',
+                                                color: '#C0392B',
+                                            }}>
+                                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#EF4444' }} />
+                                                LIVE
+                                            </span>
+                                        </div>
+
+                                        <h2 style={{
+                                            margin: 0, fontSize: 18, fontWeight: 900,
+                                            letterSpacing: '-0.02em', color: '#0F2747',
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>
+                                            {s.title}
+                                        </h2>
+                                        <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 700, color: '#7A93B3' }}>
+                                            {lastActivityLabel}
+                                        </p>
+
+                                        <div style={{
+                                            marginTop: 14, paddingTop: 12,
+                                            borderTop: '1px solid #E1EAF5',
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 1fr auto',
+                                            alignItems: 'center', gap: 10,
+                                        }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#9CB2CC' }}>
+                                                    참가 인원
+                                                </span>
+                                                <span style={{ marginTop: 2, fontSize: 16, fontWeight: 900, color: '#0F2747' }}>
+                                                    {s.playerCount}
+                                                    <span style={{ marginLeft: 2, fontSize: 10, fontWeight: 700, color: '#7A93B3' }}>명</span>
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#9CB2CC' }}>
+                                                    경기 수
+                                                </span>
+                                                <span style={{ marginTop: 2, fontSize: 16, fontWeight: 900, color: '#0F2747' }}>
+                                                    {s.matchCount}
+                                                    <span style={{ marginLeft: 2, fontSize: 10, fontWeight: 700, color: '#7A93B3' }}>개</span>
+                                                </span>
+                                            </div>
+                                            <span style={{
+                                                fontSize: 12, fontWeight: 900,
+                                                color: '#1F5FB5',
+                                                whiteSpace: 'nowrap',
+                                            }}>
+                                                입장하기 →
+                                            </span>
+                                        </div>
                                     </button>
-                                )}
-                            </div>
-                        );
-                    })
+
+                                    {isAdmin && (
+                                        <button
+                                            type="button"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setSessionDeleteTarget(s);
+                                            }}
+                                            style={{
+                                                marginTop: 12, width: '100%',
+                                                borderRadius: 12,
+                                                border: '1px solid #F4C7C7',
+                                                background: '#FFFFFF',
+                                                padding: '8px 14px',
+                                                fontSize: 11, fontWeight: 800,
+                                                letterSpacing: '0.06em',
+                                                color: '#C0392B',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            세션 삭제
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </section>
                 )}
             </div>
 
