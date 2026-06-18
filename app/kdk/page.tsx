@@ -2823,9 +2823,23 @@ export default function KDKPage() {
 
     if (kdkEntryMode === 'CHECKING') {
         return (
-            <main className="flex min-h-screen w-full flex-col items-center justify-center bg-black px-6 text-white font-sans">
+            <main
+                className="relative w-full font-sans"
+                style={{
+                    minHeight: '100dvh',
+                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                    backgroundColor: '#F4F8FC',
+                    color: '#0F2747',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '32px 16px',
+                    boxSizing: 'border-box',
+                }}
+            >
                 <PremiumSpinner />
-                <p className="mt-6 text-[11px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">
+                <p style={{ marginTop: 20, fontSize: 11, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#1F5FB5' }}>
                     Checking KDK Session
                 </p>
             </main>
@@ -2839,128 +2853,454 @@ export default function KDKPage() {
             : (allActiveSessions[0]?.title || sessionTitle);
 
         return (
-            <main className="flex min-h-screen w-full flex-col bg-black px-6 py-8 text-white font-sans">
-                <header className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
-                    <span className="mb-3 rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.35em] text-[#C9B075]">
-                        KDK Entry
-                    </span>
-                    <h1 className="text-3xl font-black italic uppercase tracking-tight text-white">
-                        진행 중인 대진이 있습니다
-                    </h1>
-                    <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
-                        기존 대진을 이어서 운영하거나, 새 대진 생성 화면으로 이동할 수 있습니다.
-                    </p>
-                </header>
+            <main
+                className="relative w-full font-sans"
+                style={{
+                    minHeight: '100dvh',
+                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                    backgroundColor: '#F4F8FC',
+                    color: '#0F2747',
+                    boxSizing: 'border-box',
+                }}
+            >
+                <div
+                    style={{
+                        width: '100%',
+                        maxWidth: 520,
+                        margin: '0 auto',
+                        padding: '20px 16px var(--page-bottom-safe)',
+                        boxSizing: 'border-box',
+                    }}
+                >
+                    {/* HEADER: back placeholder + KDK ENTRY badge */}
+                    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20 }}>
+                        <span
+                            style={{
+                                display: 'inline-block', borderRadius: 999,
+                                border: '1px solid #C7DCF1', backgroundColor: '#EAF3FC',
+                                padding: '6px 14px', fontSize: 10, fontWeight: 900,
+                                letterSpacing: '0.2em', textTransform: 'uppercase',
+                                color: '#1F5FB5',
+                            }}
+                        >
+                            KDK ENTRY
+                        </span>
+                    </header>
 
-                <section className="mx-auto mt-10 grid w-full max-w-lg gap-4">
-                    <Link
-                        href="/kdk?entry=live"
-                        onClick={openExistingLiveCourt}
-                        className="group block rounded-[28px] border border-[#C9B075]/35 bg-[#181818] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition-all active:scale-[0.98]"
+                    {/* HERO CARD */}
+                    <section
+                        style={{
+                            width: '100%', boxSizing: 'border-box',
+                            borderRadius: 24, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: 22,
+                            marginBottom: 20,
+                            boxShadow: '0 14px 32px rgba(15,45,85,0.07)',
+                        }}
                     >
-                        <div className="mb-7 flex items-center justify-between gap-4">
-                            <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
-                                Live Court
-                            </span>
-                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">→</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                            <div
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 52, height: 52, flexShrink: 0, borderRadius: 16,
+                                    background: 'linear-gradient(135deg, #3B82F6 0%, #22B8CF 100%)',
+                                    color: '#FFFFFF', boxShadow: '0 8px 18px rgba(37,99,235,0.26)',
+                                    fontSize: 24,
+                                }}
+                            >
+                                🎾
+                            </div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                                <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>
+                                    TEYEON KDK
+                                </p>
+                                <h1 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.02em', color: '#0F2747' }}>
+                                    진행 중인 대진이 있습니다
+                                </h1>
+                            </div>
                         </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">기존 라이브 코트 보기</h2>
-                        <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/50">
-                            {sessionCount > 1 ? `${sessionCount}개의 진행 중인 세션 중 선택합니다.` : `${primaryTitle || '현재 세션'}을 이어서 운영합니다.`}
+                        <p style={{ margin: '14px 0 0', fontSize: 13, fontWeight: 700, lineHeight: 1.6, color: '#3F5B82' }}>
+                            기존 대진을 이어서 운영하거나, 새 대진 생성으로 이동할 수 있습니다.
                         </p>
-                    </Link>
+                    </section>
 
-                    <Link
-                        href="/kdk?entry=create"
-                        onClick={startNewKdkCreation}
-                        className="group block rounded-[28px] border border-white/10 bg-white/[0.04] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
-                    >
-                        <div className="mb-7 flex items-center justify-between gap-4">
-                            <span className="rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#C9B075]">
-                                New Draw
-                            </span>
-                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">→</span>
-                        </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">새 대진 생성하기</h2>
-                        <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/50">
-                            기존 세션은 보존하고, 자동 생성 또는 수동 구성 Step 0부터 새로 시작합니다.
-                        </p>
-                    </Link>
-                </section>
+                    {/* ENTRY CHOICE CARDS */}
+                    <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <Link
+                            href="/kdk?entry=live"
+                            onClick={openExistingLiveCourt}
+                            style={{
+                                display: 'block', width: '100%', textAlign: 'left', textDecoration: 'none',
+                                boxSizing: 'border-box', borderRadius: 22,
+                                background: '#FFFFFF', border: '2px solid #2563EB', padding: 18,
+                                boxShadow: '0 12px 28px rgba(37,99,235,0.14)',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+                                <span style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                    borderRadius: 999, padding: '4px 10px',
+                                    background: '#FDEEEE', border: '1px solid #F4C7C7',
+                                    fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase',
+                                    color: '#C0392B',
+                                }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
+                                    LIVE
+                                </span>
+                                <span style={{ fontSize: 12, fontWeight: 900, color: '#1F5FB5' }}>입장하기 →</span>
+                            </div>
+                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>
+                                기존 라이브 코트 보기
+                            </h2>
+                            <p style={{ margin: '8px 0 0', fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                {sessionCount > 1 ? `${sessionCount}개의 진행 중인 세션 중 선택합니다.` : `${primaryTitle || '현재 세션'}을 이어서 운영합니다.`}
+                            </p>
+                        </Link>
+
+                        <Link
+                            href="/kdk?entry=create"
+                            onClick={startNewKdkCreation}
+                            style={{
+                                display: 'block', width: '100%', textAlign: 'left', textDecoration: 'none',
+                                boxSizing: 'border-box', borderRadius: 22,
+                                background: '#FFFFFF', border: '1px solid #DCE8F5', padding: 18,
+                                boxShadow: '0 8px 20px rgba(15,45,85,0.06)',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+                                <span style={{
+                                    borderRadius: 999, padding: '4px 10px',
+                                    background: '#EEF6FF', border: '1px solid #C7DCF1',
+                                    fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase',
+                                    color: '#1F5FB5',
+                                }}>
+                                    NEW DRAW
+                                </span>
+                                <span style={{ fontSize: 12, fontWeight: 900, color: '#56729A' }}>시작 →</span>
+                            </div>
+                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>
+                                새 대진 생성하기
+                            </h2>
+                            <p style={{ margin: '8px 0 0', fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                기존 세션은 보존하고, 자동 또는 수동 방식으로 새 대진을 준비합니다.
+                            </p>
+                        </Link>
+                    </section>
+                </div>
             </main>
         );
     }
 
-    // --- Step 0: Generation Mode Selection ---
+    // --- Step 0: Generation Mode Selection (Cool Light redesign) ---
     if (step === 0) {
+        const step0Selected: 'MANUAL' | 'AUTO' = generationMode === 'AUTO' ? 'AUTO' : 'MANUAL';
+        const stepDots = [
+            { num: 1, label: '방식', active: true },
+            { num: 2, label: '참가자', active: false },
+            { num: 3, label: '룰', active: false },
+            { num: 4, label: '요약', active: false },
+        ];
+        const goToNext = () => {
+            if (step0Selected === 'AUTO') {
+                setGenerationMode('AUTO');
+                setManualInputMode(null);
+                setStep(1);
+            } else {
+                setGenerationMode('MANUAL');
+                commitTotalCourts(4);
+                setManualInputMode('PASTE');
+                setManualStep('INPUT');
+                setStep(1);
+            }
+        };
         return (
-            <main className="flex min-h-screen w-full flex-col bg-black px-6 py-8 text-white font-sans">
-                <div className="mx-auto mb-4 flex w-full max-w-lg">
+            <main
+                className="relative w-full font-sans"
+                style={{
+                    minHeight: '100dvh',
+                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                    backgroundColor: '#F4F8FC',
+                    color: '#0F2747',
+                    boxSizing: 'border-box',
+                }}
+            >
+                <div
+                    style={{
+                        width: '100%',
+                        maxWidth: '520px',
+                        margin: '0 auto',
+                        padding: '20px 16px var(--page-bottom-safe)',
+                        boxSizing: 'border-box',
+                    }}
+                >
+                    {/* HEADER: back + KDK SETUP badge */}
+                    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <button
+                            type="button"
+                            onClick={handleGenerationModeBack}
+                            aria-label="뒤로"
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                width: 44, height: 44, borderRadius: '50%',
+                                border: '1px solid #DCE8F5', backgroundColor: '#FFFFFF',
+                                color: '#3B5A85', boxShadow: '0 4px 12px rgba(15,45,85,0.06)',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <span style={{ fontSize: 20, lineHeight: 1 }}>←</span>
+                        </button>
+                        <span
+                            style={{
+                                display: 'inline-block', borderRadius: 999,
+                                border: '1px solid #C7DCF1', backgroundColor: '#EAF3FC',
+                                padding: '6px 14px', fontSize: 10, fontWeight: 900,
+                                letterSpacing: '0.2em', textTransform: 'uppercase',
+                                color: '#1F5FB5',
+                            }}
+                        >
+                            KDK SETUP
+                        </span>
+                    </header>
+
+                    {/* HERO CARD */}
+                    <section
+                        style={{
+                            width: '100%', boxSizing: 'border-box',
+                            borderRadius: 24, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: 22,
+                            marginBottom: 20,
+                            boxShadow: '0 14px 32px rgba(15,45,85,0.07)',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                            <div
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 52, height: 52, flexShrink: 0, borderRadius: 16,
+                                    background: 'linear-gradient(135deg, #3B82F6 0%, #22B8CF 100%)',
+                                    color: '#FFFFFF', boxShadow: '0 8px 18px rgba(37,99,235,0.26)',
+                                    fontSize: 24,
+                                }}
+                            >
+                                ⚡
+                            </div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                                <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>
+                                    TEYEON KDK
+                                </p>
+                                <h1 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.02em', color: '#0F2747' }}>
+                                    KDK 대진 생성
+                                </h1>
+                            </div>
+                        </div>
+                        <p style={{ margin: '14px 0 0', fontSize: 13, fontWeight: 700, lineHeight: 1.6, color: '#3F5B82' }}>
+                            자동 KDK 또는 수동 붙여넣기로 대진을 준비합니다.
+                        </p>
+                    </section>
+
+                    {/* STEP INDICATOR */}
+                    <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 18 }}>
+                        {stepDots.map((s, i) => (
+                            <div key={s.num} style={{ display: 'flex', alignItems: 'center', flex: i === 3 ? '0 0 auto' : '1 1 auto' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <div
+                                        style={{
+                                            width: 28, height: 28, borderRadius: '50%',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            background: s.active ? 'linear-gradient(135deg, #3B82F6, #1F5FB5)' : '#FFFFFF',
+                                            border: s.active ? 'none' : '1px solid #DCE8F5',
+                                            color: s.active ? '#FFFFFF' : '#9CB2CC',
+                                            fontSize: 12, fontWeight: 900,
+                                            boxShadow: s.active ? '0 6px 14px rgba(37,99,235,0.32)' : 'none',
+                                        }}
+                                    >
+                                        {s.num}
+                                    </div>
+                                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', color: s.active ? '#1F5FB5' : '#9CB2CC' }}>{s.label}</span>
+                                </div>
+                                {i < 3 && (
+                                    <div style={{ flex: '1 1 auto', height: 2, background: '#E1EAF5', margin: '0 4px', marginBottom: 14 }} />
+                                )}
+                            </div>
+                        ))}
+                    </section>
+
+                    {/* STEP 0 TITLE */}
+                    <section style={{ marginBottom: 12 }}>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>
+                            STEP 0
+                        </p>
+                        <h2 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em' }}>
+                            생성 방식 선택
+                        </h2>
+                        <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#56729A' }}>
+                            현재는 수동 붙여넣기 흐름이 안정적이며, 자동 모드도 사용 가능합니다.
+                        </p>
+                    </section>
+
+                    {/* MODE CARDS */}
+                    <section style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+                        {/* 수동 붙여넣기 (RECOMMENDED) */}
+                        <button
+                            type="button"
+                            onClick={() => setGenerationMode('MANUAL')}
+                            style={{
+                                display: 'block', width: '100%', textAlign: 'left',
+                                boxSizing: 'border-box', borderRadius: 20,
+                                background: step0Selected === 'MANUAL' ? '#FFFFFF' : '#FFFFFF',
+                                border: step0Selected === 'MANUAL' ? '2px solid #2563EB' : '1px solid #DCE8F5',
+                                padding: 16,
+                                boxShadow: step0Selected === 'MANUAL'
+                                    ? '0 10px 24px rgba(37,99,235,0.16)'
+                                    : '0 6px 16px rgba(15,45,85,0.05)',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 44, height: 44, flexShrink: 0, borderRadius: 14,
+                                    background: '#EEF6FF', color: '#2563EB', fontSize: 20,
+                                }}>📋</div>
+                                <div style={{ minWidth: 0, flex: 1, paddingTop: 2 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                        <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 800, color: '#0F2747' }}>수동 붙여넣기</h3>
+                                        <span style={{
+                                            borderRadius: 999, padding: '2px 8px',
+                                            background: '#2563EB', color: '#FFFFFF',
+                                            fontSize: 9, fontWeight: 900, letterSpacing: '0.1em',
+                                        }}>추천</span>
+                                    </div>
+                                    <p style={{ margin: '6px 0 0', fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                        엑셀/카톡 대진표 텍스트를 붙여넣어 빠르게 시작합니다.
+                                    </p>
+                                </div>
+                                {step0Selected === 'MANUAL' && (
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        width: 22, height: 22, flexShrink: 0, borderRadius: '50%',
+                                        background: '#2563EB', color: '#FFFFFF',
+                                        fontSize: 13, fontWeight: 900,
+                                    }}>✓</div>
+                                )}
+                            </div>
+                        </button>
+
+                        {/* 자동 KDK */}
+                        <button
+                            type="button"
+                            onClick={() => setGenerationMode('AUTO')}
+                            style={{
+                                display: 'block', width: '100%', textAlign: 'left',
+                                boxSizing: 'border-box', borderRadius: 20,
+                                background: '#FFFFFF',
+                                border: step0Selected === 'AUTO' ? '2px solid #2563EB' : '1px solid #DCE8F5',
+                                padding: 16,
+                                boxShadow: step0Selected === 'AUTO'
+                                    ? '0 10px 24px rgba(37,99,235,0.16)'
+                                    : '0 6px 16px rgba(15,45,85,0.05)',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 44, height: 44, flexShrink: 0, borderRadius: 14,
+                                    background: '#EEF6FF', color: '#2563EB', fontSize: 20,
+                                }}>⚡</div>
+                                <div style={{ minWidth: 0, flex: 1, paddingTop: 2 }}>
+                                    <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 800, color: '#0F2747' }}>자동 KDK</h3>
+                                    <p style={{ margin: '6px 0 0', fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                        참가자와 조건을 선택하면 KDK 로직이 대진을 자동 생성합니다.
+                                    </p>
+                                </div>
+                                {step0Selected === 'AUTO' && (
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        width: 22, height: 22, flexShrink: 0, borderRadius: '50%',
+                                        background: '#2563EB', color: '#FFFFFF',
+                                        fontSize: 13, fontWeight: 900,
+                                    }}>✓</div>
+                                )}
+                            </div>
+                        </button>
+
+                        {/* 직접 만들기 (COMING SOON) */}
+                        <div
+                            style={{
+                                display: 'block', width: '100%', boxSizing: 'border-box',
+                                borderRadius: 20, background: '#F6FAFD',
+                                border: '1px solid #E1EAF5', padding: 16, opacity: 0.7,
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 44, height: 44, flexShrink: 0, borderRadius: 14,
+                                    background: '#E8F0F9', color: '#9CB2CC', fontSize: 18,
+                                }}>🎯</div>
+                                <div style={{ minWidth: 0, flex: 1, paddingTop: 2 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#56729A' }}>직접 만들기</h3>
+                                        <span style={{
+                                            borderRadius: 999, padding: '2px 8px',
+                                            background: '#E1EAF5', color: '#56729A',
+                                            fontSize: 9, fontWeight: 900, letterSpacing: '0.1em',
+                                        }}>COMING SOON</span>
+                                    </div>
+                                    <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.55, color: '#7A93B3' }}>
+                                        경기별 팀을 운영자가 직접 구성합니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 캡처 인식 (COMING SOON) */}
+                        <div
+                            style={{
+                                display: 'block', width: '100%', boxSizing: 'border-box',
+                                borderRadius: 20, background: '#F6FAFD',
+                                border: '1px solid #E1EAF5', padding: 16, opacity: 0.7,
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 44, height: 44, flexShrink: 0, borderRadius: 14,
+                                    background: '#E8F0F9', color: '#9CB2CC', fontSize: 18,
+                                }}>📷</div>
+                                <div style={{ minWidth: 0, flex: 1, paddingTop: 2 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#56729A' }}>캡처 인식</h3>
+                                        <span style={{
+                                            borderRadius: 999, padding: '2px 8px',
+                                            background: '#E1EAF5', color: '#56729A',
+                                            fontSize: 9, fontWeight: 900, letterSpacing: '0.1em',
+                                        }}>COMING SOON</span>
+                                    </div>
+                                    <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.55, color: '#7A93B3' }}>
+                                        이미지/OCR 기반 자동 대진 인식.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* PRIMARY CTA */}
                     <button
                         type="button"
-                        onClick={handleGenerationModeBack}
-                        className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/55 transition-all active:scale-95 hover:border-[#C9B075]/30 hover:text-[#C9B075]"
+                        onClick={goToNext}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            width: '100%', height: 60, boxSizing: 'border-box', borderRadius: 18,
+                            background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                            color: '#FFFFFF', fontSize: 15, fontWeight: 800, letterSpacing: '0.02em',
+                            border: 'none', cursor: 'pointer',
+                            boxShadow: '0 14px 28px rgba(37,99,235,0.24)',
+                        }}
                     >
-                        ← 뒤로
+                        다음: {step0Selected === 'AUTO' ? '참가자 선택' : '대진 붙여넣기'} →
                     </button>
                 </div>
-                <header className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
-                    <span className="mb-3 rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.35em] text-[#C9B075]">
-                        KDK Setup
-                    </span>
-                    <h1 className="text-3xl font-black italic uppercase tracking-tight text-white">
-                        생성 방식 선택
-                    </h1>
-                    <p className="mt-3 max-w-sm text-[12px] font-bold leading-relaxed text-white/45">
-                        자동 생성과 수동 구성을 먼저 분리해서 안정적으로 대진을 준비합니다.
-                    </p>
-                </header>
-
-                <section className="mx-auto mt-10 grid w-full max-w-lg gap-4">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setGenerationMode('AUTO');
-                            setManualInputMode(null);
-                            setStep(1);
-                        }}
-                        className="group rounded-[32px] border border-[#C9B075]/30 bg-[#181818] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition-all active:scale-[0.98]"
-                    >
-                        <div className="mb-8 flex items-center justify-between">
-                            <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
-                                Default
-                            </span>
-                            <span className="text-2xl text-[#C9B075] transition-transform group-active:translate-x-1">→</span>
-                        </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">자동 생성</h2>
-                        <p className="mt-3 text-[13px] font-bold leading-relaxed text-white/50">
-                            참가자와 조건을 선택하면 앱이 기존 KDK 로직으로 대진을 자동 생성합니다.
-                        </p>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setGenerationMode('MANUAL');
-                            commitTotalCourts(4);
-                            setManualInputMode(null);
-                            setManualStep('INPUT');
-                            setStep(1);
-                        }}
-                        className="group rounded-[32px] border border-white/10 bg-white/[0.04] p-6 text-left shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
-                    >
-                        <div className="mb-8 flex items-center justify-between">
-                            <span className="rounded-full border border-[#C9B075]/25 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#C9B075]">
-                                Manual
-                            </span>
-                            <span className="text-2xl text-white/40 transition-transform group-active:translate-x-1">→</span>
-                        </div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">수동 구성</h2>
-                        <p className="mt-3 text-[13px] font-bold leading-relaxed text-white/50">
-                            직접 만든 대진, 엑셀/텍스트 붙여넣기, 캡처 인식 방식으로 대진을 구성합니다.
-                        </p>
-                    </button>
-                </section>
             </main>
         );
     }
@@ -2971,236 +3311,293 @@ export default function KDKPage() {
         const canProceedToNameMatching = manualInputMode === 'PASTE' && manualStep === 'INPUT' && manualPasteMatchCount > 0;
 
         return (
-            <main className="flex min-h-screen w-full flex-col overflow-y-auto bg-black px-4 py-4 text-white font-sans sm:px-6 sm:py-6" style={{ paddingBottom: 'calc(220px + env(safe-area-inset-bottom))' }}>
-                <header className="grid h-12 grid-cols-3 items-center">
-                    <div className="flex items-center">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (manualInputMode) {
-                                    if (manualStep !== 'INPUT') {
-                                        setManualStep('INPUT');
-                                    } else {
-                                        setManualInputMode(null);
-                                    }
-                                } else {
-                                    setGenerationMode(null);
+            <main
+                className="relative w-full font-sans"
+                style={{
+                    minHeight: '100dvh',
+                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                    backgroundColor: '#F4F8FC',
+                    color: '#0F2747',
+                    padding: '20px 16px var(--page-bottom-safe)',
+                    boxSizing: 'border-box',
+                }}
+            >
+                <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 520, margin: '0 auto 16px', width: '100%' }}>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (manualInputMode) {
+                                if (manualStep !== 'INPUT') {
                                     setManualStep('INPUT');
-                                    setStep(0);
+                                } else {
+                                    setManualInputMode(null);
                                 }
-                            }}
-                            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C9B075]/30 bg-[#C9B075]/10 text-[#C9B075] transition-all active:scale-95"
-                        >
-                            ←
-                        </button>
-                    </div>
-                    <div className="flex flex-col items-center text-center">
-                        <span className="mb-1 inline-block rounded-full border border-[#C9B075]/20 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black uppercase leading-none tracking-[0.4em] text-[#C9B075]">
-                            Manual
-                        </span>
-                        <h1 className="whitespace-nowrap text-2xl font-black italic uppercase leading-none tracking-tight text-white">
-                            수동 구성
-                        </h1>
-                    </div>
-                    <div />
+                            } else {
+                                setGenerationMode(null);
+                                setManualStep('INPUT');
+                                setStep(0);
+                            }
+                        }}
+                        aria-label="뒤로"
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 44, height: 44, borderRadius: '50%',
+                            border: '1px solid #DCE8F5', backgroundColor: '#FFFFFF',
+                            color: '#3B5A85', boxShadow: '0 4px 12px rgba(15,45,85,0.06)',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <span style={{ fontSize: 20, lineHeight: 1 }}>←</span>
+                    </button>
+                    <span
+                        style={{
+                            display: 'inline-block', borderRadius: 999,
+                            border: '1px solid #C7DCF1', backgroundColor: '#EAF3FC',
+                            padding: '6px 14px', fontSize: 10, fontWeight: 900,
+                            letterSpacing: '0.2em', textTransform: 'uppercase',
+                            color: '#1F5FB5',
+                        }}
+                    >
+                        MANUAL READY
+                    </span>
                 </header>
 
-                <section className="mx-auto mt-5 w-full max-w-lg space-y-3 pb-52 sm:mt-8 sm:space-y-4">
+                <section style={{ maxWidth: 520, margin: '0 auto', width: '100%' }}>
                     {!manualInputMode && (
-                        <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <button
                                 type="button"
                                 onClick={() => {
                                     setManualInputMode('PASTE');
                                     setManualStep('INPUT');
                                 }}
-                                className="w-full rounded-[24px] border border-[#C9B075]/35 bg-[#171717] p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.3)] transition-all active:scale-[0.98]"
+                                style={{
+                                    display: 'block', width: '100%', textAlign: 'left',
+                                    boxSizing: 'border-box', borderRadius: 20,
+                                    background: '#FFFFFF', border: '2px solid #2563EB', padding: 18,
+                                    boxShadow: '0 10px 24px rgba(37,99,235,0.14)', cursor: 'pointer',
+                                }}
                             >
-                                <div className="mb-6 flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]">Preview Ready</span>
-                                    <span className="rounded-full bg-[#C9B075] px-3 py-1 text-[10px] font-black text-black">1차</span>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>대진 붙여넣기</span>
+                                    <span style={{ borderRadius: 999, background: '#2563EB', color: '#FFFFFF', padding: '2px 10px', fontSize: 9, fontWeight: 900, letterSpacing: '0.1em' }}>추천</span>
                                 </div>
-                                <h2 className="text-xl font-black text-white">대진 붙여넣기</h2>
-                                <p className="mt-2 text-[12px] font-bold leading-relaxed text-white/45">
-                                    엑셀, 카톡, 메모장 텍스트를 붙여넣어 경기 순서와 팀 구성을 미리 확인합니다.
+                                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F2747' }}>엑셀/카톡 텍스트 붙여넣기</h2>
+                                <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                    경기 순서와 팀 구성을 미리 확인합니다.
                                 </p>
                             </button>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setManualInputMode('DIRECT');
-                                        setManualStep('INPUT');
-                                    }}
-                                    className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
-                                >
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
-                                    <h3 className="mt-4 text-base font-black text-white">직접 만들기</h3>
-                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">경기별 팀 직접 구성</p>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setManualInputMode('OCR');
-                                        setManualStep('INPUT');
-                                    }}
-                                    className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 text-left transition-all active:scale-[0.98]"
-                                >
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Coming Soon</span>
-                                    <h3 className="mt-4 text-base font-black text-white">캡처 인식</h3>
-                                    <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/35">이미지/OCR 기반 인식</p>
-                                </button>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                <div style={{ borderRadius: 16, background: '#F6FAFD', border: '1px solid #E1EAF5', padding: 14, opacity: 0.7 }}>
+                                    <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#9CB2CC' }}>COMING SOON</span>
+                                    <h3 style={{ margin: '8px 0 4px', fontSize: 13.5, fontWeight: 800, color: '#56729A' }}>직접 만들기</h3>
+                                    <p style={{ margin: 0, fontSize: 11, fontWeight: 600, lineHeight: 1.5, color: '#7A93B3' }}>경기별 팀 직접 구성</p>
+                                </div>
+                                <div style={{ borderRadius: 16, background: '#F6FAFD', border: '1px solid #E1EAF5', padding: 14, opacity: 0.7 }}>
+                                    <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#9CB2CC' }}>COMING SOON</span>
+                                    <h3 style={{ margin: '8px 0 4px', fontSize: 13.5, fontWeight: 800, color: '#56729A' }}>캡처 인식</h3>
+                                    <p style={{ margin: 0, fontSize: 11, fontWeight: 600, lineHeight: 1.5, color: '#7A93B3' }}>이미지/OCR 인식</p>
+                                </div>
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'INPUT' && (
-                        <div className="space-y-3 pb-[calc(72px+env(safe-area-inset-bottom))] sm:space-y-4">
-                            <div className="overflow-visible rounded-[20px] border border-[#C9B075]/20 bg-[#141414] p-4 sm:rounded-[24px] sm:p-5">
-                                <div className="mb-3 sm:mb-4">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Paste Matches</span>
-                                    <h2 className="mt-1 text-lg font-black text-white sm:text-xl">대진 붙여넣기</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            {/* PASTE CARD */}
+                            <div style={{
+                                borderRadius: 22, background: '#FFFFFF',
+                                border: '1px solid #DCE8F5', padding: 18,
+                                boxShadow: '0 12px 28px rgba(15,45,85,0.06)',
+                            }}>
+                                <div style={{ marginBottom: 10 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>STEP 2 · 대진 붙여넣기</span>
+                                    <h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em' }}>엑셀/카톡 대진표 붙여넣기</h2>
                                 </div>
-                                <div className="mb-3 rounded-[14px] border border-[#C9B075]/20 bg-black/30 p-2.5 sm:mb-4 sm:p-3">
-                                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#C9B075]">입력 예시</span>
-                                        <span className="text-[9px] font-bold text-white/35">탭 구분 텍스트 지원</span>
+                                <div style={{
+                                    marginBottom: 12, borderRadius: 14,
+                                    background: '#EEF5FB', border: '1px solid #D7E5F4', padding: 12,
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                                        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#1F5FB5' }}>입력 예시</span>
+                                        <span style={{ fontSize: 9, fontWeight: 700, color: '#56729A' }}>탭 구분 텍스트 지원</span>
                                     </div>
-                                     <pre className="max-h-20 overflow-y-auto whitespace-pre-wrap break-keep text-[10px] font-bold leading-snug text-white/55 sm:max-h-none sm:text-[11px] sm:leading-relaxed">
+                                    <pre style={{ margin: 0, maxHeight: 100, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'keep-all', fontSize: 11, fontWeight: 600, lineHeight: 1.55, color: '#3F5B82', fontFamily: 'inherit' }}>
 {`A조
 1 봉준/상윤 vs 영호/광현 19:00
 B조
 1 민준/상준 vs 강정호/구봉준 20:00
 A    1    봉준    상윤    영호    광현    19:00`}
-                                     </pre>
-                                    <p className="mt-1.5 text-[9px] font-bold text-white/35 sm:text-[10px]">
-                                        조 표기가 없으면 A조로 인식됩니다.
-                                    </p>
-                                 </div>
+                                    </pre>
+                                    <p style={{ margin: '6px 0 0', fontSize: 10, fontWeight: 700, color: '#7A93B3' }}>조 표기가 없으면 A조로 인식됩니다.</p>
+                                </div>
                                 <textarea
                                     value={manualPasteText}
                                     onChange={(e) => {
                                         setManualPasteText(e.target.value);
                                         setManualNameOverrides({});
                                     }}
-                                    className="min-h-[128px] w-full resize-y rounded-[16px] border border-white/10 bg-black/35 px-3 py-3 text-[12px] font-bold leading-relaxed text-white outline-none transition-all placeholder:text-white/25 focus:border-[#C9B075]/50 sm:min-h-[160px] sm:rounded-[18px] sm:px-4 sm:py-4 sm:text-[13px]"
-                                    placeholder={"예: 1 봉준/상윤 vs 영호/광현 19:00"}
+                                    placeholder="예: 1 봉준/상윤 vs 영호/광현 19:00"
+                                    style={{
+                                        minHeight: 140, width: '100%', resize: 'vertical',
+                                        borderRadius: 14, border: '1px solid #DCE8F5',
+                                        background: '#F8FBFE', padding: '12px 14px',
+                                        fontSize: 13, fontWeight: 600, lineHeight: 1.55,
+                                        color: '#0F2747', outline: 'none', boxSizing: 'border-box',
+                                        fontFamily: 'inherit',
+                                    }}
                                 />
                             </div>
 
-                            <div className="overflow-visible rounded-[20px] border border-white/10 bg-[#111111] p-3 sm:rounded-[24px] sm:p-4">
-                                <div className="mb-2 flex items-center justify-between gap-2 px-1 sm:mb-3 sm:gap-3">
-                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Preview</span>
-                                    <span className="min-w-0 truncate text-right text-[9px] font-black text-[#C9B075] sm:text-[10px]">
+                            {/* PREVIEW CARD */}
+                            <div style={{
+                                borderRadius: 22, background: '#FFFFFF',
+                                border: '1px solid #DCE8F5', padding: 16,
+                                boxShadow: '0 12px 28px rgba(15,45,85,0.06)',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#3B82F6' }}>매칭 미리보기</span>
+                                    <span style={{ fontSize: 10, fontWeight: 800, color: '#1F5FB5', textAlign: 'right' }}>
                                         {manualPasteMatchCount} matches · {manualPlayerNames.length} names · {manualGroups.length || 0} groups
                                     </span>
                                 </div>
 
                                 {manualPasteMatchCount === 0 ? (
-                                    <div className="rounded-[16px] border border-dashed border-white/10 py-6 text-center text-[12px] font-bold text-white/35 sm:py-8">
+                                    <div style={{
+                                        borderRadius: 14, border: '1px dashed #D7E5F4',
+                                        padding: '24px 0', textAlign: 'center',
+                                        fontSize: 12, fontWeight: 700, color: '#7A93B3',
+                                    }}>
                                         대진을 붙여넣으면 경기 미리보기가 표시됩니다.
                                     </div>
                                 ) : (
-                                    <div className="space-y-1.5 sm:space-y-2">
-                                        {manualPastePreview.map((row, index) => (
-                                            <div
-                                                key={`${row.raw}-${index}`}
-                                                className={`overflow-visible rounded-[14px] border px-2.5 py-2 sm:rounded-[16px] sm:px-3 sm:py-3 ${row.isValid ? 'border-white/10 bg-white/[0.04]' : 'border-red-500/30 bg-red-500/10'}`}
-                                            >
-                                                <div className="flex items-center justify-between gap-2 sm:gap-3">
-                                                    <span className="flex min-w-[46px] shrink-0 items-center justify-center rounded-full bg-[#C9B075] px-2 py-1 text-[9px] font-black text-black sm:min-w-[52px] sm:px-2.5 sm:py-1.5 sm:text-[10px]">
-                                                        {getManualGroupLabel(row.group)} · {row.order}
-                                                    </span>
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 text-[11px] font-black text-white sm:gap-2 sm:text-[12px]">
-                                                            <span className="min-w-0 truncate text-right">{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
-                                                            <span className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/35 px-1.5 py-0.5 text-[8px] font-black text-[#C9B075] sm:px-2 sm:text-[9px]">VS</span>
-                                                            <span className="min-w-0 truncate">{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {manualPastePreview.map((row, index) => {
+                                            const ok = row.isValid;
+                                            return (
+                                                <div
+                                                    key={`${row.raw}-${index}`}
+                                                    style={{
+                                                        borderRadius: 14,
+                                                        border: ok ? '1px solid #E1EAF5' : '1px solid #F4C7C7',
+                                                        background: ok ? '#F8FBFE' : '#FDEEEE',
+                                                        padding: '10px 12px',
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                                        <span style={{
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            minWidth: 52, padding: '4px 8px', borderRadius: 999,
+                                                            background: '#2563EB', color: '#FFFFFF',
+                                                            fontSize: 10, fontWeight: 900, flexShrink: 0,
+                                                        }}>
+                                                            {getManualGroupLabel(row.group)} · {row.order}
+                                                        </span>
+                                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 800, color: '#0F2747' }}>
+                                                                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{row.teamA.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                                                <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 999, border: '1px solid #C7DCF1', color: '#1F5FB5', fontSize: 9, fontWeight: 900 }}>VS</span>
+                                                                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.teamB.filter(Boolean).join(' / ') || '확인 필요'}</span>
+                                                            </div>
+                                                            {!ok && (
+                                                                <p style={{ margin: '4px 0 0', fontSize: 10, fontWeight: 700, textAlign: 'center', color: '#C0392B' }}>
+                                                                    형식을 확인해 주세요.
+                                                                </p>
+                                                            )}
                                                         </div>
-                                                        {!row.isValid && (
-                                                            <p className="mt-1 text-center text-[10px] font-bold text-red-300">
-                                                                형식을 확인해 주세요.
-                                                            </p>
-                                                        )}
+                                                        <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, color: '#7A93B3' }}>{row.time || '--:--'}</span>
                                                     </div>
-                                                    <span className="shrink-0 whitespace-nowrap text-[9px] font-black text-white/40 sm:text-[10px]">{row.time || '--:--'}</span>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
 
-                                <div className="mt-3 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
+                                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #E1EAF5' }}>
                                     <button
                                         type="button"
                                         disabled={!canProceedToNameMatching}
                                         onClick={() => setManualStep('MATCH_NAMES')}
-                                        className="flex min-h-[50px] w-full items-center justify-center whitespace-nowrap rounded-[16px] px-4 text-[13px] font-black uppercase tracking-[0.1em] transition-all active:scale-[0.98] disabled:cursor-not-allowed sm:min-h-[54px] sm:rounded-[18px] sm:px-5 sm:text-[14px] sm:tracking-[0.12em]"
                                         style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            width: '100%', height: 54, boxSizing: 'border-box', borderRadius: 16,
                                             background: canProceedToNameMatching
-                                                ? 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)'
-                                                : 'rgba(255,255,255,0.08)',
-                                            color: canProceedToNameMatching ? '#050505' : 'rgba(255,255,255,0.38)',
-                                            border: canProceedToNameMatching
-                                                ? '1px solid rgba(255,232,150,0.9)'
-                                                : '1px solid rgba(255,255,255,0.16)',
-                                            boxShadow: canProceedToNameMatching
-                                                ? '0 0 24px rgba(247,215,122,0.38), 0 14px 34px rgba(0,0,0,0.35)'
-                                                : 'none',
-                                            WebkitTextFillColor: canProceedToNameMatching ? '#050505' : 'rgba(255,255,255,0.38)',
+                                                ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)'
+                                                : '#E1EAF5',
+                                            color: canProceedToNameMatching ? '#FFFFFF' : '#9CB2CC',
+                                            border: 'none', fontSize: 14, fontWeight: 800,
+                                            letterSpacing: '0.02em', cursor: canProceedToNameMatching ? 'pointer' : 'not-allowed',
+                                            boxShadow: canProceedToNameMatching ? '0 12px 24px rgba(37,99,235,0.22)' : 'none',
                                         }}
                                     >
-                                        다음: 이름 매칭
+                                        다음: 이름 매칭 →
                                     </button>
                                     {!canProceedToNameMatching && (
-                                        <p className="mt-2 text-center text-[10px] font-bold text-white/35">
+                                        <p style={{ margin: '8px 0 0', textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#7A93B3' }}>
                                             대진을 1개 이상 붙여넣으면 이름 매칭으로 이동할 수 있습니다.
                                         </p>
                                     )}
                                 </div>
                             </div>
 
-                            <p className="px-1 text-[10px] font-bold leading-relaxed text-white/35">
+                            <p style={{ margin: '0 4px', fontSize: 11, fontWeight: 600, lineHeight: 1.55, color: '#7A93B3' }}>
                                 다음 단계에서 이름을 멤버/게스트와 매칭합니다. 아직 저장은 하지 않습니다.
                             </p>
                         </div>
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'MATCH_NAMES' && (
-                        <div className="space-y-4">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <button
                                 type="button"
                                 onClick={() => setManualStep('INPUT')}
-                                className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-black text-white/55 transition-all active:scale-95"
+                                style={{
+                                    alignSelf: 'flex-start', borderRadius: 999,
+                                    border: '1px solid #DCE8F5', background: '#FFFFFF',
+                                    padding: '8px 14px', fontSize: 11, fontWeight: 800,
+                                    color: '#3B5A85', cursor: 'pointer',
+                                }}
                             >
                                 ← 붙여넣기로 돌아가기
                             </button>
 
-                            <div className="overflow-visible rounded-[24px] border border-[#C9B075]/20 bg-[#141414] p-5">
-                                <div className="mb-4 flex items-start justify-between gap-3">
+                            <div style={{
+                                borderRadius: 22, background: '#FFFFFF',
+                                border: '1px solid #DCE8F5', padding: 18,
+                                boxShadow: '0 12px 28px rgba(15,45,85,0.06)',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
                                     <div>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#C9B075]/80">Name Matching</span>
-                                        <h2 className="mt-1 text-xl font-black text-white">이름 매칭</h2>
-                                        <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/45">
+                                        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>NAME MATCHING</span>
+                                        <h2 style={{ margin: '4px 0 0', fontSize: 17, fontWeight: 900, color: '#0F2747' }}>이름 매칭</h2>
+                                        <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
                                             붙여넣은 이름을 멤버 또는 게스트와 연결합니다.
                                         </p>
                                     </div>
-                                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black text-white/45">
+                                    <span style={{ flexShrink: 0, borderRadius: 999, border: '1px solid #DCE8F5', background: '#F6FAFD', padding: '4px 10px', fontSize: 10, fontWeight: 800, color: '#56729A' }}>
                                         {manualPlayerNames.length} names
                                     </span>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {manualNameMatches.map(match => (
-                                        <div key={match.originalName} className="overflow-visible rounded-[16px] border border-white/10 bg-black/25 p-3">
-                                            <div className="mb-2 flex items-center justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-white/25">Original</span>
-                                                    <span className="block truncate text-sm font-black text-white">{match.originalName}</span>
+                                        <div key={match.originalName} style={{
+                                            borderRadius: 14, border: '1px solid #E1EAF5',
+                                            background: '#F8FBFE', padding: 12,
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <span style={{ display: 'block', fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>ORIGINAL</span>
+                                                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, fontWeight: 800, color: '#0F2747' }}>{match.originalName}</span>
                                                 </div>
-                                                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] ${match.status === 'MEMBER' ? 'bg-[#C9B075] text-black' : 'bg-white/10 text-white/55'}`}>
-                                                    {match.status}
+                                                <span style={{
+                                                    flexShrink: 0, borderRadius: 999, padding: '4px 10px',
+                                                    fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase',
+                                                    background: match.status === 'MEMBER' ? '#2563EB' : '#FFF4DE',
+                                                    color: match.status === 'MEMBER' ? '#FFFFFF' : '#B7791F',
+                                                    border: match.status === 'MEMBER' ? 'none' : '1px solid #F4C979',
+                                                }}>
+                                                    {match.status === 'MEMBER' ? 'MEMBER' : 'GUEST'}
                                                 </span>
                                             </div>
                                             <select
@@ -3209,14 +3606,19 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     const value = e.target.value;
                                                     setManualNameOverrides(prev => ({ ...prev, [match.originalName]: value }));
                                                 }}
-                                                className="w-full rounded-[14px] border border-white/10 bg-[#0A0A0A] px-3 py-3 text-[12px] font-black text-white outline-none focus:border-[#C9B075]/50"
+                                                style={{
+                                                    width: '100%', borderRadius: 12,
+                                                    border: '1px solid #DCE8F5', background: '#FFFFFF',
+                                                    padding: '10px 12px', fontSize: 12.5, fontWeight: 700,
+                                                    color: '#0F2747', outline: 'none', boxSizing: 'border-box',
+                                                }}
                                             >
                                                 {match.candidates.map(candidate => (
-                                                    <option key={candidate.id} value={candidate.id} className="bg-[#111111] text-white">
+                                                    <option key={candidate.id} value={candidate.id}>
                                                         {getManualMemberName(candidate)} / 멤버
                                                     </option>
                                                 ))}
-                                                <option value="guest" className="bg-[#111111] text-white">
+                                                <option value="guest">
                                                     {match.originalName}(G) / 게스트로 사용
                                                 </option>
                                             </select>
@@ -3225,26 +3627,38 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </div>
                             </div>
 
-                            <div className="overflow-visible rounded-[24px] border border-white/10 bg-[#111111] p-4">
-                                <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Matched Preview</span>
-                                    <span className="min-w-0 truncate text-right text-[10px] font-black text-[#C9B075]">{manualPastePreview.length} matches · {manualGroups.length || 0} groups</span>
+                            <div style={{
+                                borderRadius: 22, background: '#FFFFFF',
+                                border: '1px solid #DCE8F5', padding: 16,
+                                boxShadow: '0 12px 28px rgba(15,45,85,0.06)',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#3B82F6' }}>매칭 적용 미리보기</span>
+                                    <span style={{ fontSize: 10, fontWeight: 800, color: '#1F5FB5', textAlign: 'right' }}>{manualPastePreview.length} matches · {manualGroups.length || 0} groups</span>
                                 </div>
-                                <div className="space-y-2">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {manualPastePreview.map((row, index) => (
-                                        <div key={`${row.raw}-matched-${index}`} className="overflow-visible rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-3">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <span className="flex min-w-[52px] shrink-0 items-center justify-center rounded-full bg-[#C9B075] px-2.5 py-1.5 text-[10px] font-black text-black">
+                                        <div key={`${row.raw}-matched-${index}`} style={{
+                                            borderRadius: 14, border: '1px solid #E1EAF5',
+                                            background: '#F8FBFE', padding: '10px 12px',
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                                <span style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    minWidth: 52, padding: '4px 8px', borderRadius: 999,
+                                                    background: '#2563EB', color: '#FFFFFF',
+                                                    fontSize: 10, fontWeight: 900, flexShrink: 0,
+                                                }}>
                                                     {getManualGroupLabel(row.group)} · {row.order}
                                                 </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px] font-black text-white">
-                                                        <span className="min-w-0 truncate text-right">{row.teamA.map(getManualResolvedName).join(' / ')}</span>
-                                                        <span className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
-                                                        <span className="min-w-0 truncate">{row.teamB.map(getManualResolvedName).join(' / ')}</span>
+                                                <div style={{ minWidth: 0, flex: 1 }}>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 800, color: '#0F2747' }}>
+                                                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{row.teamA.map(getManualResolvedName).join(' / ')}</span>
+                                                        <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 999, border: '1px solid #C7DCF1', color: '#1F5FB5', fontSize: 9, fontWeight: 900 }}>VS</span>
+                                                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.teamB.map(getManualResolvedName).join(' / ')}</span>
                                                     </div>
                                                 </div>
-                                                <span className="shrink-0 whitespace-nowrap text-[10px] font-black text-white/40">{row.time || '--:--'}</span>
+                                                <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, color: '#7A93B3' }}>{row.time || '--:--'}</span>
                                             </div>
                                         </div>
                                     ))}
@@ -3258,30 +3672,39 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     setManualStep('RULES');
                                     setStep(2);
                                 }}
-                                className="flex min-h-[54px] w-full items-center justify-center rounded-[18px] px-5 text-[14px] font-black uppercase tracking-[0.12em] transition-all active:scale-[0.98]"
                                 style={{
-                                    background: 'linear-gradient(135deg, #f7d77a 0%, #d6b85c 52%, #b89432 100%)',
-                                    color: '#050505',
-                                    border: '1px solid rgba(255,232,150,0.9)',
-                                    boxShadow: '0 0 24px rgba(247,215,122,0.38), 0 14px 34px rgba(0,0,0,0.35)',
-                                    WebkitTextFillColor: '#050505',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: '100%', height: 60, boxSizing: 'border-box', borderRadius: 18,
+                                    background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                    color: '#FFFFFF', fontSize: 15, fontWeight: 800,
+                                    letterSpacing: '0.02em', border: 'none', cursor: 'pointer',
+                                    boxShadow: '0 14px 28px rgba(37,99,235,0.24)',
                                 }}
                             >
-                                다음: 룰 설정
+                                다음: 룰 설정 →
                             </button>
                         </div>
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'RULES' && (
-                        <div className="rounded-[24px] border border-[#C9B075]/20 bg-[#141414] px-5 py-8 text-center">
-                            <p className="text-lg font-black text-white">룰 설정은 다음 단계에서 연결됩니다.</p>
-                            <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
-                                이번 작업에서는 이름 매칭과 매칭 적용 미리보기까지만 저장 없이 준비했습니다.
+                        <div style={{
+                            borderRadius: 22, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: '24px 20px',
+                            textAlign: 'center', boxShadow: '0 12px 28px rgba(15,45,85,0.06)',
+                        }}>
+                            <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#0F2747' }}>룰 설정은 다음 단계에서 연결됩니다.</p>
+                            <p style={{ margin: '10px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                이번 단계에서는 이름 매칭과 매칭 적용 미리보기까지 저장 없이 준비합니다.
                             </p>
                             <button
                                 type="button"
                                 onClick={() => setManualStep('MATCH_NAMES')}
-                                className="mt-6 rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-[11px] font-black text-white/60 transition-all active:scale-95"
+                                style={{
+                                    marginTop: 18, borderRadius: 999,
+                                    border: '1px solid #DCE8F5', background: '#F6FAFD',
+                                    padding: '10px 18px', fontSize: 12, fontWeight: 800,
+                                    color: '#3B5A85', cursor: 'pointer',
+                                }}
                             >
                                 이름 매칭으로 돌아가기
                             </button>
@@ -3289,19 +3712,25 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     )}
 
                     {manualInputMode === 'DIRECT' && (
-                        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] px-5 py-8 text-center">
-                            <p className="text-lg font-black text-white">직접 만들기 준비 중</p>
-                            <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
-                                추후 참가자를 선택하고 경기별 팀을 직접 구성하는 방식으로 확장합니다.
+                        <div style={{
+                            borderRadius: 22, background: '#F6FAFD',
+                            border: '1px solid #E1EAF5', padding: '28px 20px', textAlign: 'center',
+                        }}>
+                            <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F2747' }}>직접 만들기 준비 중</p>
+                            <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                추후 참가자를 선택하고 경기별 팀을 직접 구성합니다.
                             </p>
                         </div>
                     )}
 
                     {manualInputMode === 'OCR' && (
-                        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] px-5 py-8 text-center">
-                            <p className="text-lg font-black text-white">캡처 인식 Coming Soon</p>
-                            <p className="mt-3 text-[12px] font-bold leading-relaxed text-white/40">
-                                이미지/OCR 기반 대진 인식은 안정화 이후 별도 단계로 검토합니다.
+                        <div style={{
+                            borderRadius: 22, background: '#F6FAFD',
+                            border: '1px solid #E1EAF5', padding: '28px 20px', textAlign: 'center',
+                        }}>
+                            <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F2747' }}>캡처 인식 Coming Soon</p>
+                            <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
+                                이미지/OCR 기반 대진 인식은 다음 단계에서 검토합니다.
                             </p>
                         </div>
                     )}
@@ -3429,63 +3858,100 @@ A    1    봉준    상윤    영호    광현    19:00`}
         );
 
         return (
-            <main className="flex flex-col min-h-screen bg-black text-white font-sans w-full relative pb-60" style={{ paddingBottom: 'calc(220px + env(safe-area-inset-bottom))' }}>
+            <main
+                className="relative w-full font-sans"
+                style={{
+                    minHeight: '100dvh',
+                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                    backgroundColor: '#F4F8FC',
+                    color: '#0F2747',
+                    paddingBottom: 'calc(var(--bottom-nav-area) + 150px)',
+                    boxSizing: 'border-box',
+                }}
+            >
+                <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 520, margin: '0 auto', padding: '20px 16px 16px', width: '100%', boxSizing: 'border-box' }}>
+                    <button
+                        onClick={() => {
+                            if (isManualRulesMode) {
+                                setManualStep('MATCH_NAMES');
+                            }
+                            setStep(1);
+                        }}
+                        aria-label="뒤로"
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 44, height: 44, borderRadius: '50%',
+                            border: '1px solid #DCE8F5', backgroundColor: '#FFFFFF',
+                            color: '#3B5A85', boxShadow: '0 4px 12px rgba(15,45,85,0.06)',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <span style={{ fontSize: 20, lineHeight: 1 }}>←</span>
+                    </button>
 
-                <header className="grid grid-cols-3 px-6 mb-4 items-center h-12 shrink-0">
-                    <div className="flex items-center">
-                        <button
-                            onClick={() => {
-                                if (isManualRulesMode) {
-                                    setManualStep('MATCH_NAMES');
-                                }
-                                setStep(1);
-                            }}
-                            className="w-10 h-10 rounded-full flex items-center justify-center border border-[#C9B075]/30 bg-[#C9B075]/10 hover:bg-[#C9B075]/20 active:scale-95 transition-all text-[#C9B075] shadow-[0_0_15px_rgba(201,176,117,0.1)]"
-                        >
-                            <span className="text-xl leading-none -mt-0.5">←</span>
-                        </button>
-                    </div>
-
-                    <div className="text-center flex flex-col items-center gap-2">
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-black text-[#C9B075] tracking-[0.5em] uppercase px-3 py-1 bg-[#C9B075]/10 rounded-full border border-[#C9B075]/20 mb-1 inline-block leading-none scale-90">Step 02</span>
-                            <h1 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap text-white leading-none">경기 대진 설정</h1>
-                        </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <span style={{
+                            display: 'inline-block', borderRadius: 999,
+                            border: '1px solid #C7DCF1', backgroundColor: '#EAF3FC',
+                            padding: '4px 12px', fontSize: 10, fontWeight: 900,
+                            letterSpacing: '0.22em', textTransform: 'uppercase',
+                            color: '#1F5FB5',
+                        }}>
+                            STEP 3 · RULES
+                        </span>
                         {isAdmin && (
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#C9B075] rounded-full shadow-[0_5px_15px_rgba(201,176,117,0.3)] animate-in fade-in zoom-in duration-500">
-                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                                <span className="text-[9px] font-black text-black uppercase tracking-widest leading-none">CEO MODE</span>
-                            </div>
+                            <span style={{
+                                display: 'inline-block', borderRadius: 999,
+                                background: '#FFF4DE', border: '1px solid #F4C979',
+                                padding: '2px 10px', fontSize: 9, fontWeight: 900,
+                                letterSpacing: '0.15em', textTransform: 'uppercase',
+                                color: '#B7791F',
+                            }}>
+                                CEO
+                            </span>
                         )}
                     </div>
 
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => {
-                                if (!isAdmin) return triggerAccessDenied();
-                                setShowResetConfirm(true);
-                            }}
-                            className="h-9 px-3 rounded-full bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500/80 hover:bg-red-500/20 transition-all active:scale-95 group"
-                            title="전체 데이터 초기화"
-                        >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            <span className="text-[9px] font-black uppercase tracking-tighter">초기화</span>
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => {
+                            if (!isAdmin) return triggerAccessDenied();
+                            setShowResetConfirm(true);
+                        }}
+                        title="전체 데이터 초기화"
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            height: 36, padding: '0 12px', borderRadius: 999,
+                            background: '#FDEEEE', border: '1px solid #F4C7C7',
+                            color: '#C0392B', fontSize: 10, fontWeight: 900,
+                            letterSpacing: '0.04em', cursor: 'pointer',
+                        }}
+                    >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        <span>초기화</span>
+                    </button>
                 </header>
 
-                <div className="px-6 space-y-12 max-w-lg mx-auto w-full">
+                <div style={{ maxWidth: 520, margin: '0 auto', width: '100%', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14, boxSizing: 'border-box' }}>
 
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-3 px-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#C9B075]" />
-                            <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Archive Title</h3>
+                    <section style={{
+                        borderRadius: 18, background: '#FFFFFF',
+                        border: '1px solid #DCE8F5', padding: 16,
+                        boxShadow: '0 8px 20px rgba(15,45,85,0.05)',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
+                            <h3 style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#1F5FB5' }}>ARCHIVE TITLE</h3>
                         </div>
                         <input
                             type="text"
                             value={sessionTitle}
                             onChange={(e) => setSessionTitle(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-[24px] px-6 py-5 text-sm font-black text-white focus:border-[#C9B075]/50 focus:bg-white/[0.08] transition-all outline-none"
+                            style={{
+                                width: '100%', borderRadius: 14,
+                                background: '#F8FBFE', border: '1px solid #DCE8F5',
+                                padding: '14px 16px', fontSize: 13.5, fontWeight: 700,
+                                color: '#0F2747', outline: 'none', boxSizing: 'border-box',
+                            }}
                             placeholder="Ex: 2026-03-27 테연 정기전"
                         />
                     </section>
@@ -3679,17 +4145,17 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     )}
 
 
-                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '28px 24px', marginTop: '12px', overflow: 'visible' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#C9B075', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C9B075', flexShrink: 0, display: 'inline-block' }} />
-                                CONSTRAINTS
+                    <section style={{ background: '#FFFFFF', border: '1px solid #DCE8F5', borderRadius: '22px', padding: '20px', marginTop: '0', overflow: 'visible', boxShadow: '0 10px 24px rgba(15,45,85,0.05)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#1F5FB5', textTransform: 'uppercase', letterSpacing: '0.22em', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563EB', flexShrink: 0, display: 'inline-block' }} />
+                                STEP 3 · 규칙 설정
                             </h4>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FBFE', padding: '0 18px', height: '72px', borderRadius: '16px', border: '1px solid #E1EAF5' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F2747', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Courts</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '170px', height: '40px' }}>
-                                    <button type="button" onClick={() => commitTotalCourts(totalCourts - 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <button type="button" onClick={() => commitTotalCourts(totalCourts - 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
                                     <input
                                         aria-label="Total Courts"
                                         inputMode="numeric"
@@ -3704,147 +4170,156 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                             width: '70px',
                                             height: '40px',
                                             borderRadius: '12px',
-                                            border: '1px solid rgba(201,176,117,0.28)',
-                                            background: 'rgba(0,0,0,0.28)',
-                                            color: '#C9B075',
-                                            fontSize: '28px',
+                                            border: '1px solid #C7DCF1',
+                                            background: '#EAF3FC',
+                                            color: '#1F5FB5',
+                                            fontSize: '24px',
                                             fontWeight: 900,
                                             textAlign: 'center',
                                             outline: 'none',
                                             flex: 'none',
-                                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
+                                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
                                         }}
                                     />
-                                    <button type="button" onClick={() => commitTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                    <button type="button" onClick={() => commitTotalCourts(totalCourts + 1)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FBFE', padding: '0 18px', height: '72px', borderRadius: '16px', border: '1px solid #E1EAF5' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F2747', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Mins</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#C9B075', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
-                                    <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                    <button onClick={() => setMatchTime(Math.max(30, matchTime - 30))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <span style={{ fontSize: '24px', fontWeight: 900, color: '#1F5FB5', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{matchTime}</span>
+                                    <button onClick={() => setMatchTime(matchTime + 30)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
-                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#4ADE80', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ADE80', flexShrink: 0, display: 'inline-block' }} />
-                                FINANCIALS
+                            <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#1F5FB5', textTransform: 'uppercase', letterSpacing: '0.22em', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563EB', flexShrink: 0, display: 'inline-block' }} />
+                                벌금 · 게스트비
                             </h4>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FBFE', padding: '0 18px', height: '72px', borderRadius: '16px', border: '1px solid #E1EAF5' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F2747', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prize Gold</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize / 1000).toFixed(0)}k</span>
-                                    <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                    <button onClick={() => setFirstPrize(Math.max(0, firstPrize - 5000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <span style={{ fontSize: '22px', fontWeight: 900, color: '#0F2747', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(firstPrize / 1000).toFixed(0)}k</span>
+                                    <button onClick={() => setFirstPrize(firstPrize + 5000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FBFE', padding: '0 18px', height: '72px', borderRadius: '16px', border: '1px solid #E1EAF5' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#FACC15', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 1 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 25%~50%</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late / 1000).toFixed(0)}k</span>
-                                    <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                    <button onClick={() => setBottom25Late(Math.max(0, bottom25Late - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <span style={{ fontSize: '22px', fontWeight: 900, color: '#0F2747', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Late / 1000).toFixed(0)}k</span>
+                                    <button onClick={() => setBottom25Late(bottom25Late + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '0 20px', height: '80px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FBFE', padding: '0 18px', height: '72px', borderRadius: '16px', border: '1px solid #E1EAF5' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier 2 Fine</span>
                                     <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottom 0%~25%</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
-                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty / 1000).toFixed(0)}k</span>
-                                    <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                    <button onClick={() => setBottom25Penalty(Math.max(0, bottom25Penalty - 1000))} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <span style={{ fontSize: '22px', fontWeight: 900, color: '#0F2747', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(bottom25Penalty / 1000).toFixed(0)}k</span>
+                                    <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
                         </div>
 
 
-                        <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #333' }}>
-                            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#C9B075', textTransform: 'uppercase', letterSpacing: '0.3em', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C9B075', flexShrink: 0, display: 'inline-block' }} />
-                                TOURNAMENT RULES
+                        <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #E1EAF5' }}>
+                            <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#1F5FB5', textTransform: 'uppercase', letterSpacing: '0.22em', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563EB', flexShrink: 0, display: 'inline-block' }} />
+                                토너먼트 규칙 메모
                             </h4>
                             <textarea
                                 value={matchRules}
                                 onChange={(e) => setMatchRules(e.target.value)}
-                                style={{ width: '100%', background: '#141414', border: '1px solid #333', borderRadius: '16px', padding: '16px', fontSize: '14px', fontWeight: 600, color: '#E5E7EB', minHeight: '120px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
+                                style={{ width: '100%', background: '#F8FBFE', border: '1px solid #DCE8F5', borderRadius: '14px', padding: '14px', fontSize: 13, fontWeight: 600, color: '#0F2747', minHeight: '110px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
                                 placeholder="토너먼트 규칙을 입력하세요..."
                             />
                         </div>
                     </section>
 
                     {isManualRulesMode && (
-                        <section className="rounded-[28px] border border-white/[0.08] bg-[#171717] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
-                            <div className="flex items-center justify-between gap-3">
+                        <section style={{
+                            borderRadius: 22, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: 18,
+                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/35">Pre-create check</p>
-                                    <h4 className="mt-1 text-[16px] font-black uppercase tracking-[-0.02em] text-white">Manual KDK summary</h4>
+                                    <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>STEP 4 · 대진 요약</p>
+                                    <h4 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 900, letterSpacing: '-0.01em', color: '#0F2747' }}>저장 전 확인</h4>
                                 </div>
-                                <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
-                                    manualExpectedSummary.isReady
-                                        ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-300'
-                                        : 'border-red-400/35 bg-red-500/10 text-red-300'
-                                }`}>
+                                <span style={{
+                                    borderRadius: 999, padding: '4px 12px',
+                                    fontSize: 10, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase',
+                                    background: manualExpectedSummary.isReady ? '#E0F5EB' : '#FDEEEE',
+                                    color: manualExpectedSummary.isReady ? '#16A085' : '#C0392B',
+                                    border: manualExpectedSummary.isReady ? '1px solid #B6E2CB' : '1px solid #F4C7C7',
+                                }}>
                                     {manualExpectedSummary.isReady ? 'READY' : 'CHECK'}
                                 </span>
                             </div>
 
-                            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                            <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                                 {[
-                                    ['Total', manualExpectedSummary.totalMatches],
-                                    ['A group', manualExpectedSummary.groupA],
-                                    ['B group', manualExpectedSummary.groupB],
-                                    ['Rounds', manualExpectedSummary.totalRounds],
-                                    ['Guests', manualExpectedSummary.guestNames.length],
-                                    ['Unmatched', manualExpectedSummary.unmatchedNames.length],
-                                    ['Courts', totalCourts],
+                                    ['총 경기', manualExpectedSummary.totalMatches],
+                                    ['코트', totalCourts],
+                                    ['참가자', manualPlayerNames.length],
+                                    ['게스트', manualExpectedSummary.guestNames.length],
+                                    ['A조', manualExpectedSummary.groupA],
+                                    ['B조', manualExpectedSummary.groupB],
+                                    ['라운드', manualExpectedSummary.totalRounds],
                                     ['Group field', manualExpectedSummary.rowsWithoutGroup.length === 0 ? 'OK' : 'MISS'],
                                 ].map(([label, value]) => (
-                                    <div key={label} className="rounded-2xl border border-white/[0.08] bg-black/[0.24] px-3 py-3">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-white/35">{label}</p>
-                                        <p className="mt-1 text-[15px] font-black text-white">{value}</p>
+                                    <div key={label} style={{
+                                        borderRadius: 14, border: '1px solid #E1EAF5',
+                                        background: '#F8FBFE', padding: '10px 12px',
+                                    }}>
+                                        <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A93B3' }}>{label}</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: 17, fontWeight: 900, color: '#0F2747' }}>{value}</p>
                                     </div>
                                 ))}
                             </div>
 
-                            <div className="mt-4 space-y-2 rounded-2xl border border-[#C9B075]/15 bg-[#C9B075]/[0.05] p-4">
-                                <div className="flex items-start justify-between gap-3 text-[11px]">
-                                    <span className="shrink-0 font-black uppercase tracking-[0.16em] text-[#C9B075]">Times</span>
-                                    <span className="text-right font-bold text-white/70">
+                            <div style={{ marginTop: 14, borderRadius: 14, border: '1px solid #D7E5F4', background: '#EEF5FB', padding: 12 }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, fontSize: 11 }}>
+                                    <span style={{ flexShrink: 0, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1F5FB5' }}>Times</span>
+                                    <span style={{ textAlign: 'right', fontWeight: 700, color: '#3F5B82' }}>
                                         {manualExpectedSummary.timeList.length > 0 ? manualExpectedSummary.timeList.join(', ') : 'No time'}
                                     </span>
                                 </div>
-                                <div className="flex items-start justify-between gap-3 text-[11px]">
-                                    <span className="shrink-0 font-black uppercase tracking-[0.16em] text-[#C9B075]">Guests</span>
-                                    <span className="text-right font-bold text-white/70">
+                                <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, fontSize: 11 }}>
+                                    <span style={{ flexShrink: 0, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1F5FB5' }}>Guests</span>
+                                    <span style={{ textAlign: 'right', fontWeight: 700, color: '#3F5B82' }}>
                                         {manualExpectedSummary.guestNames.length > 0 ? manualExpectedSummary.guestNames.join(', ') : 'None'}
                                     </span>
                                 </div>
-                                <div className="flex items-start justify-between gap-3 text-[11px]">
-                                    <span className="shrink-0 font-black uppercase tracking-[0.16em] text-[#C9B075]">Rules</span>
-                                    <span className="text-right font-bold text-white/70">
+                                <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, fontSize: 11 }}>
+                                    <span style={{ flexShrink: 0, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1F5FB5' }}>Rules</span>
+                                    <span style={{ textAlign: 'right', fontWeight: 700, color: '#3F5B82' }}>
                                         Win 6 / L1 {(bottom25Late / 1000).toFixed(0)}k / L2 {(bottom25Penalty / 1000).toFixed(0)}k / Guest 10k
                                     </span>
                                 </div>
                             </div>
 
                             {manualExpectedSummary.warnings.length > 0 && (
-                                <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/[0.08] p-4">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-300">Warnings</p>
-                                    <ul className="mt-2 space-y-1 text-[11px] font-bold leading-relaxed text-red-100/85">
+                                <div style={{ marginTop: 14, borderRadius: 14, border: '1px solid #F4C7C7', background: '#FDEEEE', padding: 12 }}>
+                                    <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C0392B' }}>Warnings</p>
+                                    <ul style={{ margin: '8px 0 0', paddingLeft: 16, fontSize: 11.5, fontWeight: 700, lineHeight: 1.55, color: '#9B2C2C' }}>
                                         {manualExpectedSummary.warnings.map(warning => (
-                                            <li key={warning}>- {warning}</li>
+                                            <li key={warning}>{warning}</li>
                                         ))}
                                     </ul>
                                 </div>
@@ -3859,8 +4334,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
 
                 {isAdmin && (
-                    <div style={{ position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '450px', padding: '0 20px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
-                        <div style={{ width: '100%', margin: '0 auto', pointerEvents: 'auto' }}>
+                    <div style={{ position: 'fixed', bottom: 'calc(var(--bottom-nav-area) + 16px)', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 450, padding: '0 16px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                        <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
                             <button
                                 disabled={isStep2ButtonDisabled}
                                 onClick={() => {
@@ -3872,24 +4347,51 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 }}
                                 style={{
                                     width: '100%',
-                                    padding: '8px 0',
-                                    borderRadius: '999px',
-                                    background: isStep2ButtonDisabled ? '#1A1A1A' : '#C9B075',
-                                    color: '#000000',
-                                    border: '1px solid rgba(255, 255, 255, 0.4)',
-                                    fontSize: '14px',
-                                    fontWeight: 1000,
+                                    height: 56,
+                                    borderRadius: 16,
+                                    background: isStep2ButtonDisabled
+                                        ? '#E1EAF5'
+                                        : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                    color: isStep2ButtonDisabled ? '#9CB2CC' : '#FFFFFF',
+                                    border: 'none',
+                                    fontSize: 14.5,
+                                    fontWeight: 800,
+                                    letterSpacing: '0.02em',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '8px',
+                                    gap: 8,
                                     cursor: isStep2ButtonDisabled ? 'not-allowed' : 'pointer',
-                                    WebkitTextFillColor: '#000000',
+                                    boxShadow: isStep2ButtonDisabled ? 'none' : '0 14px 28px rgba(37,99,235,0.26)',
                                     transition: 'all 0.15s',
-                                    boxShadow: '0 10px 30px rgba(201,176,117,0.4)',
                                 }}
                             >
-                                {isManualRulesMode ? (isGenerating ? '생성 중...' : '붙여넣은 대진으로 생성') : isGenerating ? 'GENERATE...' : '최종 대진 자동 생성! 🚀'}
+                                {isGenerating ? '저장 중...' : (isManualRulesMode ? '대진 저장 후 LIVE COURT 이동' : '대진 자동 생성 후 LIVE COURT 이동')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowWarning(true);
+                                    setWarningMsg('임시 저장 기능은 다음 업데이트에서 제공됩니다.');
+                                }}
+                                style={{
+                                    width: '100%',
+                                    height: 44,
+                                    borderRadius: 14,
+                                    background: '#FFFFFF',
+                                    color: '#3B5A85',
+                                    border: '1px solid #DCE8F5',
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    letterSpacing: '0.02em',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 4px 10px rgba(15,45,85,0.05)',
+                                }}
+                            >
+                                임시 저장
                             </button>
                         </div>
                     </div>
