@@ -22,25 +22,62 @@ const getGroupPresentation = (value?: string) => {
     return {
         normalizedGroup,
         isGroupB,
-        label: isGroupB ? 'BLUE / B조' : 'GOLD / A조',
-        shortLabel: isGroupB ? 'BLUE' : 'GOLD',
-        color: isGroupB ? '#00E5FF' : '#C9B075',
-        guestAccent: isGroupB ? '#9BEBFF' : '#C9B075',
+        label: isGroupB ? 'B조' : 'A조',
+        shortLabel: isGroupB ? 'B' : 'A',
+        accentColor: isGroupB ? '#0EA5E9' : '#2563EB',
+        softBg: isGroupB ? '#E0F4FC' : '#EEF6FF',
+        softBorder: isGroupB ? '#B7E0F2' : '#C7DCF1',
     };
 };
 
-// 1. 진행 중인 경기 카드 (Original MatchCard Rollback)
-export const PlayingMatchCard = ({ 
-    match, 
-    onInputScore, 
+const stripGuestSuffix = (name: string) => name.replace(/\s*\(G\)$/i, '');
+const isGuestName = (name: string) => /\(G\)\s*$/i.test(name);
+
+const GuestBadge = ({ size = 14 }: { size?: number }) => (
+    <span
+        aria-label="게스트"
+        style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: size, height: size, borderRadius: '50%',
+            background: '#FFF4DE', border: '1px solid #F4C979',
+            color: '#B7791F',
+            fontSize: Math.max(8, Math.round(size * 0.55)),
+            fontWeight: 900, lineHeight: 1,
+            flexShrink: 0,
+        }}
+    >
+        G
+    </span>
+);
+
+const PlayerNameRow = ({ name, fontSize = 14 }: { name: string; fontSize?: number }) => {
+    const isGuest = isGuestName(name);
+    const cleanName = stripGuestSuffix(name);
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            minWidth: 0, maxWidth: '100%',
+            fontSize, fontWeight: 800, lineHeight: 1.25,
+            color: '#0F2747',
+        }}>
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanName}</span>
+            {isGuest && <GuestBadge size={Math.max(13, fontSize - 1)} />}
+        </span>
+    );
+};
+
+// 1. 진행 중인 경기 카드 (NOW PLAYING)
+export const PlayingMatchCard = ({
+    match,
+    onInputScore,
     getPlayerName,
     isAdmin = false,
     onCancel,
     spinningMatchId,
     matchNo,
     showToast,
-    toastMsg
-}: CardProps & { 
+    toastMsg,
+}: CardProps & {
     onInputScore: (id: string, s1: number, s2: number) => void;
     isAdmin?: boolean;
     onCancel?: (id: string) => void;
@@ -50,109 +87,151 @@ export const PlayingMatchCard = ({
     toastMsg?: string;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
-    const { normalizedGroup, isGroupB, color: groupColor, guestAccent } = groupMeta;
-    const cardGlow = isGroupB ? '0 0 15px rgba(0, 229, 255, 0.2)' : '0 0 15px rgba(201, 176, 117, 0.05)';
+    const { normalizedGroup, accentColor, softBg, softBorder } = groupMeta;
 
     return (
-        <div 
-            className="rounded-2xl relative flex flex-col justify-between h-full group transition-all" 
-            style={{ 
-                transform: 'none', 
-                background: 'rgba(255, 255, 255, 0.05)', 
-                backdropFilter: 'blur(64px)', 
-                border: 'none', 
-                borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, 
-                boxShadow: `0 20px 50px rgba(0,0,0,0.9), ${cardGlow}`, 
-                overflow: 'hidden' 
+        <div
+            style={{
+                position: 'relative',
+                display: 'flex', flexDirection: 'column', height: '100%',
+                borderRadius: 18,
+                background: '#FFFFFF',
+                border: `1px solid ${softBorder}`,
+                boxShadow: '0 10px 24px rgba(15,45,85,0.06)',
+                overflow: 'hidden',
             }}
         >
             {/* SECTION HEADER BAR */}
-            <div className="flex items-center justify-center px-4 py-3 bg-white/5 border-b border-white/10 overflow-hidden relative group/header">
-                <div className="flex items-center justify-center gap-2">
-                    <span
-                        className="hidden text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
-                        style={{ color: groupColor }}
-                    >
-                        ROUND {match.round} • {normalizedGroup}조 • {matchNo}경기
-                    </span>
-                    <span
-                        className="truncate text-[10px] font-mono font-bold uppercase tracking-[0.12em] drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
-                        style={{ color: groupColor }}
-                    >
-                        {`ROUND ${match.round || 1} · ${groupMeta.label} · ${Math.max(1, matchNo || 1)}경기`}
-                    </span>
-                </div>
-                
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '8px 12px',
+                background: softBg, borderBottom: `1px solid ${softBorder}`,
+                position: 'relative',
+            }}>
+                <span style={{
+                    fontSize: 10, fontWeight: 900, letterSpacing: '0.18em',
+                    textTransform: 'uppercase', color: accentColor,
+                    fontFamily: 'monospace',
+                }}>
+                    ROUND {match.round || 1} · {normalizedGroup}조 · {Math.max(1, matchNo || 1)}경기
+                </span>
+
                 {isAdmin && onCancel && (
                     <button
                         type="button"
-                        onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if (window.navigator?.vibrate) window.navigator.vibrate(50); 
-                            onCancel(match.id); 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                            onCancel(match.id);
                         }}
-                        className="absolute right-2 flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-90 hover:bg-white/5 group/refresh"
-                        title="대기열 리스트로 복구"
+                        title="대기열로 복귀"
+                        style={{
+                            position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            minWidth: 56, height: 26, padding: '0 8px',
+                            borderRadius: 999,
+                            background: '#FFFFFF', border: '1px solid #DCE8F5',
+                            color: '#3B5A85',
+                            fontSize: 10, fontWeight: 900, letterSpacing: '0.06em',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(15,45,85,0.06)',
+                        }}
                     >
-                        <RotateCw className="w-3.5 h-3.5 opacity-20 group-hover:opacity-100 transition-opacity" />
+                        <RotateCw size={11} />
+                        복귀
                     </button>
                 )}
             </div>
 
-            <div className="p-2 flex flex-col justify-center flex-1 py-8">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 flex-grow">
-
-                    {/* TEAM A BLOCK */}
-                    <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                        <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
-                            <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[0], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
-                            </div>
-                            <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[1], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
-                            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, padding: '14px 10px' }}>
+                <div style={{
+                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                    alignItems: 'center', gap: 6,
+                }}>
+                    {/* TEAM A */}
+                    <div style={{
+                        height: 68,
+                        borderRadius: 14,
+                        background: '#F8FBFE', border: '1px solid #E1EAF5',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        padding: '4px 8px', minWidth: 0,
+                    }}>
+                        <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+                            <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={14} />
+                        </div>
+                        <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                            <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={14} />
                         </div>
                     </div>
 
-                    <div className="font-black text-[8px] uppercase text-center italic opacity-60 shrink-0" style={{ color: groupColor, filter: `drop-shadow(0 0 5px ${groupColor}4D)` }}>vs</div>
+                    <span style={{
+                        flexShrink: 0,
+                        fontSize: 10, fontWeight: 900, textTransform: 'uppercase',
+                        color: accentColor, padding: '2px 6px',
+                        borderRadius: 999, border: `1px solid ${softBorder}`,
+                    }}>VS</span>
 
-                    {/* TEAM B BLOCK */}
-                    <div className="relative bg-white/5 rounded-[18px] h-[68px] flex flex-col items-center justify-center border border-white/5 w-full overflow-hidden transition-all duration-300">
-                        <div className="flex flex-col items-center justify-center w-full px-1 sm:px-2 gap-1 min-w-0">
-                            <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[2], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
-                            </div>
-                            <div className="text-white font-black leading-none relative z-0 truncate w-full flex items-center justify-center gap-0.5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                                <span className="truncate text-[clamp(12px,4vw,15px)]">{getPlayerName(match.playerIds[3], match.id).replace(/\s*\(G\)$/i, '')}</span>
-                                {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[10px] italic shrink-0" style={{ color: guestAccent }}>(G)</span>}
-                            </div>
+                    {/* TEAM B */}
+                    <div style={{
+                        height: 68,
+                        borderRadius: 14,
+                        background: '#F8FBFE', border: '1px solid #E1EAF5',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        padding: '4px 8px', minWidth: 0,
+                    }}>
+                        <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+                            <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={14} />
+                        </div>
+                        <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                            <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={14} />
                         </div>
                     </div>
-
                 </div>
 
                 {/* SCORE INPUT BUTTON */}
                 <button
-                    onClick={() => { 
-                        if (window.navigator?.vibrate) window.navigator.vibrate(50); 
-                        onInputScore(match.id, match.score1 ?? 1, match.score2 ?? 1); 
+                    onClick={() => {
+                        if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                        onInputScore(match.id, match.score1 ?? 1, match.score2 ?? 1);
                     }}
-                    className="w-full h-11 bg-transparent border border-[#8E7A4A]/40 hover:bg-[#8E7A4A]/25 active:scale-95 transition-all rounded-[14px] flex items-center justify-center shrink-0 mt-4"
-                    style={{ background: 'linear-gradient(to right, rgba(142,122,74,0.1), transparent, rgba(142,122,74,0.1))', boxShadow: '0 0 15px rgba(142,122,74,0.2), inset 0 0 10px rgba(142,122,74,0.1)', filter: 'drop-shadow(0 0 5px rgba(142,122,74,0.3))' }}
+                    style={{
+                        width: '100%', height: 44, marginTop: 12, flexShrink: 0,
+                        borderRadius: 14,
+                        background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: 12.5, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        cursor: 'pointer',
+                        boxShadow: '0 10px 22px rgba(37,99,235,0.22)',
+                        transition: 'all 0.15s',
+                    }}
                 >
-                    <span className="bg-gradient-to-r from-[#8E7A4A] via-[#A89462] to-[#8E7A4A] bg-clip-text text-transparent text-[11px] font-black uppercase tracking-[0.25em]">INPUT SCORE 🏆</span>
+                    점수 입력
+                    <Trophy size={14} color="#FFFFFF" />
                 </button>
             </div>
 
-            {/* Scoped Toast Indicator (Optional but kept for logic) */}
+            {/* Scoped Toast Indicator (logic preserved) */}
             {showToast && toastMsg && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[2000] w-[90%]">
-                    <div className="bg-[#1C1C1E]/90 border border-[#D4AF37]/30 text-white px-4 py-2 rounded-xl shadow-2xl flex items-center justify-center gap-2 backdrop-blur-xl">
-                        <CheckCircle2 size={10} className={toastMsg.includes('관리자') ? 'text-red-400' : 'text-[#4ADE80]'} />
-                        <span className="text-[9px] font-black uppercase tracking-widest italic">{toastMsg}</span>
+                <div style={{
+                    position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 2000, width: '90%',
+                }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        background: '#FFFFFF', border: '1px solid #DCE8F5',
+                        color: '#0F2747',
+                        padding: '8px 14px', borderRadius: 12,
+                        boxShadow: '0 8px 20px rgba(15,45,85,0.12)',
+                        backdropFilter: 'blur(6px)',
+                    }}>
+                        <CheckCircle2 size={11} color={toastMsg.includes('관리자') ? '#EF4444' : '#16A085'} />
+                        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                            {toastMsg}
+                        </span>
                     </div>
                 </div>
             )}
@@ -160,18 +239,18 @@ export const PlayingMatchCard = ({
     );
 };
 
-// 2. 대기 경기 카드 (Original KDK Inline Rollback)
-export const WaitingMatchCard = ({ 
-    match, 
-    index, 
-    onStart, 
+// 2. 대기 경기 카드 (WAITING) — 투입 버튼 구조 반드시 유지
+export const WaitingMatchCard = ({
+    match,
+    index,
+    onStart,
     getPlayerName,
     matchNo,
     isAdmin = false,
     isStartingMatch = false,
-    hasConflict = false
-}: CardProps & { 
-    index: number; 
+    hasConflict = false,
+}: CardProps & {
+    index: number;
     onStart: (id: string) => void;
     matchNo?: number;
     isAdmin?: boolean;
@@ -179,112 +258,221 @@ export const WaitingMatchCard = ({
     hasConflict?: boolean;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
-    const { normalizedGroup, isGroupB, color: col, guestAccent } = groupMeta;
+    const { normalizedGroup, accentColor, softBg, softBorder } = groupMeta;
     const displayIndex = matchNo || index + 1;
+    const disabled = isStartingMatch || hasConflict;
 
     return (
-        <div key={match.id} className="rounded-2xl active:scale-98 transition-all relative group grid grid-cols-[45px_1fr_75px] items-center overflow-hidden" style={{ transform: 'none', paddingLeft: '12px', paddingRight: '12px', paddingTop: '22px', paddingBottom: '22px', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: `2px solid ${isGroupB ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`, boxShadow: `0 20px 50px rgba(0,0,0,0.9), 0 0 15px ${isGroupB ? 'rgba(0, 229, 255, 0.1)' : 'rgba(201, 176, 117, 0.03)'}`, filter: `drop-shadow(0 0 10px ${col}33)` }}>
-            <div className="flex items-center justify-center">
-                <div className="w-9 h-9 text-black rounded-full flex flex-col items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.2)] shrink-0 border border-white/20" style={{ background: `linear-gradient(135deg, ${col}, ${col}aa)` }}>
-                    <span className="text-[8px] font-black leading-none opacity-40">R{match.round}</span>
-                    <span className="text-[12px] font-[1000] leading-none uppercase">{isGroupB ? 'B' : 'G'}{Math.max(1, displayIndex)}</span>
+        <div
+            key={match.id}
+            style={{
+                position: 'relative',
+                display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) 80px',
+                alignItems: 'center', gap: 10,
+                padding: '12px 12px',
+                borderRadius: 16,
+                background: '#FFFFFF', border: `1px solid ${softBorder}`,
+                boxShadow: '0 6px 16px rgba(15,45,85,0.05)',
+            }}
+        >
+            {/* Col 1: Group + index badge */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                    width: 40, height: 40, borderRadius: 12,
+                    background: softBg, border: `1px solid ${softBorder}`,
+                    color: accentColor,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                }}>
+                    <span style={{ fontSize: 8, fontWeight: 900, lineHeight: 1, opacity: 0.7, color: accentColor }}>R{match.round || 1}</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, lineHeight: 1, color: accentColor }}>
+                        {normalizedGroup}{Math.max(1, displayIndex)}
+                    </span>
                 </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-center px-1 min-w-0" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>
-                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
-                    {getPlayerName(match.playerIds[0], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[0], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
-                    /
-                    {getPlayerName(match.playerIds[1], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[1], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
-                </span>
-                <span className="text-[8px] font-black uppercase italic tracking-tighter opacity-20 shrink-0" style={{ color: col }}>vs</span>
-                <span className="flex-1 text-white font-bold truncate leading-none text-[14px] sm:text-[17px] flex items-center justify-center gap-0.5">
-                    {getPlayerName(match.playerIds[2], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[2], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
-                    /
-                    {getPlayerName(match.playerIds[3], match.id).replace(/\s*\(G\)$/i, '')}
-                    {getPlayerName(match.playerIds[3], match.id).includes('(G)') && <span className="text-[11px] font-black italic drop-shadow-[0_0_8px_rgba(201,176,117,0.4)]" style={{ color: guestAccent }}>(G)</span>}
-                </span>
+            {/* Col 2: Players — 팀별 2-line 세로 배치 (게스트 페어도 잘리지 않음) */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                alignItems: 'center', gap: 8,
+                minWidth: 0,
+            }}>
+                <div style={{
+                    minWidth: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 3,
+                }}>
+                    <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={14} />
+                    <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={14} />
+                </div>
+                <span style={{
+                    flexShrink: 0, padding: '2px 6px',
+                    fontSize: 9, fontWeight: 900,
+                    color: accentColor,
+                    borderRadius: 999, border: `1px solid ${softBorder}`,
+                }}>VS</span>
+                <div style={{
+                    minWidth: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 3,
+                }}>
+                    <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={14} />
+                    <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={14} />
+                </div>
             </div>
 
-            <div className="flex items-center justify-end">
+            {/* Col 3: 진행중 badge (충돌 시) + 투입/대기 버튼 */}
+            <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                gap: 6, alignSelf: 'stretch', justifyContent: 'center',
+            }}>
+                {hasConflict && (
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        borderRadius: 999, padding: '2px 7px',
+                        background: '#FFF4DE', border: '1px solid #F4C979',
+                        color: '#B7791F',
+                        fontSize: 9, fontWeight: 900, lineHeight: 1,
+                        letterSpacing: '0.04em', whiteSpace: 'nowrap',
+                    }}>
+                        진행중
+                    </span>
+                )}
                 <button
-                    onClick={() => { 
-                        if (window.navigator?.vibrate) window.navigator.vibrate(50); 
-                        onStart(match.id); 
+                    onClick={() => {
+                        if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                        onStart(match.id);
                     }}
-                    disabled={isStartingMatch || hasConflict}
-                    className={`px-4 py-3 rounded-xl text-[12px] font-black uppercase transition-all shadow-xl whitespace-nowrap active:scale-95 ${(isStartingMatch || hasConflict) ? 'bg-zinc-800 text-white/5 cursor-not-allowed opacity-50' : '!text-black hover:opacity-90'}`}
-                    style={{ backgroundColor: (isStartingMatch || hasConflict) ? undefined : col, color: (isStartingMatch || hasConflict) ? undefined : '#000000', boxShadow: (isStartingMatch || hasConflict) ? 'none' : `0 4px 15px ${col}66` }}
+                    disabled={disabled}
+                    style={{
+                        padding: '8px 12px',
+                        borderRadius: 12,
+                        background: disabled ? '#E1EAF5' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                        color: disabled ? '#9CB2CC' : '#FFFFFF',
+                        border: 'none',
+                        fontSize: 11.5, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        boxShadow: disabled ? 'none' : '0 8px 18px rgba(37,99,235,0.22)',
+                        transition: 'all 0.15s',
+                        width: '100%',
+                    }}
                 >
-                    {isStartingMatch ? '...' : hasConflict ? '대기' : (isAdmin ? '투입' : '대기')}
+                    {isStartingMatch ? '...' : hasConflict ? '대기중' : (isAdmin ? '투입' : '대기')}
                 </button>
             </div>
         </div>
     );
 };
 
-// 3. 완료 경기 카드 (Original KDK Inline Rollback)
-export const CompletedMatchCard = ({ 
-    match, 
-    index, 
-    onEdit, 
+// 3. 완료 경기 카드 (COMPLETED)
+export const CompletedMatchCard = ({
+    match,
+    index,
+    onEdit,
     getPlayerName,
     matchNo,
     isAdmin = false,
-    onResetStatus
-}: CardProps & { 
-    index: number; 
+    onResetStatus,
+}: CardProps & {
+    index: number;
     onEdit: (m: Match) => void;
     matchNo?: number;
     isAdmin?: boolean;
     onResetStatus?: (id: string) => void;
 }) => {
-    const { normalizedGroup, isGroupB } = getGroupPresentation(match.groupName || (match as any).group);
+    const { normalizedGroup } = getGroupPresentation(match.groupName || (match as any).group);
     const displayIndex = matchNo || index + 1;
-    const groupColor = normalizedGroup === 'B' ? 'rgba(0, 229, 255, 0.4)' : 'rgba(201, 176, 117, 0.5)';
 
     return (
-        <div key={match.id} onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); onEdit(match); }} className="rounded-[24px] relative flex flex-col justify-between h-full group transition-all overflow-hidden" style={{ transform: 'none', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(64px)', border: 'none', borderTop: '2px solid rgba(255, 255, 255, 0.15)', borderLeft: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5)' }}>
-            {/* SECTION HEADER BAR */}
-            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.02] border-b border-white/5 overflow-hidden relative">
-                <span className="text-[10px] font-mono font-bold tracking-[0.2em] uppercase truncate" style={{ color: groupColor }}>
-                    GROUP {normalizedGroup} • MATCH {displayIndex.toString().padStart(2, '0')}
+        <div
+            key={match.id}
+            onClick={() => {
+                if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                onEdit(match);
+            }}
+            style={{
+                position: 'relative',
+                display: 'flex', flexDirection: 'column', height: '100%',
+                borderRadius: 18,
+                background: '#F8FBFE', border: '1px solid #E1EAF5',
+                cursor: 'pointer',
+                overflow: 'hidden',
+            }}
+        >
+            {/* HEADER BAR */}
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '6px 12px',
+                background: '#EEF5FB', borderBottom: '1px solid #DCE8F5',
+                position: 'relative',
+            }}>
+                <span style={{
+                    fontSize: 10, fontWeight: 900, letterSpacing: '0.18em',
+                    textTransform: 'uppercase', color: '#56729A',
+                    fontFamily: 'monospace',
+                }}>
+                    {normalizedGroup}조 · MATCH {displayIndex.toString().padStart(2, '0')}
                 </span>
                 {isAdmin && onResetStatus && (
-                    <button 
+                    <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onResetStatus(match.id);
                         }}
-                        className="absolute right-3 hover:bg-white/10 p-1.5 rounded-full transition-all text-white/40 hover:text-[#10B981] z-20"
                         title="경기 다시 진행"
+                        style={{
+                            position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                            width: 26, height: 26, borderRadius: 8,
+                            background: 'transparent', border: 'none',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#56729A', cursor: 'pointer',
+                        }}
                     >
-                        <RotateCw size={12} strokeWidth={3} />
+                        <RotateCw size={12} />
                     </button>
                 )}
             </div>
 
-            <div className="flex-1 flex flex-col justify-center px-1 py-4 sm:px-3 sm:py-8">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 w-full">
-                    <div className="flex flex-col items-center justify-center min-w-0 gap-1 opacity-80">
-                        <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(match.playerIds[0], match.id)}</span>
-                        <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(match.playerIds[1], match.id)}</span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '14px 12px' }}>
+                <div style={{
+                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                    alignItems: 'center', gap: 8,
+                }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0, gap: 2 }}>
+                        <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={13} />
+                        <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={13} />
                     </div>
-                    <div className="flex flex-col items-center flex-shrink-0 px-1 sm:px-2 justify-center">
-                        <span className="text-[clamp(24px,6vw,36px)] tracking-widest font-black text-[#C9B075]/40 leading-none mb-1">{match.score1}:{match.score2}</span>
-                        <span className="text-[clamp(6px,2vw,8px)] font-black text-white/20 uppercase mt-1 tracking-widest">FINAL WIN</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, padding: '0 4px' }}>
+                        <span style={{
+                            fontSize: 26, fontWeight: 900, lineHeight: 1,
+                            letterSpacing: '0.04em', color: '#1F5FB5',
+                        }}>
+                            {match.score1}:{match.score2}
+                        </span>
+                        <span style={{
+                            marginTop: 4, fontSize: 8, fontWeight: 900,
+                            color: '#9CB2CC', letterSpacing: '0.22em', textTransform: 'uppercase',
+                        }}>
+                            FINAL
+                        </span>
                     </div>
-                    <div className="flex flex-col items-center justify-center min-w-0 gap-1 opacity-80">
-                        <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(match.playerIds[2], match.id)}</span>
-                        <span className="text-white font-black leading-none truncate w-full text-center text-[clamp(11px,3vw,14px)]">{getPlayerName(match.playerIds[3], match.id)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0, gap: 2 }}>
+                        <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={13} />
+                        <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={13} />
                     </div>
                 </div>
             </div>
-            <div className="pb-3 text-center transition-all duration-300">
-                <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em] group-hover:text-[#C9B075]/60 group-hover:tracking-[0.4em] transition-all">TAP TO EDIT <Layers size={10} className="inline ml-1 opacity-20" /></span>
+            <div style={{ padding: '0 0 10px', textAlign: 'center' }}>
+                <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 9, fontWeight: 900,
+                    color: '#7A93B3', letterSpacing: '0.3em', textTransform: 'uppercase',
+                }}>
+                    TAP TO EDIT
+                    <Layers size={10} />
+                </span>
             </div>
         </div>
     );

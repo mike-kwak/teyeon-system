@@ -4862,276 +4862,271 @@ A    1    봉준    상윤    영호    광현    19:00`}
     }
 
     return (
-        <main className="flex flex-col min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#121214] to-[#0a0a0b] text-white font-sans w-full relative pb-60" style={{ paddingBottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
-            {/* [v35.11] Redesigned Master Header: Minimalist 3-Column Layout */}
-            <header className="px-3 py-2 flex flex-row items-center justify-between gap-2 relative z-[200] bg-[#09090B] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-6 sm:py-2.5">
-                {/* LEFT: ADMIN TOGGLE & RESET */}
-                <div className="hidden">
-                    <div className="flex shrink-0 items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#C9B075]/30 bg-[#C9B075]/10 text-[10px] font-black text-[#C9B075]">
-                            T
-                        </div>
-                        <span className="hidden text-[10px] font-black italic uppercase tracking-[0.18em] text-white/70 sm:inline">TEYEON</span>
-                    </div>
-                    {isAdmin && (
-                        <div className="flex items-center gap-3">
-                            <button 
-                                onClick={() => setAdminModeManual(!adminModeManual)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${adminModeManual ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-[0_5px_15px_rgba(201,176,117,0.3)]' : 'bg-white/5 border-white/10 text-white/40'}`}
-                            >
-                                <div className={`w-2 h-2 rounded-full ${adminModeManual ? 'bg-black animate-pulse' : 'bg-white/20'}`} />
-                                <span className="text-[9px] font-[1000] uppercase tracking-widest leading-none">ADMIN</span>
-                            </button>
-                            {adminModeManual && (
-                                <button
-                                    onClick={() => setShowResetConfirm(true)}
-                                    className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/20 transition-all active:scale-90"
-                                    title="초기화"
-                                >
-                                    <RotateCw className="w-3 h-3" />
-                                </button>
-                            )}
-                        </div>
-                    )}
-                    {!isAdmin && (
-                        <div className="flex items-center gap-2">
-                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
-                                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none">VIEWER</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* CENTER: SESSION NAME (Strong Emphasis) */}
-                <div className="min-w-0 flex-[1.45] sm:flex-[1.05]">
-                    <span className="text-[10px] font-black text-[#C9B075] tracking-[0.4em] uppercase opacity-40 leading-none mb-1">Session</span>
-                    <div className="flex min-w-0 items-center gap-2">
+        <main
+            className="relative flex w-full flex-col font-sans"
+            style={{
+                minHeight: '100dvh',
+                marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                backgroundColor: '#F4F8FC',
+                color: '#0F2747',
+                paddingBottom: 'calc(var(--page-bottom-safe) + 60px)',
+                boxSizing: 'border-box',
+            }}>
+            {/* Master Header: 4 explicit rows (session, action buttons, info, ticker). */}
+            <header
+                className="relative z-[200] flex flex-col gap-3 px-4 py-3 sm:px-5 sm:py-3.5"
+                style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid #DCE8F5', boxShadow: '0 4px 16px rgba(15,45,85,0.06)' }}
+            >
+                {/* ROW 1: SESSION label + name + sync state */}
+                <div className="flex w-full items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <span style={{
+                            display: 'block', fontSize: 10, fontWeight: 900,
+                            color: '#3B82F6', letterSpacing: '0.22em', textTransform: 'uppercase',
+                            lineHeight: 1, marginBottom: 4,
+                        }}>
+                            SESSION
+                        </span>
                         <h1
                             data-debug-session-title="kdk-header-title"
-                            className="flex-none font-black italic tracking-tight text-white uppercase leading-none [text-shadow:0_2px_10px_rgba(0,0,0,0.5)] md:min-w-0 md:flex-1 md:truncate md:whitespace-nowrap md:text-2xl md:tracking-tighter md:max-w-[320px]"
                             style={{
-                                fontSize: '20px',
-                                overflow: 'visible',
-                                textOverflow: 'clip',
+                                margin: 0,
+                                fontSize: 20,
+                                fontWeight: 900,
+                                color: '#0F2747',
+                                letterSpacing: '-0.02em',
+                                lineHeight: 1.15,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
                             }}
                         >
                             {sessionTitle || '260417_KDK_01'}
                         </h1>
-                        <button
-                            type="button"
-                            onClick={openDisplayBoard}
-                            disabled={!activeSessionId}
-                            className="hidden"
-                            title="전광판 열기"
-                        >
-                            TV
-                        </button>
-                        <button
-                            type="button"
-                            onClick={copyDisplayBoardUrl}
-                            disabled={!activeSessionId}
-                            className="hidden"
-                            title="전광판 주소 복사"
-                        >
-                            COPY
-                        </button>
                     </div>
-                </div>
-
-                {/* RIGHT: ACTION & STATUS INDICATOR */}
-                <div className="flex flex-wrap items-center justify-end gap-1.5 flex-[1.5] sm:flex-[1.95] sm:gap-2">
-                    <button
-                        type="button"
-                        onClick={openDisplayBoard}
-                        disabled={!activeSessionId}
-                        className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/45 bg-[#C9B075]/10 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075] transition-all hover:bg-[#C9B075]/18 active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.16em]"
-                        title="Open TV display"
+                    <div
+                        title={lastSyncTime || ''}
+                        style={{
+                            flexShrink: 0,
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            borderRadius: 999, padding: '4px 10px',
+                            background: '#F6FAFD', border: '1px solid #DCE8F5',
+                        }}
                     >
-                        TV
-                    </button>
-                    <button
-                        type="button"
-                        onClick={copyDisplayBoardUrl}
-                        disabled={!activeSessionId}
-                        className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/30 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#C9B075]/85 transition-all hover:border-[#C9B075]/55 hover:bg-[#C9B075]/10 active:scale-95 disabled:cursor-not-allowed disabled:text-white/20 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.14em]"
-                        title="Copy TV display URL"
-                    >
-                        COPY
-                    </button>
-                    <button
-                        type="button"
-                        onClick={execCopySchedule}
-                        className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
-                        title="Copy lineup"
-                    >
-                        LINEUP
-                    </button>
-                    <button
-                        type="button"
-                        onClick={copyFinalResults}
-                        className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.035] px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
-                        title="Share final result"
-                    >
-                        RESULT
-                    </button>
-                    {adminModeManual && isAdmin && (
-                        <button
-                            type="button"
-                            onClick={() => setShowMemberEditModal(true)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95 sm:h-9 sm:w-9"
-                            title="Live setup"
-                        >
-                            <Settings className="h-3.5 w-3.5" />
-                        </button>
-                    )}
-                    <div className="hidden">
-                        <button onClick={execCopySchedule} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 복사">📋</button>
-                        <button onClick={copyFinalResults} className="w-8 h-8 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#C9B075] hover:bg-[#C9B075]/20 active:scale-90 transition-all" title="결과 보고">🏆</button>
-                    </div>
-                    
-                    {/* Integrated Sync Indicator */}
-                    <div className="hidden flex-col items-end pr-1 sm:flex">
-                        <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : syncStatus === 'ERROR' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`} />
-                            <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">
-                                {syncStatus === 'HEALTHY' ? '연결됨' : syncStatus === 'IDLE' ? '대기중' : '동기화 중'}
-                            </span>
-                        </div>
-                        <span className="text-[7px] font-mono text-white/20 leading-none mt-0.5">{lastSyncTime || '--:--'}</span>
-                    </div>
-                </div>
-            </header>
-
-            <div
-                className={`w-full px-4 flex flex-col gap-2 relative z-50 py-2 ${activeTab === 'RANKING' ? 'border-b border-white/5' : 'border-b border-white/10'}`}
-                style={{ background: 'rgba(9, 9, 11, 0.85)', backdropFilter: 'blur(32px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-            >
-                <div className="hidden">
-                    <button
-                        type="button"
-                        onClick={openDisplayBoard}
-                        disabled={!activeSessionId}
-                        className="rounded-full border border-[#C9B075]/45 bg-[#C9B075]/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#C9B075] transition-all hover:bg-[#C9B075]/18 active:scale-95 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/25"
-                        title="Open TV display"
-                    >
-                        TV
-                    </button>
-                    <button
-                        type="button"
-                        onClick={copyDisplayBoardUrl}
-                        disabled={!activeSessionId}
-                        className="rounded-full border border-[#C9B075]/30 bg-white/[0.035] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#C9B075]/85 transition-all hover:border-[#C9B075]/55 hover:bg-[#C9B075]/10 active:scale-95 disabled:cursor-not-allowed disabled:text-white/20"
-                        title="Copy TV display URL"
-                    >
-                        COPY
-                    </button>
-                    <button
-                        type="button"
-                        onClick={execCopySchedule}
-                        className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95"
-                        title="Copy lineup"
-                    >
-                        LINEUP
-                    </button>
-                    <button
-                        type="button"
-                        onClick={copyFinalResults}
-                        className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/55 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95"
-                        title="Share final result"
-                    >
-                        RESULT
-                    </button>
-                    {adminModeManual && isAdmin && (
-                        <button
-                            type="button"
-                            onClick={() => setShowMemberEditModal(true)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition-all hover:border-[#C9B075]/40 hover:text-[#C9B075] active:scale-95"
-                            title="Live setup"
-                        >
-                            <Settings className="h-3.5 w-3.5" />
-                        </button>
-                    )}
-                </div>
-
-                {/* SUB-HEADER: Financials & Rules (Cleaner Integration) */}
-                <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">WIN:</span>
-                            <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{firstPrize/1000}K</span>
-                        </div>
-                        <div className="w-px h-2 bg-white/5" />
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">PEN:</span>
-                            <span className="text-[9px] font-bold text-white tracking-tighter uppercase">{bottom25Penalty/1000}K</span>
-                        </div>
-                        <div className="w-px h-2 bg-white/5" />
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50">GUEST:</span>
-                            <span className="text-[9px] font-bold text-white tracking-tighter uppercase">10K</span>
-                        </div>
-                    </div>
-                    
-                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden">
-                        <span className="text-[8px] font-black text-[#C9B075] uppercase tracking-widest opacity-50 shrink-0">RULES:</span>
-                        <span className="text-[9px] font-bold text-white/60 tracking-tighter italic uppercase truncate">
-                            {matchRules?.slice(0, 30) || '1:1 시작, 노에드, 타이 3:3'}
+                        <span
+                            className={syncStatus === 'ERROR' ? 'animate-pulse' : ''}
+                            style={{
+                                width: 7, height: 7, borderRadius: '50%',
+                                background:
+                                    syncStatus === 'HEALTHY' ? '#16A085' :
+                                    syncStatus === 'ERROR' ? '#EF4444' : '#F4C979',
+                                boxShadow: syncStatus === 'HEALTHY' ? '0 0 6px rgba(22,160,133,0.45)' : 'none',
+                            }}
+                        />
+                        <span style={{
+                            fontSize: 10, fontWeight: 800,
+                            letterSpacing: '0.06em', textTransform: 'uppercase',
+                            color: '#56729A', whiteSpace: 'nowrap',
+                        }}>
+                            {syncStatus === 'HEALTHY' ? '연결됨' : syncStatus === 'IDLE' ? '대기중' : '동기화 중'}
                         </span>
                     </div>
                 </div>
 
-                {/* 전광판 티커 수동 메시지 — 관리자 전용 */}
+                {/* ROW 2: action buttons (전광판 / 링크복사 / 대진표 / 결과 / 설정) */}
+                <div className="flex w-full flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={openDisplayBoard}
+                        disabled={!activeSessionId}
+                        className="shrink-0 inline-flex items-center justify-center whitespace-nowrap transition-all active:scale-95 disabled:cursor-not-allowed"
+                        style={{
+                            height: 36, padding: '0 14px', borderRadius: 999,
+                            border: !activeSessionId ? '1px solid #E1EAF5' : '1px solid #2563EB',
+                            background: !activeSessionId ? '#F6FAFD' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                            color: !activeSessionId ? '#9CB2CC' : '#FFFFFF',
+                            fontSize: 12.5, fontWeight: 900, letterSpacing: '0.04em',
+                            boxShadow: !activeSessionId ? 'none' : '0 6px 14px rgba(37,99,235,0.22)',
+                        }}
+                        title="전광판 열기"
+                    >
+                        전광판
+                    </button>
+                    <button
+                        type="button"
+                        onClick={copyDisplayBoardUrl}
+                        disabled={!activeSessionId}
+                        className="shrink-0 inline-flex items-center justify-center whitespace-nowrap transition-all active:scale-95 disabled:cursor-not-allowed"
+                        style={{
+                            height: 36, padding: '0 14px', borderRadius: 999,
+                            border: '1px solid #DCE8F5', background: '#FFFFFF',
+                            color: !activeSessionId ? '#9CB2CC' : '#1F5FB5',
+                            fontSize: 12.5, fontWeight: 900, letterSpacing: '0.04em',
+                        }}
+                        title="전광판 링크 복사"
+                    >
+                        링크복사
+                    </button>
+                    <button
+                        type="button"
+                        onClick={execCopySchedule}
+                        className="shrink-0 inline-flex items-center justify-center whitespace-nowrap transition-all active:scale-95"
+                        style={{
+                            height: 36, padding: '0 14px', borderRadius: 999,
+                            border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#3B5A85',
+                            fontSize: 12.5, fontWeight: 900, letterSpacing: '0.04em',
+                        }}
+                        title="대진표 복사"
+                    >
+                        대진표
+                    </button>
+                    <button
+                        type="button"
+                        onClick={copyFinalResults}
+                        className="shrink-0 inline-flex items-center justify-center whitespace-nowrap transition-all active:scale-95"
+                        style={{
+                            height: 36, padding: '0 14px', borderRadius: 999,
+                            border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#3B5A85',
+                            fontSize: 12.5, fontWeight: 900, letterSpacing: '0.04em',
+                        }}
+                        title="결과 공유"
+                    >
+                        결과
+                    </button>
+                    {adminModeManual && isAdmin && (
+                        <button
+                            type="button"
+                            onClick={() => setShowMemberEditModal(true)}
+                            className="shrink-0 inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-all active:scale-95"
+                            style={{
+                                height: 36, padding: '0 14px', borderRadius: 999,
+                                border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#3B5A85',
+                                fontSize: 12.5, fontWeight: 900, letterSpacing: '0.04em',
+                            }}
+                            title="라이브 설정"
+                        >
+                            <Settings className="h-3.5 w-3.5" />
+                            설정
+                        </button>
+                    )}
+                </div>
+
+                {/* ROW 3: operation info pills (WIN / PEN / GUEST / RULES) */}
+                <div className="flex w-full flex-wrap items-center gap-2">
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        borderRadius: 999, padding: '4px 10px',
+                        background: '#EEF5FB', border: '1px solid #DCE8F5',
+                    }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>WIN</span>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>{firstPrize/1000}K</span>
+                    </span>
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        borderRadius: 999, padding: '4px 10px',
+                        background: '#EEF5FB', border: '1px solid #DCE8F5',
+                    }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>PEN</span>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>{bottom25Penalty/1000}K</span>
+                    </span>
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        borderRadius: 999, padding: '4px 10px',
+                        background: '#EEF5FB', border: '1px solid #DCE8F5',
+                    }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>GUEST</span>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>10K</span>
+                    </span>
+                    <span
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            minWidth: 0, flex: '1 1 100%',
+                            borderRadius: 12, padding: '6px 10px',
+                            background: '#F6FAFD', border: '1px solid #E1EAF5',
+                        }}
+                    >
+                        <span style={{ flexShrink: 0, fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>RULES</span>
+                        <span style={{
+                            minWidth: 0, flex: 1,
+                            fontSize: 11, fontWeight: 700, color: '#3F5B82', lineHeight: 1.4,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                            {matchRules?.slice(0, 60) || '1:1 시작, 노애드, 타이 3:3 시작 7포인트 선승'}
+                        </span>
+                    </span>
+                </div>
+
+                {/* ROW 4: TICKER input + SAVE (admin only) */}
                 {isAdmin && kdkEntryMode === 'LIVE' && (
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <span className="shrink-0 text-[8px] font-black uppercase tracking-widest text-[#C9B075] opacity-50">TICKER:</span>
-                            <input
-                                type="text"
-                                value={tickerMsg}
-                                onChange={(e) => setTickerMsg(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') saveTickerMsg(); }}
-                                maxLength={120}
-                                placeholder="전광판 티커 메시지 입력..."
-                                className="min-w-0 flex-1 rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-bold text-white placeholder-white/20 outline-none focus:border-[#C9B075]/40"
-                            />
-                        </div>
+                    <div style={{ paddingTop: 8, borderTop: '1px dashed #E1EAF5', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flexShrink: 0, fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>TICKER</span>
+                        <input
+                            type="text"
+                            value={tickerMsg}
+                            onChange={(e) => setTickerMsg(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveTickerMsg(); }}
+                            maxLength={120}
+                            placeholder="전광판 티커 메시지 입력..."
+                            style={{
+                                minWidth: 0, flex: 1, height: 32,
+                                borderRadius: 10, border: '1px solid #DCE8F5',
+                                background: '#F8FBFE',
+                                padding: '0 12px',
+                                fontSize: 12, fontWeight: 700,
+                                color: '#0F2747',
+                                outline: 'none',
+                            }}
+                        />
                         <button
                             type="button"
                             onClick={saveTickerMsg}
                             disabled={tickerSaving || !activeSessionId}
-                            className={`shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
-                                tickerSaveOk
-                                    ? 'border-emerald-400/45 text-emerald-300'
-                                    : 'border-[#C9B075]/35 text-[#C9B075]'
-                            }`}
+                            className="shrink-0 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                            style={{
+                                height: 32, padding: '0 14px', borderRadius: 999,
+                                fontSize: 10, fontWeight: 900,
+                                letterSpacing: '0.16em', textTransform: 'uppercase',
+                                background: tickerSaveOk ? '#E0F5EB' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                border: tickerSaveOk ? '1px solid #B6E2CB' : 'none',
+                                color: tickerSaveOk ? '#16A085' : '#FFFFFF',
+                                boxShadow: tickerSaveOk ? 'none' : '0 6px 14px rgba(37,99,235,0.22)',
+                                cursor: 'pointer',
+                            }}
                         >
                             {tickerSaveOk ? 'SAVED' : tickerSaving ? '···' : 'SAVE'}
                         </button>
                     </div>
                 )}
-            </div>
+            </header>
 
-            <div className="flex-1 space-y-0 overflow-y-auto px-3 pb-60 antialiased no-scrollbar sm:px-4" style={{ background: '#14161a', paddingBottom: 'calc(260px + env(safe-area-inset-bottom))' }}>
+            <div className="flex-1 space-y-0 overflow-y-auto px-3 antialiased no-scrollbar sm:px-4" style={{ background: '#F4F8FC', paddingBottom: 'calc(var(--page-bottom-safe) + 100px)' }}>
                 {activeTab === 'MATCHES' && (
                     <>
                         <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                 <div className="flex items-center gap-3 ml-2">
-                                    <h2 className="text-xl font-black italic tracking-tighter uppercase text-white">NOW PLAYING</h2>
+                                    <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', textTransform: 'uppercase', color: '#0F2747' }}>NOW PLAYING</h2>
                                     {activeMatchIds.length > 0 && (
-                                        <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                        <span style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                                            padding: '4px 10px', borderRadius: 999,
+                                            background: '#FDEEEE', border: '1px solid #F4C7C7',
+                                            color: '#C0392B',
+                                            fontSize: 10, fontWeight: 900,
+                                            letterSpacing: '0.18em', textTransform: 'uppercase',
+                                        }}>
+                                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#EF4444' }} className="animate-pulse" />
                                             {activeMatchIds.length} LIVE
                                         </span>
                                     )}
                                 </div>
-                                <div className="mt-2 h-1 w-32 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" />
+                                <div className="mt-2 h-0.5 w-32 ml-2" style={{ background: 'linear-gradient(to right, #2563EB, rgba(37,99,235,0.2), transparent)' }} />
                             </div>
 
                             {activeMatchIds.length === 0 ? (
-                                <div className="py-16 text-center text-white/20 border border-dashed border-white/10 rounded-2xl text-[12px] uppercase font-black tracking-widest">Waiting for next round...</div>
+                                <div style={{ padding: '48px 0', textAlign: 'center', color: '#9CB2CC', border: '1px dashed #C7DCF1', borderRadius: 18, background: '#F8FBFE', fontSize: 12, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+                                    Waiting for next round...
+                                </div>
                             ) : (
                                 <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5">
                                     {activeMatchIds
@@ -5168,7 +5163,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
-                                    <div className="py-10 text-center opacity-10 text-[10px] uppercase font-black tracking-widest border border-dashed border-white/5 rounded-[32px]">No Matches in Queue</div>
+                                    <div style={{ padding: '36px 0', textAlign: 'center', color: '#9CB2CC', border: '1px dashed #C7DCF1', borderRadius: 18, background: '#F8FBFE', fontSize: 11, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase' }}>No Matches in Queue</div>
                                 );
 
                                 return ['A', 'B'].map(group => {
@@ -5186,10 +5181,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     return (
                                         <div key={group} className="space-y-3">
                                             <div className="flex flex-col" style={{ marginBottom: '16px', marginTop: '32px' }}>
-                                                <h3 className="text-lg font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>
-                                                    {`${isB ? 'BLUE / B조' : 'GOLD / A조'} WAITING`}
+                                                <h3 style={{ margin: 0, marginLeft: 8, fontSize: 16, fontWeight: 900, letterSpacing: '-0.02em', textTransform: 'uppercase', color: '#0F2747' }}>
+                                                    {`${isB ? 'B조' : 'A조'} WAITING`}
                                                 </h3>
-                                                <div className="mt-2 h-1 w-32 ml-2" style={{ background: `linear-gradient(to right, ${col}, ${col}33, transparent)` }} />
+                                                <div className="mt-2 h-0.5 w-32 ml-2" style={{ background: `linear-gradient(to right, ${isB ? '#0EA5E9' : '#2563EB'}, rgba(37,99,235,0.2), transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-6">
                                                 {(() => {
@@ -5198,10 +5193,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                         const matchesInRound = groupMatches.filter(m => (m.round || 1) === roundNum);
                                                         return (
                                                                 <div key={roundNum} className="space-y-3">
-                                                                <div className="mb-1 ml-2 flex items-center gap-2 opacity-60">
-                                                                    <div className="h-[1px] w-4" style={{ background: col }} />
-                                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: col }}>ROUND {roundNum}</span>
-                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${col}66, transparent)` }} />
+                                                                <div className="mb-1 ml-2 flex items-center gap-2">
+                                                                    <div className="h-[1px] w-4" style={{ background: isB ? '#0EA5E9' : '#2563EB' }} />
+                                                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: isB ? '#0EA5E9' : '#1F5FB5' }}>ROUND {roundNum}</span>
+                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${isB ? '#0EA5E9' : '#2563EB'}66, transparent)` }} />
                                                                 </div>
                                                                 {matchesInRound.map((m, idx) => {
                                                                     const matchNo = getDisplayMatchNo(m);
@@ -5209,8 +5204,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                                     const hasConflict = busyPlayerIds.has(m.playerIds[0]) || busyPlayerIds.has(m.playerIds[1]) || busyPlayerIds.has(m.playerIds[2]) || busyPlayerIds.has(m.playerIds[3]);
 
                                                                     return (
-                                                                        <div key={m.id} className={`relative rounded-2xl ${playingPlayerIdsInMatch.length > 0 ? 'ring-1 ring-red-500/25 shadow-[0_0_18px_rgba(239,68,68,0.16)]' : ''}`}>
-                                                                        <WaitingMatchCard 
+                                                                        <WaitingMatchCard
                                                                             key={m.id}
                                                                             match={m}
                                                                             index={idx}
@@ -5224,34 +5218,6 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                                                 startMatch(id);
                                                                             }}
                                                                         />
-                                                                            {playingPlayerIdsInMatch.length > 0 && (
-                                                                                <div className="pointer-events-none absolute left-[58px] right-[86px] top-[18px] z-20 grid grid-cols-[1fr_18px_1fr] items-start">
-                                                                                    <div className="grid grid-cols-2 gap-1 px-1">
-                                                                                        {[0, 1].map((playerIndex) => (
-                                                                                            <div key={playerIndex} className="flex justify-center">
-                                                                                                {busyPlayerIds.has(m.playerIds[playerIndex]) && (
-                                                                                                    <span className="rounded-full border border-red-400/45 bg-red-500/22 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-50 shadow-[0_0_10px_rgba(239,68,68,0.32)]">
-                                                                                                        LIVE
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                    <div />
-                                                                                    <div className="grid grid-cols-2 gap-1 px-1">
-                                                                                        {[2, 3].map((playerIndex) => (
-                                                                                            <div key={playerIndex} className="flex justify-center">
-                                                                                                {busyPlayerIds.has(m.playerIds[playerIndex]) && (
-                                                                                                    <span className="rounded-full border border-red-400/45 bg-red-500/22 px-1.5 py-0.5 text-[7px] font-black leading-none text-red-50 shadow-[0_0_10px_rgba(239,68,68,0.32)]">
-                                                                                                        LIVE
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
                                                                     );
                                                                 })}
                                                             </div>
@@ -5267,8 +5233,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
                         {matches.some(m => m.status === 'complete') && (
                             <div style={{ marginTop: '32px' }}>
-                                <h3 className="text-xl font-black italic tracking-tighter uppercase text-white ml-2" style={{ filter: 'drop-shadow(0 2px 4px rgba(255,255,255,0.2))' }}>COMPLETED MATCHES</h3>
-                                <div className="mt-2 h-1.5 w-48 ml-2 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/20 to-transparent" style={{ marginBottom: '16px' }} />
+                                <h3 style={{ margin: 0, marginLeft: 8, fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', textTransform: 'uppercase', color: '#56729A' }}>COMPLETED MATCHES</h3>
+                                <div className="mt-2 h-0.5 w-48 ml-2" style={{ background: 'linear-gradient(to right, #56729A, rgba(86,114,154,0.2), transparent)', marginBottom: '16px' }} />
                                 <div className="grid grid-cols-2 gap-3 mt-4">
                                     {matches.filter(m => m.status === 'complete')
                                         .sort((a, b) => {
@@ -5330,30 +5296,75 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
             </div>
 
-            <nav className="fixed bottom-24 left-1/2 z-[90] flex w-[94%] max-w-[440px] -translate-x-1/2 items-center justify-between gap-2 rounded-[28px] border border-white/10 bg-white/5 p-1.5 shadow-[0_20px_100px_rgba(0,0,0,0.8)] backdrop-blur-2xl sm:gap-3 sm:rounded-[32px] sm:p-2">
+            <nav
+                className="fixed left-1/2 z-[90] flex w-[94%] max-w-[440px] -translate-x-1/2 items-center justify-between gap-2 p-1.5 sm:gap-3 sm:p-2"
+                style={{
+                    bottom: 'calc(var(--bottom-nav-area) + 12px)',
+                    borderRadius: 24,
+                    background: '#FFFFFF',
+                    border: '1px solid #DCE8F5',
+                    boxShadow: '0 14px 32px rgba(15,45,85,0.10)',
+                }}
+            >
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('MATCHES'); }}
-                    className={`flex-1 rounded-[22px] py-4 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-tighter sm:rounded-[24px] sm:py-6 sm:gap-5 ${activeTab === 'MATCHES' ? 'bg-[#C9B075]/10 text-[#C9B075] font-black text-[18px] sm:text-[22px] shadow-[0_0_20px_rgba(201,176,117,0.2),inset_0_0_10px_rgba(201,176,117,0.1)] border border-[#C9B075]/30' : 'text-white/40 font-bold text-[17px] sm:text-[20px] hover:text-white/60'}`}
+                    className="flex-1 flex items-center justify-center gap-2 transition-all active:scale-95 sm:gap-3"
+                    style={{
+                        padding: '12px 0',
+                        borderRadius: 18,
+                        background: activeTab === 'MATCHES' ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : 'transparent',
+                        color: activeTab === 'MATCHES' ? '#FFFFFF' : '#56729A',
+                        border: 'none',
+                        fontSize: 15,
+                        fontWeight: 900,
+                        letterSpacing: '0.04em',
+                        boxShadow: activeTab === 'MATCHES' ? '0 8px 18px rgba(37,99,235,0.24)' : 'none',
+                        cursor: 'pointer',
+                    }}
                 >
-                    🔥 MATCHES
+                    🔥 경기
                 </button>
                 <button
                     onClick={() => { if (window.navigator?.vibrate) window.navigator.vibrate(50); setActiveTab('RANKING'); }}
-                    className={`flex-1 rounded-[22px] py-4 flex items-center justify-center gap-3 transition-all active:scale-95 uppercase tracking-tighter sm:rounded-[24px] sm:py-6 sm:gap-5 ${activeTab === 'RANKING' ? 'bg-white/10 text-white font-black text-[18px] sm:text-[22px] shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20' : 'text-white/40 font-bold text-[17px] sm:text-[20px] hover:text-white/60'}`}
+                    className="flex-1 flex items-center justify-center gap-2 transition-all active:scale-95 sm:gap-3"
+                    style={{
+                        padding: '12px 0',
+                        borderRadius: 18,
+                        background: activeTab === 'RANKING' ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : 'transparent',
+                        color: activeTab === 'RANKING' ? '#FFFFFF' : '#56729A',
+                        border: 'none',
+                        fontSize: 15,
+                        fontWeight: 900,
+                        letterSpacing: '0.04em',
+                        boxShadow: activeTab === 'RANKING' ? '0 8px 18px rgba(37,99,235,0.24)' : 'none',
+                        cursor: 'pointer',
+                    }}
                 >
-                    📊 RANKING
+                    📊 순위
                 </button>
-
             </nav>
 
 
             {allMatchesScored && step === 3 && activeTab === 'MATCHES' && (
-                <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60] animate-in slide-in-from-bottom-10 fade-in duration-500">
+                <div className="fixed left-1/2 -translate-x-1/2 w-full max-w-[450px] px-6 z-[60] animate-in slide-in-from-bottom-10 fade-in duration-500"
+                    style={{ bottom: 'calc(var(--bottom-nav-area) + 84px)' }}
+                >
                     <button
                         onClick={handleStartCeremony}
-                        className="w-full py-5 bg-gradient-to-r from-[#C9B075] to-[#B8860B] text-black font-bold rounded-full shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 transition-all text-[13px] tracking-[0.2em] uppercase flex items-center justify-center gap-3 border border-white/20 animate-pulse"
+                        style={{
+                            width: '100%', padding: '16px 0',
+                            background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                            color: '#FFFFFF',
+                            borderRadius: 16, border: 'none',
+                            fontSize: 13, fontWeight: 900,
+                            letterSpacing: '0.16em', textTransform: 'uppercase',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                            boxShadow: '0 16px 32px rgba(37,99,235,0.30)',
+                            cursor: 'pointer',
+                        }}
+                        className="active:scale-95 transition-all"
                     >
-                        <span>🏆 즉시 순위 및 축하 화면 보러가기</span>
+                        <span>🏆 순위 및 축하 화면 보러가기</span>
                     </button>
                 </div>
             )}
