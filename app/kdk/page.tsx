@@ -3957,50 +3957,98 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     </section>
 
                     {!isManualRulesMode ? (
-                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
+                    <section style={{
+                        background: '#FFFFFF', border: '1px solid #DCE8F5',
+                        borderRadius: 22, padding: 18, marginBottom: 0,
+                        boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <h3 style={{
+                                margin: 0, display: 'flex', alignItems: 'center', gap: 8,
+                                fontSize: 12, fontWeight: 900, color: '#1F5FB5',
+                                letterSpacing: '0.22em', textTransform: 'uppercase',
+                            }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
                                 ATTENDEE MATRIX
                             </h3>
-                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{attendees.length} ACTIVE</span>
+                            <span style={{
+                                borderRadius: 999, padding: '4px 10px',
+                                background: '#F6FAFD', border: '1px solid #DCE8F5',
+                                fontSize: 10, fontWeight: 900, color: '#56729A',
+                                letterSpacing: '0.14em', textTransform: 'uppercase',
+                            }}>
+                                {attendees.length} ACTIVE
+                            </span>
                         </div>
-                        <div className="space-y-2 no-scrollbar" style={{ maxHeight: '480px', overflowY: 'auto' }}>
+                        <div className="no-scrollbar" style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto' }}>
                             {attendees.map(m => {
                                 const config = attendeeConfigs[m.id] || { id: m.id, name: m.name, startTime: "19:00", endTime: "22:00", group: "A" };
                                 return (
-                                    <div key={m.id} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-
-                                        <span style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>
+                                    <div key={m.id} style={{
+                                        background: '#F8FBFE', border: '1px solid #E1EAF5',
+                                        borderRadius: 16, padding: '12px 14px',
+                                        display: 'flex', flexDirection: 'column', gap: 8,
+                                    }}>
+                                        <span style={{ fontSize: 14, fontWeight: 800, color: '#0F2747' }}>
                                             {m.name}{m.is_guest ? ' (G)' : ''}
                                         </span>
 
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, isLate: !config.isLate } }))}
-                                                    style={{ width: '32px', height: '32px', borderRadius: '10px', border: config.isLate ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.1)', background: config.isLate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' }}
+                                                    style={{
+                                                        width: 32, height: 32, borderRadius: 10,
+                                                        border: config.isLate ? '1px solid #F4C979' : '1px solid #DCE8F5',
+                                                        background: config.isLate ? '#FFF4DE' : '#FFFFFF',
+                                                        color: config.isLate ? '#B7791F' : '#7A93B3',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer', fontSize: 14,
+                                                    }}
                                                 >🕒</button>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#0A0A0A', borderRadius: '12px', padding: '4px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>
-                                                        {timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}
+                                                <div style={{
+                                                    display: 'flex', alignItems: 'center', gap: 4,
+                                                    background: '#FFFFFF', borderRadius: 12,
+                                                    padding: '4px 8px', border: '1px solid #DCE8F5',
+                                                }}>
+                                                    <select value={config.startTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, startTime: e.target.value } }))} style={{ background: 'transparent', color: '#0F2747', fontSize: 13, fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: 46, cursor: 'pointer', border: 'none' }}>
+                                                        {timeOptions.map(t => <option key={t} value={t} style={{ background: '#FFFFFF', color: '#0F2747' }}>{t}</option>)}
                                                     </select>
-                                                    <span style={{ color: '#6B7280', fontSize: '10px', fontWeight: 700 }}>TO</span>
-                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} style={{ background: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: '46px', cursor: 'pointer' }}>
-                                                        {timeOptions.map(t => <option key={t} value={t} style={{ background: '#1C1C28' }}>{t}</option>)}
+                                                    <span style={{ color: '#9CB2CC', fontSize: 10, fontWeight: 700 }}>TO</span>
+                                                    <select value={config.endTime} onChange={e => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, endTime: e.target.value } }))} style={{ background: 'transparent', color: '#0F2747', fontSize: 13, fontWeight: 700, outline: 'none', appearance: 'none', textAlign: 'center', width: 46, cursor: 'pointer', border: 'none' }}>
+                                                        {timeOptions.map(t => <option key={t} value={t} style={{ background: '#FFFFFF', color: '#0F2747' }}>{t}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                            <div style={{ display: 'flex', gap: 6 }}>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'A' } }))}
-                                                    style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'A' ? '#C9B075' : '#0A0A0A', color: config.group === 'A' ? '#000' : '#fff', border: config.group === 'A' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
+                                                    style={{
+                                                        width: 40, height: 40, borderRadius: 12,
+                                                        background: config.group === 'A' ? '#2563EB' : '#FFFFFF',
+                                                        color: config.group === 'A' ? '#FFFFFF' : '#56729A',
+                                                        border: config.group === 'A' ? 'none' : '1px solid #DCE8F5',
+                                                        fontWeight: 900, fontSize: 15,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        boxShadow: config.group === 'A' ? '0 6px 14px rgba(37,99,235,0.24)' : 'none',
+                                                        transition: 'all 0.15s',
+                                                    }}
                                                 >A</button>
                                                 <button
                                                     onClick={() => setAttendeeConfigs(prev => ({ ...prev, [m.id]: { ...config, group: 'B' } }))}
-                                                    style={{ width: '40px', height: '40px', borderRadius: '12px', background: config.group === 'B' ? '#C9B075' : '#0A0A0A', color: config.group === 'B' ? '#000' : '#fff', border: config.group === 'B' ? 'none' : '1px solid #555', fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
+                                                    style={{
+                                                        width: 40, height: 40, borderRadius: 12,
+                                                        background: config.group === 'B' ? '#2563EB' : '#FFFFFF',
+                                                        color: config.group === 'B' ? '#FFFFFF' : '#56729A',
+                                                        border: config.group === 'B' ? 'none' : '1px solid #DCE8F5',
+                                                        fontWeight: 900, fontSize: 15,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        boxShadow: config.group === 'B' ? '0 6px 14px rgba(37,99,235,0.24)' : 'none',
+                                                        transition: 'all 0.15s',
+                                                    }}
                                                 >B</button>
                                             </div>
                                         </div>
@@ -4010,42 +4058,101 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         </div>
                     </section>
                     ) : (
-                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px', overflow: 'visible' }}>
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-[13px] font-bold text-[#C9B075] tracking-[0.3em] uppercase flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
+                    <section style={{
+                        background: '#FFFFFF', border: '1px solid #DCE8F5',
+                        borderRadius: 22, padding: 18, marginBottom: 0,
+                        boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                        overflow: 'visible',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <h3 style={{
+                                margin: 0, display: 'flex', alignItems: 'center', gap: 8,
+                                fontSize: 12, fontWeight: 900, color: '#1F5FB5',
+                                letterSpacing: '0.22em', textTransform: 'uppercase',
+                            }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
                                 MANUAL MATCH SUMMARY
                             </h3>
-                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{manualMatchedRows.length} MATCHES</span>
+                            <span style={{
+                                borderRadius: 999, padding: '4px 10px',
+                                background: '#F6FAFD', border: '1px solid #DCE8F5',
+                                fontSize: 10, fontWeight: 900, color: '#56729A',
+                                letterSpacing: '0.14em', textTransform: 'uppercase',
+                            }}>
+                                {manualMatchedRows.length} MATCHES
+                            </span>
                         </div>
-                        <div className="mt-4 space-y-4">
+                        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
                             {manualMatchedGroups.map(({ group, rows }) => (
-                                <div key={`manual-rules-group-${group}`} className="space-y-2">
-                                    <div className="flex items-center gap-2 px-1">
-                                        <span className="rounded-full border border-[#C9B075]/35 bg-[#C9B075]/10 px-3 py-1 text-[10px] font-black text-[#C9B075]">
+                                <div key={`manual-rules-group-${group}`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 2px' }}>
+                                        <span style={{
+                                            borderRadius: 999, padding: '4px 10px',
+                                            background: '#FFF4DE', border: '1px solid #F4C979',
+                                            fontSize: 10, fontWeight: 900, color: '#B7791F',
+                                            letterSpacing: '0.06em',
+                                        }}>
                                             {getManualGroupLabel(group)}
                                         </span>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/25">
+                                        <span style={{
+                                            fontSize: 10, fontWeight: 800,
+                                            letterSpacing: '0.16em', textTransform: 'uppercase',
+                                            color: '#7A93B3',
+                                        }}>
                                             {rows.length} matches
                                         </span>
                                     </div>
                                     {rows.map((row, index) => (
-                                        <div key={`${row.raw}-rules-${group}-${index}`} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <span style={{ width: '28px', height: '28px', borderRadius: '999px', background: '#C9B075', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 1000, flexShrink: 0 }}>{row.order}</span>
+                                        <div key={`${row.raw}-rules-${group}-${index}`} style={{
+                                            background: '#F8FBFE', border: '1px solid #E1EAF5',
+                                            borderRadius: 16, padding: '12px 14px',
+                                            display: 'flex', alignItems: 'center', gap: 12,
+                                        }}>
+                                            <span style={{
+                                                width: 28, height: 28, borderRadius: '50%',
+                                                background: '#2563EB', color: '#FFFFFF',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: 11, fontWeight: 900, flexShrink: 0,
+                                            }}>
+                                                {row.order}
+                                            </span>
                                             <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px] font-black text-white">
-                                                    <span className="min-w-0 truncate text-right">{row.teamAResolved.join(' / ')}</span>
-                                                    <span className="shrink-0 whitespace-nowrap rounded-full border border-[#C9B075]/35 px-2 py-0.5 text-[9px] font-black text-[#C9B075]">VS</span>
-                                                    <span className="min-w-0 truncate">{row.teamBResolved.join(' / ')}</span>
+                                                <div style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                                                    alignItems: 'center', gap: 8,
+                                                    fontSize: 12, fontWeight: 800, color: '#0F2747',
+                                                }}>
+                                                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                                        {row.teamAResolved.join(' / ')}
+                                                    </span>
+                                                    <span style={{
+                                                        flexShrink: 0, padding: '1px 6px',
+                                                        borderRadius: 999, border: '1px solid #C7DCF1',
+                                                        color: '#1F5FB5', fontSize: 9, fontWeight: 900,
+                                                    }}>
+                                                        VS
+                                                    </span>
+                                                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {row.teamBResolved.join(' / ')}
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <span style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>{row.time || '--:--'}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 800, color: '#7A93B3', flexShrink: 0 }}>
+                                                {row.time || '--:--'}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
                             ))}
-                            <div style={{ borderRadius: '18px', border: '1px solid rgba(201,176,117,0.18)', background: 'rgba(201,176,117,0.06)', padding: '12px 14px' }}>
-                                <p className="text-[11px] font-bold leading-relaxed text-white/45">
+                            <div style={{
+                                borderRadius: 14, border: '1px solid #F4C979',
+                                background: '#FFF8E6', padding: '12px 14px',
+                            }}>
+                                <p style={{
+                                    margin: 0, fontSize: 11.5, fontWeight: 700,
+                                    lineHeight: 1.55, color: '#8A6A20',
+                                }}>
                                     수동 구성은 승리 점수 6점 고정, 1:1 시작을 기본 전제로 사용합니다.
                                 </p>
                             </div>
@@ -4055,86 +4162,114 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
 
                     {!isManualRulesMode && (
-                    <section style={{ background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '40px', padding: '32px', marginBottom: '12px' }}>
-                        <div className="space-y-6">
-                            <h4 className="text-[13px] font-bold text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3">
-                                <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
+                    <section style={{
+                        background: '#FFFFFF', border: '1px solid #DCE8F5',
+                        borderRadius: 22, padding: 18, marginBottom: 0,
+                        boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <h4 style={{
+                                margin: 0, display: 'flex', alignItems: 'center', gap: 8,
+                                fontSize: 12, fontWeight: 900, color: '#1F5FB5',
+                                letterSpacing: '0.22em', textTransform: 'uppercase',
+                            }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
                                 CORE STRATEGY
                             </h4>
-                            <div className="grid grid-cols-2 gap-4" style={{ marginTop: '20px' }}>
-                                {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => (
-                                    <button
-                                        key={mode}
-                                        onClick={() => setGenMode(mode)}
-                                        style={{
-                                            background: '#141414',
-                                            border: genMode === mode ? '1px solid #C9B075' : '1px solid #2A2A2A',
-                                            color: genMode === mode ? '#C9B075' : '#6B7280',
-                                            transform: genMode === mode ? 'scale(1.03)' : 'scale(1)',
-                                            borderRadius: '24px',
-                                            padding: '24px 8px',
-                                            fontSize: '14px',
-                                            fontWeight: 1000,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.15s'
-                                        }}
-                                    >
-                                        {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
-                                    </button>
-                                ))}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                                {(['RANDOM', 'AGE', 'AWARD', 'MBTI'] as const).map(mode => {
+                                    const active = genMode === mode;
+                                    return (
+                                        <button
+                                            key={mode}
+                                            onClick={() => setGenMode(mode)}
+                                            style={{
+                                                background: active ? '#EEF6FF' : '#FFFFFF',
+                                                border: active ? '2px solid #2563EB' : '1px solid #DCE8F5',
+                                                color: active ? '#1F5FB5' : '#56729A',
+                                                borderRadius: 16,
+                                                padding: '18px 8px',
+                                                fontSize: 13.5,
+                                                fontWeight: 900,
+                                                cursor: 'pointer',
+                                                boxShadow: active ? '0 8px 18px rgba(37,99,235,0.16)' : '0 4px 12px rgba(15,45,85,0.04)',
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            {mode === 'RANDOM' ? 'RANDOM' : mode === 'AGE' ? 'YB/OB' : mode === 'AWARD' ? '입상/비입상' : 'MBTI'}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        <div className="space-y-6 mt-10">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-[13px] font-bold text-[#C9B075] uppercase tracking-[0.3em] flex items-center gap-3">
-                                    <span className="w-2 h-2 rounded-full bg-[#C9B075]" />
+                        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <h4 style={{
+                                    margin: 0, display: 'flex', alignItems: 'center', gap: 8,
+                                    fontSize: 12, fontWeight: 900, color: '#1F5FB5',
+                                    letterSpacing: '0.22em', textTransform: 'uppercase',
+                                }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
                                     FIXED PARTNERS
                                 </h4>
                                 <button
                                     onClick={() => setFixedTeamMode(!fixedTeamMode)}
                                     style={{
-                                        padding: '6px 14px',
-                                        borderRadius: '99px',
-                                        fontSize: '12px',
+                                        padding: '6px 12px',
+                                        borderRadius: 999,
+                                        fontSize: 11,
                                         fontWeight: 800,
-                                        border: fixedTeamMode ? '1px solid #C9B075' : '1px solid rgba(255,255,255,0.3)',
-                                        background: fixedTeamMode ? '#C9B075' : 'transparent',
-                                        color: fixedTeamMode ? '#000' : 'rgba(255,255,255,0.7)',
+                                        border: fixedTeamMode ? 'none' : '1px solid #DCE8F5',
+                                        background: fixedTeamMode ? '#2563EB' : '#FFFFFF',
+                                        color: fixedTeamMode ? '#FFFFFF' : '#56729A',
                                         cursor: 'pointer',
                                         letterSpacing: '0.05em',
-                                        textTransform: 'uppercase'
+                                        textTransform: 'uppercase',
+                                        boxShadow: fixedTeamMode ? '0 6px 14px rgba(37,99,235,0.24)' : 'none',
                                     }}
                                 >
                                     {fixedTeamMode ? 'TEAM MODE' : 'ROUND 1 ONLY'}
                                 </button>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {fixedPartners.map((pair, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#141414', padding: '20px 24px', borderRadius: '24px', border: '1px solid #2A2A2A' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '15px', fontWeight: 1000, color: '#FFFFFF' }}>
+                                    <div key={idx} style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        background: '#F8FBFE', border: '1px solid #E1EAF5',
+                                        padding: '12px 14px', borderRadius: 16,
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, fontWeight: 800, color: '#0F2747' }}>
                                             <span>{getPlayerName(pair[0])}</span>
-                                            <span style={{ color: '#C9B075', fontSize: '18px' }}>♥</span>
+                                            <span style={{ color: '#2563EB', fontSize: 16 }}>♥</span>
                                             <span>{getPlayerName(pair[1])}</span>
                                         </div>
-                                        <button onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))} className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-red-500/50 hover:bg-red-500/20 hover:text-red-500 transition-all text-2xl leading-none">×</button>
+                                        <button
+                                            onClick={() => setFixedPartners(prev => prev.filter((_, i) => i !== idx))}
+                                            style={{
+                                                width: 32, height: 32, borderRadius: '50%',
+                                                background: '#FDEEEE', border: '1px solid #F4C7C7',
+                                                color: '#C0392B', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: 18, lineHeight: 1, cursor: 'pointer',
+                                            }}
+                                        >×</button>
                                     </div>
                                 ))}
                                 <button
                                     onClick={() => setPartnerSelectSource('NEW')}
                                     style={{
                                         width: '100%', padding: '14px 0',
-                                        border: '1px dashed #555',
-                                        borderRadius: '20px',
-                                        fontSize: '13px',
+                                        border: '2px dashed #B6D2EE',
+                                        borderRadius: 16,
+                                        fontSize: 12.5,
                                         fontWeight: 900,
-                                        color: '#A0A0A0',
-                                        background: '#141414',
+                                        color: '#1F5FB5',
+                                        background: '#F6FAFD',
                                         cursor: 'pointer',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.1em',
-                                        transition: 'all 0.15s'
+                                        transition: 'all 0.15s',
                                     }}
                                 >
                                     + ADD FIXED PARTNER
@@ -4399,18 +4534,36 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
 
                 {!isManualRulesMode && partnerSelectSource && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-                        <div style={{ background: '#1C1C1C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '32px', width: '100%', maxWidth: '400px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
+                    <div style={{
+                        position: 'fixed', inset: 0,
+                        background: 'rgba(15,45,85,0.45)', backdropFilter: 'blur(8px)',
+                        zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: 24,
+                    }}>
+                        <div style={{
+                            background: '#FFFFFF', border: '1px solid #DCE8F5',
+                            borderRadius: 24, width: '100%', maxWidth: 400,
+                            padding: 22, display: 'flex', flexDirection: 'column', gap: 18,
+                            boxShadow: '0 24px 60px rgba(15,45,85,0.18)',
+                        }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                 <div>
-                                    <div style={{ fontSize: '11px', fontWeight: 900, color: '#C9B075', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '6px' }}>Strategy</div>
-                                    <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>SELECT PARTNER</h3>
+                                    <div style={{ fontSize: 10, fontWeight: 900, color: '#3B82F6', letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>Strategy</div>
+                                    <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F2747', margin: 0, letterSpacing: '-0.02em' }}>SELECT PARTNER</h3>
                                 </div>
-                                <button onClick={() => setPartnerSelectSource(null)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
+                                <button
+                                    onClick={() => setPartnerSelectSource(null)}
+                                    aria-label="닫기"
+                                    style={{
+                                        width: 36, height: 36, borderRadius: '50%',
+                                        background: '#F6FAFD', border: '1px solid #DCE8F5',
+                                        color: '#56729A', fontSize: 18, lineHeight: 1,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                    }}
+                                >×</button>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '360px', overflowY: 'auto' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
                                 {availablePlayersForPartnering.map(p => {
                                     const isSelected = partnerSelectSource !== 'NEW' && partnerSelectSource === p.id;
                                     return (
@@ -4426,25 +4579,36 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                             }}
                                             style={{
                                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                padding: '16px 20px',
-                                                borderRadius: '16px',
-                                                background: isSelected ? '#C9B075' : '#252525',
-                                                border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                                                color: isSelected ? '#000' : '#fff',
-                                                fontSize: '16px', fontWeight: 800,
+                                                padding: '12px 16px',
+                                                borderRadius: 14,
+                                                background: isSelected ? '#EEF6FF' : '#F8FBFE',
+                                                border: isSelected ? '2px solid #2563EB' : '1px solid #E1EAF5',
+                                                color: '#0F2747',
+                                                fontSize: 14.5, fontWeight: 800,
                                                 cursor: 'pointer',
+                                                textAlign: 'left',
                                                 transition: 'all 0.15s',
-                                                textAlign: 'left'
+                                                boxShadow: isSelected ? '0 6px 14px rgba(37,99,235,0.16)' : 'none',
                                             }}
                                         >
                                             <span>{p.nickname}{p.is_guest ? ' (G)' : ''}</span>
-                                            <span style={{ fontSize: '11px', fontWeight: 600, color: isSelected ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{p.is_guest ? 'GUEST' : 'MEMBER'}</span>
+                                            <span style={{
+                                                fontSize: 10, fontWeight: 800,
+                                                color: p.is_guest ? '#B7791F' : '#1F5FB5',
+                                                textTransform: 'uppercase', letterSpacing: '0.12em',
+                                            }}>
+                                                {p.is_guest ? 'GUEST' : 'MEMBER'}
+                                            </span>
                                         </button>
                                     );
                                 })}
                             </div>
 
-                            <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>
+                            <p style={{
+                                textAlign: 'center', fontSize: 11, fontWeight: 800,
+                                color: '#56729A', textTransform: 'uppercase',
+                                letterSpacing: '0.14em', margin: 0,
+                            }}>
                                 {partnerSelectSource === 'NEW' ? '첫 번째 플레이어를 선택하세요' : (allMembers.find(x => x.id === partnerSelectSource)?.nickname + (allMembers.find(x => x.id === partnerSelectSource)?.is_guest ? ' (G)' : '')) + '의 파트너를 선택하세요'}
                             </p>
                         </div>
