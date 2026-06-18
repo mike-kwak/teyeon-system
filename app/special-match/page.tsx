@@ -37,10 +37,10 @@ export default function SpecialMatchComingSoonPage() {
       style={{
         position: 'relative',
         width: '100%',
-        minHeight: '100vh',
+        minHeight: '100dvh',
+        marginBottom: '-120px',
         backgroundColor: '#F4F8FC',
         color: '#0F2747',
-        paddingBottom: 'env(safe-area-inset-bottom)',
         boxSizing: 'border-box',
       }}
     >
@@ -50,7 +50,7 @@ export default function SpecialMatchComingSoonPage() {
           width: '100%',
           maxWidth: '520px',
           margin: '0 auto',
-          padding: '20px 16px 32px',
+          padding: '20px 16px calc(96px + env(safe-area-inset-bottom))',
           boxSizing: 'border-box',
         }}
       >
