@@ -122,6 +122,17 @@ export default function RankingTab({
             || /\s+g$/i.test(name);
     };
 
+    // Associate members who attend like a regular member (no (G) marker, no PEN signal)
+    // but still owe the guest fee every session. The fee is added to settlement amount;
+    // it does NOT mark them as guest for display purposes nor strip the 1st-place award.
+    const ASSOCIATE_GUEST_FEE_NAMES: ReadonlySet<string> = new Set(['차형원']);
+    const isAssociateGuestFeeMember = (player: any) => {
+        const candidates = [player?.name, player?.nickname, player?.displayName]
+            .map((v) => String(v || '').replace(/\s*\(G\)$/i, '').replace(/\s+g$/i, '').replace(/\s+/g, '').trim())
+            .filter((v) => v.length > 0);
+        return candidates.some((c) => ASSOCIATE_GUEST_FEE_NAMES.has(c));
+    };
+
     const calculateSettlement = (p: any, idx: number, total: number) => {
         let amount = 0;
         const bottomHalfCount = Math.ceil(total / 2);
@@ -129,6 +140,8 @@ export default function RankingTab({
         const isPenaltyTier = idx >= (total - penaltyCount);
         const isFineTier = !isPenaltyTier && idx >= (total - bottomHalfCount);
         const isGuest = isGuestRankedPlayer(p);
+        // Associate members aren't displayed as guests, but their fee is folded into settlement.
+        const owesGuestFee = isGuest || isAssociateGuestFeeMember(p);
 
         let performancePenalty = 0;
         if (idx === 0 && !isGuest) {
@@ -139,7 +152,7 @@ export default function RankingTab({
             performancePenalty = -(prizes.l1 || 3000);
         }
 
-        amount = performancePenalty - (isGuest ? guestFee : 0);
+        amount = performancePenalty - (owesGuestFee ? guestFee : 0);
 
         return { amount, isPenaltyTier, isFineTier };
     };
