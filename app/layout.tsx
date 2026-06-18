@@ -67,7 +67,7 @@ const GlobalMain = styled('main', {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  paddingBottom: '120px',
+  paddingBottom: 'var(--page-bottom-safe)',
 });
 
 export default function RootLayout({

@@ -65,7 +65,8 @@ export default function BottomNav() {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 500,
-        height: 72,
+        height: 'var(--bottom-nav-area)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         width: '100%',
         maxWidth: 450,
         backgroundColor: 'rgba(255,255,255,0.97)',
@@ -76,6 +77,7 @@ export default function BottomNav() {
         display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'center',
+        boxSizing: 'border-box',
       }}
     >
       <div
