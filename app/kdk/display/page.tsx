@@ -23,6 +23,16 @@ type PlayerLookup = Record<string, { name: string; isGuest: boolean }>;
 const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 1080;
 
+const CANVAS_PADDING = 40;
+const HEADER_HEIGHT = 88;
+const TICKER_HEIGHT = 60;
+const STACK_GAP = 14;
+const RANKING_TOWER_HEIGHT =
+  DESIGN_HEIGHT - CANVAS_PADDING * 2 - HEADER_HEIGHT - STACK_GAP - TICKER_HEIGHT - STACK_GAP;
+const RANKING_HEADER_H = 48;
+const RANKING_PODIUM_H = 158;
+const RANKING_LIST_HEADER_H = 32;
+
 const formatClock = () => {
   return new Date().toLocaleTimeString('ko-KR', {
     hour12: false,
@@ -59,7 +69,7 @@ function resolveDisplayRowGroup(row: any) {
 }
 
 function mapMatch(row: any): Match {
-  return {
+  const m: any = {
     id: String(row.id),
     playerIds: row.player_ids || row.playerIds || [],
     playerNames: row.player_names || row.playerNames || [],
@@ -71,7 +81,9 @@ function mapMatch(row: any): Match {
     round: row.round,
     teams: row.teams,
     groupName: resolveDisplayRowGroup(row),
+    startedAt: row.started_at || row.startedAt || row.updated_at || row.updatedAt || null,
   };
+  return m;
 }
 
 function isLikelyId(value: string) {
@@ -100,6 +112,22 @@ function cleanPlayerName(value?: string) {
   return formatKDKPlayerName(value);
 }
 
+// Ranking Tower strips the (G) suffix so guests blend into the leaderboard like regular
+// members. Court cards / Up Next still get the (G) marker from cleanPlayerName().
+function rankingDisplayName(value?: string) {
+  return String(value || '').replace(/\s*\(G\)\s*$/i, '').trim();
+}
+
+// Associate members who are displayed as regular members but must pay the guest fee
+// each time they attend a KDK session. They never get the (G) marker nor a PEN badge
+// just because of the fee — only an actual fine/penalty tier triggers PEN.
+const ASSOCIATE_GUEST_FEE_NAMES: ReadonlySet<string> = new Set(['차형원']);
+function owesAssociateGuestFee(player: { name?: string; isGuest?: boolean }) {
+  if (player.isGuest) return false; // already counted as a regular guest
+  const clean = rankingDisplayName(player.name).replace(/\s+/g, '');
+  return clean.length > 0 && ASSOCIATE_GUEST_FEE_NAMES.has(clean);
+}
+
 function normalizeDisplayGroup(value?: string) {
   const raw = String(value || '').trim().toUpperCase();
   if (!raw) return '';
@@ -114,14 +142,15 @@ function getDisplayGroupMeta(value?: string) {
   return {
     normalizedGroup,
     isGroupB,
-    label: isGroupB ? 'B조 / BLUE' : 'A조 / GOLD',
     groupLabel: isGroupB ? 'B조' : 'A조',
-    accent: isGroupB ? '#38BFFF' : '#F0B93F',
-    accentStrong: isGroupB ? '#22A7F2' : '#FFD66B',
-    accentSoft: isGroupB ? 'rgba(56, 191, 255, 0.13)' : 'rgba(240, 185, 63, 0.13)',
-    accentMid: isGroupB ? 'rgba(56, 191, 255, 0.24)' : 'rgba(240, 185, 63, 0.24)',
-    border: isGroupB ? 'rgba(56, 191, 255, 0.68)' : 'rgba(240, 185, 63, 0.66)',
-    panel: 'linear-gradient(180deg,rgba(17,31,52,0.92),rgba(9,14,26,0.95)_54%,rgba(6,10,18,0.98))',
+    accent: isGroupB ? '#0E96AE' : '#2F6FEA',
+    accentStrong: isGroupB ? '#086C7C' : '#1747A0',
+    accentDeep: isGroupB ? '#06485A' : '#0B2A66',
+    // Calmer than v5: panel is recognizable group color without being toy-saturated.
+    panel: isGroupB
+      ? 'linear-gradient(165deg, #DDF0ED 0%, #B0D6CE 100%)'
+      : 'linear-gradient(165deg, #DDE8FA 0%, #ADC7EB 100%)',
+    chipBg: isGroupB ? '#0B6B7E' : '#1747A0',
   };
 }
 
@@ -156,6 +185,17 @@ function teamPlayers(match: Match, startIndex: number, playerLookup: PlayerLooku
     playerName(match, startIndex, playerLookup),
     playerName(match, startIndex + 1, playerLookup),
   ];
+}
+
+function formatElapsed(startedAt: string | null | undefined, nowMs: number): string {
+  if (!startedAt) return '';
+  const start = new Date(startedAt).getTime();
+  if (isNaN(start)) return '';
+  const diff = Math.max(0, nowMs - start);
+  const total = Math.min(diff, 99 * 60000 + 59000);
+  const m = Math.floor(total / 60000);
+  const s = Math.floor((total % 60000) / 1000);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLookup): RankingEntry[] {
@@ -243,233 +283,284 @@ function calculateDisplaySettlement(player: RankingEntry, rankIndex: number, tot
     amount = -l1Penalty;
   }
 
-  if (player.isGuest) amount -= guestFee;
+  if (player.isGuest || owesAssociateGuestFee(player)) amount -= guestFee;
 
-  return { amount, isPenalty: amount < 0 };
+  // isPenalty includes the guest fee (for finance/settlement parity, untouched).
+  // isRealPenalty is the rank-tier signal the Ranking Tower uses for its zone / PEN badge,
+  // so guests/associates that aren't in a fine/penalty tier render as ordinary positive rows.
+  return { amount, isPenalty: amount < 0, isRealPenalty: isPenaltyTier || isFineTier };
 }
 
-function CourtCard({ court, match, playerLookup, matchNumber }: { court: number; match?: Match; playerLookup: PlayerLookup; matchNumber?: number }) {
-  const groupName = match?.groupName || match?.group || 'A';
-  const groupMeta = getDisplayGroupMeta(groupName);
+function CourtCard({
+  court,
+  match,
+  playerLookup,
+  matchNumber,
+  nowMs,
+}: {
+  court: number;
+  match?: Match;
+  playerLookup: PlayerLookup;
+  matchNumber?: number;
+  nowMs: number;
+}) {
+  const groupMeta = getDisplayGroupMeta(match?.groupName || match?.group || 'A');
   const teamA = match ? teamPlayers(match, 0, playerLookup) : [];
   const teamB = match ? teamPlayers(match, 2, playerLookup) : [];
+  const live = !!match;
+  const elapsed = live ? formatElapsed((match as any).startedAt, nowMs) : '';
+
+  // Softer Court palette — desaturated so the panel reads as a sports board, not a "blue card".
+  // Up Next still uses groupMeta.accent (saturated), so A/B identity stays vivid there.
+  const accent = live
+    ? (groupMeta.isGroupB ? '#7AA2A8' : '#7A92B8')
+    : '#7F90A8';
+  const accentDeep = live ? groupMeta.accentDeep : '#1F2A3F';
+  const backdrop = live
+    ? (groupMeta.isGroupB
+        ? 'linear-gradient(165deg, #E8F1EE 0%, #C8DDD6 100%)'
+        : 'linear-gradient(165deg, #E6ECF5 0%, #C6D5E7 100%)')
+    : 'linear-gradient(165deg, #E0E6F0 0%, #BFC9DA 100%)';
 
   return (
     <section
-      className="group relative min-h-0 overflow-hidden rounded-[18px] border bg-[#101A2B] shadow-[0_18px_46px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.075)]"
-      style={match ? { borderColor: groupMeta.border, boxShadow: `0 0 0 1px ${groupMeta.accentSoft}, 0 18px 46px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.075)` } : { borderColor: 'rgba(240,185,63,0.24)' }}
+      className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[18px]"
+      style={{
+        background: backdrop,
+        boxShadow: `0 0 0 1.5px ${accent}, 0 10px 22px rgba(20,62,146,0.14), inset 0 1px 0 rgba(255,255,255,0.60), inset 0 0 0 1px rgba(255,255,255,0.18)`,
+      }}
     >
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.07),transparent_34%,rgba(56,191,255,0.035)),radial-gradient(circle_at_50%_100%,rgba(240,185,63,0.08),transparent_44%)]" />
-      <div className="absolute inset-x-0 top-0 h-[4px]" style={{ background: `linear-gradient(to right, transparent, ${match ? groupMeta.accent : 'rgba(240,185,63,0.42)'}, transparent)` }} />
-      <div className="absolute inset-4 rounded-[14px] border border-white/[0.055]" />
-      {match && <div className="absolute inset-y-6 left-0 w-[4px] rounded-r-[6px]" style={{ background: `linear-gradient(to bottom, transparent, ${groupMeta.accent}, transparent)` }} />}
-      {match && (
-        <div className="absolute right-3.5 top-3.5 z-10 flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#FF4848] shadow-[0_0_6px_rgba(255,72,72,0.6)]" />
-          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF4848]">LIVE</span>
-        </div>
-      )}
+      <div className="relative z-10 h-[5px] w-full shrink-0" style={{ background: accent }} />
 
-      <div className="relative flex h-full min-h-0 flex-col p-3.5 2xl:p-4">
-        <div className="flex min-w-0 items-start justify-between gap-3 border-b border-white/8 pb-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-20 shrink-0 items-center justify-center rounded-[10px] border bg-white/[0.055] text-[12px] font-black uppercase tracking-[0.16em] text-white/82" style={{ borderColor: match ? groupMeta.border : 'rgba(255,255,255,0.12)' }}>
-              Court {court}
+      {/* Court interior — left vertical plate (court number) + right main content (info row + players) */}
+      <div className="relative z-10 flex min-h-0 flex-1 items-stretch">
+        {/* Left vertical Court Plate — solid identifier visible at TV distance */}
+        <div
+          className="flex w-[80px] shrink-0 flex-col items-center justify-center gap-0.5"
+          style={{
+            background: `linear-gradient(180deg, rgba(255,255,255,0.22) 0%, ${accentDeep}1F 100%)`,
+            borderRight: `1px solid ${accentDeep}33`,
+          }}
+        >
+          <span
+            className="text-[11px] font-black uppercase tracking-[0.24em]"
+            style={{ color: accentDeep, opacity: 0.72 }}
+          >
+            COURT
+          </span>
+          <span
+            className="text-[60px] font-black leading-none"
+            style={{ color: accentDeep }}
+          >
+            {court}
+          </span>
+        </div>
+
+        {/* Right main content — info row + divider + body */}
+        <div className="flex min-w-0 flex-1 flex-col">
+
+      {/* Top row: A·R·M chip (centered) · elapsed + LIVE/READY (right) — fixed height for cross-card alignment */}
+      <div
+        className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-5"
+        style={{ height: 44 }}
+      >
+        <div />
+        <div className="justify-self-center">
+          {live && (
+            <span
+              className="flex items-center gap-2 rounded-full px-5 py-1.5 text-[18px] font-black tracking-[0.02em] shadow-[0_2px_6px_rgba(20,62,146,0.12)]"
+              style={{
+                color: accentDeep,
+                background: `linear-gradient(180deg, rgba(255,255,255,0.94) 0%, ${accentDeep}14 100%)`,
+                border: `1px solid ${accentDeep}33`,
+              }}
+            >
+              <span style={{ color: groupMeta.chipBg }}>{groupMeta.groupLabel}</span>
+              <span className="opacity-30">·</span>
+              <span className="tabular-nums">{match.round || '-'}R</span>
+              <span className="opacity-30">·</span>
+              <span className="tabular-nums">{matchNumber != null && matchNumber > 0 ? matchNumber : '--'}경기</span>
             </span>
-            {match ? (
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="rounded-[8px] border border-emerald-300/24 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-200">
-                  Playing
-                </span>
-              </div>
-            ) : (
-              <span className="rounded-[8px] border border-emerald-300/22 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-200/82">
-                Ready
-              </span>
-            )}
-          </div>
+          )}
         </div>
+        <div className="flex items-center justify-self-end gap-1.5">
+          {live ? (
+            <>
+              {elapsed && (
+                <span
+                  className="rounded-[8px] bg-white/85 px-2.5 py-1 text-[16px] font-black tabular-nums tracking-[0.04em] shadow-[0_2px_5px_rgba(20,62,146,0.10)]"
+                  style={{ color: accentDeep }}
+                >
+                  {elapsed}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5 rounded-[8px] bg-[#D8324A] px-2.5 py-1 text-[15px] font-black uppercase tracking-[0.18em] text-white shadow-[0_2px_6px_rgba(216,50,74,0.32)]">
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                LIVE
+              </span>
+            </>
+          ) : (
+            <span className="rounded-[8px] bg-[#7F90A8] px-3 py-1 text-[15px] font-black uppercase tracking-[0.22em] text-white">
+              READY
+            </span>
+          )}
+        </div>
+      </div>
 
-        {match ? (
-          <div className="relative flex min-h-0 flex-1 items-center py-3">
-            {matchNumber && matchNumber > 0 && (
-              <div className="pointer-events-none absolute inset-x-0 top-[10px] z-[5] flex justify-center">
-                <span className="rounded-full border border-[#F0B93F]/18 bg-[#F0B93F]/[0.04] px-4 py-1 text-[20px] font-black uppercase tracking-[0.18em] text-[#FFE7A0]/82">
-                  {groupMeta.groupLabel}&nbsp;·&nbsp;R{match.round || '-'}&nbsp;·&nbsp;M{String(matchNumber).padStart(2, '0')}
-                </span>
-              </div>
-            )}
-            <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_70px_minmax(0,1fr)] items-center gap-3 2xl:grid-cols-[minmax(0,1fr)_82px_minmax(0,1fr)] 2xl:gap-4">
-              <div className="relative flex min-h-[122px] min-w-0 flex-col justify-center overflow-hidden rounded-[14px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(12,24,41,0.82))] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-16px_28px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-white/[0.04]" style={{ borderColor: groupMeta.accentMid }}>
-                <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
-                {teamA.map((name, index) => (
-                  <p key={index} className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(21px,1.55vw,34px)] font-black leading-[1.16] text-[#FFF8E8]">
-                    {name}
-                  </p>
-                ))}
-              </div>
-              <div className="flex min-w-0 flex-col items-center justify-center gap-2">
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-                <span className="flex h-[60px] w-[60px] items-center justify-center rounded-full border bg-[#050B14]/92 text-[18px] font-black uppercase tracking-[0.08em] shadow-[0_0_16px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.12)] 2xl:h-[68px] 2xl:w-[68px] 2xl:text-[20px]" style={{ borderColor: groupMeta.border, color: groupMeta.accent }}>
-                  VS
-                </span>
-                <span className="whitespace-nowrap text-[8px] font-black uppercase tracking-[0.18em] text-white/32">
-                  Assignment
-                </span>
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-              </div>
-              <div className="relative flex min-h-[122px] min-w-0 flex-col justify-center overflow-hidden rounded-[14px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(12,24,41,0.82))] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-16px_28px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-white/[0.04]" style={{ borderColor: groupMeta.accentMid }}>
-                <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
-                {teamB.map((name, index) => (
-                  <p key={index} className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[clamp(21px,1.55vw,34px)] font-black leading-[1.16] text-[#FFF8E8]">
-                    {name}
-                  </p>
-                ))}
-              </div>
+      {/* Hairline divider between top info row and body — defines the scoreboard sections */}
+      <div
+        className="relative z-10 mx-5 h-px shrink-0"
+        style={{ background: `linear-gradient(90deg, transparent 0%, ${accentDeep}33 30%, ${accentDeep}33 70%, transparent 100%)` }}
+      />
+
+      {/* Body: name plates stretch to fill card height so the panel reads as one unit, not floating text. */}
+      <div className="relative z-10 grid flex-1 min-h-0 grid-cols-[minmax(0,1fr)_64px_minmax(0,1fr)] items-stretch gap-2 px-3.5 pt-2 pb-3">
+        {live ? (
+          <>
+            <div className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
+              {teamA.map((name, i) => (
+                <p
+                  key={i}
+                  className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center text-[clamp(30px,2.4vw,48px)] font-black leading-[1.04] tracking-[-0.014em] text-[#0A172F]"
+                >
+                  {name}
+                </p>
+              ))}
             </div>
-            <div className="absolute bottom-1 left-0 right-0 flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/28">
-              <span>Live court assignment</span>
-              <span>Score {match.score1 ?? 1}:{match.score2 ?? 1}</span>
+            <div className="flex items-center justify-center">
+              <span
+                className="flex h-[48px] w-[48px] items-center justify-center rounded-full text-[15px] font-black uppercase tracking-[0.06em] text-white shadow-[0_3px_8px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.32)]"
+                style={{ background: accentDeep }}
+              >
+                VS
+              </span>
             </div>
-          </div>
+            <div className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
+              {teamB.map((name, i) => (
+                <p
+                  key={i}
+                  className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center text-[clamp(30px,2.4vw,48px)] font-black leading-[1.04] tracking-[-0.014em] text-[#0A172F]"
+                >
+                  {name}
+                </p>
+              ))}
+            </div>
+          </>
         ) : (
-          <div className="relative flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <p className="text-[clamp(24px,2.2vw,40px)] font-black uppercase tracking-[0.16em] text-[#F0B93F]/86">Standby</p>
-            <div className="h-px w-48 bg-gradient-to-r from-transparent via-[#F0B93F]/48 to-transparent" />
-            <p className="rounded-[10px] border border-white/10 bg-white/[0.035] px-6 py-2 text-[12px] font-black uppercase tracking-[0.16em] text-white/42">
-              Waiting for assignment
-            </p>
+          <div className="col-span-3 flex flex-col items-center justify-center gap-1.5 rounded-[8px] bg-white/22 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.40)]">
+            <p className="text-[34px] font-black uppercase tracking-[0.26em] text-[#3F506A]">STAND BY</p>
+            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-[#5B6B82]">코트 비어있음</p>
           </div>
         )}
+      </div>
+        </div>
       </div>
     </section>
   );
 }
 
-function CompactMatch({ match, index, playerLookup, playingPlayerIds, matchNumber }: { match: Match; index: number; playerLookup: PlayerLookup; playingPlayerIds: Set<string>; matchNumber?: number }) {
+// Single uniform card. NEXT is the first in the lane with a slightly stronger ring
+// and a gold NEXT chip — visually the leader of the queue, not a separate block.
+function UpNextCard({
+  match,
+  index,
+  playerLookup,
+  matchNumber,
+}: {
+  match: Match;
+  index: number;
+  playerLookup: PlayerLookup;
+  matchNumber?: number;
+}) {
   const groupMeta = getDisplayGroupMeta(match.groupName || match.group || 'A');
-  const hasActivePlayer = (match.playerIds || []).some((playerId) => playingPlayerIds.has(playerId));
   const isNext = index === 0;
-  const teamOne = teamLabel(match, 0, playerLookup);
-  const teamTwo = teamLabel(match, 2, playerLookup);
+  const teamA = teamLabel(match, 0, playerLookup);
+  const teamB = teamLabel(match, 2, playerLookup);
+
+  // Meta strip uses group-coded soft tints — same family as Court (blue / cyan-mint)
+  // but lighter so the white body stays the primary reading area.
+  const metaStripBg = isNext
+    ? (groupMeta.isGroupB ? '#D5EBE4' : '#D8E5F8')
+    : (groupMeta.isGroupB ? '#E6F3EF' : '#E8F0FB');
+  const metaStripBorder = groupMeta.isGroupB
+    ? 'rgba(8,108,124,0.25)'
+    : 'rgba(26,82,172,0.25)';
 
   return (
     <div
-      className={`relative min-h-[94px] overflow-hidden rounded-[14px] border px-3.5 py-2.5 ${
-        isNext
-          ? 'border-[#F0B93F]/90 bg-[linear-gradient(135deg,rgba(240,185,63,0.29),rgba(16,26,43,0.98)_42%,rgba(10,19,33,0.99))] shadow-[0_0_32px_rgba(240,185,63,0.28),0_12px_28px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-12px_24px_rgba(0,0,0,0.12)]'
-          : 'bg-[linear-gradient(135deg,rgba(10,16,27,0.62),rgba(6,11,20,0.78))] shadow-[0_3px_8px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.03)]'
-      }`}
-      style={!isNext ? { borderColor: groupMeta.accentMid } : undefined}
+      className="relative flex h-full min-w-0 overflow-hidden rounded-[12px] bg-white backdrop-blur-sm"
+      style={{
+        boxShadow: isNext
+          ? `0 0 0 1.5px ${groupMeta.accentStrong}, 0 3px 8px rgba(31,75,160,0.18), inset 0 1px 0 rgba(255,255,255,0.80), inset 0 0 0 1px rgba(255,255,255,0.55)`
+          : `0 0 0 1px ${groupMeta.accent}55, 0 2px 6px rgba(31,49,87,0.10), inset 0 1px 0 rgba(255,255,255,0.75), inset 0 0 0 1px rgba(255,255,255,0.45)`,
+      }}
     >
-      {isNext && <div className="absolute inset-y-3 left-0 w-[5px] rounded-r-[8px] bg-[#F0B93F] shadow-[0_0_16px_rgba(240,185,63,0.45)]" />}
-      <div className="absolute inset-x-5 top-0 h-px" style={{ background: isNext ? 'linear-gradient(to right, transparent, #F0B93F, transparent)' : 'linear-gradient(to right, transparent, rgba(255,255,255,0.04), transparent)' }} />
-      <div className="relative flex min-w-0 items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={`flex h-8 w-9 shrink-0 items-center justify-center rounded-[8px] border text-[13px] font-black ${
-              isNext ? 'border-[#F0B93F]/78 bg-[#F0B93F] text-[#07101D]' : 'bg-white/[0.025] opacity-60'
-            }`}
-            style={!isNext ? { borderColor: groupMeta.accentMid, color: groupMeta.accent } : undefined}
-          >
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          {isNext && (
-            <span className="shrink-0 rounded-[7px] border border-[#F0B93F]/68 bg-[#F0B93F]/20 px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-[#FFE7A0] shadow-[0_0_12px_rgba(240,185,63,0.18)]">
-              NEXT
-            </span>
-          )}
-          <span className={`shrink-0 rounded-[7px] border px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] ${
-            isNext ? 'border-white/10 bg-black/22 text-white/56' : 'border-white/[0.05] bg-transparent text-white/28'
-          }`}>
-            Court {match.court || '-'}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {matchNumber && matchNumber > 0 && (
-            <span className={`flex h-[22px] items-center rounded-[7px] border px-2.5 text-[12px] font-black uppercase tracking-[0.06em] ${
-              isNext
-                ? 'border-[#F0B93F]/55 bg-[#F0B93F]/15 text-[#FFE7A0] shadow-[0_0_8px_rgba(240,185,63,0.18)]'
-                : 'border-white/[0.18] bg-white/[0.04] text-white/65'
-            }`}>
+      {/* Queue Plate — uniform 01/02/03/04 marker; carries the group tint so A/B is identifiable */}
+      <div
+        className="flex w-[44px] shrink-0 flex-col items-center justify-center"
+        style={{ background: metaStripBg, borderRight: `1px solid ${metaStripBorder}` }}
+      >
+        <span
+          className="text-[22px] font-black leading-none tabular-nums"
+          style={{ color: groupMeta.accentDeep }}
+        >
+          {String(index + 1).padStart(2, '0')}
+        </span>
+      </div>
+      {/* Right column — meta bar + match body */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Meta bar — M number + 조 only (NEXT/#N moved out to queue plate for uniformity) */}
+        <div
+          className="flex shrink-0 items-center justify-center gap-1.5 px-2.5"
+          style={{ height: 28, background: metaStripBg, borderBottom: `1px solid ${metaStripBorder}` }}
+        >
+          {matchNumber != null && matchNumber > 0 && (
+            <span
+              className="rounded-[5px] px-2 py-0.5 text-[15px] font-black leading-none tabular-nums text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.20)]"
+              style={{ background: groupMeta.accentDeep }}
+            >
               M{String(matchNumber).padStart(2, '0')}
             </span>
           )}
           <span
-            className="shrink-0 rounded-[7px] border px-1.5 py-1 text-[7px] font-black uppercase tracking-[0.1em]"
-            style={isNext
-              ? { borderColor: groupMeta.border, background: groupMeta.accentSoft, color: groupMeta.accentStrong }
-              : { borderColor: groupMeta.accentMid, background: 'transparent', color: 'rgba(255,255,255,0.22)' }
-            }
+            className="rounded-[5px] bg-white/85 px-1.5 py-0.5 text-[11px] font-black uppercase leading-none tracking-[0.12em]"
+            style={{ color: groupMeta.accentDeep }}
           >
-            {groupMeta.groupLabel} · R{match.round || '-'}
+            {groupMeta.groupLabel}
           </span>
         </div>
-      </div>
-
-      <div className="relative mt-2.5 grid min-w-0 grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] items-center gap-2">
-        <p className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap break-keep text-right text-[clamp(12px,0.78vw,16px)] font-black leading-tight ${isNext ? 'text-white' : 'text-white/60'}`}>
-          {teamOne}
-        </p>
-        <span
-          className="flex h-8 w-8 items-center justify-center justify-self-center rounded-[9px] border bg-[#050B14]/82 text-[9px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
-          style={{ borderColor: isNext ? '#F0B93F' : groupMeta.accentMid, color: isNext ? '#FFE7A0' : 'rgba(255,255,255,0.28)', opacity: isNext ? 1 : 0.6 }}
+        {/* Match body — players & VS */}
+        <div className="flex flex-1 min-h-0 items-center justify-between gap-1.5 px-2.5 py-2">
+        <p
+          className="min-w-0 flex-1 break-keep text-center text-[clamp(18px,1.3vw,25px)] font-black leading-[1.12] tracking-[-0.014em] text-[#050D20]"
+          style={{ textShadow: '0 1px 0 rgba(255,255,255,0.45)' }}
         >
+          {teamA.split(' / ').map((n, i) => (
+            <span key={i} className="block break-keep">{n}</span>
+          ))}
+        </p>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#050D20] text-[11px] font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.20)]">
           VS
         </span>
-        <p className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap break-keep text-left text-[clamp(12px,0.78vw,16px)] font-black leading-tight ${isNext ? 'text-white/92' : 'text-white/52'}`}>
-          {teamTwo}
+        <p
+          className="min-w-0 flex-1 break-keep text-center text-[clamp(18px,1.3vw,25px)] font-black leading-[1.12] tracking-[-0.014em] text-[#050D20]"
+          style={{ textShadow: '0 1px 0 rgba(255,255,255,0.45)' }}
+        >
+          {teamB.split(' / ').map((n, i) => (
+            <span key={i} className="block break-keep">{n}</span>
+          ))}
         </p>
+      </div>
       </div>
     </div>
   );
 }
 
-function CompletedMiniCard({ match, playerLookup, matchNumber }: { match: Match; playerLookup: PlayerLookup; matchNumber?: number }) {
-  const groupMeta = getDisplayGroupMeta(match.groupName || match.group || 'A');
-  const compactCompletedLabel = (value: string) =>
-    value.replace(/\(G\)/g, 'G').replace(/\s*\/\s*/g, '·');
+function HeaderStat({ title, value, color }: { title: string; value: number | string; color: string }) {
   return (
-    <div
-      className="relative min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(160deg,rgba(8,13,22,0.72),rgba(3,6,12,0.88))] shadow-[0_4px_12px_rgba(0,0,0,0.22)]"
-      style={{ borderColor: groupMeta.accentSoft }}
-    >
-      <div className="flex items-center justify-between gap-2 border-b border-white/[0.035] bg-white/[0.015] px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          {matchNumber && matchNumber > 0 && (
-            <span className="flex h-[20px] shrink-0 items-center rounded-[5px] border border-[#F0B93F]/22 bg-[#F0B93F]/6 px-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#FFE7A0]/52">
-              M{String(matchNumber).padStart(2, '0')}
-            </span>
-          )}
-          <span
-            className="rounded-[4px] px-1 py-px text-[7px] font-black uppercase tracking-[0.14em] text-white/28"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
-          >
-            {groupMeta.groupLabel} · R{match.round || '-'}
-          </span>
-        </div>
-        <span className="shrink-0 text-[7px] font-black uppercase tracking-[0.22em] text-white/16">FINAL</span>
-      </div>
-      <div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_54px_minmax(0,1fr)] items-center">
-        <div className="flex min-w-0 items-center justify-center overflow-hidden px-2.5 py-3 text-center">
-          <p className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[16px] font-black leading-tight text-white/65">
-            {compactCompletedLabel(teamLabel(match, 0, playerLookup))}
-          </p>
-        </div>
-        <div
-          className="flex shrink-0 flex-col items-center justify-center self-stretch border-x bg-black/10 text-center"
-          style={{ borderColor: groupMeta.accentSoft }}
-        >
-          <span className="text-[20px] font-black leading-none text-white/52">
-            {match.score1 ?? 0}:{match.score2 ?? 0}
-          </span>
-        </div>
-        <div className="flex min-w-0 items-center justify-center overflow-hidden px-2.5 py-3 text-center">
-          <p className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-[16px] font-black leading-tight text-white/55">
-            {compactCompletedLabel(teamLabel(match, 2, playerLookup))}
-          </p>
-        </div>
-      </div>
+    <div className="flex h-[56px] min-w-[78px] flex-col items-center justify-center rounded-[10px] bg-white/[0.08] px-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+      <p className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color }}>{title}</p>
+      <p className="mt-0.5 text-[22px] font-black leading-none tabular-nums text-white">{value}</p>
     </div>
   );
 }
@@ -481,6 +572,7 @@ function KdkDisplayBoard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [sessionTitle, setSessionTitle] = useState('');
   const [clock, setClock] = useState(formatClock);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState('');
@@ -619,7 +711,10 @@ function KdkDisplayBoard() {
   };
 
   useEffect(() => {
-    const timer = setInterval(() => setClock(formatClock()), 1000);
+    const timer = setInterval(() => {
+      setClock(formatClock());
+      setNowMs(Date.now());
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -631,7 +726,6 @@ function KdkDisplayBoard() {
         st.dataset.id = 'ticker-marquee';
         document.head.appendChild(st);
       }
-      // right-scroll: from -w (one group left) to 0
       st.textContent = `@keyframes ticker-scroll{from{transform:translateX(-${w}px)}to{transform:translateX(0)}}`;
       setTickerDuration(Math.max(10, Math.round(w / 80)));
     };
@@ -721,7 +815,6 @@ function KdkDisplayBoard() {
         g.dragStartY = e.touches[0].clientY;
         g.startPanX = panX;
         g.startPanY = panY;
-        // edge swipe back tracking
         const ex = e.touches[0].clientX;
         edgeSwipeRef.current = { isEdge: ex < 32, startX: ex, startY: e.touches[0].clientY };
       }
@@ -756,7 +849,6 @@ function KdkDisplayBoard() {
       if (e.touches.length < 2) g.isPinching = false;
       if (e.touches.length === 0) {
         g.isDragging = false;
-        // edge swipe back: left edge (< 32px) → swipe right ≥ 90px, not zoomed, not pinching
         const es = edgeSwipeRef.current;
         if (es.isEdge && !g.isPinching && zoomRef.current.userZoom === 1 && e.changedTouches.length > 0) {
           const t = e.changedTouches[0];
@@ -891,6 +983,48 @@ function KdkDisplayBoard() {
     return matches.filter((match) => match.status === 'waiting').sort(sortMatches);
   }, [matches]);
 
+  // Up Next picks 4 matches with A조 / B조 balanced (2 each by default).
+  // If one group has fewer than 2 waiting, the remaining slots are filled from the other
+  // group / fallback group in the original waiting order, so the lane is never short
+  // while the natural sort order is preserved within each group.
+  const upNextMatches = useMemo(() => {
+    const groupKey = (m: Match) => normalizeDisplayGroup(m.groupName || m.group || '');
+    const groupA = waitingMatches.filter((m) => groupKey(m) === 'A');
+    const groupB = waitingMatches.filter((m) => groupKey(m) === 'B');
+    const others = waitingMatches.filter((m) => {
+      const key = groupKey(m);
+      return key !== 'A' && key !== 'B';
+    });
+
+    const picks: Match[] = [];
+    const seen = new Set<string>();
+    const take = (list: Match[], n: number) => {
+      for (const m of list) {
+        if (picks.length >= 4) return;
+        if (n <= 0) return;
+        if (seen.has(m.id)) continue;
+        picks.push(m);
+        seen.add(m.id);
+        n--;
+      }
+    };
+
+    take(groupA, 2);
+    take(groupB, 2);
+
+    // Fill remaining slots from leftover A, B, then non-grouped matches, preserving order.
+    if (picks.length < 4) take(groupA, 4 - picks.length);
+    if (picks.length < 4) take(groupB, 4 - picks.length);
+    if (picks.length < 4) take(others, 4 - picks.length);
+
+    // Final order follows the natural waiting sort so the lane reads left→right
+    // in the same priority the operator sees in /kdk.
+    const indexOf = new Map<string, number>();
+    waitingMatches.forEach((m, i) => indexOf.set(m.id, i));
+    picks.sort((a, b) => (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0));
+    return picks;
+  }, [waitingMatches]);
+
   const completedMatches = useMemo(() => {
     return matches.filter((match) => match.status === 'complete').sort(sortMatches).reverse();
   }, [matches]);
@@ -915,11 +1049,6 @@ function KdkDisplayBoard() {
   }, [matches]);
 
   const liveRanking = useMemo(() => calculateLiveRanking(completedMatches, playerLookup), [completedMatches, playerLookup]);
-  const liveRankingColumns = useMemo(() => {
-    if (liveRanking.length <= 9) return [liveRanking];
-    const splitAt = Math.ceil(liveRanking.length / 2);
-    return [liveRanking.slice(0, splitAt), liveRanking.slice(splitAt)];
-  }, [liveRanking]);
   const playingCount = matches.filter((match) => match.status === 'playing').length;
   const totalMatches = matches.length;
   const progressPercent = totalMatches > 0 ? Math.round((completedMatches.length / totalMatches) * 100) : 0;
@@ -928,8 +1057,6 @@ function KdkDisplayBoard() {
   const tickerNextMatchNum = tickerNextMatch ? (matchNumberMap.get(tickerNextMatch.id) ?? 0) : 0;
   const tickerLeader = liveRanking[0] ?? null;
   const tickerGuests = useMemo(() => {
-    // playerLookup(멤버 DB)만 보면 manual-guest- 타입을 못 잡음.
-    // 전체 matches를 순회해 실제 사용된 게스트를 추출한다.
     const seen = new Set<string>();
     const guests: string[] = [];
 
@@ -959,53 +1086,103 @@ function KdkDisplayBoard() {
     return guests;
   }, [matches, playerLookup]);
 
-  // trim 기준으로 빈 메시지 판별 — 공백만 있는 문자열도 제거
   const manualTicker = tickerMessage?.trim() || '';
 
-  // 각 item 내부 leading icon — 별도 separator block이 아닌 item 앞 아이콘
-  const ball = (
-    <span style={{ flexShrink: 0, fontSize: '14px', lineHeight: 1, opacity: 0.88, marginRight: '8px' }}>🎾</span>
-  );
+  // Dark Arena-style ranking: TOP3 podium (separate), then rows 4..N below.
+  // Row height + tiny row gap adapt to participant count so the list reaches further
+  // down the Tower when few people are present, without breaking grid alignment.
+  const rankingTotal = liveRanking.length;
+  const rankRestCount = Math.max(0, rankingTotal - 3);
+  // Canvas-derived: aside content area minus header(48) + footer(44) + p-2(16) + podium(158) + gap-1.5×2(12) + list-header(32)
+  // = 824 - 48 - 44 - 16 - 158 - 12 - 32 = 514
+  // Footer is 44px so TOTAL N PLAYERS · UPDATED HH:MM reads in one line without crowding.
+  const rankingRowsAvail = 514;
+  const rankRowBase = 50;
+  const rankRowMax = 64;
+  const rankRowMin = 32;
+  let rankRowH = rankRowBase;
+  let rankRowGap = 0;
+  if (rankRestCount > 0) {
+    const raw = rankingRowsAvail / rankRestCount;
+    if (raw < rankRowBase) {
+      rankRowH = Math.max(rankRowMin, raw);
+    } else if (raw <= rankRowMax) {
+      rankRowH = raw;
+    } else {
+      rankRowH = rankRowMax;
+      const slack = rankingRowsAvail - rankRowH * rankRestCount;
+      rankRowGap = rankRestCount > 1 ? Math.min(14, slack / (rankRestCount - 1)) : 0;
+    }
+  }
+  const rankNameFont = Math.max(13, Math.min(17, rankRowH * 0.32));
+  const rankNumFont = Math.max(12, Math.min(15, rankRowH * 0.30));
+  const rankRankFont = Math.max(13, Math.min(16, rankRowH * 0.30));
+  const rankMoveFont = Math.max(11, Math.min(13, rankRowH * 0.24));
 
-  // 표시할 아이템 배열 — 조건부 항목은 if로 추가, 🎾는 각 item 내부 첫 요소
+  // Ticker — 4 items at most (NOTICE only when message exists, LEADER only when ranking has data).
+  const tickerLabelStyle = (color: string): React.CSSProperties => ({
+    color,
+    fontWeight: 900,
+    letterSpacing: '0.22em',
+    fontSize: 16,
+    textTransform: 'uppercase',
+    flexShrink: 0,
+  });
+  const tickerTextStyle: React.CSSProperties = {
+    color: '#FFFFFF',
+    fontWeight: 900,
+    fontSize: 23,
+    letterSpacing: '0.005em',
+    flexShrink: 0,
+  };
+  const tickerDimStyle: React.CSSProperties = {
+    color: '#D7E5FB',
+    fontWeight: 800,
+    fontSize: 23,
+    flexShrink: 0,
+  };
+
   const tickerItems: React.ReactNode[] = [];
 
-  // UP NEXT (항상 표시)
+  if (manualTicker) {
+    tickerItems.push(
+      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: 10 }}>
+        <span style={tickerLabelStyle('#FFD66B')}>NOTICE</span>
+        <span style={tickerTextStyle}>{manualTicker}</span>
+      </div>
+    );
+  }
+
   tickerItems.push(
-    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-      {ball}
-      <span className="font-extrabold text-[#FFE7A0]">UP NEXT</span>
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: 10 }}>
+      <span style={tickerLabelStyle('#A8E3FF')}>UP NEXT</span>
       {tickerNextMatchNum > 0 && (
-        <span className="text-[#FFE7A0]/70" style={{ marginLeft: '6px' }}>
-          M{String(tickerNextMatchNum).padStart(2, '0')}
-        </span>
+        <span style={{ ...tickerDimStyle }}>M{String(tickerNextMatchNum).padStart(2, '0')}</span>
       )}
       {tickerNextMatch ? (
-        <>
-          <span className="text-white/82" style={{ marginLeft: '14px' }}>
-            {teamLabel(tickerNextMatch, 0, playerLookup).replace(/ \/ /g, '/')}
-          </span>
-          <span className="text-white/45" style={{ margin: '0 8px' }}>vs</span>
-          <span className="text-white/82">
-            {teamLabel(tickerNextMatch, 2, playerLookup).replace(/ \/ /g, '/')}
-          </span>
-        </>
+        <span style={tickerTextStyle}>
+          {teamLabel(tickerNextMatch, 0, playerLookup).replace(/ \/ /g, '/')}{' '}
+          <span style={{ color: '#A8C7F0', fontWeight: 800 }}>vs</span>{' '}
+          {teamLabel(tickerNextMatch, 2, playerLookup).replace(/ \/ /g, '/')}
+        </span>
       ) : (
-        <span className="text-white/42" style={{ marginLeft: '10px' }}>대기 경기 없음</span>
+        <span style={tickerDimStyle}>대기 경기 없음</span>
       )}
     </div>
   );
 
-  // LEADER — 랭킹 1위 존재할 때만
   if (tickerLeader) {
     tickerItems.push(
-      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        {ball}
-        <span className="font-extrabold text-[#FFE7A0]">LEADER</span>
-        <span className="text-white/82" style={{ marginLeft: '10px' }}>{tickerLeader.name}</span>
+      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: 10 }}>
+        <span style={tickerLabelStyle('#FFD66B')}>LEADER</span>
+        <span style={tickerTextStyle}>{tickerLeader.name}</span>
         <span
-          className={`font-extrabold ${tickerLeader.diff > 0 ? 'text-emerald-300' : tickerLeader.diff < 0 ? 'text-red-300' : 'text-white/40'}`}
-          style={{ marginLeft: '6px' }}
+          style={{
+            color: tickerLeader.diff > 0 ? '#8EEACA' : tickerLeader.diff < 0 ? '#FFB6BE' : '#D7E5FB',
+            fontWeight: 900,
+            fontSize: 23,
+            flexShrink: 0,
+          }}
         >
           {tickerLeader.diff > 0 ? '+' : ''}{tickerLeader.diff}
         </span>
@@ -1013,12 +1190,10 @@ function KdkDisplayBoard() {
     );
   }
 
-  // WELCOME (항상 표시, 게스트 최대 5명)
   tickerItems.push(
-    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-      {ball}
-      <span className="font-extrabold text-[#FFE7A0]">WELCOME</span>
-      <span className="text-white/82" style={{ marginLeft: '10px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: 10 }}>
+      <span style={tickerLabelStyle('#9CECD1')}>WELCOME</span>
+      <span style={tickerTextStyle}>
         {tickerGuests.length > 0
           ? `${tickerGuests.slice(0, 5).join(', ')}${tickerGuests.length > 5 ? ` 외 ${tickerGuests.length - 5}명` : ''}`
           : 'TEYEON PLAYERS'}
@@ -1026,25 +1201,6 @@ function KdkDisplayBoard() {
     </div>
   );
 
-  // TEYEON KDK LIVE (항상 표시)
-  tickerItems.push(
-    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-      {ball}
-      <span className="font-black text-[#FFE7A0]/52">TEYEON KDK LIVE</span>
-    </div>
-  );
-
-  // 운영자 메시지 — trim 후 값이 있을 때만 추가 (빈 블록/공백 방지)
-  if (manualTicker) {
-    tickerItems.push(
-      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        {ball}
-        <span className="text-white/85">{manualTicker}</span>
-      </div>
-    );
-  }
-
-  // item 간 gap은 외부 flex container에서 통일 — 🎾가 item 안에 있으므로 별도 separator 없음
   const tickerGroupContent = (
     <>
       {tickerItems.map((item, i) => (
@@ -1056,13 +1212,12 @@ function KdkDisplayBoard() {
   return (
     <div
       ref={viewerRef}
-      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[#070C18]"
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[#C7D5E8]"
       style={{ touchAction: 'none' }}
     >
-      {/* 모바일 전용 뒤로가기 버튼 — 데스크톱(md+)에서는 숨김 */}
       <button
         onClick={handleBack}
-        className="fixed z-[10000] flex items-center gap-1 rounded-full border border-white/15 bg-black/50 px-3 py-2 text-[13px] font-bold text-white/80 backdrop-blur-sm transition-all active:scale-95 md:hidden"
+        className="fixed z-[10000] flex items-center gap-1 rounded-full border border-[#1F4080]/40 bg-white/85 px-3 py-2 text-[13px] font-bold text-[#0F2F5F] backdrop-blur-sm transition-all active:scale-95 md:hidden"
         style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)', left: 'calc(env(safe-area-inset-left, 0px) + 8px)' }}
       >
         ← BACK
@@ -1078,27 +1233,64 @@ function KdkDisplayBoard() {
           overflow: 'hidden',
         }}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(240,185,63,0.20),transparent_30%),radial-gradient(circle_at_84%_14%,rgba(56,191,255,0.16),transparent_28%),linear-gradient(135deg,#070C18_0%,#0C1524_46%,#050A13_100%)]" />
-        <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:72px_72px]" />
-        <div className="absolute left-0 right-0 top-[104px] h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent shadow-[0_0_22px_rgba(240,185,63,0.55)]" />
-        <div className="absolute right-[24%] top-8 h-24 w-[460px] -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(56,191,255,0.14),rgba(240,185,63,0.14),transparent)] blur-xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#E6EEF9_0%,#D3DEEF_55%,#BFCEE5_100%)]" />
+        <div className="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(rgba(28,62,118,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(28,62,118,0.8)_1px,transparent_1px)] [background-size:96px_96px]" />
 
-        <div className="relative flex h-full flex-col p-4 text-white">
-        <header className="pointer-events-auto relative z-20 mb-3.5 grid h-[64px] grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-6 overflow-hidden rounded-[18px] border border-[#F0B93F]/32 bg-[#09131F]/95 px-5 shadow-[0_24px_64px_rgba(0,0,0,0.58),0_0_32px_rgba(240,185,63,0.12),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(240,185,63,0.08)]">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(112deg,rgba(240,185,63,0.16),transparent_55%)]" />
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#F0B93F]/80 to-transparent" />
-          {/* 왼쪽: 세션 정보 */}
-          <div className="relative flex min-w-0 flex-col justify-center">
-            <p className="text-[10px] font-black uppercase italic tracking-[0.18em] text-[#F0B93F]/80">TEYEON Arena Live Board</p>
-            <h1 className="truncate text-[clamp(20px,2.2vw,38px)] font-black uppercase leading-none tracking-[0.01em] text-[#FFF8E8]">
-              {sessionTitle || sessionId || 'No Session'}
-            </h1>
-          </div>
-          {/* 중앙: ticker marquee only — 1fr 칸, overflow-hidden */}
-          <div className="mx-3 flex h-[38px] min-w-0 max-w-[880px] items-center overflow-hidden rounded-[8px] border border-white/[0.07] bg-white/[0.022]">
-            <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="relative flex h-full flex-col gap-3.5 p-10 text-[#0A172F]">
+
+          {/* HEADER */}
+          <header
+            className="relative grid shrink-0 grid-cols-[auto_1fr_auto] items-center overflow-hidden rounded-[16px] bg-[linear-gradient(180deg,#163E73_0%,#0A234F_100%)] px-8 shadow-[0_14px_28px_rgba(15,40,95,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(242,199,101,0.30)]"
+            style={{ height: HEADER_HEIGHT }}
+          >
+            {/* LEFT column — session info; position handled by header px-8 alone, no forced shift */}
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className="text-[12px] font-black uppercase leading-[1.15] tracking-[0.32em] text-[#F2C765]">TEYEON KDK · LIVE BOARD</p>
+              <h1 className="truncate text-[34px] font-black leading-[1.1] text-white">
+                {sessionTitle || sessionId || 'NO SESSION'}
+              </h1>
+            </div>
+            {/* MIDDLE column — flexible empty spacer (1fr) that guarantees the right cluster sits on the right side regardless of title length */}
+            <div aria-hidden="true" />
+            {/* RIGHT column — stats + TIME + LIVE; anchored to the right edge by the grid template */}
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="flex items-center gap-2">
+                <HeaderStat title="PLAYING" value={playingCount} color="#FFC0C8" />
+                <HeaderStat title="WAITING" value={waitingMatches.length} color="#FFE08A" />
+                <HeaderStat title="DONE" value={`${completedMatches.length}/${totalMatches}`} color="#8FE6C9" />
+                <HeaderStat title="PROGRESS" value={`${progressPercent}%`} color="#9DC8FF" />
+              </div>
+              <div className="flex h-[56px] flex-col items-end justify-center border-l border-white/20 pl-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#B6CCE6]">TIME</p>
+                <p className="text-[28px] font-black leading-none text-white tabular-nums">{clock}</p>
+              </div>
+              <span className="rounded-full bg-[#D8324A] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-white shadow-[0_2px_6px_rgba(216,50,74,0.36)]">
+                {statusLabel}
+              </span>
+            </div>
+            <button type="button" onClick={toggleFullscreen} className="hidden">
+              {isFullscreen ? '전체화면 해제' : '전체화면'}
+            </button>
+          </header>
+
+          {/* TICKER */}
+          <div
+            className="flex shrink-0 items-stretch overflow-hidden rounded-[12px] shadow-[0_10px_20px_rgba(15,40,95,0.18),inset_0_-1px_0_rgba(255,255,255,0.20),inset_0_1px_0_rgba(255,255,255,0.12)]"
+            style={{ height: TICKER_HEIGHT }}
+          >
+            <div className="flex w-[136px] shrink-0 items-center justify-center gap-2 bg-[linear-gradient(180deg,#E13548_0%,#B6263A_100%)]">
+              <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.85)]" />
+              <span className="text-[22px] font-black uppercase tracking-[0.22em] text-white">LIVE</span>
+            </div>
+            <div
+              className="relative flex flex-1 min-w-0 items-center overflow-hidden bg-[linear-gradient(90deg,#143E92_0%,#1C58B5_100%)] px-5"
+              style={{
+                maskImage: 'linear-gradient(90deg, transparent 0, #000 20px, #000 calc(100% - 32px), transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(90deg, transparent 0, #000 20px, #000 calc(100% - 32px), transparent 100%)',
+              }}
+            >
               <div
-                className="flex shrink-0 items-center whitespace-nowrap text-[15px] font-bold leading-none tracking-wide"
+                className="flex shrink-0 items-center whitespace-nowrap"
                 style={{ animation: `ticker-scroll ${tickerDuration}s linear infinite`, willChange: 'transform' }}
               >
                 <div ref={tickerGroupRef} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '48px', paddingRight: '80px' }}>
@@ -1110,193 +1302,102 @@ function KdkDisplayBoard() {
               </div>
             </div>
           </div>
-          {/* 상태 정보 — ticker 우측 별도 grid 칸 (auto), 시계 왼쪽 */}
-          <div className="ml-4 flex h-[44px] shrink-0 items-center gap-2.5 rounded-[10px] border border-white/[0.06] bg-white/[0.025] px-5 text-[13px] font-bold leading-none tracking-[0.07em]">
-            <span className="text-red-200/65">PLAYING <span className="font-black text-red-100/90">{playingCount}</span></span>
-            <span className="text-white/20">·</span>
-            <span className="text-[#FFE7A0]/55">WAITING <span className="font-black text-[#FFE7A0]/85">{waitingMatches.length}</span></span>
-            <span className="text-white/20">·</span>
-            <span className="text-emerald-200/60">DONE <span className="font-black text-emerald-200/90">{completedMatches.length}/{totalMatches}</span></span>
-            <span className="text-white/20">·</span>
-            <span className="font-black text-cyan-100/70">{progressPercent}%</span>
-          </div>
-          {/* 오른쪽: 시계 */}
-          <div className="flex shrink-0 flex-col items-end justify-center rounded-[10px] border border-white/[0.07] bg-white/[0.022] px-4 py-1.5">
-            <p className="text-[8px] font-black uppercase tracking-[0.22em] text-white/36">Time</p>
-            <p className="text-[28px] font-black leading-none text-white">{clock}</p>
-          </div>
-          <button type="button" onClick={toggleFullscreen} className="hidden">
-            {isFullscreen ? '전체화면 해제' : '전체화면'}
-          </button>
-        </header>
 
-        <section className="grid min-h-0 flex-1 grid-cols-[minmax(0,54fr)_minmax(320px,21fr)_minmax(420px,25fr)] grid-rows-[minmax(0,1fr)_220px] gap-4 2xl:grid-rows-[minmax(0,1fr)_232px]">
-          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/28 bg-[#050B17]/98 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.95),0_0_0_3px_rgba(240,185,63,0.16),0_26px_64px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-32px_52px_rgba(0,0,0,0.26)]">
-            <div className="-mx-4 -mt-4 mb-4 flex items-center justify-between border-b-2 border-[#F0B93F]/55 bg-[#020508] px-4 pt-5 pb-3">
-              <h2 className="flex items-center gap-3 text-[20px] font-black uppercase italic tracking-[0.17em] text-[#FFE7A0]">
-                <span className="h-7 w-[3px] rounded-[4px] bg-[#F0B93F] shadow-[0_0_12px_rgba(240,185,63,0.60)]" />
-                Court Arena
-              </h2>
-              <span className="rounded-[8px] border border-[#F0B93F]/28 bg-[#F0B93F]/8 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/55">현재 진행 중인 경기</span>
-            </div>
+          {/* MAIN — left (Courts + Up Next stacked) | right (Ranking Tower full height) */}
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-4">
 
-            <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-4">
-              {[1, 2, 3, 4].map((court) => {
-                const courtMatch = playingByCourt.get(court);
-                return (
-                  <CourtCard key={court} court={court} match={courtMatch} playerLookup={playerLookup} matchNumber={courtMatch ? matchNumberMap.get(courtMatch.id) || 0 : 0} />
-                );
-              })}
-            </div>
-
-            <section className="hidden">
-              <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/88 to-transparent" />
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-[16px] font-black uppercase italic tracking-[0.18em] text-[#FFD66B]">
-                  <span className="h-5 w-1 rounded-full bg-[#FFD66B]/90 shadow-[0_0_12px_rgba(255,214,107,0.6)]" />
-                  Completed Recent
-                </h2>
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">{completedMatches.length} done</span>
+            <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_136px] gap-4">
+              <div className="grid min-h-0 min-w-0 grid-cols-2 grid-rows-2 gap-4">
+                {[1, 2, 3, 4].map((court) => {
+                  const courtMatch = playingByCourt.get(court);
+                  return (
+                    <CourtCard
+                      key={court}
+                      court={court}
+                      match={courtMatch}
+                      playerLookup={playerLookup}
+                      matchNumber={courtMatch ? matchNumberMap.get(courtMatch.id) || 0 : 0}
+                      nowMs={nowMs}
+                    />
+                  );
+                })}
               </div>
-              {completedMatches.length > 0 ? (
-                <div className="grid grid-cols-3 gap-3 2xl:gap-4">
-                  {completedMatches.slice(0, 3).map((match) => (
-                    <CompletedMiniCard key={match.id} match={match} playerLookup={playerLookup} matchNumber={matchNumberMap.get(match.id) || 0} />
+
+              {/* UP NEXT LANE — neutral slate background so the lane reads as a calmer side area, distinct from the blue Court panels above */}
+              <div className="flex gap-2.5 rounded-[16px] bg-[linear-gradient(180deg,#E8ECF2_0%,#D7DEE8_100%)] p-2.5 shadow-[0_8px_18px_rgba(15,40,95,0.12),inset_0_1px_0_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(255,255,255,0.45)]">
+                <div className="flex w-[84px] shrink-0 flex-col items-center justify-center rounded-[12px] bg-[linear-gradient(160deg,#1747A0_0%,#0E2E72_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#A8C7F0]">UP NEXT</p>
+                  <p className="mt-0.5 text-[30px] font-black leading-none tabular-nums text-white">{waitingMatches.length}</p>
+                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-[#A8C7F0]">대기</p>
+                </div>
+                <div className="grid min-w-0 flex-1 grid-cols-4 gap-2">
+                  {upNextMatches.map((match, index) => (
+                    <UpNextCard
+                      key={match.id}
+                      match={match}
+                      index={index}
+                      playerLookup={playerLookup}
+                      matchNumber={matchNumberMap.get(match.id) || 0}
+                    />
                   ))}
+                  {!loading && waitingMatches.length === 0 && (
+                    <div className="col-span-4 flex items-center justify-center rounded-[12px] bg-white/75 text-[15px] font-black uppercase tracking-[0.18em] text-[#3F506A]">
+                      대기 경기 없음
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT column: RANKING TOWER — Dark Arena structure restored in light colors */}
+            <aside
+              className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[16px] bg-[#FBF6E5]"
+              style={{ boxShadow: '0 0 0 1.5px #C9B274, 0 14px 28px rgba(80,60,20,0.16), inset 0 1px 0 rgba(255,255,255,0.70), inset 0 0 0 1px rgba(255,245,210,0.55)' }}
+            >
+              {/* Header — title only; participant count moved to the bottom footer (TOTAL N PLAYERS) */}
+              <div
+                className="flex shrink-0 items-center bg-[linear-gradient(180deg,#142340_0%,#0A1A33_100%)] px-5 shadow-[inset_0_-2px_0_rgba(255,200,90,0.30)]"
+                style={{ height: RANKING_HEADER_H }}
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="inline-block h-5 w-[3px] shrink-0 rounded-[2px] bg-[#F2C765]" />
+                  <h2 className="truncate text-[18px] font-black uppercase tracking-[0.22em] text-[#F2C765]">★ RANKING TOWER</h2>
+                </div>
+              </div>
+
+              {rankingTotal === 0 ? (
+                <div className="flex flex-1 items-center justify-center px-4 text-center text-[14px] font-black uppercase tracking-[0.2em] text-[#9C7E3A]">
+                  랭킹 데이터가 없습니다
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-[#D8BE78]/18 bg-white/[0.025] py-9 text-center text-[13px] font-black uppercase tracking-[0.22em] text-white/38">
-                  No Results Yet
-                </div>
-              )}
-            </section>
-          </section>
-
-          <section className="relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-[#F0B93F]/32 bg-[#050A18]/98 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.95),0_0_0_3px_rgba(240,185,63,0.14),0_24px_60px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-28px_48px_rgba(0,0,0,0.28)]">
-            <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-[4px] bg-gradient-to-b from-transparent via-[#F0B93F]/72 to-transparent" />
-            <div className="-mx-4 -mt-4 mb-4 flex items-center justify-between gap-2 border-b-2 border-[#F0B93F]/55 bg-[#020508] px-4 pt-5 pb-3">
-              <h2 className="flex min-w-0 items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.13em] text-[#FFE7A0]">
-                <span className="h-5 w-[3px] rounded-[4px] bg-[#F0B93F] shadow-[0_0_12px_rgba(240,185,63,0.60)]" />
-                Up Next Lane
-              </h2>
-              <span className="shrink-0 rounded-[8px] border border-[#F0B93F]/25 bg-[#F0B93F]/8 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/55">
-                {waitingMatches.length} queued
-              </span>
-            </div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
-              {waitingMatches.slice(0, 6).map((match, index) => (
-                <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} playingPlayerIds={playingPlayerIds} matchNumber={matchNumberMap.get(match.id) || 0} />
-              ))}
-              {!loading && waitingMatches.length === 0 && (
-                <div className="rounded-[14px] border border-dashed border-[#F0B93F]/20 bg-white/[0.025] py-12 text-center text-[12px] font-black uppercase tracking-[0.2em] text-white/36">
-                  No Waiting Matches
-                </div>
-              )}
-            </div>
-          </section>
-
-          <aside className="row-span-2 relative flex min-h-0 flex-col overflow-hidden rounded-[18px] bg-[linear-gradient(180deg,#1E2A40_0%,#162030_30%,#0E1824_70%,#080E18_100%)] p-2 shadow-[0_16px_40px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.10)]">
-            <section className="hidden">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/62 to-transparent" />
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.14em] text-[#FFD66B]">
-                  <span className="h-5 w-1 rounded-full bg-red-400 shadow-[0_0_14px_rgba(239,68,68,0.8)]" />
-                  Live Status
-                </h2>
-                <span className="rounded-full border border-red-400/35 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-red-100">{statusLabel}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex h-[74px] flex-col items-center justify-center rounded-[16px] border border-red-400/45 bg-red-500/14 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-red-100/76">Playing</p>
-                  <p className="mt-1 text-[38px] font-black leading-none text-red-50">{playingCount}</p>
-                </div>
-                <div className="flex h-[74px] flex-col items-center justify-center rounded-[16px] border border-[#D8BE78]/40 bg-[#D8BE78]/13 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#FFD66B]/76">Waiting</p>
-                  <p className="mt-1 text-[38px] font-black leading-none text-[#FFF0BF]">{waitingMatches.length}</p>
-                </div>
-                <div className="flex h-[74px] flex-col items-center justify-center rounded-[16px] border border-emerald-400/34 bg-emerald-500/11 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/62">Done</p>
-                  <p className="mt-1 text-[38px] font-black leading-none text-white/90">{completedMatches.length}</p>
-                </div>
-              </div>
-            </section>
-
-            <section className="hidden">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FFD66B]/62 to-transparent" />
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-[18px] font-black uppercase italic tracking-[0.14em] text-[#FFD66B]">
-                  <span className="h-5 w-1 rounded-full bg-[#FFD66B]/90 shadow-[0_0_12px_rgba(255,214,107,0.62)]" />
-                  Up Next
-                </h2>
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/36">{waitingMatches.length} queued</span>
-              </div>
-              <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
-                {waitingMatches.slice(0, 5).map((match, index) => (
-                  <CompactMatch key={match.id} match={match} index={index} playerLookup={playerLookup} playingPlayerIds={playingPlayerIds} />
-                ))}
-                {!loading && waitingMatches.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-[#D8BE78]/18 bg-white/[0.025] py-12 text-center text-[13px] font-black uppercase tracking-[0.22em] text-white/38">
-                    No Waiting Matches
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[8px] bg-[radial-gradient(ellipse_500px_180px_at_50%_0%,rgba(240,203,101,0.07),transparent_70%),linear-gradient(180deg,#0B1424_0%,#040912_100%)] p-2 shadow-[inset_0_0_0_1px_rgba(212,160,64,0.28),inset_0_4px_16px_rgba(0,0,0,0.85)]">
-              <div className="mb-1.5 border-l-[3px] border-[#B8982A] bg-[linear-gradient(90deg,rgba(138,111,42,0.55)_0%,transparent_60%)] px-2 py-1.5 shadow-[0_0_8px_rgba(240,203,101,0.18)]">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[16px] font-black uppercase tracking-[0.06em] text-[#EDE0C0]">★ RANKING TOWER</h2>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#FF4848] shadow-[0_0_6px_rgba(255,72,72,0.6)]" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[#FF4848]">LIVE</span>
-                  </div>
-                </div>
-                <p className="text-[9px] text-[#C8A84A]/80">실시간 순위 · {liveRanking.length}명</p>
-              </div>
-              {liveRanking.length > 0 ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-                  {/* TOP3 Podium — 2위(좌) | 1위(중앙/최상) | 3위(우) */}
-                  <div className="grid grid-cols-3 items-end gap-2">
-
-                    {/* ── 2위 ── */}
+                <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2">
+                  {/* TOP3 Podium — 2위 left | 1위 center (raised) | 3위 right (Dark Arena layout) */}
+                  <div
+                    className="grid shrink-0 grid-cols-3 items-end gap-2"
+                    style={{ height: RANKING_PODIUM_H }}
+                  >
+                    {/* 2위 — silver, left */}
                     {liveRanking[1] && (() => {
                       const p = liveRanking[1];
+                      const isPen = calculateDisplaySettlement(p, 1, liveRanking.length).isRealPenalty;
                       return (
-                        <div className="relative flex min-h-[138px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[14px] border border-slate-300/28 bg-[linear-gradient(160deg,rgba(200,210,230,0.13)_0%,rgba(10,17,32,0.96)_100%)] px-2 pt-3 pb-2 text-center shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.07)]">
+                        <div className="relative flex min-h-[124px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[12px] border border-[#7B8AA0]/55 bg-[linear-gradient(160deg,#ECF1F8_0%,#B6C5DA_100%)] px-2 pt-2 pb-2 text-center shadow-[0_3px_8px_rgba(80,60,20,0.10),inset_0_1px_0_rgba(255,255,255,0.45)]">
                           <div className="flex flex-col items-center">
-                            <div className="text-[7px] font-black uppercase tracking-[0.22em] text-slate-300/50">2nd</div>
-                            {/* silver medal */}
-                            <div className="mx-auto mt-1.5 flex h-12 w-12 items-center justify-center rounded-full border-2 border-slate-300/55 bg-[linear-gradient(135deg,#C8D4E8_0%,#7A8AA0_50%,#A8B8CC_100%)] text-[22px] font-black leading-none text-white shadow-[0_0_10px_rgba(180,200,230,0.28),inset_0_1px_0_rgba(255,255,255,0.35)]">
+                            <div className="text-[7px] font-black uppercase tracking-[0.22em] text-[#1F2A3F]/55">2nd</div>
+                            <div className="mx-auto mt-1 flex h-10 w-10 items-center justify-center rounded-full border border-[#7B8AA0] bg-[linear-gradient(135deg,#EAEEF5_0%,#7A8AA0_60%,#BDC8D9_100%)] text-[18px] font-black leading-none text-white shadow-[0_0_8px_rgba(180,196,220,0.30),inset_0_1px_0_rgba(255,255,255,0.40)]">
                               2
                             </div>
                           </div>
-                          <p className="w-full min-w-0 truncate px-1 text-[16px] font-black leading-tight text-white">{p.name}</p>
-                          <div className="flex flex-col items-center gap-0.5">
-                            <p className="text-[9px] font-bold text-white/50">{p.wins}W {p.losses}L</p>
-                            <p className={`text-[13px] font-black ${p.diff > 0 ? 'text-emerald-300' : p.diff < 0 ? 'text-red-300' : 'text-white/42'}`}>{p.diff > 0 ? '+' : ''}{p.diff}</p>
+                          <div className="flex w-full min-w-0 items-center justify-center gap-1">
+                            <p className="min-w-0 truncate px-1 text-[15px] font-black leading-tight text-[#16213A]">{p.name}</p>
+                            {isPen && <span className="shrink-0 rounded-[3px] bg-[#D8324A] px-1 py-0.5 text-[7px] font-black leading-none text-white">PEN</span>}
                           </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* ── 1위 ── */}
-                    {liveRanking[0] && (() => {
-                      const p = liveRanking[0];
-                      return (
-                        <div className="relative flex min-h-[170px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[16px] border border-[#F0B93F]/55 bg-[linear-gradient(160deg,rgba(240,185,63,0.20)_0%,rgba(8,15,28,0.97)_100%)] px-2 pt-3 pb-2 text-center shadow-[0_0_28px_rgba(240,185,63,0.22),0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,240,180,0.14)]">
-                          <div className="flex flex-col items-center">
-                            {/* crown */}
-                            <div className="text-[11px] leading-none text-[#F0B93F]/70">♛</div>
-                            <div className="text-[7px] font-black uppercase tracking-[0.22em] text-[#F0B93F]/65">Leader</div>
-                            {/* gold medal */}
-                            <div className="mx-auto mt-1.5 flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 border-[#F0CF60]/70 bg-[linear-gradient(135deg,#FFE066_0%,#D4920A_50%,#F5C842_100%)] text-[24px] font-black leading-none text-[#3A2400] shadow-[0_0_18px_rgba(240,185,63,0.45),inset_0_1px_0_rgba(255,255,220,0.5)]">
-                              1
-                            </div>
-                          </div>
-                          <p className="w-full min-w-0 truncate px-1 text-[20px] font-black leading-tight text-white">{p.name}</p>
                           <div className="flex flex-col items-center gap-0.5">
-                            <p className="text-[10px] font-bold text-white/55">{p.wins}W {p.losses}L</p>
-                            <p className={`text-[15px] font-black ${p.diff > 0 ? 'text-emerald-300' : p.diff < 0 ? 'text-red-300' : 'text-white/42'}`}>
+                            <p className="text-[9px] font-black text-[#16213A]/65 tabular-nums">{p.wins}W {p.losses}L</p>
+                            <p
+                              className="text-[13px] font-black tabular-nums"
+                              style={{ color: p.diff > 0 ? '#0C6E36' : p.diff < 0 ? '#B12830' : '#16213A' }}
+                            >
                               {p.diff > 0 ? '+' : ''}{p.diff}
                             </p>
                           </div>
@@ -1304,110 +1405,234 @@ function KdkDisplayBoard() {
                       );
                     })()}
 
-                    {/* ── 3위 ── */}
-                    {liveRanking[2] && (() => {
-                      const p = liveRanking[2];
+                    {/* 1위 — gold, center (raised) */}
+                    {liveRanking[0] && (() => {
+                      const p = liveRanking[0];
+                      const isPen = calculateDisplaySettlement(p, 0, liveRanking.length).isRealPenalty;
                       return (
-                        <div className="relative flex min-h-[122px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[14px] border border-orange-400/28 bg-[linear-gradient(160deg,rgba(205,127,50,0.13)_0%,rgba(10,17,32,0.96)_100%)] px-2 pt-3 pb-2 text-center shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]">
+                        <div className="relative flex min-h-[152px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[14px] border border-[#A87A1E]/68 bg-[linear-gradient(160deg,#FCEEC0_0%,#E4C262_100%)] px-2 pt-2 pb-2 text-center shadow-[0_0_18px_rgba(216,170,60,0.28),0_5px_14px_rgba(80,60,20,0.20),inset_0_1px_0_rgba(255,245,210,0.55)]">
                           <div className="flex flex-col items-center">
-                            <div className="text-[7px] font-black uppercase tracking-[0.22em] text-orange-300/50">3rd</div>
-                            {/* bronze medal */}
-                            <div className="mx-auto mt-1.5 flex h-11 w-11 items-center justify-center rounded-full border-2 border-orange-400/50 bg-[linear-gradient(135deg,#E8974A_0%,#924E10_50%,#D07830_100%)] text-[20px] font-black leading-none text-white shadow-[0_0_10px_rgba(205,127,50,0.28),inset_0_1px_0_rgba(255,200,140,0.3)]">
-                              3
+                            <div className="text-[12px] leading-none text-[#A87A1E]">♛</div>
+                            <div className="text-[7px] font-black uppercase tracking-[0.22em] text-[#A87A1E]">LEADER</div>
+                            <div className="mx-auto mt-1 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#C8A04E] bg-[linear-gradient(135deg,#FFE066_0%,#C28B0A_55%,#F5C842_100%)] text-[22px] font-black leading-none text-[#3A2400] shadow-[0_0_14px_rgba(216,170,60,0.45),inset_0_1px_0_rgba(255,255,220,0.55)]">
+                              1
                             </div>
                           </div>
-                          <p className="w-full min-w-0 truncate px-1 text-[16px] font-black leading-tight text-white">{p.name}</p>
+                          <div className="flex w-full min-w-0 items-center justify-center gap-1">
+                            <p className="min-w-0 truncate px-1 text-[18px] font-black leading-tight text-[#2C1A00]">{p.name}</p>
+                            {isPen && <span className="shrink-0 rounded-[3px] bg-[#D8324A] px-1 py-0.5 text-[7px] font-black leading-none text-white">PEN</span>}
+                          </div>
                           <div className="flex flex-col items-center gap-0.5">
-                            <p className="text-[9px] font-bold text-white/50">{p.wins}W {p.losses}L</p>
-                            <p className={`text-[13px] font-black ${p.diff > 0 ? 'text-emerald-300' : p.diff < 0 ? 'text-red-300' : 'text-white/42'}`}>{p.diff > 0 ? '+' : ''}{p.diff}</p>
+                            <p className="text-[10px] font-black text-[#3A2400]/70 tabular-nums">{p.wins}W {p.losses}L</p>
+                            <p
+                              className="text-[15px] font-black tabular-nums"
+                              style={{ color: p.diff > 0 ? '#0C6E36' : p.diff < 0 ? '#B12830' : '#3A2400' }}
+                            >
+                              {p.diff > 0 ? '+' : ''}{p.diff}
+                            </p>
                           </div>
                         </div>
                       );
                     })()}
 
+                    {/* 3위 — bronze, right */}
+                    {liveRanking[2] && (() => {
+                      const p = liveRanking[2];
+                      const isPen = calculateDisplaySettlement(p, 2, liveRanking.length).isRealPenalty;
+                      return (
+                        <div className="relative flex min-h-[114px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[12px] border border-[#8A4E18]/55 bg-[linear-gradient(160deg,#F1CFA0_0%,#B57543_100%)] px-2 pt-2 pb-2 text-center shadow-[0_3px_8px_rgba(80,60,20,0.10),inset_0_1px_0_rgba(255,225,200,0.45)]">
+                          <div className="flex flex-col items-center">
+                            <div className="text-[7px] font-black uppercase tracking-[0.22em] text-[#3A1D02]/65">3rd</div>
+                            <div className="mx-auto mt-1 flex h-9 w-9 items-center justify-center rounded-full border border-[#8A4E18] bg-[linear-gradient(135deg,#E8974A_0%,#924E10_55%,#D07830_100%)] text-[16px] font-black leading-none text-white shadow-[0_0_8px_rgba(180,116,68,0.30),inset_0_1px_0_rgba(255,200,140,0.40)]">
+                              3
+                            </div>
+                          </div>
+                          <div className="flex w-full min-w-0 items-center justify-center gap-1">
+                            <p className="min-w-0 truncate px-1 text-[15px] font-black leading-tight text-[#2A1300]">{p.name}</p>
+                            {isPen && <span className="shrink-0 rounded-[3px] bg-[#D8324A] px-1 py-0.5 text-[7px] font-black leading-none text-white">PEN</span>}
+                          </div>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <p className="text-[9px] font-black text-[#2A1300]/65 tabular-nums">{p.wins}W {p.losses}L</p>
+                            <p
+                              className="text-[13px] font-black tabular-nums"
+                              style={{ color: p.diff > 0 ? '#0C6E36' : p.diff < 0 ? '#B12830' : '#2A1300' }}
+                            >
+                              {p.diff > 0 ? '+' : ''}{p.diff}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  <div className="grid grid-cols-[38px_38px_98px_112px_38px_38px_54px] items-center gap-2 border-b border-[rgba(212,160,64,0.08)] px-3.5 py-1 text-[8px] font-black uppercase tracking-[0.13em] text-white/38">
+                  {/* 8-column list header — last column is right-safe spacer */}
+                  <div
+                    className="grid shrink-0 grid-cols-[36px_42px_minmax(0,1fr)_90px_42px_42px_48px_24px] items-center gap-1.5 border-t border-[#C9B274]/70 border-b-2 border-b-[rgba(90,65,20,0.30)] bg-[#E8D8A8] px-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4F3A0D]"
+                    style={{ height: RANKING_LIST_HEADER_H }}
+                  >
                     <span className="text-center">순위</span>
                     <span className="text-center">변동</span>
                     <span>이름</span>
                     <span className="text-left">RATE</span>
                     <span className="text-center">승</span>
                     <span className="text-center">패</span>
-                    <span className="text-center">득실</span>
+                    <span className="pr-1 text-right">득실</span>
+                    <span aria-hidden="true" />
                   </div>
-                  <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+
+                  {/* Rank 4..N list — Dark Arena 7-col grid in light tones */}
+                  <div
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                    style={{ rowGap: rankRowGap }}
+                  >
                     {liveRanking.slice(3).map((player, index) => {
                       const rankIndex = index + 3;
                       const settlement = calculateDisplaySettlement(player, rankIndex, liveRanking.length);
                       const totalPlayed = Math.max(1, player.wins + player.losses);
                       const winRate = Math.round((player.wins / totalPlayed) * 100);
                       const movementAmount = Math.min(3, Math.max(1, Math.ceil(Math.abs(player.diff) / 5)));
-                      const moveLabel = player.diff > 0 ? `\u25B2${movementAmount}` : player.diff < 0 ? `\u25BC${movementAmount}` : '\u2014';
-                      const moveClass = player.diff > 0 ? 'text-red-300' : player.diff < 0 ? 'text-cyan-300' : 'text-white/36';
+                      const moveLabel = player.diff > 0 ? `▲${movementAmount}` : player.diff < 0 ? `▼${movementAmount}` : '—';
+                      const moveColor = player.diff > 0 ? '#B12830' : player.diff < 0 ? '#0C7F94' : '#7A6655';
+                      // Absolute rank parity drives per-row identity so each line reads on its own:
+                      //   positive even rank (4, 6, 8...) → near-white + muted-gold accent
+                      //   positive odd rank (5, 7, 9...)  → pale blue-gray + muted-slate accent
+                      //   penalty odd rank (7, 9, 11...) → light coral
+                      //   penalty even rank (8, 10, 12)  → slightly deeper coral
+                      // Every row gets a left strip so the line's start is visible at TV distance.
+                      const rankNumber = rankIndex + 1;
+                      const isRankEven = rankNumber % 2 === 0;
+                      // Use isRealPenalty (rank tier) for every visual decision so a guest who
+                      // sits outside the fine/penalty tier renders like any other positive row.
+                      const isPenZone = settlement.isRealPenalty;
+                      // Color diet: normal rows use only white ↔ pale blue-gray (no beige/gold);
+                      // RATE bar + left strip are uniformly muted slate. Gold is now reserved
+                      // for TOP3 / Leader / Ranking title; coral is reserved for penalty zone.
+                      const rowBg = isPenZone
+                        ? (isRankEven ? '#FAD9D2' : '#FFE6E1')
+                        : (isRankEven ? '#FFFFFF' : '#EAF1F8');
+                      const rowBorderColor = isPenZone
+                        ? 'rgba(170,70,60,0.22)'
+                        : 'rgba(60,80,110,0.20)';
+                      const rateTrackBg = isPenZone ? '#E8C6BB' : '#C9D3DE';
+                      const rateFill = isPenZone
+                        ? 'linear-gradient(90deg, #B68A7E 0%, #CFA096 100%)'
+                        : 'linear-gradient(90deg, #5E748A 0%, #71869E 100%)';
+                      const leftAccentWidth = isPenZone ? 4 : 2;
+                      const leftAccentColor = isPenZone ? '#C72238' : '#7A8DA8';
+                      const prevIsRealPenalty = index > 0
+                        ? calculateDisplaySettlement(liveRanking[rankIndex - 1], rankIndex - 1, liveRanking.length).isRealPenalty
+                        : false;
+                      const isFirstPenalty = isPenZone && !prevIsRealPenalty;
                       return (
-                        <div key={player.id} className={`relative grid min-h-[38px] grid-cols-[38px_38px_98px_112px_38px_38px_54px] items-center gap-2 border-b border-[rgba(212,160,64,0.08)] px-3.5 ${
-                          settlement.isPenalty
-                            ? 'bg-red-500/[0.052]'
-                            : index % 2 === 1 ? 'bg-[rgba(212,160,64,0.04)]' : 'bg-transparent'
-                        }`}>
-                          {settlement.isPenalty && <div className="absolute inset-y-0 left-0 w-0.5 bg-red-400" />}
-                          <span className={`flex h-6 w-6 items-center justify-center justify-self-center text-[13px] font-black leading-none ${settlement.isPenalty ? 'rounded-[5px] bg-red-500/70 text-white' : 'text-[#B0AB9A]'}`}>
+                        <div
+                          key={player.id}
+                          className="relative grid grid-cols-[36px_42px_minmax(0,1fr)_90px_42px_42px_48px_24px] items-center gap-1.5 px-1.5"
+                          style={{
+                            height: rankRowH,
+                            flexShrink: 0,
+                            background: rowBg,
+                            borderBottom: `1px solid ${rowBorderColor}`,
+                            ...(isFirstPenalty ? { borderTop: '3px solid rgba(216,50,74,0.45)' } : {}),
+                          }}
+                        >
+                          <div className="pointer-events-none absolute inset-y-0 left-0" style={{ width: leftAccentWidth, background: leftAccentColor }} />
+                          <span
+                            className={`flex h-7 w-7 items-center justify-center justify-self-center font-black leading-none ${
+                              settlement.isPenalty
+                                ? 'rounded-[5px] bg-[#D8324A] text-white'
+                                : 'tabular-nums text-[#3F2C08]'
+                            }`}
+                            style={{ fontSize: rankRankFont }}
+                          >
                             {rankIndex + 1}
                           </span>
-                          <span className={`justify-self-center text-[10px] font-black leading-none tabular-nums ${moveClass}`}>{moveLabel}</span>
+                          <span
+                            className="justify-self-center font-black leading-none tabular-nums"
+                            style={{ color: moveColor, fontSize: rankMoveFont }}
+                          >
+                            {moveLabel}
+                          </span>
                           <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-                            <p className="min-w-0 truncate text-[13px] font-black text-[#E8DFC0]">{player.name}</p>
-                            {settlement.isPenalty && (
-                              <span className="shrink-0 rounded-[5px] border border-red-300/22 bg-red-500/12 px-1 py-0.5 text-[7px] font-black leading-none text-red-200">PEN</span>
+                            <p
+                              className="min-w-0 truncate font-black text-[#1F1408]"
+                              style={{ fontSize: rankNameFont }}
+                            >
+                              {player.name}
+                            </p>
+                            {isPenZone && (
+                              <span className="shrink-0 rounded-[4px] border border-[#D8324A]/30 bg-[#D8324A]/15 px-1 py-0.5 text-[8px] font-black leading-none text-[#7E1B26]">PEN</span>
                             )}
                           </div>
-                          <div className="h-[6px] w-[88px] justify-self-start overflow-hidden rounded-[2px] bg-white/[0.08]">
-                            <div className="h-full rounded-[2px] shadow-[0_0_4px_rgba(240,203,101,0.28)]" style={{ width: `${winRate}%`, background: 'linear-gradient(90deg, #7A5F1A 0%, #D4A830 100%)' }} />
+                          <div
+                            className="h-[7px] w-[68px] justify-self-start overflow-hidden rounded-[2px] shadow-[inset_0_1px_0_rgba(0,0,0,0.05)]"
+                            style={{ background: rateTrackBg }}
+                          >
+                            <div
+                              className="h-full rounded-[2px] shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
+                              style={{
+                                width: `${winRate}%`,
+                                background: rateFill,
+                              }}
+                            />
                           </div>
-                          <span className="text-center text-[12px] font-black tabular-nums text-white/70">{player.wins}</span>
-                          <span className="text-center text-[12px] font-black tabular-nums text-[#6B6657]">{player.losses}</span>
-                          <span className={`text-center text-[12px] font-black tabular-nums ${player.diff > 0 ? 'text-emerald-300' : player.diff < 0 ? 'text-red-300' : 'text-[#6B6657]'}`}>
+                          <span
+                            className="text-center font-black tabular-nums text-[#3F2C08]"
+                            style={{ fontSize: rankNumFont }}
+                          >
+                            {player.wins}
+                          </span>
+                          <span
+                            className="text-center font-black tabular-nums text-[#7A6655]"
+                            style={{ fontSize: rankNumFont }}
+                          >
+                            {player.losses}
+                          </span>
+                          <span
+                            className="pr-1 text-right font-black tabular-nums"
+                            style={{
+                              fontSize: rankNumFont,
+                              color: player.diff > 0 ? '#0C6E36' : player.diff < 0 ? '#B12830' : '#7A6655',
+                            }}
+                          >
                             {player.diff > 0 ? '+' : ''}{player.diff}
                           </span>
+                          <span aria-hidden="true" />
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              ) : (
-                <p className="py-10 text-center text-[12px] font-black uppercase tracking-[0.2em] text-white/38">No Ranking Yet</p>
               )}
-            </section>
-          </aside>
-
-          <section className="col-span-2 relative min-h-0 overflow-hidden rounded-[18px] border border-white/8 bg-[#040810]/96 p-4 shadow-[0_0_0_1px_rgba(2,5,12,0.95),0_16px_38px_rgba(0,0,0,0.52),inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-16px_28px_rgba(0,0,0,0.18)]">
-            <div className="-mx-4 -mt-4 mb-4 flex items-center border-b border-[#F0B93F]/28 bg-[#030810]/95 px-4 pt-4 pb-3">
-              <h2 className="flex items-center gap-2.5 text-[21px] font-black uppercase italic tracking-[0.14em] text-[#FFE7A0]/88">
-                <span className="h-6 w-[3px] rounded-[4px] bg-emerald-400/60" />
-                Completed Recent
-              </h2>
-            </div>
-            {completedMatches.length > 0 ? (
-              <div className="grid grid-cols-4 gap-3">
-                {completedMatches.slice(0, 4).map((match) => (
-                  <CompletedMiniCard key={match.id} match={match} playerLookup={playerLookup} matchNumber={matchNumberMap.get(match.id) || 0} />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-[14px] border border-dashed border-[#F0B93F]/14 bg-white/[0.025] py-10 text-center text-[13px] font-black uppercase tracking-[0.22em] text-white/38">
-                No Results Yet
-              </div>
-            )}
-          </section>
-        </section>
+              {rankingTotal > 0 && (() => {
+                // Normalize lastSync to a compact HH:MM regardless of locale ("09:56:22" or "9시 56분 22초")
+                const updatedShort = (() => {
+                  if (!lastSync) return '--:--';
+                  const m = lastSync.match(/(\d{1,2})[시:]\s*(\d{1,2})/);
+                  return m ? `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}` : lastSync.slice(0, 5);
+                })();
+                return (
+                  <div
+                    className="flex shrink-0 items-center justify-between gap-3 border-t border-[#C9B274]/60 bg-[linear-gradient(180deg,#F3EAD0_0%,#E5D2A0_100%)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]"
+                    style={{ height: 44 }}
+                  >
+                    <span className="whitespace-nowrap text-[13px] font-black uppercase tracking-[0.14em] text-[#4F3A0D]">
+                      TOTAL {rankingTotal} PLAYERS
+                    </span>
+                    <span className="whitespace-nowrap text-[13px] font-black uppercase tracking-[0.14em] tabular-nums text-[#6E5418]">
+                      UPDATED {updatedShort}
+                    </span>
+                  </div>
+                );
+              })()}
+            </aside>
+          </div>
+        </div>
 
         {error && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-2xl border border-red-400/25 bg-red-500/15 px-6 py-4 text-[14px] font-black text-red-100">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-[14px] bg-[#D8324A] px-5 py-2.5 text-[13px] font-black text-white shadow-[0_6px_16px_rgba(216,50,74,0.32)]">
             {error}
           </div>
         )}
-        </div>
       </div>
     </div>
   );
@@ -1415,7 +1640,7 @@ function KdkDisplayBoard() {
 
 export default function KdkDisplayPage() {
   return (
-    <Suspense fallback={<main className="fixed inset-0 z-[9999] bg-[#10100F]" />}>
+    <Suspense fallback={<main className="fixed inset-0 z-[9999] bg-[#D6E2F2]" />}>
       <KdkDisplayBoard />
     </Suspense>
   );
