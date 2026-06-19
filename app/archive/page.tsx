@@ -391,6 +391,16 @@ export default function ArchivePage() {
     const mm = String(d.getMinutes()).padStart(2, '0');
     return `${y}.${m}.${day} ${hh}:${mm}`;
   };
+  // 장소 데이터가 실제 저장되어 있을 때만 반환. 임시값/하드코딩 금지.
+  const getSessionVenue = (s: any): string | null => {
+    const candidates = [s?.venue, s?.location, s?.place, s?.court_name, s?.court];
+    for (const c of candidates) {
+      const v = String(c || '').trim();
+      if (v) return v;
+    }
+    return null;
+  };
+
   const archiveTypeLabel = (t?: string) => {
     const raw = String(t || '').toLowerCase();
     if (raw === 'kdk-manual' || raw === 'manual') return '방식 KDK 수동';
@@ -766,7 +776,7 @@ export default function ArchivePage() {
                           {s.title}
                         </h3>
                         <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#56729A' }}>
-                          {formatArchiveDate(s.date)} · 양재 테니스장 · 참가 {s.participantCount}명
+                          {[formatArchiveDate(s.date), getSessionVenue(s), `참가 ${s.participantCount}명`].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       <span
@@ -894,10 +904,12 @@ export default function ArchivePage() {
               <Calendar size={11} />
               {formatArchiveDate(session.date)}
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
-              <MapPin size={11} />
-              양재 테니스장
-            </span>
+            {getSessionVenue(session) && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
+                <MapPin size={11} />
+                {getSessionVenue(session)}
+              </span>
+            )}
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
               <Users size={11} />
               참가 {session.participantCount}명
