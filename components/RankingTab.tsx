@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import RankingRow from './tournament/RankingRow';
+import { InitialAvatar } from './tournament/InitialAvatar';
 
 import { Match, RankedPlayer } from '@/lib/tournament_types';
 
@@ -238,56 +239,90 @@ export default function RankingTab({
                             const widthClass = isFirst ? 'w-[45%]' : 'w-[28%]';
                             
                             return (
-                                <div 
-                                    key={p.id} 
+                                <div
+                                    key={p.id}
                                     className={`relative ${widthClass} transition-all duration-700 flex flex-col justify-end`}
                                 >
-                                    <div className="bg-white/5 backdrop-blur-3xl rounded-[40px] border-t border-t-white/30 border-l border-l-white/10 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col items-center pt-6 pb-6 w-full relative">
-                                        <div className={`
-                                            flex items-center justify-center rounded-full bg-white/5 backdrop-blur-3xl border border-white/20 relative shadow-2xl mb-6 overflow-hidden
-                                            ${isFirst ? 'w-20 h-20 border-[#C9B075]/40' : 'w-16 h-16'}
-                                        `}>
-                                            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-60 pointer-events-none" />
+                                    <div
+                                        className="flex w-full flex-col items-center pt-6 pb-6 relative"
+                                        style={{
+                                            borderRadius: 28,
+                                            background: '#FFFFFF',
+                                            border: isFirst ? '2px solid #F4C979' : '1px solid #DCE8F5',
+                                            boxShadow: isFirst
+                                                ? '0 14px 32px rgba(244,201,121,0.20), 0 4px 12px rgba(15,45,85,0.06)'
+                                                : '0 10px 24px rgba(15,45,85,0.06)',
+                                        }}
+                                    >
+                                        <div className="relative mb-5">
                                             {p.avatar ? (
-                                                <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className={`${isFirst ? 'text-5xl' : 'text-3xl'} select-none text-[#C9B075] drop-shadow-[0_0_20px_rgba(201,176,117,1)] opacity-100 font-bold`}>
-                                                    {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
-                                                </span>
-                                            )}
-                                            
-                                            {/* Badge for Rank Emoji */}
-                                            {p.avatar && (
-                                                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-black/80 rounded-full flex items-center justify-center border border-white/20 text-xs">
-                                                    {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
+                                                <div
+                                                    className="flex items-center justify-center rounded-full overflow-hidden"
+                                                    style={{
+                                                        width: isFirst ? 80 : 64,
+                                                        height: isFirst ? 80 : 64,
+                                                        background: isFirst ? '#FFF8E6' : '#F6FAFD',
+                                                        border: isFirst ? '2px solid #F4C979' : '1px solid #DCE8F5',
+                                                    }}
+                                                >
+                                                    <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                                                 </div>
+                                            ) : (
+                                                <InitialAvatar
+                                                    name={p.name}
+                                                    size={isFirst ? 80 : 64}
+                                                    fontSize={isFirst ? 28 : 22}
+                                                />
                                             )}
+                                            <div
+                                                className="absolute -bottom-1 -right-1 flex items-center justify-center text-base"
+                                                style={{
+                                                    width: 28, height: 28, borderRadius: '50%',
+                                                    background: '#FFFFFF',
+                                                    border: '1px solid #DCE8F5',
+                                                    boxShadow: '0 4px 10px rgba(15,45,85,0.08)',
+                                                }}
+                                            >
+                                                {isFirst ? '🏆' : (idx === 1 ? '🥈' : '🥉')}
+                                            </div>
                                         </div>
 
-                                        <div className="flex flex-col items-center gap-2.5 w-full px-4 relative z-10">
-                                            <div className={`font-bold text-white text-center truncate w-full tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] ${isFirst ? 'text-3xl' : 'text-lg'}`}>
+                                        <div className="flex flex-col items-center gap-2 w-full px-3 relative z-10">
+                                            <div
+                                                className="text-center truncate w-full"
+                                                style={{
+                                                    fontSize: isFirst ? 24 : 16,
+                                                    fontWeight: 900,
+                                                    color: '#0F2747',
+                                                    letterSpacing: '-0.02em',
+                                                    lineHeight: 1.15,
+                                                }}
+                                            >
                                                 {p.name}
                                             </div>
-                                            
-                                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-[11px] relative z-20">
-                                                <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{p.wins}</span>
-                                                    <span className="text-white drop-shadow-[0_0_5px_rgba(0,0,0,1)]">승</span>
-                                                </div>
-                                                <div className="flex items-center gap-0.5">
-                                                    <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">{p.losses}</span>
-                                                    <span className="text-white drop-shadow-[0_0_5px_rgba(0,0,0,1)]">패</span>
-                                                </div>
-                                                <span className="opacity-30">/</span>
-                                                <span className={p.diff > 0 ? 'text-[#00e5ff] drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]' : 'text-white tracking-normal'}>
+
+                                            <div
+                                                className="flex items-center justify-center gap-2"
+                                                style={{ fontSize: 11, fontWeight: 900 }}
+                                            >
+                                                <span style={{ color: '#0F2747' }}>{p.wins}<span style={{ color: '#56729A', marginLeft: 2 }}>승</span></span>
+                                                <span style={{ color: '#0F2747' }}>{p.losses}<span style={{ color: '#56729A', marginLeft: 2 }}>패</span></span>
+                                                <span style={{ color: '#C7DCF1' }}>/</span>
+                                                <span style={{ color: p.diff > 0 ? '#16A085' : p.diff < 0 ? '#C0392B' : '#56729A' }}>
                                                     {p.diff > 0 ? `+${p.diff}` : p.diff}
                                                 </span>
                                             </div>
 
                                             {isFirst && (
-                                                <div className="mt-5 px-6 py-2 rounded-full bg-[#C9B075] shadow-[0_4px_20px_rgba(201,176,117,0.4)]">
-                                                    <span className="text-black font-black text-[12px] tracking-widest italic uppercase">
-                                                        ₩{(prizes.first || 10000).toLocaleString()} PRIZE
+                                                <div
+                                                    className="mt-4 inline-flex items-center"
+                                                    style={{
+                                                        padding: '5px 14px', borderRadius: 999,
+                                                        background: '#FFF4DE', border: '1px solid #F4C979',
+                                                    }}
+                                                >
+                                                    <span style={{ color: '#B7791F', fontSize: 11, fontWeight: 900, letterSpacing: '0.06em' }}>
+                                                        상금 ₩{(prizes.first || 10000).toLocaleString()}
                                                     </span>
                                                 </div>
                                             )}
@@ -302,17 +337,25 @@ export default function RankingTab({
                 <div className="h-6" aria-hidden="true" />
 
                 <div className="flex-1 space-y-2 px-4 mb-32 relative z-0">
-                    <div className="grid grid-cols-[2rem_2.2rem_1fr_1.5rem_1.5rem_1.5rem_1.7rem_1.7rem_2rem_5.2rem] gap-1 px-4 pb-6 text-[11px] font-black text-white/40 tracking-widest border-b border-white/10 uppercase italic overflow-visible">
-                        <span className="text-center opacity-60">#</span>
-                        <span className="text-center opacity-0">IMG</span>
-                        <span className="text-left pl-2 opacity-60">PLAYER</span>
-                        <span className="text-right opacity-40">P</span>
-                        <span className="text-right text-[#00e5ff]">W</span>
-                        <span className="text-right opacity-60">L</span>
-                        <span className="text-right opacity-40">PF</span>
-                        <span className="text-right opacity-40">PA</span>
-                        <span className="text-right text-[#00e5ff]">+/-</span>
-                        <span className="text-center text-[#C9B075]">FINE</span>
+                    <div
+                        className="grid gap-1 px-4 pb-3 mb-2"
+                        style={{
+                            gridTemplateColumns: '2rem 2.2rem 1fr 1.5rem 1.5rem 1.5rem 1.7rem 1.7rem 2rem 5.2rem',
+                            borderBottom: '1px solid #DCE8F5',
+                            fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase',
+                            color: '#7A93B3',
+                        }}
+                    >
+                        <span className="text-center">#</span>
+                        <span className="text-center" style={{ opacity: 0 }}>IMG</span>
+                        <span className="text-left pl-2">선수</span>
+                        <span className="text-right">P</span>
+                        <span className="text-right" style={{ color: '#1F5FB5' }}>W</span>
+                        <span className="text-right">L</span>
+                        <span className="text-right">PF</span>
+                        <span className="text-right">PA</span>
+                        <span className="text-right" style={{ color: '#1F5FB5' }}>+/-</span>
+                        <span className="text-center" style={{ color: '#B7791F' }}>벌금</span>
                     </div>
                     {others.map((p, i) => {
                         const localRank = i + 4;
@@ -345,7 +388,15 @@ export default function RankingTab({
     const DetailScoreCells = ({ values }: { values: number[] }) => (
         <>
             {detailGameColumns.map((columnIndex) => (
-                <td key={columnIndex} className="px-3 py-3 text-center font-black text-white/82">
+                <td
+                    key={columnIndex}
+                    className="px-3 py-3 text-center"
+                    style={{
+                        borderRight: '1px solid #E1EAF5',
+                        fontWeight: 700,
+                        color: values[columnIndex] !== undefined ? '#3F5B82' : '#9CB2CC',
+                    }}
+                >
                     {values[columnIndex] ?? '-'}
                 </td>
             ))}
@@ -1223,23 +1274,69 @@ export default function RankingTab({
     const ImageExportPanel = () => {
         const ButtonPair = ({
             title,
+            icon,
             onDownload,
             onCopy,
             disabled = false,
         }: {
             title: string;
+            icon: string;
             onDownload: () => void;
             onCopy: () => void;
             disabled?: boolean;
         }) => (
-            <div className="min-w-0 rounded-[20px] border border-white/10 bg-black/24 p-3">
-                <p className="mb-2 min-w-0 truncate text-[11px] font-black uppercase tracking-[0.16em] text-white/58">{title}</p>
-                <div className="grid grid-cols-2 gap-2">
+            <div
+                className="min-w-0"
+                style={{
+                    borderRadius: 20,
+                    background: '#FFFFFF',
+                    border: '1px solid #DCE8F5',
+                    padding: 16,
+                    display: 'flex', flexDirection: 'column', gap: 14,
+                    boxShadow: '0 4px 12px rgba(15,45,85,0.04)',
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span
+                        style={{
+                            flexShrink: 0,
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 32, height: 32, borderRadius: 10,
+                            background: '#EEF5FB', border: '1px solid #DCE8F5',
+                            fontSize: 16,
+                        }}
+                    >
+                        {icon}
+                    </span>
+                    <span
+                        style={{
+                            minWidth: 0, flex: 1,
+                            margin: 0,
+                            fontSize: 14, fontWeight: 900, color: '#0F2747',
+                            letterSpacing: '-0.01em',
+                            lineHeight: 1.25,
+                            wordBreak: 'keep-all',
+                        }}
+                    >
+                        {title}
+                    </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <button
                         type="button"
                         disabled={disabled}
                         onClick={onDownload}
-                        className="overflow-hidden text-ellipsis whitespace-nowrap rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2.5 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
+                        className="transition active:scale-[0.98] disabled:cursor-not-allowed"
+                        style={{
+                            borderRadius: 12, height: 40,
+                            background: disabled ? '#F1F5F9' : '#FFFFFF',
+                            border: '1px solid #DCE8F5',
+                            color: disabled ? '#9CB2CC' : '#1F5FB5',
+                            fontSize: 13, fontWeight: 900, letterSpacing: '0.04em',
+                            whiteSpace: 'nowrap',
+                            opacity: disabled ? 0.55 : 1,
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                        }}
                     >
                         저장
                     </button>
@@ -1247,7 +1344,18 @@ export default function RankingTab({
                         type="button"
                         disabled={disabled}
                         onClick={onCopy}
-                        className="overflow-hidden text-ellipsis whitespace-nowrap rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2.5 text-[11px] font-black text-black shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35"
+                        className="transition active:scale-[0.98] disabled:cursor-not-allowed"
+                        style={{
+                            borderRadius: 12, height: 40,
+                            background: disabled ? '#F1F5F9' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                            border: 'none',
+                            color: disabled ? '#9CB2CC' : '#FFFFFF',
+                            fontSize: 13, fontWeight: 900, letterSpacing: '0.04em',
+                            whiteSpace: 'nowrap',
+                            boxShadow: disabled ? 'none' : '0 6px 14px rgba(37,99,235,0.22)',
+                            opacity: disabled ? 0.55 : 1,
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                        }}
                     >
                         복사
                     </button>
@@ -1256,50 +1364,94 @@ export default function RankingTab({
         );
 
         return (
-            <section className="mx-4 mt-8 rounded-[28px] border border-[#C9B075]/18 bg-white/[0.03] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
-                <div className="mb-4 flex items-center justify-between gap-3">
+            <section
+                className="mx-4 mt-6"
+                style={{
+                    borderRadius: 22,
+                    background: '#FFFFFF',
+                    border: '1px solid #DCE8F5',
+                    padding: 18,
+                    boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                }}
+            >
+                <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">Image Share</span>
-                        <h3 className="mt-1 truncate text-lg font-black italic uppercase tracking-tight text-white">이미지 공유</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
+                            <h3
+                                style={{
+                                    margin: 0, fontSize: 16, fontWeight: 900,
+                                    letterSpacing: '-0.02em', color: '#0F2747',
+                                }}
+                            >
+                                결과 공유
+                            </h3>
+                        </div>
+                        <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.5, color: '#56729A' }}>
+                            카카오톡 공유용 이미지와 결과표를 저장하거나 복사합니다.
+                        </p>
                     </div>
-                    <span className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
+                    <span
+                        className="shrink-0 whitespace-nowrap"
+                        style={{
+                            borderRadius: 999, padding: '4px 10px',
+                            background: '#EAF3FC', border: '1px solid #C7DCF1',
+                            color: '#1F5FB5', fontSize: 10, fontWeight: 900,
+                            letterSpacing: '0.18em', textTransform: 'uppercase',
+                        }}
+                    >
                         PNG
                     </span>
                 </div>
 
                 {(detailExportStatus || tableExportStatus) && (
-                    <div className="mb-3 overflow-hidden text-ellipsis rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
+                    <div
+                        className="mb-3 overflow-hidden text-ellipsis"
+                        style={{
+                            borderRadius: 14,
+                            background: '#EEF5FB',
+                            border: '1px solid #DCE8F5',
+                            padding: '8px 12px',
+                            fontSize: 11.5, fontWeight: 700,
+                            color: '#3F5B82',
+                        }}
+                    >
                         {tableExportStatus || detailExportStatus}
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <ButtonPair
                         title={finalImageLabels.personalDetail}
+                        icon="📊"
                         disabled={maxDetailGameCount === 0 || activeDetailedResults.length === 0}
                         onDownload={() => handleDetailedResultImageAction('download')}
                         onCopy={() => handleDetailedResultImageAction('copy')}
                     />
                     <ButtonPair
                         title={finalImageLabels.finalOverallButton}
+                        icon="🏆"
                         disabled={playersList.length === 0}
                         onDownload={() => handleFinalResultImageAction('overall', 'download')}
                         onCopy={() => handleFinalResultImageAction('overall', 'copy')}
                     />
                     <ButtonPair
                         title={finalImageLabels.finalGroupsButton}
+                        icon="🎯"
                         disabled={playersList.length === 0}
                         onDownload={() => handleFinalResultImageAction('groups', 'download')}
                         onCopy={() => handleFinalResultImageAction('groups', 'copy')}
                     />
                     <ButtonPair
                         title={finalImageLabels.fullSchedule}
+                        icon="🎾"
                         disabled={sortedExportMatches.length === 0}
                         onDownload={() => handleMatchTableImageAction('schedule', 'download')}
                         onCopy={() => handleMatchTableImageAction('schedule', 'copy')}
                     />
                     <ButtonPair
                         title={finalImageLabels.matchResults}
+                        icon="📑"
                         onDownload={() => handleMatchTableImageAction('results', 'download')}
                         onCopy={() => handleMatchTableImageAction('results', 'copy')}
                     />
@@ -1312,97 +1464,159 @@ export default function RankingTab({
         if (activeDetailedResults.length === 0) return null;
 
         return (
-            <section ref={detailCaptureRef} className="mx-4 mt-8 rounded-[28px] border border-[#C9B075]/18 bg-white/[0.035] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.35)]">
-                <div className="mb-4 flex items-end justify-between gap-3 px-1">
+            <section
+                ref={detailCaptureRef}
+                className="mx-4 mt-6"
+                style={{
+                    borderRadius: 22,
+                    background: '#FFFFFF',
+                    border: '1px solid #DCE8F5',
+                    padding: 18,
+                    boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                }}
+            >
+                <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#C9B075]/70">
-                            Player Detail
-                        </span>
-                        <h3 className="mt-1 truncate text-xl font-black italic uppercase tracking-tight text-white">
-                            개인별 상세 결과표
-                        </h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
+                            <h3
+                                style={{
+                                    margin: 0, fontSize: 16, fontWeight: 900,
+                                    letterSpacing: '-0.02em', color: '#0F2747',
+                                }}
+                            >
+                                개인별 상세 결과표
+                            </h3>
+                        </div>
+                        <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, lineHeight: 1.5, color: '#56729A' }}>
+                            완료된 경기 기준으로 선수별 득점/실점을 정리합니다.
+                        </p>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className="whitespace-nowrap rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/38">
-                            Completed only
-                        </span>
-                        {maxDetailGameCount > 0 && (
-                            <div className="flex flex-wrap justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => handleDetailedResultImageAction('download')}
-                                    className="whitespace-nowrap rounded-xl border border-[#C9B075]/55 bg-[#C9B075]/12 px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(201,176,117,0.12)] transition active:scale-[0.98]"
-                                >
-                                    이미지 저장
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDetailedResultImageAction('copy')}
-                                    className="whitespace-nowrap rounded-xl border border-[#C9B075]/80 bg-gradient-to-r from-[#f7d77a] via-[#d6b85c] to-[#b89432] px-3 py-2 text-[11px] font-black text-[#f5df9a] shadow-[0_0_18px_rgba(247,215,122,0.24)] transition active:scale-[0.98]"
-                                >
-                                    이미지 복사
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDetailedResultImageAction('share')}
-                                    className="whitespace-nowrap rounded-xl border border-white/12 bg-white/[0.07] px-3 py-2 text-[11px] font-black text-white/82 transition active:scale-[0.98] md:hidden"
-                                >
-                                    공유
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    <span
+                        className="shrink-0 whitespace-nowrap"
+                        style={{
+                            borderRadius: 999, padding: '4px 10px',
+                            background: '#FFF4DE', border: '1px solid #F4C979',
+                            color: '#B7791F', fontSize: 10, fontWeight: 900,
+                            letterSpacing: '0.1em',
+                        }}
+                    >
+                        완료 경기 기준
+                    </span>
                 </div>
+
                 {detailExportStatus && (
-                    <div className="mb-3 overflow-hidden text-ellipsis rounded-2xl border border-white/10 bg-black/24 px-3 py-2 text-[11px] font-bold text-white/48">
+                    <div
+                        className="mb-3 overflow-hidden text-ellipsis"
+                        style={{
+                            borderRadius: 14,
+                            background: '#EEF5FB',
+                            border: '1px solid #DCE8F5',
+                            padding: '8px 12px',
+                            fontSize: 11.5, fontWeight: 700,
+                            color: '#3F5B82',
+                        }}
+                    >
                         {detailExportStatus}
                     </div>
                 )}
 
                 {maxDetailGameCount === 0 ? (
-                    <div className="rounded-[20px] border border-dashed border-white/10 py-8 text-center text-[12px] font-bold text-white/35">
+                    <div
+                        style={{
+                            borderRadius: 16,
+                            border: '1px dashed #C7DCF1',
+                            background: '#F8FBFE',
+                            padding: '24px 16px',
+                            textAlign: 'center',
+                            fontSize: 12, fontWeight: 700,
+                            color: '#7A93B3',
+                        }}
+                    >
                         완료된 경기 결과가 생기면 선수별 득점/실점 상세표가 표시됩니다.
                     </div>
                 ) : (
-                    <div className="overflow-x-auto rounded-[20px] border border-white/10 bg-black/28">
-                        <table className="min-w-max w-full border-collapse text-[12px]">
+                    <div
+                        className="overflow-x-auto"
+                        style={{
+                            borderRadius: 14,
+                            border: '1px solid #DCE8F5',
+                            background: '#FFFFFF',
+                        }}
+                    >
+                        <table className="min-w-max w-full border-collapse" style={{ fontSize: 12 }}>
                             <thead>
-                                <tr className="border-b border-white/10 bg-[#C9B075]/10 text-[10px] font-black uppercase tracking-[0.14em] text-[#C9B075]">
-                                    <th rowSpan={2} className="min-w-[52px] border-r border-white/10 px-3 py-3 text-center">순위</th>
-                                    <th rowSpan={2} className="min-w-[96px] border-r border-white/10 px-3 py-3 text-center">성명</th>
-                                    <th rowSpan={2} className="min-w-[42px] border-r border-white/10 px-3 py-3 text-center">승</th>
-                                    <th rowSpan={2} className="min-w-[42px] border-r border-white/10 px-3 py-3 text-center">패</th>
-                                    <th colSpan={maxDetailGameCount + 1} className="border-r border-white/10 px-3 py-3 text-center">게임득점</th>
-                                    <th colSpan={maxDetailGameCount + 1} className="border-r border-white/10 px-3 py-3 text-center">게임실점</th>
+                                <tr
+                                    style={{
+                                        background: '#EEF5FB',
+                                        borderBottom: '1px solid #DCE8F5',
+                                        fontSize: 10, fontWeight: 900,
+                                        letterSpacing: '0.12em',
+                                        color: '#1F5FB5',
+                                    }}
+                                >
+                                    <th rowSpan={2} className="min-w-[52px] px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5' }}>순위</th>
+                                    <th rowSpan={2} className="min-w-[96px] px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5' }}>성명</th>
+                                    <th rowSpan={2} className="min-w-[42px] px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5' }}>승</th>
+                                    <th rowSpan={2} className="min-w-[42px] px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5' }}>패</th>
+                                    <th colSpan={maxDetailGameCount + 1} className="px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5' }}>게임득점</th>
+                                    <th colSpan={maxDetailGameCount + 1} className="px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5' }}>게임실점</th>
                                     <th rowSpan={2} className="min-w-[54px] px-3 py-3 text-center">득실</th>
                                 </tr>
-                                <tr className="border-b border-white/10 bg-white/[0.035] text-[10px] font-black uppercase tracking-[0.12em] text-white/42">
+                                <tr
+                                    style={{
+                                        background: '#F8FBFE',
+                                        borderBottom: '1px solid #DCE8F5',
+                                        fontSize: 10, fontWeight: 900,
+                                        letterSpacing: '0.1em',
+                                        color: '#56729A',
+                                    }}
+                                >
                                     {detailGameColumns.map((columnIndex) => (
-                                        <th key={`pf-${columnIndex}`} className="min-w-[42px] border-r border-white/5 px-3 py-2 text-center">{columnIndex + 1}</th>
+                                        <th key={`pf-${columnIndex}`} className="min-w-[42px] px-3 py-2 text-center" style={{ borderRight: '1px solid #E1EAF5' }}>
+                                            {columnIndex + 1}
+                                        </th>
                                     ))}
-                                    <th className="min-w-[54px] border-r border-white/10 px-3 py-2 text-center text-[#C9B075]/80">합계</th>
+                                    <th className="min-w-[54px] px-3 py-2 text-center" style={{ borderRight: '1px solid #DCE8F5', color: '#1F5FB5' }}>합계</th>
                                     {detailGameColumns.map((columnIndex) => (
-                                        <th key={`pa-${columnIndex}`} className="min-w-[42px] border-r border-white/5 px-3 py-2 text-center">{columnIndex + 1}</th>
+                                        <th key={`pa-${columnIndex}`} className="min-w-[42px] px-3 py-2 text-center" style={{ borderRight: '1px solid #E1EAF5' }}>
+                                            {columnIndex + 1}
+                                        </th>
                                     ))}
-                                    <th className="min-w-[54px] border-r border-white/10 px-3 py-2 text-center text-[#C9B075]/80">합계</th>
+                                    <th className="min-w-[54px] px-3 py-2 text-center" style={{ borderRight: '1px solid #DCE8F5', color: '#1F5FB5' }}>합계</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {activeDetailedResults.map((row) => (
-                                    <tr key={row.id} className="border-b border-white/5 text-white/72 last:border-b-0">
-                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-[#C9B075]">{row.displayRank}</td>
-                                        <td className="max-w-[160px] truncate border-r border-white/5 px-3 py-3 text-center font-black text-white">{row.name}</td>
-                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-emerald-300">{row.wins}</td>
-                                        <td className="border-r border-white/5 px-3 py-3 text-center font-black text-red-300">{row.losses}</td>
-                                        <DetailScoreCells values={row.pointsForByMatch} />
-                                        <td className="border-x border-white/10 px-3 py-3 text-center font-black text-white">{row.pointsForTotal}</td>
-                                        <DetailScoreCells values={row.pointsAgainstByMatch} />
-                                        <td className="border-x border-white/10 px-3 py-3 text-center font-black text-white">{row.pointsAgainstTotal}</td>
-                                        <td className={`px-3 py-3 text-center font-black ${row.diff > 0 ? 'text-emerald-300' : row.diff < 0 ? 'text-red-300' : 'text-white/62'}`}>
-                                            {row.diff > 0 ? `+${row.diff}` : row.diff}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {activeDetailedResults.map((row, rowIndex) => {
+                                    const isLast = rowIndex === activeDetailedResults.length - 1;
+                                    const rowBg = rowIndex % 2 === 0 ? '#FFFFFF' : '#F8FBFE';
+                                    return (
+                                        <tr
+                                            key={row.id}
+                                            style={{
+                                                background: rowBg,
+                                                borderBottom: isLast ? 'none' : '1px solid #E1EAF5',
+                                                fontWeight: 800,
+                                                color: '#0F2747',
+                                            }}
+                                        >
+                                            <td className="px-3 py-3 text-center" style={{ borderRight: '1px solid #E1EAF5', color: '#1F5FB5' }}>{row.displayRank}</td>
+                                            <td className="max-w-[160px] truncate px-3 py-3 text-center" style={{ borderRight: '1px solid #E1EAF5' }}>{row.name}</td>
+                                            <td className="px-3 py-3 text-center" style={{ borderRight: '1px solid #E1EAF5', color: '#1F5FB5' }}>{row.wins}</td>
+                                            <td className="px-3 py-3 text-center" style={{ borderRight: '1px solid #E1EAF5', color: '#C0392B' }}>{row.losses}</td>
+                                            <DetailScoreCells values={row.pointsForByMatch} />
+                                            <td className="px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5', borderLeft: '1px solid #DCE8F5', color: '#1F5FB5', fontWeight: 900 }}>{row.pointsForTotal}</td>
+                                            <DetailScoreCells values={row.pointsAgainstByMatch} />
+                                            <td className="px-3 py-3 text-center" style={{ borderRight: '1px solid #DCE8F5', borderLeft: '1px solid #DCE8F5', color: '#1F5FB5', fontWeight: 900 }}>{row.pointsAgainstTotal}</td>
+                                            <td className="px-3 py-3 text-center" style={{
+                                                color: row.diff > 0 ? '#16A085' : row.diff < 0 ? '#C0392B' : '#7A93B3',
+                                                fontWeight: 900,
+                                            }}>
+                                                {row.diff > 0 ? `+${row.diff}` : row.diff}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -1412,7 +1626,7 @@ export default function RankingTab({
     };
 
     return (
-        <div className="flex flex-col min-h-screen relative">
+        <div className="flex flex-col min-h-screen relative" style={{ background: '#F4F8FC', color: '#0F2747' }}>
             <style jsx global>{`
                 @keyframes confetti-fall {
                     0% { transform: translateY(-10vh) rotate(0deg); opacity:1; }
@@ -1420,31 +1634,43 @@ export default function RankingTab({
                 }
                 .animate-confetti-fall { animation: confetti-fall 4.5s linear forwards; }
             `}</style>
-            
+
             <div className="flex-1">
                 {isArchive ? (
-                    <div className="sticky top-0 z-[100] px-6 py-4 bg-black/60 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between">
+                    <div className="sticky top-0 z-[100] px-6 py-4 flex items-center justify-between" style={{ background: '#FFFFFF', borderBottom: '1px solid #DCE8F5', boxShadow: '0 4px 16px rgba(15,45,85,0.06)' }}>
                         <div className="flex flex-col">
-                            <span className="text-[9px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Historical Report</span>
-                            <h2 className="text-xl font-black italic text-white tracking-tighter uppercase truncate max-w-[200px]">{sessionTitle}</h2>
+                            <span style={{ display: 'block', fontSize: 9, fontWeight: 900, color: '#3B82F6', letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 2 }}>아카이브</span>
+                            <h2 className="truncate" style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em', maxWidth: 200 }}>{sessionTitle}</h2>
                         </div>
-                        <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black text-white/40 uppercase tracking-widest">
-                            Official Archive
+                        <div style={{ padding: '4px 12px', borderRadius: 999, background: '#EAF3FC', border: '1px solid #C7DCF1', color: '#1F5FB5', fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+                            공식 기록
                         </div>
                     </div>
                 ) : (
                     showTabs && (
-                        <div className="sticky top-0 z-50 py-3 bg-black/60 backdrop-blur-xl -mx-4 px-4 border-b border-white/10 mb-4 shadow-2xl">
-                            <div className="flex bg-white/5 rounded-3xl p-1.5 border border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)] max-w-sm mx-auto">
-                                {['ALL', 'A', 'B'].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveRankingTab(tab as any)}
-                                        className={`flex-1 py-3 text-[11px] font-black rounded-2xl transition-all tracking-widest ${activeRankingTab === tab ? 'bg-gradient-to-r from-[#C9B075] to-[#A89462] text-black shadow-xl shadow-[#C9B075]/20' : 'text-white/40 hover:text-white/70'}`}
-                                    >
-                                        {tab === 'ALL' ? 'INTEGRATED' : `GROUP ${tab}`}
-                                    </button>
-                                ))}
+                        <div className="sticky top-0 z-50 py-3 -mx-4 px-4 mb-4" style={{ background: '#F4F8FC', borderBottom: '1px solid #DCE8F5' }}>
+                            <div className="flex max-w-sm mx-auto" style={{ background: '#FFFFFF', borderRadius: 18, padding: 4, border: '1px solid #DCE8F5', boxShadow: '0 6px 16px rgba(15,45,85,0.05)' }}>
+                                {['ALL', 'A', 'B'].map((tab) => {
+                                    const active = activeRankingTab === tab;
+                                    return (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setActiveRankingTab(tab as any)}
+                                            className="flex-1 transition-all"
+                                            style={{
+                                                padding: '10px 0', borderRadius: 14,
+                                                fontSize: 12, fontWeight: 900, letterSpacing: '0.04em',
+                                                background: active ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : 'transparent',
+                                                color: active ? '#FFFFFF' : '#56729A',
+                                                border: 'none',
+                                                boxShadow: active ? '0 6px 14px rgba(37,99,235,0.22)' : 'none',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            {tab === 'ALL' ? '전체' : `${tab}조`}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     )
@@ -1468,28 +1694,73 @@ export default function RankingTab({
                 {activeRankingTab === 'A' && <RankingTable players={generatePlayerList('A')} title="GROUP A" />}
                 {activeRankingTab === 'B' && <RankingTable players={generatePlayerList('B')} title="GROUP B" />}
 
-                <ImageExportPanel />
                 <DetailedResultTable />
-                
-                <div className="h-8" aria-hidden="true" />
+                <ImageExportPanel />
 
-                 <div className="flex flex-col gap-6 mt-32 mb-40 px-6 pb-[250px]">
-                    <button onClick={onShareMatch} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[13px] font-black uppercase tracking-[0.3em] rounded-[28px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic shadow-lg active:scale-95 shadow-black/20">
-                        <span className="text-xl">📋</span>
-                        {isArchive ? 'SHARE REPORT' : '대진표 공유'}
-                    </button>
-                    <button onClick={onShareResult} className="w-full py-8 bg-white/5 border border-white/10 text-white text-[13px] font-black uppercase tracking-[0.3em] rounded-[28px] hover:bg-white/10 transition-all flex items-center justify-center gap-6 italic shadow-lg active:scale-95 shadow-black/20">
-                        <span className="text-xl">🏆</span>
-                        {isArchive ? 'SHARE CHAMPIONS' : '최종결과 공유'}
-                    </button>
+                {/* 텍스트 공유 — 카카오톡 paste 등용 (ImageExportPanel과 별개 핸들러) */}
+                <div className="mt-4 mb-6 mx-4">
+                    <div
+                        style={{
+                            borderRadius: 22,
+                            background: '#FFFFFF',
+                            border: '1px solid #DCE8F5',
+                            padding: 18,
+                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
+                            <h4 style={{ margin: 0, fontSize: 13, fontWeight: 900, letterSpacing: '0.02em', color: '#1F5FB5' }}>
+                                텍스트 빠른 복사
+                            </h4>
+                        </div>
+                        <p style={{ margin: '0 0 14px', fontSize: 11.5, fontWeight: 600, lineHeight: 1.5, color: '#56729A' }}>
+                            카카오톡 등에 바로 붙여넣을 수 있는 텍스트 요약을 복사합니다.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                                onClick={onShareMatch}
+                                className="flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                style={{
+                                    height: 52, borderRadius: 14,
+                                    background: '#F8FBFE', border: '1px solid #DCE8F5',
+                                    color: '#1F5FB5', fontSize: 13, fontWeight: 900,
+                                    letterSpacing: '0.02em',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <span style={{ fontSize: 15 }}>📋</span>
+                                대진표
+                            </button>
+                            <button
+                                onClick={onShareResult}
+                                className="flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                style={{
+                                    height: 52, borderRadius: 14,
+                                    background: '#F8FBFE', border: '1px solid #DCE8F5',
+                                    color: '#1F5FB5', fontSize: 13, fontWeight: 900,
+                                    letterSpacing: '0.02em',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <span style={{ fontSize: 15 }}>🏆</span>
+                                최종 결과
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                {/* Spacer to keep the last scrollable content above the fixed Archive CTA card */}
+                {!isArchive && (
+                    <div aria-hidden="true" style={{ height: 220 }} />
+                )}
 
                 {isArchive && snapshot_data && snapshot_data.length > 0 && (
                     <section className="px-6 pb-20 space-y-10 animate-in fade-in slide-in-from-bottom-10 duration-1000">
                         <div className="flex items-center gap-4">
                             <div className="w-2 h-10 bg-[#C9B075] rounded-full shadow-[0_0_20px_rgba(201,176,117,0.4)]" />
                             <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-[#C9B075]/60 uppercase tracking-[0.3em]">Historical Evidence</span>
+                                <span className="text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: '#56729A' }}>Historical Evidence</span>
                                 <h3 className="text-2xl font-black italic text-white uppercase tracking-tight">ATMOSPHERE REPLAY</h3>
                             </div>
                         </div>
@@ -1556,27 +1827,63 @@ export default function RankingTab({
             </div>
 
             {!isArchive && (
-                <div className="fixed bottom-[145px] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100]">
-                    <button
-                        disabled={isGenerating}
-                        onClick={() => {
-                            if (!isAdmin) {
-                                alert("관리자만 아카이브를 확정할 수 있습니다.");
-                                return;
-                            }
-                            onFinalize?.();
-                        }}
-                        className={`w-full h-14 text-black font-black rounded-2xl uppercase text-[13px] tracking-[0.35em] shadow-2xl active:scale-95 transition-all border border-white/30 relative overflow-hidden group flex items-center justify-center gap-4 ${!isAdmin ? 'opacity-40 grayscale' : ''}`}
+                <div
+                    className="fixed left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100]"
+                    style={{ bottom: 'calc(var(--bottom-nav-area) + 120px)' }}
+                >
+                    <div
                         style={{
-                            background: isAdmin ? 'linear-gradient(to right, #8E7A4A, #A89462, #8E7A4A)' : 'rgba(255,255,255,0.1)',
-                            boxShadow: isAdmin ? '0 10px 30px rgba(142,122,74,0.4), inset 0 0 10px rgba(255,255,255,0.3)' : 'none',
-                            color: isAdmin ? '#000' : 'rgba(255,255,255,0.5)'
+                            display: 'flex', flexDirection: 'column', gap: 12,
+                            borderRadius: 20,
+                            background: 'rgba(255,255,255,0.96)',
+                            border: '1px solid #DCE8F5',
+                            padding: '14px 16px',
+                            boxShadow: '0 20px 40px rgba(15,45,85,0.18)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
                         }}
                     >
-                        {isAdmin && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />}
-                        <span className="text-xl drop-shadow-md">{isAdmin ? '🏆' : '🔒'}</span>
-                        <span className="italic">{isGenerating ? 'ARCHIVING...' : (isAdmin ? 'FINAL TOURNAMENT ARCHIVE' : 'ADMINS ONLY')}</span>
-                    </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center' }}>
+                            <span style={{
+                                fontSize: 10, fontWeight: 900, color: '#3B82F6',
+                                letterSpacing: '0.22em', textTransform: 'uppercase',
+                            }}>
+                                FINAL ARCHIVE
+                            </span>
+                            <p style={{
+                                margin: 0, fontSize: 11.5, fontWeight: 700, lineHeight: 1.5,
+                                color: '#3F5B82',
+                            }}>
+                                이 세션의 최종 결과를 Archive와 개인 기록에 반영합니다.
+                            </p>
+                        </div>
+                        <button
+                            disabled={isGenerating}
+                            onClick={() => {
+                                if (!isAdmin) {
+                                    alert("관리자만 아카이브를 확정할 수 있습니다.");
+                                    return;
+                                }
+                                onFinalize?.();
+                            }}
+                            className="w-full transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                            style={{
+                                height: 54, borderRadius: 16,
+                                background: isAdmin
+                                    ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)'
+                                    : '#F6FAFD',
+                                color: isAdmin ? '#FFFFFF' : '#9CB2CC',
+                                border: isAdmin ? 'none' : '1px solid #DCE8F5',
+                                fontSize: 14, fontWeight: 900, letterSpacing: '0.04em',
+                                boxShadow: isAdmin ? '0 14px 30px rgba(37,99,235,0.30)' : 'none',
+                                cursor: isGenerating || !isAdmin ? 'not-allowed' : 'pointer',
+                                opacity: isGenerating ? 0.6 : 1,
+                            }}
+                        >
+                            <span style={{ fontSize: 18 }}>{isAdmin ? '🏆' : '🔒'}</span>
+                            <span>{isGenerating ? '저장 중...' : (isAdmin ? '공식 기록 확정' : '관리자 전용')}</span>
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

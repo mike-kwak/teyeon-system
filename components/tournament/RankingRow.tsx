@@ -1,12 +1,29 @@
 import React from 'react';
 import { ChevronUp, ChevronDown, Minus } from 'lucide-react';
 import { RankedPlayer } from '@/lib/tournament_types';
+import { InitialAvatar } from './InitialAvatar';
 
 interface RankingRowProps {
     player: RankedPlayer;
     rank: number;
     amount: number;
 }
+
+const GuestBadge = () => (
+    <span
+        aria-label="게스트"
+        style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 16, height: 16, borderRadius: '50%',
+            background: '#FFF4DE', border: '1px solid #F4C979',
+            color: '#B7791F',
+            fontSize: 9, fontWeight: 900, lineHeight: 1,
+            flexShrink: 0,
+        }}
+    >
+        G
+    </span>
+);
 
 export default function RankingRow({ player, rank, amount }: RankingRowProps) {
     const formatRankingPlayerName = (name?: string, id?: string) => {
@@ -25,7 +42,6 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
                 return guestName && !/^(guest|게스트)$/i.test(guestName) ? `${guestName}(G)` : '게스트(G)';
             }
             const cleaned = raw.replace(/\s*\(G\)$/i, '(G)');
-            // Keep '게스트(G)' as-is; only suppress the bare generic label '게스트'/'guest'
             return /^(guest|게스트)$/i.test(cleaned.replace(/\(G\)$/i, '').trim()) && !cleaned.endsWith('(G)') ? '' : cleaned;
         };
 
@@ -35,67 +51,101 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
         return byId || '미확인';
     };
 
-    const displayName = formatRankingPlayerName(player.name, player.id);
+    const rawName = formatRankingPlayerName(player.name, player.id);
+    const isGuest = /\(G\)\s*$/i.test(rawName) || !!player.is_guest;
+    const cleanName = rawName.replace(/\s*\(G\)$/i, '');
 
     const trendIcon = () => {
-        if (player.trend === 'up') return <ChevronUp className="w-3 h-3 text-[#4ADE80] animate-bounce" />;
-        if (player.trend === 'down') return <ChevronDown className="w-3 h-3 text-[#FB7185] animate-pulse" />;
-        return <Minus className="w-3 h-3 text-white/20" />;
+        if (player.trend === 'up') return <ChevronUp className="w-3 h-3" style={{ color: '#16A085' }} />;
+        if (player.trend === 'down') return <ChevronDown className="w-3 h-3" style={{ color: '#EF4444' }} />;
+        return <Minus className="w-3 h-3" style={{ color: '#9CB2CC' }} />;
     };
 
     return (
-        <div 
-            className="h-14 rounded-2xl px-4 grid grid-cols-[2rem_2.2rem_1fr_1.5rem_1.5rem_1.5rem_1.7rem_1.7rem_2rem_5.2rem] gap-1 items-center bg-white/[0.03] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_10px_rgba(0,0,0,0.2)] hover:bg-white/[0.08] transition-all group overflow-hidden"
+        <div
+            className="grid h-14 items-center gap-1 rounded-2xl px-4 transition-all"
+            style={{
+                gridTemplateColumns: '2rem 2.2rem 1fr 1.5rem 1.5rem 1.5rem 1.7rem 1.7rem 2rem 5.2rem',
+                background: '#FFFFFF',
+                border: '1px solid #DCE8F5',
+                boxShadow: '0 4px 12px rgba(15,45,85,0.05)',
+            }}
         >
+            {/* Rank + trend */}
             <div className="flex flex-col items-center justify-center gap-0.5">
-                <span className="font-bold text-[13px] text-white/30 italic group-hover:text-white/60 transition-colors uppercase leading-none">
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#0F2747', lineHeight: 1 }}>
                     {rank}
                 </span>
-                <div className="flex items-center justify-center">
-                    {trendIcon()}
-                </div>
-            </div>
-            
-            <div className="flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
-                    {player.avatar ? (
-                        <img src={player.avatar} alt={displayName} className="w-full h-full object-cover" />
-                    ) : (
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white/10">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/>
-                        </svg>
-                    )}
-                </div>
+                <div className="flex items-center justify-center">{trendIcon()}</div>
             </div>
 
-            <div className="text-left font-black text-[15px] text-white tracking-tighter leading-tight pl-2 flex items-center gap-1.5 min-w-0">
-                <span className="truncate">
-                    {displayName}
-                </span>
-                {player.is_guest && (
-                    <span className="text-[8px] font-black text-[#C9B075] italic bg-[#C9B075]/10 px-1.5 py-0.5 rounded-full border border-[#C9B075]/20 tracking-tighter uppercase shrink-0">
-                        GUEST
-                    </span>
+            {/* Avatar */}
+            <div className="flex items-center justify-center">
+                {player.avatar ? (
+                    <div
+                        style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: '#F6FAFD', border: '1px solid #DCE8F5',
+                            overflow: 'hidden',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                    >
+                        <img src={player.avatar} alt={cleanName} className="w-full h-full object-cover" />
+                    </div>
+                ) : (
+                    <InitialAvatar name={cleanName} size={32} />
                 )}
             </div>
 
-            <div className="text-right text-[11px] font-black text-white/50">{player.games}</div>
-            <div className="text-right text-[15px] font-black text-[#00e5ff] drop-shadow-[0_0_15px_rgba(0,229,255,0.6)]">{player.wins}</div>
-            <div className="text-right text-[13px] font-black text-white/60">{player.losses}</div>
-            <div className="text-right text-[11px] font-black text-white/50">{player.pf || 0}</div>
-            <div className="text-right text-[11px] font-black text-white/50">{player.pa || 0}</div>
-            
-            <div className="text-right font-black text-[15px] text-[#00e5ff] drop-shadow-[0_0_12px_rgba(0,229,255,0.4)]">
+            {/* Name + G badge */}
+            <div
+                className="flex min-w-0 items-center gap-1.5 pl-2 text-left"
+                style={{ fontSize: 14, fontWeight: 800, color: '#0F2747', letterSpacing: '-0.01em' }}
+            >
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cleanName}
+                </span>
+                {isGuest && <GuestBadge />}
+            </div>
+
+            {/* P (games) */}
+            <div className="text-right" style={{ fontSize: 11, fontWeight: 800, color: '#7A93B3' }}>{player.games}</div>
+            {/* W (wins) */}
+            <div className="text-right" style={{ fontSize: 15, fontWeight: 900, color: '#1F5FB5' }}>{player.wins}</div>
+            {/* L (losses) */}
+            <div className="text-right" style={{ fontSize: 13, fontWeight: 800, color: '#56729A' }}>{player.losses}</div>
+            {/* PF */}
+            <div className="text-right" style={{ fontSize: 11, fontWeight: 700, color: '#7A93B3' }}>{player.pf || 0}</div>
+            {/* PA */}
+            <div className="text-right" style={{ fontSize: 11, fontWeight: 700, color: '#7A93B3' }}>{player.pa || 0}</div>
+
+            {/* +/- diff */}
+            <div
+                className="text-right"
+                style={{
+                    fontSize: 14, fontWeight: 900,
+                    color: player.diff > 0 ? '#16A085' : player.diff < 0 ? '#C0392B' : '#7A93B3',
+                }}
+            >
                 {player.diff > 0 ? `+${player.diff}` : player.diff}
             </div>
-            
-            <div className={`text-center text-[14px] tracking-tighter ${amount < 0 ? 'text-rose-500 font-bold drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]' : amount > 0 ? 'text-[#C9B075] font-black text-[15px]' : 'text-white/10 font-bold'}`}>
+
+            {/* FINE (settlement) */}
+            <div
+                className="text-center"
+                style={{
+                    fontSize: 13, fontWeight: 900,
+                    color: amount < 0 ? '#C0392B' : amount > 0 ? '#1F5FB5' : '#9CB2CC',
+                }}
+            >
                 {amount !== 0 ? (
-                    <div className="flex items-center justify-center gap-0.5">
-                        <span className="text-[10px] font-black opacity-60 translate-y-[1px]">₩</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 1, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, opacity: 0.7 }}>₩</span>
                         <span>{`${amount > 0 ? '+' : ''}${amount.toLocaleString()}`}</span>
-                    </div>
-                ) : '0'}
+                    </span>
+                ) : (
+                    '0'
+                )}
             </div>
         </div>
     );
