@@ -378,7 +378,9 @@ export function PlayerCardModal({
         }
     }, []);
 
-    const INTERACTIVE_SELECTOR = 'button, a, input, select, textarea, [role="button"], [data-no-tilt]';
+    // 실제 컨트롤만 매칭 — [role="button"]은 그리드 카드 등 큰 wrapper에 종종 붙기
+    // 때문에 제거하고, 직접 마크한 element만 [data-no-tilt="true"]로 좁혀 매칭한다.
+    const INTERACTIVE_SELECTOR = 'button, a, input, select, textarea, [data-no-tilt="true"]';
 
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         const target = e.target as HTMLElement | null;
@@ -429,11 +431,9 @@ export function PlayerCardModal({
         isTiltingRef.current = false;
     }, [resetTilt]);
 
-    const handlePointerLeave = useCallback(() => {
-        if (!isTiltingRef.current) return;
-        isTiltingRef.current = false;
-        resetTilt();
-    }, [resetTilt]);
+    // onPointerLeave는 의도적으로 부착하지 않는다 — setPointerCapture가 활성일 때도
+    // React가 leave를 fire해 tilt 도중 isTiltingRef를 false로 만들어 tilt가 끊기는 문제가 있음.
+    // pointerup / pointercancel만으로 정상 복귀가 보장되므로 leave 제거가 안전하다.
 
     return (
         <>
@@ -501,7 +501,8 @@ export function PlayerCardModal({
                                     <button
                                         key={p}
                                         type="button"
-                                        data-no-tilt
+                                        data-no-tilt="true"
+                                        onPointerDown={(e) => e.stopPropagation()}
                                         onClick={() => setPerspective(p)}
                                         style={{
                                             flex: 1,
@@ -529,7 +530,8 @@ export function PlayerCardModal({
                         )}
                         <button
                             type="button"
-                            data-no-tilt
+                            data-no-tilt="true"
+                            onPointerDown={(e) => e.stopPropagation()}
                             onClick={onClose}
                             aria-label="닫기"
                             style={{
@@ -557,7 +559,6 @@ export function PlayerCardModal({
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerCancel}
-                        onPointerLeave={handlePointerLeave}
                         style={{
                             transformStyle: 'preserve-3d',
                             willChange: 'transform',
@@ -921,7 +922,8 @@ export function PlayerCardModal({
                                     {isOwnCard && (
                                         <button
                                             type="button"
-                                            data-no-tilt
+                                            data-no-tilt="true"
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setSaveError(null);
