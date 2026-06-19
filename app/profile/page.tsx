@@ -2,490 +2,914 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { styled, keyframes } from '@/stitches.config';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { supabase } from '@/lib/supabase';
-import { calculateKdkArchiveStats, KdkArchiveRow, KdkArchiveStats } from '@/lib/kdkArchiveStats';
+import { InitialAvatar } from '@/components/tournament/InitialAvatar';
+import { LogOut, Settings, ChevronRight, ShieldCheck, Trophy, Sparkles, Lock } from 'lucide-react';
+import {
+    PlayerCardModal,
+    type PlayerCardMember,
+    type VisibilityLevel,
+} from '@/components/players/PlayerCardModal';
+import {
+    fetchMemberOfficialStats,
+    emptyProfileSummary,
+    type ProfileKdkSummary,
+    type RecentOfficialRecord,
+    type PlayerCardStats,
+} from '@/lib/profile/getMemberOfficialStats';
 
-const fadeIn = keyframes({
-  from: { opacity: 0, transform: 'scale(0.95) translateY(10px)' },
-  to: { opacity: 1, transform: 'scale(1) translateY(0)' },
-});
-
-const Container = styled('main', {
-  display: 'flex',
-  flexDirection: 'column',
-  minHeight: '100dvh',
-  padding: '$8 $5',
-  maxWidth: '500px',
-  margin: '0 auto',
-  width: '100%',
-  backgroundColor: '$bgCharcoal',
-  paddingBottom: '250px',
-});
-
-const Header = styled('header', {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: '$10',
-});
-
-const ProfileHero = styled('section', {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  marginBottom: '$12',
-  animation: `${fadeIn} 0.6s cubic-bezier(0.165, 0.84, 0.44, 1)`,
-  padding: '$8',
-  background: 'linear-gradient(180deg, rgba(212, 175, 55, 0.05) 0%, transparent 100%)',
-  borderRadius: '$2xl',
-  borderGlow: 'rgba(212, 175, 55, 0.1)',
-  boxShadow: '$glass',
-});
-
-const AvatarWrapper = styled('div', {
-  position: 'relative',
-  padding: '$1',
-  background: 'linear-gradient(135deg, $gold, $goldGlint)',
-  borderRadius: '$full',
-  marginBottom: '$6',
-  boxShadow: '$goldGlow',
-});
-
-const UserBadge = styled('div', {
-  position: 'absolute',
-  bottom: '-12px',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  background: '$gold',
-  color: '$black',
-  fontSize: '9px',
-  fontWeight: '$black',
-  padding: '$1.5 $5',
-  borderRadius: '$full',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-  boxShadow: '0 8px 16px rgba(0,0,0,0.5)',
-  whiteSpace: 'nowrap',
-});
-
-const StatsGrid = styled('div', {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
-  gap: '$4',
-  width: '100%',
-  marginBottom: '$10',
-});
-
-const StatCard = styled('div', {
-  background: 'linear-gradient(135deg, $cardCharcoal, $bgCharcoal)',
-  padding: '$6 $2',
-  borderRadius: '$xl',
-  borderGlow: 'rgba(255, 255, 255, 0.03)',
-  textAlign: 'center',
-  transition: 'all 0.4s ease',
-  boxShadow: '$glass',
-
-  '&:hover': {
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    transform: 'translateY(-4px)',
-    boxShadow: '$goldGlow',
-  },
-});
-
-const StatValue = styled('div', {
-  fontSize: '22px',
-  fontWeight: '$black',
-  color: '$white',
-  marginBottom: '$2',
-  letterSpacing: '$tight',
-
-  variants: {
-    highlight: {
-      true: { color: '$gold', textShadow: '0 0 10px rgba(212,175,55,0.3)' },
-    },
-  },
-});
-
-const StatLabel = styled('div', {
-  fontSize: '8px',
-  fontWeight: '$black',
-  color: 'rgba(255,255,255,0.3)',
-  textTransform: 'uppercase',
-  letterSpacing: '$mega',
-});
-
-const FilterContainer = styled('div', {
-  display: 'flex',
-  padding: '$1',
-  borderRadius: '$xl',
-  marginBottom: '$8',
-  background: 'rgba(255, 255, 255, 0.03)',
-  border: '1px solid rgba(255, 255, 255, 0.05)',
-  boxShadow: '$glass',
-  width: '100%',
-});
-
-const FilterButton = styled('button', {
-  flex: 1,
-  padding: '$3',
-  fontSize: '9px',
-  fontWeight: '$black',
-  borderRadius: '$lg',
-  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-  color: 'rgba(255, 255, 255, 0.3)',
-  textTransform: 'uppercase',
-  letterSpacing: '$wider',
-
-  variants: {
-    active: {
-      true: {
-        background: '$gray700',
-        color: '$gold',
-        border: '1px solid rgba(212,175,55,0.2)',
-        boxShadow: '$md',
-      },
-    },
-  },
-});
-
-const SectionTitle = styled('h3', {
-  fontSize: '10px',
-  fontWeight: '$black',
-  color: '$gold',
-  letterSpacing: '$mega',
-  textTransform: 'uppercase',
-  marginBottom: '$5',
-  paddingLeft: '$2',
-  opacity: 0.8,
-});
-
-const MatchRecord = styled('div', {
-  background: 'linear-gradient(90deg, $cardCharcoal, $bgCharcoal)',
-  padding: '$5 $7',
-  borderRadius: '$xl',
-  borderGlow: 'rgba(255, 255, 255, 0.02)',
-  marginBottom: '$4',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  boxShadow: '$glass',
-  transition: 'all 0.4s ease',
-
-  '&:hover': {
-    background: 'linear-gradient(90deg, $gray800, $bgCharcoal)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    transform: 'translateX(4px)',
-  },
-});
-
-const StyledGreetingCard = styled('div', {
-  background: 'linear-gradient(135deg, $cardCharcoal, $bgCharcoal)',
-  border: '1px solid rgba(255, 255, 255, 0.05)',
-  borderRadius: '$2xl',
-  padding: '$8',
-  paddingLeft: '$10',
-  display: 'flex',
-  alignItems: 'center',
-  boxShadow: '$glass',
-  position: 'relative',
-  overflow: 'hidden',
-  marginBottom: '$8',
-  animation: `${fadeIn} 0.8s cubic-bezier(0.165, 0.84, 0.44, 1)`,
-
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '1px',
-    background: 'linear-gradient(90deg, transparent, $gold, transparent)',
-    opacity: 0.3,
-  }
-});
-
-const GreetingContent = styled('div', {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '$1',
-});
-
-const GreetingBadge = styled('span', {
-  fontSize: '9px',
-  fontWeight: '$black',
-  color: '$gold',
-  letterSpacing: '$mega',
-  textTransform: 'uppercase',
-  marginBottom: '$1',
-  fontFamily: 'var(--font-rajdhani)',
-});
-
-const GreetingTitle = styled('h2', {
-  fontSize: '20px',
-  fontWeight: '$black',
-  color: '$white',
-  marginBottom: '$1',
-  fontFamily: 'var(--font-rajdhani)',
-});
-
-const GreetingSubtitle = styled('p', {
-  fontSize: '11px',
-  color: 'rgba(255, 255, 255, 0.4)',
-  fontStyle: 'italic',
-  fontFamily: 'var(--font-rajdhani)',
-    '& strong': {
-    color: '$gold',
-    opacity: 0.8,
-  }
-});
+type ProfileVisibility = VisibilityLevel;
 
 type LinkedMember = {
-  id: string;
-  nickname: string;
-  email?: string | null;
+    id: string;
+    nickname: string;
+    email?: string | null;
+    profile_visibility_level?: ProfileVisibility | null;
+    intro?: string | null;
+    role?: string | null;
+    is_admin?: boolean | null;
+    is_guest?: boolean | null;
+    mbti?: string | null;
+    affiliation?: string | null;
+    position?: string | null;
+    achievements?: string | null;
+    bio?: string | null;
+    avatar_url?: string | null;
+    profile_avatar_url?: string | null;
 };
 
-const formatSignedNumber = (value: number) => {
-  if (value > 0) return `+${value}`;
-  return String(value);
+// Re-export so existing external consumers (if any) keep their type imports working.
+export type { ProfileKdkSummary, RecentOfficialRecord } from '@/lib/profile/getMemberOfficialStats';
+
+const visibilityMeta = (level: ProfileVisibility) => {
+    if (level === 'partial') return { label: '일부 공개', color: '#B7791F', bg: '#FFF4DE', border: '#F4C979' };
+    if (level === 'private') return { label: '기본 정보만 공개', color: '#56729A', bg: '#F6FAFD', border: '#DCE8F5' };
+    return { label: '전체 공개', color: '#16A085', bg: '#E0F5EB', border: '#B6E2CB' };
 };
 
-const formatAverage = (value: number) => {
-  const rounded = Math.round(value * 10) / 10;
-  if (rounded > 0) return `+${rounded}`;
-  return String(rounded);
-};
+const formatSigned = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
 export default function ProfilePage() {
-  const { user, role, signOut, isLoading } = useAuth();
-  const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
-  const [kdkStats, setKdkStats] = useState<KdkArchiveStats | null>(null);
-  const [kdkLoading, setKdkLoading] = useState(false);
-  const [kdkError, setKdkError] = useState('');
-  const [memberLookupDone, setMemberLookupDone] = useState(false);
+    const { user, role, signOut, isLoading } = useAuth();
+    const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
+    const [summary, setSummary] = useState<ProfileKdkSummary>(emptyProfileSummary);
+    const [recentRecords, setRecentRecords] = useState<RecentOfficialRecord[]>([]);
+    const [playerCardStats, setPlayerCardStats] = useState<PlayerCardStats | undefined>(undefined);
+    const [kdkLoading, setKdkLoading] = useState(false);
+    const [kdkError, setKdkError] = useState('');
+    const [memberLookupDone, setMemberLookupDone] = useState(false);
+    const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user?.email) return;
+    useEffect(() => {
+        if (!user?.email) return;
 
-    let cancelled = false;
+        let cancelled = false;
 
-    const loadOfficialKdkStats = async () => {
-      setKdkLoading(true);
-      setKdkError('');
-      setMemberLookupDone(false);
+        const loadOfficialKdkStats = async () => {
+            setKdkLoading(true);
+            setKdkError('');
+            setMemberLookupDone(false);
 
-      try {
-        const { data: members, error: memberError } = await supabase
-          .from('members')
-          .select('id, nickname, email')
-          .eq('email', user.email)
-          .limit(1);
+            try {
+                const { data: members, error: memberError } = await supabase
+                    .from('members')
+                    .select('*')
+                    .eq('email', user.email)
+                    .limit(1);
 
-        if (memberError) throw memberError;
+                if (memberError) throw memberError;
 
-        const member = members?.[0] as LinkedMember | undefined;
-        if (!member) {
-          if (!cancelled) {
-            setLinkedMember(null);
-            setKdkStats(null);
-            setMemberLookupDone(true);
-          }
-          return;
-        }
+                const member = members?.[0] as LinkedMember | undefined;
+                if (!member) {
+                    if (!cancelled) {
+                        setLinkedMember(null);
+                        setSummary(emptyProfileSummary);
+                        setRecentRecords([]);
+                        setPlayerCardStats(undefined);
+                        setMemberLookupDone(true);
+                    }
+                    return;
+                }
 
-        const { data: archives, error: archiveError } = await supabase
-          .from('teyeon_archive_v1')
-          .select('id, created_at, raw_data, is_official, archive_type')
-          .eq('archive_type', 'kdk')
-          .eq('is_official', true)
-          .order('created_at', { ascending: false });
+                // profile_visibility_level / profile avatar 보강 — /members 페이지와 동일 패턴
+                let profileVisibility: ProfileVisibility | undefined;
+                let profileAvatarUrl: string | undefined;
+                try {
+                    const { data: profileRow } = await supabase
+                        .from('profiles')
+                        .select('avatar_url, profile_visibility_level')
+                        .eq('email', user.email)
+                        .maybeSingle();
+                    if (profileRow) {
+                        profileVisibility = (profileRow.profile_visibility_level as ProfileVisibility) || undefined;
+                        profileAvatarUrl = profileRow.avatar_url || undefined;
+                    }
+                } catch {
+                    // profiles 조회 실패는 무시 — public 폴백
+                }
 
-        if (archiveError) throw archiveError;
+                const enrichedMember: LinkedMember = {
+                    ...member,
+                    profile_visibility_level: profileVisibility ?? member.profile_visibility_level ?? 'public',
+                    profile_avatar_url: profileAvatarUrl ?? member.profile_avatar_url,
+                };
 
-        const stats = calculateKdkArchiveStats((archives || []) as KdkArchiveRow[], {
-          id: member.id,
-          name: member.nickname,
-        });
+                // 공식 KDK archive 집계 — teyeon_archive_v1 (archive_type='kdk', is_official=true).
+                // member id 우선, exact name fallback은 calculateKdkArchiveStats 내부에서 처리.
+                const result = await fetchMemberOfficialStats({
+                    id: enrichedMember.id,
+                    name: enrichedMember.nickname,
+                });
 
-        if (!cancelled) {
-          setLinkedMember(member);
-          setKdkStats(stats);
-          setMemberLookupDone(true);
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setKdkError(err?.message || '공식 KDK 기록을 불러오지 못했습니다.');
-          setLinkedMember(null);
-          setKdkStats(null);
-          setMemberLookupDone(true);
-        }
-      } finally {
-        if (!cancelled) setKdkLoading(false);
-      }
-    };
+                if (!cancelled) {
+                    setLinkedMember(enrichedMember);
+                    setSummary(result.summary);
+                    setRecentRecords(result.recentRecords);
+                    setPlayerCardStats(result.playerCardStats);
+                    setMemberLookupDone(true);
+                }
+            } catch (err: any) {
+                if (!cancelled) {
+                    setKdkError(err?.message || '공식 KDK 기록을 불러오지 못했습니다.');
+                    setLinkedMember(null);
+                    setSummary(emptyProfileSummary);
+                    setRecentRecords([]);
+                    setPlayerCardStats(undefined);
+                    setMemberLookupDone(true);
+                }
+            } finally {
+                if (!cancelled) setKdkLoading(false);
+            }
+        };
 
-    loadOfficialKdkStats();
+        loadOfficialKdkStats();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.email]);
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.email]);
 
-  if (isLoading) {
+    const handleVisibilitySaved = useCallback((level: VisibilityLevel) => {
+        setLinkedMember((prev) => prev ? { ...prev, profile_visibility_level: level } : prev);
+    }, []);
+
+    const playerCardMember = useMemo<PlayerCardMember | null>(() => {
+        if (!linkedMember) return null;
+        // PlayerCardModal.handleVisibilitySave는 user.email === member.email 일치를 본인 확인 조건으로
+        // 사용하므로, members 행에 email이 비어있을 경우 로그인 이메일로 폴백한다.
+        const memberEmail = linkedMember.email || user?.email || undefined;
+        return {
+            id: linkedMember.id,
+            nickname: linkedMember.nickname,
+            email: memberEmail,
+            role: linkedMember.role || undefined,
+            is_admin: linkedMember.is_admin ?? undefined,
+            is_guest: linkedMember.is_guest ?? undefined,
+            mbti: linkedMember.mbti || undefined,
+            affiliation: linkedMember.affiliation || undefined,
+            position: linkedMember.position || undefined,
+            achievements: linkedMember.achievements || undefined,
+            bio: linkedMember.bio || undefined,
+            avatar_url: linkedMember.avatar_url || undefined,
+            profile_avatar_url: linkedMember.profile_avatar_url || undefined,
+            profile_visibility_level: (linkedMember.profile_visibility_level as VisibilityLevel) || 'public',
+        };
+    }, [linkedMember, user?.email]);
+
+    const playerCardAvatar = useMemo<string | undefined>(() => {
+        if (!linkedMember) return undefined;
+        if (linkedMember.avatar_url) return linkedMember.avatar_url;
+        const authAvatar = (user?.user_metadata?.avatar_url || user?.user_metadata?.picture) as string | undefined;
+        if (authAvatar) return authAvatar;
+        return linkedMember.profile_avatar_url || undefined;
+    }, [linkedMember, user?.user_metadata]);
+
+    const visibility: ProfileVisibility = (linkedMember?.profile_visibility_level as ProfileVisibility) || 'public';
+    const visMeta = visibilityMeta(visibility);
+
+    const displayName =
+        (user?.user_metadata?.nickname as string | undefined) ||
+        linkedMember?.nickname ||
+        (user?.user_metadata?.full_name as string | undefined) ||
+        '';
+
+    const subName = (user?.user_metadata?.full_name as string | undefined) || user?.email || '';
+    const roleLabel = role === 'CEO' ? 'CEO' : role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+    const intro = linkedMember?.intro || '매 순간이 챔피언 샷입니다. 🎾';
+    const avatarUrl = (user?.user_metadata?.avatar_url || user?.user_metadata?.picture) as string | undefined;
+
     return (
-      <Container>
-        <Header>
-          <div className="animate-pulse w-8 h-8 rounded-full bg-white/5"></div>
-          <div className="animate-pulse w-32 h-4 rounded bg-white/5"></div>
-          <div className="animate-pulse w-12 h-4 rounded bg-white/5"></div>
-        </Header>
-        <div className="animate-pulse w-full h-[140px] bg-white/5 rounded-[24px] mb-8"></div>
-        <div className="animate-pulse w-32 h-4 rounded bg-white/5 mb-5"></div>
-        <div className="animate-pulse w-full h-[40px] bg-white/5 rounded-[12px] mb-8"></div>
-        <div className="grid grid-cols-3 gap-4 mb-10 w-full">
-           <div className="animate-pulse h-[100px] bg-white/5 rounded-[12px]"></div>
-           <div className="animate-pulse h-[100px] bg-white/5 rounded-[12px]"></div>
-           <div className="animate-pulse h-[100px] bg-white/5 rounded-[12px]"></div>
-        </div>
-      </Container>
-    );
-  }
-
-  if (!user) {
-    return (
-      <Container>
-        <div style={{ marginTop: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
-          <p style={{ textAlign: 'center', opacity: 0.5, fontFamily: 'var(--font-rajdhani)', letterSpacing: '0.1em' }}>PLEASE LOGIN FROM MAIN DASHBOARD TO INITIALIZE PILOT TELEMETRY.</p>
-        </div>
-      </Container>
-    );
-  }
-
-  return (
-    <Container>
-      <Header>
-        <div style={{ width: '40px' }} /> {/* Spacer to keep title centered if needed, or just remove if we want it flex-start */}
-        <p style={{ fontWeight: 950, color: '$goldGlint', fontSize: '11px', letterSpacing: '0.4em', fontFamily: 'var(--font-rajdhani)', textAlign: 'center', flex: 1 }}>PILOT ANALYTICS</p>
-        <button onClick={() => signOut()} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.15em', fontFamily: 'var(--font-rajdhani)', width: '60px' }}>LOGOUT</button>
-      </Header>
-
-      <StyledGreetingCard>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', width: '100%' }}>
-            <ProfileAvatar 
-              src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
-              alt="Profile" 
-              size={64} 
-              className="border-2 border-gold shadow-[0_0_20px_rgba(212,175,55,0.2)] rounded-full"
-              fallbackIcon={role === 'CEO' ? '👑' : '👤'}
-            />
-          <GreetingContent>
-            <GreetingBadge>{role === 'CEO' ? 'COMMANDER IN CHIEF' : 'ELITE CIRCUIT PILOT'}</GreetingBadge>
-            <GreetingTitle>
-              반갑습니다, <span style={{ color: '#D4AF37' }}>{user.user_metadata?.nickname || user.user_metadata?.full_name}</span>님!
-            </GreetingTitle>
-            <GreetingSubtitle>
-              매 순간이 <strong>CHAMPION SHOT</strong>입니다 🎾
-            </GreetingSubtitle>
-          </GreetingContent>
-        </div>
-      </StyledGreetingCard>
-
-      <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Official KDK Records</SectionTitle>
-
-      <div style={{ marginBottom: '24px', padding: '16px 18px', borderRadius: '18px', border: '1px solid rgba(212,175,55,0.16)', background: 'rgba(212,175,55,0.05)', color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontWeight: 800, lineHeight: 1.6, fontFamily: 'var(--font-rajdhani)' }}>
-        공식 Archive로 확정된 KDK만 프로필 기록에 반영됩니다.
-      </div>
-
-      {kdkLoading ? (
-        <div className="animate-pulse w-full h-[150px] bg-white/5 rounded-[24px] mb-8" />
-      ) : kdkError ? (
-        <MatchRecord>
-          <div>
-            <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', fontFamily: 'var(--font-rajdhani)' }}>기록을 불러오지 못했습니다</p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontFamily: 'var(--font-rajdhani)' }}>{kdkError}</p>
-          </div>
-        </MatchRecord>
-      ) : memberLookupDone && !linkedMember ? (
-        <MatchRecord>
-          <div>
-            <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', fontFamily: 'var(--font-rajdhani)' }}>멤버 연결이 필요합니다</p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontFamily: 'var(--font-rajdhani)' }}>카카오 계정과 멤버 프로필이 연결되면 공식 KDK 기록이 표시됩니다.</p>
-          </div>
-        </MatchRecord>
-      ) : kdkStats && kdkStats.totalSessions > 0 ? (
         <>
-          <StatsGrid>
-            <StatCard>
-              <StatValue highlight style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.totalSessions}</StatValue>
-              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Sessions</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.totalWins}/{kdkStats.totalLosses}</StatValue>
-              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>W / L</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue style={{ fontFamily: 'var(--font-orbitron)', color: kdkStats.totalDiff > 0 ? '#D4AF37' : kdkStats.totalDiff < 0 ? '#ef4444' : '#fff' }}>{formatSignedNumber(kdkStats.totalDiff)}</StatValue>
-              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Total Diff</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{formatAverage(kdkStats.averageDiff)}</StatValue>
-              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Avg Diff</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.firstPlaceCount}</StatValue>
-              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>1st</StatLabel>
-            </StatCard>
-            <StatCard>
-              <StatValue style={{ fontFamily: 'var(--font-orbitron)' }}>{kdkStats.top3Count}</StatValue>
-              <StatLabel style={{ fontFamily: 'var(--font-rajdhani)' }}>Top 3</StatLabel>
-            </StatCard>
-          </StatsGrid>
+        <main
+            className="relative w-full font-sans"
+            style={{
+                minHeight: '100dvh',
+                marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+                backgroundColor: '#F2F4F7',
+                color: '#0F2747',
+                boxSizing: 'border-box',
+            }}
+        >
+            <div
+                style={{
+                    width: '100%', maxWidth: 520, margin: '0 auto',
+                    padding: '20px 16px var(--page-bottom-safe)', boxSizing: 'border-box',
+                    display: 'flex', flexDirection: 'column', gap: 14,
+                }}
+            >
+                {/* HEADER */}
+                <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 900, color: '#3B82F6', letterSpacing: '0.22em', textTransform: 'uppercase' }}>
+                            TEYEON OFFICIAL RECORD
+                        </p>
+                        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                            내 프로필
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => signOut?.()}
+                        aria-label="로그아웃"
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            height: 36, padding: '0 12px', borderRadius: 999,
+                            border: '1px solid #DCE8F5', background: '#FFFFFF',
+                            color: '#56729A', fontSize: 11, fontWeight: 900,
+                            letterSpacing: '0.04em', cursor: 'pointer',
+                        }}
+                    >
+                        <LogOut size={13} />
+                        로그아웃
+                    </button>
+                </header>
 
-          <div style={{ marginBottom: '28px', padding: '18px 22px', borderRadius: '20px', background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(255,255,255,0.03))', border: '1px solid rgba(212,175,55,0.14)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 16px 30px rgba(0,0,0,0.35)' }}>
-            <div>
-              <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: 'var(--font-rajdhani)' }}>Latest Rank</p>
-              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', marginTop: '4px', fontWeight: 800, fontFamily: 'var(--font-rajdhani)' }}>{linkedMember?.nickname} 공식 KDK 기준</p>
+                {/* LOADING */}
+                {isLoading || (user && !memberLookupDone && kdkLoading) ? (
+                    <section
+                        style={{
+                            borderRadius: 22, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: 22,
+                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                            textAlign: 'center', fontSize: 12, fontWeight: 700,
+                            color: '#7A93B3', letterSpacing: '0.1em', textTransform: 'uppercase',
+                        }}
+                    >
+                        Loading...
+                    </section>
+                ) : !user ? (
+                    /* LOGIN REQUIRED */
+                    <section
+                        style={{
+                            borderRadius: 22, background: '#FFFFFF',
+                            border: '1px solid #DCE8F5', padding: 40,
+                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                            textAlign: 'center',
+                        }}
+                    >
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0F2747' }}>
+                            로그인이 필요합니다
+                        </p>
+                        <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 700, color: '#56729A' }}>
+                            메인 화면에서 카카오 계정으로 로그인해 주세요.
+                        </p>
+                    </section>
+                ) : (
+                    <>
+                        {/* PROFILE HERO */}
+                        <section
+                            style={{
+                                borderRadius: 24, background: '#FFFFFF',
+                                border: '1px solid #DCE8F5', padding: 18,
+                                boxShadow: '0 14px 32px rgba(15,45,85,0.07)',
+                                display: 'flex', flexDirection: 'column', gap: 14,
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                <div
+                                    style={{
+                                        flexShrink: 0,
+                                        padding: 3,
+                                        borderRadius: '50%',
+                                        background: 'linear-gradient(135deg, #3B82F6 0%, #22B8CF 100%)',
+                                        boxShadow: '0 8px 18px rgba(37,99,235,0.22)',
+                                    }}
+                                >
+                                    {avatarUrl ? (
+                                        <ProfileAvatar
+                                            src={avatarUrl}
+                                            alt={displayName || 'Profile'}
+                                            size={64}
+                                            className="rounded-full border-2 border-white"
+                                            fallbackIcon={<InitialAvatar name={displayName} size={60} />}
+                                        />
+                                    ) : (
+                                        <div style={{ background: '#FFFFFF', borderRadius: '50%', padding: 2 }}>
+                                            <InitialAvatar name={displayName} size={60} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                        <span
+                                            style={{
+                                                display: 'inline-flex', alignItems: 'center',
+                                                borderRadius: 999, padding: '2px 8px',
+                                                background: role === 'CEO' ? '#FFF4DE' : '#EAF3FC',
+                                                border: role === 'CEO' ? '1px solid #F4C979' : '1px solid #C7DCF1',
+                                                color: role === 'CEO' ? '#B7791F' : '#1F5FB5',
+                                                fontSize: 9, fontWeight: 900, letterSpacing: '0.14em',
+                                            }}
+                                        >
+                                            {roleLabel}
+                                        </span>
+                                        <span
+                                            style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 3,
+                                                borderRadius: 999, padding: '2px 8px',
+                                                background: visMeta.bg, border: `1px solid ${visMeta.border}`,
+                                                color: visMeta.color,
+                                                fontSize: 9, fontWeight: 900, letterSpacing: '0.06em',
+                                            }}
+                                        >
+                                            <ShieldCheck size={9} />
+                                            {visMeta.label}
+                                        </span>
+                                    </div>
+                                    <h1
+                                        style={{
+                                            margin: 0, fontSize: 18, fontWeight: 900,
+                                            color: '#0F2747', letterSpacing: '-0.02em', lineHeight: 1.15,
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {displayName || '닉네임 없음'}
+                                    </h1>
+                                    {subName && subName !== displayName && (
+                                        <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#7A93B3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {subName}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <p style={{
+                                margin: 0,
+                                fontSize: 12.5, fontWeight: 700, lineHeight: 1.55, color: '#3F5B82',
+                                wordBreak: 'keep-all',
+                            }}>
+                                {intro}
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <button
+                                    type="button"
+                                    onClick={() => playerCardMember && setIsPlayerCardOpen(true)}
+                                    disabled={!playerCardMember}
+                                    style={{
+                                        flex: 1, height: 40, borderRadius: 12,
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                        background: '#FFFFFF', border: '1px solid #DCE8F5',
+                                        color: '#1F5FB5', fontSize: 12, fontWeight: 900,
+                                        letterSpacing: '0.02em', cursor: playerCardMember ? 'pointer' : 'not-allowed',
+                                        opacity: playerCardMember ? 1 : 0.55,
+                                        WebkitTapHighlightColor: 'transparent',
+                                    }}
+                                >
+                                    선수 카드 보기
+                                    <ChevronRight size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => playerCardMember && setIsPlayerCardOpen(true)}
+                                    disabled={!playerCardMember}
+                                    aria-label="프로필 공개 범위 설정"
+                                    style={{
+                                        flexShrink: 0,
+                                        width: 40, height: 40, borderRadius: 12,
+                                        background: '#FFFFFF', border: '1px solid #DCE8F5',
+                                        color: '#3B5A85',
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: playerCardMember ? 'pointer' : 'not-allowed',
+                                        opacity: playerCardMember ? 1 : 0.55,
+                                    }}
+                                >
+                                    <Settings size={16} />
+                                </button>
+                            </div>
+                        </section>
+
+                        {kdkError && (
+                            <section
+                                style={{
+                                    borderRadius: 16, background: '#FDEEEE', border: '1px solid #F4C7C7',
+                                    padding: '12px 14px',
+                                    fontSize: 12, fontWeight: 800, color: '#C0392B',
+                                }}
+                            >
+                                공식 KDK 기록을 불러오지 못했습니다. ({kdkError})
+                            </section>
+                        )}
+
+                        {memberLookupDone && !linkedMember && (
+                            <section
+                                style={{
+                                    borderRadius: 22, background: '#FFFFFF',
+                                    border: '1px solid #DCE8F5', padding: 18,
+                                    boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                }}
+                            >
+                                <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>
+                                    멤버 프로필 연결이 필요합니다
+                                </p>
+                                <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 700, color: '#56729A', lineHeight: 1.55 }}>
+                                    카카오 계정과 클럽 멤버 프로필이 연결되면 공식 KDK 기록이 이곳에 누적됩니다.
+                                </p>
+                            </section>
+                        )}
+
+                        {linkedMember && (
+                            <>
+                                {/* KDK RECORD SUMMARY */}
+                                <section
+                                    style={{
+                                        borderRadius: 22, background: '#FFFFFF',
+                                        border: '1px solid #DCE8F5', padding: 18,
+                                        boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+                                            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>KDK 기록 요약</h3>
+                                        </div>
+                                        <span style={{ fontSize: 9.5, fontWeight: 800, color: '#7A93B3' }}>
+                                            Archive 공식 기록 기준
+                                        </span>
+                                    </div>
+
+                                    {summary.officialSessionCount === 0 ? (
+                                        <div
+                                            style={{
+                                                padding: '24px 16px', textAlign: 'center',
+                                                borderRadius: 16, background: '#F8FBFE', border: '1px dashed #C7DCF1',
+                                            }}
+                                        >
+                                            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F2747' }}>
+                                                아직 공식 KDK 기록이 없습니다
+                                            </p>
+                                            <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 700, color: '#56729A', lineHeight: 1.55 }}>
+                                                공식 확정된 Archive 기록이 생기면 이곳에 표시됩니다.
+                                            </p>
+                                            <Link
+                                                href="/archive"
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                                    marginTop: 14, padding: '8px 14px', borderRadius: 999,
+                                                    background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                                    color: '#FFFFFF',
+                                                    fontSize: 12, fontWeight: 900, letterSpacing: '0.02em',
+                                                    boxShadow: '0 6px 14px rgba(37,99,235,0.22)',
+                                                    textDecoration: 'none',
+                                                }}
+                                            >
+                                                Archive 보기
+                                                <ChevronRight size={13} />
+                                            </Link>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                                <StatTile value={summary.officialSessionCount} unit="회" label="공식 참가" />
+                                                <StatTile value={summary.totalMatches} unit="전" label="총 경기" />
+                                                <StatTile
+                                                    value={summary.totalMatches > 0 ? summary.winRate : '-'}
+                                                    unit={summary.totalMatches > 0 ? '%' : ''}
+                                                    label="승률"
+                                                    valueColor="#1F5FB5"
+                                                />
+                                                <StatTile
+                                                    value={summary.bestRank ?? '-'}
+                                                    unit={summary.bestRank ? '위' : ''}
+                                                    label="최고 순위"
+                                                    valueColor={summary.bestRank && summary.bestRank <= 3 ? '#B7791F' : '#0F2747'}
+                                                />
+                                                <StatTile
+                                                    value={summary.top3Count}
+                                                    unit="회"
+                                                    label="TOP 3"
+                                                    valueColor="#1F5FB5"
+                                                />
+                                                <StatTile
+                                                    value={summary.championCount}
+                                                    unit="회"
+                                                    label="우승"
+                                                    valueColor={summary.championCount > 0 ? '#B7791F' : '#0F2747'}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                </section>
+
+                                {/* 승패 / 득실 카드 */}
+                                {summary.totalMatches > 0 && (
+                                    <section
+                                        style={{
+                                            borderRadius: 22, background: '#FFFFFF',
+                                            border: '1px solid #DCE8F5', padding: 18,
+                                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                            display: 'flex', flexDirection: 'column', gap: 12,
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                                <span style={{ fontSize: 22, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>
+                                                    {summary.wins}
+                                                </span>
+                                                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#56729A' }}>승</span>
+                                                <span style={{ marginLeft: 6, fontSize: 22, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>
+                                                    {summary.losses}
+                                                </span>
+                                                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#56729A' }}>패</span>
+                                            </div>
+                                            <span style={{
+                                                fontSize: 14, fontWeight: 900,
+                                                color: summary.pointDiff > 0 ? '#16A085' : summary.pointDiff < 0 ? '#C0392B' : '#7A93B3',
+                                            }}>
+                                                득실 {formatSigned(summary.pointDiff)}
+                                            </span>
+                                        </div>
+                                        <div
+                                            aria-label="승률 바"
+                                            style={{
+                                                position: 'relative', height: 8, borderRadius: 999,
+                                                background: '#EEF5FB', overflow: 'hidden',
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    position: 'absolute', top: 0, bottom: 0, left: 0,
+                                                    width: `${summary.winRate}%`,
+                                                    background: 'linear-gradient(90deg, #2563EB 0%, #22B8CF 100%)',
+                                                    transition: 'width 0.3s ease',
+                                                }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 800, color: '#56729A' }}>
+                                            <span>{summary.totalMatches}전</span>
+                                            <span>승률 {summary.winRate.toFixed(1)}%</span>
+                                        </div>
+                                    </section>
+                                )}
+
+                                {/* RECENT OFFICIAL RECORDS */}
+                                {summary.officialSessionCount > 0 && (
+                                    <section
+                                        style={{
+                                            borderRadius: 22, background: '#FFFFFF',
+                                            border: '1px solid #DCE8F5', padding: 18,
+                                            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+                                                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>최근 공식 기록</h3>
+                                                </div>
+                                                <p style={{ margin: '4px 0 0 14px', fontSize: 11, fontWeight: 700, color: '#7A93B3' }}>
+                                                    미확정·테스트 기록은 개인 기록에 포함되지 않습니다.
+                                                </p>
+                                            </div>
+                                            <Link
+                                                href="/archive"
+                                                style={{
+                                                    flexShrink: 0,
+                                                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                                                    padding: '4px 10px', borderRadius: 999,
+                                                    background: '#F8FBFE', border: '1px solid #DCE8F5',
+                                                    color: '#1F5FB5', fontSize: 11, fontWeight: 900,
+                                                    textDecoration: 'none', whiteSpace: 'nowrap',
+                                                }}
+                                            >
+                                                더보기
+                                                <ChevronRight size={12} />
+                                            </Link>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {recentRecords.map((r) => (
+                                                <Link
+                                                    key={r.sessionId}
+                                                    href={`/archive?session=${r.sessionId}`}
+                                                    style={{ textDecoration: 'none', color: 'inherit' }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                                                            borderRadius: 14,
+                                                            background: '#F8FBFE', border: '1px solid #E1EAF5',
+                                                            padding: '12px 14px',
+                                                        }}
+                                                    >
+                                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                                            <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: '#1F5FB5', letterSpacing: '0.08em' }}>
+                                                                {r.sessionDate || '날짜 없음'}
+                                                            </p>
+                                                            <p
+                                                                style={{
+                                                                    margin: '4px 0 0', fontSize: 13.5, fontWeight: 900, color: '#0F2747',
+                                                                    letterSpacing: '-0.01em',
+                                                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                                }}
+                                                            >
+                                                                {r.sessionTitle}
+                                                            </p>
+                                                            <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 700, color: '#56729A' }}>
+                                                                {r.wins}승 {r.losses}패 · 득실 {formatSigned(r.pointDiff)}
+                                                            </p>
+                                                        </div>
+                                                        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                                                            <span
+                                                                style={{
+                                                                    display: 'inline-flex', alignItems: 'center',
+                                                                    borderRadius: 999, padding: '3px 9px',
+                                                                    background: r.finalRank && r.finalRank <= 3 ? '#FFF4DE' : '#EEF5FB',
+                                                                    border: r.finalRank && r.finalRank <= 3 ? '1px solid #F4C979' : '1px solid #DCE8F5',
+                                                                    color: r.finalRank && r.finalRank <= 3 ? '#B7791F' : '#1F5FB5',
+                                                                    fontSize: 11, fontWeight: 900,
+                                                                }}
+                                                            >
+                                                                {r.finalRank ? `${r.finalRank}위` : '-'}
+                                                            </span>
+                                                            <span
+                                                                style={{
+                                                                    display: 'inline-flex', alignItems: 'center',
+                                                                    borderRadius: 999, padding: '2px 7px',
+                                                                    background: '#E0F5EB', border: '1px solid #B6E2CB', color: '#16A085',
+                                                                    fontSize: 9, fontWeight: 900, letterSpacing: '0.08em',
+                                                                }}
+                                                            >
+                                                                공식 기록
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+
+                                {/* PLAYER CARD PREVIEW (Compact, links to /members) */}
+                                <section
+                                    style={{
+                                        borderRadius: 22, background: '#FFFFFF',
+                                        border: '1px solid #DCE8F5', padding: 18,
+                                        boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                        display: 'flex', flexDirection: 'column', gap: 12,
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+                                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>내 선수 카드</h3>
+                                        <span style={{ fontSize: 9.5, fontWeight: 800, color: '#7A93B3', marginLeft: 'auto' }}>
+                                            공식 기록 기준
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 12,
+                                            borderRadius: 16, background: '#F8FBFE', border: '1px solid #E1EAF5',
+                                            padding: 14,
+                                        }}
+                                    >
+                                        {avatarUrl ? (
+                                            <ProfileAvatar
+                                                src={avatarUrl}
+                                                alt={displayName || 'Profile'}
+                                                size={48}
+                                                className="rounded-full border border-[#DCE8F5]"
+                                                fallbackIcon={<InitialAvatar name={displayName} size={48} />}
+                                            />
+                                        ) : (
+                                            <InitialAvatar name={displayName} size={48} />
+                                        )}
+                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                            <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {displayName}
+                                            </p>
+                                            <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#56729A' }}>
+                                                {roleLabel}
+                                                {summary.officialSessionCount > 0 && <> · 공식 {summary.officialSessionCount}회</>}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                        <MiniMetric
+                                            value={summary.latestRank ?? '-'}
+                                            unit={summary.latestRank ? '위' : ''}
+                                            label="현재 랭크"
+                                        />
+                                        <MiniMetric
+                                            value={summary.totalMatches > 0 ? summary.winRate : '-'}
+                                            unit={summary.totalMatches > 0 ? '%' : ''}
+                                            label="승률"
+                                        />
+                                        <MiniMetric
+                                            value={`${summary.wins}/${summary.losses}`}
+                                            label="전적"
+                                        />
+                                    </div>
+
+                                    {(summary.championCount > 0 || summary.top3Count > 0) && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                            {summary.championCount > 0 && (
+                                                <span
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                                        borderRadius: 999, padding: '4px 10px',
+                                                        background: '#FFF4DE', border: '1px solid #F4C979', color: '#B7791F',
+                                                        fontSize: 11, fontWeight: 900,
+                                                    }}
+                                                >
+                                                    <Trophy size={11} />
+                                                    우승 {summary.championCount}회
+                                                </span>
+                                            )}
+                                            {summary.top3Count > 0 && (
+                                                <span
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                                        borderRadius: 999, padding: '4px 10px',
+                                                        background: '#EEF5FB', border: '1px solid #C7DCF1', color: '#1F5FB5',
+                                                        fontSize: 11, fontWeight: 900,
+                                                    }}
+                                                >
+                                                    <Sparkles size={11} />
+                                                    TOP3 {summary.top3Count}회
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => playerCardMember && setIsPlayerCardOpen(true)}
+                                        disabled={!playerCardMember}
+                                        style={{
+                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                            height: 44, borderRadius: 14,
+                                            background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                            color: '#FFFFFF',
+                                            fontSize: 13, fontWeight: 900, letterSpacing: '0.02em',
+                                            boxShadow: '0 10px 22px rgba(37,99,235,0.22)',
+                                            cursor: playerCardMember ? 'pointer' : 'not-allowed',
+                                            opacity: playerCardMember ? 1 : 0.6,
+                                            border: 'none',
+                                            WebkitTapHighlightColor: 'transparent',
+                                        }}
+                                    >
+                                        선수 카드 자세히 보기
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </section>
+                            </>
+                        )}
+
+                        {/* PRIVACY / VISIBILITY */}
+                        <section
+                            style={{
+                                borderRadius: 22, background: '#FFFFFF',
+                                border: '1px solid #DCE8F5', padding: 18,
+                                boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                display: 'flex', flexDirection: 'column', gap: 12,
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+                                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>프로필 공개 범위</h3>
+                                </div>
+                                <span
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                        borderRadius: 999, padding: '4px 10px',
+                                        background: visMeta.bg, border: `1px solid ${visMeta.border}`,
+                                        color: visMeta.color,
+                                        fontSize: 10.5, fontWeight: 900, letterSpacing: '0.04em',
+                                    }}
+                                >
+                                    <Lock size={11} />
+                                    {visMeta.label}
+                                </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 12, fontWeight: 700, lineHeight: 1.55, color: '#56729A' }}>
+                                본인은 항상 전체 기록을 확인할 수 있습니다. 다른 회원에게 보이는 기록은 공개 범위 설정에 따라 달라지며, 일부 기록은 본인만 확인할 수 있습니다.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => playerCardMember && setIsPlayerCardOpen(true)}
+                                disabled={!playerCardMember}
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    height: 44, borderRadius: 14,
+                                    background: '#FFFFFF', border: '1px solid #DCE8F5',
+                                    color: '#1F5FB5', fontSize: 12.5, fontWeight: 900,
+                                    letterSpacing: '0.02em',
+                                    cursor: playerCardMember ? 'pointer' : 'not-allowed',
+                                    opacity: playerCardMember ? 1 : 0.6,
+                                    WebkitTapHighlightColor: 'transparent',
+                                }}
+                            >
+                                공개 범위 설정 화면 열기
+                                <ChevronRight size={13} />
+                            </button>
+                        </section>
+                    </>
+                )}
             </div>
-            <p style={{ fontSize: '34px', fontWeight: 950, color: '#D4AF37', fontFamily: 'var(--font-orbitron)' }}>{kdkStats.latestRank ? `${kdkStats.latestRank}위` : '-'}</p>
-          </div>
-
-          <SectionTitle style={{ fontFamily: 'var(--font-rajdhani)', fontSize: '11px' }}>Recent Official KDK</SectionTitle>
-          <section>
-            {kdkStats.recentSessions.map(session => (
-              <Link key={session.archiveId} href={`/archive?session=${session.archiveId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <MatchRecord>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: '10px', fontWeight: 950, color: '#D4AF37', marginBottom: '4px', fontFamily: 'var(--font-rajdhani)', letterSpacing: '0.12em' }}>{session.date || '날짜 없음'}</p>
-                    <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'var(--font-rajdhani)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '260px' }}>{session.title}</p>
-                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: '5px', fontFamily: 'var(--font-rajdhani)' }}>
-                      {session.groupName ? `${session.groupName}조 · ` : ''}{session.totalPlayers} players
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p style={{ fontSize: '18px', fontWeight: 950, color: session.rank && session.rank <= 3 ? '#D4AF37' : '#fff', fontFamily: 'var(--font-orbitron)' }}>{session.rank ? `${session.rank}위` : '-'}</p>
-                    <p style={{ fontSize: '11px', fontWeight: 950, opacity: 0.45, fontFamily: 'var(--font-rajdhani)', whiteSpace: 'nowrap' }}>
-                      {session.ranked ? `${session.wins}승 ${session.losses}패 · ${formatSignedNumber(session.diff || 0)}` : '참가 확인'}
-                    </p>
-                  </div>
-                </MatchRecord>
-              </Link>
-            ))}
-          </section>
+        </main>
+        {isPlayerCardOpen && playerCardMember && (
+            <PlayerCardModal
+                member={playerCardMember}
+                finalAvatar={playerCardAvatar}
+                isOwnCard={true}
+                stats={playerCardStats}
+                onClose={() => setIsPlayerCardOpen(false)}
+                onVisibilitySaved={handleVisibilitySaved}
+            />
+        )}
         </>
-      ) : (
-        <MatchRecord>
-          <div>
-            <p style={{ fontSize: '16px', fontWeight: 950, color: '#fff', fontFamily: 'var(--font-rajdhani)' }}>아직 공식 KDK 기록이 없습니다</p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontFamily: 'var(--font-rajdhani)' }}>Archive에서 공식 기록으로 확정된 세션만 이곳에 누적됩니다.</p>
-          </div>
-        </MatchRecord>
-      )}
+    );
+}
 
-    </Container>
-  );
+function StatTile({
+    value,
+    unit,
+    label,
+    valueColor = '#0F2747',
+}: {
+    value: number | string;
+    unit?: string;
+    label: string;
+    valueColor?: string;
+}) {
+    return (
+        <div
+            style={{
+                borderRadius: 14,
+                background: '#F8FBFE',
+                border: '1px solid #E1EAF5',
+                padding: '10px 8px',
+                textAlign: 'center',
+            }}
+        >
+            <p
+                style={{
+                    margin: 0,
+                    display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center', gap: 2,
+                }}
+            >
+                <span style={{ fontSize: 20, fontWeight: 900, color: valueColor, letterSpacing: '-0.02em' }}>
+                    {value}
+                </span>
+                {unit && <span style={{ fontSize: 11, fontWeight: 800, color: '#7A93B3' }}>{unit}</span>}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 10.5, fontWeight: 800, color: '#56729A', letterSpacing: '0.02em' }}>
+                {label}
+            </p>
+        </div>
+    );
+}
+
+function MiniMetric({ value, unit, label }: { value: number | string; unit?: string; label: string }) {
+    return (
+        <div
+            style={{
+                borderRadius: 12,
+                background: '#FFFFFF',
+                border: '1px solid #DCE8F5',
+                padding: '10px 6px',
+                textAlign: 'center',
+            }}
+        >
+            <p
+                style={{
+                    margin: 0,
+                    display: 'inline-flex', alignItems: 'baseline', justifyContent: 'center', gap: 2,
+                }}
+            >
+                <span style={{ fontSize: 16, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em' }}>
+                    {value}
+                </span>
+                {unit && <span style={{ fontSize: 10, fontWeight: 800, color: '#7A93B3' }}>{unit}</span>}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 10, fontWeight: 800, color: '#56729A', letterSpacing: '0.02em' }}>
+                {label}
+            </p>
+        </div>
+    );
 }
