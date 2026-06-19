@@ -5056,10 +5056,34 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     </span>
                 </div>
 
-                {/* ROW 4: TICKER input + SAVE (admin only) */}
+                {/* ROW 4: TICKER input + SAVE (admin only) — label aligned with RULES (≈ 10px in) */}
                 {isAdmin && kdkEntryMode === 'LIVE' && (
-                    <div style={{ paddingTop: 8, borderTop: '1px dashed #E1EAF5', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ flexShrink: 0, fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>TICKER</span>
+                    <div
+                        style={{
+                            marginTop: 4,
+                            paddingTop: 10,
+                            paddingLeft: 10,
+                            paddingRight: 4,
+                            borderTop: '1px dashed #E1EAF5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                        }}
+                    >
+                        <span
+                            style={{
+                                flexShrink: 0,
+                                display: 'inline-block',
+                                minWidth: 44,
+                                fontSize: 10,
+                                fontWeight: 900,
+                                color: '#1F5FB5',
+                                letterSpacing: '0.18em',
+                                textTransform: 'uppercase',
+                            }}
+                        >
+                            TICKER
+                        </span>
                         <input
                             type="text"
                             value={tickerMsg}
@@ -5068,7 +5092,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             maxLength={120}
                             placeholder="전광판 티커 메시지 입력..."
                             style={{
-                                minWidth: 0, flex: 1, height: 32,
+                                minWidth: 0, flex: 1, height: 34,
                                 borderRadius: 10, border: '1px solid #DCE8F5',
                                 background: '#F8FBFE',
                                 padding: '0 12px',
@@ -5083,17 +5107,18 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             disabled={tickerSaving || !activeSessionId}
                             className="shrink-0 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                             style={{
-                                height: 32, padding: '0 14px', borderRadius: 999,
-                                fontSize: 10, fontWeight: 900,
-                                letterSpacing: '0.16em', textTransform: 'uppercase',
+                                height: 34, padding: '0 14px', borderRadius: 999,
+                                fontSize: 11, fontWeight: 900,
+                                letterSpacing: '0.04em',
                                 background: tickerSaveOk ? '#E0F5EB' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
                                 border: tickerSaveOk ? '1px solid #B6E2CB' : 'none',
                                 color: tickerSaveOk ? '#16A085' : '#FFFFFF',
                                 boxShadow: tickerSaveOk ? 'none' : '0 6px 14px rgba(37,99,235,0.22)',
                                 cursor: 'pointer',
+                                whiteSpace: 'nowrap',
                             }}
                         >
-                            {tickerSaveOk ? 'SAVED' : tickerSaving ? '···' : 'SAVE'}
+                            {tickerSaveOk ? '저장됨' : tickerSaving ? '···' : '저장'}
                         </button>
                     </div>
                 )}
