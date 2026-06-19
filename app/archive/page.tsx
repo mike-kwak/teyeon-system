@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Trash2, ArrowRight, ArrowLeft, Users, Trophy } from 'lucide-react';
+import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin, FileImage } from 'lucide-react';
+import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 
 /**
  * ArchivePage (v1.15.1): ABSOLUTE PRECISION & MUTED ELEGANCE
@@ -19,7 +20,10 @@ export default function ArchivePage() {
   const [archives, setArchives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState<'RECORDS' | 'RANKING'>('RECORDS');
-  const [recordFilter, setRecordFilter] = useState<'ALL' | 'OFFICIAL'>('ALL');
+  // Archive status filter: 공식 기록(OFFICIAL) 또는 미확정·테스트(PENDING)
+  const [recordFilter, setRecordFilter] = useState<'OFFICIAL' | 'PENDING'>('OFFICIAL');
+  // Detail view: 전체 순위 / 조별 순위 토글
+  const [archiveDetailGroup, setArchiveDetailGroup] = useState<'ALL' | 'A' | 'B'>('ALL');
   
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -31,6 +35,9 @@ export default function ArchivePage() {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+  // Period filters for the list view: 'ALL' or a specific year/month.
+  const [yearFilter, setYearFilter] = useState<'ALL' | number>('ALL');
+  const [monthFilter, setMonthFilter] = useState<'ALL' | number>('ALL');
 
   // v1.18.0: Hard Reset Logic to break stubborn PWA Cache
   useEffect(() => {
@@ -51,6 +58,11 @@ export default function ArchivePage() {
     const sessionFromUrl = searchParams.get('session');
     if (sessionFromUrl) setSelectedSessionId(sessionFromUrl);
   }, [searchParams]);
+
+  // 세션 전환 시 그룹 필터 초기화
+  useEffect(() => {
+    setArchiveDetailGroup('ALL');
+  }, [selectedSessionId]);
 
   async function checkUser() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -119,31 +131,31 @@ export default function ArchivePage() {
     return '';
   };
 
+  // 2-way 상태: 공식 기록 / 미확정·테스트 (테스트 + 검토 대기 통합)
   const getArchiveStatusMeta = (archive: any) => {
-    if (archive?.is_test) {
-      return {
-        label: '테스트',
-        className: 'border-red-400/40 bg-red-500/10 text-red-200'
-      };
-    }
-
     if (archive?.is_official) {
       return {
         label: '공식 기록',
-        className: 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'
+        bg: '#E0F5EB', border: '#B6E2CB', color: '#16A085',
       };
     }
-
     return {
-      label: '비공식',
-      className: 'border-zinc-500/40 bg-zinc-700/30 text-zinc-300'
+      label: '미확정·테스트',
+      bg: '#FFF4DE', border: '#F4C979', color: '#B7791F',
     };
   };
 
   const renderArchiveStatusBadge = (archive: any) => {
     const status = getArchiveStatusMeta(archive);
     return (
-      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] italic ${status.className}`}>
+      <span
+        style={{
+          display: 'inline-flex', alignItems: 'center',
+          borderRadius: 999, padding: '4px 10px',
+          fontSize: 10, fontWeight: 900, letterSpacing: '0.08em',
+          background: status.bg, border: `1px solid ${status.border}`, color: status.color,
+        }}
+      >
         {status.label}
       </span>
     );
@@ -233,11 +245,40 @@ export default function ArchivePage() {
   }
 
   const filteredRecords = archives.filter(m => {
-    const mDate = new Date(m.match_date);
-    const inSelectedMonth = mDate.getFullYear() === selectedYear && (mDate.getMonth() + 1) === selectedMonth;
-    const passesRecordFilter = recordFilter === 'ALL' || !!m.is_official;
-    return inSelectedMonth && passesRecordFilter;
+    // 미확정·테스트 = !is_official (모든 비공식 기록을 묶음: 테스트 + 검토 대기)
+    const passesRecordFilter =
+      recordFilter === 'OFFICIAL' ? !!m.is_official : !m.is_official;
+    if (!passesRecordFilter) return false;
+    if (yearFilter === 'ALL' && monthFilter === 'ALL') return true;
+    const d = new Date(m.match_date);
+    if (Number.isNaN(d.getTime())) return yearFilter === 'ALL' && monthFilter === 'ALL';
+    if (yearFilter !== 'ALL' && d.getFullYear() !== yearFilter) return false;
+    if (monthFilter !== 'ALL' && d.getMonth() + 1 !== monthFilter) return false;
+    return true;
   });
+
+  // Years that actually have records, sorted newest first.
+  const availableYears = useMemo(() => {
+    const ys = new Set<number>();
+    archives.forEach(m => {
+      const d = new Date(m.match_date);
+      if (!Number.isNaN(d.getTime())) ys.add(d.getFullYear());
+    });
+    return Array.from(ys).sort((a, b) => b - a);
+  }, [archives]);
+
+  // Months that have records under the currently selected year filter.
+  const availableMonths = useMemo(() => {
+    if (yearFilter === 'ALL') return [] as number[];
+    const ms = new Set<number>();
+    archives.forEach(m => {
+      const d = new Date(m.match_date);
+      if (Number.isNaN(d.getTime())) return;
+      if (d.getFullYear() !== yearFilter) return;
+      ms.add(d.getMonth() + 1);
+    });
+    return Array.from(ms).sort((a, b) => a - b);
+  }, [archives, yearFilter]);
 
   const sessions = useMemo(() => {
     const groups: Record<string, any> = {};
@@ -315,316 +356,941 @@ export default function ArchivePage() {
     return Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
   };
 
+  // Aggregate stats for the list-view hero card.
+  const officialSessions = sessions.filter((s: any) => s.is_official);
+  const totalSessionCount = sessions.length;
+  const totalOfficialCount = officialSessions.length;
+  const totalMatchCount = sessions.reduce((sum: number, s: any) => sum + (s.matchCount || 0), 0);
+  const latestOfficialWinner = (() => {
+    const latest = officialSessions[0];
+    if (!latest) return '';
+    const ranking = buildArchiveRankingResults(latest);
+    return ranking[0]?.name || '';
+  })();
+  const pendingOfficialCount = isAdmin
+    ? sessions.filter((s: any) => !s.is_official && !s.is_test && !s.isLocal).length
+    : 0;
+
+  const formatArchiveDate = (raw?: string) => {
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}.${m}.${day}`;
+  };
+  const formatArchiveDateTime = (raw?: string) => {
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${y}.${m}.${day} ${hh}:${mm}`;
+  };
+  const archiveTypeLabel = (t?: string) => {
+    const raw = String(t || '').toLowerCase();
+    if (raw === 'kdk-manual' || raw === 'manual') return '방식 KDK 수동';
+    if (raw === 'kdk-auto' || raw === 'auto') return '방식 KDK 자동';
+    return '방식 KDK';
+  };
+
   return (
-    <main className="flex flex-col min-h-screen bg-[#0a0a0c] text-white font-sans w-full relative overflow-y-auto no-scrollbar scroll-pb-[calc(260px+env(safe-area-inset-bottom))] pb-[calc(180px+env(safe-area-inset-bottom))] sm:scroll-pb-32 sm:pb-32">
-      {/* 럭셔리 라인 헤더 */}
-      <header className="px-8 pt-24 pb-2 flex flex-col gap-1 items-start relative z-[100] animate-in fade-in slide-in-from-top duration-700 mt-12">
-          {selectedSessionId ? (
-              <button 
-                onClick={() => setSelectedSessionId(null)}
-                className="flex items-center gap-2 text-[#C9B075] mb-2 hover:translate-x-[-4px] transition-transform italic font-black"
-              >
-                  <ArrowLeft size={16} />
-                  <span className="text-[13px] uppercase tracking-widest">뒤로가기</span>
-              </button>
-          ) : (
-            <span className="text-[11px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic drop-shadow-lg">SYSTEM RECORDS</span>
-          )}
-          <h1 className="text-4xl sm:text-5xl font-[1000] tracking-tighter uppercase italic text-white leading-none drop-shadow-xl">Archive</h1>
-          <div className="h-[2px] w-full bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent mt-3 shadow-[0_4px_15px_rgba(201,176,117,0.3)]"></div>
-      </header>
-
-      {/* 상시 노출 내비게이션 (차분한 디자인) */}
-      <nav className="px-6 mt-8 mb-4 flex gap-2.5 relative z-[90]">
-          {(['RECORDS', 'RANKING'] as const).map(t => (
-                   <button 
-                       key={t} onClick={() => {
-                         setMainTab(t);
-                         if (t === 'RECORDS') setSelectedSessionId(null);
-                       }}
-                       className={`flex-1 py-4 rounded-[20px] text-[14px] font-black uppercase tracking-widest transition-all relative overflow-hidden group italic
-                       ${mainTab === t 
-                         ? 'bg-[#C9B075]/10 text-[#C9B075] border border-[#C9B075]/40 shadow-[0_0_20px_rgba(201,176,117,0.1)]' 
-                         : 'bg-zinc-900/50 border border-white/5 text-zinc-600 hover:text-zinc-300'}`}
-                   >
-                       {t === 'RECORDS' ? '경기 기록' : '테연 랭킹'}
-                   </button>
-               ))}
-           </nav>
-     
-           <section className="flex-1 px-6 sm:px-8 mt-4 pb-[calc(260px+env(safe-area-inset-bottom))] sm:pb-24">
-             {loading ? (
-                 <div className="py-24 text-center">
-                     <p className="text-[12px] font-black text-zinc-600 tracking-[0.4em] uppercase italic">Decrypting Vault...</p>
-                 </div>
-             ) : mainTab === 'RECORDS' ? (
-                 <>
-                     {selectedSessionId && selectedSession ? (
-                         <div className="animate-in slide-in-from-right duration-500 flex flex-col gap-2">
-                             <div className="flex flex-col gap-1 px-2 mt-4">
-                                 <span className="text-[12px] font-black text-[#C9B075] uppercase tracking-[0.4em] italic opacity-70">{selectedSession.date}</span>
-                                 <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic break-all leading-tight">{selectedSession.title}</h2>
-                                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                                     {renderArchiveStatusBadge(selectedSession)}
-                                     {isAdmin && !selectedSession.isLocal && (
-                                         <>
-                                             {selectedSession.is_official ? (
-                                                 <button
-                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'unofficial')}
-                                                     className="rounded-full border border-zinc-600/60 bg-zinc-900/80 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-zinc-200 transition-all active:scale-95"
-                                                 >
-                                                     공식 해제
-                                                 </button>
-                                             ) : (
-                                                 <button
-                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'official')}
-                                                     className="rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-emerald-200 transition-all active:scale-95"
-                                                 >
-                                                     공식 기록으로 확정
-                                                 </button>
-                                             )}
-                                             {selectedSession.is_test ? (
-                                                 <button
-                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'unofficial')}
-                                                     className="rounded-full border border-zinc-600/60 bg-zinc-900/80 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-zinc-200 transition-all active:scale-95"
-                                                 >
-                                                     테스트 해제
-                                                 </button>
-                                             ) : !selectedSession.is_official ? (
-                                                 <button
-                                                     onClick={() => updateArchiveRecordStatus(selectedSession.id, 'test')}
-                                                     className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-red-200 transition-all active:scale-95"
-                                                 >
-                                                     테스트 기록
-                                                 </button>
-                                             ) : null}
-                                         </>
-                                     )}
-                                      {selectedSession.confirmed_at && (
-                                          <span className="text-[9px] font-black uppercase tracking-[0.24em] italic text-zinc-600">
-                                              CONFIRMED {new Date(selectedSession.confirmed_at).toLocaleDateString()}
-                                          </span>
-                                      )}
-                                      {isAdmin && !selectedSession.is_official && (
-                                          <button
-                                              onClick={() => deleteSession(selectedSession)}
-                                              className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] italic text-red-200 transition-all active:scale-95"
-                                          >
-                                              삭제
-                                          </button>
-                                      )}
-                                  </div>
-                                  <p className="mt-2 text-[10px] font-bold leading-relaxed text-zinc-600">
-                                      공식 기록만 추후 프로필 누적 기록에 반영됩니다. 삭제는 잘못 저장한 기록 제거용입니다.
-                                  </p>
-                             </div>
-     
-                             <div className="flex flex-col gap-1 px-4 relative mt-4">
-                                 <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">RANKING UPDATES</h3>
-                                 <div className="h-[2px] w-48 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
-                             </div>
-     
-                             {(() => {
-                                 const sortedResults = buildArchiveRankingResults(selectedSession);
-                                 const top3 = sortedResults.slice(0, 3);
-                                 const others = sortedResults.slice(3);
-     
-                                 return (
-                                     <>
-                                     {/* THE FINAL SNAP (v1.20.1 RESTORATION) - PRECISION ADHESION */}
-                                     <div className="w-full max-w-2xl mx-auto h-auto pb-8 flex items-center justify-center px-1">
-                                         <div className="flex items-end justify-center gap-2.5 w-full">
-                                             {[1, 0, 2].map((idx) => {
-                                                 const p = top3[idx];
-                                                 if (!p) return <div key={idx} className="flex-1" />;
-                                                 const isFirst = idx === 0;
-                                                 const rankThemes = [{ icon: '🏆', color: 'from-[#FFD700] to-[#B8860B]' }, { icon: '🥈', color: 'from-[#C0C0C0] to-[#707070]' }, { icon: '🥉', color: 'from-[#CD7F32] to-[#8B4513]' }];
-                                                 const theme = rankThemes[idx];
-                                                 return (
-                                                     <div key={p.name} className={`relative flex flex-col items-center p-3 pb-10 rounded-[36px] border border-white/5 bg-zinc-900 shadow-2xl transition-all duration-300 ${isFirst ? 'w-[46%] z-10 border-[#C9B075]/30 bg-zinc-800/50' : 'w-[27%] bg-zinc-900/40 opacity-80'}`}>
-                                                         <div className="w-full flex flex-col items-center mt-3">
-                                                             <div className={`rounded-full border-2 border-white/10 overflow-hidden mb-3 ${isFirst ? 'w-24 h-24 border-[#C9B075]/40' : 'w-16 h-16'}`}>
-                                                                 {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" /> : <div className={`w-full h-full bg-gradient-to-br ${theme.color} flex items-center justify-center`}><span className="text-3xl">{theme.icon}</span></div>}
-                                                             </div>
-                                                             <h4 className={`font-[1000] text-center text-white italic uppercase tracking-tighter mb-1.5 ${isFirst ? 'text-2xl pt-2' : 'text-sm'}`}>{p.name}</h4>
-                                                             <div className="flex items-center gap-2 font-[1000] text-[11px] italic tracking-tighter text-zinc-400 capitalize whitespace-nowrap">
-                                                                 <span>{p.wins}W {p.losses}L</span>
-                                                                 <span className={p.diff > 0 ? 'text-[#00e5ff]' : 'text-red-500'}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
-                                                             </div>
-                                                         </div>
-                                                     </div>
-                                                 );
-                                             })}
-                                         </div>
-                                     </div>
-     
-                                     {/* COMPACT BUFFER ZONE (Sibling) */}
-                                     <div className="h-4 w-full" aria-hidden="true" />
-     
-                                     <div className="flex flex-col gap-2.5 max-w-4xl mx-auto w-full pb-20 mt-4 px-1">
-                                        <div className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] px-6 text-[10px] font-black text-zinc-600 uppercase italic tracking-widest mb-2 border-b border-white/5 pb-2">
-                                            <span className="text-center">#</span><span className="text-center">PROF</span><span className="text-center">PLAYER</span><span className="text-center text-cyan-500/60">W</span><span className="text-center text-zinc-700/60">L</span><span className="text-center text-[#C9B075]/60">+/-</span><span></span>
-                                        </div>
-                                        {others.map((p: any, i: number) => (
-                                            <div key={p.name} className="grid grid-cols-[45px_45px_1fr_45px_45px_60px_0.5fr] items-center px-6 py-4 rounded-2xl bg-zinc-900/30 border border-white/5 mb-2 hover:bg-zinc-800/40 transition-all group relative overflow-hidden">
-                                                <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-zinc-700 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all"></div>
-                                                <span className="text-sm font-[1000] text-zinc-600 italic tracking-tighter text-center">{String(i + 4).padStart(2, '0')}</span>
-                                                <div className="flex justify-center">
-                                                    <div className="w-8 h-8 rounded-full border border-white/10 overflow-hidden bg-zinc-800 flex items-center justify-center">
-                                                        {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-[10px] font-black text-zinc-600 uppercase">{p.name[0]}</span>}
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col items-center w-full">
-                                                    <span className="text-sm font-black text-white italic uppercase tracking-tighter break-all text-center">{p.name}</span>
-                                                    <span className="text-[9px] font-black text-zinc-600 uppercase italic tracking-widest text-center">{p.played} MATCHES</span>
-                                                </div>
-                                                <span className="text-sm font-black text-[#00e5ff] text-center italic">{p.wins}</span>
-                                                <span className="text-sm font-black text-zinc-700 text-center italic">{p.losses}</span>
-                                                <div className="flex flex-col items-center">
-                                                    <span className={`text-base font-[1000] italic tracking-tighter ${p.diff > 0 ? 'text-[#C9B075]' : p.diff < 0 ? 'text-red-500' : 'text-zinc-600'}`}>{p.diff > 0 ? `+${p.diff}` : p.diff}</span>
-                                                </div>
-                                                <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-all">
-                                                    <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            );
-                        })()}
-
-                        <div className="h-6 w-full" aria-hidden="true" />
-                        <div className="flex flex-col gap-1 px-4 mb-4 mt-16">
-                            <h3 className="text-3xl font-[1000] text-white uppercase tracking-tighter italic leading-none drop-shadow-xl">COMPLETED MATCHES</h3>
-                            <div className="h-[2px] w-64 bg-gradient-to-r from-[#C9B075] via-[#C9B075]/40 to-transparent shadow-[0_4px_15px_rgba(201,176,117,0.3)] mt-1"></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 pb-40 px-1">
-                            {selectedSession.matches.map((m: any, idx: number) => {
-                                const n = Array.from({ length: 4 }, (_, playerIndex) => (
-                                    resolveArchivePlayerName(m.player_names?.[playerIndex], (m.player_ids || m.playerIds || [])[playerIndex], selectedSession.playerMetadata || {})
-                                ));
-                                const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                                const groupLabel = getArchiveGroupLabel(m.group_name || m.groupName || m.group);
-                                const isGroupB = normalizeArchiveGroup(m.group_name || m.groupName || m.group) === 'B';
-                                return (
-                                    <div key={m.id || idx} className="rounded-[28px] flex flex-col overflow-hidden border border-white/5 bg-zinc-900/80 shadow-2xl relative group transition-all">
-                                        <div className="px-4 py-1.5 bg-black/40 border-b border-white/[0.03] flex justify-center items-center gap-2 italic">
-                                            {groupLabel && (
-                                                <span className={`px-2 py-0.5 rounded-full border text-[7px] font-black tracking-[0.24em] uppercase ${isGroupB ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-200' : 'border-[#C9B075]/40 bg-[#C9B075]/10 text-[#C9B075]'}`}>
-                                                    {groupLabel}
-                                                </span>
-                                            )}
-                                            <span className="text-[7px] font-black text-[#C9B075] tracking-[0.3em] uppercase">MATCH {(idx + 1).toString().padStart(2, '0')}</span>
-                                        </div>
-                                        <div className="px-3 py-5">
-                                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 font-black">
-                                                <div className="flex flex-col gap-1 text-center font-black">
-                                                    <span className="text-sm italic truncate text-zinc-100 uppercase tracking-tighter">{n[0]}</span>
-                                                    <span className="text-sm italic truncate text-zinc-100 uppercase tracking-tighter">{n[1]}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 px-0.5">
-                                                    <span className={`text-2xl italic ${s1 > s2 ? 'text-[#C9B075]' : 'text-zinc-200'}`}>{s1}</span>
-                                                    <span className="text-zinc-900 font-bold opacity-30">:</span>
-                                                    <span className={`text-2xl italic ${s2 > s1 ? 'text-[#C9B075]' : 'text-zinc-200'}`}>{s2}</span>
-                                                </div>
-                                                <div className="flex flex-col gap-1 text-center font-black">
-                                                    <span className="text-sm italic truncate text-zinc-100 uppercase tracking-tighter">{n[2]}</span>
-                                                    <span className="text-sm italic truncate text-zinc-100 uppercase tracking-tighter">{n[3]}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <button onClick={() => setSelectedSessionId(null)} className="w-full py-5 mt-8 mb-12 rounded-[24px] bg-zinc-900/40 border border-white/5 text-[11px] font-black uppercase tracking-[0.25em] italic text-zinc-800 active:scale-95 transition-all">Back to Root Records</button>
-                    </div>
-                ) : (
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-6">
-                        <div className="rounded-[24px] border border-white/5 bg-zinc-900/40 p-1.5 shadow-xl backdrop-blur-3xl">
-                            <div className="grid grid-cols-2 gap-1.5">
-                                {(['ALL', 'OFFICIAL'] as const).map(filter => (
-                                    <button
-                                        key={filter}
-                                        onClick={() => {
-                                            setRecordFilter(filter);
-                                            setSelectedSessionId(null);
-                                        }}
-                                        className={`rounded-[18px] py-3 text-[12px] font-black uppercase tracking-[0.2em] italic transition-all active:scale-95 ${
-                                            recordFilter === filter
-                                                ? 'border border-[#C9B075]/40 bg-[#C9B075]/10 text-[#C9B075] shadow-[0_0_18px_rgba(201,176,117,0.12)]'
-                                                : 'border border-transparent text-zinc-600 hover:text-zinc-300'
-                                        }`}
-                                    >
-                                        {filter === 'ALL' ? '전체' : '공식'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <section className="bg-zinc-900/40 border border-white/5 rounded-[32px] p-6 flex gap-4 shadow-xl backdrop-blur-3xl mb-8">
-                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
-                                <span className="text-[9px] text-zinc-700 uppercase tracking-[0.4em] mb-1">TEMPORAL YEAR</span>
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-2xl px-4 py-3 text-[11px] text-white outline-none text-center font-black focus:border-[#C9B075]/30 appearance-none cursor-pointer">
-                                    {[2026,2025,2024].map(y=><option key={y} value={y}>{y}</option>)}
-                                </select>
-                            </div>
-                            <div className="flex-1 flex flex-col items-center gap-2 italic font-black">
-                                <span className="text-[9px] text-zinc-700 uppercase tracking-[0.4em] mb-1">TEMPORAL MONTH</span>
-                                <select value={selectedMonth} onChange={e=>setSelectedMonth(Number(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-2xl px-4 py-3 text-[11px] text-white outline-none text-center font-black focus:border-[#C9B075]/30 appearance-none cursor-pointer">
-                                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m=><option key={m} value={m}>{m}월</option>)}
-                                </select>
-                            </div>
-                        </section>
-                        <div className="space-y-6 pb-20">
-                            {sessions.length === 0 ? (
-                                <div className="rounded-[32px] border border-white/5 bg-zinc-900/30 px-6 py-16 text-center shadow-xl">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.35em] italic text-zinc-600">
-                                        {recordFilter === 'OFFICIAL' ? '공식 기록이 없습니다' : '저장된 기록이 없습니다'}
-                                    </p>
-                                </div>
-                            ) : sessions.map((s, index) => (
-                                <div key={s.id} onClick={() => setSelectedSessionId(s.id)} className="group relative backdrop-blur-3xl bg-zinc-900/40 border border-white/5 rounded-xl p-7 pt-10 overflow-hidden active:scale-[0.98] transition-all hover:border-[#C9B075]/30 shadow-2xl">
-                                    <div className="flex justify-between items-start mb-4 ml-1">
-                                        <div className="px-1 border-l-2 border-[#C9B075]/40 pl-3"><span className="text-[10px] font-black text-[#C9B075] uppercase tracking-widest italic">{s.date}</span></div>
-                                        <div className="flex items-center gap-2 mr-1">
-                                            {renderArchiveStatusBadge(s)}
-                                            {index === 0 && <span className="hidden sm:inline text-[9px] font-black text-[#C9B075] uppercase tracking-widest italic opacity-60">LATEST SYSTEM RECORD</span>}
-                                            {isAdmin && !s.isLocal && (
-                                                <button
-                                                    onClick={(e)=>{e.stopPropagation(); updateArchiveRecordStatus(s.id, s.is_official ? 'unofficial' : 'official');}}
-                                                    className={`rounded-xl border px-2.5 py-2 text-[9px] font-black uppercase tracking-widest italic transition-all ${s.is_official ? 'border-zinc-600/60 bg-black/20 text-zinc-500' : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200'}`}
-                                                >
-                                                    {s.is_official ? '해제' : '공식'}
-                                                </button>
-                                            )}
-                                            {isAdmin && !s.is_official && <button onClick={(e)=>{e.stopPropagation(); deleteSession(s);}} className="p-2 rounded-xl bg-black/20 border border-white/5 text-zinc-700 hover:text-red-900 transition-all"><Trash2 size={14} /></button>}
-                                        </div>
-                                    </div>
-                                    <div className="mb-10 px-2 mt-2"><h3 className="text-3xl font-[1000] text-zinc-100 tracking-tighter uppercase italic leading-none group-hover:text-white transition-colors break-all drop-shadow-lg">{s.title}</h3></div>
-                                    <div className="flex items-center justify-between pt-5 border-t border-white/[0.03] px-1">
-                                        <div className="flex items-center gap-6">
-                                            <div className="flex items-center gap-2"><Users size={14} className="text-zinc-600" /><span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">Players: <span className="text-zinc-100 ml-1">{s.participantCount}</span></span></div>
-                                            <div className="flex items-center gap-2"><Trophy size={14} className="text-zinc-600" /><span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">Matches: <span className="text-zinc-100 ml-1">{s.matchCount}</span></span></div>
-                                        </div>
-                                        <div className="w-11 h-11 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center text-zinc-600 group-hover:border-[#C9B075]/50 group-hover:text-[#C9B075] transition-all"><ArrowRight size={20} /></div>
-                                    </div>
-                                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9B075] opacity-[0.01] blur-[80px] pointer-events-none group-hover:opacity-[0.03] transition-opacity"></div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </>
-        ) : (
-            <div className="py-24 text-center bg-zinc-900/40 rounded-[40px] border border-white/5 border-dashed mx-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-700 italic">Global Registry Synchronizing</p>
-                <div className="mt-8 px-8 py-3 bg-black/60 border border-white/5 rounded-2xl inline-block italic text-zinc-500 text-[9px] font-black tracking-widest uppercase animate-pulse">테연 랭킹 업데이트 중...</div>
+    <main
+      className="relative w-full font-sans"
+      style={{
+        minHeight: '100dvh',
+        marginBottom: 'calc(-1 * var(--page-bottom-safe))',
+        backgroundColor: '#F4F8FC',
+        color: '#0F2747',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 520, margin: '0 auto',
+          padding: '20px 16px var(--page-bottom-safe)', boxSizing: 'border-box',
+          display: 'flex', flexDirection: 'column', gap: 14,
+        }}
+      >
+        {/* HEADER */}
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => selectedSessionId ? setSelectedSessionId(null) : window.history.back()}
+              aria-label={selectedSessionId ? '목록으로' : '뒤로'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 44, height: 44, borderRadius: '50%',
+                border: '1px solid #DCE8F5', backgroundColor: '#FFFFFF',
+                color: '#3B5A85', boxShadow: '0 4px 12px rgba(15,45,85,0.06)',
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                {selectedSessionId ? '기록 상세' : 'ARCHIVE'}
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 10, fontWeight: 900, color: '#3B82F6', letterSpacing: '0.22em', textTransform: 'uppercase' }}>
+                {selectedSessionId ? 'OFFICIAL RECORD' : 'OFFICIAL RECORDS'}
+              </p>
             </div>
+          </div>
+          {!selectedSessionId && (
+            <span
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                borderRadius: 999, padding: '6px 12px',
+                border: '1px solid #C7DCF1', background: '#EAF3FC',
+                fontSize: 10, fontWeight: 900,
+                letterSpacing: '0.2em', textTransform: 'uppercase',
+                color: '#1F5FB5',
+              }}
+            >
+              <Trophy size={11} />
+              ARCHIVE
+            </span>
+          )}
+        </header>
+
+        {loading ? (
+          <div
+            style={{
+              padding: '60px 16px', textAlign: 'center',
+              borderRadius: 22, background: '#FFFFFF',
+              border: '1px solid #DCE8F5',
+              boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+              fontSize: 12, fontWeight: 700, color: '#7A93B3',
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+            }}
+          >
+            Loading archive...
+          </div>
+        ) : selectedSessionId && selectedSession ? (
+          /* ============================ DETAIL VIEW ============================ */
+          renderArchiveDetailView()
+        ) : (
+          /* ============================ LIST VIEW ============================ */
+          <>
+            {/* HERO CARD */}
+            <section
+              style={{
+                position: 'relative',
+                borderRadius: 24, background: '#FFFFFF',
+                border: '1px solid #DCE8F5', padding: 22,
+                boxShadow: '0 14px 32px rgba(15,45,85,0.07)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 52, height: 52, flexShrink: 0, borderRadius: 16,
+                    background: 'linear-gradient(135deg, #FFF4DE 0%, #F4C979 100%)',
+                    color: '#B7791F',
+                    boxShadow: '0 8px 18px rgba(244,201,121,0.30)',
+                  }}
+                >
+                  <Trophy size={22} />
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>
+                    TEYEON OFFICIAL RECORDS
+                  </p>
+                  <h1 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.02em', color: '#0F2747' }}>
+                    공식 기록 보관함
+                  </h1>
+                </div>
+              </div>
+              <p style={{ margin: '12px 0 0', fontSize: 12.5, fontWeight: 700, lineHeight: 1.55, color: '#3F5B82' }}>
+                정식 확정된 KDK 세션 기록을 보관합니다. 우승자·순위·결과가 공식 기록으로 남습니다.
+              </p>
+            </section>
+
+            {/* STATS GRID (2x2) */}
+            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ borderRadius: 18, background: '#FFFFFF', border: '1px solid #DCE8F5', padding: 14, boxShadow: '0 6px 16px rgba(15,45,85,0.05)' }}>
+                <p style={{ margin: 0, fontSize: 24, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>{totalSessionCount}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 700, color: '#56729A' }}>총 공식 세션</p>
+              </div>
+              <div style={{ borderRadius: 18, background: '#FFFFFF', border: '1px solid #DCE8F5', padding: 14, boxShadow: '0 6px 16px rgba(15,45,85,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <InitialAvatar name={latestOfficialWinner || 'TEYEON'} size={32} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#0F2747', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+                    {latestOfficialWinner || '—'}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#56729A' }}>최근 우승자</p>
+                </div>
+              </div>
+              <div style={{ borderRadius: 18, background: '#FFFFFF', border: '1px solid #DCE8F5', padding: 14, boxShadow: '0 6px 16px rgba(15,45,85,0.05)' }}>
+                <p style={{ margin: 0, fontSize: 24, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>{totalMatchCount.toLocaleString()}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 700, color: '#56729A' }}>총 경기 기록</p>
+              </div>
+              <div style={{ borderRadius: 18, background: '#FFFFFF', border: '1px solid #DCE8F5', padding: 14, boxShadow: '0 6px 16px rgba(15,45,85,0.05)' }}>
+                <p style={{ margin: 0, fontSize: 24, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>{totalOfficialCount}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 700, color: '#56729A' }}>공식 확정 기록</p>
+              </div>
+            </section>
+
+            {/* PERIOD FILTER (year + month chips) */}
+            {availableYears.length > 0 && (
+              <section
+                style={{
+                  borderRadius: 16, background: '#FFFFFF', border: '1px solid #DCE8F5',
+                  padding: 14,
+                  boxShadow: '0 6px 16px rgba(15,45,85,0.05)',
+                  display: 'flex', flexDirection: 'column', gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6',
+                  }}>
+                    기간 · PERIOD
+                  </span>
+                  {(yearFilter !== 'ALL' || monthFilter !== 'ALL') && (
+                    <button
+                      type="button"
+                      onClick={() => { setYearFilter('ALL'); setMonthFilter('ALL'); }}
+                      style={{
+                        padding: '4px 10px', borderRadius: 999,
+                        background: '#F6FAFD', border: '1px solid #DCE8F5',
+                        color: '#56729A', fontSize: 10.5, fontWeight: 800,
+                        letterSpacing: '0.04em', cursor: 'pointer',
+                      }}
+                    >
+                      초기화
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(['ALL', ...availableYears] as const).map((y) => {
+                    const active = yearFilter === y;
+                    const label = y === 'ALL' ? '전체' : `${y}`;
+                    return (
+                      <button
+                        key={`y-${y}`}
+                        type="button"
+                        onClick={() => {
+                          setYearFilter(y);
+                          if (y === 'ALL') setMonthFilter('ALL');
+                          else if (monthFilter !== 'ALL') {
+                            // Reset month if it's not present under the new year.
+                            const yearMonths = new Set<number>();
+                            archives.forEach(m => {
+                              const d = new Date(m.match_date);
+                              if (!Number.isNaN(d.getTime()) && d.getFullYear() === y) yearMonths.add(d.getMonth() + 1);
+                            });
+                            if (!yearMonths.has(monthFilter as number)) setMonthFilter('ALL');
+                          }
+                        }}
+                        style={{
+                          padding: '6px 12px', borderRadius: 999,
+                          background: active ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : '#F8FBFE',
+                          border: active ? 'none' : '1px solid #DCE8F5',
+                          color: active ? '#FFFFFF' : '#3F5B82',
+                          fontSize: 12, fontWeight: 900, letterSpacing: '0.02em',
+                          boxShadow: active ? '0 6px 14px rgba(37,99,235,0.22)' : 'none',
+                          cursor: 'pointer', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {yearFilter !== 'ALL' && availableMonths.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex', gap: 6,
+                      overflowX: 'auto', paddingBottom: 2,
+                      WebkitOverflowScrolling: 'touch',
+                    }}
+                  >
+                    {(['ALL', ...availableMonths] as const).map((mo) => {
+                      const active = monthFilter === mo;
+                      const label = mo === 'ALL' ? '전체' : `${mo}월`;
+                      return (
+                        <button
+                          key={`m-${mo}`}
+                          type="button"
+                          onClick={() => setMonthFilter(mo)}
+                          style={{
+                            flexShrink: 0,
+                            padding: '5px 12px', borderRadius: 999,
+                            background: active ? '#EEF6FF' : '#FFFFFF',
+                            border: active ? '1.5px solid #2563EB' : '1px solid #DCE8F5',
+                            color: active ? '#1F5FB5' : '#56729A',
+                            fontSize: 11.5, fontWeight: 900, letterSpacing: '0.02em',
+                            cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* STATUS FILTER — 일반 회원: 공식 기록만 / 관리자: 공식 ↔ 미확정·테스트 */}
+            {isAdmin ? (
+              <section
+                style={{
+                  display: 'flex', alignItems: 'center', padding: 4,
+                  borderRadius: 16, background: '#FFFFFF', border: '1px solid #DCE8F5',
+                  boxShadow: '0 6px 16px rgba(15,45,85,0.05)',
+                }}
+              >
+                {([
+                  { key: 'OFFICIAL', label: '공식 기록' },
+                  { key: 'PENDING', label: '미확정·테스트' },
+                ] as const).map((opt) => {
+                  const active = recordFilter === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setRecordFilter(opt.key)}
+                      style={{
+                        flex: 1, height: 36, borderRadius: 12,
+                        background: active ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : 'transparent',
+                        color: active ? '#FFFFFF' : '#56729A',
+                        border: 'none',
+                        fontSize: 12.5, fontWeight: 900, letterSpacing: '0.02em',
+                        boxShadow: active ? '0 6px 14px rgba(37,99,235,0.22)' : 'none',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </section>
+            ) : (
+              <section
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  padding: '10px 14px',
+                  borderRadius: 16, background: '#FFFFFF', border: '1px solid #DCE8F5',
+                  boxShadow: '0 6px 16px rgba(15,45,85,0.05)',
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#3F5B82', letterSpacing: '-0.01em' }}>
+                  공식 기록만 보고 있어요
+                </span>
+                <span
+                  style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    borderRadius: 999, padding: '4px 10px',
+                    background: '#E0F5EB', border: '1px solid #B6E2CB', color: '#16A085',
+                    fontSize: 10, fontWeight: 900, letterSpacing: '0.08em',
+                  }}
+                >
+                  공식 기록
+                </span>
+              </section>
+            )}
+
+            {/* ADMIN PENDING BANNER */}
+            {isAdmin && pendingOfficialCount > 0 && (
+              <section
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  borderRadius: 16, background: '#EEF5FB', border: '1px solid #C7DCF1',
+                  padding: '10px 14px',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <CheckCircle2 size={14} color="#1F5FB5" />
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: '#1F5FB5', letterSpacing: '-0.01em' }}>
+                    관리자 · 공식 확정 대기 <span style={{ color: '#0F2747' }}>{pendingOfficialCount}건</span>
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRecordFilter('PENDING')}
+                  style={{
+                    flexShrink: 0, height: 30, padding: '0 14px', borderRadius: 999,
+                    background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                    color: '#FFFFFF', border: 'none',
+                    fontSize: 11, fontWeight: 900, letterSpacing: '0.02em',
+                    boxShadow: '0 6px 14px rgba(37,99,235,0.22)',
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  확정 관리
+                </button>
+              </section>
+            )}
+
+            {/* SESSION CARDS */}
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {sessions.length === 0 ? (
+                <div
+                  style={{
+                    padding: '40px 20px', textAlign: 'center',
+                    borderRadius: 22, background: '#FFFFFF',
+                    border: '1px dashed #C7DCF1',
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#56729A' }}>
+                    {recordFilter === 'OFFICIAL' ? '공식 기록이 없습니다' : '저장된 기록이 없습니다'}
+                  </p>
+                </div>
+              ) : sessions.map((s: any) => {
+                const topRanking = buildArchiveRankingResults(s).slice(0, 3);
+                const cardStatus = getArchiveStatusMeta(s);
+                return (
+                  <article
+                    key={s.id}
+                    style={{
+                      borderRadius: 22, background: '#FFFFFF',
+                      border: '1px solid #DCE8F5', padding: 18,
+                      boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                      display: 'flex', flexDirection: 'column', gap: 12,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em', wordBreak: 'keep-all' }}>
+                          {s.title}
+                        </h3>
+                        <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#56729A' }}>
+                          {formatArchiveDate(s.date)} · 양재 테니스장 · 참가 {s.participantCount}명
+                        </p>
+                      </div>
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          borderRadius: 999, padding: '4px 10px',
+                          fontSize: 9.5, fontWeight: 900,
+                          letterSpacing: '0.08em',
+                          background: cardStatus.bg,
+                          border: `1px solid ${cardStatus.border}`,
+                          color: cardStatus.color,
+                        }}
+                      >
+                        {cardStatus.label}
+                      </span>
+                    </div>
+
+                    {topRanking.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {topRanking.map((p: any, idx: number) => (
+                          <span
+                            key={`${s.id}-top-${idx}`}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '4px 10px', borderRadius: 999,
+                              background: idx === 0 ? '#FFF4DE' : '#F6FAFD',
+                              border: idx === 0 ? '1px solid #F4C979' : '1px solid #DCE8F5',
+                              fontSize: 11, fontWeight: 800,
+                              color: idx === 0 ? '#B7791F' : '#3F5B82',
+                              maxWidth: '100%',
+                            }}
+                          >
+                            <span style={{ fontWeight: 900 }}>{idx + 1}</span>
+                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.name}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSessionId(s.id)}
+                        style={{
+                          flex: 1, height: 44, borderRadius: 14,
+                          background: '#FFFFFF', border: '1px solid #DCE8F5',
+                          color: '#1F5FB5', fontSize: 13, fontWeight: 900,
+                          letterSpacing: '0.02em',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        상세 보기
+                        <ArrowRight size={14} />
+                      </button>
+                      {isAdmin && !s.is_official && !s.isLocal && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); deleteSession(s); }}
+                          aria-label="기록 삭제"
+                          style={{
+                            flexShrink: 0,
+                            width: 44, height: 44, borderRadius: 14,
+                            background: '#FFFFFF', border: '1px solid #F4C7C7',
+                            color: '#C0392B',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          </>
         )}
-        <div className="h-[calc(220px+env(safe-area-inset-bottom))] sm:hidden" aria-hidden="true" />
-      </section>
+      </div>
     </main>
   );
+
+  function renderArchiveDetailView() {
+    if (!selectedSession) return null;
+    const session = selectedSession;
+    const matches = session.matches || [];
+    // 조별 순위 계산을 위해 matches를 그룹 기준으로 필터링한 가상 세션 생성
+    const sessionForGroup = (group: 'A' | 'B') => ({
+      ...session,
+      matches: matches.filter((m: any) => normalizeArchiveGroup(m.group_name || m.groupName || m.group) === group),
+      rankingData: [], // group별로는 저장된 ranking을 사용하지 않고 matches에서 재계산
+    });
+    const overallRanking = buildArchiveRankingResults(session);
+    const groupHasA = matches.some((m: any) => normalizeArchiveGroup(m.group_name || m.groupName || m.group) === 'A');
+    const groupHasB = matches.some((m: any) => normalizeArchiveGroup(m.group_name || m.groupName || m.group) === 'B');
+    const hasGroupSplit = groupHasA && groupHasB;
+    const activeGroup = hasGroupSplit ? archiveDetailGroup : 'ALL';
+    const ranking = activeGroup === 'A'
+      ? buildArchiveRankingResults(sessionForGroup('A'))
+      : activeGroup === 'B'
+        ? buildArchiveRankingResults(sessionForGroup('B'))
+        : overallRanking;
+    const top3 = overallRanking.slice(0, 3);
+    const others = overallRanking.slice(3);
+
+    return (
+      <>
+        {/* SESSION HEADER CARD */}
+        <section
+          style={{
+            borderRadius: 24, background: '#FFFFFF',
+            border: '1px solid #DCE8F5', padding: 18,
+            boxShadow: '0 14px 32px rgba(15,45,85,0.07)',
+            display: 'flex', flexDirection: 'column', gap: 12,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em', wordBreak: 'keep-all' }}>
+            {session.title}
+          </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
+              <Calendar size={11} />
+              {formatArchiveDate(session.date)}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
+              <MapPin size={11} />
+              양재 테니스장
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
+              <Users size={11} />
+              참가 {session.participantCount}명
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#EEF5FB', border: '1px solid #DCE8F5', fontSize: 11, fontWeight: 800, color: '#1F5FB5' }}>
+              {archiveTypeLabel(session.archive_type)}
+            </span>
+          </div>
+        </section>
+
+        {/* STATUS CARD — 2-way: 공식 기록 확정됨 / 미확정·테스트 */}
+        <section
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            borderRadius: 16, padding: '12px 14px',
+            ...(session.is_official
+              ? { background: '#E0F5EB', border: '1px solid #B6E2CB' }
+              : { background: '#FFF4DE', border: '1px solid #F4C979' }),
+          }}
+        >
+          <CheckCircle2 size={22} color={session.is_official ? '#16A085' : '#B7791F'} style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: session.is_official ? '#16A085' : '#B7791F' }}>
+              {session.is_official ? '공식 기록 확정됨' : '미확정·테스트 기록'}
+            </p>
+            {session.is_official && session.confirmed_at && (
+              <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#3F5B82' }}>
+                {formatArchiveDateTime(session.confirmed_at)}{session.confirmed_by ? ` · 관리자 ${session.confirmed_by} 확인` : ''}
+              </p>
+            )}
+            {!session.is_official && (
+              <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#3F5B82' }}>
+                {session.is_test
+                  ? '테스트 기록입니다. 공식 확정 시 멤버 프로필 누적 기록에 반영됩니다.'
+                  : '관리자가 공식 확정해야 멤버 프로필 누적 기록에 반영됩니다.'}
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* ADMIN STATUS CONTROLS */}
+        {isAdmin && !session.isLocal && (
+          <section style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {session.is_official ? (
+              <button
+                type="button"
+                onClick={() => updateArchiveRecordStatus(session.id, 'unofficial')}
+                style={{
+                  padding: '8px 14px', borderRadius: 999,
+                  background: '#FFFFFF', border: '1px solid #DCE8F5',
+                  color: '#3B5A85', fontSize: 11.5, fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                공식 해제
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => updateArchiveRecordStatus(session.id, 'official')}
+                style={{
+                  padding: '8px 14px', borderRadius: 999,
+                  background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                  color: '#FFFFFF', border: 'none',
+                  fontSize: 11.5, fontWeight: 900,
+                  boxShadow: '0 6px 14px rgba(37,99,235,0.22)',
+                  cursor: 'pointer',
+                }}
+              >
+                공식 기록으로 확정
+              </button>
+            )}
+            {session.is_test ? (
+              <button
+                type="button"
+                onClick={() => updateArchiveRecordStatus(session.id, 'unofficial')}
+                style={{
+                  padding: '8px 14px', borderRadius: 999,
+                  background: '#FFFFFF', border: '1px solid #DCE8F5',
+                  color: '#3B5A85', fontSize: 11.5, fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                테스트 해제
+              </button>
+            ) : !session.is_official ? (
+              <button
+                type="button"
+                onClick={() => updateArchiveRecordStatus(session.id, 'test')}
+                style={{
+                  padding: '8px 14px', borderRadius: 999,
+                  background: '#FFFFFF', border: '1px solid #F4C7C7',
+                  color: '#C0392B', fontSize: 11.5, fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                테스트 기록으로 변경
+              </button>
+            ) : null}
+          </section>
+        )}
+
+        {/* TOP 3 HIGHLIGHT */}
+        {top3.length > 0 && (
+          <section
+            style={{
+              borderRadius: 22, background: '#FFFFFF',
+              border: '1px solid #DCE8F5', padding: 16,
+              boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #F4C979, #B7791F)', borderRadius: 2 }} />
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>TOP 3</h3>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>HIGHLIGHT</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 10 }}>
+              {[1, 0, 2].map((idx) => {
+                const p = top3[idx];
+                if (!p) return <div key={`top-empty-${idx}`} style={{ flex: idx === 0 ? '0 0 36%' : '0 0 28%' }} />;
+                const isFirst = idx === 0;
+                const medal = isFirst ? '🏆' : idx === 1 ? '🥈' : '🥉';
+                const rankLabel = isFirst ? 'CHAMPION' : idx === 1 ? '2ND' : '3RD';
+                return (
+                  <div
+                    key={`top-${idx}-${p.name}`}
+                    style={{
+                      flex: isFirst ? '0 0 38%' : '0 0 28%',
+                      borderRadius: 18,
+                      background: isFirst ? 'linear-gradient(180deg, #FFF8E6 0%, #FFFFFF 100%)' : '#FFFFFF',
+                      border: isFirst ? '2px solid #F4C979' : '1px solid #DCE8F5',
+                      padding: '14px 8px',
+                      textAlign: 'center',
+                      boxShadow: isFirst ? '0 12px 28px rgba(244,201,121,0.20)' : '0 6px 16px rgba(15,45,85,0.05)',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                    }}
+                  >
+                    <span style={{ fontSize: isFirst ? 32 : 24, lineHeight: 1 }}>{medal}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 900, letterSpacing: '0.14em', color: isFirst ? '#B7791F' : '#9CB2CC' }}>{rankLabel}</span>
+                    <span style={{ fontSize: isFirst ? 16 : 13.5, fontWeight: 900, color: '#0F2747', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.name}
+                    </span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: '#56729A' }}>
+                      {p.wins}승 {p.losses}패
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* RANKING — 전체 / A조 / B조 */}
+        {(overallRanking.length > 0 || ranking.length > 0) && (
+          <section
+            style={{
+              borderRadius: 22, background: '#FFFFFF',
+              border: '1px solid #DCE8F5', padding: 16,
+              boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>
+                {activeGroup === 'ALL' ? '전체 순위' : `${activeGroup}조 순위`}
+              </h3>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>RANKING</span>
+            </div>
+            {hasGroupSplit && (
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', padding: 4, marginBottom: 12,
+                  borderRadius: 14, background: '#F8FBFE', border: '1px solid #E1EAF5',
+                }}
+              >
+                {(['ALL', 'A', 'B'] as const).map((g) => {
+                  const active = archiveDetailGroup === g;
+                  const label = g === 'ALL' ? '전체' : `${g}조`;
+                  return (
+                    <button
+                      key={`grp-${g}`}
+                      type="button"
+                      onClick={() => setArchiveDetailGroup(g)}
+                      style={{
+                        flex: 1, height: 32, borderRadius: 10,
+                        background: active ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : 'transparent',
+                        color: active ? '#FFFFFF' : '#56729A',
+                        border: 'none',
+                        fontSize: 11.5, fontWeight: 900, letterSpacing: '0.02em',
+                        boxShadow: active ? '0 4px 10px rgba(37,99,235,0.18)' : 'none',
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ overflowX: 'auto', borderRadius: 14, border: '1px solid #DCE8F5' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                <thead>
+                  <tr style={{ background: '#EEF5FB', borderBottom: '1px solid #DCE8F5' }}>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.06em', fontSize: 11 }}>순위</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.06em', fontSize: 11 }}>이름</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.06em', fontSize: 11 }}>승/패</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.06em', fontSize: 11 }}>득실</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranking.map((p: any, idx: number) => {
+                    const rowBg = idx % 2 === 0 ? '#FFFFFF' : '#F8FBFE';
+                    const isLast = idx === ranking.length - 1;
+                    return (
+                      <tr key={`row-${idx}`} style={{ background: rowBg, borderBottom: isLast ? 'none' : '1px solid #E1EAF5' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 900, color: idx < 3 ? '#1F5FB5' : '#3F5B82' }}>
+                          {idx + 1}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontWeight: 800, color: '#0F2747' }}>
+                          {p.name}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 800, color: '#3F5B82' }}>
+                          {p.wins}/{p.losses}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, color: p.diff > 0 ? '#16A085' : p.diff < 0 ? '#C0392B' : '#7A93B3' }}>
+                          {p.diff > 0 ? `+${p.diff}` : p.diff}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* MATCHES */}
+        {matches.length > 0 && (
+          <section
+            style={{
+              borderRadius: 22, background: '#FFFFFF',
+              border: '1px solid #DCE8F5', padding: 16,
+              boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>경기별 결과</h3>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>MATCHES</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {matches.map((m: any, idx: number) => {
+                const names = Array.from({ length: 4 }, (_, k) => resolveArchivePlayerName(m.player_names?.[k], (m.player_ids || m.playerIds || [])[k], session.playerMetadata || {}));
+                const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                const teamA = `${names[0]} / ${names[1]}`;
+                const teamB = `${names[2]} / ${names[3]}`;
+                const courtNo = m.court || ((idx % 4) + 1);
+                const roundNo = m.round || Math.floor(idx / 4) + 1;
+                return (
+                  <div
+                    key={m.id || `match-${idx}`}
+                    style={{
+                      borderRadius: 14,
+                      background: '#F8FBFE',
+                      border: '1px solid #E1EAF5',
+                      padding: '12px 14px',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}
+                  >
+                    <span style={{
+                      flexShrink: 0,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '4px 8px', borderRadius: 999,
+                      background: '#EEF5FB', border: '1px solid #C7DCF1',
+                      fontSize: 10, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      C{courtNo}-R{roundNo}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 800, color: '#0F2747', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {teamA} <span style={{ color: '#9CB2CC' }}>vs</span> {teamB}
+                    </span>
+                    <span style={{ flexShrink: 0, fontSize: 14, fontWeight: 900, color: '#1F5FB5' }}>
+                      {s1}:{s2}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* SETTLEMENT SUMMARY */}
+        <section
+          style={{
+            borderRadius: 22, background: '#FFFFFF',
+            border: '1px solid #DCE8F5', padding: 16,
+            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>정산 요약</h3>
+            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>SUMMARY</span>
+          </div>
+          <div style={{ borderRadius: 14, border: '1px solid #E1EAF5', overflow: 'hidden' }}>
+            {([
+              { label: '게스트비', sub: '(참고)', value: '-' },
+              { label: '벌금', sub: '(참고)', value: '-' },
+              { label: '우승 상금', sub: '', value: '-' },
+            ] as const).map((row, i) => (
+              <div
+                key={row.label}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  background: i % 2 === 0 ? '#FFFFFF' : '#F8FBFE',
+                  borderBottom: i < 2 ? '1px solid #E1EAF5' : 'none',
+                }}
+              >
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#3F5B82' }}>
+                  {row.label}
+                  {row.sub && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: '#9CB2CC' }}>{row.sub}</span>}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#0F2747' }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: '10px 0 0', fontSize: 10.5, fontWeight: 700, lineHeight: 1.5, color: '#7A93B3' }}>
+            * Archive 내 정산 참고 요약입니다. 실제 정산되어 처리는 Finance에서 진행됩니다.
+          </p>
+        </section>
+
+        {/* SHARE */}
+        <section
+          style={{
+            borderRadius: 22, background: '#FFFFFF',
+            border: '1px solid #DCE8F5', padding: 16,
+            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>결과 공유</h3>
+            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>SHARE</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => alert('전체 순위 이미지 저장 기능은 LIVE COURT 순위 탭에서 진행해 주세요.')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', height: 52, borderRadius: 14,
+              background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+              color: '#FFFFFF', border: 'none',
+              fontSize: 13.5, fontWeight: 900, letterSpacing: '0.02em',
+              boxShadow: '0 12px 26px rgba(37,99,235,0.24)',
+              cursor: 'pointer',
+            }}
+          >
+            <FileImage size={16} />
+            전체 순위 이미지 저장
+          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => alert('조별 순위 공유 기능은 LIVE COURT 순위 탭에서 진행해 주세요.')}
+              style={{
+                height: 44, borderRadius: 12,
+                background: '#FFFFFF', border: '1px solid #DCE8F5',
+                color: '#1F5FB5', fontSize: 12.5, fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              조별 순위
+            </button>
+            <button
+              type="button"
+              onClick={() => alert('텍스트 복사 기능은 LIVE COURT 순위 탭에서 진행해 주세요.')}
+              style={{
+                height: 44, borderRadius: 12,
+                background: '#FFFFFF', border: '1px solid #DCE8F5',
+                color: '#1F5FB5', fontSize: 12.5, fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              텍스트 복사
+            </button>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   async function updateArchiveRecordStatus(sessionId: string, status: 'official' | 'unofficial' | 'test') {
     if (!isAdmin) return;
