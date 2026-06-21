@@ -9,13 +9,58 @@ import {
   ChevronRight,
   CircleDollarSign,
   Layout,
+  MapPin,
   Settings,
   Swords,
+  Trophy,
   UserPlus,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { fetchClubSchedules } from '@/lib/clubScheduleService';
+import { fetchTournamentEvents } from '@/lib/tournamentCalendarService';
+
+// ─── 다음 일정 선정 ───────────────────────────────────────────────────────
+// Club Schedule + Tournament Schedule을 단일 비교 구조로 변환해 가장 가까운 1건 선정.
+// - 현재 시각 이후 일정만 대상
+// - 취소/종료 상태 제외
+// - 시작 일시 오름차순 (동일 시각이면 Club 우선)
+
+type NextScheduleItem = {
+    id: string;
+    type: 'club' | 'tournament';
+    title: string;
+    startsAt: Date;
+    href: string;
+};
+
+const buildDate = (date: string, time?: string | null): Date => {
+    const [y, m, d] = date.split('-').map(Number);
+    if (!y || !m || !d) return new Date(NaN);
+    const t = (time || '').slice(0, 5);
+    const [hh, mm] = t.split(':').map(Number);
+    return new Date(y, m - 1, d, hh || 0, mm || 0, 0, 0);
+};
+
+const formatNextScheduleValue = (item: NextScheduleItem): string => {
+    const m = item.startsAt.getMonth() + 1;
+    const d = item.startsAt.getDate();
+    const dateLabel = `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+    return `${dateLabel} ${item.title}`;
+};
+
+
+/**
+ * TEYEON 메인 — F · Club Board Premium (최종)
+ * - 기존 slim ticker 제거 → Header(전역) 바로 아래 Hero가 이어짐
+ * - Hero: 상단 teal/aqua band(TEYEON TENNIS CLUB / 테니스로 이어진 인연.)
+ *          + 하단 3분할 통계(활동 회원 / 누적 KDK / 다음 일정)
+ * - 첫 메뉴 카드(대진 생성)는 얇은 teal border + 좌측 accent line으로 약하게 강조
+ * - Notice bar는 렌더하지 않음. 향후 공지 노출 시 NoticeBar slot에 조건부 삽입 가능.
+ * - 360px / 390px 반응형 — Hero 내부 gap/typography 축소, 카드 잘림 방지
+ * - 데이터 로직(activeMemberCount, totalKdkCount), Link href, Auth 흐름 미수정.
+ */
 
 export default function Home() {
   const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
@@ -23,8 +68,14 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [activeMemberCount, setActiveMemberCount] = useState<number>(24);
   const [totalKdkCount, setTotalKdkCount] = useState<number>(0);
+  const [nextSchedule, setNextSchedule] = useState<NextScheduleItem | null>(null);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
+
+  // 향후 조건부 공지 노출 슬롯 — 값이 truthy 일 때만 NoticeBar 렌더링.
+  // 예: useState로 server fetch 결과를 받거나, props/context로 주입.
+  // 기본은 null이라 빈 영역/여백이 남지 않음.
+  const noticeMessage: string | null = null;
 
   useEffect(() => {
     // 활동 회원 = 정회원 + 준회원 (role 기준); role = '게스트' 제외
@@ -38,7 +89,7 @@ export default function Home() {
         if (!error && count !== null) setActiveMemberCount(count);
       });
 
-    // 공식 KDK 세션 수: teyeon_archive_v1에서 is_official=true, is_test=false 기준 (1 row = 1 세션)
+    // 공식 KDK 세션 수
     supabase
       .from('teyeon_archive_v1')
       .select('*', { count: 'exact', head: true })
@@ -51,6 +102,82 @@ export default function Home() {
         }
         if (count !== null) setTotalKdkCount(count);
       });
+
+    // 다음 일정 선정 — Club + Tournament 합쳐 가장 가까운 1건.
+    // 기존 fetch 함수 재사용 (별도 쿼리 작성 X). 두 fetch 중 하나가 실패해도 다른 쪽으로 폴백.
+    (async () => {
+      try {
+        const now = new Date();
+        const [clubResult, tournamentResult] = await Promise.allSettled([
+          fetchClubSchedules(),
+          fetchTournamentEvents(),
+        ]);
+
+        const items: NextScheduleItem[] = [];
+
+        if (clubResult.status === 'fulfilled') {
+          for (const cs of clubResult.value) {
+            // demo 데이터(id startsWith 'demo-') 제외
+            if (!cs.id || cs.id.startsWith('demo-')) continue;
+            const startsAt = buildDate(cs.schedule_date, cs.start_time);
+            if (Number.isNaN(startsAt.getTime())) continue;
+            if (startsAt.getTime() <= now.getTime()) continue;
+            const typeShort =
+              cs.schedule_type === '정모' || cs.schedule_type === '번개' ||
+              cs.schedule_type === '회식' || cs.schedule_type === '기타'
+                ? cs.schedule_type
+                : '단체전';
+            items.push({
+              id: cs.id,
+              type: 'club',
+              title: typeShort,
+              startsAt,
+              href: cs.schedule_type === '정모' ? `/club-schedule/${cs.id}` : '/tournament-calendar',
+            });
+          }
+        } else {
+          console.warn('[Home] Club schedule fetch failed:', clubResult.reason);
+        }
+
+        if (tournamentResult.status === 'fulfilled') {
+          const CANCELLED_OR_DONE = new Set(['대회취소', '대회종료']);
+          for (const ev of tournamentResult.value) {
+            if (!ev.date || !ev.id) continue;
+            if (CANCELLED_OR_DONE.has(ev.status)) continue;
+            const startsAt = buildDate(ev.date);
+            if (Number.isNaN(startsAt.getTime())) continue;
+            if (startsAt.getTime() <= now.getTime()) continue;
+            items.push({
+              id: ev.id,
+              type: 'tournament',
+              title: ev.title || '대회',
+              startsAt,
+              href: '/tournament-calendar',
+            });
+          }
+        } else {
+          console.warn('[Home] Tournament fetch failed:', tournamentResult.reason);
+        }
+
+        if (items.length === 0) {
+          setNextSchedule(null);
+          return;
+        }
+
+        // 정렬: 시작 시각 오름차순. 동일 시각이면 Club 우선.
+        items.sort((a, b) => {
+          const dt = a.startsAt.getTime() - b.startsAt.getTime();
+          if (dt !== 0) return dt;
+          if (a.type === b.type) return 0;
+          return a.type === 'club' ? -1 : 1;
+        });
+
+        setNextSchedule(items[0]);
+      } catch (err) {
+        console.warn('[Home] Next schedule selection failed:', err);
+        setNextSchedule(null);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -71,6 +198,44 @@ export default function Home() {
     }
   }, [toast]);
 
+  // ─── 메뉴 accent 그룹 시스템 (3색) ──────────────────────────────────────
+  // 메뉴 성격에 따라 3개 그룹으로 정돈. 색은 카테고리 식별 도구이며 카드 자체는
+  // 모두 white + 동일 shadow/radius/padding으로 시스템 일관성 유지.
+  //
+  // teal: 경기/운영 (대진 생성, 스페셜 매치)
+  // aqua: 일정/회원/게스트 (대회 캘린더, 멤버 프로필, GUEST JOIN)
+  // gold: 관리/재무 (클럽 재무, 관리자 설정) — pale gold만 사용, 카드 누렁 방지
+  //
+  // line color는 icon color보다 약하게 (icon 100% 대비 ≈ 55~70% 강도) →
+  // 정렬 가이드 느낌을 유지.
+  const ACCENT_GROUPS = {
+    teal: {
+      icon:    '#0F9F98',
+      iconBg:  'rgba(15,159,152,0.10)',
+      line:    'rgba(15,159,152,0.30)',
+      badgeBg: 'rgba(15,159,152,0.09)',
+      badgeFg: '#0E8079',
+      badgeBd: 'rgba(15,159,152,0.22)',
+    },
+    aqua: {
+      icon:    '#4B9DB6',
+      iconBg:  'rgba(75,157,182,0.10)',
+      line:    'rgba(75,157,182,0.32)',
+      badgeBg: 'rgba(75,157,182,0.09)',
+      badgeFg: '#386F82',
+      badgeBd: 'rgba(75,157,182,0.24)',
+    },
+    gold: {
+      icon:    '#C79A32',
+      iconBg:  'rgba(199,154,50,0.10)',
+      line:    'rgba(199,154,50,0.32)',
+      badgeBg: 'rgba(199,154,50,0.10)',
+      badgeFg: '#8E6B17',
+      badgeBd: 'rgba(199,154,50,0.24)',
+    },
+  } as const;
+  type AccentGroup = keyof typeof ACCENT_GROUPS;
+
   const MenuCard = ({
     label,
     description,
@@ -86,8 +251,10 @@ export default function Home() {
     path: string;
     comingSoon?: boolean;
     badge?: string;
-    accent?: 'teal' | 'gold';
-  }) => (
+    accent?: AccentGroup;
+  }) => {
+    const c = ACCENT_GROUPS[accent];
+    return (
     <Link
       href={path}
       style={{
@@ -103,9 +270,25 @@ export default function Home() {
         textDecoration: 'none',
         transition: 'box-shadow 0.18s',
         opacity: comingSoon ? 0.68 : 1,
+        overflow: 'hidden',
       }}
       className="active:scale-[0.982]"
     >
+      {/* 좌측 accent line — 모든 카드 공통 정렬 가이드.
+          두께/시작점/끝점은 모든 카드 동일. 색은 그룹별로 다름. */}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 8,
+          bottom: 8,
+          width: 2,
+          borderRadius: 2,
+          backgroundColor: c.line,
+        }}
+      />
+
       {/* Icon container */}
       <div
         style={{
@@ -116,11 +299,8 @@ export default function Home() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor:
-            accent === 'gold'
-              ? 'rgba(201,168,76,0.10)'
-              : 'rgba(13,148,136,0.09)',
-          color: accent === 'gold' ? '#C9A84C' : '#0D9488',
+          backgroundColor: c.iconBg,
+          color: c.icon,
         }}
       >
         {icon}
@@ -160,15 +340,9 @@ export default function Home() {
                 textTransform: 'uppercase',
                 padding: '2px 6px',
                 borderRadius: 5,
-                backgroundColor:
-                  accent === 'gold'
-                    ? 'rgba(201,168,76,0.10)'
-                    : 'rgba(13,148,136,0.09)',
-                color: accent === 'gold' ? '#B8891C' : '#0D9488',
-                border:
-                  accent === 'gold'
-                    ? '1px solid rgba(201,168,76,0.24)'
-                    : '1px solid rgba(13,148,136,0.20)',
+                backgroundColor: c.badgeBg,
+                color: c.badgeFg,
+                border: `1px solid ${c.badgeBd}`,
               }}
             >
               {badge}
@@ -217,11 +391,10 @@ export default function Home() {
         style={{ flexShrink: 0, color: '#CBD5E1', marginLeft: 4 }}
       />
     </Link>
-  );
+    );
+  };
 
   if (!isMounted) return null;
-
-  const tickerText = '한산모시배 · KDK 결과는 ARCHIVE에서 확인';
 
   return (
     <main
@@ -234,68 +407,40 @@ export default function Home() {
         flexDirection: 'column',
         alignItems: 'center',
         overflowX: 'hidden',
-        paddingBottom: 8,
+        // BottomNav가 마지막 카드를 침범하지 않도록 안전 영역 + 약간의 여백
+        paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
       }}
     >
-      {/* Slim ticker — light teal tint strip */}
-      <style>{`
-        @keyframes home-ticker {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
-        }
-      `}</style>
-      <div
-        style={{
-          width: '100%',
-          height: 30,
-          backgroundColor: 'rgba(13,148,136,0.07)',
-          borderBottom: '1px solid rgba(13,148,136,0.11)',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          flexShrink: 0,
-        }}
-      >
+      {/* ─── 향후 조건부 NoticeBar 슬롯 ──────────────────────────────────────
+          공지가 있을 때만 렌더링. 현재는 noticeMessage = null → 빈 여백 없음.
+          공지 노출이 필요해지면 noticeMessage에 값 채우는 것만으로 활성화. */}
+      {noticeMessage && (
         <div
           style={{
+            width: '100%',
+            maxWidth: 430,
+            margin: '12px 16px 0',
+            padding: '8px 12px',
+            borderRadius: 10,
+            backgroundColor: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.20)',
+            color: '#B91C1C',
+            fontSize: 11,
+            fontWeight: 700,
+            lineHeight: 1.4,
             display: 'flex',
-            whiteSpace: 'nowrap',
-            animation: 'home-ticker 24s linear infinite',
+            alignItems: 'center',
+            gap: 6,
           }}
         >
-          {[tickerText, tickerText].map((text, i) => (
-            <span
-              key={i}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                paddingRight: 72,
-                fontFamily: 'var(--font-rajdhani), sans-serif',
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                color: '#475569',
-              }}
-            >
-              <span
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: '50%',
-                  backgroundColor: '#0D9488',
-                  display: 'inline-block',
-                  flexShrink: 0,
-                }}
-              />
-              {text}
-            </span>
-          ))}
+          <span style={{ flexShrink: 0 }}>● 공지</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {noticeMessage}
+          </span>
         </div>
-      </div>
+      )}
 
-      {/* Page content */}
+      {/* Page content — Header 바로 아래 Hero가 자연스럽게 이어지도록 marginTop 12px */}
       <div
         style={{
           width: '100%',
@@ -305,72 +450,127 @@ export default function Home() {
           flexDirection: 'column',
         }}
       >
-        {/* Intro card */}
-        <div
+        {/* ─── Club Board Hero ─────────────────────────────────────────────
+            상단: teal band — TEYEON TENNIS CLUB / 테니스로 이어진 인연.
+            하단: 3분할 통계 — 활동 회원 / 누적 KDK / 다음 일정              */}
+        <section
           style={{
-            marginTop: 18,
-            marginBottom: 20,
-            borderRadius: 14,
+            marginTop: 12,
+            marginBottom: 16,
+            borderRadius: 16,
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.06)',
-            borderTop: '2px solid #0D9488',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.055)',
-            padding: '18px 20px 16px 20px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            overflow: 'hidden',
           }}
         >
-          <p
-            style={{
-              fontFamily: 'var(--font-rajdhani), sans-serif',
-              fontSize: 8.5,
-              fontWeight: 700,
-              letterSpacing: '0.30em',
-              textTransform: 'uppercase',
-              color: '#0D9488',
-              marginBottom: 7,
-            }}
-          >
-            TEYEON TENNIS CLUB
-          </p>
-          <h1
-            style={{
-              fontFamily: 'var(--font-geist), var(--font-rajdhani), sans-serif',
-              fontSize: 21,
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              color: '#0F172A',
-              lineHeight: 1.22,
-              margin: 0,
-            }}
-          >
-            테니스로 이어진 인연.
-          </h1>
+          {/* 상단 teal band — 채도를 한 단계 낮춘 premium teal.
+              gradient 색 차이는 미세하게만(끝점이 aqua-bright로 튀지 않도록). */}
           <div
             style={{
-              marginTop: 12,
-              paddingTop: 10,
-              borderTop: '1px solid rgba(0,0,0,0.055)',
+              position: 'relative',
+              background:
+                'linear-gradient(135deg, #0E7E76 0%, #12968B 60%, #1EA89B 100%)',
+              paddingTop: 14,
+              paddingRight: 18,
+              paddingBottom: 16,
+              paddingLeft: 18,
+              overflow: 'hidden',
             }}
           >
-            <p
+            {/* 우측 은은한 tennis ball / court line motif — opacity 한 단계 낮춤. */}
+            <svg
+              aria-hidden
+              viewBox="0 0 120 120"
               style={{
-                margin: 0,
-                fontSize: 11,
-                fontWeight: 600,
-                color: '#64748B',
-                lineHeight: 1.7,
+                position: 'absolute',
+                right: -22,
+                top: -18,
+                width: 150,
+                height: 150,
+                opacity: 0.07,
+                pointerEvents: 'none',
               }}
             >
-              {'활동 회원 '}
-              <strong style={{ color: '#0F172A', fontWeight: 800 }}>{activeMemberCount}명</strong>
-              {' · 누적 KDK '}
-              <strong style={{ color: '#0F172A', fontWeight: 800 }}>{totalKdkCount}회</strong>
-              {' · 다음 '}
-              <strong style={{ color: '#0D9488', fontWeight: 700 }}>
-                한산모시배
-              </strong>
+              <circle cx="60" cy="60" r="42" fill="#FFFFFF" />
+              <path
+                d="M 26 50 Q 60 28 94 50"
+                fill="none"
+                stroke="#0D9488"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 26 70 Q 60 92 94 70"
+                fill="none"
+                stroke="#0D9488"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+
+            <p
+              style={{
+                fontFamily: 'var(--font-rajdhani), sans-serif',
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: '0.28em',
+                textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.78)',
+                margin: 0,
+              }}
+            >
+              TEYEON TENNIS CLUB
             </p>
+            <h1
+              style={{
+                marginTop: 6,
+                marginBottom: 0,
+                fontSize: 20,
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                color: '#FFFFFF',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',         // 한 줄 유지
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              테니스로 이어진 인연.
+            </h1>
           </div>
-        </div>
+
+          {/* 하단 3분할 통계 */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              backgroundColor: '#FFFFFF',
+            }}
+          >
+            <StatCell
+              icon={<Users size={14} strokeWidth={1.8} />}
+              value={`${activeMemberCount}`}
+              unit="명"
+              label="활동 회원"
+              divider="right"
+            />
+            <StatCell
+              icon={<Trophy size={14} strokeWidth={1.8} />}
+              value={`${totalKdkCount}`}
+              unit="회"
+              label="누적 KDK"
+              divider="right"
+            />
+            <StatCell
+              icon={<MapPin size={14} strokeWidth={1.8} />}
+              value={nextSchedule ? formatNextScheduleValue(nextSchedule) : '일정 없음'}
+              label="다음 일정"
+              valueIsText
+              href={nextSchedule?.href}
+            />
+          </div>
+        </section>
 
         {/* Loading skeleton */}
         {isLoading && (
@@ -461,6 +661,7 @@ export default function Home() {
           <>
             {/* Menu card stack */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {/* 그룹 1 — 경기/운영 (teal) */}
               <MenuCard
                 label="대진 생성"
                 description="KDK 대진표 생성 및 실시간 운영."
@@ -469,14 +670,16 @@ export default function Home() {
                 badge="KDK"
                 accent="teal"
               />
+              {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
                 label="대회 캘린더"
                 description="월별 대회 일정과 참가/파트너 현황을 확인합니다."
                 icon={<CalendarDays size={21} strokeWidth={1.7} />}
                 path="/tournament-calendar"
                 badge="CALENDAR"
-                accent="teal"
+                accent="aqua"
               />
+              {/* 그룹 1 — 경기/운영 (teal) */}
               <MenuCard
                 label="스페셜 매치"
                 description="수동 매치 운영 및 결과 기록."
@@ -485,13 +688,15 @@ export default function Home() {
                 badge="MANUAL"
                 accent="teal"
               />
+              {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
                 label="멤버 프로필"
                 description="클럽 멤버 프로필 및 랭킹을 조회합니다."
                 icon={<Users size={21} strokeWidth={1.7} />}
                 path="/members"
-                accent="teal"
+                accent="aqua"
               />
+              {/* 그룹 3 — 관리/재무 (gold) */}
               <MenuCard
                 label="클럽 재무"
                 description="회비, 미납, 월간 재무 리포트를 관리합니다."
@@ -499,14 +704,16 @@ export default function Home() {
                 path="/finance"
                 accent="gold"
               />
+              {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
                 label="GUEST JOIN"
                 description="TEYEON 게스트 참여 신청"
                 icon={<UserPlus size={21} strokeWidth={1.7} />}
                 path="/guest"
                 badge="OPEN"
-                accent="teal"
+                accent="aqua"
               />
+              {/* 그룹 3 — 관리/재무 (gold) */}
               <MenuCard
                 label="관리자 설정"
                 description="멤버, 권한, 운영 기준을 관리합니다."
@@ -516,7 +723,6 @@ export default function Home() {
                 accent="gold"
               />
             </div>
-
           </>
         )}
       </div>
@@ -549,4 +755,107 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+// ─── Hero 통계 1셀 ─────────────────────────────────────────────────────────
+function StatCell({
+  icon,
+  value,
+  unit,
+  label,
+  divider,
+  valueIsText,
+  href,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  unit?: string;
+  label: string;
+  divider?: 'right';
+  valueIsText?: boolean;
+  /** 있을 경우 셀 전체가 해당 라우트로 이동. 다음 일정 선정 시 사용. */
+  href?: string;
+}) {
+  const cellInner = (
+    <>
+      <span style={{ color: '#94A3B8', marginBottom: 4, display: 'inline-flex' }}>
+        {icon}
+      </span>
+      <p
+        style={{
+          margin: 0,
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          gap: 1,
+          maxWidth: '100%',
+        }}
+      >
+        <span
+          style={{
+            fontSize: valueIsText ? 'clamp(11px, 3.4vw, 13px)' : 'clamp(15px, 4.6vw, 17px)',
+            fontWeight: 800,
+            color: '#0F172A',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '100%',
+          }}
+        >
+          {value}
+        </span>
+        {unit && (
+          <span
+            style={{
+              fontSize: 'clamp(9px, 2.6vw, 10px)',
+              fontWeight: 700,
+              color: '#64748B',
+              marginLeft: 2,
+            }}
+          >
+            {unit}
+          </span>
+        )}
+      </p>
+      <span
+        style={{
+          marginTop: 3,
+          fontSize: 'clamp(9px, 2.6vw, 10px)',
+          fontWeight: 600,
+          color: '#94A3B8',
+          letterSpacing: '-0.01em',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label}
+      </span>
+    </>
+  );
+
+  const baseStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingLeft: 6,
+    paddingRight: 6,
+    borderRight: divider === 'right' ? '1px solid rgba(15,23,42,0.06)' : undefined,
+    minWidth: 0,
+    overflow: 'hidden',
+    textDecoration: 'none',
+    color: 'inherit',
+  };
+
+  if (href) {
+    return (
+      <Link href={href} style={baseStyle} className="active:scale-[0.98]">
+        {cellInner}
+      </Link>
+    );
+  }
+
+  return <div style={baseStyle}>{cellInner}</div>;
 }
