@@ -75,7 +75,10 @@
   contain: layout style;
 }
 
-/* 내부 SVG: translate3d로만 이동. 도착점이 곧 (0,0,0). */
+/* 내부 SVG.
+   ⚠️ transform은 CSS keyframe이 아니라 JS (rAF + quadratic Bezier) 가 매 프레임 갱신.
+   CSS keyframe으로 중간점을 찍으면 각 구간마다 easing 재시작 → 중간 멈춤 발생함.
+   여기서는 시작 transform만 inline으로 두고 opacity만 CSS animation으로 분리. */
 .tysig-ball {
   display: block;
   width: 100%;
@@ -85,8 +88,8 @@
   transform-origin: 50% 50%;
   will-change: transform, opacity;
   backface-visibility: hidden;
-  /* 단일 cubic-bezier로 출발~도착 부드럽게. 중간 keyframe은 최소화. */
-  animation: tysig-ball-fly 1100ms cubic-bezier(0.33, 0.0, 0.20, 1.0) 0ms forwards;
+  /* opacity만 CSS animation. 위치는 JS가 담당. */
+  animation: tysig-ball-opacity 1100ms linear 0ms forwards;
 }
 
 /* ─── trail — SVG path stroke, opacity ≤ 0.18 ────────────────────────────── */
@@ -123,34 +126,15 @@
 
 /* ─── keyframes ───────────────────────────────────────────────────────────── */
 
-/* 단순화된 6 keyframe (이전: 7개에 5단계 직선 → 본 이동은 3단계).
-   거리 분배: 0→55% (자유낙하 진입), 55→94% (도착 접근), 94→100% (정지+fade).
-   단일 ease-out 곡선이 사이를 매끄럽게 보간 → 모바일 꺾임 감소. */
-@keyframes tysig-ball-fly {
-  0% {
-    opacity: 0;
-    transform: translate3d(180px, 180px, 0) scale(0.92);
-  }
-  8% {
-    opacity: 1;
-    transform: translate3d(160px, 158px, 0) scale(0.92);
-  }
-  55% {
-    opacity: 1;
-    transform: translate3d(50px, 22px, 0) scale(0.85);
-  }
-  94% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(var(--ball-end-scale));
-  }
-  97% {
-    opacity: 0.8;
-    transform: translate3d(0, 0, 0) scale(var(--ball-end-scale));
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(var(--ball-end-scale));
-  }
+/* opacity 전담 keyframe — 위치/scale은 JS rAF가 처리하므로 여기엔 없음.
+   타임라인: 등장(0~8%) → 본 이동 동안 1 유지(8~94%) → 도착 후 fade(94~100%).
+   linear easing으로 균등 보간 (위치는 별도 ease-out 곡선이라 둘이 섞이지 않음). */
+@keyframes tysig-ball-opacity {
+  0%   { opacity: 0;   }
+  8%   { opacity: 1;   }
+  94%  { opacity: 1;   }
+  97%  { opacity: 0.8; }
+  100% { opacity: 0;   }
 }
 
 @keyframes tysig-trail-draw {
