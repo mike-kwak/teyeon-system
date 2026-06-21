@@ -1,0 +1,530 @@
+// Club Schedule 정모 참석 체크 / 댓글 service.
+// supabase/add_club_schedule_attendance.sql + add_club_schedule_attendance_settings.sql 의존.
+// 식별자: PRIMARY user_id (auth.users.id) — UNIQUE(schedule_id, user_id) 적용됨.
+//         member_id는 nullable로 함께 저장해 명단/이름 표시에 활용.
+
+import { supabase } from './supabase';
+
+export type AttendanceStatus = 'attending' | 'not_attending';
+
+// ArrivalTimeOption은 'HH:MM' 형태의 자유로운 문자열을 허용한다 — 정모 시작 시간이
+// 18:30처럼 기본 후보 밖이어도 저장 가능. 후보 목록은 페이지에서 schedule.start_time
+// 기반으로 동적 생성한다 (기본 19:00 / 19:30 / 20:00).
+export type ArrivalTimeOption = string;
+export type LeaveTimeOption = 'end' | '21:00' | '21:30';
+
+export interface AttendanceRow {
+    id: string;
+    schedule_id: string;
+    user_id: string;
+    member_id: string | null;
+    attendance_status: AttendanceStatus;
+    arrival_time: string | null;     // 'HH:MM' (DB time)
+    leave_time: string | null;       // 'end' | 'HH:MM'
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AttendanceWithMember extends AttendanceRow {
+    nickname: string | null;
+    is_guest: boolean | null;
+}
+
+export interface AttendanceUpsertInput {
+    schedule_id: string;
+    user_id: string;
+    member_id?: string | null;
+    attendance_status: AttendanceStatus;
+    arrival_time?: ArrivalTimeOption | null;
+    leave_time?: LeaveTimeOption | null;
+    note?: string | null;
+}
+
+export const ARRIVAL_OPTIONS: ArrivalTimeOption[] = ['19:00', '19:30', '20:00'];
+export const LEAVE_OPTIONS: LeaveTimeOption[] = ['end', '21:00', '21:30'];
+
+export const formatArrivalLabel = (t: ArrivalTimeOption) => `${t} 참석`;
+export const formatLeaveLabel = (t: LeaveTimeOption) => (t === 'end' ? '끝까지' : `${t} 조퇴`);
+
+// ── Attendance CRUD ────────────────────────────────────────────────────────
+
+/**
+ * PostgreSQL의 time 컬럼은 select 시 'HH:MM:SS'로 돌아오는 반면, 화면 칩 비교는
+ * 'HH:MM' 형식을 사용한다. 비교/저장이 항상 일치하도록 한 곳에서 정규화.
+ * leave_time은 TEXT('end' | 'HH:MM')이라 그대로 유지.
+ */
+const normalizeArrivalTime = (raw: unknown): string | null => {
+    if (raw == null) return null;
+    const s = String(raw);
+    if (s.length === 0) return null;
+    // 'HH:MM:SS' / 'HH:MM:SS.sss' / 'HH:MM' 모두 첫 5자만 사용
+    return s.slice(0, 5);
+};
+
+const normalizeAttendanceRow = <T extends { arrival_time: string | null }>(row: T): T => ({
+    ...row,
+    arrival_time: normalizeArrivalTime(row.arrival_time),
+});
+
+export async function fetchMyAttendance(
+    scheduleId: string,
+    userId: string,
+): Promise<AttendanceRow | null> {
+    const { data, error } = await supabase
+        .from('club_schedule_attendances')
+        .select('*')
+        .eq('schedule_id', scheduleId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+    return normalizeAttendanceRow(data as AttendanceRow);
+}
+
+export async function upsertAttendance(input: AttendanceUpsertInput): Promise<AttendanceRow> {
+    const payload = {
+        schedule_id: input.schedule_id,
+        user_id: input.user_id,
+        member_id: input.member_id ?? null,
+        attendance_status: input.attendance_status,
+        // 불참이면 시간 필드는 강제로 null — DB constraint와 일치시킨다.
+        arrival_time: input.attendance_status === 'attending' ? (input.arrival_time ?? null) : null,
+        leave_time:   input.attendance_status === 'attending' ? (input.leave_time ?? null)   : null,
+        note: input.note ?? null,
+        updated_at: new Date().toISOString(),
+    };
+
+    // 명시적 select → update/insert. supabase.upsert(onConflict)가 일부 환경에서
+    // UNIQUE index와 호환되지 않는 케이스를 피하고, RLS도 insert/update 정책으로 명확히 갈린다.
+    const { data: existing, error: fetchErr } = await supabase
+        .from('club_schedule_attendances')
+        .select('id')
+        .eq('schedule_id', input.schedule_id)
+        .eq('user_id', input.user_id)
+        .maybeSingle();
+    if (fetchErr) throw fetchErr;
+
+    if (existing?.id) {
+        const { data, error } = await supabase
+            .from('club_schedule_attendances')
+            .update(payload)
+            .eq('id', existing.id)
+            .select('*')
+            .single();
+        if (error) throw error;
+        return normalizeAttendanceRow(data as AttendanceRow);
+    }
+
+    const { data, error } = await supabase
+        .from('club_schedule_attendances')
+        .insert([payload])
+        .select('*')
+        .single();
+    if (error) throw error;
+    return normalizeAttendanceRow(data as AttendanceRow);
+}
+
+/**
+ * 일정의 모든 참석 row + members 닉네임을 가져온다.
+ *
+ * 이전에는 `select('*, members:member_id(...)')`로 inner join을 시도했는데,
+ * members 테이블 RLS 또는 PostgREST 관계 설정 문제로 join이 깨지면 attendances
+ * 자체 fetch까지 실패하는 부작용이 있었다. 이제는 attendances 우선 fetch →
+ * members는 별도 보조 쿼리로 보강. members 조회가 실패해도 시간대별 현황은 정상 동작.
+ */
+export async function fetchAttendancesWithMembers(
+    scheduleId: string,
+): Promise<AttendanceWithMember[]> {
+    // 1) attendances 본체 — 이 쿼리만 throw하면 호출자가 에러 표시.
+    const { data: attendances, error: attErr } = await supabase
+        .from('club_schedule_attendances')
+        .select(
+            'id, schedule_id, user_id, member_id, attendance_status, ' +
+            'arrival_time, leave_time, note, created_at, updated_at'
+        )
+        .eq('schedule_id', scheduleId);
+    if (attErr) throw attErr;
+
+    const normalized: AttendanceWithMember[] = (attendances || []).map((row: any) => ({
+        id: row.id,
+        schedule_id: row.schedule_id,
+        user_id: row.user_id,
+        member_id: row.member_id,
+        attendance_status: row.attendance_status,
+        arrival_time: normalizeArrivalTime(row.arrival_time),
+        leave_time: row.leave_time,
+        note: row.note,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        nickname: null,
+        is_guest: null,
+    }));
+
+    // 2) members 이름 보강 — 실패해도 시간대별 현황은 살아남도록 try/catch.
+    const memberIds = Array.from(new Set(
+        normalized
+            .map((r) => r.member_id)
+            .filter((id): id is string => !!id)
+    ));
+
+    if (memberIds.length > 0) {
+        try {
+            const { data: members, error: memberErr } = await supabase
+                .from('members')
+                .select('id, nickname, is_guest')
+                .in('id', memberIds);
+            if (memberErr) {
+                console.warn(
+                    `[Attendance/members lookup failed] code=${memberErr.code} message=${memberErr.message} details=${memberErr.details} hint=${memberErr.hint}`
+                );
+            } else {
+                const byId = new Map<string, { nickname: string | null; is_guest: boolean | null }>();
+                for (const m of (members || []) as any[]) {
+                    byId.set(m.id, { nickname: m.nickname ?? null, is_guest: m.is_guest ?? null });
+                }
+                for (const row of normalized) {
+                    if (row.member_id) {
+                        const hit = byId.get(row.member_id);
+                        if (hit) {
+                            row.nickname = hit.nickname;
+                            row.is_guest = hit.is_guest;
+                        }
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.warn(
+                `[Attendance/members lookup threw] code=${e?.code} message=${e?.message} details=${e?.details} hint=${e?.hint}`
+            );
+        }
+    }
+
+    // ── fallback: member_id가 없거나 nickname을 못 찾은 row는 user_id → profiles.email → members.email 경로로 보강 ──
+    // 닉네임 부분 매칭은 절대 사용하지 않음. profiles.id == user_id (auth) exact match,
+    // profiles.email → members.email exact match만 사용.
+    const orphanUserIds = Array.from(new Set(
+        normalized
+            .filter((r) => !r.nickname)
+            .map((r) => r.user_id)
+            .filter((id): id is string => !!id)
+    ));
+
+    if (orphanUserIds.length > 0) {
+        try {
+            const { data: profiles, error: profErr } = await supabase
+                .from('profiles')
+                .select('id, email')
+                .in('id', orphanUserIds);
+            if (profErr) {
+                console.warn(
+                    `[Attendance/profiles fallback failed] code=${profErr.code} message=${profErr.message} details=${profErr.details} hint=${profErr.hint}`
+                );
+            } else {
+                const profileById = new Map<string, { email: string | null }>();
+                for (const p of (profiles || []) as any[]) {
+                    profileById.set(p.id, { email: p.email ?? null });
+                }
+                const emails = Array.from(new Set(
+                    (profiles || []).map((p: any) => p.email).filter((e: any): e is string => !!e)
+                ));
+                let membersByEmail = new Map<string, { id: string; nickname: string | null; is_guest: boolean | null }>();
+                if (emails.length > 0) {
+                    const { data: emailMembers, error: emErr } = await supabase
+                        .from('members')
+                        .select('id, nickname, is_guest, email')
+                        .in('email', emails);
+                    if (emErr) {
+                        console.warn(
+                            `[Attendance/members-by-email fallback failed] code=${emErr.code} message=${emErr.message} details=${emErr.details} hint=${emErr.hint}`
+                        );
+                    } else {
+                        for (const m of (emailMembers || []) as any[]) {
+                            if (m.email) membersByEmail.set(m.email, { id: m.id, nickname: m.nickname ?? null, is_guest: m.is_guest ?? null });
+                        }
+                    }
+                }
+                for (const row of normalized) {
+                    if (row.nickname) continue;
+                    const profile = profileById.get(row.user_id);
+                    if (!profile?.email) continue;
+                    const hit = membersByEmail.get(profile.email);
+                    if (hit) {
+                        row.nickname = hit.nickname;
+                        row.is_guest = hit.is_guest;
+                        // member_id는 화면 표시용으로만 채워둠 (DB에는 영향 없음).
+                        // 사용자가 다음에 저장 시 page의 saveMyAttendance가 정식 member_id를 채워 update한다.
+                        if (!row.member_id) row.member_id = hit.id;
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.warn(
+                `[Attendance/fallback threw] code=${e?.code} message=${e?.message} details=${e?.details} hint=${e?.hint}`
+            );
+        }
+    }
+
+    return normalized;
+}
+
+/**
+ * 로그인 사용자의 member.id를 안정적으로 찾는다.
+ * 1순위: profiles.id == user.id → profiles.email → members.email
+ * 2순위: 직접 user.email로 members.email
+ * 둘 다 실패하면 null. attendance 저장은 그대로 진행 (member_id nullable).
+ */
+export async function resolveMemberIdForUser(opts: {
+    userId: string;
+    userEmail?: string | null;
+}): Promise<string | null> {
+    // 1순위: profiles 우회. profiles.id가 곧 auth.users.id이므로 exact match.
+    try {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', opts.userId)
+            .maybeSingle();
+        const email = profile?.email || opts.userEmail || null;
+        if (email) {
+            const { data: m } = await supabase
+                .from('members')
+                .select('id')
+                .eq('email', email)
+                .limit(1)
+                .maybeSingle();
+            if (m?.id) return m.id as string;
+        }
+    } catch {
+        /* swallow — 2순위 시도 */
+    }
+
+    // 2순위: 직접 email
+    if (opts.userEmail) {
+        try {
+            const { data: m } = await supabase
+                .from('members')
+                .select('id')
+                .eq('email', opts.userEmail)
+                .limit(1)
+                .maybeSingle();
+            if (m?.id) return m.id as string;
+        } catch { /* noop */ }
+    }
+    return null;
+}
+
+// ── Aggregations for 시간대별 참석 현황 ────────────────────────────────────
+
+export interface ArrivalBucket {
+    time: ArrivalTimeOption;
+    count: number;
+    members: AttendanceWithMember[];
+}
+
+export interface LeaveBucket {
+    time: LeaveTimeOption;
+    count: number;
+    members: AttendanceWithMember[];
+}
+
+export interface AttendanceSummary {
+    totalAttending: number;
+    totalNotAttending: number;
+    totalPending: number;            // members 수 - 응답 수
+    totalGuestsAttending: number;
+    arrivalBuckets: ArrivalBucket[]; // 19:00 / 19:30 / 20:00
+    leaveBuckets: LeaveBucket[];     // end / 21:00 / 21:30
+    attendingList: AttendanceWithMember[];
+    notAttendingList: AttendanceWithMember[];
+    rawCount: number;
+}
+
+export function buildAttendanceSummary(
+    rows: AttendanceWithMember[],
+    totalMemberCount: number,
+    arrivalCandidates?: string[],
+): AttendanceSummary {
+    const attendingList = rows.filter((r) => r.attendance_status === 'attending');
+    const notAttendingList = rows.filter((r) => r.attendance_status === 'not_attending');
+
+    // arrivalCandidates(예: ['18:30','19:00','19:30','20:00'])가 주어지면 그것을 사용.
+    // 없으면 기본 ARRIVAL_OPTIONS 유지. + 실제 row에 존재하는 시간 중 후보 밖이면 자동 추가.
+    const baseCandidates = arrivalCandidates && arrivalCandidates.length > 0
+        ? arrivalCandidates
+        : ([...ARRIVAL_OPTIONS] as string[]);
+    const extra = new Set<string>();
+    for (const r of attendingList) {
+        if (r.arrival_time && !baseCandidates.includes(r.arrival_time)) extra.add(r.arrival_time);
+    }
+    const finalCandidates = Array.from(new Set([...baseCandidates, ...extra])).sort();
+
+    const arrivalBuckets: ArrivalBucket[] = finalCandidates.map((time) => {
+        const members = attendingList.filter((r) => r.arrival_time === time);
+        return { time: time as ArrivalTimeOption, count: members.length, members };
+    });
+
+    const leaveBuckets: LeaveBucket[] = LEAVE_OPTIONS.map((time) => {
+        const members = attendingList.filter((r) => r.leave_time === time);
+        return { time, count: members.length, members };
+    });
+
+    const totalAttending = attendingList.length;
+    const totalNotAttending = notAttendingList.length;
+    const responded = totalAttending + totalNotAttending;
+    const totalPending = Math.max(0, totalMemberCount - responded);
+    const totalGuestsAttending = attendingList.filter((r) => r.is_guest === true).length;
+
+    return {
+        totalAttending,
+        totalNotAttending,
+        totalPending,
+        totalGuestsAttending,
+        arrivalBuckets,
+        leaveBuckets,
+        attendingList,
+        notAttendingList,
+        rawCount: rows.length,
+    };
+}
+
+// ── 마감 시간 / 편집 가능 여부 ─────────────────────────────────────────────
+
+/**
+ * 참석 체크 가능한 상태인지 판정.
+ * 기준:
+ *   - attendance_enabled === false → 불가 (UI 자체 숨김)
+ *   - attendance_deadline 있고 현재 > deadline → 불가
+ *   - attendance_deadline 없으면 schedule_date + start_time 직전까지 가능 (없으면 schedule_date 자정)
+ */
+export interface AttendanceWindowState {
+    isOpen: boolean;
+    isDisabledByFlag: boolean;
+    isPastDeadline: boolean;
+    deadline: Date | null;
+}
+
+export function evaluateAttendanceWindow(opts: {
+    attendance_enabled?: boolean;
+    attendance_deadline?: string | null;
+    schedule_date: string;
+    start_time?: string;
+    now?: Date;
+}): AttendanceWindowState {
+    const now = opts.now ?? new Date();
+    const flagEnabled = opts.attendance_enabled !== false; // default true
+
+    if (!flagEnabled) {
+        return { isOpen: false, isDisabledByFlag: true, isPastDeadline: false, deadline: null };
+    }
+
+    let deadline: Date | null = null;
+    if (opts.attendance_deadline) {
+        deadline = new Date(opts.attendance_deadline);
+    } else {
+        // 마감 시간 미지정 — 일정 시작 시각, 없으면 일정 당일 00:00.
+        const [y, m, d] = opts.schedule_date.split('-').map(Number);
+        if (opts.start_time) {
+            const [hh, mm] = opts.start_time.split(':').map(Number);
+            deadline = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0);
+        } else {
+            deadline = new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+        }
+    }
+
+    const isPastDeadline = deadline ? now.getTime() > deadline.getTime() : false;
+    return {
+        isOpen: !isPastDeadline,
+        isDisabledByFlag: false,
+        isPastDeadline,
+        deadline,
+    };
+}
+
+// ── 댓글 (특이사항 / 파트너 요청) ──────────────────────────────────────────
+
+export interface CommentRow {
+    id: string;
+    schedule_id: string;
+    user_id: string;
+    member_id: string | null;
+    category: string | null;     // '파트너 요청' / '늦음' / '조퇴' / null
+    body: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CommentWithMember extends CommentRow {
+    nickname: string | null;
+}
+
+export async function fetchComments(scheduleId: string): Promise<CommentWithMember[]> {
+    const { data, error } = await supabase
+        .from('club_schedule_comments')
+        .select('*, members:member_id(nickname)')
+        .eq('schedule_id', scheduleId)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+        id: row.id,
+        schedule_id: row.schedule_id,
+        user_id: row.user_id,
+        member_id: row.member_id,
+        category: row.category,
+        body: row.body,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        nickname: row.members?.nickname ?? null,
+    }));
+}
+
+export async function createComment(input: {
+    schedule_id: string;
+    user_id: string;
+    member_id?: string | null;
+    category?: string | null;
+    body: string;
+}): Promise<CommentRow> {
+    const { data, error } = await supabase
+        .from('club_schedule_comments')
+        .insert([{
+            schedule_id: input.schedule_id,
+            user_id: input.user_id,
+            member_id: input.member_id ?? null,
+            category: input.category ?? null,
+            body: input.body.trim(),
+        }])
+        .select('*')
+        .single();
+    if (error) throw error;
+    return data as CommentRow;
+}
+
+export async function updateComment(input: {
+    id: string;
+    body: string;
+    category?: string | null;
+}): Promise<CommentRow> {
+    const { data, error } = await supabase
+        .from('club_schedule_comments')
+        .update({
+            body: input.body.trim(),
+            category: input.category ?? null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', input.id)
+        .select('*')
+        .single();
+    if (error) throw error;
+    return data as CommentRow;
+}
+
+export async function deleteComment(id: string): Promise<void> {
+    const { error } = await supabase
+        .from('club_schedule_comments')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
+}
