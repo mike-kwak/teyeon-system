@@ -3,10 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from './ProfileAvatar';
 
 export default function GlobalHeader() {
+  const pathname = usePathname();
   const { user, role, isLoading } = useAuth();
 
   // [ROOT PURGE] Kill any lingering ghost code (v1.7+, Service Workers)
@@ -20,6 +22,9 @@ export default function GlobalHeader() {
       });
     }
   }, []);
+
+  // Guest Pass 공개 랜딩페이지에서는 앱 내부 chrome을 노출하지 않음.
+  if (pathname?.startsWith('/guest/pass')) return null;
 
   return (
     <header

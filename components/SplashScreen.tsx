@@ -21,6 +21,8 @@ export default function SplashScreen() {
 
     useEffect(() => {
         if (pathname?.startsWith('/kdk/display')) return;
+        // Guest Pass 공개 랜딩에서는 메인 앱 Splash 띄우지 않음 (GuestPassIntro가 별도 담당).
+        if (pathname?.startsWith('/guest/pass')) return;
 
         try {
             if (sessionStorage.getItem('teyeon_splash_v1')) return;

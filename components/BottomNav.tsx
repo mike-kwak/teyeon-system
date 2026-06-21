@@ -34,6 +34,9 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user, setSystemMessage } = useAuth();
 
+  // Guest Pass 공개 랜딩페이지에서는 앱 내부 chrome을 노출하지 않음.
+  if (pathname?.startsWith('/guest/pass')) return null;
+
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {
       e.preventDefault();
