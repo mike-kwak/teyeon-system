@@ -2,17 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
+import SignatureServe from './splash/SignatureServe';
 
 type Phase = 'idle' | 'in' | 'out' | 'done';
 
-const LOGO_SRC      = '/logos/teyeon-logo-transparent.png';
-const LOGO_FALLBACK = '/logos/teyeon-logo-current.png';
-
+/**
+ * SplashScreen 컨테이너 — 등장/사라짐 + sessionStorage 1회 노출 + /kdk/display 제외.
+ * 실제 모션은 SignatureServe(방식 B fade)가 담당.
+ * 타임라인 (tagline 안착 ~1450ms 이후 overlay fade-out 시작):
+ *   0ms     in 시작 (SignatureServe 자체 애니메이션 동시 시작)
+ *   1700ms  out 시작 (overlay opacity 0, 450ms transition)
+ *   2200ms  done — 컴포넌트 unmount
+ *   체감 약 2.2초
+ */
 export default function SplashScreen() {
     const pathname = usePathname();
     const [phase, setPhase] = useState<Phase>('idle');
-    const [logoSrc, setLogoSrc] = useState(LOGO_SRC);
 
     useEffect(() => {
         if (pathname?.startsWith('/kdk/display')) return;
@@ -26,14 +31,14 @@ export default function SplashScreen() {
 
         setPhase('in');
 
-        const fadeOut = setTimeout(() => setPhase('out'), 1500);
-        const done    = setTimeout(() => setPhase('done'), 1960);
+        const fadeOut = setTimeout(() => setPhase('out'), 1700);
+        const done    = setTimeout(() => setPhase('done'), 2200);
 
         return () => {
             clearTimeout(fadeOut);
             clearTimeout(done);
         };
-    }, []);
+    }, [pathname]);
 
     if (phase === 'idle' || phase === 'done') return null;
 
@@ -45,66 +50,14 @@ export default function SplashScreen() {
                 zIndex: 9998,
                 backgroundColor: '#F2F4F7',
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '28px',
                 transition: 'opacity 450ms cubic-bezier(0.4,0,0.2,1)',
                 opacity: phase === 'out' ? 0 : 1,
                 pointerEvents: phase === 'out' ? 'none' : 'auto',
             }}
         >
-            {/* Subtle cool radial bloom — barely visible on light bg */}
-            <div
-                style={{
-                    position: 'absolute',
-                    width: '340px',
-                    height: '340px',
-                    borderRadius: '50%',
-                    background: 'radial-gradient(circle, rgba(100,120,200,0.06) 0%, transparent 68%)',
-                    pointerEvents: 'none',
-                }}
-            />
-
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '18px',
-                    position: 'relative',
-                    transition: 'opacity 450ms cubic-bezier(0.4,0,0.2,1), transform 450ms cubic-bezier(0.4,0,0.2,1)',
-                    opacity: phase === 'out' ? 0 : 1,
-                    transform: phase === 'out' ? 'scale(1.02) translateY(-2px)' : 'scale(1) translateY(0)',
-                }}
-            >
-                <Image
-                    src={logoSrc}
-                    alt="TEYEON"
-                    width={140}
-                    height={140}
-                    priority
-                    onError={() => setLogoSrc(LOGO_FALLBACK)}
-                    style={{
-                        objectFit: 'contain',
-                        width: 'clamp(112px, 28vw, 128px)',
-                        height: 'clamp(112px, 28vw, 128px)',
-                        filter: 'drop-shadow(0 2px 8px rgba(60,70,120,0.10))',
-                    }}
-                />
-                <span
-                    style={{
-                        fontFamily: 'var(--font-rajdhani), sans-serif',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.32em',
-                        textTransform: 'uppercase',
-                        color: 'rgba(55,65,95,0.45)',
-                    }}
-                >
-                    테니스로 이어진 인연
-                </span>
-            </div>
+            <SignatureServe />
         </div>
     );
 }
