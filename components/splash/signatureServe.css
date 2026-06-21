@@ -1,0 +1,186 @@
+/* ─── TEYEON Signature Serve — 방식 B (fade) ────────────────────────────── */
+/* Cool Premium Light · 공이 우측 하단에서 곡선으로 진입 → 엠블럼 내 노란 공 */
+/* 도착 지점에서 fade-out, 동시에 엠블럼이 0.98 → 1.02 → 1.0 안착.            */
+/* trail은 opacity 최대 0.18, blur/flash/bounce/네온 없음.                    */
+
+.tysig-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* 로고 wrapper — 공 도착 좌표 기준점. 모든 모션 좌표는 이 wrapper 내부에서 계산.
+   --logo-size: 로고 한 변 길이.
+   --ball-dx-ratio / --ball-dy-ratio: 로고 wrapper 중심 기준 노란 공 중심 좌표(비율).
+     실제 로고에서 노란 공 중심은 약간 우상단(눈처럼). 추후 미세조정은 이 변수만 만지면 됨.
+*/
+.tysig-stage {
+  position: relative;
+  width: var(--logo-size);
+  height: var(--logo-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tysig-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 50%;
+  transform: scale(0.98);
+  opacity: 0;
+  animation: tysig-logo-settle 1100ms cubic-bezier(0.34, 1.4, 0.64, 1) 120ms forwards;
+  filter: drop-shadow(0 2px 8px rgba(60, 70, 120, 0.10));
+}
+
+/* 공 안착 순간 매우 약한 1회 glow.
+   pseudo로 처리해 별도 dom 없음. 0.18 alpha 이상 금지. */
+.tysig-stage::after {
+  content: '';
+  position: absolute;
+  /* 노란 공 위치에 맞춤 — 로고 좌상단(0,0) 기준 비율 */
+  left: calc(50% + var(--ball-dx-ratio) * var(--logo-size));
+  top:  calc(50% + var(--ball-dy-ratio) * var(--logo-size));
+  width: calc(var(--logo-size) * 0.30);
+  height: calc(var(--logo-size) * 0.30);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  background: radial-gradient(circle, rgba(255, 220, 90, 0.18) 0%, rgba(255, 220, 90, 0) 70%);
+  opacity: 0;
+  pointer-events: none;
+  animation: tysig-glow 700ms ease-out 980ms forwards;
+}
+
+/* 노란 공 — 우측 하단에서 곡선으로 진입.
+   offset-path를 1순위로 쓰되 미지원 환경에서는 right/bottom translate fallback. */
+.tysig-ball {
+  position: absolute;
+  width: calc(var(--logo-size) * 0.13);
+  height: calc(var(--logo-size) * 0.13);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF5B0 0%, #F2C94C 55%, #C99B14 100%);
+  box-shadow: 0 1px 4px rgba(140, 100, 0, 0.18);
+  pointer-events: none;
+  /* offset-path: 우측 하단 (loго wrapper 기준 +60%, +60%) → 노란 공 위치까지 부드러운 곡선.
+     loго wrapper 좌표계: 좌상단 0,0 — 우하단 100,100 (CSS offset-path는 element 기준). */
+  offset-path: path('M 160 160 Q 100 60 90 50');
+  offset-rotate: 0deg;
+  animation: tysig-ball-fly 1100ms cubic-bezier(0.45, 0.05, 0.55, 0.95) 0ms forwards;
+  opacity: 0;
+  z-index: 2;
+}
+
+/* trail — SVG path stroke로 그려 매우 옅게 보였다 사라짐. 최대 alpha 0.18. */
+.tysig-trail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tysig-trail path {
+  fill: none;
+  stroke: rgba(242, 201, 76, 0.18);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 220;
+  stroke-dashoffset: 220;
+  animation: tysig-trail-draw 900ms cubic-bezier(0.45, 0.05, 0.55, 0.95) 60ms forwards,
+             tysig-trail-fade 360ms ease-out 1020ms forwards;
+}
+
+/* tagline — overlay fade-out (1700ms) 시작 전에 안착 완료되도록
+   1200ms 시작 → 1450ms 안착 (delay 1200ms, duration 250ms). */
+.tysig-tagline {
+  font-family: var(--font-rajdhani), sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: rgba(55, 65, 95, 0.55);
+  opacity: 0;
+  animation: tysig-tagline-in 250ms ease-out 1200ms forwards;
+}
+
+/* ─── keyframes ───────────────────────────────────────────────────────────── */
+
+@keyframes tysig-ball-fly {
+  0%   { opacity: 0;    offset-distance: 0%;    }
+  10%  { opacity: 1;    offset-distance: 8%;    }
+  80%  { opacity: 1;    offset-distance: 80%;   }
+  86%  { opacity: 0.85; offset-distance: 88%;   }
+  96%  { opacity: 0;    offset-distance: 98%;   }
+  100% { opacity: 0;    offset-distance: 100%;  }
+}
+
+@keyframes tysig-trail-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes tysig-trail-fade {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes tysig-logo-settle {
+  0%   { opacity: 0;   transform: scale(0.98); }
+  60%  { opacity: 1;   transform: scale(0.98); }
+  78%  { opacity: 1;   transform: scale(1.02); }
+  100% { opacity: 1;   transform: scale(1.00); }
+}
+
+@keyframes tysig-glow {
+  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.6); }
+  35%  { opacity: 0.18; transform: translate(-50%, -50%) scale(1.0); }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.4); }
+}
+
+@keyframes tysig-tagline-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ─── offset-path 미지원 환경 fallback (Firefox 일부 버전 등) ─────────────── */
+/* 공이 우하단에서 직선으로 부드럽게 진입 — 곡선은 잃지만 깨지지 않음. */
+@supports not (offset-path: path('M 0 0')) {
+  .tysig-ball {
+    /* wrapper 우하단에서 출발해 노란 공 위치로 이동. */
+    top:  calc(50% + var(--ball-dy-ratio) * var(--logo-size));
+    left: calc(50% + var(--ball-dx-ratio) * var(--logo-size));
+    transform: translate(60vw, 60vh) scale(0.6);
+    animation: tysig-ball-fly-fallback 1100ms cubic-bezier(0.45, 0.05, 0.55, 0.95) 0ms forwards;
+  }
+  @keyframes tysig-ball-fly-fallback {
+    0%   { opacity: 0; transform: translate(160px, 160px) scale(0.6); }
+    10%  { opacity: 1; }
+    80%  { opacity: 1; transform: translate(8px, 8px) scale(0.95); }
+    86%  { opacity: 0.85; }
+    96%  { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+}
+
+/* ─── reduced motion ───────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .tysig-ball,
+  .tysig-trail,
+  .tysig-stage::after {
+    display: none !important;
+    animation: none !important;
+  }
+  .tysig-logo {
+    animation: tysig-logo-simple-fade 380ms ease-out 0ms forwards;
+  }
+  .tysig-tagline {
+    animation: tysig-tagline-in 250ms ease-out 220ms forwards;
+  }
+  @keyframes tysig-logo-simple-fade {
+    from { opacity: 0; transform: scale(1); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+}
