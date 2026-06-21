@@ -382,6 +382,8 @@ export interface CommentRow {
     member_id: string | null;
     category: string | null;     // '파트너 요청' / '늦음' / '조퇴' / null
     body: string;
+    /** 1단계 대댓글의 원댓글 id. null이면 원댓글. 2단계 이상 중첩은 service에서 정규화. */
+    parent_comment_id: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -390,31 +392,57 @@ export interface CommentWithMember extends CommentRow {
     nickname: string | null;
     /** members.avatar_url > profiles.avatar_url 우선순위로 해소된 사진. null이면 InitialAvatar fallback. */
     avatarUrl: string | null;
+    /** 원댓글일 때만 채워짐. 답글 리스트는 created_at ASC. */
+    replies?: CommentWithMember[];
 }
 
 export async function fetchComments(scheduleId: string): Promise<CommentWithMember[]> {
     // 1) comments 본체 — 관계 join을 빼고 단순 select. RLS/관계 문제로 join 실패 시
-    //    댓글 전체가 사라지는 위험 차단.
-    const { data, error } = await supabase
-        .from('club_schedule_comments')
-        .select('id, schedule_id, user_id, member_id, category, body, created_at, updated_at')
-        .eq('schedule_id', scheduleId)
-        .order('created_at', { ascending: true });
-
-    if (error) {
-        const e: any = error;
-        console.warn(
-            `[Comments/fetch] code=${e?.code} | message=${e?.message} | details=${e?.details} | hint=${e?.hint}`,
-        );
-        throw error;
+    //    댓글 전체가 사라지는 위험 차단. parent_comment_id 포함 — 답글 트리 구성용.
+    //    parent_comment_id 컬럼이 운영 DB에 아직 없을 수도 있으므로 한 번 실패 시 폴백.
+    type RawCommentRow = {
+        id: string; schedule_id: string; user_id: string; member_id: string | null;
+        category: string | null; body: string;
+        parent_comment_id: string | null;
+        created_at: string; updated_at: string;
+    };
+    let rows: RawCommentRow[] = [];
+    {
+        const { data, error } = await supabase
+            .from('club_schedule_comments')
+            .select(
+                'id, schedule_id, user_id, member_id, category, body, parent_comment_id, ' +
+                'created_at, updated_at'
+            )
+            .eq('schedule_id', scheduleId)
+            .order('created_at', { ascending: true });
+        if (error) {
+            const e: any = error;
+            const missing = /parent_comment_id/i.test(`${e?.message || ''} ${e?.details || ''}`);
+            if (!missing) {
+                console.warn(
+                    `[Comments/fetch] code=${e?.code} | message=${e?.message} | details=${e?.details} | hint=${e?.hint}`,
+                );
+                throw error;
+            }
+            // parent_comment_id 컬럼 미적용 환경 — supabase/add_club_schedule_comment_replies.sql 안내.
+            console.warn(
+                '[Comments/fetch] parent_comment_id column missing — falling back to flat comments. ' +
+                'Apply supabase/add_club_schedule_comment_replies.sql to enable replies.'
+            );
+            const fb = await supabase
+                .from('club_schedule_comments')
+                .select('id, schedule_id, user_id, member_id, category, body, created_at, updated_at')
+                .eq('schedule_id', scheduleId)
+                .order('created_at', { ascending: true });
+            if (fb.error) throw fb.error;
+            rows = ((fb.data || []) as any[]).map((r) => ({ ...r, parent_comment_id: null }));
+        } else {
+            rows = ((data || []) as any[]) as RawCommentRow[];
+        }
     }
 
-    const rows = (data || []) as Array<{
-        id: string; schedule_id: string; user_id: string; member_id: string | null;
-        category: string | null; body: string; created_at: string; updated_at: string;
-    }>;
-
-    // 2) 공통 resolver로 이름 일괄 해소 (개별 row N+1 금지)
+    // 2) 공통 resolver로 이름 일괄 해소 (원댓글 + 답글 모두 한 번에).
     //    한 댓글의 이름 조회 실패가 다른 댓글 전체 로드를 막지 않도록 resolver는 내부에서
     //    예외 swallow 후 로그만 남김.
     let resolved: ResolvedDisplays;
@@ -427,7 +455,7 @@ export async function fetchComments(scheduleId: string): Promise<CommentWithMemb
         resolved = { byUserId: new Map(), byMemberId: new Map() };
     }
 
-    return rows.map((row) => {
+    const enriched: CommentWithMember[] = rows.map((row) => {
         const pick = pickDisplayName({
             userId: row.user_id,
             memberId: row.member_id,
@@ -441,12 +469,35 @@ export async function fetchComments(scheduleId: string): Promise<CommentWithMemb
             member_id: row.member_id ?? pick.resolvedMemberId,
             category: row.category,
             body: row.body,
+            parent_comment_id: row.parent_comment_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
             nickname: pick.name === '회원 정보 없음' ? null : pick.name,
             avatarUrl: pick.avatarUrl,
         };
     });
+
+    // 3) 트리 구성 — 원댓글 아래 답글 배열 attach.
+    //    parent_comment_id 가 유효하지 않거나(부모가 없거나) 1단계를 초과하면
+    //    안전하게 원댓글로 승격(parent를 null로 처리)해 표시.
+    const parents: CommentWithMember[] = [];
+    const repliesByParent = new Map<string, CommentWithMember[]>();
+    const idSet = new Set(enriched.map((c) => c.id));
+    for (const c of enriched) {
+        if (c.parent_comment_id && idSet.has(c.parent_comment_id)) {
+            const arr = repliesByParent.get(c.parent_comment_id);
+            if (arr) arr.push(c); else repliesByParent.set(c.parent_comment_id, [c]);
+        } else {
+            // 원댓글이거나, 부모를 찾지 못한 고아 답글은 원댓글로 표시 (안전)
+            parents.push({ ...c, parent_comment_id: null });
+        }
+    }
+    // 답글은 created_at ASC (오래된 순) — 원댓글 조회 결과의 정렬이 ASC라 그대로 유지.
+    for (const p of parents) {
+        const replies = repliesByParent.get(p.id);
+        p.replies = replies ?? [];
+    }
+    return parents;
 }
 
 export async function createComment(input: {
@@ -455,19 +506,76 @@ export async function createComment(input: {
     member_id?: string | null;
     category?: string | null;
     body: string;
+    /** 답글 작성 시 부모 댓글 id. 답글의 답글은 정규화하여 1단계로 강제. null/미지정이면 원댓글. */
+    parent_comment_id?: string | null;
 }): Promise<CommentRow> {
+    // ── 1단계 강제 정규화 ───────────────────────────────────────────────────
+    // - parent_comment_id 가 지정되었으면 해당 댓글이 답글(=parent.parent_comment_id가 있음)인지 확인
+    // - 답글에 대해 답글을 다시 다는 경우 실제 parent는 그 답글의 parent_comment_id 로 정규화
+    // - 다른 일정의 댓글을 parent로 지정하는 것은 schedule_id 비교로 차단
+    // - 본인을 parent로 지정하는 것은 insert 전이라 id가 없으므로 자연스럽게 불가
+    let normalizedParentId: string | null = null;
+    if (input.parent_comment_id) {
+        try {
+            const { data: parent, error: pErr } = await supabase
+                .from('club_schedule_comments')
+                .select('id, parent_comment_id, schedule_id')
+                .eq('id', input.parent_comment_id)
+                .maybeSingle();
+            if (pErr) {
+                // parent_comment_id 컬럼 자체가 없으면 답글 기능을 무시하고 원댓글로 저장.
+                const msg = (pErr as any)?.message || '';
+                if (/parent_comment_id/i.test(msg)) {
+                    normalizedParentId = null;
+                } else {
+                    throw pErr;
+                }
+            } else if (parent) {
+                if (parent.schedule_id !== input.schedule_id) {
+                    throw new Error('[Comments] parent comment belongs to a different schedule');
+                }
+                normalizedParentId = parent.parent_comment_id || parent.id;
+            }
+        } catch (e: any) {
+            // 정규화 단계 실패는 답글 저장 자체를 막지 않음 — 안전을 위해 원댓글로 떨어짐.
+            console.warn('[Comments/normalizeParent] failed — falling back to top-level comment:', e?.message ?? e);
+            normalizedParentId = null;
+        }
+    }
+
+    const payload: Record<string, any> = {
+        schedule_id: input.schedule_id,
+        user_id: input.user_id,
+        member_id: input.member_id ?? null,
+        category: input.category ?? null,
+        body: input.body.trim(),
+    };
+    if (normalizedParentId) payload.parent_comment_id = normalizedParentId;
+
     const { data, error } = await supabase
         .from('club_schedule_comments')
-        .insert([{
-            schedule_id: input.schedule_id,
-            user_id: input.user_id,
-            member_id: input.member_id ?? null,
-            category: input.category ?? null,
-            body: input.body.trim(),
-        }])
+        .insert([payload])
         .select('*')
         .single();
-    if (error) throw error;
+    if (error) {
+        // parent_comment_id 컬럼 미적용 환경 — payload에서 제외하고 1회 재시도.
+        const msg = (error as any)?.message || (error as any)?.details || '';
+        if (normalizedParentId && /parent_comment_id/i.test(msg)) {
+            console.warn(
+                '[Comments/create] parent_comment_id column missing — saving as top-level comment. ' +
+                'Apply supabase/add_club_schedule_comment_replies.sql to enable replies.'
+            );
+            delete payload.parent_comment_id;
+            const retry = await supabase
+                .from('club_schedule_comments')
+                .insert([payload])
+                .select('*')
+                .single();
+            if (retry.error) throw retry.error;
+            return retry.data as CommentRow;
+        }
+        throw error;
+    }
     return data as CommentRow;
 }
 

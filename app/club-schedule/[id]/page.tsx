@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Plus, Share2, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Plus, Share2, Check, MessageSquare } from 'lucide-react';
 import { shareOrCopyClubSchedule } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -78,12 +78,22 @@ export default function ClubScheduleAttendancePage() {
     const { user, role } = useAuth();
     const isAdmin = role === 'CEO' || role === 'ADMIN';
 
+    // 활성 회원 — 미응답 명단 계산 + 총원 표시용. members 테이블에서 직접 fetch.
+    // (이전에는 count만 가져왔음. 이제 미응답 회원 이름을 화면에 표시해야 하므로 row 자체가 필요.)
+    interface ActiveMember {
+        id: string;
+        nickname: string | null;
+        avatar_url: string | null;
+        auth_user_id: string | null;
+        is_guest: boolean | null;
+    }
+
     const [schedule, setSchedule] = useState<ClubSchedule | null>(null);
     const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
     const [myAttendance, setMyAttendance] = useState<AttendanceRow | null>(null);
     const [allAttendances, setAllAttendances] = useState<AttendanceWithMember[]>([]);
     const [comments, setComments] = useState<CommentWithMember[]>([]);
-    const [totalMemberCount, setTotalMemberCount] = useState(0);
+    const [activeMembers, setActiveMembers] = useState<ActiveMember[]>([]);
 
     const [pageLoading, setPageLoading] = useState(true);
     const [scheduleLoadError, setScheduleLoadError] = useState<string>('');
@@ -93,10 +103,16 @@ export default function ClubScheduleAttendancePage() {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [saveError, setSaveError] = useState<string>('');
     const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
+    /** 참석 요약의 참석/불참/미응답 명단 펼침 상태. */
+    const [expandedSummary, setExpandedSummary] = useState<'attending' | 'absent' | 'pending' | null>(null);
     const [commentBody, setCommentBody] = useState('');
     const [commentCategory, setCommentCategory] = useState<string | null>('일반');
     const [postingComment, setPostingComment] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    /** 답글 작성 중인 원댓글 id. null이면 답글 입력창 미표시. */
+    const [replyingToId, setReplyingToId] = useState<string | null>(null);
+    const [replyBody, setReplyBody] = useState('');
+    const [postingReply, setPostingReply] = useState(false);
     const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied' | 'shared' | 'failed'>('idle');
 
     const logSupabaseError = (label: string, err: any) => {
@@ -155,14 +171,16 @@ export default function ClubScheduleAttendancePage() {
             setCommentsError(err?.message || 'failed');
         }
 
-        // 멤버 수 — is_guest 필터를 쓰지 않고 단순 count.
-        // (이전 .or('is_guest.is.null,is_guest.eq.false') 가 일부 환경에서 400을 발생시켜 전체 로드 실패의 원인이었음)
+        // 활성 회원 — 총원/미응답 명단 계산용. count만 가져오던 기존 흐름을 row fetch로 교체.
+        // is_guest 필터는 클라이언트에서 처리 (이전 .or() 쿼리가 일부 환경에서 400을 일으켰음).
         try {
-            const { count, error } = await supabase
+            const { data, error } = await supabase
                 .from('members')
-                .select('id', { count: 'exact', head: true });
+                .select('id, nickname, avatar_url, auth_user_id, is_guest');
             if (error) throw error;
-            setTotalMemberCount(count || 0);
+            const rows = (data || []) as ActiveMember[];
+            // 게스트 제외 — 총원/미응답 모두 게스트 비포함이 운영 규칙.
+            setActiveMembers(rows.filter((m) => m.is_guest !== true));
             setMemberCountError('');
         } catch (err: any) {
             logSupabaseError('MemberCount', err);
@@ -257,7 +275,8 @@ export default function ClubScheduleAttendancePage() {
     }, [allAttendances, user?.id, user?.user_metadata, user?.email]);
 
     // 댓글에도 동일한 self fallback 적용 — 본인 user_id 댓글이 nickname/avatar null이면
-    // user_metadata/email-local로 보강. 다른 회원 댓글에는 적용 안 함.
+    // user_metadata/email-local로 보강. 답글(replies)에도 재귀 적용.
+    // 다른 회원 댓글에는 적용 안 함.
     const commentsForDisplay = useMemo(() => {
         if (!user?.id) return comments;
         const meta = user.user_metadata || {};
@@ -273,14 +292,56 @@ export default function ClubScheduleAttendancePage() {
             (meta.picture as string | undefined) ||
             null
         );
-        return comments.map((c) => {
+        const enrichSelf = (c: CommentWithMember): CommentWithMember => {
             if (c.user_id !== user.id) return c;
             const next = { ...c };
             if (!next.nickname && selfNameFallback) next.nickname = selfNameFallback;
             if (!next.avatarUrl && selfAvatarFallback) next.avatarUrl = selfAvatarFallback;
             return next;
+        };
+        return comments.map((c) => {
+            const top = enrichSelf(c);
+            if (top.replies && top.replies.length > 0) {
+                top.replies = top.replies.map(enrichSelf);
+            }
+            return top;
         });
     }, [comments, user?.id, user?.user_metadata, user?.email]);
+
+    /** 원댓글 + 답글 전체 개수 — 헤더 N 표시용. */
+    const totalCommentCount = useMemo(() => {
+        let n = 0;
+        for (const c of comments) {
+            n += 1;
+            if (c.replies) n += c.replies.length;
+        }
+        return n;
+    }, [comments]);
+
+    /**
+     * 활성 회원 중 attendance row 가 없는 회원 = 미응답.
+     * 매칭 기준 (둘 중 하나라도 hit):
+     *   - attendance.member_id === member.id  (직접 매칭)
+     *   - attendance.user_id  === member.auth_user_id  (운영진 사전 매핑)
+     * 게스트는 active 단계에서 이미 제외.
+     */
+    const noResponseMembers = useMemo(() => {
+        if (activeMembers.length === 0) return [] as ActiveMember[];
+        const attendedMemberIds = new Set<string>();
+        const attendedAuthIds = new Set<string>();
+        for (const r of allAttendances) {
+            if (r.member_id) attendedMemberIds.add(r.member_id);
+            if (r.user_id) attendedAuthIds.add(r.user_id);
+        }
+        return activeMembers.filter((m) => {
+            if (attendedMemberIds.has(m.id)) return false;
+            if (m.auth_user_id && attendedAuthIds.has(m.auth_user_id)) return false;
+            return true;
+        });
+    }, [activeMembers, allAttendances]);
+
+    // 호환용 — 기존 buildAttendanceSummary 가 totalMemberCount 를 입력으로 받음.
+    const totalMemberCount = activeMembers.length;
 
     // 게스트 신청 댓글 건수 — 실제 확정 게스트 수는 아직 별도 데이터로 없으므로
     // 운영진 요약 카드의 '게스트' 자리를 댓글 카테고리 기반 'N건'으로 대체한다.
@@ -482,10 +543,85 @@ export default function ClubScheduleAttendancePage() {
         if (!confirm('이 댓글을 삭제하시겠어요?')) return;
         try {
             await deleteComment(id);
-            setComments((prev) => prev.filter((c) => c.id !== id));
+            // 원댓글 삭제 시 답글은 DB cascade 로 삭제됨.
+            // 상태에서는 해당 id 의 원댓글을 제거하거나, 답글이면 부모의 replies 에서 제거.
+            setComments((prev) =>
+                prev
+                    .filter((c) => c.id !== id)
+                    .map((c) => (c.replies && c.replies.length > 0
+                        ? { ...c, replies: c.replies.filter((r) => r.id !== id) }
+                        : c)),
+            );
             if (editingCommentId === id) resetCommentForm();
+            if (replyingToId === id) {
+                setReplyingToId(null);
+                setReplyBody('');
+            }
         } catch (err) {
             logSupabaseError('Comment/delete', err);
+        }
+    };
+
+    // ── 답글 작성/취소 ──────────────────────────────────────────────────────
+    const handleStartReply = (parentId: string) => {
+        // 이미 같은 댓글에 답글 입력 중이면 토글로 닫기.
+        if (replyingToId === parentId) {
+            setReplyingToId(null);
+            setReplyBody('');
+            return;
+        }
+        // 다른 댓글에서 작성 중이던 답글은 폐기 — 한 번에 하나의 답글 입력만.
+        setReplyingToId(parentId);
+        setReplyBody('');
+        // 입력 영역으로 부드럽게 스크롤 — DOM 마운트 후.
+        setTimeout(() => {
+            document.getElementById(`reply-input-${parentId}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 60);
+    };
+
+    const handleCancelReply = () => {
+        setReplyingToId(null);
+        setReplyBody('');
+    };
+
+    const handleSubmitReply = async (parentId: string) => {
+        if (!user?.id || !schedule) return;
+        const body = replyBody.trim();
+        if (!body) return;
+        setPostingReply(true);
+        try {
+            let memberIdToSave = linkedMemberId;
+            if (!memberIdToSave) {
+                try {
+                    memberIdToSave = await resolveMemberIdForUser({
+                        userId: user.id,
+                        userEmail: user.email ?? null,
+                    });
+                    if (memberIdToSave) setLinkedMemberId(memberIdToSave);
+                } catch { /* noop */ }
+            }
+            await createComment({
+                schedule_id: schedule.id,
+                user_id: user.id,
+                member_id: memberIdToSave,
+                // 답글은 카테고리 미사용 — 부모와 무관하게 일반으로 저장.
+                category: '일반',
+                body,
+                parent_comment_id: parentId,
+            });
+            handleCancelReply();
+            try {
+                const refreshed = await fetchComments(schedule.id);
+                setComments(refreshed);
+                setCommentsError('');
+            } catch (refreshErr: any) {
+                logSupabaseError('Comments/refresh-after-reply', refreshErr);
+            }
+        } catch (err: any) {
+            logSupabaseError('Reply/post', err);
+        } finally {
+            setPostingReply(false);
         }
     };
 
@@ -809,33 +945,70 @@ export default function ClubScheduleAttendancePage() {
                             게스트 {summary.totalGuestsAttending}명 포함
                         </p>
                     )}
+                </section>
 
-                    {/* 운영진 전용 요약 */}
-                    {isAdmin && (
-                        <div
-                            style={{
-                                marginTop: 12, padding: '10px 12px', borderRadius: 12,
-                                backgroundColor: '#F8FAFC', border: '1px solid rgba(15,23,42,0.08)',
-                            }}
-                        >
-                            <p style={{ fontSize: 10, fontWeight: 800, color: '#0F172A', margin: '0 0 8px', letterSpacing: '0.04em' }}>
-                                🛠 운영진 전용 · 참석 요약
-                            </p>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                                <MiniStat value={summary.totalAttending} label="참석" />
-                                <MiniStat value={summary.totalNotAttending} label="불참" />
-                                <MiniStat value={summary.totalPending} label="미응답" />
-                                <MiniStat value={`${guestRequestCount}건`} label="게스트 신청" />
-                                <MiniStat
-                                    value={schedule.court_count
-                                        ? `${Math.ceil(summary.totalAttending / Math.max(1, schedule.court_count))}명/코트`
-                                        : '—'}
-                                    label={schedule.court_count ? `코트당 평균 인원 · ${schedule.court_count}면` : '코트 미지정'}
-                                    wide
-                                />
-                            </div>
-                        </div>
-                    )}
+                {/* 참석 현황 요약 — 모든 로그인 회원에게 공개. 참석/불참/미응답 명단 펼침 지원. */}
+                <section style={cardStyle}>
+                    <SectionTitle title="참석 현황 요약" />
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <NameListRow
+                            color="#10B981"
+                            label="참석"
+                            count={summary.totalAttending}
+                            names={summary.attendingList.map((m) =>
+                                `${m.nickname || '회원 정보 없음'}${m.is_guest ? '(G)' : ''}`,
+                            )}
+                            expanded={expandedSummary === 'attending'}
+                            onToggle={() => setExpandedSummary(expandedSummary === 'attending' ? null : 'attending')}
+                        />
+                        <NameListRow
+                            color="#EF4444"
+                            label="불참"
+                            count={summary.totalNotAttending}
+                            names={summary.notAttendingList.map((m) =>
+                                `${m.nickname || '회원 정보 없음'}${m.is_guest ? '(G)' : ''}`,
+                            )}
+                            expanded={expandedSummary === 'absent'}
+                            onToggle={() => setExpandedSummary(expandedSummary === 'absent' ? null : 'absent')}
+                        />
+                        {/* 미응답: 활성 회원 중 attendance row 가 없는 회원. members.nickname 사용. */}
+                        <NameListRow
+                            color="#F59E0B"
+                            label="미응답"
+                            count={noResponseMembers.length}
+                            names={noResponseMembers.map((m) => m.nickname || '회원 정보 없음')}
+                            expanded={expandedSummary === 'pending'}
+                            onToggle={() => setExpandedSummary(expandedSummary === 'pending' ? null : 'pending')}
+                            isLast
+                        />
+                    </div>
+
+                    {/* 보조 통계 — 코트당 평균 + 게스트 신청 건수. 운영진 전용 표시 제거. */}
+                    <div
+                        style={{
+                            marginTop: 10, padding: '8px 10px', borderRadius: 10,
+                            backgroundColor: '#F8FAFC', border: '1px solid rgba(15,23,42,0.06)',
+                            display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between',
+                            fontSize: 11, fontWeight: 700, color: '#475569',
+                        }}
+                    >
+                        <span>
+                            코트당 평균{' '}
+                            <strong style={{ color: '#0F172A', fontWeight: 900 }}>
+                                {schedule.court_count
+                                    ? `${Math.ceil(summary.totalAttending / Math.max(1, schedule.court_count))}명`
+                                    : '—'}
+                            </strong>
+                            {schedule.court_count ? ` · ${schedule.court_count}면` : ' · 코트 미지정'}
+                        </span>
+                        <span>
+                            게스트 신청{' '}
+                            <strong style={{ color: '#0F172A', fontWeight: 900 }}>
+                                {guestRequestCount}건
+                            </strong>
+                        </span>
+                    </div>
                 </section>
 
                 {/* 특이사항 / 파트너 요청 */}
@@ -843,7 +1016,7 @@ export default function ClubScheduleAttendancePage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <SectionTitle title="특이사항 · 파트너 요청" inline />
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>
-                            댓글 {comments.length}
+                            댓글 {totalCommentCount}
                         </span>
                     </div>
 
@@ -867,13 +1040,22 @@ export default function ClubScheduleAttendancePage() {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {commentsForDisplay.map((c) => (
-                            <CommentRow
+                            <CommentThread
                                 key={c.id}
                                 comment={c}
-                                canDelete={user?.id === c.user_id || isAdmin}
-                                canEdit={user?.id === c.user_id}
-                                onEdit={() => handleStartEditComment(c)}
-                                onDelete={() => handleDeleteComment(c.id)}
+                                currentUserId={user?.id ?? null}
+                                isAdmin={isAdmin}
+                                replyingToId={replyingToId}
+                                replyBody={replyBody}
+                                postingReply={postingReply}
+                                onReplyToggle={() => handleStartReply(c.id)}
+                                onReplyBodyChange={setReplyBody}
+                                onReplyCancel={handleCancelReply}
+                                onReplySubmit={() => handleSubmitReply(c.id)}
+                                onEditParent={() => handleStartEditComment(c)}
+                                onDeleteParent={() => handleDeleteComment(c.id)}
+                                onEditReply={(reply) => handleStartEditComment(reply)}
+                                onDeleteReply={(replyId) => handleDeleteComment(replyId)}
                             />
                         ))}
                     </div>
@@ -1160,37 +1342,237 @@ const BucketRow = ({
     </div>
 );
 
-const MiniStat = ({ value, label, wide }: { value: React.ReactNode; label: string; wide?: boolean }) => (
-    <div style={{
-        gridColumn: wide ? 'span 2' : 'span 1',
-        padding: '10px 8px', borderRadius: 10,
-        backgroundColor: '#FFFFFF', border: '1px solid rgba(15,23,42,0.08)',
-        textAlign: 'center',
-    }}>
-        <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>
-            {value}
-        </p>
-        <p style={{ margin: '3px 0 0', fontSize: 9.5, fontWeight: 700, color: '#64748B', letterSpacing: '0.02em' }}>
-            {label}
-        </p>
+/**
+ * 참석/불참/미응답 명단 펼침 row.
+ * 기존 BucketRow 와 디자인 동일 — 펼치면 이름을 콤마로 나열.
+ * 표시값은 호출자에서 가공해 names: string[] 으로 전달. 개인정보(이메일/UUID/카카오 닉네임) 노출 금지.
+ */
+const NameListRow = ({
+    color, label, count, names, expanded, onToggle, isLast,
+}: {
+    color: string;
+    label: string;
+    count: number;
+    names: string[];
+    expanded: boolean;
+    onToggle: () => void;
+    isLast?: boolean;
+}) => (
+    <div
+        style={{
+            borderBottom: isLast ? 'none' : '1px solid rgba(15,23,42,0.06)',
+            padding: '10px 0',
+        }}
+    >
+        <button
+            type="button"
+            onClick={onToggle}
+            style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+            }}
+            aria-expanded={expanded}
+            aria-label={`${label} ${count}명 ${expanded ? '접기' : '펼치기'}`}
+        >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+            <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
+                {label}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: count > 0 ? color : '#94A3B8' }}>
+                {count}명
+            </span>
+            <ChevronRight
+                size={14}
+                style={{
+                    color: '#CBD5E1',
+                    transform: expanded ? 'rotate(90deg)' : 'rotate(0)',
+                    transition: 'transform 0.18s',
+                }}
+            />
+        </button>
+        {expanded && (
+            <p
+                style={{
+                    margin: '6px 0 0 16px',
+                    fontSize: 11, fontWeight: 600, color: '#475569',
+                    lineHeight: 1.6, wordBreak: 'keep-all',
+                }}
+            >
+                {names.length > 0
+                    ? names.join(', ')
+                    : <span style={{ color: '#94A3B8' }}>해당 회원이 없습니다</span>}
+            </p>
+        )}
     </div>
 );
 
-const CommentRow = ({
-    comment, canDelete, canEdit, onEdit, onDelete,
+/**
+ * 원댓글 + 답글 묶음.
+ * 답글은 동일 CommentItem 으로 렌더하되 좌측 들여쓰기 + 살짝 작은 아바타로 시각 구분.
+ * 답글 입력창은 부모 댓글 아래 / 답글 리스트 다음에 렌더된다.
+ */
+const CommentThread = ({
+    comment, currentUserId, isAdmin,
+    replyingToId, replyBody, postingReply,
+    onReplyToggle, onReplyBodyChange, onReplyCancel, onReplySubmit,
+    onEditParent, onDeleteParent,
+    onEditReply, onDeleteReply,
 }: {
     comment: CommentWithMember;
+    currentUserId: string | null;
+    isAdmin: boolean;
+    replyingToId: string | null;
+    replyBody: string;
+    postingReply: boolean;
+    onReplyToggle: () => void;
+    onReplyBodyChange: (v: string) => void;
+    onReplyCancel: () => void;
+    onReplySubmit: () => void;
+    onEditParent: () => void;
+    onDeleteParent: () => void;
+    onEditReply: (reply: CommentWithMember) => void;
+    onDeleteReply: (replyId: string) => void;
+}) => {
+    const isReplyingHere = replyingToId === comment.id;
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <CommentItem
+                comment={comment}
+                isReply={false}
+                canDelete={currentUserId === comment.user_id || isAdmin}
+                canEdit={currentUserId === comment.user_id}
+                canReply={!!currentUserId}
+                isReplying={isReplyingHere}
+                onEdit={onEditParent}
+                onDelete={onDeleteParent}
+                onReplyToggle={onReplyToggle}
+            />
+
+            {comment.replies && comment.replies.length > 0 && (
+                <div
+                    style={{
+                        // 모바일에서도 잘리지 않을 정도의 좌측 들여쓰기.
+                        // 들여쓰기 + 회색 가이드선으로 답글임을 표시.
+                        marginLeft: 18,
+                        paddingLeft: 12,
+                        borderLeft: '2px solid rgba(15,23,42,0.06)',
+                        display: 'flex', flexDirection: 'column', gap: 10,
+                    }}
+                >
+                    {comment.replies.map((r) => (
+                        <CommentItem
+                            key={r.id}
+                            comment={r}
+                            isReply
+                            canDelete={currentUserId === r.user_id || isAdmin}
+                            canEdit={currentUserId === r.user_id}
+                            // 답글에서 다시 답글을 눌러도 동일 원댓글에 답글로 추가됨 (service 정규화).
+                            canReply={!!currentUserId}
+                            isReplying={false}
+                            onEdit={() => onEditReply(r)}
+                            onDelete={() => onDeleteReply(r.id)}
+                            onReplyToggle={onReplyToggle}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {isReplyingHere && currentUserId && (
+                <div
+                    id={`reply-input-${comment.id}`}
+                    style={{
+                        marginLeft: 18,
+                        paddingTop: 10, paddingRight: 10, paddingBottom: 10, paddingLeft: 10,
+                        borderRadius: 12,
+                        backgroundColor: '#F8FAFC',
+                        border: '1px solid rgba(59,130,246,0.32)',
+                        display: 'flex', flexDirection: 'column', gap: 8,
+                    }}
+                >
+                    <p style={{ fontSize: 11, fontWeight: 800, color: '#1D4ED8', margin: 0, letterSpacing: '-0.01em' }}>
+                        답글 작성 중
+                    </p>
+                    {/* 모바일에서도 한 줄에서 잘리지 않도록 textarea + 버튼은 세로 배치. */}
+                    <textarea
+                        value={replyBody}
+                        onChange={(e) => onReplyBodyChange(e.target.value)}
+                        placeholder="답글을 입력하세요"
+                        rows={2}
+                        style={{
+                            width: '100%', boxSizing: 'border-box',
+                            resize: 'none', minHeight: 38,
+                            paddingTop: 8, paddingRight: 10, paddingBottom: 8, paddingLeft: 10,
+                            borderRadius: 10,
+                            border: '1px solid rgba(15,23,42,0.10)',
+                            fontSize: 12, fontWeight: 500, color: '#0F172A',
+                            backgroundColor: '#FFFFFF',
+                            fontFamily: 'inherit',
+                            outline: 'none',
+                        }}
+                    />
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button
+                            type="button"
+                            onClick={onReplyCancel}
+                            style={{
+                                height: 32, paddingLeft: 12, paddingRight: 12,
+                                borderRadius: 8,
+                                border: '1px solid rgba(15,23,42,0.10)',
+                                backgroundColor: '#FFFFFF', color: '#64748B',
+                                fontSize: 11, fontWeight: 800,
+                                cursor: 'pointer',
+                                WebkitTapHighlightColor: 'transparent',
+                            }}
+                        >
+                            취소
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onReplySubmit}
+                            disabled={postingReply || !replyBody.trim()}
+                            style={{
+                                height: 32, paddingLeft: 14, paddingRight: 14,
+                                borderRadius: 8,
+                                backgroundColor: replyBody.trim() ? '#3B82F6' : '#CBD5E1',
+                                color: '#FFFFFF', border: 'none',
+                                fontSize: 11, fontWeight: 800,
+                                cursor: replyBody.trim() ? 'pointer' : 'not-allowed',
+                                WebkitTapHighlightColor: 'transparent',
+                            }}
+                        >
+                            {postingReply ? '등록 중...' : '등록'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const CommentItem = ({
+    comment, isReply, canDelete, canEdit, canReply, isReplying, onEdit, onDelete, onReplyToggle,
+}: {
+    comment: CommentWithMember;
+    isReply: boolean;
     canDelete: boolean;
-    canEdit?: boolean;
-    onEdit?: () => void;
+    canEdit: boolean;
+    canReply: boolean;
+    isReplying: boolean;
+    onEdit: () => void;
     onDelete: () => void;
+    onReplyToggle: () => void;
 }) => {
     const displayName = comment.nickname || '회원 정보 없음';
     const ts = new Date(comment.created_at);
     const tsLabel = `${ts.getMonth() + 1}/${ts.getDate()} ${String(ts.getHours()).padStart(2, '0')}:${String(ts.getMinutes()).padStart(2, '0')}`;
+    // 수정 표시 — created_at 과 updated_at 이 의미 있게 차이 나면 '수정됨' 라벨.
+    const updated = new Date(comment.updated_at);
+    const isEdited = Math.abs(updated.getTime() - ts.getTime()) > 1500;
+    const avatarSize = isReply ? 24 : 28;
     return (
         <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-            <div style={{ width: 28, height: 28, flexShrink: 0 }}>
+            <div style={{ width: avatarSize, height: avatarSize, flexShrink: 0 }}>
                 {/* avatarUrl 있으면 ProfileAvatar(이미지) — 로드 실패 시 fallbackIcon=InitialAvatar.
                     avatarUrl 없으면 바로 InitialAvatar.
                     개인정보 alt 노출 금지 → 일관된 '프로필 이미지' alt 사용. */}
@@ -1198,20 +1580,20 @@ const CommentRow = ({
                     <ProfileAvatar
                         src={comment.avatarUrl}
                         alt="프로필 이미지"
-                        size={28}
+                        size={avatarSize}
                         className="rounded-full"
-                        fallbackIcon={<InitialAvatar name={displayName} size={28} />}
+                        fallbackIcon={<InitialAvatar name={displayName} size={avatarSize} />}
                     />
                 ) : (
-                    <InitialAvatar name={displayName} size={28} />
+                    <InitialAvatar name={displayName} size={avatarSize} />
                 )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
-                        {comment.nickname || '회원 정보 없음'}
+                    <span style={{ fontSize: isReply ? 11.5 : 12, fontWeight: 800, color: '#0F172A' }}>
+                        {displayName}
                     </span>
-                    {comment.category && (() => {
+                    {!isReply && comment.category && (() => {
                         // 게스트 신청만 살짝 다른 톤 — 과한 색상은 피하고 운영진 인지성만 살림.
                         const isGuestReq = comment.category === '게스트 신청';
                         return (
@@ -1229,13 +1611,32 @@ const CommentRow = ({
                         );
                     })()}
                     <span style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8' }}>{tsLabel}</span>
+                    {isEdited && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8' }}>· 수정됨</span>
+                    )}
                 </div>
-                <p style={{ margin: '3px 0 0', fontSize: 12, fontWeight: 500, color: '#1E293B', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                <p style={{ margin: '3px 0 0', fontSize: isReply ? 11.5 : 12, fontWeight: 500, color: '#1E293B', lineHeight: 1.55, wordBreak: 'keep-all' }}>
                     {comment.body}
                 </p>
-                {(canDelete || canEdit) && (
-                    <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                        {canEdit && onEdit && (
+                {(canDelete || canEdit || canReply) && (
+                    <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        {canReply && (
+                            <button
+                                type="button"
+                                onClick={onReplyToggle}
+                                style={{
+                                    fontSize: 10, fontWeight: 700,
+                                    color: isReplying ? '#1D4ED8' : '#475569',
+                                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                                    WebkitTapHighlightColor: 'transparent',
+                                }}
+                            >
+                                <MessageSquare size={10} />
+                                {isReplying ? '답글 취소' : '답글'}
+                            </button>
+                        )}
+                        {canEdit && (
                             <button
                                 type="button"
                                 onClick={onEdit}
