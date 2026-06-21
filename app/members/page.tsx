@@ -25,6 +25,7 @@ import {
     type PlayerCardStats,
     type MemberOfficialStatsResult,
 } from '@/lib/profile/getMemberOfficialStats';
+import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
 
 // Local alias: members page uses the shared player card view model directly.
 type Member = PlayerCardMember;
@@ -52,19 +53,35 @@ const MemberCard = React.memo(function MemberCard({
 }) {
     const { user } = useAuth();
 
+    // 사진 우선순위:
+    //   1) members.avatar_url (운영진 지정 클럽 사진) — 가장 우선
+    //   2) profile_avatar_url (auth_user_id → profiles.id, 또는 email fallback으로 해소된 profiles.avatar_url)
+    //   3) 본인일 때만 user_metadata.avatar_url || picture
+    //   4) null → InitialAvatar fallback (ProfileAvatar의 fallbackIcon)
+    // 모든 URL은 http 카카오 CDN을 https로 변환.
     const finalAvatar = useMemo(() => {
-        if (member.avatar_url) return member.avatar_url;
-        if (user?.email && member.email && user.email === member.email) {
-            return (
-                user.user_metadata?.avatar_url ||
-                user.user_metadata?.picture ||
-                member.profile_avatar_url
+        const direct = normalizeAvatarUrl(member.avatar_url);
+        if (direct) return direct;
+        const profile = normalizeAvatarUrl(member.profile_avatar_url);
+        if (profile) return profile;
+        // 본인 한정 self fallback
+        const isSelf =
+            (member.auth_user_id && user?.id && member.auth_user_id === user.id) ||
+            (!!user?.email && !!member.email && user.email === member.email);
+        if (isSelf) {
+            const meta = user?.user_metadata || {};
+            return normalizeAvatarUrl(
+                (meta.avatar_url as string | undefined) ||
+                (meta.picture as string | undefined) ||
+                null,
             );
         }
-        return member.profile_avatar_url;
+        return undefined;
     }, [
+        user?.id,
         user?.email,
         user?.user_metadata,
+        member.auth_user_id,
         member.email,
         member.avatar_url,
         member.profile_avatar_url,
@@ -289,40 +306,64 @@ export default function MembersPage() {
             if (error) throw error;
 
             if (data && data.length > 0) {
-                const memberEmails = Array.from(new Set(
+                // 회원-프로필 연결 우선순위:
+                //   1) members.auth_user_id → profiles.id  (DB unique key, 운영진이 사전 매핑한 회원)
+                //   2) members.email = profiles.email      (호환용 fallback)
+                // N+1 회피를 위해 두 batch만 사용.
+                type ProfileRow = { id?: string; email?: string; avatar_url?: string; profile_visibility_level?: string };
+                const profileById = new Map<string, ProfileRow>();
+                const profileByEmail = new Map<string, ProfileRow>();
+
+                const authUserIds = Array.from(new Set(
                     data
-                        .map((m: Member) => m.email)
-                        .filter((e): e is string => Boolean(e))
+                        .map((m: Member) => m.auth_user_id)
+                        .filter((id): id is string => Boolean(id))
                 ));
 
-                type ProfileRow = { avatar_url?: string; profile_visibility_level?: string };
-                let profileDataByEmail = new Map<string, ProfileRow>();
-
-                if (memberEmails.length > 0) {
-                    const { data: profilesData, error: profilesError } = await supabase
+                if (authUserIds.length > 0) {
+                    const { data: rows, error } = await supabase
                         .from('profiles')
-                        .select('email, avatar_url, profile_visibility_level')
-                        .in('email', memberEmails);
-                    if (profilesError) {
-                        console.warn('[Members] Profile fetch skipped:', profilesError);
+                        .select('id, email, avatar_url, profile_visibility_level')
+                        .in('id', authUserIds);
+                    if (error) {
+                        console.warn('[Members] Profile fetch by id skipped:', error);
                     } else {
-                        for (const p of (profilesData || []) as (ProfileRow & { email?: string })[]) {
-                            if (p.email) {
-                                profileDataByEmail.set(p.email, {
-                                    avatar_url: p.avatar_url || undefined,
-                                    profile_visibility_level: p.profile_visibility_level || undefined,
-                                });
-                            }
+                        for (const p of (rows || []) as ProfileRow[]) {
+                            if (p.id) profileById.set(p.id, p);
+                        }
+                    }
+                }
+
+                // email fallback — auth_user_id가 없는 회원에 한정해 batch.
+                const emailFallbackTargets = Array.from(new Set(
+                    data
+                        .filter((m: Member) => !m.auth_user_id && m.email)
+                        .map((m: Member) => m.email as string)
+                ));
+
+                if (emailFallbackTargets.length > 0) {
+                    const { data: rows, error } = await supabase
+                        .from('profiles')
+                        .select('id, email, avatar_url, profile_visibility_level')
+                        .in('email', emailFallbackTargets);
+                    if (error) {
+                        console.warn('[Members] Profile fetch by email skipped:', error);
+                    } else {
+                        for (const p of (rows || []) as ProfileRow[]) {
+                            if (p.email) profileByEmail.set(p.email, p);
                         }
                     }
                 }
 
                 const enriched = data.map((m: Member) => {
-                    const pd = m.email ? profileDataByEmail.get(m.email) : undefined;
+                    const matched =
+                        (m.auth_user_id ? profileById.get(m.auth_user_id) : undefined) ??
+                        (m.email ? profileByEmail.get(m.email) : undefined);
                     return {
                         ...m,
-                        profile_avatar_url: pd?.avatar_url,
-                        profile_visibility_level: (pd?.profile_visibility_level as VisibilityLevel) ?? undefined,
+                        // profile.avatar_url은 raw로 저장하고 카드에서 normalize.
+                        profile_avatar_url: matched?.avatar_url || undefined,
+                        profile_visibility_level: (matched?.profile_visibility_level as VisibilityLevel) ?? undefined,
                     };
                 });
 
@@ -402,20 +443,33 @@ export default function MembersPage() {
 
     const selectedAvatar = useMemo(() => {
         if (!selectedMember) return undefined;
-        if (selectedMember.avatar_url) return selectedMember.avatar_url;
-        if (user?.email && selectedMember.email && user.email === selectedMember.email) {
-            return (
-                user.user_metadata?.avatar_url ||
-                user.user_metadata?.picture ||
-                selectedMember.profile_avatar_url
-            );
+        // PlayerCardModal에 전달되는 avatar — MemberCard와 동일 우선순위.
+        const direct = normalizeAvatarUrl(selectedMember.avatar_url);
+        if (direct) return direct;
+        const profile = normalizeAvatarUrl(selectedMember.profile_avatar_url);
+        if (profile) return profile;
+        const isSelf =
+            (selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id) ||
+            (!!user?.email && !!selectedMember.email && user.email === selectedMember.email);
+        if (isSelf) {
+            const meta = user?.user_metadata || {};
+            return normalizeAvatarUrl(
+                (meta.avatar_url as string | undefined) ||
+                (meta.picture as string | undefined) ||
+                null,
+            ) || undefined;
         }
-        return selectedMember.profile_avatar_url;
-    }, [selectedMember, user]);
+        return undefined;
+    }, [selectedMember, user?.id, user?.email, user?.user_metadata]);
 
     const isOwnCard = useMemo(
-        () => Boolean(selectedMember && user?.email && user.email === selectedMember.email),
-        [selectedMember, user?.email]
+        () =>
+            Boolean(
+                selectedMember &&
+                ((selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id) ||
+                    (user?.email && selectedMember.email && user.email === selectedMember.email))
+            ),
+        [selectedMember, user?.id, user?.email]
     );
 
     return (

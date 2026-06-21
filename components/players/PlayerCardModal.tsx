@@ -32,6 +32,9 @@ export interface PlayerCardMember {
     achievements?: string;
     bio?: string;
     avatar_url?: string;
+    /** auth.users.id 연결 (DB unique). profile 사진/공개범위 매칭의 최우선 키. */
+    auth_user_id?: string | null;
+    /** auth_user_id 또는 email fallback으로 매칭된 profiles.avatar_url (normalize 적용된 값). */
     profile_avatar_url?: string;
     profile_visibility_level?: VisibilityLevel;
 }
