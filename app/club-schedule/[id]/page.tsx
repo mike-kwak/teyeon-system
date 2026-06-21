@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Plus, Share2, Check } from 'lucide-react';
+import { shareOrCopyClubSchedule } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchClubScheduleById } from '@/lib/clubScheduleService';
@@ -93,6 +94,7 @@ export default function ClubScheduleAttendancePage() {
     const [commentCategory, setCommentCategory] = useState<string | null>('일반');
     const [postingComment, setPostingComment] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied' | 'shared' | 'failed'>('idle');
 
     const logSupabaseError = (label: string, err: any) => {
         // Supabase error는 message/details/hint/code 가 자주 분리되어 있고
@@ -350,6 +352,28 @@ export default function ClubScheduleAttendancePage() {
         saveMyAttendance({ status: 'not_attending' });
     };
 
+    // 참석 체크 안내문 공유 — Web Share API → 클립보드 fallback. 중복 클릭 방지.
+    const handleShare = useCallback(async () => {
+        if (!schedule) return;
+        if (shareState === 'busy') return;
+        setShareState('busy');
+        try {
+            const result = await shareOrCopyClubSchedule(schedule);
+            if (result.mode === 'share') {
+                setShareState('shared');
+            } else if (result.mode === 'copy') {
+                setShareState('copied');
+            } else {
+                setShareState('failed');
+                alert('복사에 실패했습니다. 브라우저 권한을 확인해 주세요.');
+            }
+        } catch {
+            setShareState('failed');
+        }
+        // 짧은 피드백 후 idle 복귀
+        window.setTimeout(() => setShareState('idle'), 2200);
+    }, [schedule, shareState]);
+
     const resetCommentForm = () => {
         setCommentBody('');
         setCommentCategory('일반');
@@ -482,16 +506,56 @@ export default function ClubScheduleAttendancePage() {
 
                 {/* HERO: 정모 요약 */}
                 <section style={cardStyle}>
-                    {typeStyle && (
-                        <span style={{
-                            display: 'inline-block', fontSize: 9, fontWeight: 800, padding: '3px 9px',
-                            borderRadius: 5, backgroundColor: typeStyle.bg, color: typeStyle.color,
-                            border: `1px solid ${typeStyle.border}`, letterSpacing: '0.06em',
-                            marginBottom: 10,
-                        }}>
-                            🏷️ {typeStyle.badge}
-                        </span>
-                    )}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        gap: 8, marginBottom: 10, flexWrap: 'wrap',
+                    }}>
+                        {typeStyle ? (
+                            <span style={{
+                                display: 'inline-block', fontSize: 9, fontWeight: 800, padding: '3px 9px',
+                                borderRadius: 5, backgroundColor: typeStyle.bg, color: typeStyle.color,
+                                border: `1px solid ${typeStyle.border}`, letterSpacing: '0.06em',
+                            }}>
+                                🏷️ {typeStyle.badge}
+                            </span>
+                        ) : <span />}
+                        {/* 참석 체크 안내문 공유 (회원 전용 — 공개 익명 페이지 아님) */}
+                        <button
+                            type="button"
+                            onClick={handleShare}
+                            disabled={shareState === 'busy'}
+                            aria-label="참석 체크 안내문 복사"
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                height: 30, paddingLeft: 10, paddingRight: 10,
+                                borderRadius: 999,
+                                border: '1px solid rgba(59,130,246,0.28)',
+                                backgroundColor: shareState === 'copied' || shareState === 'shared'
+                                    ? 'rgba(16,185,129,0.10)'
+                                    : 'rgba(59,130,246,0.08)',
+                                color: shareState === 'copied' || shareState === 'shared'
+                                    ? '#065F46'
+                                    : '#1D4ED8',
+                                fontSize: 11, fontWeight: 800,
+                                letterSpacing: '-0.01em',
+                                cursor: shareState === 'busy' ? 'wait' : 'pointer',
+                                whiteSpace: 'nowrap',
+                                WebkitTapHighlightColor: 'transparent',
+                                transition: 'background-color 0.15s, color 0.15s',
+                            }}
+                        >
+                            {shareState === 'copied' ? <Check size={12} /> : <Share2 size={12} />}
+                            {shareState === 'copied'
+                                ? '복사 완료'
+                                : shareState === 'shared'
+                                    ? '공유 완료'
+                                    : shareState === 'failed'
+                                        ? '복사 실패'
+                                        : shareState === 'busy'
+                                            ? '준비 중'
+                                            : '참석 안내문 복사'}
+                        </button>
+                    </div>
                     <h2 style={{ fontSize: 18, fontWeight: 900, color: '#0F172A', margin: '0 0 10px', letterSpacing: '-0.02em', wordBreak: 'keep-all' }}>
                         {schedule.title}
                     </h2>

@@ -801,8 +801,8 @@ export default function TournamentCalendarPage() {
         >
           {([
             { v: 'all',        label: '전체',         accent: '#0F172A' },
-            { v: 'tournament', label: '대회 일정',     accent: '#0D9488' },
             { v: 'club',       label: 'TEYEON 일정',  accent: '#3B82F6' },
+            { v: 'tournament', label: '대회 일정',     accent: '#0D9488' },
           ] as const).map((opt) => {
             const active = calendarFilter === opt.v;
             return (
