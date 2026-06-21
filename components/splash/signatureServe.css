@@ -1,7 +1,8 @@
 /* ─── TEYEON Signature Serve — 방식 B (fade) ────────────────────────────── */
-/* 좌표 방식: stage 안에 ball을 absolute로 배치하고 left/top으로 도착점 고정.
-   keyframe은 translate(-50%, -50%)를 baseline으로 stage 우하단 offset만 더해 이동.
-   offset-path는 사용하지 않음 (브라우저별 anchor 차이로 좌표가 어긋나는 문제).        */
+/* 좌표 방식: 이중 wrapper.
+   anchor가 도착점에 left/top + translate(-50%,-50%)로 고정 → 그 안에서
+   .tysig-ball이 translate3d만으로 이동. keyframe은 % 없는 순수 px+0,0 도착
+   → GPU 합성 안정, 모바일에서 부드러움.                                       */
 
 .tysig-root {
   position: relative;
@@ -14,7 +15,6 @@
   gap: 22px;
 }
 
-/* 좌표 원점 — 모든 모션은 이 wrapper 안에서 stage 좌표계로 계산. */
 .tysig-stage {
   position: relative;
   width: var(--logo-size);
@@ -29,15 +29,17 @@
   height: 100%;
   object-fit: contain;
   transform-origin: 50% 50%;
-  transform: scale(0.99);
+  transform: scale(0.99) translateZ(0);
   opacity: 0;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
   animation: tysig-logo-settle 1100ms cubic-bezier(0.34, 1.4, 0.64, 1) 120ms forwards;
   filter: drop-shadow(0 2px 8px rgba(60, 70, 120, 0.10));
   position: relative;
   z-index: 1;
 }
 
-/* 안착 순간 매우 약한 1회 glow (노란 공 위치). pseudo로 처리해 dom 없음. */
+/* 안착 순간 매우 약한 1회 glow (노란 공 위치). 형광 톤에 맞춰 살짝 조정. */
 .tysig-stage::after {
   content: '';
   position: absolute;
@@ -47,30 +49,44 @@
   height: calc(var(--logo-size) * 0.32);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.6);
-  background: radial-gradient(circle, rgba(255, 220, 90, 0.18) 0%, rgba(255, 220, 90, 0) 70%);
+  background: radial-gradient(circle, rgba(232, 255, 82, 0.20) 0%, rgba(232, 255, 82, 0) 70%);
   opacity: 0;
   pointer-events: none;
   z-index: 3;
   animation: tysig-glow 700ms ease-out 1080ms forwards;
 }
 
-/* ─── 노란 공 (테니스공 SVG) ─────────────────────────────────────────────── */
-/* 도착점: 노란 공 중심 (left/top). transform baseline은 translate(-50%, -50%).
-   keyframe은 baseline에 stage 우하단 offset(px)을 더해서 이동한다. */
-.tysig-ball {
+/* ─── 노란 공 (이중 wrapper) ─────────────────────────────────────────────── */
+
+/* 외부 anchor: 도착점에 고정. keyframe 없음 → 정적 위치, 합성 부담 격리.
+   ⚠️ contain: paint 사용 금지 — anchor는 22~26px이고 자식 ball이 초기 translate3d(+180, +180)로
+   anchor 밖에 위치하므로 paint clipping이 발생하면 공이 도착 직전까지 보이지 않는다.
+   layout/style만 격리하고 paint와 overflow는 visible 유지. */
+.tysig-ball-anchor {
   position: absolute;
   left: calc(50% + var(--ball-dx-ratio) * var(--logo-size));
   top:  calc(50% + var(--ball-dy-ratio) * var(--logo-size));
   width: var(--ball-size);
   height: var(--ball-size);
-  /* 도착 baseline — 100% keyframe과 동일. */
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 2;
+  overflow: visible;
+  contain: layout style;
+}
+
+/* 내부 SVG: translate3d로만 이동. 도착점이 곧 (0,0,0). */
+.tysig-ball {
+  display: block;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  animation: tysig-ball-fly 1100ms cubic-bezier(0.42, 0.0, 0.55, 0.95) 0ms forwards;
-  /* 도착 직전 축소가 부드럽도록 transform-origin 명시. */
+  transform: translate3d(180px, 180px, 0) scale(0.92);
   transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  /* 단일 cubic-bezier로 출발~도착 부드럽게. 중간 keyframe은 최소화. */
+  animation: tysig-ball-fly 1100ms cubic-bezier(0.33, 0.0, 0.20, 1.0) 0ms forwards;
 }
 
 /* ─── trail — SVG path stroke, opacity ≤ 0.18 ────────────────────────────── */
@@ -83,7 +99,7 @@
 
 .tysig-trail path {
   fill: none;
-  stroke: rgba(242, 201, 76, 0.18);
+  stroke: rgba(232, 255, 82, 0.18);
   stroke-width: 1.4;
   stroke-linecap: round;
   stroke-dasharray: 220;
@@ -100,42 +116,40 @@
   letter-spacing: 0.24em;
   color: rgba(55, 65, 95, 0.55);
   opacity: 0;
+  transform: translate3d(0, 4px, 0);
+  will-change: transform, opacity;
   animation: tysig-tagline-in 250ms ease-out 1200ms forwards;
 }
 
 /* ─── keyframes ───────────────────────────────────────────────────────────── */
 
-/* 공 이동 — baseline translate(-50%, -50%)에 stage 우하단 px offset을 더함.
-   stage 한 변은 112~128px이므로 출발 +180/+180은 stage 우하단 밖에서 자연스럽게 진입.
-   94%부터 baseline(=노란 공 중심)에 정확히 도달, 100%까지 그 자리에 머무름. */
+/* 단순화된 6 keyframe (이전: 7개에 5단계 직선 → 본 이동은 3단계).
+   거리 분배: 0→55% (자유낙하 진입), 55→94% (도착 접근), 94→100% (정지+fade).
+   단일 ease-out 곡선이 사이를 매끄럽게 보간 → 모바일 꺾임 감소. */
 @keyframes tysig-ball-fly {
   0% {
     opacity: 0;
-    transform: translate(calc(-50% + 180px), calc(-50% + 180px)) scale(0.95);
+    transform: translate3d(180px, 180px, 0) scale(0.92);
   }
-  10% {
+  8% {
     opacity: 1;
-    transform: translate(calc(-50% + 150px), calc(-50% + 150px)) scale(0.95);
+    transform: translate3d(160px, 158px, 0) scale(0.92);
   }
-  60% {
+  55% {
     opacity: 1;
-    transform: translate(calc(-50% + 50px), calc(-50% + 30px)) scale(0.9);
-  }
-  85% {
-    opacity: 1;
-    transform: translate(calc(-50% + 10px), calc(-50% + 2px)) scale(0.8);
+    transform: translate3d(50px, 22px, 0) scale(0.85);
   }
   94% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(var(--ball-end-scale));
+    transform: translate3d(0, 0, 0) scale(var(--ball-end-scale));
   }
   97% {
     opacity: 0.8;
-    transform: translate(-50%, -50%) scale(var(--ball-end-scale));
+    transform: translate3d(0, 0, 0) scale(var(--ball-end-scale));
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(var(--ball-end-scale));
+    transform: translate3d(0, 0, 0) scale(var(--ball-end-scale));
   }
 }
 
@@ -149,25 +163,26 @@
 }
 
 @keyframes tysig-logo-settle {
-  0%   { opacity: 0;   transform: scale(0.99); }
-  60%  { opacity: 1;   transform: scale(0.99); }
-  88%  { opacity: 1;   transform: scale(1.015); }  /* ≈ 1088ms — 공 도착 직후 pop peak */
-  100% { opacity: 1;   transform: scale(1.000); }
+  0%   { opacity: 0;   transform: scale(0.99) translateZ(0); }
+  60%  { opacity: 1;   transform: scale(0.99) translateZ(0); }
+  88%  { opacity: 1;   transform: scale(1.015) translateZ(0); }
+  100% { opacity: 1;   transform: scale(1.000) translateZ(0); }
 }
 
 @keyframes tysig-glow {
   0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.6); }
-  35%  { opacity: 0.18; transform: translate(-50%, -50%) scale(1.0); }
+  35%  { opacity: 0.20; transform: translate(-50%, -50%) scale(1.0); }
   100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.4); }
 }
 
 @keyframes tysig-tagline-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0);   }
+  from { opacity: 0; transform: translate3d(0, 4px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0);   }
 }
 
 /* ─── reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  .tysig-ball-anchor,
   .tysig-ball,
   .tysig-trail,
   .tysig-stage::after {
@@ -181,7 +196,7 @@
     animation: tysig-tagline-in 250ms ease-out 220ms forwards;
   }
   @keyframes tysig-logo-simple-fade {
-    from { opacity: 0; transform: scale(1); }
-    to   { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(1) translateZ(0); }
+    to   { opacity: 1; transform: scale(1) translateZ(0); }
   }
 }
