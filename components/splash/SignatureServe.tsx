@@ -7,61 +7,48 @@ import './signatureServe.css';
 /**
  * TEYEON Signature Serve — 방식 B (fade)
  *
- * 타임라인 (총 약 2.0s, SplashScreen이 1500ms에 fade-out 시작):
- *   0ms    공 진입 시작 (offset-distance 0%)
- *   120ms  로고 fade-in 시작 (opacity 0 → 1)
- *   ~880ms 공이 도착 직전 (offset-distance 80%)
- *   ~960ms 공 fade-out (86%~96% 구간)
- *   ~980ms 안착 glow 1회 시작 (peak 0.18 alpha)
- *   ~1100ms 로고 scale 1.02 → 1.00 안착
- *   1320ms tagline fade-in 시작
- *   ~1680ms tagline 안착 완료
+ * 좌표 방식 (재설계):
+ *   - 공을 stage(=로고 wrapper) 안에 absolute로 배치하고
+ *     도착점을 left/top으로 노란 공 중심에 직접 고정한다.
+ *   - keyframe은 `translate(-50%, -50%)`를 baseline으로 두고,
+ *     stage 우하단 offset(px)을 더해 시작/중간 위치를 표현한다.
+ *   - offset-path는 사용하지 않는다 (브라우저별 anchor 차이로 좌표가 어긋나는 문제).
  *
  * 좌표 변수 (signatureServe.css 참고):
- *   --logo-size:        로고 한 변 길이 (rem 단위 권장)
- *   --ball-dx-ratio:    노란 공 중심 X 비율 (로고 wrapper 중심 기준)
- *                       +0.18 = 우측, -0.18 = 좌측
- *   --ball-dy-ratio:    노란 공 중심 Y 비율
- *                       -0.20 = 위쪽(눈처럼 약간 우상단)
- *   --ball-size-ratio:  flyball 크기 비율 — 도착 시 로고 속 노란 공과 동일 크기로 맞춤
- *   --ball-path:        offset-path 곡선. 도착점은 stage 좌상단(0,0)~우하단(stageSize,stageSize)
- *                       좌표계에서 노란 공 중심 좌표와 정확히 동일하게 계산됨.
+ *   --logo-size:        로고 한 변 (px, clamp으로 360/390/430 대응)
+ *   --ball-dx-ratio:    노란 공 중심 X 비율 (stage 중심 기준, +우측)
+ *   --ball-dy-ratio:    노란 공 중심 Y 비율 (stage 중심 기준, -위쪽)
+ *   --ball-size:        flyball 크기 (px). 도착 전 이동 중 크기 ~ 로고의 18%.
+ *   --ball-end-scale:   도착 직전 축소 비율 (≈로고 속 공 크기)
  *
- * 360 / 390 / 430px 폭 대응:
- *   --logo-size를 clamp(112px, 28vw, 128px)로 설정
- *   공 도착 좌표는 비율로 계산되므로 폭이 바뀌어도 항상 노란 공 중심에 정확.
+ * 타임라인:
+ *   0~10%   공 진입 (우하단 멀리서)
+ *   60%     stage 중앙 위쪽으로 접근
+ *   85%     노란 공 코앞
+ *   94%     노란 공 중심 도달 + 축소 시작
+ *   97%     opacity 0.8
+ *   100%    opacity 0 (노란 공과 합쳐짐)
  */
 
 const LOGO_SRC      = '/logos/teyeon-logo-transparent.png';
 const LOGO_FALLBACK = '/logos/teyeon-logo-current.png';
 
-interface SignatureServeProps {
-    /** 부모 컴포넌트가 visible/hidden 제어용 wrapper 처리하므로 별도 prop 없음 */
-}
-
-export default function SignatureServe(_props: SignatureServeProps) {
+export default function SignatureServe() {
     const [logoSrc, setLogoSrc] = React.useState(LOGO_SRC);
 
     return (
         <div
             className="tysig-root"
             style={{
-                // CSS 변수 — 추후 노란 공 위치 미세조정은 여기 두 ratio만 수정.
+                // CSS 변수 — 좌표 미세조정은 ratio 두 값만 수정하면 됨.
                 ['--logo-size' as any]: 'clamp(112px, 28vw, 128px)',
-                ['--ball-dx-ratio' as any]: '0.18',   // 우측으로 18%
-                ['--ball-dy-ratio' as any]: '-0.20',  // 위쪽으로 20% (눈 위치)
-                ['--ball-size-ratio' as any]: '0.10', // 로고 속 노란 공과 동일 크기로 머지
-                // offset-path: 우하단 출발 → 노란 공 중심 도착.
-                // stage 좌표계는 element 자체 px 기준 — stage 크기가 clamp(112,128)이므로
-                // 100,100 부근이 우하단, 도착점은 (50% + dx*size, 50% + dy*size)와 일치.
-                // 로고 size 120 기준: 도착 X = 60 + 0.18*120 = 81.6, Y = 60 - 0.20*120 = 36
-                // 일반화 위해 px 대신 %로 표현이 어려워 직접 px 값을 쓰되, stage가 약 ±8px 변동해도
-                // 노란 공이 약간 더 작게 그려져 시각적으로 맞도록 도착점을 살짝 안쪽으로 둠.
-                ['--ball-path' as any]:
-                    "path('M 130 130 Q 90 80 82 36')",
+                ['--ball-dx-ratio' as any]: '0.18',   // 노란 공 X (+우측 18%)
+                ['--ball-dy-ratio' as any]: '-0.20',  // 노란 공 Y (-위쪽 20%)
+                ['--ball-size' as any]: 'calc(var(--logo-size) * 0.20)',      // 이동 중 크기 (로고의 20%)
+                ['--ball-end-scale' as any]: '0.55',                          // 도착 직전 축소 (실효 ~11%)
             } as React.CSSProperties}
         >
-            {/* 아주 옅은 cool 배경 bloom — 기존 SplashScreen 톤 유지 */}
+            {/* 옅은 cool 배경 bloom */}
             <div
                 aria-hidden
                 style={{
@@ -74,22 +61,48 @@ export default function SignatureServe(_props: SignatureServeProps) {
                 }}
             />
 
-            {/* Stage — 로고 + 공 + trail 모두 이 안에 들어감. 공 좌표 기준점. */}
+            {/* Stage — 로고와 ball 모두 이 안에 들어감. 좌표 원점. */}
             <div className="tysig-stage">
-                {/* trail SVG — 우하단(95,95) → 노란 공 도착점(68,30)까지 부드러운 quadratic.
-                    viewBox 100x100 기준 비율 → stage 크기와 무관하게 동일 곡선 유지.
-                    flyball offset-path와 거의 동일한 호를 그리되 stroke가 약간 안쪽을 통과해 자연스러움. */}
+                {/* trail — viewBox 100x100, ball 경로와 유사한 quadratic curve */}
                 <svg
                     className="tysig-trail"
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
                     aria-hidden
                 >
-                    <path d="M 95 95 Q 40 75 68 30" />
+                    <path d="M 100 100 Q 55 75 68 30" />
                 </svg>
 
-                {/* 노란 공 */}
-                <span className="tysig-ball" aria-hidden />
+                {/* 노란 공 (테니스공 SVG — 본체 + seam 2줄) */}
+                <svg
+                    className="tysig-ball"
+                    viewBox="0 0 32 32"
+                    aria-hidden
+                >
+                    <defs>
+                        <radialGradient id="tysig-ball-grad" cx="38%" cy="32%" r="68%">
+                            <stop offset="0%"  stopColor="#FFF8C2" />
+                            <stop offset="55%" stopColor="#E9D04A" />
+                            <stop offset="100%" stopColor="#B68A12" />
+                        </radialGradient>
+                    </defs>
+                    <circle cx="16" cy="16" r="15" fill="url(#tysig-ball-grad)" />
+                    {/* seam 곡선 2개 — 진짜 테니스공처럼 위/아래로 곡선이 흐름 */}
+                    <path
+                        d="M 3 13 Q 16 4 29 13"
+                        fill="none"
+                        stroke="rgba(255,253,232,0.82)"
+                        strokeWidth="1.1"
+                        strokeLinecap="round"
+                    />
+                    <path
+                        d="M 3 19 Q 16 28 29 19"
+                        fill="none"
+                        stroke="rgba(255,253,232,0.82)"
+                        strokeWidth="1.1"
+                        strokeLinecap="round"
+                    />
+                </svg>
 
                 {/* 로고 */}
                 <Image
