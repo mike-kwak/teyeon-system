@@ -73,7 +73,8 @@ const STATUS_STYLE: Record<TournamentEvent['status'], { bg: string; color: strin
   접수중:    { bg: 'rgba(13,148,136,0.09)',   color: '#134E4A', border: 'rgba(13,148,136,0.22)' },
   접수종료:  { bg: 'rgba(100,116,139,0.08)',  color: '#475569', border: 'rgba(100,116,139,0.18)' },
   대회진행중: { bg: 'rgba(239,68,68,0.08)',   color: '#991B1B', border: 'rgba(239,68,68,0.20)'  },
-  대회종료:  { bg: 'rgba(100,116,139,0.06)',  color: '#94A3B8', border: 'rgba(100,116,139,0.14)' },
+  // 종료된 대회는 채도 높은 빨간 배지로 강조 — 운영자가 한눈에 끝난 일정을 인지하도록.
+  대회종료:  { bg: 'rgba(220,38,38,0.10)',    color: '#B91C1C', border: 'rgba(220,38,38,0.32)' },
   대회취소:  { bg: 'rgba(239,68,68,0.08)',    color: '#991B1B', border: 'rgba(239,68,68,0.20)'  },
 };
 
@@ -172,16 +173,20 @@ export default function TournamentCalendarPage() {
   // Club Schedule 등록/수정: CEO/ADMIN 전용 (TODO: CALENDAR_MANAGER 확장 시 추가)
   const canEditClubSchedule = role === 'CEO' || role === 'ADMIN';
 
-  const [events, setEvents] = useState<TournamentEvent[]>(tournamentEvents);
-  const [dataSource, setDataSource] = useState<'db' | 'demo'>('demo');
+  // 첫 진입 잔상 방지: events / clubSchedules 는 빈 배열로 시작.
+  // demo 시드를 초기값으로 주면 fetch 전에 demo 카드가 잠깐 보였다 사라지는 잔상이 발생.
+  // fetch 실패 시에만 demo 로 폴백 (loadEvents / loadClubSchedules 안에서 처리).
+  const [events, setEvents] = useState<TournamentEvent[]>([]);
+  const [dataSource, setDataSource] = useState<'db' | 'demo' | 'loading'>('loading');
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string>(() => dateKey(new Date()));
 
   // ── 일정 종류 필터 ──
   // 'all': 대회 + TEYEON 모두 표시. 'tournament': 대회만. 'club': TEYEON만.
-  // 필터 변경해도 currentMonth / selectedDate 유지 (state 독립).
+  // 첫 진입은 TEYEON 일정 기준 — 운영 화면은 정모 중심이라 기본 필터를 'club'로 둠.
+  // 사용자가 '전체' / '대회 일정' 으로 바꾸면 그 선택을 유지.
   type CalendarFilter = 'all' | 'tournament' | 'club';
-  const [calendarFilter, setCalendarFilter] = useState<CalendarFilter>('all');
+  const [calendarFilter, setCalendarFilter] = useState<CalendarFilter>('club');
   const showTournament = calendarFilter === 'all' || calendarFilter === 'tournament';
   const showClub = calendarFilter === 'all' || calendarFilter === 'club';
 
@@ -197,7 +202,8 @@ export default function TournamentCalendarPage() {
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
   // ── Club Schedule state ──
-  const [clubSchedules, setClubSchedules] = useState<ClubSchedule[]>(demoClubSchedules);
+  // 빈 배열로 시작 (잔상 방지). fetch 실패 시 loadClubSchedules 안에서 demo 폴백.
+  const [clubSchedules, setClubSchedules] = useState<ClubSchedule[]>([]);
   const [isClubEditorOpen, setIsClubEditorOpen] = useState(false);
   const [editingClubSchedule, setEditingClubSchedule] = useState<ClubSchedule | null>(null);
   const [isSavingClub, setIsSavingClub] = useState(false);
@@ -265,23 +271,42 @@ export default function TournamentCalendarPage() {
   }, [events, selectedDate]);
 
   // ── Events for the displayed month (monthly list) ──
+  // 정렬 규칙 (운영 우선):
+  //   1) 예정/진행중 일정이 위, 종료된 일정이 아래
+  //   2) 예정 그룹은 가장 가까운 일정이 위 (date ASC)
+  //   3) 종료 그룹은 가장 최근에 끝난 일정이 위 (date DESC)
   const monthEvents = useMemo(() => {
+    const today = dateKey(new Date());
     return events
       .filter((e) => {
         const d = parseTournamentDate(e.date);
         return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
       })
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => {
+        const aPast = (a.date || '') < today;
+        const bPast = (b.date || '') < today;
+        if (aPast !== bPast) return aPast ? 1 : -1;
+        // 같은 그룹: 예정은 ASC, 종료는 DESC
+        return aPast ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
+      });
   }, [events, currentMonth]);
 
   // ── Club schedules for the displayed month ──
   const monthClubSchedules = useMemo(() => {
+    const today = dateKey(new Date());
     return clubSchedules
       .filter((cs) => {
         const [y, m] = cs.schedule_date.split('-').map(Number);
         return y === currentMonth.getFullYear() && (m - 1) === currentMonth.getMonth();
       })
-      .sort((a, b) => (a.schedule_date + (a.start_time || '')).localeCompare(b.schedule_date + (b.start_time || '')));
+      .sort((a, b) => {
+        const aPast = a.schedule_date < today;
+        const bPast = b.schedule_date < today;
+        if (aPast !== bPast) return aPast ? 1 : -1;
+        const ak = a.schedule_date + (a.start_time || '');
+        const bk = b.schedule_date + (b.start_time || '');
+        return aPast ? bk.localeCompare(ak) : ak.localeCompare(bk);
+      });
   }, [clubSchedules, currentMonth]);
 
   const cells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
@@ -1486,11 +1511,12 @@ export default function TournamentCalendarPage() {
                             {typeStyle.badge}
                           </span>
                           {isPast && (
+                            // 종료된 정모/번개 등은 빨간 '완료' 배지로 명확히 표시. 음영은 row 자체로 살림.
                             <span style={{
                               fontSize: 8, fontWeight: 800,
                               paddingTop: 1, paddingRight: 5, paddingBottom: 1, paddingLeft: 5, borderRadius: 4,
-                              backgroundColor: 'rgba(100,116,139,0.10)', color: '#475569',
-                              border: '1px solid rgba(100,116,139,0.22)',
+                              backgroundColor: 'rgba(220,38,38,0.10)', color: '#B91C1C',
+                              border: '1px solid rgba(220,38,38,0.32)',
                               whiteSpace: 'nowrap',
                             }}>
                               완료

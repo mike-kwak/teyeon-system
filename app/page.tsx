@@ -672,11 +672,11 @@ export default function Home() {
               />
               {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
-                label="대회 캘린더"
-                description="월별 대회 일정과 참가/파트너 현황을 확인합니다."
+                label="TEYEON 일정"
+                description="정모·번개·대회 일정과 참석 현황을 한곳에서 확인합니다."
                 icon={<CalendarDays size={21} strokeWidth={1.7} />}
                 path="/tournament-calendar"
-                badge="CALENDAR"
+                badge="SCHEDULE"
                 accent="aqua"
               />
               {/* 그룹 1 — 경기/운영 (teal) */}

@@ -4,9 +4,12 @@
 // 입력: { memberId?, userId } 배열 (개인정보 안전한 식별자만)
 // 출력: ResolvedDisplays (byUserId + byMemberId Map)
 //
-// 표시 우선순위 (members row가 없어도 profiles만으로 표시 가능):
-//   이름:   members.nickname → profiles.nickname → (self) user_metadata.nickname/full_name/name → '회원 정보 없음'
+// 표시 우선순위:
+//   이름:   members.nickname → '회원 정보 없음'
+//           ※ profiles.nickname (카카오 닉네임) 사용 금지 — 운영 멤버 이름만 표시.
+//           ※ self user_metadata 이름도 사용 금지 — 본인이라도 members 연결이 풀려 있으면 '회원 정보 없음'.
 //   사진:   members.avatar_url → profiles.avatar_url → (self) user_metadata.avatar_url/picture → null (→ InitialAvatar)
+//           ※ 사진은 카카오 CDN 허용 (alt 노출 없음).
 //   이름과 사진은 서로 다른 소스에서 독립적으로 선택될 수 있음.
 //   (예: 이름은 members.nickname, 사진은 profiles.avatar_url)
 //
@@ -76,6 +79,9 @@ const normText = (v: any): string | null => {
 };
 
 // 내부 row 표현 — 소스별 후보를 모아 우선순위로 선택할 때 사용.
+// ⚠️ 운영 members 테이블에는 is_guest 컬럼이 존재하지 않는다. isGuest 필드는
+// 인터페이스 호환만 유지하고 항상 null. 게스트 구분은 attendance/comment 측에서
+// 별도 신호로 처리해야 함.
 type MemberRow = {
     id: string;
     nickname: string | null;
@@ -122,7 +128,7 @@ export async function resolveMemberDisplays(
         try {
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, is_guest, email, avatar_url, role, auth_user_id')
+                .select('id, nickname, email, avatar_url, role, auth_user_id')
                 .in('id', memberIds);
             if (error) {
                 logResolverWarn('member_id batch', error);
@@ -131,7 +137,8 @@ export async function resolveMemberDisplays(
                     const row: MemberRow = {
                         id: m.id,
                         nickname: normText(m.nickname),
-                        isGuest: m.is_guest ?? null,
+                        // members.is_guest 컬럼은 운영 DB에 존재하지 않음 — 항상 null.
+                        isGuest: null,
                         avatarUrl: normalizeAvatarUrl(m.avatar_url),
                         role: normText(m.role),
                         email: normText(m.email),
@@ -158,7 +165,7 @@ export async function resolveMemberDisplays(
         try {
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, is_guest, email, avatar_url, role, auth_user_id')
+                .select('id, nickname, email, avatar_url, role, auth_user_id')
                 .in('auth_user_id', userIdsForAuthLookup);
             if (error) {
                 logResolverWarn('members-by-auth-user-id batch', error);
@@ -167,7 +174,8 @@ export async function resolveMemberDisplays(
                     const row: MemberRow = {
                         id: m.id,
                         nickname: normText(m.nickname),
-                        isGuest: m.is_guest ?? null,
+                        // members.is_guest 컬럼은 운영 DB에 존재하지 않음 — 항상 null.
+                        isGuest: null,
                         avatarUrl: normalizeAvatarUrl(m.avatar_url),
                         role: normText(m.role),
                         email: normText(m.email),
@@ -224,7 +232,7 @@ export async function resolveMemberDisplays(
         try {
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, is_guest, email, avatar_url, role, auth_user_id')
+                .select('id, nickname, email, avatar_url, role, auth_user_id')
                 .in('email', orphanEmails);
             if (error) {
                 logResolverWarn('members-by-email batch', error);
@@ -234,7 +242,8 @@ export async function resolveMemberDisplays(
                         const row: MemberRow = {
                             id: m.id,
                             nickname: normText(m.nickname),
-                            isGuest: m.is_guest ?? null,
+                            // members.is_guest 컬럼은 운영 DB에 존재하지 않음 — 항상 null.
+                        isGuest: null,
                             avatarUrl: normalizeAvatarUrl(m.avatar_url),
                             role: normText(m.role),
                             email: normText(m.email),
@@ -268,11 +277,9 @@ export async function resolveMemberDisplays(
         // direct memberId > auth_user_id 매핑 > email 매핑.
         const memberHit: MemberRow | null = memberHitDirect ?? memberHitByAuth ?? memberHitByEmail ?? null;
 
-        // 이름 우선순위: members.nickname → profiles.nickname → null
-        const nickname =
-            memberHit?.nickname ??
-            profileHit?.nickname ??
-            null;
+        // 이름 우선순위: members.nickname 만 사용 — 매칭 실패 시 null.
+        // profiles.nickname (카카오 닉네임)은 화면 표시용으로 사용하지 않는다 (운영 규칙).
+        const nickname = memberHit?.nickname ?? null;
 
         // 사진 우선순위: members.avatar_url → profiles.avatar_url → null
         const avatarUrl =
@@ -298,18 +305,21 @@ export async function resolveMemberDisplays(
 
 /**
  * row 표시용 헬퍼.
- * 본인 row일 때만 selfName/selfAvatarUrl 보조 fallback 사용 (호출자에서 user_metadata 주입).
- * 최종 실패 시 '회원 정보 없음'.
+ * 이름은 항상 members.nickname 만 사용 — 카카오 닉네임(user_metadata/profiles.nickname) 사용 금지.
+ * 사진은 selfAvatarUrl(=user_metadata.avatar_url)을 최후 fallback 으로 허용.
+ * 최종 실패 시 이름은 '회원 정보 없음'.
  *
  * 개인정보 노출 금지: 이메일/UUID/manual-guest- 접두사 등 절대 표시명으로 사용하지 않음.
+ *
+ * @param opts.selfName  - 호환을 위해 시그니처는 유지. 표시명으로는 사용하지 않음 (카카오 닉네임 금지).
  */
 export function pickDisplayName(opts: {
     userId: string;
     memberId?: string | null;
     resolved: ResolvedDisplays;
-    /** row가 현재 로그인 사용자 본인일 때만 전달. */
+    /** 호환용 — 사용되지 않음. 카카오 닉네임 노출 금지 정책. */
     selfName?: string | null;
-    /** 본인 row일 때 보강할 avatar URL (user_metadata). */
+    /** 본인 row일 때 보강할 avatar URL (user_metadata). 사진은 카카오 CDN 허용. */
     selfAvatarUrl?: string | null;
 }): {
     name: string;
@@ -322,7 +332,7 @@ export function pickDisplayName(opts: {
     const byMember = opts.memberId ? opts.resolved.byMemberId.get(opts.memberId) : undefined;
 
     // 이름과 사진은 별개로 가장 정보가 풍부한 hit를 선택.
-    // 우선순위: byUser(이미 resolver 안에서 members/profiles 합성됨) > byMember
+    // 우선순위: byUser(이미 resolver 안에서 members 단독 합성) > byMember
     const nameHit = byUser?.nickname ? byUser : (byMember?.nickname ? byMember : null);
     const avatarHit = byUser?.avatarUrl ? byUser : (byMember?.avatarUrl ? byMember : null);
     const memberIdHit = byUser?.memberId ?? byMember?.memberId ?? opts.memberId ?? null;
@@ -342,22 +352,12 @@ export function pickDisplayName(opts: {
         };
     }
 
-    // 본인 fallback (user_metadata에서 받은 이름)
-    if (opts.selfName) {
-        return {
-            name: opts.selfName,
-            isGuest: isGuestHit,
-            resolvedMemberId: memberIdHit,
-            avatarUrl: avatarHit?.avatarUrl ?? selfAvatar ?? null,
-            role: roleHit,
-        };
-    }
-
+    // 매칭 실패 → '회원 정보 없음'. 카카오 닉네임으로 떨어지지 않는다.
     return {
         name: '회원 정보 없음',
         isGuest: isGuestHit,
         resolvedMemberId: memberIdHit,
-        avatarUrl: avatarHit?.avatarUrl ?? null,
+        avatarUrl: avatarHit?.avatarUrl ?? selfAvatar ?? null,
         role: roleHit,
     };
 }

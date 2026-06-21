@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Plus, Share2, Check, MessageSquare } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2, Check, MessageSquare } from 'lucide-react';
 import { shareOrCopyClubSchedule } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -79,13 +79,13 @@ export default function ClubScheduleAttendancePage() {
     const isAdmin = role === 'CEO' || role === 'ADMIN';
 
     // 활성 회원 — 미응답 명단 계산 + 총원 표시용. members 테이블에서 직접 fetch.
-    // (이전에는 count만 가져왔음. 이제 미응답 회원 이름을 화면에 표시해야 하므로 row 자체가 필요.)
+    // ⚠️ 운영 DB의 members 테이블에는 is_guest / active / status 같은 분류 컬럼이 없다.
+    //    이번 작업에서는 members 전체를 정모 응답 대상 기준으로 사용 (추정 컬럼 추가 금지).
     interface ActiveMember {
         id: string;
         nickname: string | null;
         avatar_url: string | null;
         auth_user_id: string | null;
-        is_guest: boolean | null;
     }
 
     const [schedule, setSchedule] = useState<ClubSchedule | null>(null);
@@ -94,6 +94,13 @@ export default function ClubScheduleAttendancePage() {
     const [allAttendances, setAllAttendances] = useState<AttendanceWithMember[]>([]);
     const [comments, setComments] = useState<CommentWithMember[]>([]);
     const [activeMembers, setActiveMembers] = useState<ActiveMember[]>([]);
+    /**
+     * 회원 명단 로드 단계 상태.
+     *   - 'loading': fetch 진행 중 — 총원/미응답을 숫자로 확정 표시하지 않는다.
+     *   - 'ok':      성공 — 0명도 정상 결과로 표시.
+     *   - 'failed':  Supabase 오류로 명단 없음 — 미응답 0명으로 오해되지 않게 경고 표시.
+     */
+    const [membersLoadStatus, setMembersLoadStatus] = useState<'loading' | 'ok' | 'failed'>('loading');
 
     const [pageLoading, setPageLoading] = useState(true);
     const [scheduleLoadError, setScheduleLoadError] = useState<string>('');
@@ -102,9 +109,6 @@ export default function ClubScheduleAttendancePage() {
     const [memberCountError, setMemberCountError] = useState<string>('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [saveError, setSaveError] = useState<string>('');
-    const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
-    /** 참석 요약의 참석/불참/미응답 명단 펼침 상태. */
-    const [expandedSummary, setExpandedSummary] = useState<'attending' | 'absent' | 'pending' | null>(null);
     const [commentBody, setCommentBody] = useState('');
     const [commentCategory, setCommentCategory] = useState<string | null>('일반');
     const [postingComment, setPostingComment] = useState(false);
@@ -171,19 +175,23 @@ export default function ClubScheduleAttendancePage() {
             setCommentsError(err?.message || 'failed');
         }
 
-        // 활성 회원 — 총원/미응답 명단 계산용. count만 가져오던 기존 흐름을 row fetch로 교체.
-        // is_guest 필터는 클라이언트에서 처리 (이전 .or() 쿼리가 일부 환경에서 400을 일으켰음).
+        // 활성 회원 — 총원/미응답 명단 계산용. members 테이블 전체 조회.
+        // ⚠️ is_guest / active / status 같은 분류 컬럼은 운영 DB에 없으므로 select 하지 않는다
+        //    (있다고 가정해 select 하면 PostgREST 400 → 명단 전체 누락 + '미응답 0명' 잘못 표시).
+        setMembersLoadStatus('loading');
         try {
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, avatar_url, auth_user_id, is_guest');
+                .select('id, nickname, avatar_url, auth_user_id');
             if (error) throw error;
-            const rows = (data || []) as ActiveMember[];
-            // 게스트 제외 — 총원/미응답 모두 게스트 비포함이 운영 규칙.
-            setActiveMembers(rows.filter((m) => m.is_guest !== true));
+            setActiveMembers((data || []) as ActiveMember[]);
+            setMembersLoadStatus('ok');
             setMemberCountError('');
         } catch (err: any) {
-            logSupabaseError('MemberCount', err);
+            // 실제 Supabase 오류를 그대로 노출 — 운영 DevTools에서 원인 파악 가능.
+            // (개인정보 누출 없음: code/message/details/hint 만 출력)
+            logSupabaseError('MemberCount (select id, nickname, avatar_url, auth_user_id)', err);
+            setMembersLoadStatus('failed');
             setMemberCountError(err?.message || 'failed');
         }
 
@@ -248,56 +256,39 @@ export default function ClubScheduleAttendancePage() {
         });
     }, [schedule]);
 
-    // 본인 row의 nickname/avatar 가 비어있을 때 표시용 값을 user_metadata / email에서 보강.
-    // auth.user_metadata 는 본인 토큰 안에서만 안전하게 접근 가능 — 다른 회원 row에는 적용하지 않음.
+    // 본인 row의 avatar 가 비어있을 때 사진만 user_metadata 에서 보강.
+    // ⚠️ 이름은 보강하지 않는다 — 카카오 닉네임을 화면에 노출하지 않는 운영 규칙.
+    //    매칭 실패 시 '회원 정보 없음' 으로 표시 (운영진에게 매핑 누락 신호).
     const attendancesForDisplay = useMemo(() => {
         if (!user?.id) return allAttendances;
         const meta = user.user_metadata || {};
-        const emailLocal = user.email ? user.email.split('@')[0] : null;
-        const selfNameFallback =
-            (meta.nickname as string | undefined) ||
-            (meta.full_name as string | undefined) ||
-            (meta.name as string | undefined) ||
-            emailLocal ||
-            null;
         const selfAvatarFallback = normalizeAvatarUrl(
             (meta.avatar_url as string | undefined) ||
             (meta.picture as string | undefined) ||
             null
         );
+        if (!selfAvatarFallback) return allAttendances;
         return allAttendances.map((row) => {
             if (row.user_id !== user.id) return row;
-            const next = { ...row };
-            if (!next.nickname && selfNameFallback) next.nickname = selfNameFallback;
-            if (!next.avatarUrl && selfAvatarFallback) next.avatarUrl = selfAvatarFallback;
-            return next;
+            if (row.avatarUrl) return row;
+            return { ...row, avatarUrl: selfAvatarFallback };
         });
-    }, [allAttendances, user?.id, user?.user_metadata, user?.email]);
+    }, [allAttendances, user?.id, user?.user_metadata]);
 
-    // 댓글에도 동일한 self fallback 적용 — 본인 user_id 댓글이 nickname/avatar null이면
-    // user_metadata/email-local로 보강. 답글(replies)에도 재귀 적용.
-    // 다른 회원 댓글에는 적용 안 함.
+    // 댓글/답글에도 동일하게 사진만 보강. 이름은 카카오 닉네임으로 떨어지지 않는다.
     const commentsForDisplay = useMemo(() => {
         if (!user?.id) return comments;
         const meta = user.user_metadata || {};
-        const emailLocal = user.email ? user.email.split('@')[0] : null;
-        const selfNameFallback =
-            (meta.nickname as string | undefined) ||
-            (meta.full_name as string | undefined) ||
-            (meta.name as string | undefined) ||
-            emailLocal ||
-            null;
         const selfAvatarFallback = normalizeAvatarUrl(
             (meta.avatar_url as string | undefined) ||
             (meta.picture as string | undefined) ||
             null
         );
+        if (!selfAvatarFallback) return comments;
         const enrichSelf = (c: CommentWithMember): CommentWithMember => {
             if (c.user_id !== user.id) return c;
-            const next = { ...c };
-            if (!next.nickname && selfNameFallback) next.nickname = selfNameFallback;
-            if (!next.avatarUrl && selfAvatarFallback) next.avatarUrl = selfAvatarFallback;
-            return next;
+            if (c.avatarUrl) return c;
+            return { ...c, avatarUrl: selfAvatarFallback };
         };
         return comments.map((c) => {
             const top = enrichSelf(c);
@@ -306,7 +297,7 @@ export default function ClubScheduleAttendancePage() {
             }
             return top;
         });
-    }, [comments, user?.id, user?.user_metadata, user?.email]);
+    }, [comments, user?.id, user?.user_metadata]);
 
     /** 원댓글 + 답글 전체 개수 — 헤더 N 표시용. */
     const totalCommentCount = useMemo(() => {
@@ -323,25 +314,38 @@ export default function ClubScheduleAttendancePage() {
      * 매칭 기준 (둘 중 하나라도 hit):
      *   - attendance.member_id === member.id  (직접 매칭)
      *   - attendance.user_id  === member.auth_user_id  (운영진 사전 매핑)
-     * 게스트는 active 단계에서 이미 제외.
+     *
+     * ⚠️ 게스트 필터링은 적용하지 않음 — 운영 members 테이블에 is_guest 컬럼이 없음.
+     *    명확한 게스트 분류가 도입되면 그때 추가. 현재는 members 전체가 응답 대상.
      */
     const noResponseMembers = useMemo(() => {
-        if (activeMembers.length === 0) return [] as ActiveMember[];
+        // 로딩 / 실패 상태에서는 미응답 결과를 노출하지 않는다 — 0명으로 오해 방지.
+        if (membersLoadStatus !== 'ok' || activeMembers.length === 0) return [] as ActiveMember[];
         const attendedMemberIds = new Set<string>();
         const attendedAuthIds = new Set<string>();
         for (const r of allAttendances) {
             if (r.member_id) attendedMemberIds.add(r.member_id);
             if (r.user_id) attendedAuthIds.add(r.user_id);
         }
-        return activeMembers.filter((m) => {
+        const result = activeMembers.filter((m) => {
             if (attendedMemberIds.has(m.id)) return false;
             if (m.auth_user_id && attendedAuthIds.has(m.auth_user_id)) return false;
             return true;
         });
-    }, [activeMembers, allAttendances]);
+        // 운영 점검 로그 — 개인정보 미포함. count 만.
+        if (typeof window !== 'undefined') {
+            const respondedCount = activeMembers.length - result.length;
+            console.log(
+                `[ClubSchedule/no-response] active=${activeMembers.length} ` +
+                `responded=${respondedCount} noResponse=${result.length} ` +
+                `(attendanceRows=${allAttendances.length})`
+            );
+        }
+        return result;
+    }, [activeMembers, allAttendances, membersLoadStatus]);
 
-    // 호환용 — 기존 buildAttendanceSummary 가 totalMemberCount 를 입력으로 받음.
-    const totalMemberCount = activeMembers.length;
+    // 총원 — 로드 성공 시에만 숫자, 아니면 null.
+    const totalMemberCount = membersLoadStatus === 'ok' ? activeMembers.length : 0;
 
     // 게스트 신청 댓글 건수 — 실제 확정 게스트 수는 아직 별도 데이터로 없으므로
     // 운영진 요약 카드의 '게스트' 자리를 댓글 카테고리 기반 'N건'으로 대체한다.
@@ -884,12 +888,14 @@ export default function ClubScheduleAttendancePage() {
                 <section style={cardStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <SectionTitle title="참석 현황" inline />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>
-                            {memberCountError
+                        <span style={{ fontSize: 11, fontWeight: 700, color: membersLoadStatus === 'failed' ? '#B91C1C' : '#64748B' }}>
+                            {membersLoadStatus === 'loading'
                                 ? '총원 집계 중'
-                                : totalMemberCount > 0
-                                    ? `총 ${totalMemberCount}명`
-                                    : ''}
+                                : membersLoadStatus === 'failed'
+                                    ? '총원 확인 불가'
+                                    : totalMemberCount > 0
+                                        ? `총 ${totalMemberCount}명`
+                                        : ''}
                         </span>
                     </div>
 
@@ -912,8 +918,6 @@ export default function ClubScheduleAttendancePage() {
                             label={`${b.time} 참석`}
                             count={b.count}
                             members={b.members}
-                            expanded={expandedBucket === `arrival-${b.time}`}
-                            onToggle={() => setExpandedBucket(expandedBucket === `arrival-${b.time}` ? null : `arrival-${b.time}`)}
                         />
                     ))}
                     {summary.leaveBuckets
@@ -925,8 +929,6 @@ export default function ClubScheduleAttendancePage() {
                                 label={`${b.time} 조퇴`}
                                 count={b.count}
                                 members={b.members}
-                                expanded={expandedBucket === `leave-${b.time}`}
-                                onToggle={() => setExpandedBucket(expandedBucket === `leave-${b.time}` ? null : `leave-${b.time}`)}
                             />
                         ))
                     }
@@ -935,8 +937,6 @@ export default function ClubScheduleAttendancePage() {
                         label="불참"
                         count={summary.totalNotAttending}
                         members={summary.notAttendingList}
-                        expanded={expandedBucket === 'absent'}
-                        onToggle={() => setExpandedBucket(expandedBucket === 'absent' ? null : 'absent')}
                     />
 
                     {summary.totalGuestsAttending > 0 && (
@@ -947,9 +947,32 @@ export default function ClubScheduleAttendancePage() {
                     )}
                 </section>
 
-                {/* 참석 현황 요약 — 모든 로그인 회원에게 공개. 참석/불참/미응답 명단 펼침 지원. */}
+                {/* 참석 현황 요약 — 모든 로그인 회원에게 공개. 이름은 항상 펼쳐서 표시. */}
                 <section style={cardStyle}>
                     <SectionTitle title="참석 현황 요약" />
+
+                    {membersLoadStatus === 'failed' && (
+                        <div
+                            style={{
+                                marginBottom: 10, padding: '8px 10px', borderRadius: 8,
+                                backgroundColor: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.28)',
+                                fontSize: 11, fontWeight: 700, color: '#B91C1C',
+                            }}
+                        >
+                            회원 명단을 불러오지 못했습니다 · 미응답 계산 불가
+                        </div>
+                    )}
+                    {membersLoadStatus === 'loading' && (
+                        <div
+                            style={{
+                                marginBottom: 10, padding: '8px 10px', borderRadius: 8,
+                                backgroundColor: 'rgba(100,116,139,0.08)', border: '1px solid rgba(100,116,139,0.18)',
+                                fontSize: 11, fontWeight: 700, color: '#475569',
+                            }}
+                        >
+                            회원 명단 불러오는 중…
+                        </div>
+                    )}
 
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <NameListRow
@@ -959,8 +982,6 @@ export default function ClubScheduleAttendancePage() {
                             names={summary.attendingList.map((m) =>
                                 `${m.nickname || '회원 정보 없음'}${m.is_guest ? '(G)' : ''}`,
                             )}
-                            expanded={expandedSummary === 'attending'}
-                            onToggle={() => setExpandedSummary(expandedSummary === 'attending' ? null : 'attending')}
                         />
                         <NameListRow
                             color="#EF4444"
@@ -969,17 +990,24 @@ export default function ClubScheduleAttendancePage() {
                             names={summary.notAttendingList.map((m) =>
                                 `${m.nickname || '회원 정보 없음'}${m.is_guest ? '(G)' : ''}`,
                             )}
-                            expanded={expandedSummary === 'absent'}
-                            onToggle={() => setExpandedSummary(expandedSummary === 'absent' ? null : 'absent')}
                         />
-                        {/* 미응답: 활성 회원 중 attendance row 가 없는 회원. members.nickname 사용. */}
+                        {/* 미응답: 활성 회원 중 attendance row 가 없는 회원. members.nickname 사용.
+                            로딩/실패 상태에서는 숫자 대신 안내문을 placeholder로 사용. */}
                         <NameListRow
                             color="#F59E0B"
                             label="미응답"
-                            count={noResponseMembers.length}
+                            count={membersLoadStatus === 'ok' ? noResponseMembers.length : 0}
                             names={noResponseMembers.map((m) => m.nickname || '회원 정보 없음')}
-                            expanded={expandedSummary === 'pending'}
-                            onToggle={() => setExpandedSummary(expandedSummary === 'pending' ? null : 'pending')}
+                            emptyPlaceholder={
+                                membersLoadStatus === 'loading' ? '회원 명단 불러오는 중…'
+                                    : membersLoadStatus === 'failed' ? '계산 불가 (회원 명단 미수신)'
+                                        : '—'
+                            }
+                            countOverride={
+                                membersLoadStatus === 'loading' ? '집계 중'
+                                    : membersLoadStatus === 'failed' ? '확인 불가'
+                                        : undefined
+                            }
                             isLast
                         />
                     </div>
@@ -1291,24 +1319,22 @@ const StatusBanner = ({
     );
 };
 
+/**
+ * 시간대별 참석/불참 row — 이름 목록 항상 표시. 펼침 토글 제거.
+ * "누가 어디에 있는지" 한눈에 보여야 하는 운영 화면 우선순위.
+ */
 const BucketRow = ({
-    color, label, count, members, expanded, onToggle,
+    color, label, count, members,
 }: {
     color: string;
     label: string;
     count: number;
     members: AttendanceWithMember[];
-    expanded: boolean;
-    onToggle: () => void;
 }) => (
     <div style={{ borderBottom: '1px solid rgba(15,23,42,0.06)', padding: '10px 0' }}>
-        <button
-            type="button"
-            onClick={onToggle}
+        <div
             style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                WebkitTapHighlightColor: 'transparent',
+                display: 'flex', alignItems: 'center', gap: 8,
             }}
         >
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
@@ -1318,45 +1344,44 @@ const BucketRow = ({
             <span style={{ fontSize: 12, fontWeight: 800, color: count > 0 ? color : '#94A3B8' }}>
                 {count}명
             </span>
-            <ChevronRight
-                size={14}
-                style={{
-                    color: '#CBD5E1',
-                    transform: expanded ? 'rotate(90deg)' : 'rotate(0)',
-                    transition: 'transform 0.18s',
-                }}
-            />
-        </button>
-        {expanded && members.length > 0 && (
-            <p style={{
-                margin: '6px 0 0 16px', fontSize: 11, fontWeight: 600, color: '#475569', lineHeight: 1.55, wordBreak: 'keep-all',
-            }}>
-                {members.map((m, i) => (
+        </div>
+        {/* 이름 목록 — 항상 표시. 0명일 땐 회색 placeholder. */}
+        <p style={{
+            margin: '6px 0 0 16px', fontSize: 11,
+            fontWeight: members.length > 0 ? 600 : 500,
+            color: members.length > 0 ? '#475569' : '#CBD5E1',
+            lineHeight: 1.55, wordBreak: 'keep-all',
+        }}>
+            {members.length > 0
+                ? members.map((m, i) => (
                     <span key={m.id}>
                         {m.nickname || '회원 정보 없음'}{m.is_guest ? '(G)' : ''}
                         {i < members.length - 1 ? ', ' : ''}
                     </span>
-                ))}
-            </p>
-        )}
+                ))
+                : '—'}
+        </p>
     </div>
 );
 
 /**
- * 참석/불참/미응답 명단 펼침 row.
- * 기존 BucketRow 와 디자인 동일 — 펼치면 이름을 콤마로 나열.
+ * 참석/불참/미응답 명단 row — 이름 항상 표시. 펼침 토글 제거.
  * 표시값은 호출자에서 가공해 names: string[] 으로 전달. 개인정보(이메일/UUID/카카오 닉네임) 노출 금지.
+ *
+ * emptyPlaceholder: names가 비어있을 때 표시할 안내문 (기본 '—').
+ *                   미응답 row에서 loading/failed 상태를 사용자에게 보여줄 때 사용.
+ * countOverride:    count 숫자 대신 문자열을 카운트 자리에 표시 (loading/failed 안내).
  */
 const NameListRow = ({
-    color, label, count, names, expanded, onToggle, isLast,
+    color, label, count, names, isLast, emptyPlaceholder = '—', countOverride,
 }: {
     color: string;
     label: string;
     count: number;
     names: string[];
-    expanded: boolean;
-    onToggle: () => void;
     isLast?: boolean;
+    emptyPlaceholder?: string;
+    countOverride?: string;
 }) => (
     <div
         style={{
@@ -1364,53 +1389,44 @@ const NameListRow = ({
             padding: '10px 0',
         }}
     >
-        <button
-            type="button"
-            onClick={onToggle}
+        <div
             style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                WebkitTapHighlightColor: 'transparent',
+                display: 'flex', alignItems: 'center', gap: 8,
             }}
-            aria-expanded={expanded}
-            aria-label={`${label} ${count}명 ${expanded ? '접기' : '펼치기'}`}
         >
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
             <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
                 {label}
             </span>
             <span style={{ fontSize: 12, fontWeight: 800, color: count > 0 ? color : '#94A3B8' }}>
-                {count}명
+                {countOverride ?? `${count}명`}
             </span>
-            <ChevronRight
-                size={14}
-                style={{
-                    color: '#CBD5E1',
-                    transform: expanded ? 'rotate(90deg)' : 'rotate(0)',
-                    transition: 'transform 0.18s',
-                }}
-            />
-        </button>
-        {expanded && (
-            <p
-                style={{
-                    margin: '6px 0 0 16px',
-                    fontSize: 11, fontWeight: 600, color: '#475569',
-                    lineHeight: 1.6, wordBreak: 'keep-all',
-                }}
-            >
-                {names.length > 0
-                    ? names.join(', ')
-                    : <span style={{ color: '#94A3B8' }}>해당 회원이 없습니다</span>}
-            </p>
-        )}
+        </div>
+        <p
+            style={{
+                margin: '6px 0 0 16px',
+                fontSize: 11,
+                fontWeight: names.length > 0 ? 600 : 500,
+                color: names.length > 0 ? '#475569' : '#CBD5E1',
+                lineHeight: 1.6, wordBreak: 'keep-all',
+            }}
+        >
+            {names.length > 0 ? names.join(', ') : emptyPlaceholder}
+        </p>
     </div>
 );
 
 /**
- * 원댓글 + 답글 묶음.
- * 답글은 동일 CommentItem 으로 렌더하되 좌측 들여쓰기 + 살짝 작은 아바타로 시각 구분.
- * 답글 입력창은 부모 댓글 아래 / 답글 리스트 다음에 렌더된다.
+ * 1단계 스레드: 원댓글 + (답글 입력창 if replying) + 답글들.
+ *
+ * 시각 구조:
+ *   ─── 원댓글
+ *   │   ↳ 답글 입력 (답글 버튼 누르면 바로 아래)
+ *   │   ↳ 답글 A-1
+ *   │   ↳ 답글 A-2
+ *
+ * 부모 + 답글 묶음을 옅은 배경/좌측 가이드선으로 시각 연결.
+ * 답글 입력창은 부모 바로 아래에 표시되어 컨텍스트가 끊기지 않음.
  */
 const CommentThread = ({
     comment, currentUserId, isAdmin,
@@ -1435,8 +1451,20 @@ const CommentThread = ({
     onDeleteReply: (replyId: string) => void;
 }) => {
     const isReplyingHere = replyingToId === comment.id;
+    const hasReplies = !!comment.replies && comment.replies.length > 0;
+    const showInlineChildren = isReplyingHere || hasReplies;
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div
+            style={{
+                // 스레드 그룹 — 흰 카드 위에 살짝 옅은 배경/테두리. 다른 원댓글과의 구분을 강화.
+                borderRadius: 12,
+                backgroundColor: showInlineChildren ? 'rgba(15,23,42,0.025)' : 'transparent',
+                border: showInlineChildren ? '1px solid rgba(15,23,42,0.05)' : '1px solid transparent',
+                padding: showInlineChildren ? 10 : 0,
+                display: 'flex', flexDirection: 'column', gap: 10,
+                transition: 'background-color 0.15s, border-color 0.15s',
+            }}
+        >
             <CommentItem
                 comment={comment}
                 isReply={false}
@@ -1449,44 +1477,18 @@ const CommentThread = ({
                 onReplyToggle={onReplyToggle}
             />
 
-            {comment.replies && comment.replies.length > 0 && (
-                <div
-                    style={{
-                        // 모바일에서도 잘리지 않을 정도의 좌측 들여쓰기.
-                        // 들여쓰기 + 회색 가이드선으로 답글임을 표시.
-                        marginLeft: 18,
-                        paddingLeft: 12,
-                        borderLeft: '2px solid rgba(15,23,42,0.06)',
-                        display: 'flex', flexDirection: 'column', gap: 10,
-                    }}
-                >
-                    {comment.replies.map((r) => (
-                        <CommentItem
-                            key={r.id}
-                            comment={r}
-                            isReply
-                            canDelete={currentUserId === r.user_id || isAdmin}
-                            canEdit={currentUserId === r.user_id}
-                            // 답글에서 다시 답글을 눌러도 동일 원댓글에 답글로 추가됨 (service 정규화).
-                            canReply={!!currentUserId}
-                            isReplying={false}
-                            onEdit={() => onEditReply(r)}
-                            onDelete={() => onDeleteReply(r.id)}
-                            onReplyToggle={onReplyToggle}
-                        />
-                    ))}
-                </div>
-            )}
-
+            {/* 답글 입력 — 원댓글 바로 아래. 답글 리스트보다 먼저 표시되어 컨텍스트가 자연스럽게 이어짐. */}
             {isReplyingHere && currentUserId && (
                 <div
                     id={`reply-input-${comment.id}`}
                     style={{
-                        marginLeft: 18,
-                        paddingTop: 10, paddingRight: 10, paddingBottom: 10, paddingLeft: 10,
-                        borderRadius: 12,
-                        backgroundColor: '#F8FAFC',
+                        // 들여쓰기는 답글과 동일 — 시각적으로 답글 위치를 미리 보여줌.
+                        marginLeft: 16,
+                        paddingTop: 10, paddingRight: 10, paddingBottom: 10, paddingLeft: 12,
+                        borderRadius: 10,
+                        backgroundColor: '#FFFFFF',
                         border: '1px solid rgba(59,130,246,0.32)',
+                        borderLeft: '3px solid #3B82F6',
                         display: 'flex', flexDirection: 'column', gap: 8,
                     }}
                 >
@@ -1503,7 +1505,7 @@ const CommentThread = ({
                             width: '100%', boxSizing: 'border-box',
                             resize: 'none', minHeight: 38,
                             paddingTop: 8, paddingRight: 10, paddingBottom: 8, paddingLeft: 10,
-                            borderRadius: 10,
+                            borderRadius: 8,
                             border: '1px solid rgba(15,23,42,0.10)',
                             fontSize: 12, fontWeight: 500, color: '#0F172A',
                             backgroundColor: '#FFFFFF',
@@ -1516,7 +1518,7 @@ const CommentThread = ({
                             type="button"
                             onClick={onReplyCancel}
                             style={{
-                                height: 32, paddingLeft: 12, paddingRight: 12,
+                                height: 30, paddingLeft: 12, paddingRight: 12,
                                 borderRadius: 8,
                                 border: '1px solid rgba(15,23,42,0.10)',
                                 backgroundColor: '#FFFFFF', color: '#64748B',
@@ -1532,7 +1534,7 @@ const CommentThread = ({
                             onClick={onReplySubmit}
                             disabled={postingReply || !replyBody.trim()}
                             style={{
-                                height: 32, paddingLeft: 14, paddingRight: 14,
+                                height: 30, paddingLeft: 14, paddingRight: 14,
                                 borderRadius: 8,
                                 backgroundColor: replyBody.trim() ? '#3B82F6' : '#CBD5E1',
                                 color: '#FFFFFF', border: 'none',
@@ -1544,6 +1546,34 @@ const CommentThread = ({
                             {postingReply ? '등록 중...' : '등록'}
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* 답글 리스트 — 좌측 가이드선으로 부모와 연결. created_at ASC. */}
+            {hasReplies && (
+                <div
+                    style={{
+                        marginLeft: 16,
+                        paddingLeft: 12,
+                        borderLeft: '2px solid rgba(59,130,246,0.18)',
+                        display: 'flex', flexDirection: 'column', gap: 10,
+                    }}
+                >
+                    {comment.replies!.map((r) => (
+                        <CommentItem
+                            key={r.id}
+                            comment={r}
+                            isReply
+                            canDelete={currentUserId === r.user_id || isAdmin}
+                            canEdit={currentUserId === r.user_id}
+                            // 답글에서 다시 답글을 눌러도 부모 원댓글에 답글로 추가됨 (service 정규화).
+                            canReply={!!currentUserId}
+                            isReplying={false}
+                            onEdit={() => onEditReply(r)}
+                            onDelete={() => onDeleteReply(r.id)}
+                            onReplyToggle={onReplyToggle}
+                        />
+                    ))}
                 </div>
             )}
         </div>
@@ -1618,9 +1648,10 @@ const CommentItem = ({
                 <p style={{ margin: '3px 0 0', fontSize: isReply ? 11.5 : 12, fontWeight: 500, color: '#1E293B', lineHeight: 1.55, wordBreak: 'keep-all' }}>
                     {comment.body}
                 </p>
-                {(canDelete || canEdit || canReply) && (
+                {(canDelete || canEdit || (canReply && !isReply)) && (
                     <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                        {canReply && (
+                        {/* 답글 버튼은 원댓글에만 표시 — 1단계 스레드 정책. */}
+                        {canReply && !isReply && (
                             <button
                                 type="button"
                                 onClick={onReplyToggle}
