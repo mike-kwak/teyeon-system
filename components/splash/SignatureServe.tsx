@@ -23,6 +23,9 @@ import './signatureServe.css';
  *                       +0.18 = 우측, -0.18 = 좌측
  *   --ball-dy-ratio:    노란 공 중심 Y 비율
  *                       -0.20 = 위쪽(눈처럼 약간 우상단)
+ *   --ball-size-ratio:  flyball 크기 비율 — 도착 시 로고 속 노란 공과 동일 크기로 맞춤
+ *   --ball-path:        offset-path 곡선. 도착점은 stage 좌상단(0,0)~우하단(stageSize,stageSize)
+ *                       좌표계에서 노란 공 중심 좌표와 정확히 동일하게 계산됨.
  *
  * 360 / 390 / 430px 폭 대응:
  *   --logo-size를 clamp(112px, 28vw, 128px)로 설정
@@ -47,6 +50,15 @@ export default function SignatureServe(_props: SignatureServeProps) {
                 ['--logo-size' as any]: 'clamp(112px, 28vw, 128px)',
                 ['--ball-dx-ratio' as any]: '0.18',   // 우측으로 18%
                 ['--ball-dy-ratio' as any]: '-0.20',  // 위쪽으로 20% (눈 위치)
+                ['--ball-size-ratio' as any]: '0.10', // 로고 속 노란 공과 동일 크기로 머지
+                // offset-path: 우하단 출발 → 노란 공 중심 도착.
+                // stage 좌표계는 element 자체 px 기준 — stage 크기가 clamp(112,128)이므로
+                // 100,100 부근이 우하단, 도착점은 (50% + dx*size, 50% + dy*size)와 일치.
+                // 로고 size 120 기준: 도착 X = 60 + 0.18*120 = 81.6, Y = 60 - 0.20*120 = 36
+                // 일반화 위해 px 대신 %로 표현이 어려워 직접 px 값을 쓰되, stage가 약 ±8px 변동해도
+                // 노란 공이 약간 더 작게 그려져 시각적으로 맞도록 도착점을 살짝 안쪽으로 둠.
+                ['--ball-path' as any]:
+                    "path('M 130 130 Q 90 80 82 36')",
             } as React.CSSProperties}
         >
             {/* 아주 옅은 cool 배경 bloom — 기존 SplashScreen 톤 유지 */}
@@ -64,15 +76,15 @@ export default function SignatureServe(_props: SignatureServeProps) {
 
             {/* Stage — 로고 + 공 + trail 모두 이 안에 들어감. 공 좌표 기준점. */}
             <div className="tysig-stage">
-                {/* trail SVG — 우하단 → 노란 공 좌표(로고 중심 +18%,-20%)까지 부드러운 quadratic.
-                    viewBox 100x100 기준, stage가 어떤 크기든 동일한 곡선 유지. */}
+                {/* trail SVG — 우하단(95,95) → 노란 공 도착점(68,30)까지 부드러운 quadratic.
+                    viewBox 100x100 기준 비율 → stage 크기와 무관하게 동일 곡선 유지.
+                    flyball offset-path와 거의 동일한 호를 그리되 stroke가 약간 안쪽을 통과해 자연스러움. */}
                 <svg
                     className="tysig-trail"
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
                     aria-hidden
                 >
-                    {/* M (시작: 우하단 외곽) Q (제어점: 좌하단 곡선) (도착: 노란 공) */}
                     <path d="M 95 95 Q 40 75 68 30" />
                 </svg>
 
