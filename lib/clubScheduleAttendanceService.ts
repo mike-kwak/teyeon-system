@@ -4,6 +4,11 @@
 //         member_id는 nullable로 함께 저장해 명단/이름 표시에 활용.
 
 import { supabase } from './supabase';
+import {
+    resolveMemberDisplays,
+    pickDisplayName,
+    type ResolvedDisplays,
+} from './memberDisplayResolver';
 
 export type AttendanceStatus = 'attending' | 'not_attending';
 
@@ -29,6 +34,8 @@ export interface AttendanceRow {
 export interface AttendanceWithMember extends AttendanceRow {
     nickname: string | null;
     is_guest: boolean | null;
+    /** members.avatar_url > profiles.avatar_url 우선순위로 해소된 사진. null이면 InitialAvatar fallback. */
+    avatarUrl: string | null;
 }
 
 export interface AttendanceUpsertInput {
@@ -160,110 +167,34 @@ export async function fetchAttendancesWithMembers(
         updated_at: row.updated_at,
         nickname: null,
         is_guest: null,
+        avatarUrl: null,
     }));
 
-    // 2) members 이름 보강 — 실패해도 시간대별 현황은 살아남도록 try/catch.
-    const memberIds = Array.from(new Set(
-        normalized
-            .map((r) => r.member_id)
-            .filter((id): id is string => !!id)
-    ));
-
-    if (memberIds.length > 0) {
-        try {
-            const { data: members, error: memberErr } = await supabase
-                .from('members')
-                .select('id, nickname, is_guest')
-                .in('id', memberIds);
-            if (memberErr) {
-                console.warn(
-                    `[Attendance/members lookup failed] code=${memberErr.code} message=${memberErr.message} details=${memberErr.details} hint=${memberErr.hint}`
-                );
-            } else {
-                const byId = new Map<string, { nickname: string | null; is_guest: boolean | null }>();
-                for (const m of (members || []) as any[]) {
-                    byId.set(m.id, { nickname: m.nickname ?? null, is_guest: m.is_guest ?? null });
-                }
-                for (const row of normalized) {
-                    if (row.member_id) {
-                        const hit = byId.get(row.member_id);
-                        if (hit) {
-                            row.nickname = hit.nickname;
-                            row.is_guest = hit.is_guest;
-                        }
-                    }
-                }
-            }
-        } catch (e: any) {
-            console.warn(
-                `[Attendance/members lookup threw] code=${e?.code} message=${e?.message} details=${e?.details} hint=${e?.hint}`
-            );
-        }
+    // 2) 공통 resolver로 일괄 해소 — comments와 동일 로직 재사용 (N+1 회피, 최대 3 batch).
+    let resolved: ResolvedDisplays;
+    try {
+        resolved = await resolveMemberDisplays(
+            normalized.map((r) => ({ userId: r.user_id, memberId: r.member_id })),
+        );
+    } catch (e: any) {
+        console.warn(`[Attendances/resolve] failed — fallback to empty:`, e?.message ?? e);
+        resolved = { byUserId: new Map(), byMemberId: new Map() };
     }
 
-    // ── fallback: member_id가 없거나 nickname을 못 찾은 row는 user_id → profiles.email → members.email 경로로 보강 ──
-    // 닉네임 부분 매칭은 절대 사용하지 않음. profiles.id == user_id (auth) exact match,
-    // profiles.email → members.email exact match만 사용.
-    const orphanUserIds = Array.from(new Set(
-        normalized
-            .filter((r) => !r.nickname)
-            .map((r) => r.user_id)
-            .filter((id): id is string => !!id)
-    ));
-
-    if (orphanUserIds.length > 0) {
-        try {
-            const { data: profiles, error: profErr } = await supabase
-                .from('profiles')
-                .select('id, email')
-                .in('id', orphanUserIds);
-            if (profErr) {
-                console.warn(
-                    `[Attendance/profiles fallback failed] code=${profErr.code} message=${profErr.message} details=${profErr.details} hint=${profErr.hint}`
-                );
-            } else {
-                const profileById = new Map<string, { email: string | null }>();
-                for (const p of (profiles || []) as any[]) {
-                    profileById.set(p.id, { email: p.email ?? null });
-                }
-                const emails = Array.from(new Set(
-                    (profiles || []).map((p: any) => p.email).filter((e: any): e is string => !!e)
-                ));
-                let membersByEmail = new Map<string, { id: string; nickname: string | null; is_guest: boolean | null }>();
-                if (emails.length > 0) {
-                    const { data: emailMembers, error: emErr } = await supabase
-                        .from('members')
-                        .select('id, nickname, is_guest, email')
-                        .in('email', emails);
-                    if (emErr) {
-                        console.warn(
-                            `[Attendance/members-by-email fallback failed] code=${emErr.code} message=${emErr.message} details=${emErr.details} hint=${emErr.hint}`
-                        );
-                    } else {
-                        for (const m of (emailMembers || []) as any[]) {
-                            if (m.email) membersByEmail.set(m.email, { id: m.id, nickname: m.nickname ?? null, is_guest: m.is_guest ?? null });
-                        }
-                    }
-                }
-                for (const row of normalized) {
-                    if (row.nickname) continue;
-                    const profile = profileById.get(row.user_id);
-                    if (!profile?.email) continue;
-                    const hit = membersByEmail.get(profile.email);
-                    if (hit) {
-                        row.nickname = hit.nickname;
-                        row.is_guest = hit.is_guest;
-                        // member_id는 화면 표시용으로만 채워둠 (DB에는 영향 없음).
-                        // 사용자가 다음에 저장 시 page의 saveMyAttendance가 정식 member_id를 채워 update한다.
-                        if (!row.member_id) row.member_id = hit.id;
-                    }
-                }
-            }
-        } catch (e: any) {
-            console.warn(
-                `[Attendance/fallback threw] code=${e?.code} message=${e?.message} details=${e?.details} hint=${e?.hint}`
-            );
+    for (const row of normalized) {
+        const pick = pickDisplayName({
+            userId: row.user_id,
+            memberId: row.member_id,
+            resolved,
+            selfName: null,
+        });
+        if (pick.name !== '회원 정보 없음') {
+            row.nickname = pick.name;
         }
+        if (pick.isGuest !== null) row.is_guest = pick.isGuest;
+        if (pick.avatarUrl) row.avatarUrl = pick.avatarUrl;
+        // 화면용 보강 — DB는 미변경. 다음 저장 시 page가 정식 member_id로 update.
+        if (!row.member_id && pick.resolvedMemberId) row.member_id = pick.resolvedMemberId;
     }
 
     return normalized;
@@ -457,27 +388,65 @@ export interface CommentRow {
 
 export interface CommentWithMember extends CommentRow {
     nickname: string | null;
+    /** members.avatar_url > profiles.avatar_url 우선순위로 해소된 사진. null이면 InitialAvatar fallback. */
+    avatarUrl: string | null;
 }
 
 export async function fetchComments(scheduleId: string): Promise<CommentWithMember[]> {
+    // 1) comments 본체 — 관계 join을 빼고 단순 select. RLS/관계 문제로 join 실패 시
+    //    댓글 전체가 사라지는 위험 차단.
     const { data, error } = await supabase
         .from('club_schedule_comments')
-        .select('*, members:member_id(nickname)')
+        .select('id, schedule_id, user_id, member_id, category, body, created_at, updated_at')
         .eq('schedule_id', scheduleId)
         .order('created_at', { ascending: true });
 
-    if (error) throw error;
-    return (data || []).map((row: any) => ({
-        id: row.id,
-        schedule_id: row.schedule_id,
-        user_id: row.user_id,
-        member_id: row.member_id,
-        category: row.category,
-        body: row.body,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        nickname: row.members?.nickname ?? null,
-    }));
+    if (error) {
+        const e: any = error;
+        console.warn(
+            `[Comments/fetch] code=${e?.code} | message=${e?.message} | details=${e?.details} | hint=${e?.hint}`,
+        );
+        throw error;
+    }
+
+    const rows = (data || []) as Array<{
+        id: string; schedule_id: string; user_id: string; member_id: string | null;
+        category: string | null; body: string; created_at: string; updated_at: string;
+    }>;
+
+    // 2) 공통 resolver로 이름 일괄 해소 (개별 row N+1 금지)
+    //    한 댓글의 이름 조회 실패가 다른 댓글 전체 로드를 막지 않도록 resolver는 내부에서
+    //    예외 swallow 후 로그만 남김.
+    let resolved: ResolvedDisplays;
+    try {
+        resolved = await resolveMemberDisplays(
+            rows.map((r) => ({ userId: r.user_id, memberId: r.member_id })),
+        );
+    } catch (e: any) {
+        console.warn(`[Comments/resolve] failed completely — fallback to empty:`, e?.message ?? e);
+        resolved = { byUserId: new Map(), byMemberId: new Map() };
+    }
+
+    return rows.map((row) => {
+        const pick = pickDisplayName({
+            userId: row.user_id,
+            memberId: row.member_id,
+            resolved,
+            selfName: null,
+        });
+        return {
+            id: row.id,
+            schedule_id: row.schedule_id,
+            user_id: row.user_id,
+            member_id: row.member_id ?? pick.resolvedMemberId,
+            category: row.category,
+            body: row.body,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            nickname: pick.name === '회원 정보 없음' ? null : pick.name,
+            avatarUrl: pick.avatarUrl,
+        };
+    });
 }
 
 export async function createComment(input: {

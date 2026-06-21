@@ -32,6 +32,9 @@ import {
     type CommentWithMember,
 } from '@/lib/clubScheduleAttendanceService';
 import { CLUB_TYPE_STYLE, formatTimeRangeAmPm, type ClubSchedule } from '@/lib/clubScheduleData';
+import ProfileAvatar from '@/components/ProfileAvatar';
+import { InitialAvatar } from '@/components/tournament/InitialAvatar';
+import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────
 
@@ -227,25 +230,57 @@ export default function ClubScheduleAttendancePage() {
         });
     }, [schedule]);
 
-    // 본인 row의 nickname이 비어있을 때 표시용 이름을 user_metadata / email에서 보강.
-    // (auth.user_metadata와 email은 본인 토큰 안에서만 안전하게 사용. 다른 회원 row에는 적용하지 않음)
+    // 본인 row의 nickname/avatar 가 비어있을 때 표시용 값을 user_metadata / email에서 보강.
+    // auth.user_metadata 는 본인 토큰 안에서만 안전하게 접근 가능 — 다른 회원 row에는 적용하지 않음.
     const attendancesForDisplay = useMemo(() => {
         if (!user?.id) return allAttendances;
         const meta = user.user_metadata || {};
         const emailLocal = user.email ? user.email.split('@')[0] : null;
-        const selfFallback =
+        const selfNameFallback =
             (meta.nickname as string | undefined) ||
             (meta.full_name as string | undefined) ||
             (meta.name as string | undefined) ||
             emailLocal ||
             null;
-        if (!selfFallback) return allAttendances;
-        return allAttendances.map((row) =>
-            row.user_id === user.id && !row.nickname
-                ? { ...row, nickname: selfFallback }
-                : row
+        const selfAvatarFallback = normalizeAvatarUrl(
+            (meta.avatar_url as string | undefined) ||
+            (meta.picture as string | undefined) ||
+            null
         );
+        return allAttendances.map((row) => {
+            if (row.user_id !== user.id) return row;
+            const next = { ...row };
+            if (!next.nickname && selfNameFallback) next.nickname = selfNameFallback;
+            if (!next.avatarUrl && selfAvatarFallback) next.avatarUrl = selfAvatarFallback;
+            return next;
+        });
     }, [allAttendances, user?.id, user?.user_metadata, user?.email]);
+
+    // 댓글에도 동일한 self fallback 적용 — 본인 user_id 댓글이 nickname/avatar null이면
+    // user_metadata/email-local로 보강. 다른 회원 댓글에는 적용 안 함.
+    const commentsForDisplay = useMemo(() => {
+        if (!user?.id) return comments;
+        const meta = user.user_metadata || {};
+        const emailLocal = user.email ? user.email.split('@')[0] : null;
+        const selfNameFallback =
+            (meta.nickname as string | undefined) ||
+            (meta.full_name as string | undefined) ||
+            (meta.name as string | undefined) ||
+            emailLocal ||
+            null;
+        const selfAvatarFallback = normalizeAvatarUrl(
+            (meta.avatar_url as string | undefined) ||
+            (meta.picture as string | undefined) ||
+            null
+        );
+        return comments.map((c) => {
+            if (c.user_id !== user.id) return c;
+            const next = { ...c };
+            if (!next.nickname && selfNameFallback) next.nickname = selfNameFallback;
+            if (!next.avatarUrl && selfAvatarFallback) next.avatarUrl = selfAvatarFallback;
+            return next;
+        });
+    }, [comments, user?.id, user?.user_metadata, user?.email]);
 
     // 게스트 신청 댓글 건수 — 실제 확정 게스트 수는 아직 별도 데이터로 없으므로
     // 운영진 요약 카드의 '게스트' 자리를 댓글 카테고리 기반 'N건'으로 대체한다.
@@ -394,10 +429,22 @@ export default function ClubScheduleAttendancePage() {
                     category: commentCategory,
                 });
             } else {
+                // 댓글 작성 시점에 member_id가 아직 비어있으면 즉석 보강 (attendance 저장과 동일 패턴).
+                // 실패해도 댓글 작성 자체는 막지 않음 — user_id는 항상 저장.
+                let memberIdToSave = linkedMemberId;
+                if (!memberIdToSave) {
+                    try {
+                        memberIdToSave = await resolveMemberIdForUser({
+                            userId: user.id,
+                            userEmail: user.email ?? null,
+                        });
+                        if (memberIdToSave) setLinkedMemberId(memberIdToSave);
+                    } catch { /* noop */ }
+                }
                 await createComment({
                     schedule_id: schedule.id,
                     user_id: user.id,
-                    member_id: linkedMemberId,
+                    member_id: memberIdToSave,
                     category: commentCategory,
                     body,
                 });
@@ -819,7 +866,7 @@ export default function ClubScheduleAttendancePage() {
                     )}
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {comments.map((c) => (
+                        {commentsForDisplay.map((c) => (
                             <CommentRow
                                 key={c.id}
                                 comment={c}
@@ -1138,18 +1185,26 @@ const CommentRow = ({
     onEdit?: () => void;
     onDelete: () => void;
 }) => {
-    const initial = (comment.nickname || '?').charAt(0);
+    const displayName = comment.nickname || '회원 정보 없음';
     const ts = new Date(comment.created_at);
     const tsLabel = `${ts.getMonth() + 1}/${ts.getDate()} ${String(ts.getHours()).padStart(2, '0')}:${String(ts.getMinutes()).padStart(2, '0')}`;
     return (
         <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-            <div style={{
-                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                backgroundColor: '#EAF3FC', color: '#1F5FB5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 900,
-            }}>
-                {initial}
+            <div style={{ width: 28, height: 28, flexShrink: 0 }}>
+                {/* avatarUrl 있으면 ProfileAvatar(이미지) — 로드 실패 시 fallbackIcon=InitialAvatar.
+                    avatarUrl 없으면 바로 InitialAvatar.
+                    개인정보 alt 노출 금지 → 일관된 '프로필 이미지' alt 사용. */}
+                {comment.avatarUrl ? (
+                    <ProfileAvatar
+                        src={comment.avatarUrl}
+                        alt="프로필 이미지"
+                        size={28}
+                        className="rounded-full"
+                        fallbackIcon={<InitialAvatar name={displayName} size={28} />}
+                    />
+                ) : (
+                    <InitialAvatar name={displayName} size={28} />
+                )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
