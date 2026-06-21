@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Bell,
+  CheckSquare,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -37,7 +38,8 @@ import {
   CLUB_TYPE_STYLE,
   CLUB_DOT_COLOR,
   demoClubSchedules,
-  formatClubTimeRange,
+  formatTimeRangeAmPm,
+  formatCourtLabel,
 } from '@/lib/clubScheduleData';
 import {
   fetchClubSchedules,
@@ -174,9 +176,20 @@ export default function TournamentCalendarPage() {
   const [dataSource, setDataSource] = useState<'db' | 'demo'>('demo');
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string>(() => dateKey(new Date()));
+
+  // ── 일정 종류 필터 ──
+  // 'all': 대회 + TEYEON 모두 표시. 'tournament': 대회만. 'club': TEYEON만.
+  // 필터 변경해도 currentMonth / selectedDate 유지 (state 독립).
+  type CalendarFilter = 'all' | 'tournament' | 'club';
+  const [calendarFilter, setCalendarFilter] = useState<CalendarFilter>('all');
+  const showTournament = calendarFilter === 'all' || calendarFilter === 'tournament';
+  const showClub = calendarFilter === 'all' || calendarFilter === 'club';
+
+  // 월간 요약 접이식 — TEYEON 일정은 기본 펼침, 대회 일정은 기본 접힘.
+  const [monthlyTournamentOpen, setMonthlyTournamentOpen] = useState(false);
+  const [monthlyClubOpen, setMonthlyClubOpen] = useState(true);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set());
-  const [isMonthListOpen, setIsMonthListOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TournamentEvent | null>(null);
   const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false);
@@ -260,6 +273,16 @@ export default function TournamentCalendarPage() {
       })
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [events, currentMonth]);
+
+  // ── Club schedules for the displayed month ──
+  const monthClubSchedules = useMemo(() => {
+    return clubSchedules
+      .filter((cs) => {
+        const [y, m] = cs.schedule_date.split('-').map(Number);
+        return y === currentMonth.getFullYear() && (m - 1) === currentMonth.getMonth();
+      })
+      .sort((a, b) => (a.schedule_date + (a.start_time || '')).localeCompare(b.schedule_date + (b.start_time || '')));
+  }, [clubSchedules, currentMonth]);
 
   const cells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
 
@@ -365,9 +388,23 @@ export default function TournamentCalendarPage() {
       setSelectedDate(input.schedule_date);
       setCurrentMonth(new Date(y, m - 1, 1));
       alert('클럽 일정이 저장되었습니다.');
-    } catch (error) {
-      console.error('[Club Schedule] Save failed', error);
-      alert('저장에 실패했습니다. Supabase schema 적용 여부를 확인해 주세요.');
+    } catch (error: any) {
+      // Supabase error는 객체 그대로 console에 넣으면 일부 환경에서 collapsed.
+      // code/message/details/hint를 한 줄로 평탄화해서 즉시 보이게 한다.
+      const code    = error?.code    ?? '(no code)';
+      const message = error?.message ?? '(no message)';
+      const details = error?.details ?? '(no details)';
+      const hint    = error?.hint    ?? '(no hint)';
+      console.error(
+        `[Club Schedule] Save failed — code=${code} | message=${message} | details=${details} | hint=${hint}`
+      );
+      console.error('[Club Schedule] Save failed (raw)', error);
+      alert(
+        '저장에 실패했습니다. 콘솔 로그의 code/message/hint를 확인해 주세요.\n' +
+        'DB에 새 컬럼이 없다면 아래 SQL을 적용해야 합니다:\n' +
+        ' - supabase/add_club_schedule_court_mode.sql\n' +
+        ' - supabase/add_club_schedule_attendance_settings.sql'
+      );
     } finally {
       setIsSavingClub(false);
     }
@@ -675,9 +712,9 @@ export default function TournamentCalendarPage() {
               const key = dateKey(date);
               const isToday = key === todayKey;
               const isSelected = key === selectedDate;
-              const hasEv = eventDateSet.has(key);
-              const hasReg = regStartDateSet.has(key);
-              const hasClub = clubScheduleDateSet.has(key);
+              const hasEv = showTournament && eventDateSet.has(key);
+              const hasReg = showTournament && regStartDateSet.has(key);
+              const hasClub = showClub && clubScheduleDateSet.has(key);
               const dow = date.getDay();
 
               return (
@@ -750,27 +787,75 @@ export default function TournamentCalendarPage() {
           </div>
         </div>
 
+        {/* ── 일정 종류 필터 (전체 / 대회 / TEYEON) ── */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            paddingTop: 2,
+            paddingBottom: 2,
+            borderRadius: 10,
+            backgroundColor: '#F1F5F9',
+            border: '1px solid rgba(15,23,42,0.06)',
+          }}
+        >
+          {([
+            { v: 'all',        label: '전체',         accent: '#0F172A' },
+            { v: 'tournament', label: '대회 일정',     accent: '#0D9488' },
+            { v: 'club',       label: 'TEYEON 일정',  accent: '#3B82F6' },
+          ] as const).map((opt) => {
+            const active = calendarFilter === opt.v;
+            return (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => setCalendarFilter(opt.v)}
+                style={{
+                  flex: 1, height: 34,
+                  paddingLeft: 4, paddingRight: 4,
+                  borderRadius: 8,
+                  border: 'none',
+                  backgroundColor: active ? '#FFFFFF' : 'transparent',
+                  boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10)' : 'none',
+                  color: active ? opt.accent : '#64748B',
+                  fontSize: 11, fontWeight: 800,
+                  letterSpacing: '-0.01em',
+                  cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                  whiteSpace: 'nowrap',
+                  transition: 'background-color 0.15s, color 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Selected date label ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: '#334155', margin: 0 }}>
             {formatDayLabel(selectedDate)}
           </p>
           <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>
-            {(selectedDateEvents.length + selectedDateClubSchedules.length) > 0
+            {((showTournament ? selectedDateEvents.length : 0) + (showClub ? selectedDateClubSchedules.length : 0)) > 0
               ? [
-                  selectedDateEvents.length > 0 ? `대회 ${selectedDateEvents.length}` : '',
-                  selectedDateClubSchedules.length > 0 ? `클럽 ${selectedDateClubSchedules.length}` : '',
+                  showTournament && selectedDateEvents.length > 0 ? `대회 ${selectedDateEvents.length}` : '',
+                  showClub && selectedDateClubSchedules.length > 0 ? `TEYEON ${selectedDateClubSchedules.length}` : '',
                 ].filter(Boolean).join(' · ')
               : '일정 없음'}
           </span>
         </div>
 
         {/* ── Tournament event cards ── */}
-        {selectedDateEvents.length > 0 && (
+        {showTournament && selectedDateEvents.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {selectedDateEvents.map((event) => {
               const org = ORG_STYLE[event.organizer];
-              const st = STATUS_STYLE[event.status];
+              // 경기일이 오늘보다 과거면 자동 '대회 종료'로 표시. status 원본 값은 변경하지 않음.
+              const isPastEvent = !!event.date && event.date < todayKey;
+              const displayStatus = isPastEvent ? '대회종료' : event.status;
+              const st = STATUS_STYLE[displayStatus];
               const isExpanded = expandedCardId === event.id;
               const isNotified = notifiedIds.has(event.id);
               const isEventDate = event.date === selectedDate;
@@ -798,12 +883,13 @@ export default function TournamentCalendarPage() {
                   key={event.id}
                   style={{
                     borderRadius: 14,
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    boxShadow: '0 1px 5px rgba(0,0,0,0.05)',
+                    backgroundColor: isPastEvent ? '#FBFCFD' : '#FFFFFF',
+                    border: isPastEvent ? '1px solid rgba(0,0,0,0.04)' : '1px solid rgba(0,0,0,0.06)',
+                    boxShadow: isPastEvent ? 'none' : '0 1px 5px rgba(0,0,0,0.05)',
                     overflow: 'hidden',
                     width: '100%',
                     boxSizing: 'border-box',
+                    opacity: isPastEvent ? 0.85 : 1,
                   }}
                 >
                   {/* Card body */}
@@ -842,8 +928,20 @@ export default function TournamentCalendarPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {event.status}
+                        {displayStatus}
                       </span>
+                      {isPastEvent && (
+                        <span
+                          style={{
+                            fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 5,
+                            backgroundColor: 'rgba(100,116,139,0.10)', color: '#475569',
+                            border: '1px solid rgba(100,116,139,0.22)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          완료
+                        </span>
+                      )}
                       {eventBadgeLabel && (
                         <span
                           style={{
@@ -1121,37 +1219,30 @@ export default function TournamentCalendarPage() {
         )}
 
         {/* ── Club schedule cards ── */}
-        {selectedDateClubSchedules.length > 0 && (
+        {showClub && selectedDateClubSchedules.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {selectedDateClubSchedules.map((cs) => {
               const typeStyle = CLUB_TYPE_STYLE[cs.schedule_type];
-              const timeRange = formatClubTimeRange(cs.start_time, cs.end_time);
+              const timeRange = formatTimeRangeAmPm(cs.start_time, cs.end_time);
+              const courtLabel = formatCourtLabel(cs.court_mode, cs.court_count);
+              // 지난 일정: 취소선 X. 채도/명도 낮춤 + '완료' badge.
+              const isPast = cs.schedule_date < todayKey;
               return (
                 <div
                   key={cs.id}
                   style={{
                     borderRadius: 14,
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid rgba(99,102,241,0.12)',
-                    borderLeft: '3px solid #6366F1',
-                    boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+                    backgroundColor: isPast ? '#FBFCFD' : '#FFFFFF',
+                    border: isPast ? '1px solid rgba(99,102,241,0.06)' : '1px solid rgba(99,102,241,0.12)',
+                    borderLeft: isPast ? '3px solid rgba(99,102,241,0.45)' : '3px solid #6366F1',
+                    boxShadow: isPast ? 'none' : '0 1px 5px rgba(0,0,0,0.04)',
                     overflow: 'hidden',
+                    opacity: isPast ? 0.85 : 1,
                   }}
                 >
                   <div style={{ padding: '12px 14px' }}>
                     {/* Type chips */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                      <span
-                        style={{
-                          fontSize: 9, fontWeight: 800, letterSpacing: '0.10em',
-                          textTransform: 'uppercase', padding: '2px 7px', borderRadius: 5,
-                          backgroundColor: 'rgba(99,102,241,0.09)', color: '#3730A3',
-                          border: '1px solid rgba(99,102,241,0.22)',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        CLUB
-                      </span>
                       <span
                         style={{
                           fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 5,
@@ -1162,12 +1253,25 @@ export default function TournamentCalendarPage() {
                       >
                         {typeStyle.badge}
                       </span>
+                      {isPast && (
+                        <span
+                          style={{
+                            fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 5,
+                            backgroundColor: 'rgba(100,116,139,0.10)', color: '#475569',
+                            border: '1px solid rgba(100,116,139,0.22)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          완료
+                        </span>
+                      )}
                     </div>
 
                     {/* Title */}
                     <p
                       style={{
-                        fontSize: 16, fontWeight: 800, color: '#0F172A',
+                        fontSize: 16, fontWeight: 800,
+                        color: isPast ? '#475569' : '#0F172A',
                         letterSpacing: '-0.02em', lineHeight: 1.25,
                         margin: '0 0 8px',
                         wordBreak: 'keep-all',
@@ -1178,18 +1282,17 @@ export default function TournamentCalendarPage() {
                     </p>
 
                     {/* Time + court */}
-                    {(timeRange || cs.court_count) && (
+                    {(timeRange || courtLabel) && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 6 }}>
                         {timeRange && (
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: isPast ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap' }}>
                             <span style={{ color: '#94A3B8', marginRight: 3 }}>시간</span>
                             {timeRange}
                           </span>
                         )}
-                        {cs.court_count && (
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}>
-                            <span style={{ color: '#94A3B8', marginRight: 3 }}>코트</span>
-                            {cs.court_count}면
+                        {courtLabel && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: isPast ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap' }}>
+                            {courtLabel}
                           </span>
                         )}
                       </div>
@@ -1237,24 +1340,42 @@ export default function TournamentCalendarPage() {
                     )}
                   </div>
 
-                  {/* Edit footer: CEO / ADMIN 전용 */}
-                  {canEditClubSchedule && (
+                  {/* Footer: 정모는 모든 사용자에게 참석 체크 진입점 노출. CEO/ADMIN은 수정 버튼 동시 노출 */}
+                  {(cs.schedule_type === '정모' || canEditClubSchedule) && (
                     <div style={{ display: 'flex', borderTop: '1px solid rgba(0,0,0,0.05)', backgroundColor: '#FAFAFA' }}>
-                      <button
-                        type="button"
-                        onClick={() => { setEditingClubSchedule(cs); setIsClubEditorOpen(true); }}
-                        style={{
-                          flex: 1, height: 38, fontSize: 11, fontWeight: 700,
-                          color: '#94A3B8', cursor: 'pointer',
-                          border: 'none', backgroundColor: 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                          whiteSpace: 'nowrap',
-                          WebkitTapHighlightColor: 'transparent',
-                        }}
-                      >
-                        <Edit3 size={13} />
-                        수정
-                      </button>
+                      {cs.schedule_type === '정모' && !cs.id.startsWith('demo-') && (
+                        <Link
+                          href={`/club-schedule/${cs.id}`}
+                          style={{
+                            flex: 1, height: 38, fontSize: 11.5, fontWeight: 800,
+                            color: '#3B82F6', textDecoration: 'none',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                            whiteSpace: 'nowrap',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          <CheckSquare size={13} />
+                          참석 체크
+                        </Link>
+                      )}
+                      {canEditClubSchedule && (
+                        <button
+                          type="button"
+                          onClick={() => { setEditingClubSchedule(cs); setIsClubEditorOpen(true); }}
+                          style={{
+                            flex: 1, height: 38, fontSize: 11, fontWeight: 700,
+                            color: '#94A3B8', cursor: 'pointer',
+                            border: 'none', backgroundColor: 'transparent',
+                            borderLeft: cs.schedule_type === '정모' && !cs.id.startsWith('demo-') ? '1px solid rgba(0,0,0,0.05)' : undefined,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            whiteSpace: 'nowrap',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          <Edit3 size={13} />
+                          수정
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1264,7 +1385,7 @@ export default function TournamentCalendarPage() {
         )}
 
         {/* ── Empty state (대회 + 클럽 모두 없을 때) ── */}
-        {selectedDateEvents.length === 0 && selectedDateClubSchedules.length === 0 && (
+        {((!showTournament || selectedDateEvents.length === 0) && (!showClub || selectedDateClubSchedules.length === 0)) && (
           <div
             style={{
               borderRadius: 14, backgroundColor: '#FFFFFF',
@@ -1279,128 +1400,288 @@ export default function TournamentCalendarPage() {
           </div>
         )}
 
-        {/* ── Monthly list (collapsible) ── */}
-        <div
-          style={{
-            borderRadius: 14,
-            backgroundColor: '#FFFFFF',
-            border: '1px solid rgba(0,0,0,0.06)',
-            boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
-            overflow: 'hidden',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsMonthListOpen((prev) => !prev)}
+        {/* ── 월간 일정 요약 ── */}
+        <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#475569', margin: '4px 2px 0' }}>
+          {monthLabel} 일정 요약
+        </p>
+
+        {/* TEYEON 일정 섹션 — 필터 'tournament' 일 때 숨김 */}
+        {(calendarFilter !== 'tournament') && (
+          <div
             style={{
-              width: '100%', display: 'flex', alignItems: 'center',
-              justifyContent: 'space-between', padding: '11px 14px',
-              border: 'none', backgroundColor: 'transparent',
-              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              borderRadius: 14,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.06)',
+              boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ textAlign: 'left', minWidth: 0 }}>
-              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#0D9488', margin: 0 }}>
-                MONTHLY
-              </p>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', margin: '1px 0 0', letterSpacing: '-0.01em' }}>
-                {monthLabel} 대회 목록
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-              <span
-                style={{
-                  fontSize: 10, fontWeight: 700, color: '#0D9488',
-                  padding: '2px 8px', borderRadius: 99,
-                  backgroundColor: 'rgba(13,148,136,0.09)',
-                  border: '1px solid rgba(13,148,136,0.18)',
-                }}
-              >
-                {monthEvents.length}개
-              </span>
+            <button
+              type="button"
+              onClick={() => setMonthlyClubOpen((p) => !p)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: 11, paddingRight: 14, paddingBottom: 11, paddingLeft: 14,
+                border: 'none', backgroundColor: 'transparent',
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: CLUB_DOT_COLOR, flexShrink: 0 }} />
+                <p style={{ fontSize: 13.5, fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>
+                  TEYEON 일정
+                </p>
+                <span style={{
+                  fontSize: 10, fontWeight: 800, color: '#3730A3',
+                  paddingTop: 1, paddingRight: 7, paddingBottom: 1, paddingLeft: 7, borderRadius: 99,
+                  backgroundColor: 'rgba(99,102,241,0.10)',
+                  border: '1px solid rgba(99,102,241,0.22)',
+                }}>
+                  {monthClubSchedules.length}건
+                </span>
+              </div>
               <ChevronDown
                 size={15}
-                style={{ color: '#94A3B8', transition: 'transform 0.2s', transform: isMonthListOpen ? 'rotate(180deg)' : 'none' }}
+                style={{ color: '#94A3B8', transition: 'transform 0.2s', transform: monthlyClubOpen ? 'rotate(180deg)' : 'none' }}
               />
-            </div>
-          </button>
+            </button>
 
-          {isMonthListOpen && (
-            <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-              {monthEvents.length > 0 ? (
-                monthEvents.map((event, idx) => {
-                  const org = ORG_STYLE[event.organizer];
-                  const st = STATUS_STYLE[event.status];
-                  const [, mm, dd] = event.date.split('-');
-                  return (
-                    <button
-                      type="button"
-                      key={event.id}
-                      onClick={() => {
-                        setSelectedDate(event.date);
-                        setExpandedCardId(null);
-                        setIsMonthListOpen(false);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center',
-                        gap: 10, padding: '10px 14px',
-                        border: 'none', backgroundColor: idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
-                        cursor: 'pointer', borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.04)',
-                        textAlign: 'left', WebkitTapHighlightColor: 'transparent',
-                        boxSizing: 'border-box',
-                      }}
-                    >
-                      <div style={{ textAlign: 'center', flexShrink: 0, width: 28 }}>
-                        <p style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', margin: 0, lineHeight: 1 }}>
-                          {parseInt(dd)}
-                        </p>
-                        <p style={{ fontSize: 9, fontWeight: 600, color: '#94A3B8', margin: '1px 0 0' }}>
-                          {parseInt(mm)}월
-                        </p>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {event.title}
-                        </p>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {event.venue}
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        <span
-                          style={{
+            {monthlyClubOpen && (
+              <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                {monthClubSchedules.length > 0 ? (
+                  monthClubSchedules.map((cs, idx) => {
+                    const typeStyle = CLUB_TYPE_STYLE[cs.schedule_type];
+                    const [, mm, dd] = cs.schedule_date.split('-');
+                    const timeRange = formatTimeRangeAmPm(cs.start_time, cs.end_time);
+                    const isJeongmo = cs.schedule_type === '정모';
+                    const isDemo = cs.id.startsWith('demo-');
+                    const isPast = cs.schedule_date < todayKey;
+                    const href = (isJeongmo && !isDemo) ? `/club-schedule/${cs.id}` : null;
+                    const RowInner = (
+                      <>
+                        <div style={{ textAlign: 'center', flexShrink: 0, width: 28 }}>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: isPast ? '#94A3B8' : '#0F172A', margin: 0, lineHeight: 1 }}>
+                            {parseInt(dd)}
+                          </p>
+                          <p style={{ fontSize: 9, fontWeight: 600, color: '#94A3B8', margin: '1px 0 0' }}>
+                            {parseInt(mm)}월
+                          </p>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: isPast ? '#64748B' : '#1E293B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {cs.title}
+                          </p>
+                          <p style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {[timeRange, cs.location].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                          <span style={{
+                            fontSize: 8, fontWeight: 800,
+                            paddingTop: 1, paddingRight: 5, paddingBottom: 1, paddingLeft: 5, borderRadius: 4,
+                            backgroundColor: typeStyle.bg, color: typeStyle.color, border: `1px solid ${typeStyle.border}`,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {typeStyle.badge}
+                          </span>
+                          {isPast && (
+                            <span style={{
+                              fontSize: 8, fontWeight: 800,
+                              paddingTop: 1, paddingRight: 5, paddingBottom: 1, paddingLeft: 5, borderRadius: 4,
+                              backgroundColor: 'rgba(100,116,139,0.10)', color: '#475569',
+                              border: '1px solid rgba(100,116,139,0.22)',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              완료
+                            </span>
+                          )}
+                          {!isPast && canEditClubSchedule && !isDemo && (
+                            <span style={{
+                              fontSize: 8, fontWeight: 700, color: '#64748B',
+                              paddingTop: 1, paddingRight: 5, paddingBottom: 1, paddingLeft: 5, borderRadius: 4,
+                              backgroundColor: '#F1F5F9',
+                              border: '1px solid rgba(0,0,0,0.06)',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              ADMIN
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    );
+                    const rowStyle: React.CSSProperties = {
+                      width: '100%', display: 'flex', alignItems: 'center',
+                      gap: 10,
+                      paddingTop: 10, paddingRight: 14, paddingBottom: 10, paddingLeft: 14,
+                      border: 'none',
+                      backgroundColor: isPast
+                        ? (idx % 2 === 0 ? '#FBFCFD' : '#F8FAFB')
+                        : (idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA'),
+                      cursor: 'pointer', borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.04)',
+                      textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+                      boxSizing: 'border-box',
+                      color: 'inherit', textDecoration: 'none',
+                    };
+                    if (href) {
+                      return (
+                        <Link key={cs.id} href={href} style={rowStyle}>
+                          {RowInner}
+                        </Link>
+                      );
+                    }
+                    return (
+                      <button
+                        type="button"
+                        key={cs.id}
+                        onClick={() => {
+                          setSelectedDate(cs.schedule_date);
+                          setMonthlyClubOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        style={rowStyle}
+                      >
+                        {RowInner}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div style={{ paddingTop: 24, paddingRight: 14, paddingBottom: 24, paddingLeft: 14, textAlign: 'center' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', margin: 0 }}>
+                      이번 달 등록된 TEYEON 일정이 없습니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 대회 일정 섹션 — 필터 'club' 일 때 숨김 */}
+        {(calendarFilter !== 'club') && (
+          <div
+            style={{
+              borderRadius: 14,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.06)',
+              boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setMonthlyTournamentOpen((p) => !p)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: 11, paddingRight: 14, paddingBottom: 11, paddingLeft: 14,
+                border: 'none', backgroundColor: 'transparent',
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#D4AF37', flexShrink: 0 }} />
+                <p style={{ fontSize: 13.5, fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>
+                  대회 일정
+                </p>
+                <span
+                  style={{
+                    fontSize: 10, fontWeight: 800, color: '#0D9488',
+                    paddingTop: 1, paddingRight: 7, paddingBottom: 1, paddingLeft: 7, borderRadius: 99,
+                    backgroundColor: 'rgba(13,148,136,0.10)',
+                    border: '1px solid rgba(13,148,136,0.20)',
+                  }}
+                >
+                  {monthEvents.length}건
+                </span>
+              </div>
+              <ChevronDown
+                size={15}
+                style={{ color: '#94A3B8', transition: 'transform 0.2s', transform: monthlyTournamentOpen ? 'rotate(180deg)' : 'none' }}
+              />
+            </button>
+
+            {monthlyTournamentOpen && (
+              <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                {monthEvents.length > 0 ? (
+                  monthEvents.map((event, idx) => {
+                    const org = ORG_STYLE[event.organizer];
+                    const isPastEvent = !!event.date && event.date < todayKey;
+                    const displayStatus = isPastEvent ? '대회종료' : event.status;
+                    const st = STATUS_STYLE[displayStatus];
+                    const [, mm, dd] = event.date.split('-');
+                    return (
+                      <button
+                        type="button"
+                        key={event.id}
+                        onClick={() => {
+                          setSelectedDate(event.date);
+                          setExpandedCardId(null);
+                          setMonthlyTournamentOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center',
+                          gap: 10,
+                          paddingTop: 10, paddingRight: 14, paddingBottom: 10, paddingLeft: 14,
+                          border: 'none',
+                          backgroundColor: isPastEvent
+                            ? (idx % 2 === 0 ? '#FBFCFD' : '#F8FAFB')
+                            : (idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA'),
+                          cursor: 'pointer', borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.04)',
+                          textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <div style={{ textAlign: 'center', flexShrink: 0, width: 28 }}>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: isPastEvent ? '#94A3B8' : '#0F172A', margin: 0, lineHeight: 1 }}>
+                            {parseInt(dd)}
+                          </p>
+                          <p style={{ fontSize: 9, fontWeight: 600, color: '#94A3B8', margin: '1px 0 0' }}>
+                            {parseInt(mm)}월
+                          </p>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: isPastEvent ? '#64748B' : '#1E293B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {event.title}
+                          </p>
+                          <p style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {event.venue}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                          <span style={{
                             fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
-                            textTransform: 'uppercase', padding: '1px 5px', borderRadius: 4,
+                            textTransform: 'uppercase',
+                            paddingTop: 1, paddingRight: 5, paddingBottom: 1, paddingLeft: 5, borderRadius: 4,
                             backgroundColor: org.bg, color: org.color, border: `1px solid ${org.border}`,
                             whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {org.badge}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                          }}>
+                            {org.badge}
+                          </span>
+                          <span style={{
+                            fontSize: 8, fontWeight: 700,
+                            paddingTop: 1, paddingRight: 5, paddingBottom: 1, paddingLeft: 5, borderRadius: 4,
                             backgroundColor: st.bg, color: st.color, border: `1px solid ${st.border}`,
                             whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {event.status}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })
-              ) : (
-                <div style={{ padding: '24px 14px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', margin: 0 }}>
-                    이번 달 등록된 대회가 없습니다
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                          }}>
+                            {displayStatus}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div style={{ paddingTop: 24, paddingRight: 14, paddingBottom: 24, paddingLeft: 14, textAlign: 'center' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', margin: 0 }}>
+                      이번 달 등록된 대회 일정이 없습니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Tournament Editor modal ── */}

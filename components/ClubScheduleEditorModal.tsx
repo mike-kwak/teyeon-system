@@ -7,6 +7,8 @@ import {
   ClubScheduleInput,
   CLUB_SCHEDULE_TYPES,
   ClubScheduleType,
+  ClubCourtMode,
+  CLUB_COURT_MODES,
 } from '@/lib/clubScheduleData';
 
 // ─── Helper components ────────────────────────────────────────────────────────
@@ -196,24 +198,81 @@ function TypeChips({
 
 // ─── Default form values ──────────────────────────────────────────────────────
 
+// DB time '19:00:00' → input value '19:00'
+function trimDbTime(t?: string | null): string {
+  if (!t) return '';
+  return t.length >= 5 ? t.slice(0, 5) : t;
+}
+
 function toInput(cs?: ClubSchedule | null): ClubScheduleInput {
   const today = new Date();
   const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const isNew = !cs;
+  const isJeongmo = (cs?.schedule_type ?? '정모') === '정모';
+  // 새 정모일 때 시작/종료 기본값: 19:00 ~ 22:00.
+  // 정모 외 종류는 자동 채우지 않음.
+  const defaultStart = isNew && isJeongmo ? '19:00' : '';
+  const defaultEnd   = isNew && isJeongmo ? '22:00' : '';
   return {
     id: cs?.id,
     title: cs?.title ?? '',
     schedule_type: cs?.schedule_type ?? '정모',
     schedule_date: cs?.schedule_date ?? dateKey,
-    start_time: cs?.start_time ?? '',
-    end_time: cs?.end_time ?? '',
+    start_time: trimDbTime(cs?.start_time) || defaultStart,
+    end_time:   trimDbTime(cs?.end_time)   || defaultEnd,
     location: cs?.location ?? '',
     court_count: cs?.court_count ?? 1,
+    court_mode: (cs?.court_mode as ClubCourtMode | undefined) ??
+                (cs?.court_count != null ? 'fixed' : 'fixed'),
     guest_enabled: cs?.guest_enabled ?? false,
     guest_limit: cs?.guest_limit ?? undefined,
     fee_amount: cs?.fee_amount ?? undefined,
     show_on_main: cs?.show_on_main ?? false,
     memo: cs?.memo ?? '',
+    attendance_enabled: cs?.attendance_enabled ?? true,
+    attendance_deadline: cs?.attendance_deadline ?? null,
   };
+}
+
+// 시간 input 공통 스타일 — TextInput과 동일 톤 유지 (브라우저별 type=time 외형 차이 흡수).
+const timeInputStyle: React.CSSProperties = {
+  height: 44,
+  width: '100%',
+  borderRadius: 12,
+  border: '1.5px solid rgba(0,0,0,0.12)',
+  backgroundColor: '#FFFFFF',
+  paddingLeft: 12,
+  paddingRight: 12,
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#0F172A',
+  outline: 'none',
+  boxSizing: 'border-box',
+  WebkitTapHighlightColor: 'transparent',
+};
+
+// ISO timestamp (TIMESTAMPTZ) → 한국 로컬 datetime-local input value ('YYYY-MM-DDTHH:MM')
+function isoToLocalDateTimeInput(iso?: string | null): { date: string; time: string } {
+  if (!iso) return { date: '', time: '' };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' };
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${mi}` };
+}
+
+// 한국 로컬 시간 (date + time) → TIMESTAMPTZ ISO 문자열. 비어있으면 null.
+function localDateTimeToIso(date: string, time: string): string | null {
+  if (!date) return null;
+  const safeTime = time || '23:59';
+  const [y, mo, da] = date.split('-').map(Number);
+  const [h, mi] = safeTime.split(':').map(Number);
+  if (!y || !mo || !da) return null;
+  const d = new Date(y, mo - 1, da, h || 0, mi || 0, 0, 0);
+  return d.toISOString();
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -248,6 +307,33 @@ export default function ClubScheduleEditorModal({
   const [guestMode, setGuestMode] = useState<'unlimited' | 'limited'>(() =>
     schedule?.guest_enabled && schedule?.guest_limit != null ? 'limited' : 'unlimited'
   );
+
+  // 참석 체크 마감: 한국 로컬 date/time 분리 state — 사용자 시간대로 입력, 저장 시 ISO 변환.
+  // 새 정모일 때 기본값은 정모 당일 오전 11:00. 기존 일정 수정 시엔 저장된 값 그대로 복원.
+  const isNewSchedule = !schedule;
+  const initialDeadline = (() => {
+    const stored = isoToLocalDateTimeInput(schedule?.attendance_deadline ?? null);
+    if (stored.date) return stored;
+    if (isNewSchedule) {
+      // form.schedule_date는 toInput에서 cs?.schedule_date ?? 오늘 으로 채워짐.
+      return { date: form.schedule_date, time: '11:00' };
+    }
+    return stored;
+  })();
+  const [deadlineDate, setDeadlineDate] = useState<string>(initialDeadline.date);
+  const [deadlineTime, setDeadlineTime] = useState<string>(initialDeadline.time || (isNewSchedule ? '11:00' : ''));
+
+  // 새 정모이고 마감 날짜가 비어있을 때 form.schedule_date가 채워지면 자동 prefill — 한 번만.
+  const deadlineAutoFilledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (deadlineAutoFilledRef.current) return;
+    if (!isNewSchedule) { deadlineAutoFilledRef.current = true; return; }
+    if (!deadlineDate && form.schedule_date) {
+      setDeadlineDate(form.schedule_date);
+      if (!deadlineTime) setDeadlineTime('11:00');
+      deadlineAutoFilledRef.current = true;
+    }
+  }, [form.schedule_date, deadlineDate, deadlineTime, isNewSchedule]);
 
   return (
     // ── Overlay ──────────────────────────────────────────────────────────────
@@ -384,22 +470,24 @@ export default function ClubScheduleEditorModal({
             />
           </div>
 
-          {/* 시간 */}
+          {/* 시간 (분 단위 자유 입력 — native time picker) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <FieldLabel>시작 시간</FieldLabel>
-              <TextInput
+              <input
                 type="time"
                 value={form.start_time ?? ''}
-                onChange={(v) => set('start_time', v)}
+                onChange={(e) => set('start_time', e.target.value)}
+                style={timeInputStyle}
               />
             </div>
             <div>
               <FieldLabel>종료 시간</FieldLabel>
-              <TextInput
+              <input
                 type="time"
                 value={form.end_time ?? ''}
-                onChange={(v) => set('end_time', v)}
+                onChange={(e) => set('end_time', e.target.value)}
+                style={timeInputStyle}
               />
             </div>
           </div>
@@ -410,19 +498,52 @@ export default function ClubScheduleEditorModal({
             <TextInput
               value={form.location ?? ''}
               onChange={(v) => set('location', v)}
-              placeholder="예: 문래 테니스장"
+              placeholder="예: SK 테니스장, 이순신 테니스장"
             />
+            {/* TODO: 장소별 preset (SK/이순신) — 시작/종료 기본값, court_mode 자동 적용. 관리자 설정 페이지에서 운영 */}
           </div>
 
-          {/* 코트 수 */}
+          {/* 코트 운영 방식 */}
           <div>
-            <FieldLabel>코트 수</FieldLabel>
-            <NumberInput
-              value={form.court_count}
-              onChange={(v) => set('court_count', v)}
-              placeholder="1"
-              min={1}
-            />
+            <FieldLabel>코트 운영 방식</FieldLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {CLUB_COURT_MODES.map((m) => {
+                const active = (form.court_mode ?? 'fixed') === m.value;
+                return (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => set('court_mode', m.value)}
+                    style={{
+                      flex: '1 1 64px', minWidth: 64,
+                      height: 36, borderRadius: 10,
+                      paddingLeft: 6, paddingRight: 6,
+                      border: `1.5px solid ${active ? '#6366F1' : 'rgba(0,0,0,0.10)'}`,
+                      backgroundColor: active ? 'rgba(99,102,241,0.08)' : '#FFFFFF',
+                      color: active ? '#3730A3' : '#475569',
+                      fontSize: 12, fontWeight: 800,
+                      letterSpacing: '-0.01em',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+            {(form.court_mode ?? 'fixed') === 'fixed' && (
+              <div style={{ marginTop: 10 }}>
+                <FieldLabel>코트 수</FieldLabel>
+                <NumberInput
+                  value={form.court_count}
+                  onChange={(v) => set('court_count', v)}
+                  placeholder="1"
+                  min={1}
+                />
+              </div>
+            )}
           </div>
 
           {/* 게스트 모집 */}
@@ -520,6 +641,103 @@ export default function ClubScheduleEditorModal({
             checked={form.show_on_main}
             onChange={(v) => set('show_on_main', v)}
           />
+
+          {/* 참석 체크 설정 */}
+          <div
+            style={{
+              borderRadius: 14,
+              border: '1px solid rgba(99,102,241,0.18)',
+              backgroundColor: 'rgba(99,102,241,0.04)',
+              padding: 14,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <Toggle
+              label="참석 체크"
+              checked={form.attendance_enabled !== false}
+              onChange={(v) => set('attendance_enabled', v)}
+            />
+            {form.attendance_enabled !== false && (
+              <>
+                <FieldLabel>참석 체크 마감 (선택)</FieldLabel>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 140px', minWidth: 0 }}>
+                    <input
+                      type="date"
+                      value={deadlineDate}
+                      onChange={(e) => setDeadlineDate(e.target.value)}
+                      style={{
+                        height: 44,
+                        width: '100%',
+                        borderRadius: 12,
+                        border: '1.5px solid rgba(0,0,0,0.12)',
+                        backgroundColor: '#FFFFFF',
+                        padding: '0 12px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#0F172A',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        WebkitTapHighlightColor: 'transparent',
+                      } as React.CSSProperties}
+                    />
+                  </div>
+                  <div style={{ flex: '1 1 120px', minWidth: 0 }}>
+                    <input
+                      type="time"
+                      value={deadlineTime}
+                      onChange={(e) => setDeadlineTime(e.target.value)}
+                      disabled={!deadlineDate}
+                      style={{
+                        height: 44,
+                        width: '100%',
+                        borderRadius: 12,
+                        border: '1.5px solid rgba(0,0,0,0.12)',
+                        backgroundColor: deadlineDate ? '#FFFFFF' : '#F1F5F9',
+                        padding: '0 12px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#0F172A',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        WebkitTapHighlightColor: 'transparent',
+                      } as React.CSSProperties}
+                    />
+                  </div>
+                  {deadlineDate && (
+                    <button
+                      type="button"
+                      onClick={() => { setDeadlineDate(''); setDeadlineTime(''); }}
+                      style={{
+                        height: 44,
+                        paddingLeft: 12,
+                        paddingRight: 12,
+                        borderRadius: 12,
+                        border: '1px solid rgba(0,0,0,0.10)',
+                        backgroundColor: '#FFFFFF',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#64748B',
+                        cursor: 'pointer',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      비우기
+                    </button>
+                  )}
+                </div>
+                <p style={{
+                  fontSize: 10.5, fontWeight: 600, color: '#64748B',
+                  margin: 0, lineHeight: 1.55,
+                }}>
+                  마감을 비우면 일정 시작 시각까지 참석 체크가 열립니다.
+                  마감 이후엔 현황·명단은 계속 볼 수 있지만 새 응답은 받지 않습니다.
+                </p>
+              </>
+            )}
+          </div>
 
           {/* 메모 */}
           <div>
@@ -633,7 +851,15 @@ export default function ClubScheduleEditorModal({
             </button>
             <button
               type="button"
-              onClick={() => onSave(form)}
+              onClick={() => {
+                const payload: ClubScheduleInput = {
+                  ...form,
+                  attendance_deadline: form.attendance_enabled
+                    ? localDateTimeToIso(deadlineDate, deadlineTime)
+                    : null,
+                };
+                onSave(payload);
+              }}
               disabled={isSaving}
               style={{
                 flex: 2,
