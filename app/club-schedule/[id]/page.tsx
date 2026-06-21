@@ -35,6 +35,8 @@ import { CLUB_TYPE_STYLE, formatTimeRangeAmPm, type ClubSchedule } from '@/lib/c
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
+import GuestPassSettingsCard from '@/components/club-schedule/GuestPassSettingsCard';
+import GuestPassMemberLink from '@/components/club-schedule/GuestPassMemberLink';
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────
 
@@ -1038,6 +1040,14 @@ export default function ClubScheduleAttendancePage() {
                         </span>
                     </div>
                 </section>
+
+                {/* Guest Pass — 운영진에게는 설정 카드, 활성 시 일반 회원에게는 링크 복사 카드.
+                    schedule.guest_enabled === false 인 정모는 두 카드 모두 숨김 (Guest Pass 운영 의도 X). */}
+                {schedule.guest_enabled && (
+                    isAdmin
+                        ? <GuestPassSettingsCard schedule={schedule} userId={user?.id} />
+                        : <GuestPassMemberLink schedule={schedule} />
+                )}
 
                 {/* 특이사항 / 파트너 요청 */}
                 <section style={cardStyle}>
