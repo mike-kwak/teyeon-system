@@ -6,8 +6,10 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import GuestPassCard from '@/components/guest/GuestPassCard';
 import GuestPassIntro from '@/components/guest/GuestPassIntro';
-import type { GuestPassData } from '@/lib/guestPassData';
+import GuestPassFooterCta from '@/components/guest/GuestPassFooterCta';
+import type { GuestPassData, GuestPassMatchStatus } from '@/lib/guestPassData';
 import { buildGuestPassDataFromToken } from '@/lib/guestPassService';
+import { fetchGuestPassKdkState, type PublicKdkSessionDetail } from '@/lib/publicClubService';
 
 /**
  * /guest/pass/[token] — 공개 Guest Pass 페이지 (비로그인 가능, 읽기 전용).
@@ -23,6 +25,59 @@ import { buildGuestPassDataFromToken } from '@/lib/guestPassService';
  */
 
 const SS_KEY_PREFIX = 'teyeon_guest_pass_intro_token_';
+
+/**
+ * KDK 세션 상태에 따라 Guest Pass 카드의 'KDK 경기 안내' match 블록을 자동 전환.
+ *
+ * - preparing / 알 수 없음 → 원본 (운영진이 입력한 기본 안내) 그대로.
+ * - ready    → '대진표가 준비되었습니다' + '대진표 보기' 액션.
+ * - in_progress → '현재 KDK 경기가 진행 중입니다' + '현재 경기 보기' 액션.
+ * - settling → '경기 결과 정리 중입니다' (액션 없음).
+ * - finished → '공식 경기 결과가 등록되었습니다' + '경기 결과 보기' 액션.
+ *
+ * 공개 KDK 상세 라우트(/club/kdk/[sessionId]) 로 연결 — 점수 입력 / 관리 버튼 없음.
+ */
+function mergeMatchWithKdkState(
+    base: GuestPassMatchStatus,
+    kdk: PublicKdkSessionDetail,
+): GuestPassMatchStatus {
+    const href = `/club/kdk/${encodeURIComponent(kdk.sessionId)}`;
+    switch (kdk.state) {
+        case 'ready':
+            return {
+                ...base,
+                state: 'bracket_ready',
+                headline: '대진표가 준비되었습니다',
+                body: '운영진이 등록한 대진표를 확인할 수 있습니다.',
+                actions: [{ label: '대진표 보기', href }],
+            };
+        case 'in_progress':
+            return {
+                ...base,
+                state: 'in_progress',
+                headline: '현재 KDK 경기가 진행 중입니다',
+                body: '클럽 공개 페이지에서 현재 경기 현황을 확인할 수 있습니다.',
+                actions: [{ label: '현재 경기 보기', href }],
+            };
+        case 'settling':
+            return {
+                ...base,
+                state: 'in_progress',
+                headline: '경기 결과 정리 중입니다',
+                body: '운영진이 공식 결과를 등록하면 이 페이지에서 확인할 수 있습니다.',
+            };
+        case 'finished':
+            return {
+                ...base,
+                state: 'finished',
+                headline: '공식 경기 결과가 등록되었습니다',
+                body: '최종 순위와 경기 기록을 확인할 수 있습니다.',
+                actions: [{ label: '경기 결과 보기', href }],
+            };
+        default:
+            return base;
+    }
+}
 
 export default function GuestPassTokenPage() {
     const params = useParams<{ token: string }>();
@@ -54,14 +109,27 @@ export default function GuestPassTokenPage() {
         let cancelled = false;
         (async () => {
             try {
+                // 1) Guest Pass 본체 RPC.
                 const built = await buildGuestPassDataFromToken(token);
                 if (cancelled) return;
                 if (!built) {
                     setLoadStatus('not_found');
-                } else {
-                    setData(built);
-                    setLoadStatus('ok');
+                    return;
                 }
+                // 2) 연결된 KDK 세션 상태 RPC — 있으면 match 블록 자동 전환.
+                //    실패해도 base 데이터는 그대로 표시 (안전 폴백).
+                let kdk: PublicKdkSessionDetail | null = null;
+                try {
+                    kdk = await fetchGuestPassKdkState(token);
+                } catch {
+                    kdk = null;
+                }
+                if (cancelled) return;
+                if (kdk) {
+                    built.match = mergeMatchWithKdkState(built.match, kdk);
+                }
+                setData(built);
+                setLoadStatus('ok');
             } catch (err) {
                 if (cancelled) return;
                 console.warn('[GuestPass/[token]] fetch failed:', err);
@@ -157,7 +225,7 @@ export default function GuestPassTokenPage() {
     // ── 정상 렌더 ───────────────────────────────────────────────────────────
     return (
         <>
-            <GuestPassCard data={data} />
+            <GuestPassCard data={data} footerCta={<GuestPassFooterCta />} />
             {mounted && introVisible && (
                 <GuestPassIntro onDone={() => setIntroVisible(false)} />
             )}

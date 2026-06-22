@@ -4,18 +4,10 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
-import { RotateCcw, ArrowRight } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { buildGuestPassDataForSchedule } from '@/lib/guestPassService';
 import type { GuestPassData } from '@/lib/guestPassData';
-
-// Instagram glyph (lucide-react에 미포함이라 inline SVG로 대체)
-const InstagramIcon = ({ size = 15, strokeWidth = 1.9, color = 'currentColor' }: { size?: number; strokeWidth?: number; color?: string }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <rect x="3" y="3" width="18" height="18" rx="5" ry="5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="17.5" cy="6.5" r="0.6" fill={color} stroke="none" />
-    </svg>
-);
+import GuestPassFooterCta from '@/components/guest/GuestPassFooterCta';
 import GuestPassCard from '@/components/guest/GuestPassCard';
 import GuestPassIntro from '@/components/guest/GuestPassIntro';
 import { mockGuestPassData } from '@/lib/guestPassData';
@@ -34,6 +26,14 @@ import { mockGuestPassData } from '@/lib/guestPassData';
 const PREVIEW_SS_KEY = 'teyeon_guest_pass_intro_preview';
 
 export default function GuestPassPreviewPage() {
+    return (
+        <React.Suspense fallback={null}>
+            <GuestPassPreviewContent />
+        </React.Suspense>
+    );
+}
+
+function GuestPassPreviewContent() {
     const searchParams = useSearchParams();
     const scheduleId = searchParams?.get('scheduleId') || '';
     const [introVisible, setIntroVisible] = React.useState<boolean>(false);
@@ -105,93 +105,8 @@ export default function GuestPassPreviewPage() {
         </div>
     );
 
-    // 공개 CTA — 로그인 화면이나 회원 전용 페이지로 이동시키지 않음.
-    // /club 공개 소개 페이지는 아직 없어 임의 연결 금지 → disabled 상태로 구조만 준비.
-    const publicFooterCta = (
-        <div
-            style={{
-                marginTop: 16,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-            }}
-        >
-            <button
-                type="button"
-                disabled
-                aria-disabled
-                title="준비 중"
-                style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 12,
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    backgroundColor: '#FFFFFF',
-                    color: '#475569',
-                    fontSize: 13,
-                    fontWeight: 800,
-                    letterSpacing: '-0.01em',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    cursor: 'not-allowed',
-                    opacity: 0.85,
-                    WebkitTapHighlightColor: 'transparent',
-                }}
-            >
-                TEYEON 클럽 둘러보기
-                <ArrowRight size={14} strokeWidth={2} style={{ color: '#94A3B8' }} />
-                <span style={{
-                    marginLeft: 6, paddingTop: 2, paddingBottom: 2, paddingLeft: 7, paddingRight: 7,
-                    borderRadius: 999,
-                    backgroundColor: 'rgba(100,116,139,0.10)',
-                    color: '#64748B',
-                    fontSize: 9, fontWeight: 800, letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                }}>
-                    준비 중
-                </span>
-            </button>
-            <button
-                type="button"
-                disabled
-                aria-disabled
-                title="준비 중"
-                style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 12,
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    backgroundColor: '#FFFFFF',
-                    color: '#475569',
-                    fontSize: 13,
-                    fontWeight: 800,
-                    letterSpacing: '-0.01em',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    cursor: 'not-allowed',
-                    opacity: 0.85,
-                    WebkitTapHighlightColor: 'transparent',
-                }}
-            >
-                <InstagramIcon size={15} strokeWidth={1.9} color="#94A3B8" />
-                공식 인스타그램
-                <span style={{
-                    marginLeft: 6, paddingTop: 2, paddingBottom: 2, paddingLeft: 7, paddingRight: 7,
-                    borderRadius: 999,
-                    backgroundColor: 'rgba(100,116,139,0.10)',
-                    color: '#64748B',
-                    fontSize: 9, fontWeight: 800, letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                }}>
-                    준비 중
-                </span>
-            </button>
-        </div>
-    );
+    // 공개 CTA — /club 공개 둘러보기 + 공식 인스타그램.
+    const publicFooterCta = <GuestPassFooterCta />;
 
     return (
         <>
