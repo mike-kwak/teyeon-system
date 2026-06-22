@@ -74,6 +74,79 @@ export const LEAVE_OPTIONS: LeaveTimeOption[] = ['end', '21:00', '21:30'];
 export const formatArrivalLabel = (t: ArrivalTimeOption) => `${t} 참석`;
 export const formatLeaveLabel = (t: LeaveTimeOption) => (t === 'end' ? '끝까지' : `${t} 조퇴`);
 
+// ── TEYEON 회원 권한 판정 (엄격) ────────────────────────────────────────────
+
+/**
+ * 정모 참석 체크는 TEYEON 회원만 가능.
+ * 권한 판정의 유일한 기준: `members.auth_user_id = auth.uid()`.
+ *
+ * 이 함수는 attendance 저장 직전 / UI 잠금 여부 / 안전 자동 연결 평가에 동시에 쓰인다.
+ * profile.email 추정 / 이름 부분 일치 / 카카오 닉네임은 절대 사용하지 않는다.
+ */
+export interface LinkedMember {
+    /** members.id — 저장 payload 의 신뢰 가능한 단일 출처. */
+    id: string;
+    /** 화면 표시용 닉네임 (members.nickname). */
+    nickname: string | null;
+    /** 우리가 연결을 확정한 auth.users.id. 항상 호출자가 넘긴 userId 와 동일. */
+    authUserId: string;
+}
+
+/**
+ * 현재 사용자의 members row 를 auth_user_id 매칭으로만 조회.
+ * 존재하지 않으면 null. caller 의 user_id 는 반드시 supabase 세션 (auth.uid()) 과 동일해야 한다.
+ *
+ * 보안 주의:
+ *   - profile.email / members.email fallback 금지 (이 함수는 권한 판정용).
+ *   - 동일 auth.uid() 에 매핑된 members row 가 둘 이상 존재하면 RLS / DB 의 무결성 문제이므로
+ *     보수적으로 null 반환 + 경고 로그.
+ */
+export async function resolveLinkedMemberByAuthUid(userId: string): Promise<LinkedMember | null> {
+    if (!userId) return null;
+    try {
+        const { data, error } = await supabase
+            .from('members')
+            .select('id, nickname, auth_user_id')
+            .eq('auth_user_id', userId)
+            .limit(2);
+        if (error) {
+            console.warn(
+                `[ClubSchedule/linkedMember] code=${(error as any)?.code} | message=${(error as any)?.message}`,
+            );
+            return null;
+        }
+        const rows = (data || []) as Array<{ id: string; nickname: string | null; auth_user_id: string }>;
+        if (rows.length === 0) return null;
+        if (rows.length > 1) {
+            console.warn(
+                `[ClubSchedule/linkedMember] more than one members row matched auth_user_id — refusing to pick. ` +
+                `Check unique constraint on members.auth_user_id.`
+            );
+            return null;
+        }
+        const m = rows[0];
+        return {
+            id: m.id,
+            nickname: (m.nickname ?? '').trim() || null,
+            authUserId: m.auth_user_id,
+        };
+    } catch (e: any) {
+        console.warn('[ClubSchedule/linkedMember] threw', e?.message ?? e);
+        return null;
+    }
+}
+
+/**
+ * 비회원이 service 직접 호출 / UI 우회로 attendance 를 저장하려 했을 때 던지는 표준 에러.
+ * UI 는 try/catch 로 받아 "TEYEON 회원 전용 안내" 를 보여준다.
+ */
+export class AttendanceForbiddenError extends Error {
+    constructor(message = 'TEYEON 회원 계정만 참석 체크를 저장할 수 있습니다.') {
+        super(message);
+        this.name = 'AttendanceForbiddenError';
+    }
+}
+
 // ── Attendance CRUD ────────────────────────────────────────────────────────
 
 /**
@@ -142,17 +215,31 @@ async function attendanceRequestWithSnapshotRetry(
 }
 
 export async function upsertAttendance(input: AttendanceUpsertInput): Promise<AttendanceRow> {
+    // ── 권한 게이트 ──────────────────────────────────────────────────────────
+    // UI 우회 (직접 service 호출 / 콘솔 호출 / 스크립트) 도 차단해야 함.
+    // 유일한 기준: members.auth_user_id = auth.uid().
+    //   - caller 가 넘긴 member_id 는 신뢰하지 않는다 (다른 회원 사칭 차단).
+    //   - 매핑 없으면 AttendanceForbiddenError throw — 저장 자체 차단.
+    //   - DB 의 INSERT/UPDATE 정책 (restrict_club_attendance_to_members.sql) 과 이중 방어.
+    const linked = await resolveLinkedMemberByAuthUid(input.user_id);
+    if (!linked) {
+        throw new AttendanceForbiddenError();
+    }
+    const trustedMemberId = linked.id;
+
     const payload: Record<string, any> = {
         schedule_id: input.schedule_id,
         user_id: input.user_id,
-        member_id: input.member_id ?? null,
+        // ⚠️ caller 가 넘긴 input.member_id 는 사용하지 않음 — 항상 strict resolver 결과로 강제.
+        member_id: trustedMemberId,
         attendance_status: input.attendance_status,
         // 불참이면 시간 필드는 강제로 null — DB constraint와 일치시킨다.
         arrival_time: input.attendance_status === 'attending' ? (input.arrival_time ?? null) : null,
         leave_time:   input.attendance_status === 'attending' ? (input.leave_time ?? null)   : null,
         note: input.note ?? null,
-        // 표시명 snapshot — 빈 문자열은 null 로 정규화.
-        display_name_snapshot: (input.display_name_snapshot ?? '').trim() || null,
+        // 표시명 snapshot — caller 가 넘긴 값이 비어있으면 members.nickname 으로 보정.
+        display_name_snapshot:
+            ((input.display_name_snapshot ?? '').trim() || linked.nickname || null),
         updated_at: new Date().toISOString(),
     };
 

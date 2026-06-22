@@ -21,6 +21,8 @@ import {
     updateComment,
     deleteComment,
     resolveMemberIdForUser,
+    resolveLinkedMemberByAuthUid,
+    AttendanceForbiddenError,
     ARRIVAL_OPTIONS,
     LEAVE_OPTIONS,
     type ArrivalTimeOption,
@@ -30,6 +32,7 @@ import {
     type AttendanceWithMember,
     type AttendanceSummary,
     type CommentWithMember,
+    type LinkedMember,
 } from '@/lib/clubScheduleAttendanceService';
 import { CLUB_TYPE_STYLE, formatTimeRangeAmPm, type ClubSchedule } from '@/lib/clubScheduleData';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -92,6 +95,16 @@ export default function ClubScheduleAttendancePage() {
 
     const [schedule, setSchedule] = useState<ClubSchedule | null>(null);
     const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
+    /**
+     * TEYEON 회원 매핑 상태 — 정모 참석 체크 권한의 유일한 판정 기준.
+     *   - 'loading' : 조회 진행 중. 버튼은 잠금 상태로 표시.
+     *   - 'linked'  : members.auth_user_id === auth.uid() 매칭됨 → 참석/불참 저장 가능.
+     *   - 'unlinked': 매칭 실패 — 비회원/게스트/미연결 계정. 참석 체크 카드 숨김.
+     * 이 상태는 profile.email / 카카오 닉네임 같은 추정 경로로는 절대 바뀌지 않는다.
+     */
+    const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
+    const [linkedMemberStatus, setLinkedMemberStatus] =
+        useState<'loading' | 'linked' | 'unlinked'>('loading');
     const [myAttendance, setMyAttendance] = useState<AttendanceRow | null>(null);
     const [allAttendances, setAllAttendances] = useState<AttendanceWithMember[]>([]);
     const [comments, setComments] = useState<CommentWithMember[]>([]);
@@ -224,30 +237,54 @@ export default function ClubScheduleAttendancePage() {
         return () => { active = false; };
     }, [scheduleId, loadSchedule, loadAuxiliary]);
 
-    // 본인의 members.id를 안정적으로 찾는다 — profiles → members.email exact match.
+    // (1) 엄격 권한 판정 — members.auth_user_id === auth.uid() 매핑만 신뢰.
+    //     profile.email / 이름 추정 / 카카오 닉네임 사용 금지. 정모 참석 체크 가능 여부의 단일 진실.
+    useEffect(() => {
+        if (!user?.id) {
+            setLinkedMember(null);
+            setLinkedMemberStatus('unlinked');
+            return;
+        }
+        let cancelled = false;
+        setLinkedMemberStatus('loading');
+        resolveLinkedMemberByAuthUid(user.id)
+            .then((linked) => {
+                if (cancelled) return;
+                if (linked) {
+                    setLinkedMember(linked);
+                    setLinkedMemberStatus('linked');
+                    // 표시명/댓글 저장에 사용되는 linkedMemberId 도 함께 채워둠 — 우회 매핑보다 강한 신뢰 출처.
+                    setLinkedMemberId(linked.id);
+                } else {
+                    setLinkedMember(null);
+                    setLinkedMemberStatus('unlinked');
+                }
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setLinkedMember(null);
+                setLinkedMemberStatus('unlinked');
+            });
+        return () => { cancelled = true; };
+    }, [user?.id]);
+
+    // (2) 표시명/댓글 저장용 fallback — profiles.email → members.email exact. 권한 판정에는 사용 안 함.
+    //     ⚠️ 위의 strict resolver 가 매핑 성공 시 linkedMemberId 를 이미 채웠으므로 그때는 skip.
     useEffect(() => {
         if (!user?.id) { setLinkedMemberId(null); return; }
+        if (linkedMember) return; // strict 매핑 우선
         let cancelled = false;
         resolveMemberIdForUser({ userId: user.id, userEmail: user.email ?? null })
             .then((id) => {
                 if (cancelled) return;
                 setLinkedMemberId(id);
-                if (!id) {
-                    // member_id가 잡히지 않은 경우 — 명단에 본인이 '회원 정보 없음'으로 나오는 주된 원인.
-                    // 저장은 user_id로 정상 진행되지만, member_id null인 row를 남기지 않으려면
-                    // profiles.email 또는 members.email 데이터를 점검해야 한다.
-                    console.warn(
-                        '[ClubSchedule/member-id] 로그인 사용자의 members.id를 찾지 못했습니다. ' +
-                        'profiles.id 매칭, profiles.email 값, 또는 members.email 등록 여부 확인 필요.'
-                    );
-                }
             })
             .catch(() => {
                 if (cancelled) return;
                 setLinkedMemberId(null);
             });
         return () => { cancelled = true; };
-    }, [user?.id, user?.email]);
+    }, [user?.id, user?.email, linkedMember]);
 
     // ── 파생 상태 ───────────────────────────────────────────────────────────
     const windowState = useMemo(() => {
@@ -260,24 +297,48 @@ export default function ClubScheduleAttendancePage() {
         });
     }, [schedule]);
 
-    // 본인 row의 avatar 가 비어있을 때 사진만 user_metadata 에서 보강.
-    // ⚠️ 이름은 보강하지 않는다 — 카카오 닉네임을 화면에 노출하지 않는 운영 규칙.
-    //    매칭 실패 시 '회원 정보 없음' 으로 표시 (운영진에게 매핑 누락 신호).
+    // ── attendance 집계 정제 ───────────────────────────────────────────────
+    // 1) 화면 표시용으로 본인 사진만 fallback 보강 (카카오 user_metadata).
+    //    ⚠️ 이름은 보강하지 않는다 — 카카오 닉네임을 화면에 노출하지 않는 운영 규칙.
+    // 2) 비회원/미연결 row 는 회원 참석/불참 숫자에서 제외.
+    //    회원 판정 키: attendance.resolvedMemberId 가 activeMembers.id 에 존재하거나
+    //                  attendance.user_id 가 activeMembers.auth_user_id 와 일치.
+    //    snapshot 이름 / 부분 일치 / 카카오 닉네임은 신뢰하지 않는다.
+    //    → 결과적으로 '회원 정보 없음' 이 참석/불참 명단에 새로 추가되지 않는다.
+    const { memberAttendances, unlinkedAttendances } = useMemo(() => {
+        const memberIdSet = new Set(activeMembers.map((m) => m.id));
+        const memberAuthIdSet = new Set(
+            activeMembers.map((m) => m.auth_user_id).filter((v): v is string => !!v),
+        );
+        const memberRows: AttendanceWithMember[] = [];
+        const orphanRows: AttendanceWithMember[] = [];
+        for (const row of allAttendances) {
+            const matchedById = row.resolvedMemberId && memberIdSet.has(row.resolvedMemberId);
+            const matchedByAuth = row.user_id && memberAuthIdSet.has(row.user_id);
+            if (matchedById || matchedByAuth) {
+                memberRows.push(row);
+            } else {
+                orphanRows.push(row);
+            }
+        }
+        return { memberAttendances: memberRows, unlinkedAttendances: orphanRows };
+    }, [allAttendances, activeMembers]);
+
     const attendancesForDisplay = useMemo(() => {
-        if (!user?.id) return allAttendances;
+        if (!user?.id) return memberAttendances;
         const meta = user.user_metadata || {};
         const selfAvatarFallback = normalizeAvatarUrl(
             (meta.avatar_url as string | undefined) ||
             (meta.picture as string | undefined) ||
             null
         );
-        if (!selfAvatarFallback) return allAttendances;
-        return allAttendances.map((row) => {
+        if (!selfAvatarFallback) return memberAttendances;
+        return memberAttendances.map((row) => {
             if (row.user_id !== user.id) return row;
             if (row.avatarUrl) return row;
             return { ...row, avatarUrl: selfAvatarFallback };
         });
-    }, [allAttendances, user?.id, user?.user_metadata]);
+    }, [memberAttendances, user?.id, user?.user_metadata]);
 
     // 댓글/답글에도 동일하게 사진만 보강. 이름은 카카오 닉네임으로 떨어지지 않는다.
     const commentsForDisplay = useMemo(() => {
@@ -330,7 +391,9 @@ export default function ClubScheduleAttendancePage() {
         if (membersLoadStatus !== 'ok' || activeMembers.length === 0) return [] as ActiveMember[];
         const respondedMemberIds = new Set<string>();
         const respondedAuthUserIds = new Set<string>();
-        for (const r of allAttendances) {
+        // ⚠️ 미응답 계산은 회원으로 확정된 attendance(memberAttendances)만 기준으로 한다.
+        //    비회원/미연결 row 는 응답으로 인정하지 않는다 (다른 회원이 미응답에서 누락되는 위험 방지).
+        for (const r of memberAttendances) {
             if (r.resolvedMemberId) respondedMemberIds.add(r.resolvedMemberId);
             if (r.user_id) respondedAuthUserIds.add(r.user_id);
         }
@@ -339,18 +402,22 @@ export default function ClubScheduleAttendancePage() {
             if (m.auth_user_id && respondedAuthUserIds.has(m.auth_user_id)) return false;
             return true;
         });
-        // 개발 진단 — count 만. 운영 환경 미출력.
+        // 개발 진단 — count 만 (UUID/이메일/이름 출력 금지). 운영 환경 미출력.
         if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
             const respondedCount = activeMembers.length - result.length;
             // eslint-disable-next-line no-console
             console.info(
                 `[ClubSchedule/no-response] active=${activeMembers.length} ` +
                 `responded=${respondedCount} noResponse=${result.length} ` +
-                `(attendanceRows=${allAttendances.length})`
+                `(memberAttendances=${memberAttendances.length} unlinked=${unlinkedAttendances.length})`
             );
         }
         return result;
-    }, [activeMembers, allAttendances, membersLoadStatus]);
+    }, [activeMembers, memberAttendances, unlinkedAttendances.length, membersLoadStatus]);
+
+    // 운영진에게만 노출하는 운영 경고 — 회원 매핑이 풀린 attendance row 카운트.
+    // 일반 회원 화면에는 노출하지 않는다 (디버그 노이즈 + 개인정보 추정 우려).
+    const showUnlinkedBadge = isAdmin && unlinkedAttendances.length > 0;
 
     // 총원 — 로드 성공 시에만 숫자, 아니면 null.
     const totalMemberCount = membersLoadStatus === 'ok' ? activeMembers.length : 0;
@@ -399,39 +466,26 @@ export default function ClubScheduleAttendancePage() {
     }) => {
         if (!user?.id || !schedule) return;
         if (isReadOnly) return;
+        // ── 권한 게이트 (UI 1차) ────────────────────────────────────────────
+        // strict 매핑이 안 됐으면 service 호출 자체를 막는다. service 도 같은 검사를 하므로 이중 방어.
+        if (linkedMemberStatus !== 'linked' || !linkedMember) {
+            setSaveStatus('error');
+            setSaveError('TEYEON 회원 계정만 참석 체크를 저장할 수 있습니다.');
+            return;
+        }
         setSaveStatus('saving');
         setSaveError('');
         try {
-            // member_id 확정 — 매칭 우선순위:
-            //   1) 이미 캐시된 linkedMemberId (members.id 와 명시적으로 연결된 값)
-            //   2) resolveMemberIdForUser  → profiles.email / user.email → members.email exact
-            //   3) activeMembers 에서 auth_user_id === user.id 매칭
-            // snapshot 이름 / 부분 일치 / 추정 매칭은 절대 사용하지 않음.
-            let memberIdToSave = linkedMemberId;
-            if (!memberIdToSave) {
-                memberIdToSave = await resolveMemberIdForUser({
-                    userId: user.id,
-                    userEmail: user.email ?? null,
-                });
-                if (memberIdToSave) setLinkedMemberId(memberIdToSave);
-            }
-
-            // 표시명 snapshot — activeMembers 에서 본인 row 를 찾아 nickname 사용.
-            // 동시에 memberIdToSave 가 비어 있다면 auth_user_id 매칭으로 member_id 도 보강.
-            const selfMember = activeMembers.find((m) =>
-                (memberIdToSave && m.id === memberIdToSave) ||
-                (m.auth_user_id && m.auth_user_id === user.id)
-            );
-            if (!memberIdToSave && selfMember?.id) {
-                memberIdToSave = selfMember.id;
-                setLinkedMemberId(memberIdToSave);
-            }
-            const displayNameSnapshot = selfMember?.nickname || null;
+            // member_id 는 strict resolver 결과를 단일 출처로 사용 — caller 매핑 추정 제거.
+            const trustedMemberId = linkedMember.id;
+            // 표시명 snapshot — strict 매핑된 members.nickname 우선, 없으면 activeMembers fallback.
+            const selfMember = activeMembers.find((m) => m.id === trustedMemberId);
+            const displayNameSnapshot = linkedMember.nickname || selfMember?.nickname || null;
 
             const saved = await upsertAttendance({
                 schedule_id: schedule.id,
                 user_id: user.id,
-                member_id: memberIdToSave,
+                member_id: trustedMemberId,
                 attendance_status: opts.status,
                 arrival_time: opts.status === 'attending' ? (opts.arrival ?? null) : null,
                 leave_time:   opts.status === 'attending' ? (opts.leave   ?? null) : null,
@@ -456,11 +510,20 @@ export default function ClubScheduleAttendancePage() {
                 logSupabaseError('Attendances/refresh', refreshErr);
             }
         } catch (err: any) {
+            // service 레이어 권한 게이트 또는 RLS 거부 — UI 와 같은 안내 문구로 통일.
+            if (err instanceof AttendanceForbiddenError) {
+                setSaveStatus('error');
+                setSaveError(err.message);
+                // 강제 unlinked 로 마킹 — 이후 버튼 잠금 유지.
+                setLinkedMember(null);
+                setLinkedMemberStatus('unlinked');
+                return;
+            }
             logSupabaseError('Attendance/save', err);
             setSaveStatus('error');
             setSaveError('참석 상태 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         }
-    }, [user?.id, schedule, linkedMemberId, myAttendance?.note, isReadOnly, activeMembers]);
+    }, [user?.id, schedule, linkedMember, linkedMemberStatus, myAttendance?.note, isReadOnly, activeMembers]);
 
     const handlePickArrival = (t: ArrivalTimeOption) => {
         if (isReadOnly) return;
@@ -534,16 +597,27 @@ export default function ClubScheduleAttendancePage() {
                 return;
             }
 
-            // 최신 attendancesNow 기준 집계 — 화면 summary 와 동일 로직 (buildAttendanceSummary).
+            // 공유 집계 정제 — 회원으로 확정된 row 만 사용. 비회원/미연결 row 는 카운트/이름 모두 제외.
+            const memberIdSet = new Set(activeMembers.map((m) => m.id));
+            const memberAuthIdSet = new Set(
+                activeMembers.map((m) => m.auth_user_id).filter((v): v is string => !!v),
+            );
+            const memberRowsNow = attendancesNow.filter((r) => {
+                const byId = r.resolvedMemberId && memberIdSet.has(r.resolvedMemberId);
+                const byAuth = r.user_id && memberAuthIdSet.has(r.user_id);
+                return byId || byAuth;
+            });
+
+            // 최신 memberRowsNow 기준 집계 — 화면 summary 와 동일 로직 (buildAttendanceSummary).
             const freshSummary = buildAttendanceSummary(
-                attendancesNow,
+                memberRowsNow,
                 activeMembers.length,
                 arrivalCandidates,
             );
             // 미응답: 활성 회원 중 attendance row 없음. resolvedMemberId + auth_user_id 매칭으로 중복 방지.
             const respondedMemberIds = new Set<string>();
             const respondedAuthUserIds = new Set<string>();
-            for (const r of attendancesNow) {
+            for (const r of memberRowsNow) {
                 if (r.resolvedMemberId) respondedMemberIds.add(r.resolvedMemberId);
                 if (r.user_id) respondedAuthUserIds.add(r.user_id);
             }
@@ -960,81 +1034,95 @@ export default function ClubScheduleAttendancePage() {
                     <section style={cardStyle}>
                         <SectionTitle title="내 참석 시간" />
 
-                        {/* 저장 상태 배너 (시안 B/C/D) */}
-                        {myAttendance && (
-                            <StatusBanner status={myStatus} arrival={myArrival} leave={myLeave} />
-                        )}
-
-                        {!myAttendance && !isReadOnly && (
-                            <p style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B', margin: '0 0 14px', lineHeight: 1.55 }}>
-                                참석 가능한 시작 시간을 하나 선택해 주세요. 조퇴 예정이면 시간도 함께 표시할 수 있어요.
+                        {/* ── 회원 매핑 분기 ────────────────────────────────────────────────
+                            'loading'   → 안내 로딩
+                            'unlinked'  → TEYEON 회원 전용 안내 카드만 표시 (버튼 모두 숨김)
+                            'linked'    → 기존 참석/조퇴/불참 UI */}
+                        {linkedMemberStatus === 'loading' ? (
+                            <p style={{ fontSize: 11.5, fontWeight: 600, color: '#94A3B8', textAlign: 'center', margin: '14px 0' }}>
+                                회원 정보 확인 중...
                             </p>
-                        )}
+                        ) : linkedMemberStatus === 'unlinked' ? (
+                            <NonMemberAttendanceNotice isLoggedIn={!!user?.id} />
+                        ) : (
+                            <>
+                                {/* 저장 상태 배너 (시안 B/C/D) */}
+                                {myAttendance && (
+                                    <StatusBanner status={myStatus} arrival={myArrival} leave={myLeave} />
+                                )}
 
-                        {/* 참석 시작 시간 — schedule.start_time 기반 동적 후보 */}
-                        <SubLabel>참석 시작</SubLabel>
-                        <div style={chipRowStyle}>
-                            {arrivalCandidates.map((t) => (
-                                <TimeChip
-                                    key={t}
-                                    label={t}
-                                    sub="참석"
-                                    selected={myStatus === 'attending' && myArrival === t}
+                                {!myAttendance && !isReadOnly && (
+                                    <p style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B', margin: '0 0 14px', lineHeight: 1.55 }}>
+                                        참석 가능한 시작 시간을 하나 선택해 주세요. 조퇴 예정이면 시간도 함께 표시할 수 있어요.
+                                    </p>
+                                )}
+
+                                {/* 참석 시작 시간 — schedule.start_time 기반 동적 후보 */}
+                                <SubLabel>참석 시작</SubLabel>
+                                <div style={chipRowStyle}>
+                                    {arrivalCandidates.map((t) => (
+                                        <TimeChip
+                                            key={t}
+                                            label={t}
+                                            sub="참석"
+                                            selected={myStatus === 'attending' && myArrival === t}
+                                            disabled={isReadOnly}
+                                            onClick={() => handlePickArrival(t as ArrivalTimeOption)}
+                                            color="#10B981"
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* 조퇴 시간 */}
+                                <SubLabel hint=" (선택)">조퇴 시간</SubLabel>
+                                <div style={chipRowStyle}>
+                                    {LEAVE_OPTIONS.map((t) => (
+                                        <TimeChip
+                                            key={t}
+                                            label={t === 'end' ? '끝까지' : t}
+                                            sub={t === 'end' ? '' : '조퇴'}
+                                            selected={myStatus === 'attending' && myLeave === t}
+                                            disabled={isReadOnly || myStatus !== 'attending'}
+                                            onClick={() => handlePickLeave(t)}
+                                            color="#3B82F6"
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* 또는 */}
+                                <p style={{ textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#94A3B8', margin: '12px 0' }}>
+                                    또는
+                                </p>
+
+                                {/* 불참 */}
+                                <AbsentButton
+                                    selected={myStatus === 'not_attending'}
                                     disabled={isReadOnly}
-                                    onClick={() => handlePickArrival(t as ArrivalTimeOption)}
-                                    color="#10B981"
+                                    onClick={handlePickAbsent}
                                 />
-                            ))}
-                        </div>
 
-                        {/* 조퇴 시간 */}
-                        <SubLabel hint=" (선택)">조퇴 시간</SubLabel>
-                        <div style={chipRowStyle}>
-                            {LEAVE_OPTIONS.map((t) => (
-                                <TimeChip
-                                    key={t}
-                                    label={t === 'end' ? '끝까지' : t}
-                                    sub={t === 'end' ? '' : '조퇴'}
-                                    selected={myStatus === 'attending' && myLeave === t}
-                                    disabled={isReadOnly || myStatus !== 'attending'}
-                                    onClick={() => handlePickLeave(t)}
-                                    color="#3B82F6"
-                                />
-                            ))}
-                        </div>
-
-                        {/* 또는 */}
-                        <p style={{ textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#94A3B8', margin: '12px 0' }}>
-                            또는
-                        </p>
-
-                        {/* 불참 */}
-                        <AbsentButton
-                            selected={myStatus === 'not_attending'}
-                            disabled={isReadOnly}
-                            onClick={handlePickAbsent}
-                        />
-
-                        {saveStatus === 'saving' && (
-                            <p style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: '#3B82F6', textAlign: 'center' }}>
-                                저장 중...
-                            </p>
-                        )}
-                        {saveStatus === 'error' && (
-                            <p style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: '#C0392B', textAlign: 'center' }}>
-                                {saveError}
-                            </p>
-                        )}
-                        {isReadOnly && (
-                            <div
-                                style={{
-                                    marginTop: 12, padding: '10px 12px', borderRadius: 10,
-                                    backgroundColor: '#F1F5F9', border: '1px solid rgba(100,116,139,0.18)',
-                                    fontSize: 11, fontWeight: 700, color: '#475569', textAlign: 'center',
-                                }}
-                            >
-                                참석 체크 마감 · 현황과 명단은 계속 확인할 수 있어요
-                            </div>
+                                {saveStatus === 'saving' && (
+                                    <p style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: '#3B82F6', textAlign: 'center' }}>
+                                        저장 중...
+                                    </p>
+                                )}
+                                {saveStatus === 'error' && (
+                                    <p style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: '#C0392B', textAlign: 'center' }}>
+                                        {saveError}
+                                    </p>
+                                )}
+                                {isReadOnly && (
+                                    <div
+                                        style={{
+                                            marginTop: 12, padding: '10px 12px', borderRadius: 10,
+                                            backgroundColor: '#F1F5F9', border: '1px solid rgba(100,116,139,0.18)',
+                                            fontSize: 11, fontWeight: 700, color: '#475569', textAlign: 'center',
+                                        }}
+                                    >
+                                        참석 체크 마감 · 현황과 명단은 계속 확인할 수 있어요
+                                    </div>
+                                )}
+                            </>
                         )}
                     </section>
                 )}
@@ -1098,6 +1186,22 @@ export default function ClubScheduleAttendancePage() {
                         <p style={{ fontSize: 11, fontWeight: 600, color: '#475569', margin: '10px 0 0' }}>
                             <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#94A3B8', marginRight: 6 }} />
                             게스트 {summary.totalGuestsAttending}명 포함
+                        </p>
+                    )}
+                    {/* 운영진 전용 — 회원 매핑이 풀린 attendance row 카운트.
+                        일반 회원에게는 표시하지 않는다 (UUID/이름 추정 우려 + 디버그 노이즈). */}
+                    {showUnlinkedBadge && (
+                        <p
+                            style={{
+                                margin: '10px 0 0', padding: '6px 10px', borderRadius: 8,
+                                backgroundColor: 'rgba(245,158,11,0.10)',
+                                border: '1px solid rgba(245,158,11,0.24)',
+                                fontSize: 10.5, fontWeight: 700, color: '#92400E',
+                                wordBreak: 'keep-all', lineHeight: 1.5,
+                            }}
+                        >
+                            ⚠ 운영진 안내 · 연결되지 않은 참석 기록 {unlinkedAttendances.length}건
+                            (회원 합계 제외)
                         </p>
                     )}
                 </section>
@@ -1373,6 +1477,48 @@ const SectionTitle = ({ title, inline }: { title: string; inline?: boolean }) =>
         </h3>
     </div>
 );
+
+/**
+ * 비회원·게스트·미연결 계정 안내 카드.
+ * 정모 일정/현황 조회는 그대로 두고, 참석/조퇴/불참 버튼만 안내 카드로 대체된다.
+ *
+ * 문구 정책:
+ *   - "회원 정보 없음" 같은 시스템 디버그 표현을 사용자 안내에 사용하지 않는다.
+ *   - 운영진에게 직접 연락하는 자연스러운 경로만 제시.
+ *   - 작은 화면(360px)에서도 줄바꿈이 자연스럽도록 wordBreak: keep-all.
+ */
+const NonMemberAttendanceNotice = ({ isLoggedIn }: { isLoggedIn: boolean }) => {
+    const heading = isLoggedIn
+        ? '회원 계정 연결이 확인되지 않았습니다'
+        : 'TEYEON 회원 전용 참석 체크입니다';
+    const body = isLoggedIn
+        ? 'TEYEON 회원이라면 운영진에게 계정 연결을 요청해 주세요. 게스트 참여는 초대한 회원 또는 운영진을 통해 신청해 주세요.'
+        : '게스트 참여는 초대한 회원 또는 운영진을 통해 신청해 주세요.';
+    return (
+        <div
+            role="status"
+            style={{
+                padding: '14px 14px', borderRadius: 12,
+                backgroundColor: '#F8FAFC',
+                border: '1px solid rgba(15,23,42,0.08)',
+                display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+        >
+            <p style={{
+                margin: 0, fontSize: 13, fontWeight: 800, color: '#0F172A',
+                wordBreak: 'keep-all', lineHeight: 1.45,
+            }}>
+                {heading}
+            </p>
+            <p style={{
+                margin: 0, fontSize: 11.5, fontWeight: 600, color: '#475569',
+                wordBreak: 'keep-all', lineHeight: 1.55,
+            }}>
+                {body}
+            </p>
+        </div>
+    );
+};
 
 const SubLabel = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
     <p style={{ fontSize: 11, fontWeight: 700, color: '#475569', margin: '12px 0 6px', letterSpacing: '-0.01em' }}>
