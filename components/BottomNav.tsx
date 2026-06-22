@@ -34,8 +34,9 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user, setSystemMessage } = useAuth();
 
-  // Guest Pass 공개 랜딩페이지에서는 앱 내부 chrome을 노출하지 않음.
+  // Guest Pass / TEYEON 공개 둘러보기(/club) 페이지에서는 앱 내부 chrome을 노출하지 않음.
   if (pathname?.startsWith('/guest/pass')) return null;
+  if (pathname === '/club' || pathname?.startsWith('/club/')) return null;
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {

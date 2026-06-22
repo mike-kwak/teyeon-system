@@ -553,6 +553,10 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const [isLoadTimeout, setIsLoadTimeout] = useState(false);
 
     const isWhiteTheme = pathname === '/sample-white';
+    const isPublicPath =
+      pathname?.startsWith('/guest/pass/') ||
+      pathname === '/club' ||
+      pathname?.startsWith('/club/');
 
     const handleSearch = async () => {
         if (!inputValue || inputValue.length < 2) return;
@@ -625,12 +629,12 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }, [isLoading]);
 
     useEffect(() => {
-        if (!isLoading && !user && pathname !== '/') {
+        if (!isLoading && !user && pathname !== '/' && !isPublicPath) {
             router.push('/');
         }
-    }, [user, isLoading, pathname, router]);
+    }, [user, isLoading, pathname, router, isPublicPath]);
 
-    if (isLoading && pathname !== '/') {
+    if (isLoading && pathname !== '/' && !isPublicPath) {
         return <PremiumSpinner isWhiteTheme={isWhiteTheme} message={isLoadTimeout ? "네트워크 지연 발생..." : "Establishing Identity..."} />;
     }
 

@@ -23,6 +23,8 @@ export default function SplashScreen() {
         if (pathname?.startsWith('/kdk/display')) return;
         // Guest Pass 공개 랜딩에서는 메인 앱 Splash 띄우지 않음 (GuestPassIntro가 별도 담당).
         if (pathname?.startsWith('/guest/pass')) return;
+        // TEYEON 공개 둘러보기(/club)는 외부 방문자 대상이라 회원용 Splash 미노출.
+        if (pathname === '/club' || pathname?.startsWith('/club/')) return;
 
         try {
             if (sessionStorage.getItem('teyeon_splash_v1')) return;
