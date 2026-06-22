@@ -107,7 +107,7 @@ export default function GlobalHeader() {
                 whiteSpace: 'nowrap',
               }}
             >
-              TENNIS CLUB · SINCE 2025
+              TENNIS CLUB · SINCE 2024
             </span>
           </div>
         </Link>
