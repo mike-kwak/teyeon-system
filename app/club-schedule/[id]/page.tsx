@@ -313,31 +313,35 @@ export default function ClubScheduleAttendancePage() {
 
     /**
      * 활성 회원 중 attendance row 가 없는 회원 = 미응답.
-     * 매칭 기준 (둘 중 하나라도 hit):
-     *   - attendance.member_id === member.id  (직접 매칭)
-     *   - attendance.user_id  === member.auth_user_id  (운영진 사전 매핑)
+     *
+     * identity 키: attendance.resolvedMemberId (service 가 산출 — member_id / auth_user_id / email exact)
+     *   - snapshot 이름 만으로는 미응답에서 제외하지 않는다.
+     *   - resolvedMemberId 가 없으면 (= members.id 와 연결할 수 없는 row) 미응답 계산에 영향 X.
+     * 보강 키: auth_user_id 매칭 — activeMembers 의 auth_user_id 가
+     *   attendance.user_id 와 일치하면 응답 처리 (resolvedMemberId 가 비어도 안전망).
+     *
+     * 같은 회원이 응답 + 미응답에 동시에 보이지 않도록 members.id 기준 Set 사용.
      *
      * ⚠️ 게스트 필터링은 적용하지 않음 — 운영 members 테이블에 is_guest 컬럼이 없음.
-     *    명확한 게스트 분류가 도입되면 그때 추가. 현재는 members 전체가 응답 대상.
      */
     const noResponseMembers = useMemo(() => {
-        // 로딩 / 실패 상태에서는 미응답 결과를 노출하지 않는다 — 0명으로 오해 방지.
         if (membersLoadStatus !== 'ok' || activeMembers.length === 0) return [] as ActiveMember[];
-        const attendedMemberIds = new Set<string>();
-        const attendedAuthIds = new Set<string>();
+        const respondedMemberIds = new Set<string>();
+        const respondedAuthUserIds = new Set<string>();
         for (const r of allAttendances) {
-            if (r.member_id) attendedMemberIds.add(r.member_id);
-            if (r.user_id) attendedAuthIds.add(r.user_id);
+            if (r.resolvedMemberId) respondedMemberIds.add(r.resolvedMemberId);
+            if (r.user_id) respondedAuthUserIds.add(r.user_id);
         }
         const result = activeMembers.filter((m) => {
-            if (attendedMemberIds.has(m.id)) return false;
-            if (m.auth_user_id && attendedAuthIds.has(m.auth_user_id)) return false;
+            if (respondedMemberIds.has(m.id)) return false;
+            if (m.auth_user_id && respondedAuthUserIds.has(m.auth_user_id)) return false;
             return true;
         });
-        // 운영 점검 로그 — 개인정보 미포함. count 만.
-        if (typeof window !== 'undefined') {
+        // 개발 진단 — count 만. 운영 환경 미출력.
+        if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
             const respondedCount = activeMembers.length - result.length;
-            console.log(
+            // eslint-disable-next-line no-console
+            console.info(
                 `[ClubSchedule/no-response] active=${activeMembers.length} ` +
                 `responded=${respondedCount} noResponse=${result.length} ` +
                 `(attendanceRows=${allAttendances.length})`
@@ -396,8 +400,11 @@ export default function ClubScheduleAttendancePage() {
         setSaveStatus('saving');
         setSaveError('');
         try {
-            // member_id가 아직 비어있으면 즉석에서 한 번 더 시도 — 최초 진입 직후 저장하는
-            // 경우에도 attendance row에 정식 member_id가 함께 저장되도록 보강.
+            // member_id 확정 — 매칭 우선순위:
+            //   1) 이미 캐시된 linkedMemberId (members.id 와 명시적으로 연결된 값)
+            //   2) resolveMemberIdForUser  → profiles.email / user.email → members.email exact
+            //   3) activeMembers 에서 auth_user_id === user.id 매칭
+            // snapshot 이름 / 부분 일치 / 추정 매칭은 절대 사용하지 않음.
             let memberIdToSave = linkedMemberId;
             if (!memberIdToSave) {
                 memberIdToSave = await resolveMemberIdForUser({
@@ -407,6 +414,18 @@ export default function ClubScheduleAttendancePage() {
                 if (memberIdToSave) setLinkedMemberId(memberIdToSave);
             }
 
+            // 표시명 snapshot — activeMembers 에서 본인 row 를 찾아 nickname 사용.
+            // 동시에 memberIdToSave 가 비어 있다면 auth_user_id 매칭으로 member_id 도 보강.
+            const selfMember = activeMembers.find((m) =>
+                (memberIdToSave && m.id === memberIdToSave) ||
+                (m.auth_user_id && m.auth_user_id === user.id)
+            );
+            if (!memberIdToSave && selfMember?.id) {
+                memberIdToSave = selfMember.id;
+                setLinkedMemberId(memberIdToSave);
+            }
+            const displayNameSnapshot = selfMember?.nickname || null;
+
             const saved = await upsertAttendance({
                 schedule_id: schedule.id,
                 user_id: user.id,
@@ -415,6 +434,7 @@ export default function ClubScheduleAttendancePage() {
                 arrival_time: opts.status === 'attending' ? (opts.arrival ?? null) : null,
                 leave_time:   opts.status === 'attending' ? (opts.leave   ?? null) : null,
                 note: myAttendance?.note ?? null,
+                display_name_snapshot: displayNameSnapshot,
             });
             // 1) 내 응답 즉시 갱신
             setMyAttendance(saved);
@@ -438,7 +458,7 @@ export default function ClubScheduleAttendancePage() {
             setSaveStatus('error');
             setSaveError('참석 상태 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         }
-    }, [user?.id, schedule, linkedMemberId, myAttendance?.note, isReadOnly]);
+    }, [user?.id, schedule, linkedMemberId, myAttendance?.note, isReadOnly, activeMembers]);
 
     const handlePickArrival = (t: ArrivalTimeOption) => {
         if (isReadOnly) return;
@@ -1041,14 +1061,6 @@ export default function ClubScheduleAttendancePage() {
                     </div>
                 </section>
 
-                {/* Guest Pass — 운영진에게는 설정 카드, 활성 시 일반 회원에게는 링크 복사 카드.
-                    schedule.guest_enabled === false 인 정모는 두 카드 모두 숨김 (Guest Pass 운영 의도 X). */}
-                {schedule.guest_enabled && (
-                    isAdmin
-                        ? <GuestPassSettingsCard schedule={schedule} userId={user?.id} />
-                        : <GuestPassMemberLink schedule={schedule} />
-                )}
-
                 {/* 특이사항 / 파트너 요청 */}
                 <section style={cardStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -1202,6 +1214,17 @@ export default function ClubScheduleAttendancePage() {
                         </div>
                     )}
                 </section>
+
+                {/* Guest Pass — 페이지 최하단.
+                    운영진에게는 설정 카드, 활성 시 일반 회원에게는 링크 복사 카드.
+                    schedule.guest_enabled === false 인 정모는 두 카드 모두 숨김. */}
+                {schedule.guest_enabled && (
+                    <div style={{ paddingBottom: 24 }}>
+                        {isAdmin
+                            ? <GuestPassSettingsCard schedule={schedule} userId={user?.id} />
+                            : <GuestPassMemberLink schedule={schedule} />}
+                    </div>
+                )}
             </div>
         </main>
     );

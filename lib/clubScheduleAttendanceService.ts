@@ -27,6 +27,12 @@ export interface AttendanceRow {
     arrival_time: string | null;     // 'HH:MM' (DB time)
     leave_time: string | null;       // 'end' | 'HH:MM'
     note: string | null;
+    /**
+     * 참석 저장 시점의 표시명 snapshot (members.nickname 기준).
+     * 회원 lookup 실패 시 fallback 으로 사용. 카카오 닉네임 / 이메일 / UUID 저장 금지.
+     * 컬럼이 운영 DB 에 아직 없는 환경에서도 안전하도록 service 는 retry-strip 처리.
+     */
+    display_name_snapshot: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -36,6 +42,15 @@ export interface AttendanceWithMember extends AttendanceRow {
     is_guest: boolean | null;
     /** members.avatar_url > profiles.avatar_url 우선순위로 해소된 사진. null이면 InitialAvatar fallback. */
     avatarUrl: string | null;
+    /**
+     * identity 식별용 — 화면/집계는 raw `member_id` 대신 이 값을 우선 사용.
+     * 우선순위:
+     *   1) attendance.member_id          (저장된 stable id)
+     *   2) auth_user_id exact 매칭        (members.auth_user_id === attendance.user_id)
+     *   3) profile.email exact 매칭       (members.email === profiles.email)
+     *   4) 매칭 실패 → null  (snapshot 이름은 identity 로 사용하지 않음)
+     */
+    resolvedMemberId: string | null;
 }
 
 export interface AttendanceUpsertInput {
@@ -46,6 +61,11 @@ export interface AttendanceUpsertInput {
     arrival_time?: ArrivalTimeOption | null;
     leave_time?: LeaveTimeOption | null;
     note?: string | null;
+    /**
+     * 저장 시점에 운영진/회원이 알고 있는 표시명. 호출자가 members.nickname 을 채워 전달.
+     * 회원 lookup 실패에도 명단에 사람 이름이 표시되도록 보호.
+     */
+    display_name_snapshot?: string | null;
 }
 
 export const ARRIVAL_OPTIONS: ArrivalTimeOption[] = ['19:00', '19:30', '20:00'];
@@ -90,8 +110,39 @@ export async function fetchMyAttendance(
     return normalizeAttendanceRow(data as AttendanceRow);
 }
 
+/**
+ * `display_name_snapshot` 컬럼이 운영 DB 에 적용되지 않은 환경 대응 헬퍼.
+ * 컬럼 미존재 에러('column ... does not exist' / PGRST204)이면 payload 에서 떼고 재시도.
+ */
+async function attendanceRequestWithSnapshotRetry(
+    payload: Record<string, any>,
+    mode: 'insert' | 'update',
+    existingId?: string,
+): Promise<AttendanceRow> {
+    const doRequest = async (p: Record<string, any>) => {
+        if (mode === 'update' && existingId) {
+            return await supabase.from('club_schedule_attendances').update(p).eq('id', existingId).select('*').single();
+        }
+        return await supabase.from('club_schedule_attendances').insert([p]).select('*').single();
+    };
+    let res = await doRequest(payload);
+    if (res.error) {
+        const msg = `${(res.error as any)?.message || ''} ${(res.error as any)?.details || ''}`;
+        if (/display_name_snapshot/i.test(msg)) {
+            console.warn(
+                '[Attendances/save] display_name_snapshot column missing — ' +
+                'saving without snapshot. Apply supabase/add_attendance_display_name_snapshot.sql to enable.'
+            );
+            const { display_name_snapshot: _omit, ...rest } = payload;
+            res = await doRequest(rest);
+        }
+    }
+    if (res.error) throw res.error;
+    return normalizeAttendanceRow(res.data as AttendanceRow);
+}
+
 export async function upsertAttendance(input: AttendanceUpsertInput): Promise<AttendanceRow> {
-    const payload = {
+    const payload: Record<string, any> = {
         schedule_id: input.schedule_id,
         user_id: input.user_id,
         member_id: input.member_id ?? null,
@@ -100,6 +151,8 @@ export async function upsertAttendance(input: AttendanceUpsertInput): Promise<At
         arrival_time: input.attendance_status === 'attending' ? (input.arrival_time ?? null) : null,
         leave_time:   input.attendance_status === 'attending' ? (input.leave_time ?? null)   : null,
         note: input.note ?? null,
+        // 표시명 snapshot — 빈 문자열은 null 로 정규화.
+        display_name_snapshot: (input.display_name_snapshot ?? '').trim() || null,
         updated_at: new Date().toISOString(),
     };
 
@@ -114,23 +167,9 @@ export async function upsertAttendance(input: AttendanceUpsertInput): Promise<At
     if (fetchErr) throw fetchErr;
 
     if (existing?.id) {
-        const { data, error } = await supabase
-            .from('club_schedule_attendances')
-            .update(payload)
-            .eq('id', existing.id)
-            .select('*')
-            .single();
-        if (error) throw error;
-        return normalizeAttendanceRow(data as AttendanceRow);
+        return await attendanceRequestWithSnapshotRetry(payload, 'update', existing.id);
     }
-
-    const { data, error } = await supabase
-        .from('club_schedule_attendances')
-        .insert([payload])
-        .select('*')
-        .single();
-    if (error) throw error;
-    return normalizeAttendanceRow(data as AttendanceRow);
+    return await attendanceRequestWithSnapshotRetry(payload, 'insert');
 }
 
 /**
@@ -145,16 +184,48 @@ export async function fetchAttendancesWithMembers(
     scheduleId: string,
 ): Promise<AttendanceWithMember[]> {
     // 1) attendances 본체 — 이 쿼리만 throw하면 호출자가 에러 표시.
-    const { data: attendances, error: attErr } = await supabase
-        .from('club_schedule_attendances')
-        .select(
+    //    display_name_snapshot 미적용 환경 대비: 컬럼 누락 에러면 한 번 폴백 select.
+    type RawRow = {
+        id: string; schedule_id: string; user_id: string; member_id: string | null;
+        attendance_status: AttendanceStatus;
+        arrival_time: string | null; leave_time: string | null; note: string | null;
+        display_name_snapshot: string | null;
+        created_at: string; updated_at: string;
+    };
+    let attendances: RawRow[] = [];
+    {
+        const sel =
             'id, schedule_id, user_id, member_id, attendance_status, ' +
-            'arrival_time, leave_time, note, created_at, updated_at'
-        )
-        .eq('schedule_id', scheduleId);
-    if (attErr) throw attErr;
+            'arrival_time, leave_time, note, display_name_snapshot, created_at, updated_at';
+        const { data, error } = await supabase
+            .from('club_schedule_attendances')
+            .select(sel)
+            .eq('schedule_id', scheduleId);
+        if (error) {
+            const msg = `${(error as any)?.message || ''} ${(error as any)?.details || ''}`;
+            if (/display_name_snapshot/i.test(msg)) {
+                console.warn(
+                    '[Attendances/fetch] display_name_snapshot column missing — falling back. ' +
+                    'Apply supabase/add_attendance_display_name_snapshot.sql to enable name snapshot fallback.'
+                );
+                const fb = await supabase
+                    .from('club_schedule_attendances')
+                    .select(
+                        'id, schedule_id, user_id, member_id, attendance_status, ' +
+                        'arrival_time, leave_time, note, created_at, updated_at'
+                    )
+                    .eq('schedule_id', scheduleId);
+                if (fb.error) throw fb.error;
+                attendances = ((fb.data || []) as any[]).map((r) => ({ ...r, display_name_snapshot: null }));
+            } else {
+                throw error;
+            }
+        } else {
+            attendances = ((data || []) as any[]) as RawRow[];
+        }
+    }
 
-    const normalized: AttendanceWithMember[] = (attendances || []).map((row: any) => ({
+    const normalized: AttendanceWithMember[] = attendances.map((row) => ({
         id: row.id,
         schedule_id: row.schedule_id,
         user_id: row.user_id,
@@ -163,11 +234,13 @@ export async function fetchAttendancesWithMembers(
         arrival_time: normalizeArrivalTime(row.arrival_time),
         leave_time: row.leave_time,
         note: row.note,
+        display_name_snapshot: row.display_name_snapshot,
         created_at: row.created_at,
         updated_at: row.updated_at,
         nickname: null,
         is_guest: null,
         avatarUrl: null,
+        resolvedMemberId: null,
     }));
 
     // 2) 공통 resolver로 일괄 해소 — comments와 동일 로직 재사용 (N+1 회피, 최대 3 batch).
@@ -181,6 +254,13 @@ export async function fetchAttendancesWithMembers(
         resolved = { byUserId: new Map(), byMemberId: new Map() };
     }
 
+    // 3) 이름 + identity 합성.
+    //    identity (resolvedMemberId) — 집계/중복 방지 키. snapshot 은 절대 identity 로 사용하지 않음.
+    //      우선순위: attendance.member_id  →  resolver hit (auth_user_id / email exact)  →  null
+    //    name — 화면 표시용. snapshot 은 매핑 실패 시에만 fallback.
+    //      우선순위: resolver hit (members.nickname)  →  attendance.display_name_snapshot  →  '회원 정보 없음'
+    //    카카오 닉네임 / 이메일 / UUID 는 어떤 경로로도 사용되지 않음.
+    let unresolvedCount = 0;
     for (const row of normalized) {
         const pick = pickDisplayName({
             userId: row.user_id,
@@ -188,13 +268,34 @@ export async function fetchAttendancesWithMembers(
             resolved,
             selfName: null,
         });
+        // identity 확정 — raw attendance.member_id 우선, 없으면 resolver 결과.
+        // snapshot 은 identity 에 절대 포함하지 않는다.
+        row.resolvedMemberId = row.member_id ?? pick.resolvedMemberId ?? null;
+
         if (pick.name !== '회원 정보 없음') {
             row.nickname = pick.name;
+        } else if (row.display_name_snapshot) {
+            // resolver 실패 → 표시명만 snapshot 으로 보강 (identity 는 위에서 이미 결정됨).
+            row.nickname = row.display_name_snapshot;
+        } else {
+            unresolvedCount += 1;
         }
         if (pick.isGuest !== null) row.is_guest = pick.isGuest;
         if (pick.avatarUrl) row.avatarUrl = pick.avatarUrl;
-        // 화면용 보강 — DB는 미변경. 다음 저장 시 page가 정식 member_id로 update.
-        if (!row.member_id && pick.resolvedMemberId) row.member_id = pick.resolvedMemberId;
+        // 화면용 보강 — DB 는 미변경. 다음 저장 시 page 가 member_id 를 함께 저장.
+        // ⚠️ snapshot 으로 member_id 를 채우지 않는다 (이름 → uuid 추정 금지).
+    }
+
+    // 개발 진단 — 매핑 실패 row 수만 로그 (UUID 본문 출력 금지). 운영 환경 미출력.
+    if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+        const withMemberId = normalized.filter((r) => !!r.member_id).length;
+        const withResolved = normalized.filter((r) => !!r.resolvedMemberId).length;
+        const withSnapshot = normalized.filter((r) => !!r.display_name_snapshot).length;
+        // eslint-disable-next-line no-console
+        console.info(
+            `[Attendances/resolve] total=${normalized.length} memberIdSet=${withMemberId} ` +
+            `resolved=${withResolved} snapshotSet=${withSnapshot} unresolved=${unresolvedCount}`
+        );
     }
 
     return normalized;
