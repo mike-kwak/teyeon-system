@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2, Check, MessageSquare } from 'lucide-react';
-import { shareOrCopyClubSchedule } from '@/lib/clubScheduleShare';
+import { shareOrCopyClubSchedule, shareClubScheduleStatus } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchClubScheduleById } from '@/lib/clubScheduleService';
@@ -120,6 +120,8 @@ export default function ClubScheduleAttendancePage() {
     const [replyBody, setReplyBody] = useState('');
     const [postingReply, setPostingReply] = useState(false);
     const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied' | 'shared' | 'failed'>('idle');
+    /** 현재 참석 현황 공유 버튼 상태 — 안내문 복사와 분리. */
+    const [statusShareState, setStatusShareState] = useState<'idle' | 'busy' | 'copied' | 'shared' | 'failed'>('idle');
 
     const logSupabaseError = (label: string, err: any) => {
         // Supabase error는 message/details/hint/code 가 자주 분리되어 있고
@@ -496,6 +498,86 @@ export default function ClubScheduleAttendancePage() {
         window.setTimeout(() => setShareState('idle'), 2200);
     }, [schedule, shareState]);
 
+    /**
+     * 현재 참석 현황 공유.
+     *
+     * 흐름:
+     *   1) 회원 명단 조회가 실패한 상태(membersLoadStatus !== 'ok')면 즉시 차단 → 잘못된 '미응답 0명' 공유 방지.
+     *   2) 공유 직전 attendances 가벼운 refetch → 최신 집계 확보. members/comments 는 페이지가 이미 관리.
+     *   3) buildAttendanceSummary 로 즉시 계산 → 참석/불참/미응답/게스트 신청 건수 산출.
+     *   4) 카카오톡/BAND 호환 텍스트 → Web Share → 클립보드 fallback.
+     *
+     * 회원 이름/UUID/이메일은 절대 문구에 포함하지 않는다 (helper 가 가공).
+     */
+    const handleShareStatus = useCallback(async () => {
+        if (!schedule) return;
+        if (statusShareState === 'busy') return;
+        // 회원 명단이 없으면 미응답을 잘못 0명으로 공유할 위험 — 차단.
+        if (membersLoadStatus !== 'ok') {
+            alert('미응답 집계 확인이 필요합니다. 회원 명단을 다시 불러온 뒤 시도해 주세요.');
+            return;
+        }
+
+        setStatusShareState('busy');
+        try {
+            // 공유 직전 attendances refetch — 최신 집계 필수.
+            // ⚠️ refetch 실패 시 기존 state 로 공유하지 않는다 (오래된 숫자 공유 차단).
+            let attendancesNow: AttendanceWithMember[];
+            try {
+                const refreshed = await fetchAttendancesWithMembers(schedule.id);
+                attendancesNow = refreshed;
+                setAllAttendances(refreshed);
+            } catch {
+                setStatusShareState('failed');
+                alert('최신 참석 현황을 불러오지 못했습니다. 다시 시도해 주세요.');
+                window.setTimeout(() => setStatusShareState('idle'), 2200);
+                return;
+            }
+
+            // 최신 attendancesNow 기준 집계 — 화면 summary 와 동일 로직 (buildAttendanceSummary).
+            const freshSummary = buildAttendanceSummary(
+                attendancesNow,
+                activeMembers.length,
+                arrivalCandidates,
+            );
+            // 미응답: 활성 회원 중 attendance row 없음. resolvedMemberId + auth_user_id 매칭으로 중복 방지.
+            const respondedMemberIds = new Set<string>();
+            const respondedAuthUserIds = new Set<string>();
+            for (const r of attendancesNow) {
+                if (r.resolvedMemberId) respondedMemberIds.add(r.resolvedMemberId);
+                if (r.user_id) respondedAuthUserIds.add(r.user_id);
+            }
+            const noResponseCount = activeMembers.filter((m) => {
+                if (respondedMemberIds.has(m.id)) return false;
+                if (m.auth_user_id && respondedAuthUserIds.has(m.auth_user_id)) return false;
+                return true;
+            }).length;
+
+            // 게스트 신청은 댓글 category 기준 건수 — guestRequestCount 가 이미 그것.
+            const result = await shareClubScheduleStatus({
+                schedule,
+                totalAttending:    freshSummary.totalAttending,
+                totalNotAttending: freshSummary.totalNotAttending,
+                totalNoResponse:   noResponseCount,
+                totalGuestRequests: guestRequestCount,
+            });
+            if (result.mode === 'share') {
+                setStatusShareState('shared');
+            } else if (result.mode === 'copy') {
+                setStatusShareState('copied');
+            } else {
+                setStatusShareState('failed');
+                alert('현황을 공유하지 못했습니다. 다시 시도해 주세요.');
+            }
+        } catch {
+            setStatusShareState('failed');
+        }
+        window.setTimeout(() => setStatusShareState('idle'), 2200);
+    }, [
+        schedule, statusShareState, membersLoadStatus,
+        allAttendances, activeMembers, arrivalCandidates, guestRequestCount,
+    ]);
+
     const resetCommentForm = () => {
         setCommentBody('');
         setCommentCategory('일반');
@@ -728,42 +810,93 @@ export default function ClubScheduleAttendancePage() {
                                 🏷️ {typeStyle.badge}
                             </span>
                         ) : <span />}
-                        {/* 참석 체크 안내문 공유 (회원 전용 — 공개 익명 페이지 아님) */}
-                        <button
-                            type="button"
-                            onClick={handleShare}
-                            disabled={shareState === 'busy'}
-                            aria-label="참석 체크 안내문 복사"
-                            style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 5,
-                                height: 30, paddingLeft: 10, paddingRight: 10,
-                                borderRadius: 999,
-                                border: '1px solid rgba(59,130,246,0.28)',
-                                backgroundColor: shareState === 'copied' || shareState === 'shared'
-                                    ? 'rgba(16,185,129,0.10)'
-                                    : 'rgba(59,130,246,0.08)',
-                                color: shareState === 'copied' || shareState === 'shared'
-                                    ? '#065F46'
-                                    : '#1D4ED8',
-                                fontSize: 11, fontWeight: 800,
-                                letterSpacing: '-0.01em',
-                                cursor: shareState === 'busy' ? 'wait' : 'pointer',
-                                whiteSpace: 'nowrap',
-                                WebkitTapHighlightColor: 'transparent',
-                                transition: 'background-color 0.15s, color 0.15s',
-                            }}
-                        >
-                            {shareState === 'copied' ? <Check size={12} /> : <Share2 size={12} />}
-                            {shareState === 'copied'
-                                ? '복사 완료'
-                                : shareState === 'shared'
-                                    ? '공유 완료'
-                                    : shareState === 'failed'
-                                        ? '복사 실패'
-                                        : shareState === 'busy'
-                                            ? '준비 중'
-                                            : '참석 안내문 복사'}
-                        </button>
+                        {/* 공유 액션 — 안내문 / 현황. 좁은 화면에서 자연스럽게 줄바꿈. */}
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                            flexWrap: 'wrap', justifyContent: 'flex-end',
+                        }}>
+                            {/* 1) 참석 체크 안내문 공유 (기존) */}
+                            <button
+                                type="button"
+                                onClick={handleShare}
+                                disabled={shareState === 'busy'}
+                                aria-label="참석 체크 안내문 복사"
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    height: 30, paddingLeft: 10, paddingRight: 10,
+                                    borderRadius: 999,
+                                    border: '1px solid rgba(59,130,246,0.28)',
+                                    backgroundColor: shareState === 'copied' || shareState === 'shared'
+                                        ? 'rgba(16,185,129,0.10)'
+                                        : 'rgba(59,130,246,0.08)',
+                                    color: shareState === 'copied' || shareState === 'shared'
+                                        ? '#065F46'
+                                        : '#1D4ED8',
+                                    fontSize: 11, fontWeight: 800,
+                                    letterSpacing: '-0.01em',
+                                    cursor: shareState === 'busy' ? 'wait' : 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    WebkitTapHighlightColor: 'transparent',
+                                    transition: 'background-color 0.15s, color 0.15s',
+                                }}
+                            >
+                                {shareState === 'copied' ? <Check size={12} /> : <Share2 size={12} />}
+                                {shareState === 'copied'
+                                    ? '복사 완료'
+                                    : shareState === 'shared'
+                                        ? '공유 완료'
+                                        : shareState === 'failed'
+                                            ? '복사 실패'
+                                            : shareState === 'busy'
+                                                ? '준비 중'
+                                                : '안내문 복사'}
+                            </button>
+
+                            {/* 2) 현재 참석 현황 공유 — 신규.
+                                회원 명단 로드 실패 시 비활성화 (잘못된 '미응답 0명' 공유 방지). */}
+                            <button
+                                type="button"
+                                onClick={handleShareStatus}
+                                disabled={statusShareState === 'busy' || membersLoadStatus !== 'ok'}
+                                aria-label="현재 참석 현황 공유"
+                                title={membersLoadStatus !== 'ok' ? '회원 명단 로드 후 사용할 수 있습니다' : undefined}
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    height: 30, paddingLeft: 10, paddingRight: 10,
+                                    borderRadius: 999,
+                                    border: '1px solid rgba(15,159,152,0.30)',
+                                    backgroundColor: statusShareState === 'copied' || statusShareState === 'shared'
+                                        ? 'rgba(16,185,129,0.10)'
+                                        : membersLoadStatus !== 'ok'
+                                            ? 'rgba(100,116,139,0.06)'
+                                            : 'rgba(15,159,152,0.08)',
+                                    color: statusShareState === 'copied' || statusShareState === 'shared'
+                                        ? '#065F46'
+                                        : membersLoadStatus !== 'ok'
+                                            ? '#94A3B8'
+                                            : '#0E7C76',
+                                    fontSize: 11, fontWeight: 800,
+                                    letterSpacing: '-0.01em',
+                                    cursor: statusShareState === 'busy' ? 'wait' :
+                                            membersLoadStatus !== 'ok' ? 'not-allowed' : 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    WebkitTapHighlightColor: 'transparent',
+                                    transition: 'background-color 0.15s, color 0.15s',
+                                    opacity: membersLoadStatus !== 'ok' ? 0.7 : 1,
+                                }}
+                            >
+                                {statusShareState === 'copied' ? <Check size={12} /> : <Share2 size={12} />}
+                                {statusShareState === 'copied'
+                                    ? '복사 완료'
+                                    : statusShareState === 'shared'
+                                        ? '공유 완료'
+                                        : statusShareState === 'failed'
+                                            ? '공유 실패'
+                                            : statusShareState === 'busy'
+                                                ? '준비 중'
+                                                : '현황 공유'}
+                            </button>
+                        </div>
                     </div>
                     <h2 style={{ fontSize: 18, fontWeight: 900, color: '#0F172A', margin: '0 0 10px', letterSpacing: '-0.02em', wordBreak: 'keep-all' }}>
                         {schedule.title}
