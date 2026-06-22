@@ -20,6 +20,8 @@ import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
 import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
+import { fetchClubSchedules } from '@/lib/clubScheduleService';
+import type { ClubSchedule } from '@/lib/clubScheduleData';
 
 type ActiveKdkSession = {
     id: string;
@@ -205,6 +207,13 @@ export default function KDKPage() {
     const [tickerSaving, setTickerSaving] = useState(false);
     const [tickerSaveOk, setTickerSaveOk] = useState(false);
 
+    // KDK 세션 → TEYEON 정모(club_schedule_id) 연결.
+    // 운영진이 명시적으로 선택해야만 연결됨 — 자동 매칭 금지.
+    // 연결되면 Guest Pass 의 'KDK 경기 안내' 카드가 세션 상태에 따라 자동 전환.
+    const [upcomingSchedules, setUpcomingSchedules] = useState<ClubSchedule[]>([]);
+    const [linkedScheduleId, setLinkedScheduleId] = useState<string | null>(null);
+    const [linkSaving, setLinkSaving] = useState(false);
+
     // [v16.0] Real-time participation tracker
     const busyPlayerIds = useMemo(() => {
         const playing = matches.filter(m => m.status === 'playing');
@@ -224,12 +233,109 @@ export default function KDKPage() {
 
     const loadTickerMsg = async (sid: string) => {
         if (!sid) return;
-        const { data } = await supabase
+        // ticker_message + club_schedule_id 동시 로드. club_schedule_id 컬럼 미적용 환경
+        // (마이그레이션 전) 대비 fallback.
+        let row: any = null;
+        const { data, error } = await supabase
             .from('kdk_session_meta')
-            .select('ticker_message')
+            .select('ticker_message, club_schedule_id')
             .eq('session_id', sid)
             .maybeSingle();
-        setTickerMsg(data?.ticker_message ?? '');
+        if (error && /club_schedule_id/i.test(`${error.message || ''} ${error.details || ''}`)) {
+            const fb = await supabase
+                .from('kdk_session_meta')
+                .select('ticker_message')
+                .eq('session_id', sid)
+                .maybeSingle();
+            row = fb.data ?? null;
+        } else {
+            row = data ?? null;
+        }
+        setTickerMsg(row?.ticker_message ?? '');
+        setLinkedScheduleId(row?.club_schedule_id ?? null);
+    };
+
+    // 가까운 일정 목록 로드 (KDK ↔ 정모 연결용). 최초 마운트 1회 + 세션 변경 시 갱신.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const all = await fetchClubSchedules();
+                if (cancelled) return;
+                // 오늘 ± 14 일 + 정모 / 번개 / 단체전 연습만 표시 (회식 / 기타 제외).
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const lower = new Date(today); lower.setDate(lower.getDate() - 14);
+                const upper = new Date(today); upper.setDate(upper.getDate() + 30);
+                const filtered = all.filter((cs) => {
+                    if (cs.id.startsWith('demo-')) return false;
+                    if (!['정모', '번개', '단체전 연습'].includes(cs.schedule_type)) return false;
+                    const d = new Date(cs.schedule_date);
+                    return d >= lower && d <= upper;
+                }).sort((a, b) => a.schedule_date.localeCompare(b.schedule_date));
+                setUpcomingSchedules(filtered);
+            } catch {
+                /* swallow — 연결 UI 만 영향, KDK 본체 기능에 영향 X */
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    // 정모 연결 변경 — 운영진이 명시적으로 선택한 경우만 저장. 자동 추정 금지.
+    // 1:1 보장 — 이미 다른 KDK 세션이 연결된 정모를 선택하면 안내 후 저장 중단.
+    const saveLinkedSchedule = async (scheduleId: string | null) => {
+        if (!activeSessionId) return;
+        setLinkSaving(true);
+        try {
+            if (scheduleId) {
+                // 다른 세션이 이미 이 정모에 연결돼 있는지 사전 점검 (unique partial index 위반 회피).
+                const { data: existing, error: checkErr } = await supabase
+                    .from('kdk_session_meta')
+                    .select('session_id')
+                    .eq('club_schedule_id', scheduleId)
+                    .neq('session_id', activeSessionId)
+                    .limit(1)
+                    .maybeSingle();
+                if (checkErr) {
+                    const msg = `${checkErr.message || ''} ${checkErr.details || ''}`;
+                    if (!/club_schedule_id/i.test(msg)) {
+                        throw checkErr;
+                    }
+                    // 컬럼 미적용 환경은 아래 upsert 단계에서 처리.
+                }
+                if (existing?.session_id) {
+                    alert('이 정모에는 이미 연결된 KDK 세션이 있습니다.');
+                    return;
+                }
+            }
+            const { error } = await supabase
+                .from('kdk_session_meta')
+                .upsert(
+                    {
+                        session_id: activeSessionId,
+                        club_id: clubId,
+                        club_schedule_id: scheduleId,
+                        updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'session_id' }
+                );
+            if (error) {
+                const msg = `${error.message || ''} ${error.details || ''}`;
+                if (/club_schedule_id/i.test(msg)) {
+                    alert('정모 연결 컬럼이 운영 DB에 아직 없습니다. supabase/add_kdk_session_club_schedule_link.sql 을 적용해 주세요.');
+                } else if (/duplicate key/i.test(msg) || /unique/i.test(msg)) {
+                    // 동시성 등으로 unique 위반 — 안전 안내.
+                    alert('이 정모에는 이미 연결된 KDK 세션이 있습니다.');
+                } else {
+                    throw error;
+                }
+            } else {
+                setLinkedScheduleId(scheduleId);
+            }
+        } catch (e: any) {
+            alert(e?.message || '정모 연결 저장에 실패했습니다.');
+        } finally {
+            setLinkSaving(false);
+        }
     };
 
     const saveTickerMsg = async () => {
@@ -5120,6 +5226,67 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         >
                             {tickerSaveOk ? '저장됨' : tickerSaving ? '···' : '저장'}
                         </button>
+                    </div>
+                )}
+
+                {/* KDK 세션 → TEYEON 정모 연결 (Guest Pass 자동 전환에 사용) */}
+                {isAdmin && kdkEntryMode === 'LIVE' && activeSessionId && (
+                    <div
+                        style={{
+                            marginTop: 4,
+                            paddingTop: 10,
+                            paddingLeft: 10,
+                            paddingRight: 4,
+                            borderTop: '1px dashed #E1EAF5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                        }}
+                    >
+                        <span
+                            style={{
+                                flexShrink: 0,
+                                display: 'inline-block',
+                                minWidth: 44,
+                                fontSize: 10,
+                                fontWeight: 900,
+                                color: '#1F5FB5',
+                                letterSpacing: '0.18em',
+                                textTransform: 'uppercase',
+                            }}
+                        >
+                            정모
+                        </span>
+                        <select
+                            value={linkedScheduleId ?? ''}
+                            onChange={(e) => saveLinkedSchedule(e.target.value || null)}
+                            disabled={linkSaving}
+                            style={{
+                                minWidth: 0, flex: 1, height: 34,
+                                borderRadius: 10, border: '1px solid #DCE8F5',
+                                background: '#F8FBFE',
+                                padding: '0 10px',
+                                fontSize: 12, fontWeight: 700,
+                                color: '#0F2747',
+                                outline: 'none',
+                            }}
+                        >
+                            <option value="">연결 안 함</option>
+                            {upcomingSchedules.map((cs) => (
+                                <option key={cs.id} value={cs.id}>
+                                    {cs.schedule_date.slice(5)} · {cs.title}
+                                </option>
+                            ))}
+                        </select>
+                        <span
+                            style={{
+                                flexShrink: 0,
+                                fontSize: 9.5, fontWeight: 700, color: '#94A3B8',
+                                letterSpacing: '0.02em',
+                            }}
+                        >
+                            {linkSaving ? '저장 중' : linkedScheduleId ? '연결됨' : '미연결'}
+                        </span>
                     </div>
                 )}
             </header>
