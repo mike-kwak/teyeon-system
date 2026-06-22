@@ -27,9 +27,11 @@ const BALL_START = { x: 180, y: 180 };
 const BALL_CTRL  = { x: 60,  y: -8 };   // 제어점: 좌상단 호로 휘어지는 자연스러운 포물선
 const BALL_END   = { x: 0,   y: 0 };
 
-// Scale: 이동 중 0.92 → 도착 직전 0.55 (--ball-end-scale와 일치시킬 것)
+// Scale: 이동 중 0.92 → 도착 직전 0.45 (--ball-end-scale와 일치시킬 것).
+// 공 자체 크기가 0.36 으로 커진 만큼, 도착 직전 scale 을 조금 더 줄여 로고 속 노란 공과
+// 자연스럽게 합쳐지는 인상을 유지. 너무 작아지지 않도록 0.42~0.48 범위 내 0.45 선택.
 const SCALE_START = 0.92;
-const SCALE_END   = 0.55;
+const SCALE_END   = 0.45;
 
 // 타임라인 (CSS opacity keyframe과 동기화):
 //   0    ~ 1034ms (94%): 위치 이동 + scale 보간
@@ -112,10 +114,14 @@ export default function SignatureServe() {
             className="tysig-root"
             style={{
                 ['--logo-size' as any]: 'clamp(112px, 28vw, 128px)',
-                ['--ball-dx-ratio' as any]: '0.18',
-                ['--ball-dy-ratio' as any]: '-0.20',
-                ['--ball-size' as any]: 'calc(var(--logo-size) * 0.20)',
-                ['--ball-end-scale' as any]: '0.55',
+                // 도착 지점을 로고 외곽 근처가 아니라 로고 내부 노란 공 중심 쪽으로 더 깊게 이동.
+                // 360/390/430px 모두 로고 size 112~128px 기준 X ~5–7px / Y ~3–5px 안쪽.
+                ['--ball-dx-ratio' as any]: '0.12',
+                ['--ball-dy-ratio' as any]: '-0.16',
+                // 공 크기: 기존 0.20 → 0.36 (약 1.8x). 형광 테니스공 존재감을 살리되 로고 전체를 덮지 않는 범위.
+                ['--ball-size' as any]: 'calc(var(--logo-size) * 0.36)',
+                // 도착 직전 scale — JS SCALE_END 와 동일.
+                ['--ball-end-scale' as any]: '0.45',
             } as React.CSSProperties}
         >
             {/* 옅은 cool 배경 bloom */}
