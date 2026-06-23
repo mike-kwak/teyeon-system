@@ -261,27 +261,163 @@ const MatchRow = ({
     );
 };
 
-// ── ready: 대진표 ──────────────────────────────────────────────────────────
+// ── ready: 대진표 (조 → 라운드 → 경기 카드) ─────────────────────────────────
+// 공개 DTO 의 group / round / matchNo / court / playerNames / status 만 사용.
+// 임의 조 추정·이름 기반 자동 분류 없음. 그룹 없는 경기는 "조 미지정" 으로 노출.
+
+interface BracketItem extends PublicMatchRow {
+    _index: number;            // 원본 저장 순서 — 번호 없을 때 정렬 안정성 확보.
+    _round: number | null;     // 문자열 라운드도 숫자로 정규화.
+    _groupKey: string | null;  // 'A' | 'B' | 그 외 | null(미지정).
+}
+
+interface BracketRound { round: number | null; matches: BracketItem[]; }
+interface BracketGroup { key: string | null; matches: BracketItem[]; rounds: BracketRound[]; }
 
 const ReadyView = ({ data }: { data: PublicKdkSessionDetail }) => {
     const bracket = data.bracket || [];
-    return (
-        <section style={card()}>
-            <SectionTitle icon={<LayoutGrid size={14} strokeWidth={1.8} />} count={bracket.length}>
-                대진표
-            </SectionTitle>
-            {bracket.length === 0 ? (
+
+    if (bracket.length === 0) {
+        return (
+            <section style={card()}>
+                <SectionTitle icon={<LayoutGrid size={14} strokeWidth={1.8} />}>대진표</SectionTitle>
                 <p style={{ margin: 0, textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#94A3B8' }}>
                     아직 등록된 대진이 없습니다.
                 </p>
-            ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {bracket.map((m, i) => (
-                        <MatchRow key={`${m.matchNo}-${i}`} {...m} />
-                    ))}
-                </div>
-            )}
+            </section>
+        );
+    }
+
+    const items: BracketItem[] = bracket.map((m, i) => ({
+        ...m,
+        _index: i,
+        _round: normalizeRound(m.round),
+        _groupKey: groupKey(m.group),
+    }));
+
+    const groups = groupBracket(items);
+    const aCount = items.filter((it) => it._groupKey === 'A').length;
+    const bCount = items.filter((it) => it._groupKey === 'B').length;
+
+    const summary = [`총 ${items.length}경기`]
+        .concat(aCount > 0 ? [`A조 ${aCount}경기`] : [])
+        .concat(bCount > 0 ? [`B조 ${bCount}경기`] : [])
+        .join(' · ');
+
+    return (
+        <>
+            <section style={card()}>
+                <SectionTitle icon={<LayoutGrid size={14} strokeWidth={1.8} />}>대진표</SectionTitle>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#475569', letterSpacing: '-0.01em' }}>
+                    {summary}
+                </p>
+            </section>
+
+            {groups.map((g) => (
+                <GroupSection key={g.key ?? '__none__'} group={g} />
+            ))}
+        </>
+    );
+};
+
+const GroupSection = ({ group }: { group: BracketGroup }) => {
+    const accent = groupAccent(group.key);
+    return (
+        <section style={card()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <span style={{ width: 6, height: 18, borderRadius: 3, backgroundColor: accent.color, flexShrink: 0 }} />
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                    {accent.label}
+                </h3>
+                <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: accent.color }}>
+                    총 {group.matches.length}경기
+                </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {group.rounds.map((r, ri) => (
+                    <div key={`round-${ri}`} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {r.round != null && <RoundHeader round={r.round} />}
+                        {r.matches.map((m) => (
+                            <BracketCard key={`${m.matchNo ?? 'x'}-${m._index}`} match={m} accent={accent} />
+                        ))}
+                    </div>
+                ))}
+            </div>
         </section>
+    );
+};
+
+const RoundHeader = ({ round }: { round: number }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 800, color: '#64748B', letterSpacing: '0.06em' }}>
+            ROUND {round}
+        </span>
+        <span style={{ flex: 1, height: 1, backgroundColor: 'rgba(15,23,42,0.07)' }} />
+    </div>
+);
+
+// 경기 카드 — 선수명 영역을 최대로 확보. 번호/라운드/코트/상태는 상단에 가로 배치.
+const BracketCard = ({ match, accent }: { match: BracketItem; accent: GroupAccent }) => {
+    const { matchNo, _round, court, playerNames, status } = match;
+    const names = (playerNames || []).filter((n): n is string => !!n && typeof n === 'string');
+    const team1 = names.slice(0, 2).join(' · ');
+    const team2 = names.slice(2, 4).join(' · ');
+    return (
+        <div style={{
+            display: 'flex', flexDirection: 'column', gap: 6,
+            paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12,
+            borderRadius: 10,
+            backgroundColor: '#F8FAFC',
+            border: '1px solid rgba(15,23,42,0.06)',
+            borderLeft: `3px solid ${accent.color}`,
+            minWidth: 0,
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                {matchNo != null && (
+                    <span style={{ fontSize: 12.5, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em', flexShrink: 0 }}>
+                        #{matchNo}
+                    </span>
+                )}
+                {_round != null && (
+                    <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748B', letterSpacing: '0.05em', flexShrink: 0 }}>
+                        ROUND {_round}
+                    </span>
+                )}
+                <span style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                    <MatchStatusBadge status={status} />
+                </span>
+            </div>
+            {court != null && (
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.05em' }}>
+                    COURT {court}
+                </span>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                <span style={playerLineStyle}>{team1 || '—'}</span>
+                <span style={playerLineStyle}>{team2 || '—'}</span>
+            </div>
+        </div>
+    );
+};
+
+const MatchStatusBadge = ({ status }: { status?: string }) => {
+    if (!status) return null;
+    const label = status === 'playing' ? '진행 중' : status === 'complete' ? '완료' : '대기';
+    const tone = status === 'playing'
+        ? { bg: 'rgba(239,68,68,0.10)', color: '#B91C1C' }
+        : status === 'complete'
+            ? { bg: 'rgba(15,159,152,0.10)', color: '#0E7C76' }
+            : { bg: 'rgba(100,116,139,0.10)', color: '#475569' };
+    return (
+        <span style={{
+            fontSize: 9, fontWeight: 800, letterSpacing: '0.04em',
+            paddingTop: 2, paddingBottom: 2, paddingLeft: 6, paddingRight: 6,
+            borderRadius: 4,
+            backgroundColor: tone.bg, color: tone.color,
+            whiteSpace: 'nowrap',
+        }}>
+            {label}
+        </span>
     );
 };
 
@@ -502,6 +638,86 @@ function formatGroup(group: string): string {
     if (!value) return '';
     return /조$/u.test(value) ? value : `${value}조`;
 }
+
+// ── ready 대진표 그룹/정렬 helpers ───────────────────────────────────────────
+
+interface GroupAccent { label: string; color: string; }
+
+// A조: blue/teal · B조: mint/cyan · 그 외/미지정: 회색. 과한 네온·그라데이션 배제.
+function groupAccent(key: string | null): GroupAccent {
+    if (key === 'A') return { label: 'A조', color: '#0E7490' };
+    if (key === 'B') return { label: 'B조', color: '#0D9488' };
+    if (key === null) return { label: '조 미지정', color: '#64748B' };
+    return { label: `${key}조`, color: '#64748B' };
+}
+
+// 그룹명 정규화: 'A조' / 'a' / 'A' → 'A'. 값이 없으면 null(미지정).
+function groupKey(group: string | null | undefined): string | null {
+    if (!group) return null;
+    const v = group.trim();
+    if (!v) return null;
+    const stripped = v.replace(/조$/u, '').trim().toUpperCase();
+    return stripped || null;
+}
+
+// 'ROUND 1' / '1R' / 'Round 1' / 1 → 1. 숫자를 못 찾으면 null.
+function normalizeRound(raw: unknown): number | null {
+    if (raw == null) return null;
+    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+    const m = String(raw).match(/\d+/);
+    return m ? parseInt(m[0], 10) : null;
+}
+
+// 그룹 등장 순서 보존 → A → B → 그 외(등장순) → 미지정(null) 마지막.
+function groupBracket(items: BracketItem[]): BracketGroup[] {
+    const order: (string | null)[] = [];
+    const map = new Map<string, BracketItem[]>();
+    const idOf = (k: string | null) => (k === null ? ' null' : k);
+    for (const it of items) {
+        const id = idOf(it._groupKey);
+        if (!map.has(id)) { map.set(id, []); order.push(it._groupKey); }
+        map.get(id)!.push(it);
+    }
+    const rank = (k: string | null): number => {
+        if (k === 'A') return 0;
+        if (k === 'B') return 1;
+        if (k === null) return Number.MAX_SAFE_INTEGER;
+        return 2 + order.indexOf(k);
+    };
+    const keys = [...order].sort((a, b) => rank(a) - rank(b));
+    return keys.map((k) => {
+        const matches = [...map.get(idOf(k))!].sort(compareBracket);
+        return { key: k, matches, rounds: partitionRounds(matches) };
+    });
+}
+
+// 라운드 오름차순 → 경기번호 오름차순 → 저장 순서(번호 없을 때). 라운드/번호 없으면 뒤로.
+function compareBracket(a: BracketItem, b: BracketItem): number {
+    const ra = a._round ?? Infinity;
+    const rb = b._round ?? Infinity;
+    if (ra !== rb) return ra - rb;
+    const ma = a.matchNo ?? Infinity;
+    const mb = b.matchNo ?? Infinity;
+    if (ma !== mb) return ma - mb;
+    return a._index - b._index;
+}
+
+// 정렬된 매치를 라운드 단위로 묶는다(라운드 헤더 렌더용).
+function partitionRounds(sorted: BracketItem[]): BracketRound[] {
+    const rounds: BracketRound[] = [];
+    for (const m of sorted) {
+        const last = rounds[rounds.length - 1];
+        if (last && last.round === m._round) last.matches.push(m);
+        else rounds.push({ round: m._round, matches: [m] });
+    }
+    return rounds;
+}
+
+const playerLineStyle: React.CSSProperties = {
+    minWidth: 0,
+    fontSize: 12.5, fontWeight: 800, color: '#0F172A',
+    lineHeight: 1.4, overflowWrap: 'anywhere', wordBreak: 'keep-all',
+};
 
 function formatSigned(value: number): string {
     return value > 0 ? `+${value}` : String(value);
