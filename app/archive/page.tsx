@@ -4,8 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin, FileImage } from 'lucide-react';
+import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin } from 'lucide-react';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
+import ArchiveResultShare, { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
 
 /**
  * ArchivePage (v1.15.1): ABSOLUTE PRECISION & MUTED ELEGANCE
@@ -226,6 +227,8 @@ export default function ArchivePage() {
                   group_name: archiveGroup || m.group_name,
                   archive_group_key: archiveGroup,
                   archive_ranking_data: raw.ranking_data || [],
+                  archive_settlement_data: raw.settlement_data || [],
+                  archive_settlement_meta: raw.settlement_meta || null,
                   archive_player_metadata: meta,
                   archive_type: record.archive_type || raw.archive_type || 'kdk',
                   is_official: Boolean(record.is_official ?? raw.is_official ?? false),
@@ -296,6 +299,8 @@ export default function ArchivePage() {
                 matchCount: 0,
                 playerSet: new Set(),
                 rankingData: m.archive_ranking_data || [],
+                settlementData: m.archive_settlement_data || [],
+                settlementMeta: m.archive_settlement_meta || null,
                 playerMetadata: m.archive_player_metadata || {},
                 archive_type: m.archive_type || 'kdk',
                 is_official: !!m.is_official,
@@ -311,6 +316,10 @@ export default function ArchivePage() {
         (m.player_names || []).forEach((n:string) => groups[groupKey].playerSet.add(n));
         if ((!groups[groupKey].rankingData || groups[groupKey].rankingData.length === 0) && m.archive_ranking_data?.length) {
             groups[groupKey].rankingData = m.archive_ranking_data;
+        }
+        if ((!groups[groupKey].settlementData || groups[groupKey].settlementData.length === 0) && m.archive_settlement_data?.length) {
+            groups[groupKey].settlementData = m.archive_settlement_data;
+            groups[groupKey].settlementMeta = m.archive_settlement_meta || groups[groupKey].settlementMeta;
         }
         groups[groupKey].playerMetadata = { ...(groups[groupKey].playerMetadata || {}), ...(m.archive_player_metadata || {}) };
     });
@@ -885,6 +894,80 @@ export default function ArchivePage() {
     const top3 = overallRanking.slice(0, 3);
     const others = overallRanking.slice(3);
 
+    // ── 결과 공유: 저장된 확정 데이터만으로 이미지 입력 구성 (LIVE COURT state 미참조) ──
+    // 정산 스냅샷(settlement_data)이 있으면 벌금·게스트비·상금·최종을 함께 표기. 없으면 득실까지만.
+    const settlementData: any[] = Array.isArray(session.settlementData) ? session.settlementData : [];
+    const hasSettlement = settlementData.length > 0;
+    const normNameKey = (s?: string) => String(s || '').replace(/\(G\)/gi, '').replace(/\s+/g, '').trim().toLowerCase();
+    const settlementByName = new Map<string, any>();
+    settlementData.forEach((e) => {
+      const k = normNameKey(e?.player_name);
+      if (k && !settlementByName.has(k)) settlementByName.set(k, e);
+    });
+    const toEntrySettlement = (e: any) => e ? {
+      penaltyAmount: Number(e.penalty_amount || 0),
+      guestFeeAmount: Number(e.guest_fee_amount || 0),
+      prizeAmount: Number(e.prize_amount || 0),
+      finalAmount: Number(e.final_amount || 0),
+    } : undefined;
+    const baseEntry = (p: any) => ({
+      name: String(p?.name ?? ''),
+      wins: Number(p?.wins || 0),
+      losses: Number(p?.losses || 0),
+      diff: Number(p?.diff || 0),
+    });
+    // 전체: 정산도 전체 순위 순서이므로 인덱스 우선, 이름 보조 매칭.
+    const shareOverall = overallRanking.map((p: any, i: number) => ({
+      ...baseEntry(p),
+      settlement: toEntrySettlement(settlementData[i] ?? settlementByName.get(normNameKey(p?.name))),
+    }));
+    // 조별: 이름으로 정산 매칭.
+    const toGroupEntry = (p: any) => ({
+      ...baseEntry(p),
+      settlement: toEntrySettlement(settlementByName.get(normNameKey(p?.name))),
+    });
+    const shareGroupA = groupHasA ? buildArchiveRankingResults(sessionForGroup('A')).map(toGroupEntry) : [];
+    const shareGroupB = groupHasB ? buildArchiveRankingResults(sessionForGroup('B')).map(toGroupEntry) : [];
+
+    // 정산 요약(결과 확인용) — 스냅샷 집계만, 재계산 없음.
+    const settlementSummary = (() => {
+      if (!hasSettlement) return null;
+      let prizeCount = 0, penaltyCount = 0, guestCount = 0, payTotal = 0, receiveTotal = 0;
+      settlementData.forEach((e) => {
+        if (Number(e?.prize_amount || 0) > 0) prizeCount += 1;
+        if (Number(e?.penalty_amount || 0) < 0) penaltyCount += 1;
+        if (Number(e?.guest_fee_amount || 0) < 0) guestCount += 1;
+        const f = Number(e?.final_amount || 0);
+        if (f < 0) payTotal += f; else if (f > 0) receiveTotal += f;
+      });
+      return { prizeCount, penaltyCount, guestCount, payTotal, receiveTotal };
+    })();
+    const fmtMoneyKo = (n: number) => (n > 0 ? `+${n.toLocaleString()}` : n < 0 ? `-${Math.abs(n).toLocaleString()}` : '0');
+    const shareMatches: ArchiveMatchEntry[] = [...matches]
+      .map((m: any, idx: number) => ({ m, idx }))
+      .sort((a, b) => {
+        const ga = normalizeArchiveGroup(a.m.group_name || a.m.groupName || a.m.group);
+        const gb = normalizeArchiveGroup(b.m.group_name || b.m.groupName || b.m.group);
+        if (ga !== gb) return ga.localeCompare(gb);
+        const ra = Number(a.m.round || 0), rb = Number(b.m.round || 0);
+        if (ra !== rb) return ra - rb;
+        return a.idx - b.idx;
+      })
+      .map(({ m, idx }, seq) => {
+        const names = Array.from({ length: 4 }, (_, k) =>
+          resolveArchivePlayerName(m.player_names?.[k], (m.player_ids || m.playerIds || [])[k], session.playerMetadata || {}));
+        const gk = normalizeArchiveGroup(m.group_name || m.groupName || m.group);
+        return {
+          groupKey: (gk === 'A' || gk === 'B' ? gk : '') as 'A' | 'B' | '',
+          round: m.round != null ? Number(m.round) : null,
+          matchNo: Number(m.order ?? m.matchNo ?? m.court ?? (seq + 1)) || (seq + 1),
+          teamA: `${names[0]} / ${names[1]}`,
+          teamB: `${names[2]} / ${names[3]}`,
+          score1: Number(m.score1 || 0),
+          score2: Number(m.score2 || 0),
+        };
+      });
+
     return (
       <>
         {/* SESSION HEADER CARD */}
@@ -1216,90 +1299,56 @@ export default function ArchivePage() {
             <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>SUMMARY</span>
           </div>
           <div style={{ borderRadius: 14, border: '1px solid #E1EAF5', overflow: 'hidden' }}>
-            {([
-              { label: '게스트비', sub: '(참고)', value: '-' },
-              { label: '벌금', sub: '(참고)', value: '-' },
-              { label: '우승 상금', sub: '', value: '-' },
-            ] as const).map((row, i) => (
+            {(settlementSummary
+              ? [
+                  { label: '상금 대상', sub: `${settlementSummary.prizeCount}명`, value: settlementSummary.receiveTotal > 0 ? `+${settlementSummary.receiveTotal.toLocaleString()}` : '-', color: settlementSummary.receiveTotal > 0 ? '#047857' : '#0F2747' },
+                  { label: '벌금 대상', sub: `${settlementSummary.penaltyCount}명`, value: '참고', color: '#C0392B' },
+                  { label: '게스트비 대상', sub: `${settlementSummary.guestCount}명`, value: '참고', color: '#C0392B' },
+                  { label: '최종 납부/지급', sub: '', value: `납부 ${fmtMoneyKo(settlementSummary.payTotal)} · 지급 ${fmtMoneyKo(settlementSummary.receiveTotal)}`, color: '#0F2747' },
+                ]
+              : [
+                  { label: '게스트비', sub: '(정보 없음)', value: '-', color: '#0F2747' },
+                  { label: '벌금', sub: '(정보 없음)', value: '-', color: '#0F2747' },
+                  { label: '우승 상금', sub: '', value: '-', color: '#0F2747' },
+                ]
+            ).map((row, i, arr) => (
               <div
                 key={row.label}
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                   padding: '12px 14px',
                   background: i % 2 === 0 ? '#FFFFFF' : '#F8FBFE',
-                  borderBottom: i < 2 ? '1px solid #E1EAF5' : 'none',
+                  borderBottom: i < arr.length - 1 ? '1px solid #E1EAF5' : 'none',
                 }}
               >
-                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#3F5B82' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#3F5B82', flexShrink: 0 }}>
                   {row.label}
                   {row.sub && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: '#9CB2CC' }}>{row.sub}</span>}
                 </span>
-                <span style={{ fontSize: 13, fontWeight: 900, color: '#0F2747' }}>{row.value}</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: row.color, textAlign: 'right' }}>{row.value}</span>
               </div>
             ))}
           </div>
           <p style={{ margin: '10px 0 0', fontSize: 10.5, fontWeight: 700, lineHeight: 1.5, color: '#7A93B3' }}>
-            * Archive 내 정산 참고 요약입니다. 실제 정산되어 처리는 Finance에서 진행됩니다.
+            {settlementSummary
+              ? '* 공식 확정 시점에 박제된 정산 스냅샷입니다. 실제 수납 처리는 Finance에서 진행됩니다.'
+              : '* 이 기록에는 정산 스냅샷이 없습니다. 금액은 임의로 계산하지 않습니다.'}
           </p>
         </section>
 
-        {/* SHARE */}
-        <section
-          style={{
-            borderRadius: 22, background: '#FFFFFF',
-            border: '1px solid #DCE8F5', padding: 16,
-            boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
-            display: 'flex', flexDirection: 'column', gap: 10,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #2563EB, #1F5FB5)', borderRadius: 2 }} />
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>결과 공유</h3>
-            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>SHARE</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => alert('전체 순위 이미지 저장 기능은 LIVE COURT 순위 탭에서 진행해 주세요.')}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              width: '100%', height: 52, borderRadius: 14,
-              background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
-              color: '#FFFFFF', border: 'none',
-              fontSize: 13.5, fontWeight: 900, letterSpacing: '0.02em',
-              boxShadow: '0 12px 26px rgba(37,99,235,0.24)',
-              cursor: 'pointer',
-            }}
-          >
-            <FileImage size={16} />
-            전체 순위 이미지 저장
-          </button>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => alert('조별 순위 공유 기능은 LIVE COURT 순위 탭에서 진행해 주세요.')}
-              style={{
-                height: 44, borderRadius: 12,
-                background: '#FFFFFF', border: '1px solid #DCE8F5',
-                color: '#1F5FB5', fontSize: 12.5, fontWeight: 900,
-                cursor: 'pointer',
-              }}
-            >
-              조별 순위
-            </button>
-            <button
-              type="button"
-              onClick={() => alert('텍스트 복사 기능은 LIVE COURT 순위 탭에서 진행해 주세요.')}
-              style={{
-                height: 44, borderRadius: 12,
-                background: '#FFFFFF', border: '1px solid #DCE8F5',
-                color: '#1F5FB5', fontSize: 12.5, fontWeight: 900,
-                cursor: 'pointer',
-              }}
-            >
-              텍스트 복사
-            </button>
-          </div>
-        </section>
+        {/* SHARE — Archive 확정 데이터 기반 결과표 재생성 / 공유 */}
+        <ArchiveResultShare
+          sessionTitle={session.title || 'KDK SESSION'}
+          sessionDateLabel={formatArchiveDate(session.date)}
+          confirmedAtLabel={session.confirmed_at ? formatArchiveDateTime(session.confirmed_at) : undefined}
+          isOfficial={!!session.is_official}
+          hasSettlement={hasSettlement}
+          overall={shareOverall}
+          groupA={shareGroupA}
+          groupB={shareGroupB}
+          matches={shareMatches}
+          hasGroupSplit={hasGroupSplit}
+        />
       </>
     );
   }

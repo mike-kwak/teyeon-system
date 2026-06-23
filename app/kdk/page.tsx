@@ -15,6 +15,7 @@ import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
 import RankingTab from '@/components/RankingTab';
 import { useRanking } from '@/hooks/useRanking';
+import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer, KDK_GUEST_FEE } from '@/lib/kdk/settlement';
 import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
@@ -551,10 +552,42 @@ export default function KDKPage() {
                 };
             });
 
+            // 1-b. 정산 스냅샷 — 확정 시점의 상금/벌금/게스트비/최종 금액을 박제.
+            //      RankingTab 과 동일한 정산식(lib/kdk/settlement)을 그대로 사용하며,
+            //      화면과 동일한 prizes(firstPrize / bottom25Late=L1 / bottom25Penalty=L2)를 적용한다.
+            const settlementPrizes = { first: firstPrize, l1: bottom25Late, l2: bottom25Penalty };
+            const totalRankedPlayers = resolvedRanking.length;
+            const settlementSnapshot = resolvedRanking.map((p, idx) => {
+                const s = computeSettlement(p, idx, totalRankedPlayers, settlementPrizes, KDK_GUEST_FEE);
+                return {
+                    player_id: p.id ?? null,
+                    player_name: p.name,
+                    is_guest: isGuestRankedPlayer(p),
+                    is_associate_guest_fee_member: isAssociateGuestFeeMember(p),
+                    rank: idx + 1,
+                    wins: p.wins || 0,
+                    losses: p.losses || 0,
+                    points_for: (p as any).pf || 0,
+                    points_against: (p as any).pa || 0,
+                    diff: p.diff || 0,
+                    penalty_level: s.penaltyLevel,
+                    penalty_amount: s.penaltyAmount,
+                    guest_fee_amount: s.guestFeeAmount,
+                    prize_amount: s.prizeAmount,
+                    final_amount: s.finalAmount,
+                };
+            });
+
             const rawDataPayload = {
                 title: sessionTitle || `Tournament ${dateStr}`,
                 date: dateStr,
                 ranking_data: rankingSnapshot,
+                settlement_data: settlementSnapshot,
+                settlement_meta: {
+                    guest_fee: KDK_GUEST_FEE,
+                    prizes: settlementPrizes,
+                    generated_at: new Date().toISOString(),
+                },
                 snapshot_data: matches.map(m => {
                     const pNames = m.playerIds.map(pid => getPlayerName(pid));
                     const pAvatars = m.playerIds.map(pid => {
