@@ -391,7 +391,7 @@ export const CompletedMatchCard = ({
     isAdmin?: boolean;
     onResetStatus?: (id: string) => void;
 }) => {
-    const { normalizedGroup } = getGroupPresentation(match.groupName || (match as any).group);
+    const { normalizedGroup, accentColor, softBg, softBorder } = getGroupPresentation(match.groupName || (match as any).group);
     const displayIndex = matchNo || index + 1;
 
     return (
@@ -403,26 +403,34 @@ export const CompletedMatchCard = ({
             }}
             style={{
                 position: 'relative',
-                display: 'flex', flexDirection: 'column', height: '100%',
+                display: 'flex', flexDirection: 'column', minHeight: '100%',
                 borderRadius: 18,
-                background: '#F8FBFE', border: '1px solid #E1EAF5',
+                background: '#FFFFFF', border: `1px solid ${softBorder}`,
                 cursor: 'pointer',
                 overflow: 'hidden',
             }}
         >
+            {/* 상단 accent line — A조 Blue / B조 Amber 즉시 구분 */}
+            <div style={{ height: 3, background: accentColor }} />
             {/* HEADER BAR */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '6px 12px',
-                background: '#EEF5FB', borderBottom: '1px solid #DCE8F5',
+                background: softBg, borderBottom: `1px solid ${softBorder}`,
                 position: 'relative',
             }}>
                 <span style={{
-                    fontSize: 10, fontWeight: 900, letterSpacing: '0.18em',
-                    textTransform: 'uppercase', color: '#56729A',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    fontSize: 10, fontWeight: 900, letterSpacing: '0.16em',
+                    textTransform: 'uppercase', color: accentColor,
                     fontFamily: 'monospace',
                 }}>
-                    {normalizedGroup}조 · MATCH {displayIndex.toString().padStart(2, '0')}
+                    <span style={{
+                        padding: '1px 6px', borderRadius: 999,
+                        background: '#FFFFFF', border: `1px solid ${softBorder}`,
+                        letterSpacing: '0.02em',
+                    }}>{normalizedGroup}조</span>
+                    MATCH {displayIndex.toString().padStart(2, '0')}
                 </span>
                 {isAdmin && onResetStatus && (
                     <button
@@ -436,7 +444,7 @@ export const CompletedMatchCard = ({
                             width: 26, height: 26, borderRadius: 8,
                             background: 'transparent', border: 'none',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#56729A', cursor: 'pointer',
+                            color: accentColor, cursor: 'pointer',
                         }}
                     >
                         <RotateCw size={12} />

@@ -3094,7 +3094,7 @@ export default function KDKPage() {
             {sessionDeleteTarget && (
                 <CustomConfirmModal
                     title="세션 삭제"
-                    message={`${sessionDeleteTarget.title} 세션의 진행 중 경기 데이터를 삭제합니다. 아카이브 데이터는 삭제하지 않습니다.`}
+                    message={`"${sessionDeleteTarget.title}" 세션의 진행 중인 경기 데이터가 삭제됩니다. 공식 확정된 Archive 기록은 삭제되지 않습니다.`}
                     confirmText={isDeletingSession ? "삭제 중..." : "세션 삭제"}
                     icon="🗑️"
                     onConfirm={handleDeleteActiveSession}
@@ -5694,6 +5694,26 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         >
                             {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
                         </button>
+                        {/* 현재 세션 삭제 — CEO/ADMIN 만. 기존 delete_kdk_live_session RPC 흐름 재사용. */}
+                        {isAdmin && (
+                            <div className="mt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const cur: ActiveKdkSession = allActiveSessions.find(s => s.id === activeSessionId)
+                                            || { id: activeSessionId, title: sessionTitle, matchCount: matches.length, playerCount: selectedIds.size, lastActivity: '' };
+                                        setShowMemberEditModal(false);
+                                        setSessionDeleteTarget(cur);
+                                    }}
+                                    className="w-full py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] border border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                                >
+                                    🗑 현재 세션 삭제
+                                </button>
+                                <p className="mt-2 text-[9px] font-bold text-white/30 text-center tracking-wider leading-relaxed">
+                                    진행 중인 경기 데이터만 삭제됩니다 · 공식 Archive 기록은 보존됩니다
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
