@@ -1432,13 +1432,26 @@ export default function KDKPage() {
         const target = sessionDeleteTarget;
         setIsDeletingSession(true);
         try {
-            const { error } = await supabase
-                .from('matches')
-                .delete()
-                .eq('club_id', clubId)
-                .eq('session_id', target.id);
-
-            if (error) throw error;
+            // matches 는 RLS 로 직접 DELETE 가 막혀 있어, SECURITY DEFINER RPC 로 삭제한다.
+            // (공식 Archive 는 건드리지 않고 라이브 matches 행만 제거 → 세션이 목록에서 사라짐)
+            // RPC 미배포 환경 대비: 함수 없음 오류면 기존 직접 DELETE 로 폴백.
+            const rpcRes = await supabase.rpc('delete_kdk_live_session', {
+                p_session_id: target.id,
+                p_club_id: clubId,
+            });
+            if (rpcRes.error) {
+                const code = (rpcRes.error as any).code || '';
+                const msg = `${rpcRes.error.message || ''} ${(rpcRes.error as any).details || ''}`;
+                // RPC 미배포(함수 없음)일 때만 직접 DELETE 폴백. 권한 오류(42501) 등은 그대로 표면화.
+                const notDeployed = code === 'PGRST202' || /could not find the function|schema cache/i.test(msg);
+                if (!notDeployed) throw rpcRes.error;
+                const { error: delError } = await supabase
+                    .from('matches')
+                    .delete()
+                    .eq('club_id', clubId)
+                    .eq('session_id', target.id);
+                if (delError) throw delError;
+            }
 
             const remainingSessions = allActiveSessions.filter(session => session.id !== target.id);
             setAllActiveSessions(remainingSessions);
@@ -5409,7 +5422,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                 <h3 style={{ margin: 0, marginLeft: 8, fontSize: 16, fontWeight: 900, letterSpacing: '-0.02em', textTransform: 'uppercase', color: '#0F2747' }}>
                                                     {`${isB ? 'B조' : 'A조'} WAITING`}
                                                 </h3>
-                                                <div className="mt-2 h-0.5 w-32 ml-2" style={{ background: `linear-gradient(to right, ${isB ? '#0EA5E9' : '#2563EB'}, rgba(37,99,235,0.2), transparent)` }} />
+                                                <div className="mt-2 h-0.5 w-32 ml-2" style={{ background: `linear-gradient(to right, ${isB ? '#C2710C' : '#2563EB'}, rgba(37,99,235,0.2), transparent)` }} />
                                             </div>
                                             <div className="flex flex-col gap-6">
                                                 {(() => {
@@ -5419,9 +5432,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                         return (
                                                                 <div key={roundNum} className="space-y-3">
                                                                 <div className="mb-1 ml-2 flex items-center gap-2">
-                                                                    <div className="h-[1px] w-4" style={{ background: isB ? '#0EA5E9' : '#2563EB' }} />
-                                                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: isB ? '#0EA5E9' : '#1F5FB5' }}>ROUND {roundNum}</span>
-                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${isB ? '#0EA5E9' : '#2563EB'}66, transparent)` }} />
+                                                                    <div className="h-[1px] w-4" style={{ background: isB ? '#C2710C' : '#2563EB' }} />
+                                                                    <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: isB ? '#C2710C' : '#1F5FB5' }}>ROUND {roundNum}</span>
+                                                                    <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${isB ? '#C2710C' : '#2563EB'}66, transparent)` }} />
                                                                 </div>
                                                                 {matchesInRound.map((m, idx) => {
                                                                     const matchNo = getDisplayMatchNo(m);

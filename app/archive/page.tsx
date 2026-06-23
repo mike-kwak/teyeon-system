@@ -15,6 +15,23 @@ import ArchiveResultShare, { type ArchiveMatchEntry } from '@/components/archive
  * - Muted Gold UI: Champagne matte gold tones from user's edit
  * - Safety Padding: Increased horizontal and vertical inner padding to secure all data
  */
+
+// 경기별 결과의 선수명 1명 — 1줄 우선(한글 단어 단위 keep-all), 너무 길면 최대 2줄.
+// (G) 는 저장 표시명에 이미 포함되어 있어 중복 badge 를 붙이지 않는다.
+function ArchiveMatchName({ name, align }: { name: string; align: 'left' | 'right' }) {
+  return (
+    <span style={{
+      minWidth: 0, maxWidth: '100%',
+      fontSize: 12.5, fontWeight: 800, color: '#0F2747', lineHeight: 1.25,
+      textAlign: align,
+      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+      overflow: 'hidden', wordBreak: 'keep-all', overflowWrap: 'anywhere',
+    }}>
+      {name}
+    </span>
+  );
+}
+
 export default function ArchivePage() {
   const { user, role } = useAuth();
   const searchParams = useSearchParams();
@@ -1247,10 +1264,14 @@ export default function ArchivePage() {
               {matches.map((m: any, idx: number) => {
                 const names = Array.from({ length: 4 }, (_, k) => resolveArchivePlayerName(m.player_names?.[k], (m.player_ids || m.playerIds || [])[k], session.playerMetadata || {}));
                 const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                const teamA = `${names[0]} / ${names[1]}`;
-                const teamB = `${names[2]} / ${names[3]}`;
                 const courtNo = m.court || ((idx % 4) + 1);
                 const roundNo = m.round || Math.floor(idx / 4) + 1;
+                // A조 Blue / B조 Amber 배지 — 그룹 즉시 구분.
+                const gKey = normalizeArchiveGroup(m.group_name || m.groupName || m.group);
+                const isB = gKey === 'B';
+                const badgeColor = isB ? '#C2710C' : '#1F5FB5';
+                const badgeBg = isB ? '#FFF4E2' : '#EEF5FB';
+                const badgeBorder = isB ? '#F3D29B' : '#C7DCF1';
                 return (
                   <div
                     key={m.id || `match-${idx}`}
@@ -1258,26 +1279,42 @@ export default function ArchivePage() {
                       borderRadius: 14,
                       background: '#F8FBFE',
                       border: '1px solid #E1EAF5',
-                      padding: '12px 14px',
-                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px',
+                      display: 'flex', flexDirection: 'column', gap: 8,
                     }}
                   >
-                    <span style={{
-                      flexShrink: 0,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '4px 8px', borderRadius: 999,
-                      background: '#EEF5FB', border: '1px solid #C7DCF1',
-                      fontSize: 10, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.04em',
-                      whiteSpace: 'nowrap',
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '3px 9px', borderRadius: 999,
+                        background: badgeBg, border: `1px solid ${badgeBorder}`,
+                        fontSize: 10, fontWeight: 900, color: badgeColor, letterSpacing: '0.04em',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {gKey ? `${gKey}조 · ` : ''}C{courtNo}-R{roundNo}
+                      </span>
+                    </div>
+                    {/* 팀1 | 점수(중앙) | 팀2 — 선수 1명당 한 줄(페어는 각각 독립된 줄). */}
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                      alignItems: 'center', gap: 10,
                     }}>
-                      C{courtNo}-R{roundNo}
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 800, color: '#0F2747', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {teamA} <span style={{ color: '#9CB2CC' }}>vs</span> {teamB}
-                    </span>
-                    <span style={{ flexShrink: 0, fontSize: 14, fontWeight: 900, color: '#1F5FB5' }}>
-                      {s1}:{s2}
-                    </span>
+                      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
+                        <ArchiveMatchName name={names[0]} align="right" />
+                        <ArchiveMatchName name={names[1]} align="right" />
+                      </div>
+                      <span style={{
+                        flexShrink: 0, minWidth: 46, textAlign: 'center',
+                        fontSize: 17, fontWeight: 900, color: '#1F5FB5',
+                        fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                      }}>
+                        {s1}:{s2}
+                      </span>
+                      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                        <ArchiveMatchName name={names[2]} align="left" />
+                        <ArchiveMatchName name={names[3]} align="left" />
+                      </div>
+                    </div>
                   </div>
                 );
               })}

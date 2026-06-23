@@ -35,9 +35,15 @@ const GuestBadge = () => (
 const renderName = (rawName: string) => {
     const isGuest = isGuestName(rawName);
     const cleanName = stripGuestSuffix(rawName);
+    // 작은 화면 대응: 자동 축소 + 최대 2줄 줄바꿈. (G)는 badge 로 분리.
     return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
-            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanName}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
+            <span style={{
+                minWidth: 0,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                overflow: 'hidden', textAlign: 'center',
+                overflowWrap: 'anywhere', wordBreak: 'keep-all',
+            }}>{cleanName}</span>
             {isGuest && <GuestBadge />}
         </span>
     );
@@ -107,10 +113,10 @@ export const ScoreEntryModal = ({
                         background: '#F8FBFE',
                     }}>
                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 64 }}>
-                            <span style={{ width: '100%', textAlign: 'center', fontSize: 20, fontWeight: 900, lineHeight: 1.4, color: '#0F2747' }}>
+                            <span style={{ width: '100%', textAlign: 'center', fontSize: 'clamp(15px, 5vw, 20px)', fontWeight: 900, lineHeight: 1.3, color: '#0F2747' }}>
                                 {renderName(getPlayerName(match.playerIds[0]))}
                             </span>
-                            <span style={{ width: '100%', textAlign: 'center', fontSize: 20, fontWeight: 900, lineHeight: 1.4, color: '#0F2747' }}>
+                            <span style={{ width: '100%', textAlign: 'center', fontSize: 'clamp(15px, 5vw, 20px)', fontWeight: 900, lineHeight: 1.3, color: '#0F2747' }}>
                                 {renderName(getPlayerName(match.playerIds[1]))}
                             </span>
                         </div>
@@ -156,10 +162,10 @@ export const ScoreEntryModal = ({
                         background: '#F8FBFE',
                     }}>
                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 64 }}>
-                            <span style={{ width: '100%', textAlign: 'center', fontSize: 20, fontWeight: 900, lineHeight: 1.4, color: '#0F2747' }}>
+                            <span style={{ width: '100%', textAlign: 'center', fontSize: 'clamp(15px, 5vw, 20px)', fontWeight: 900, lineHeight: 1.3, color: '#0F2747' }}>
                                 {renderName(getPlayerName(match.playerIds[2]))}
                             </span>
-                            <span style={{ width: '100%', textAlign: 'center', fontSize: 20, fontWeight: 900, lineHeight: 1.4, color: '#0F2747' }}>
+                            <span style={{ width: '100%', textAlign: 'center', fontSize: 'clamp(15px, 5vw, 20px)', fontWeight: 900, lineHeight: 1.3, color: '#0F2747' }}>
                                 {renderName(getPlayerName(match.playerIds[3]))}
                             </span>
                         </div>

@@ -19,14 +19,15 @@ const normalizeDisplayGroup = (value?: string) => {
 const getGroupPresentation = (value?: string) => {
     const normalizedGroup = normalizeDisplayGroup(value);
     const isGroupB = normalizedGroup === 'B';
+    // A조: Blue / B조: Amber — 현장에서 즉시 구분되도록 대비 강화 (Cool Light 톤 유지, 네온 지양).
     return {
         normalizedGroup,
         isGroupB,
         label: isGroupB ? 'B조' : 'A조',
         shortLabel: isGroupB ? 'B' : 'A',
-        accentColor: isGroupB ? '#0EA5E9' : '#2563EB',
-        softBg: isGroupB ? '#E0F4FC' : '#EEF6FF',
-        softBorder: isGroupB ? '#B7E0F2' : '#C7DCF1',
+        accentColor: isGroupB ? '#C2710C' : '#2563EB',
+        softBg: isGroupB ? '#FFF4E2' : '#EEF6FF',
+        softBorder: isGroupB ? '#F3D29B' : '#C7DCF1',
     };
 };
 
@@ -53,15 +54,23 @@ const GuestBadge = ({ size = 14 }: { size?: number }) => (
 const PlayerNameRow = ({ name, fontSize = 14 }: { name: string; fontSize?: number }) => {
     const isGuest = isGuestName(name);
     const cleanName = stripGuestSuffix(name);
+    // 작은 화면 대응: 폭이 좁으면 글자 자동 축소 + 최대 2줄 줄바꿈(한글은 단어 단위 keep-all).
+    // (G)는 문자열이 아닌 badge 로 분리해 잘림/겹침 방지.
+    const responsiveSize = `clamp(11px, 3.4vw, ${fontSize}px)`;
     return (
         <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
             minWidth: 0, maxWidth: '100%',
-            fontSize, fontWeight: 800, lineHeight: 1.25,
+            fontSize: responsiveSize, fontWeight: 800, lineHeight: 1.18,
             color: '#0F2747',
         }}>
-            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanName}</span>
-            {isGuest && <GuestBadge size={Math.max(13, fontSize - 1)} />}
+            <span style={{
+                minWidth: 0,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                overflow: 'hidden', textAlign: 'center',
+                overflowWrap: 'anywhere', wordBreak: 'keep-all',
+            }}>{cleanName}</span>
+            {isGuest && <GuestBadge size={13} />}
         </span>
     );
 };
@@ -150,7 +159,7 @@ export const PlayingMatchCard = ({
                 }}>
                     {/* TEAM A */}
                     <div style={{
-                        height: 68,
+                        minHeight: 68,
                         borderRadius: 14,
                         background: '#F8FBFE', border: '1px solid #E1EAF5',
                         display: 'flex', flexDirection: 'column',
@@ -174,7 +183,7 @@ export const PlayingMatchCard = ({
 
                     {/* TEAM B */}
                     <div style={{
-                        height: 68,
+                        minHeight: 68,
                         borderRadius: 14,
                         background: '#F8FBFE', border: '1px solid #E1EAF5',
                         display: 'flex', flexDirection: 'column',
