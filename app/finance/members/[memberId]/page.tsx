@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Copy, Check, Pencil, ShieldOff, ShieldCheck, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
@@ -13,6 +13,7 @@ import {
     fetchReceivablesByMember,
     fetchPaymentsByMember,
     updateReceivableStatus,
+    fetchOverlappingMonthlyReceivables,
 } from '@/lib/finance/duesService';
 import {
     fetchLeavesByMember,
@@ -50,13 +51,28 @@ import {
 export default function FinanceMemberDetailPage() {
     const params = useParams<{ memberId: string }>();
     const searchParams = useSearchParams();
-    const initialYear = Number(searchParams?.get('year')) || new Date().getFullYear();
+    const router = useRouter();
+    const pathname = usePathname();
+    const today = new Date();
+    const initialYear = parseYearParam(searchParams?.get('year'), today.getFullYear());
+    // month 는 화면 내부 동작에는 안 쓰이지만 다른 Finance 화면과 URL query 일관성을 위해 보존·전달.
+    const initialMonth = parseMonthParam(searchParams?.get('month'), today.getMonth() + 1);
     const memberId = params?.memberId || '';
 
     const { user, role, isLoading } = useAuth();
     const isAdmin = canManageFinance(role);
 
     const [year, setYear] = React.useState(initialYear);
+    const [monthQuery] = React.useState(initialMonth);
+
+    // year 변경 시 URL ?year= 도 같이 갱신 → 새로고침 / 뒤로가기 후에도 선택 연도 유지.
+    const updateYear = React.useCallback((y: number) => {
+        setYear(y);
+        const sp = new URLSearchParams(searchParams?.toString() || '');
+        sp.set('year', String(y));
+        sp.set('month', String(monthQuery));
+        router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+    }, [router, pathname, searchParams, monthQuery]);
     const [memberName, setMemberName] = React.useState<string>('');
     const [memberAvatar, setMemberAvatar] = React.useState<string | null>(null);
     const [receivables, setReceivables] = React.useState<FinanceDuesReceivable[]>([]);
@@ -126,18 +142,69 @@ export default function FinanceMemberDetailPage() {
         }
     };
 
-    // 휴회 등록/삭제.
+    // 휴회 등록 + 기존 청구 면제 흐름.
+    //   1) insertLeave 로 휴회 row 생성 (실패 시 후속 단계 진행 안 함).
+    //   2) 휴회 구간과 겹치는 monthly_fee receivable 중 pending/partial 만 후보로 조회
+    //      (이미 exempt/not_target/paid 인 row 는 자동 제외 — 운영진 결정 보존).
+    //   3) 후보가 있으면 "N건 면제 처리?" 확인. 거절하면 아무 것도 안 함.
+    //   4) 승인 시 status='exempt' 로 일괄 변경 (실패 row 는 모아 alert).
+    //      → 미납 / 남은 금액 계산은 summarizeReceivable 가 즉시 제외하므로 화면 새로고침으로 반영.
+    // ⚠️ 자동 삭제 / 자동 면제는 절대 하지 않는다. 운영진 확인 필수.
     const handleAddLeave = async () => {
         if (!leaveStart) { alert('휴회 시작일을 입력해 주세요.'); return; }
+        const startSnapshot = leaveStart;
+        const endSnapshot = leaveEnd || null;
         try {
             await insertLeave({
                 member_id: memberId,
-                start_date: leaveStart,
-                end_date: leaveEnd || null,
+                start_date: startSnapshot,
+                end_date: endSnapshot,
                 reason: leaveReason.trim() || null,
                 userId: user?.id,
             });
             setLeaveStart(''); setLeaveEnd(''); setLeaveReason('');
+
+            // 겹치는 월회비 청구 — pending / partial 만 후보. (이미 exempt 면 굳이 다시 변경 안 함.)
+            const overlapping = await fetchOverlappingMonthlyReceivables({
+                memberId,
+                startDate: startSnapshot,
+                endDate: endSnapshot,
+            });
+            const candidates = overlapping.filter((r) =>
+                r.status === 'pending' || r.status === 'partial',
+            );
+
+            if (candidates.length > 0) {
+                const summaryLines = candidates
+                    .slice(0, 10)
+                    .map((r) => `· ${r.target_year}년 ${r.target_month}월 ${formatWon(r.amount_due)}`);
+                const more = candidates.length > summaryLines.length
+                    ? `\n(외 ${candidates.length - summaryLines.length}건)`
+                    : '';
+                const ok = window.confirm(
+                    `휴회 기간과 겹치는 기존 월회비 청구가 ${candidates.length}건 있습니다.\n` +
+                    `해당 청구를 면제 처리하시겠습니까?\n\n${summaryLines.join('\n')}${more}`,
+                );
+                if (ok) {
+                    const failed: { month: number | null; reason: string }[] = [];
+                    for (const r of candidates) {
+                        try {
+                            await updateReceivableStatus(r.id, 'exempt', {
+                                exemption_reason: '휴회 자동 면제',
+                            });
+                        } catch (e: any) {
+                            failed.push({ month: r.target_month, reason: e?.message || String(e) });
+                        }
+                    }
+                    if (failed.length > 0) {
+                        alert(
+                            `일부 청구 면제에 실패했습니다 (${failed.length}건).\n` +
+                            failed.slice(0, 5).map((f) => `${f.month ?? '?'}월: ${f.reason}`).join('\n'),
+                        );
+                    }
+                }
+            }
+
             await load();
         } catch (e: any) {
             alert(e?.message || '휴회 등록에 실패했습니다.');
@@ -187,7 +254,7 @@ export default function FinanceMemberDetailPage() {
                 <FinancePageHeader
                     eyebrow="TEYEON · FINANCE"
                     title="회원 납부 상세"
-                    backHref="/finance/payments"
+                    backHref={`/finance/payments?year=${year}&month=${monthQuery}`}
                 />
 
                 <section style={FINANCE_CARD_STYLE}>
@@ -215,7 +282,7 @@ export default function FinanceMemberDetailPage() {
                         </div>
                         <select
                             value={year}
-                            onChange={(e) => setYear(Number(e.target.value))}
+                            onChange={(e) => updateYear(Number(e.target.value))}
                             style={{
                                 height: 32, paddingLeft: 10, paddingRight: 10,
                                 borderRadius: 8, border: '1px solid rgba(15,23,42,0.10)',
@@ -458,7 +525,7 @@ export default function FinanceMemberDetailPage() {
 
                 <div style={{ display: 'flex', gap: 8 }}>
                     <Link
-                        href="/finance/record"
+                        href={`/finance/record?year=${year}&month=${monthQuery}`}
                         style={{
                             ...FINANCE_CARD_STYLE,
                             flex: 1,
@@ -498,6 +565,20 @@ export default function FinanceMemberDetailPage() {
             />
         </main>
     );
+}
+
+// URL query parser — Finance 전 페이지 동일 규칙.
+function parseYearParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 2020 || n > 2099) return fallback;
+    return n;
+}
+function parseMonthParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > 12) return fallback;
+    return n;
 }
 
 const detailInputStyle: React.CSSProperties = {

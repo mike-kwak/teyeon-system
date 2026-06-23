@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
@@ -42,12 +42,26 @@ import {
  */
 export default function FinanceBulkPage() {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const { user, role, isLoading } = useAuth();
     const isAdmin = canManageFinance(role);
 
+    // URL query (?year=&month=) 우선. 없거나 잘못되면 현재 연·월.
+    // 화면에서 바꾸면 router.replace 로 같은 URL 에 반영 → 새로고침·뒤로가기 후에도 유지.
     const today = new Date();
-    const [year, setYear] = React.useState(today.getFullYear());
-    const [month, setMonth] = React.useState(today.getMonth() + 1);
+    const initYear = parseYearParam(searchParams?.get('year'), today.getFullYear());
+    const initMonth = parseMonthParam(searchParams?.get('month'), today.getMonth() + 1);
+    const [year, setYear] = React.useState(initYear);
+    const [month, setMonth] = React.useState(initMonth);
+
+    const updateYearMonth = React.useCallback((y: number, m: number) => {
+        setYear(y); setMonth(m);
+        const sp = new URLSearchParams(searchParams?.toString() || '');
+        sp.set('year', String(y));
+        sp.set('month', String(m));
+        router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+    }, [router, pathname, searchParams]);
     const [paymentType, setPaymentType] = React.useState<FinanceReceivableType>('monthly_fee');
     const [amountStr, setAmountStr] = React.useState<string>('');
     const [paidAt, setPaidAt] = React.useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -185,7 +199,7 @@ export default function FinanceBulkPage() {
                 memo: memo.trim() || null,
                 userId: user?.id,
             });
-            router.push('/finance/payments');
+            router.push(`/finance/payments?year=${year}&month=${month}`);
         } catch (e: any) {
             alert(e?.message || '일괄 저장에 실패했습니다.');
         } finally {
@@ -198,7 +212,7 @@ export default function FinanceBulkPage() {
             <main style={FINANCE_PAGE_STYLE}>
                 <div style={{ ...FINANCE_CONTAINER_STYLE, paddingTop: 80, textAlign: 'center' }}>
                     <p style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>운영자만 접근할 수 있는 페이지입니다.</p>
-                    <Link href="/finance" style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 700, color: '#0E7C76' }}>
+                    <Link href={`/finance?year=${year}&month=${month}`} style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 700, color: '#0E7C76' }}>
                         ← Finance
                     </Link>
                 </div>
@@ -213,19 +227,19 @@ export default function FinanceBulkPage() {
                     eyebrow="TEYEON · FINANCE"
                     title="일괄 납부 처리"
                     subtitle="동일 항목을 여러 회원에게 한 번에 기록합니다."
-                    backHref="/finance"
+                    backHref={`/finance?year=${year}&month=${month}`}
                 />
 
                 <section style={FINANCE_CARD_STYLE}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', gap: 8 }}>
                             <Field label="연도">
-                                <select value={year} onChange={(e) => setYear(Number(e.target.value))} style={inputStyle}>
+                                <select value={year} onChange={(e) => updateYearMonth(Number(e.target.value), month)} style={inputStyle}>
                                     {[2024, 2025, 2026, 2027, 2028].map((y) => <option key={y} value={y}>{y}년</option>)}
                                 </select>
                             </Field>
                             <Field label="월">
-                                <select value={month} onChange={(e) => setMonth(Number(e.target.value))} style={inputStyle}>
+                                <select value={month} onChange={(e) => updateYearMonth(year, Number(e.target.value))} style={inputStyle}>
                                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{m}월</option>)}
                                 </select>
                             </Field>
@@ -410,3 +424,17 @@ const smallButton: React.CSSProperties = {
     fontSize: 10.5, fontWeight: 800,
     cursor: 'pointer',
 };
+
+// URL query parser — /finance 와 동일 규칙. 페이지마다 인라인 복제.
+function parseYearParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 2020 || n > 2099) return fallback;
+    return n;
+}
+function parseMonthParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > 12) return fallback;
+    return n;
+}

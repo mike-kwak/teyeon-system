@@ -44,6 +44,58 @@ export async function fetchReceivablesByMember(
     return (data || []) as FinanceDuesReceivable[];
 }
 
+/**
+ * 휴회 구간(startDate~endDate)과 겹치는 회원의 **월회비** receivable 조회.
+ * 자동 면제는 하지 않는다 — UI 가 확인을 받은 뒤 별도로 status 를 'exempt' 로 변경.
+ *
+ * 겹침 판정 (월 단위로 추상):
+ *   - receivable.target_year/target_month 가 모두 있어야 한다 (연회비/벌금 등 제외).
+ *   - 해당 월의 시작일 <= endDate (없으면 무기한)
+ *     AND 해당 월의 말일 >= startDate
+ *   - 이미 exempt / not_target 인 row 도 호출자가 보고 결정하도록 함께 반환.
+ *
+ * 구현 노트: DB 쿼리에서 좁힐 수 있는 부분(year 범위)만 인덱스로 사전 필터하고,
+ * 월 단위 겹침은 클라이언트 측에서 평가 — 월회비는 회원당 연 12 건 수준이라 부담 없음.
+ */
+export async function fetchOverlappingMonthlyReceivables(opts: {
+    memberId: string;
+    startDate: string;        // 'YYYY-MM-DD'
+    endDate: string | null;   // null = 무기한
+}): Promise<FinanceDuesReceivable[]> {
+    const start = opts.startDate;
+    const end = opts.endDate; // nullable
+    if (!start) return [];
+
+    const startYear = Number(start.slice(0, 4));
+    if (!Number.isInteger(startYear)) return [];
+    const endYear = end ? Number(end.slice(0, 4)) : (startYear + 5);
+    const yearLo = Math.min(startYear, endYear);
+    const yearHi = Math.max(startYear, endYear);
+
+    const { data, error } = await supabase
+        .from(TBL_RECV)
+        .select('*')
+        .eq('member_id', opts.memberId)
+        .eq('receivable_type', 'monthly_fee')
+        .gte('target_year', yearLo)
+        .lte('target_year', yearHi);
+    if (error) {
+        console.warn('[Finance/recv/fetchOverlap]', error?.message ?? error);
+        return [];
+    }
+    const rows = (data || []) as FinanceDuesReceivable[];
+    return rows.filter((r) => {
+        if (r.target_year == null || r.target_month == null) return false;
+        const y = r.target_year;
+        const m = r.target_month;
+        const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
+        const monthEnd   = `${y}-${String(m).padStart(2, '0')}-31`;
+        const afterStart = monthEnd >= start;            // 월 말일이 휴회 시작 이상
+        const beforeEnd  = end ? monthStart <= end : true; // 월 시작이 휴회 종료 이하 (무기한이면 항상 true)
+        return afterStart && beforeEnd;
+    });
+}
+
 export async function fetchReceivablesByYear(year: number): Promise<FinanceDuesReceivable[]> {
     const { data, error } = await supabase
         .from(TBL_RECV)

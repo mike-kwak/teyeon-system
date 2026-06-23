@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
     FileEdit, Users, Layers, Settings, ChevronRight, AlertCircle,
 } from 'lucide-react';
@@ -86,9 +87,24 @@ export default function FinancePage() {
 // ── 관리자 홈 ───────────────────────────────────────────────────────────────
 
 function AdminFinanceHome() {
+    // URL query (?year=&month=) 우선. 없으면 현재 연/월. 화면 내에서 바꾸면 router.replace 로
+    // 동일 URL 에 반영해 새로고침·뒤로가기·다른 Finance 화면 이동 후 복귀에도 선택값 유지.
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const today = new Date();
-    const [year, setYear] = React.useState(today.getFullYear());
-    const [month, setMonth] = React.useState(today.getMonth() + 1);
+    const initYear = parseYearParam(searchParams?.get('year'), today.getFullYear());
+    const initMonth = parseMonthParam(searchParams?.get('month'), today.getMonth() + 1);
+    const [year, setYear] = React.useState(initYear);
+    const [month, setMonth] = React.useState(initMonth);
+
+    const updateYearMonth = React.useCallback((y: number, m: number) => {
+        setYear(y); setMonth(m);
+        const sp = new URLSearchParams(searchParams?.toString() || '');
+        sp.set('year', String(y));
+        sp.set('month', String(m));
+        router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+    }, [router, pathname, searchParams]);
 
     const [overview, setOverview] = React.useState<MonthlyDuesOverview | null>(null);
     const [receivables, setReceivables] = React.useState<FinanceDuesReceivable[]>([]);
@@ -159,7 +175,7 @@ function AdminFinanceHome() {
                 />
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <YearMonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+                    <YearMonthPicker year={year} month={month} onChange={updateYearMonth} />
                     {latestUpdate && (
                         <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: '#94A3B8' }}>
                             최근 기록 {formatTs(latestUpdate)}
@@ -189,10 +205,18 @@ function AdminFinanceHome() {
                         <KpiCard label="총 남은 금액" value={formatWon(overview.totalRemaining)} accent="red" />
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <QuickAction href="/finance/record"   icon={<FileEdit size={18} />} label="납부 기록 등록" />
-                            <QuickAction href="/finance/payments" icon={<Users size={18} />}    label="납부 현황" />
-                            <QuickAction href="/finance/bulk"     icon={<Layers size={18} />}   label="일괄 납부 처리" />
-                            <QuickAction href="/finance/settings" icon={<Settings size={18} />} label="회비 기준 설정" />
+                            <QuickAction
+                                href={`/finance/record?year=${year}&month=${month}`}
+                                icon={<FileEdit size={18} />} label="납부 기록 등록" />
+                            <QuickAction
+                                href={`/finance/payments?year=${year}&month=${month}`}
+                                icon={<Users size={18} />}    label="납부 현황" />
+                            <QuickAction
+                                href={`/finance/bulk?year=${year}&month=${month}`}
+                                icon={<Layers size={18} />}   label="일괄 납부 처리" />
+                            <QuickAction
+                                href={`/finance/settings?year=${year}&month=${month}`}
+                                icon={<Settings size={18} />} label="회비 기준 설정" />
                         </div>
 
                         <section style={FINANCE_CARD_STYLE}>
@@ -221,32 +245,42 @@ function AdminFinanceHome() {
                                         <li
                                             key={r.id}
                                             style={{
-                                                display: 'flex', alignItems: 'center', gap: 10,
-                                                paddingTop: 8, paddingBottom: 8,
                                                 borderTop: '1px dashed rgba(15,23,42,0.05)',
                                             }}
                                         >
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <p style={{
-                                                    margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F172A',
-                                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                                }}>
-                                                    {memberNames[r.member_id] || '회원 정보 없음'}
-                                                </p>
-                                                <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#64748B' }}>
-                                                    {r.title || `${r.target_year}년 ${r.target_month}월 회비`}
-                                                </p>
-                                            </div>
-                                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: '#B91C1C', whiteSpace: 'nowrap' }}>
-                                                    {formatWon(s.remaining)}
-                                                </p>
-                                                <div style={{ marginTop: 2 }}>
-                                                    <StatusBadge tone={s.derivedStatus === 'partial' ? 'partial' : 'pending'}>
-                                                        {s.derivedStatus === 'partial' ? '일부 납부' : '미납'}
-                                                    </StatusBadge>
+                                            {/* 회원 상세 진입 — 휴회 처리 / 면제 / 메모를 같은 화면에서 한 번에.
+                                                year/month 쿼리는 현재 선택값을 그대로 전달. */}
+                                            <Link
+                                                href={`/finance/members/${encodeURIComponent(r.member_id)}?year=${year}&month=${month}`}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 10,
+                                                    paddingTop: 8, paddingBottom: 8,
+                                                    textDecoration: 'none', color: 'inherit',
+                                                }}
+                                            >
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <p style={{
+                                                        margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F172A',
+                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {memberNames[r.member_id] || '회원 정보 없음'}
+                                                    </p>
+                                                    <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#64748B' }}>
+                                                        {r.title || `${r.target_year}년 ${r.target_month}월 회비`}
+                                                    </p>
                                                 </div>
-                                            </div>
+                                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                                    <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: '#B91C1C', whiteSpace: 'nowrap' }}>
+                                                        {formatWon(s.remaining)}
+                                                    </p>
+                                                    <div style={{ marginTop: 2 }}>
+                                                        <StatusBadge tone={s.derivedStatus === 'partial' ? 'partial' : 'pending'}>
+                                                            {s.derivedStatus === 'partial' ? '일부 납부' : '미납'}
+                                                        </StatusBadge>
+                                                    </div>
+                                                </div>
+                                                <ChevronRight size={14} style={{ color: '#CBD5E1', flexShrink: 0 }} />
+                                            </Link>
                                         </li>
                                     ))}
                                 </ul>
@@ -292,4 +326,19 @@ function formatTs(iso: string): string {
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
     return `${y}.${m}.${day} ${hh}:${mm}`;
+}
+
+// URL query parser — 잘못된 값(빈 문자열, 'NaN', '0', '13' 등) 은 fallback.
+// Finance 전 페이지가 같은 규칙을 쓰도록 동일 형태를 다른 페이지에도 인라인 복제.
+function parseYearParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 2020 || n > 2099) return fallback;
+    return n;
+}
+function parseMonthParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > 12) return fallback;
+    return n;
 }

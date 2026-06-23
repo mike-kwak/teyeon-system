@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
@@ -28,8 +29,21 @@ export default function FinanceSettingsPage() {
     const { user, role, isLoading } = useAuth();
     const isAdmin = canManageFinance(role);
 
+    // URL query (?year=&month=) 우선. month 는 settings 가 12 개월 grid 라 사용하지 않지만,
+    // 다른 화면과 일관성을 위해 query 자체는 유지·전달 (회비 기준 저장 후 /finance/payments 로 갈 때).
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const today = new Date();
-    const [year, setYear] = React.useState(today.getFullYear());
+    const initYear = parseYearParam(searchParams?.get('year'), today.getFullYear());
+    const [year, setYear] = React.useState(initYear);
+
+    const updateYear = React.useCallback((y: number) => {
+        setYear(y);
+        const sp = new URLSearchParams(searchParams?.toString() || '');
+        sp.set('year', String(y));
+        router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+    }, [router, pathname, searchParams]);
     const [rules, setRules] = React.useState<FinanceFeeRule[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [savingMonth, setSavingMonth] = React.useState<number | null>(null);
@@ -128,7 +142,7 @@ export default function FinanceSettingsPage() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <select
                         value={year}
-                        onChange={(e) => setYear(Number(e.target.value))}
+                        onChange={(e) => updateYear(Number(e.target.value))}
                         style={{
                             height: 32, paddingLeft: 10, paddingRight: 10,
                             borderRadius: 10, border: '1px solid rgba(15,23,42,0.10)',
@@ -354,4 +368,12 @@ function primaryButton(busy: boolean): React.CSSProperties {
         cursor: busy ? 'wait' : 'pointer',
         WebkitTapHighlightColor: 'transparent',
     };
+}
+
+// URL query parser — Finance 전 페이지 동일 규칙.
+function parseYearParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 2020 || n > 2099) return fallback;
+    return n;
 }

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
@@ -47,10 +48,25 @@ export default function FinancePaymentsPage() {
     const { role, isLoading } = useAuth();
     const isAdmin = canManageFinance(role);
 
+    // URL query (?year=&month=) 우선. 화면에서 바뀌면 router.replace 로 같은 URL 에 반영
+    // → 새로고침·뒤로가기·일괄 생성 후·회원 상세 갔다 돌아와도 선택값 유지.
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const today = new Date();
-    const [year, setYear] = React.useState(today.getFullYear());
-    const [month, setMonth] = React.useState(today.getMonth() + 1);
+    const initYear = parseYearParam(searchParams?.get('year'), today.getFullYear());
+    const initMonth = parseMonthParam(searchParams?.get('month'), today.getMonth() + 1);
+    const [year, setYear] = React.useState(initYear);
+    const [month, setMonth] = React.useState(initMonth);
     const [filter, setFilter] = React.useState<Filter>('all');
+
+    const updateYearMonth = React.useCallback((y: number, m: number) => {
+        setYear(y); setMonth(m);
+        const sp = new URLSearchParams(searchParams?.toString() || '');
+        sp.set('year', String(y));
+        sp.set('month', String(m));
+        router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+    }, [router, pathname, searchParams]);
 
     const [members, setMembers] = React.useState<FinanceMember[]>([]);
     const [receivables, setReceivables] = React.useState<FinanceDuesReceivable[]>([]);
@@ -229,7 +245,7 @@ export default function FinancePaymentsPage() {
                     backHref="/finance"
                 />
 
-                <YearMonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+                <YearMonthPicker year={year} month={month} onChange={updateYearMonth} />
 
                 {/* 카운트 요약 */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11.5, fontWeight: 700, color: '#475569' }}>
@@ -315,7 +331,7 @@ export default function FinancePaymentsPage() {
                         {rows.map(({ r, s }) => (
                             <li key={r.id}>
                                 <Link
-                                    href={`/finance/members/${encodeURIComponent(r.member_id)}?year=${year}`}
+                                    href={`/finance/members/${encodeURIComponent(r.member_id)}?year=${year}&month=${month}`}
                                     style={{
                                         ...FINANCE_CARD_STYLE,
                                         display: 'flex', alignItems: 'center', gap: 10,
@@ -389,4 +405,18 @@ function labelOf(s: PaymentDerivedStatus): string {
         : s === 'pending' ? '미납'
         : s === 'exempt' ? '면제'
         : '비대상';
+}
+
+// URL query parser — /finance 와 동일 규칙. 페이지마다 인라인 복제.
+function parseYearParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 2020 || n > 2099) return fallback;
+    return n;
+}
+function parseMonthParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > 12) return fallback;
+    return n;
 }

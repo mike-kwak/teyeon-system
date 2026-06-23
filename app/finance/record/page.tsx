@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
@@ -43,24 +43,32 @@ interface ItemDraft {
     amount: string;     // input string — 빈 값 허용
 }
 
-const newItem = (): ItemDraft => ({
+const newItem = (year: number, month: number): ItemDraft => ({
     id: Math.random().toString(36).slice(2),
     payment_type: 'monthly_fee',
-    target_year: new Date().getFullYear(),
-    target_month: new Date().getMonth() + 1,
+    target_year: year,
+    target_month: month,
     amount: '',
 });
 
 export default function FinanceRecordPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, role, isLoading } = useAuth();
     const isAdmin = canManageFinance(role);
+
+    // URL query (?year=&month=) 우선. 없거나 잘못되면 현재 연·월.
+    // → 항목 기본 대상 월 + 저장/취소 후 돌아가는 Finance 링크에 같은 연·월 유지.
+    const today = new Date();
+    const initYear = parseYearParam(searchParams?.get('year'), today.getFullYear());
+    const initMonth = parseMonthParam(searchParams?.get('month'), today.getMonth() + 1);
+    const financeHref = `/finance?year=${initYear}&month=${initMonth}`;
 
     const [members, setMembers] = React.useState<FinanceMember[]>([]);
     const [memberId, setMemberId] = React.useState<string>('');
     const [paidAt, setPaidAt] = React.useState<string>(() => new Date().toISOString().slice(0, 10));
     const [memo, setMemo] = React.useState<string>('');
-    const [items, setItems] = React.useState<ItemDraft[]>([newItem()]);
+    const [items, setItems] = React.useState<ItemDraft[]>(() => [newItem(initYear, initMonth)]);
     const [saving, setSaving] = React.useState(false);
     const [saveError, setSaveError] = React.useState<string | null>(null);
 
@@ -77,7 +85,7 @@ export default function FinanceRecordPage() {
             <main style={FINANCE_PAGE_STYLE}>
                 <div style={{ ...FINANCE_CONTAINER_STYLE, paddingTop: 80, textAlign: 'center' }}>
                     <p style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>운영자만 접근할 수 있는 페이지입니다.</p>
-                    <Link href="/finance" style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 700, color: '#0E7C76' }}>
+                    <Link href={financeHref} style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 700, color: '#0E7C76' }}>
                         ← Finance
                     </Link>
                 </div>
@@ -93,7 +101,7 @@ export default function FinanceRecordPage() {
     const updateItem = (id: string, patch: Partial<ItemDraft>) => {
         setItems((prev) => prev.map((it) => it.id === id ? { ...it, ...patch } : it));
     };
-    const addItem = () => setItems((prev) => [...prev, newItem()]);
+    const addItem = () => setItems((prev) => [...prev, newItem(initYear, initMonth)]);
     const removeItem = (id: string) => setItems((prev) => prev.length > 1 ? prev.filter((it) => it.id !== id) : prev);
 
     // 월회비 / 연·월 변경 시 기본 금액 자동 제안 (현재 값이 비어있을 때만).
@@ -151,7 +159,7 @@ export default function FinanceRecordPage() {
                     memo: memo.trim() || null,
                 }, user?.id);
             }
-            router.push('/finance');
+            router.push(financeHref);
         } catch (e: any) {
             setSaveError(e?.message || '저장에 실패했습니다.');
         } finally {
@@ -166,7 +174,7 @@ export default function FinanceRecordPage() {
                     eyebrow="TEYEON · FINANCE"
                     title="납부 기록 등록"
                     subtitle="회원이 입금한 내용을 직접 기록합니다."
-                    backHref="/finance"
+                    backHref={financeHref}
                 />
 
                 {/* 1. 회원 / 날짜 / 메모 */}
@@ -416,3 +424,17 @@ const addButton: React.CSSProperties = {
     fontSize: 11, fontWeight: 800,
     cursor: 'pointer',
 };
+
+// URL query parser — /finance 와 동일 규칙. 페이지마다 인라인 복제.
+function parseYearParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 2020 || n > 2099) return fallback;
+    return n;
+}
+function parseMonthParam(raw: string | null | undefined, fallback: number): number {
+    if (!raw) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > 12) return fallback;
+    return n;
+}
