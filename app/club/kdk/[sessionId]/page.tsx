@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { Trophy, Clock, Play, Hammer, LayoutGrid, Users } from 'lucide-react';
+import { Trophy, Clock, Play, Hammer, LayoutGrid, Users, Wallet, Copy, Check } from 'lucide-react';
 import PublicHeader from '@/components/club/PublicHeader';
 import {
     fetchPublicKdkSession,
@@ -13,6 +13,7 @@ import {
     type PublicFinalRankingRow,
     type PublicMatchRow,
     type PublicRankingRow,
+    type PublicGuestSettlement,
 } from '@/lib/publicClubService';
 
 /**
@@ -540,6 +541,8 @@ const FinishedView = ({ data }: { data: PublicKdkSessionDetail }) => {
                 </section>
             )}
 
+            <GuestSettlementView data={data} />
+
             {finalRanking.length === 0 && matches.length === 0 && (
                 <section style={card({ alignCenter: true })}>
                     <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#64748B' }}>
@@ -550,6 +553,159 @@ const FinishedView = ({ data }: { data: PublicKdkSessionDetail }) => {
         </>
     );
 };
+
+// ── finished: 게스트 정산 안내 ──────────────────────────────────────────────
+// 공식 확정 스냅샷(settlement_data) 기반 게스트 납부액만 표시. 금액은 공개 DTO(양수) 그대로.
+
+const GuestSettlementView = ({ data }: { data: PublicKdkSessionDetail }) => {
+    const [copied, setCopied] = React.useState(false);
+    const guests = data.guestSettlements;
+    const pending = !!data.guestSettlementPending;
+    const account = data.account;
+
+    // RPC 미배포/필드 없음 → 섹션 미표시 (기존 동작 보존).
+    if (guests === undefined && !pending) return null;
+
+    // 정산 근거 없음 → 안내만, 금액 추정 금지.
+    if (pending && (!guests || guests.length === 0)) {
+        return (
+            <section style={card()}>
+                <SectionTitle icon={<Wallet size={14} strokeWidth={1.8} />}>게스트 정산 안내</SectionTitle>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#64748B', lineHeight: 1.6 }}>
+                    운영진 정산 확인 중입니다.
+                </p>
+            </section>
+        );
+    }
+
+    if (!guests || guests.length === 0) return null; // 게스트 없음 → 섹션 숨김
+
+    const total = data.guestSettlementTotal ?? guests.reduce((sum, g) => sum + g.totalAmount, 0);
+
+    const handleCopyAccount = async () => {
+        const text = account?.accountNumber;
+        if (!text) return;
+        try {
+            if (navigator.clipboard && window.isSecureContext !== false) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1800);
+        } catch {
+            /* 복사 실패 — 조용히 무시 */
+        }
+    };
+
+    return (
+        <section style={card()}>
+            <SectionTitle icon={<Wallet size={14} strokeWidth={1.8} />}>게스트 정산 안내</SectionTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {guests.map((g, i) => (
+                    <GuestSettlementCard key={`${g.name}-${i}`} g={g} />
+                ))}
+            </div>
+
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(15,23,42,0.08)',
+            }}>
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#475569' }}>전체 게스트 납부 합계</span>
+                <strong style={{ fontSize: 16, fontWeight: 900, color: '#0F766E', whiteSpace: 'nowrap' }}>
+                    {formatWon(total)}
+                </strong>
+            </div>
+
+            {account?.accountNumber && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(15,23,42,0.06)' }}>
+                    <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#64748B' }}>
+                        {account.bankName}{account.accountHolder ? ` · 예금주 ${account.accountHolder}` : ''}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{
+                            flex: 1, minWidth: 0, fontSize: 13, fontWeight: 900, color: '#0F172A',
+                            overflowWrap: 'anywhere', wordBreak: 'keep-all',
+                        }}>
+                            {account.accountNumber}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleCopyAccount}
+                            style={{
+                                flexShrink: 0,
+                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                height: 32, paddingLeft: 12, paddingRight: 12,
+                                borderRadius: 8,
+                                backgroundColor: copied ? 'rgba(15,159,152,0.12)' : '#0F9F98',
+                                color: copied ? '#0E7C76' : '#FFFFFF',
+                                border: copied ? '1px solid rgba(15,159,152,0.30)' : 'none',
+                                fontSize: 11.5, fontWeight: 800,
+                                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                            }}
+                        >
+                            {copied ? <Check size={13} strokeWidth={2.4} /> : <Copy size={13} strokeWidth={2.2} />}
+                            {copied ? '복사됨' : '계좌번호 복사'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+};
+
+const GuestSettlementCard = ({ g }: { g: PublicGuestSettlement }) => {
+    const hasPenalty = g.penaltyAmount > 0;
+    return (
+        <div style={{
+            borderRadius: 10,
+            backgroundColor: '#F8FAFC',
+            border: '1px solid rgba(15,23,42,0.06)',
+            paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12,
+        }}>
+            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                {g.name}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <SettlementRow label="게스트비" value={formatWon(g.guestFeeAmount)} />
+                <SettlementRow
+                    label={`벌금${hasPenalty && g.penaltyLabel ? ` (${g.penaltyLabel})` : ''}`}
+                    value={hasPenalty ? formatWon(g.penaltyAmount) : '없음'}
+                    valueColor={hasPenalty ? '#B45309' : '#94A3B8'}
+                />
+                <SettlementRow label="최종 납부액" value={formatWon(g.totalAmount)} emphasize />
+            </div>
+        </div>
+    );
+};
+
+const SettlementRow = ({ label, value, valueColor, emphasize }: {
+    label: string; value: string; valueColor?: string; emphasize?: boolean;
+}) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{
+            fontSize: emphasize ? 12.5 : 12, fontWeight: emphasize ? 800 : 700,
+            color: emphasize ? '#0F172A' : '#64748B',
+        }}>
+            {label}
+        </span>
+        <strong style={{
+            fontSize: emphasize ? 15 : 12.5,
+            fontWeight: emphasize ? 900 : 800,
+            color: emphasize ? '#0F766E' : (valueColor || '#0F172A'),
+            whiteSpace: 'nowrap',
+        }}>
+            {value}
+        </strong>
+    </div>
+);
 
 // ── ranking table ─────────────────────────────────────────────────────────
 
@@ -721,6 +877,10 @@ const playerLineStyle: React.CSSProperties = {
 
 function formatSigned(value: number): string {
     return value > 0 ? `+${value}` : String(value);
+}
+
+function formatWon(value: number): string {
+    return `${(value || 0).toLocaleString()}원`;
 }
 
 function formatDateKo(iso: string): string {

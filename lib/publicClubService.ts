@@ -117,6 +117,22 @@ export interface PublicFinalRankingRow {
     diff: number;
 }
 
+/** finished 게스트 정산(공개용) — 금액은 양수 납부액. 내부 ID/Finance 상세 미포함. */
+export interface PublicGuestSettlement {
+    name: string;            // '이름(G)'
+    guestFeeAmount: number;  // 게스트 기본 납부액 (양수)
+    penaltyAmount: number;   // 벌금 (양수, 없으면 0)
+    totalAmount: number;     // 최종 납부액 (양수)
+    penaltyLabel: string | null; // 'L1' | 'L2' | null
+}
+
+/** finished 계좌(공개용) — Guest Pass 계좌 공개 ON 일 때만. 마스킹 표시명만. */
+export interface PublicKdkAccount {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+}
+
 export interface PublicKdkSessionDetail {
     sessionId: string;
     title: string;
@@ -128,6 +144,14 @@ export interface PublicKdkSessionDetail {
     finalRanking?: PublicFinalRankingRow[];
     /** finished: 공식 확정 경기 결과. playerNames 와 점수만 포함. */
     matches?: PublicMatchRow[];
+    /** finished: 게스트별 정산(공개용). 정산 스냅샷이 있을 때만 채워짐. */
+    guestSettlements?: PublicGuestSettlement[];
+    /** finished: 게스트 납부 합계. */
+    guestSettlementTotal?: number;
+    /** finished: 정산 스냅샷이 없어 금액 확정 불가 → true 면 "운영진 정산 확인 중". */
+    guestSettlementPending?: boolean;
+    /** finished: 연결된 Guest Pass 계좌 공개 ON 일 때만. 아니면 null. */
+    account?: PublicKdkAccount | null;
     /** ready: 전체 대진표 (matchNo / round / court / group / playerNames / status). */
     bracket?: PublicMatchRow[];
     /** in_progress: 코트별 현재 경기. */

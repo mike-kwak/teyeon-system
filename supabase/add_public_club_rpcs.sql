@@ -156,6 +156,13 @@ declare
   v_ranking jsonb;
   v_final_ranking jsonb;
   v_finished_matches jsonb;
+  v_has_settlement boolean;
+  v_guest_settlements jsonb;
+  v_guest_total bigint;
+  v_sched_id uuid;
+  v_pass public.club_schedule_guest_passes%rowtype;
+  v_defaults public.club_guest_pass_defaults%rowtype;
+  v_account jsonb;
 begin
   if p_session_id is null or length(p_session_id) = 0 then
     return null;
@@ -251,6 +258,62 @@ begin
         where snapshot_item.item->>'status' = 'complete'
       ) finished_match;
 
+    -- ── 게스트 정산 (공식 확정 스냅샷 settlement_data 에서만) ────────────────
+    -- 저장값은 음수(납부=차감). 공개 DTO 는 양수 납부액으로 변환. 게스트(is_guest)만.
+    v_has_settlement := coalesce(jsonb_typeof(v_archive.raw_data->'settlement_data') = 'array', false)
+                        and coalesce(jsonb_array_length(
+                              case when jsonb_typeof(v_archive.raw_data->'settlement_data') = 'array'
+                                   then v_archive.raw_data->'settlement_data'
+                                   else '[]'::jsonb end), 0) > 0;
+
+    if v_has_settlement then
+      select
+        coalesce(jsonb_agg(g.obj order by g.rank), '[]'::jsonb),
+        coalesce(sum(g.total), 0)
+        into v_guest_settlements, v_guest_total
+        from (
+          select
+            case when coalesce(s.item->>'rank', '') ~ '^[0-9]+$' then (s.item->>'rank')::int else 999 end as rank,
+            -1 * (case when coalesce(s.item->>'final_amount', '') ~ '^-?[0-9]+$' then (s.item->>'final_amount')::int else 0 end) as total,
+            jsonb_build_object(
+              'name', case
+                when btrim(coalesce(s.item->>'player_name', '')) ~ '\(G\)$'
+                  then btrim(s.item->>'player_name')
+                else btrim(coalesce(nullif(btrim(s.item->>'player_name'), ''), '게스트')) || '(G)'
+              end,
+              'guestFeeAmount', -1 * (case when coalesce(s.item->>'guest_fee_amount', '') ~ '^-?[0-9]+$' then (s.item->>'guest_fee_amount')::int else 0 end),
+              'penaltyAmount',  -1 * (case when coalesce(s.item->>'penalty_amount', '') ~ '^-?[0-9]+$' then (s.item->>'penalty_amount')::int else 0 end),
+              'totalAmount',    -1 * (case when coalesce(s.item->>'final_amount', '') ~ '^-?[0-9]+$' then (s.item->>'final_amount')::int else 0 end),
+              'penaltyLabel',   nullif(s.item->>'penalty_level', '')
+            ) as obj
+          from jsonb_array_elements(v_archive.raw_data->'settlement_data') as s(item)
+          where (s.item->>'is_guest') = 'true'
+        ) g;
+    else
+      v_guest_settlements := '[]'::jsonb;
+      v_guest_total := 0;
+    end if;
+
+    -- ── 계좌 (연결된 정모 Guest Pass 의 계좌 공개 ON 일 때만) ─────────────────
+    v_account := null;
+    select club_schedule_id into v_sched_id
+      from public.kdk_session_meta where session_id = p_session_id limit 1;
+    if v_sched_id is not null then
+      select * into v_pass
+        from public.club_schedule_guest_passes where schedule_id = v_sched_id limit 1;
+      if v_pass.id is not null and coalesce(v_pass.show_bank_account, true) = true then
+        select * into v_defaults
+          from public.club_guest_pass_defaults where club_key = 'TEYEON' limit 1;
+        if v_defaults.bank_account_number is not null and btrim(v_defaults.bank_account_number) <> '' then
+          v_account := jsonb_build_object(
+            'bankName',      v_defaults.bank_name,
+            'accountNumber', v_defaults.bank_account_number,
+            'accountHolder', v_defaults.bank_account_holder_display
+          );
+        end if;
+      end if;
+    end if;
+
     return jsonb_build_object(
       'sessionId',    v_archive.id,
       'title',        coalesce(v_archive.raw_data->>'title', '경기'),
@@ -261,7 +324,11 @@ begin
                            else to_char(v_archive.confirmed_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
                       end,
       'finalRanking', v_final_ranking,
-      'matches',      v_finished_matches
+      'matches',      v_finished_matches,
+      'guestSettlements',      v_guest_settlements,
+      'guestSettlementTotal',  v_guest_total,
+      'guestSettlementPending', (not v_has_settlement),
+      'account',               v_account
     );
   end if;
 
