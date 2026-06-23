@@ -149,7 +149,7 @@ export async function renderRankingImageBlob(input: RankingImageInput): Promise<
 
     const hasSettlement = input.hasSettlement;
     const padding = 36;
-    const rowHeight = hasSettlement ? 60 : 50;
+    const rowHeight = hasSettlement ? 46 : 50;
     const sectionHeight = 44;
     const colHeaderHeight = 32;
     const titleHeight = 156;
@@ -232,7 +232,7 @@ export async function renderRankingImageBlob(input: RankingImageInput): Promise<
         drawText('전적', X_WL_C, chC, { size: 12, weight: 900, color: '#475569', align: 'center' });
         drawText('득실', X_DIFF_C, chC, { size: 12, weight: 900, color: '#475569', align: hasSettlement ? 'center' : 'right' });
         if (hasSettlement) {
-            drawText('벌금 · 최종 정산', X_SETTLE_R, chC, { size: 12, weight: 900, color: '#475569', align: 'right' });
+            drawText('정산', X_SETTLE_R, chC, { size: 12, weight: 900, color: '#475569', align: 'right' });
         }
         y += colHeaderHeight;
 
@@ -286,23 +286,13 @@ export async function renderRankingImageBlob(input: RankingImageInput): Promise<
             });
 
             if (hasSettlement) {
+                // 우측 정산 컬럼: 최종 금액(final_amount)만 한 줄. 0/정산없음은 회색 '-'.
                 const s = row.settlement;
-                if (!s) {
-                    drawText('정산 없음', X_SETTLE_R, midY, { size: 13, weight: 800, color: MONEY_GRAY, align: 'right' });
-                } else {
-                    // 상단: 벌금/게스트비/상금 내역, 하단: 최종.
-                    const parts: string[] = [];
-                    if (s.prizeAmount > 0) parts.push(`상금 ${fmtSignedMoney(s.prizeAmount)}`);
-                    if (s.penaltyAmount < 0) parts.push(`벌금 ${fmtSignedMoney(s.penaltyAmount)}`);
-                    if (s.guestFeeAmount < 0) parts.push(`게스트 ${fmtSignedMoney(s.guestFeeAmount)}`);
-                    const topText = parts.length > 0 ? parts.join('  ·  ') : '벌금·게스트비 없음';
-                    const topColor = s.prizeAmount > 0 ? MONEY_GREEN : parts.length > 0 ? MONEY_RED : MONEY_GRAY;
-                    drawText(topText, X_SETTLE_R, y + rowHeight * 0.32, { size: 13, weight: 800, color: topColor, align: 'right' });
-
-                    const finalText = `최종 ${s.finalAmount === 0 ? '0' : fmtSignedMoney(s.finalAmount)}`;
-                    const finalColor = s.finalAmount > 0 ? MONEY_GREEN : s.finalAmount < 0 ? MONEY_RED : MONEY_GRAY;
-                    drawText(finalText, X_SETTLE_R, y + rowHeight * 0.70, { size: 17, weight: 900, color: finalColor, align: 'right' });
-                }
+                const finalText = (!s || s.finalAmount === 0) ? '-' : fmtSignedMoney(s.finalAmount);
+                const finalColor = (!s || s.finalAmount === 0)
+                    ? MONEY_GRAY
+                    : s.finalAmount > 0 ? MONEY_GREEN : MONEY_RED;
+                drawText(finalText, X_SETTLE_R, midY, { size: 17, weight: 900, color: finalColor, align: 'right' });
             }
 
             y += rowHeight;
