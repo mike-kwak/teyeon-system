@@ -33,6 +33,8 @@ export default function FinanceSettingsPage() {
     const [rules, setRules] = React.useState<FinanceFeeRule[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [savingMonth, setSavingMonth] = React.useState<number | null>(null);
+    /** 직전 저장 성공한 월 — UI 에 "저장됨" 작은 피드백 표시 (2초 후 해제). */
+    const [savedFlashMonth, setSavedFlashMonth] = React.useState<number | null>(null);
 
     // 일괄 적용 form state.
     const [bulkFrom, setBulkFrom] = React.useState(1);
@@ -77,6 +79,11 @@ export default function FinanceSettingsPage() {
                 user?.id,
             );
             await load();
+            // 사용자 피드백 — 같은 값을 저장해도 보이는 신호가 있어야 한다 (이전 회귀 보완).
+            setSavedFlashMonth(month);
+            window.setTimeout(() => {
+                setSavedFlashMonth((m) => (m === month ? null : m));
+            }, 1800);
         } catch (e: any) {
             alert(e?.message || '저장에 실패했습니다.');
         } finally {
@@ -205,6 +212,7 @@ export default function FinanceSettingsPage() {
                                         month={m}
                                         rule={r}
                                         saving={savingMonth === m}
+                                        justSaved={savedFlashMonth === m}
                                         onSave={handleSaveMonth}
                                     />
                                 );
@@ -218,14 +226,16 @@ export default function FinanceSettingsPage() {
 }
 
 function MonthRuleRow({
-    year, month, rule, saving, onSave,
+    year, month, rule, saving, justSaved, onSave,
 }: {
     year: number;
     month: number;
     rule: FinanceFeeRule | undefined;
     saving: boolean;
+    justSaved: boolean;
     onSave: (month: number, amount: number, dueDate: string | null) => void;
 }) {
+    void year;
     const [amountStr, setAmountStr] = React.useState<string>(rule?.default_amount != null ? String(rule.default_amount) : '');
     const [dueDate, setDueDate]     = React.useState<string>(rule?.due_date ?? '');
     React.useEffect(() => {
@@ -264,19 +274,26 @@ function MonthRuleRow({
             />
             <button
                 type="button"
-                onClick={() => onSave(month, Number(amountStr) || 0, dueDate || null)}
+                onClick={() => {
+                    // 빈 문자열 → 0 으로 떨어지는 fallback 은 그대로 두되, parse 실패만 막는다.
+                    const parsed = Number(amountStr);
+                    const amount = Number.isFinite(parsed) ? parsed : 0;
+                    onSave(month, amount, dueDate || null);
+                }}
                 disabled={saving}
                 style={{
                     height: 32, paddingLeft: 12, paddingRight: 12,
                     borderRadius: 8,
-                    backgroundColor: saving ? '#CBD5E1' : '#0F9F98',
+                    backgroundColor: saving ? '#CBD5E1' : justSaved ? '#10B981' : '#0F9F98',
                     color: '#FFFFFF', border: 'none',
                     fontSize: 11.5, fontWeight: 800,
                     cursor: saving ? 'wait' : 'pointer',
                     whiteSpace: 'nowrap',
+                    transition: 'background-color 0.18s',
                 }}
+                aria-label={`${month}월 회비 저장`}
             >
-                {saving ? '저장 중' : rule ? '저장' : '등록'}
+                {saving ? '저장 중' : justSaved ? '저장됨' : rule ? '저장' : '등록'}
             </button>
             {rule && (
                 <span style={{ flex: '0 0 auto', fontSize: 10, fontWeight: 700, color: '#94A3B8', whiteSpace: 'nowrap' }}>

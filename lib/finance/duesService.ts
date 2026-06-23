@@ -365,18 +365,38 @@ export interface FinanceMember {
     nickname: string | null;
     avatar_url: string | null;
     auth_user_id: string | null;
+    /**
+     * 회원 구분 (`members.role`).
+     * 운영 DB 의 실 값은 한글: `'회장' | '부회장' | '총무' | '재무' | '경기' | '섭외' |
+     * '정회원' | '준회원' | '게스트'` 등. 임원진/정회원/준회원/게스트 분기에 사용.
+     * 신규 분류 컬럼은 만들지 않는다 — 기존 필드 재사용.
+     */
+    role: string | null;
 }
 
 export async function fetchAllMembers(): Promise<FinanceMember[]> {
     const { data, error } = await supabase
         .from('members')
-        .select('id, nickname, avatar_url, auth_user_id')
+        .select('id, nickname, avatar_url, auth_user_id, role')
         .order('nickname', { ascending: true });
     if (error) {
         console.warn('[Finance/members]', error?.message ?? error);
         return [];
     }
     return (data || []) as FinanceMember[];
+}
+
+/**
+ * 월회비 청구 대상 회원인지 판정.
+ *   - `'준회원'` / `'게스트'` 는 월회비 청구 자동 제외 (개별 게스트비/벌금은 별도 등록 가능).
+ *   - 그 외 (`정회원`, 임원진, null) 는 모두 청구 대상.
+ *   - 휴회 여부는 별도 leavesService 로 평가 — 여기는 회원 구분만.
+ */
+export function isMonthlyFeeTargetMember(role: string | null | undefined): boolean {
+    const r = (role ?? '').trim();
+    if (r === '준회원') return false;
+    if (r === '게스트') return false;
+    return true;
 }
 
 /** 현재 로그인 사용자의 members.id 를 auth_user_id 매칭으로 찾는다. */
@@ -396,7 +416,16 @@ export async function fetchMyMemberId(authUserId: string): Promise<string | null
 
 /**
  * 일괄 회원별 receivable 등록 (월회비 기준 적용용).
- * 호출자는 휴회 회원을 미리 memberIds 에서 제외해야 한다 (이 함수는 그 검사를 하지 않음).
+ * 호출자는 휴회·준회원 등 제외 대상을 미리 memberIds 에서 빼서 전달.
+ *
+ * 구현 노트:
+ *   - 월회비 UNIQUE INDEX 가 PARTIAL (`where receivable_type='monthly_fee'`) 이라
+ *     PostgREST 의 `.upsert(..., { onConflict: ... })` 가 환경별로 정상 동작하지 않음.
+ *     → 기존 코드의 catch-regex 폴백도 actual 에러 패턴을 못 잡아 1월 일괄 생성이
+ *       silent fail 하던 회귀.
+ *   - 그래서 onConflict 의존을 제거하고: (1) 같은 (year,month,monthly_fee) 의 기존 row 를 pre-fetch,
+ *     (2) 신규 회원 분만 단일 INSERT 로 넣는 결정론적 흐름으로 교체.
+ *   - 0 명이면 빈 배열 즉시 반환 — 기존과 동일.
  */
 export async function bulkCreateMonthlyReceivables(opts: {
     memberIds: string[];
@@ -407,41 +436,44 @@ export async function bulkCreateMonthlyReceivables(opts: {
     userId?: string;
 }): Promise<FinanceDuesReceivable[]> {
     if (opts.memberIds.length === 0) return [];
-    const rows = opts.memberIds.map((mid) => ({
+    const year = Number(opts.year);
+    const month = Number(opts.month);
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+        throw new Error(`잘못된 월: ${opts.month}`);
+    }
+
+    // 1) 기존 월회비 row 회원 id 집합 — 중복 INSERT 방지.
+    const existing = await supabase
+        .from(TBL_RECV)
+        .select('member_id')
+        .eq('target_year', year)
+        .eq('target_month', month)
+        .eq('receivable_type', 'monthly_fee')
+        .in('member_id', opts.memberIds);
+    if (existing.error) {
+        console.warn('[Finance/recv/bulkCreate/pre-check]', existing.error?.message ?? existing.error);
+        throw existing.error;
+    }
+    const taken = new Set(((existing.data || []) as { member_id: string }[]).map((r) => r.member_id));
+    const targets = opts.memberIds.filter((id) => !taken.has(id));
+    if (targets.length === 0) return [];
+
+    const amount_due = Math.max(0, Math.trunc(Number(opts.amount)));
+    const rows = targets.map((mid) => ({
         member_id: mid,
         receivable_type: 'monthly_fee' as const,
-        title: `${opts.year}년 ${opts.month}월 회비`,
-        target_year: opts.year,
-        target_month: opts.month,
-        amount_due: Math.max(0, Math.trunc(opts.amount)),
+        title: `${year}년 ${month}월 회비`,
+        target_year: year,
+        target_month: month,
+        amount_due,
         due_date: opts.dueDate ?? null,
         status: 'pending' as const,
         created_by: opts.userId ?? null,
     }));
-    // 월회비 unique index 충돌 시 무시 — 이미 등록된 회원은 건너뜀.
     const { data, error } = await supabase
-        .from(TBL_RECV)
-        .upsert(rows, { onConflict: 'member_id,target_year,target_month', ignoreDuplicates: true })
-        .select('*');
+        .from(TBL_RECV).insert(rows).select('*');
     if (error) {
-        // onConflict 가 부분 인덱스를 못 잡으면 한 건씩 폴백.
-        if (/no.*unique|conflict/i.test(`${error.message || ''} ${error.details || ''}`)) {
-            const inserted: FinanceDuesReceivable[] = [];
-            for (const row of rows) {
-                const existing = await supabase
-                    .from(TBL_RECV)
-                    .select('*')
-                    .eq('member_id', row.member_id)
-                    .eq('target_year', row.target_year)
-                    .eq('target_month', row.target_month)
-                    .eq('receivable_type', 'monthly_fee')
-                    .maybeSingle();
-                if (existing.data) continue;
-                const ins = await supabase.from(TBL_RECV).insert([row]).select('*').single();
-                if (ins.data) inserted.push(ins.data as FinanceDuesReceivable);
-            }
-            return inserted;
-        }
+        console.warn('[Finance/recv/bulkCreate/insert]', error?.message ?? error);
         throw error;
     }
     return (data || []) as FinanceDuesReceivable[];

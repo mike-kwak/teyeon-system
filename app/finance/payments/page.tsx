@@ -11,6 +11,7 @@ import {
     fetchReceivablesByMonth,
     fetchAllMembers,
     bulkCreateMonthlyReceivables,
+    isMonthlyFeeTargetMember,
     type FinanceMember,
 } from '@/lib/finance/duesService';
 import { fetchAllLeaves, isMemberOnLeaveAtMonth } from '@/lib/finance/leavesService';
@@ -126,43 +127,91 @@ export default function FinancePaymentsPage() {
         return members.filter((m) => isMemberOnLeaveAtMonth(leaves, m.id, year, month)).length;
     }, [members, leaves, year, month]);
 
+    // 준회원·게스트 수 — 월회비 자동 제외 대상 표시용.
+    const associateCount = React.useMemo(() => {
+        return members.filter((m) => !isMonthlyFeeTargetMember(m.role)).length;
+    }, [members]);
+
+    // 일괄 생성 버튼은 "한 명이라도 누락된 회원이 있을 때" 항상 보인다.
+    // 기존: receivables.length === 0 일 때만 노출 → 1건이라도 있으면 사라져 회귀 발생.
+    const missingTargetCount = React.useMemo(() => {
+        const taken = new Set(receivables.map((r) => r.member_id));
+        return members.filter((m) =>
+            !taken.has(m.id) &&
+            !isMemberOnLeaveAtMonth(leaves, m.id, year, month) &&
+            isMonthlyFeeTargetMember(m.role),
+        ).length;
+    }, [members, receivables, leaves, year, month]);
+
     // 회비 기준이 있는 월에 한 번에 receivable 생성 — UX helper.
-    // 휴회(leaves) 가 해당 월과 겹치는 회원은 제외한다.
+    // 분류 우선순위 (한 회원은 정확히 1개 분류로 들어간다):
+    //   1) 기존 청구 존재 (이미 receivables 에 row 있음)
+    //   2) 휴회 (leaves 가 해당 월과 겹침)
+    //   3) 준회원·게스트 (members.role 기준 — 신규 컬럼 추가 없이 기존 필드 재사용)
+    //   4) 대상 (실제 INSERT 됨)
+    // confirm 다이얼로그에 4종 카운트를 모두 노출해 운영진이 결과를 미리 확인.
     const handleSeed = async () => {
         const rule = await fetchFeeRule(year, month);
         if (!rule) {
             alert(`${year}년 ${month}월 회비 기준이 없습니다. 회비 기준 설정에서 먼저 등록해 주세요.`);
             return;
         }
-        const existing = new Set(receivables.map((r) => r.member_id));
-        const candidate = members.filter((m) => !existing.has(m.id));
-        const onLeave = candidate.filter((m) => isMemberOnLeaveAtMonth(leaves, m.id, year, month));
-        const targetMembers = candidate.filter((m) => !isMemberOnLeaveAtMonth(leaves, m.id, year, month));
+        if (!(rule.default_amount > 0)) {
+            const okZero = window.confirm(
+                `${year}년 ${month}월 회비 기준 금액이 0원입니다.\n그래도 진행하시겠습니까?`,
+            );
+            if (!okZero) return;
+        }
 
-        if (targetMembers.length === 0) {
+        const existingSet = new Set(receivables.map((r) => r.member_id));
+        const buckets = {
+            existing:  [] as FinanceMember[],
+            onLeave:   [] as FinanceMember[],
+            associate: [] as FinanceMember[],
+            target:    [] as FinanceMember[],
+        };
+        for (const m of members) {
+            if (existingSet.has(m.id)) { buckets.existing.push(m); continue; }
+            if (isMemberOnLeaveAtMonth(leaves, m.id, year, month)) { buckets.onLeave.push(m); continue; }
+            if (!isMonthlyFeeTargetMember(m.role)) { buckets.associate.push(m); continue; }
+            buckets.target.push(m);
+        }
+
+        if (buckets.target.length === 0) {
+            const exclusionLines = [
+                buckets.existing.length  > 0 && `기존 청구 ${buckets.existing.length}명`,
+                buckets.onLeave.length   > 0 && `휴회 ${buckets.onLeave.length}명`,
+                buckets.associate.length > 0 && `준회원·게스트 ${buckets.associate.length}명`,
+            ].filter(Boolean).join(' · ');
             alert(
-                onLeave.length > 0
-                    ? `생성 대상이 없습니다. (휴회 회원 ${onLeave.length}명 제외)`
-                    : '이번 달은 이미 모든 회원에게 청구가 생성되어 있습니다.'
+                exclusionLines
+                    ? `신규 생성 대상이 없습니다.\n(${exclusionLines})`
+                    : '이번 달은 이미 모든 회원에게 청구가 생성되어 있습니다.',
             );
             return;
         }
-        const ok = window.confirm(
-            `${year}년 ${month}월 회비 ${formatWon(rule.default_amount)} 을(를) ` +
-            `${targetMembers.length}명에게 일괄 생성합니다.` +
-            (onLeave.length > 0 ? `\n(휴회 회원 ${onLeave.length}명은 자동 제외)` : '') +
-            `\n계속하시겠습니까?`,
-        );
+        const lines = [
+            `${year}년 ${month}월 회비 ${formatWon(rule.default_amount)}`,
+            ``,
+            `· 월회비 대상 ${buckets.target.length}명`,
+            buckets.existing.length  > 0 ? `· 기존 청구 존재 ${buckets.existing.length}명` : '',
+            buckets.onLeave.length   > 0 ? `· 휴회 제외 ${buckets.onLeave.length}명` : '',
+            buckets.associate.length > 0 ? `· 준회원 제외 ${buckets.associate.length}명` : '',
+            ``,
+            `진행하시겠습니까?`,
+        ].filter(Boolean).join('\n');
+        const ok = window.confirm(lines);
         if (!ok) return;
         setBusy(true);
         try {
-            await bulkCreateMonthlyReceivables({
-                memberIds: targetMembers.map((m) => m.id),
+            const created = await bulkCreateMonthlyReceivables({
+                memberIds: buckets.target.map((m) => m.id),
                 year, month,
                 amount: rule.default_amount,
                 dueDate: rule.due_date,
             });
             await load();
+            alert(`${created.length}건 생성 완료.`);
         } catch (e: any) {
             alert(e?.message || '생성에 실패했습니다.');
         } finally {
@@ -190,6 +239,7 @@ export default function FinancePaymentsPage() {
                     <Tag tone="red">미납 {counts.pending}</Tag>
                     <Tag>면제·비대상 {counts.exempt}</Tag>
                     {onLeaveCount > 0 && <Tag>휴회 {onLeaveCount}</Tag>}
+                    {associateCount > 0 && <Tag>준회원·게스트 {associateCount}</Tag>}
                 </div>
 
                 {/* 필터 — 가로 스크롤. */}
@@ -224,14 +274,17 @@ export default function FinancePaymentsPage() {
                     ))}
                 </div>
 
-                {/* seed 헬퍼 */}
-                {!loading && receivables.length === 0 && (
+                {/* seed 헬퍼 — 누락된 정회원이 있을 때 항상 표시.
+                    이전: receivables.length === 0 일 때만 보여 1건이라도 생기면 사라지는 회귀가 있었음. */}
+                {!loading && missingTargetCount > 0 && (
                     <section style={FINANCE_CARD_STYLE}>
                         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F172A' }}>
-                            이번 달 청구가 없습니다.
+                            {receivables.length === 0
+                                ? '이번 달 청구가 없습니다.'
+                                : `누락된 회원 ${missingTargetCount}명`}
                         </p>
                         <p style={{ margin: '4px 0 10px', fontSize: 11, fontWeight: 600, color: '#64748B' }}>
-                            회비 기준이 설정되어 있다면 모든 회원에게 일괄 생성할 수 있습니다.
+                            회비 기준이 설정되어 있다면 휴회·준회원·기존 청구를 자동 제외하고 생성합니다.
                         </p>
                         <button
                             type="button"
@@ -246,7 +299,11 @@ export default function FinancePaymentsPage() {
                                 cursor: busy ? 'wait' : 'pointer',
                             }}
                         >
-                            {busy ? '생성 중...' : '월회비 일괄 생성'}
+                            {busy
+                                ? '생성 중...'
+                                : receivables.length === 0
+                                    ? '월회비 일괄 생성'
+                                    : `누락된 ${missingTargetCount}명에게 생성`}
                         </button>
                     </section>
                 )}

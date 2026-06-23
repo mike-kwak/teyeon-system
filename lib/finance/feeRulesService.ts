@@ -44,34 +44,86 @@ export interface FeeRuleUpsertInput {
     is_active?: boolean;
 }
 
-/** 단일 회비 기준 upsert. (year, month) UNIQUE 기반. */
+/**
+ * 단일 회비 기준 upsert.
+ *
+ * 구현 노트:
+ *   - PostgREST 의 `upsert(..., { onConflict: 'year,month' })` 가 환경별로
+ *     UNIQUE INDEX(=UNIQUE CONSTRAINT 가 아닌) 를 못 잡는 케이스가 있었음.
+ *     1월 같은 첫 등록 케이스에서 INSERT vs UPDATE 가 모호해져 저장 실패 → alert 만 뜨고
+ *     사용자에겐 "저장이 안 됐다" 처럼 보이는 회귀가 보고됨.
+ *   - 그래서 명시적으로 SELECT → INSERT 또는 UPDATE 분기. 부수 효과:
+ *       * UPDATE 시 `created_by` 를 덮어쓰지 않음 (최초 등록자 보존).
+ *       * RLS 거부 / CHECK 위반 시 error 가 그대로 throw 되어 UI 가 정확히 표시.
+ *       * 성공/실패 로그가 일관됨.
+ */
 export async function upsertFeeRule(
     input: FeeRuleUpsertInput,
     userId?: string,
 ): Promise<FinanceFeeRule | null> {
-    const payload = {
-        year: input.year,
-        month: input.month,
-        title: input.title ?? null,
-        default_amount: Math.max(0, Math.trunc(input.default_amount)),
-        due_date: input.due_date ?? null,
-        is_active: input.is_active !== false,
-        created_by: userId ?? null,
-        updated_at: new Date().toISOString(),
-    };
+    const year = Number(input.year);
+    const month = Number(input.month);
+    if (!Number.isInteger(year) || year < 2020 || year > 2099) {
+        throw new Error(`잘못된 연도: ${input.year}`);
+    }
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+        throw new Error(`잘못된 월: ${input.month}`);
+    }
+    const default_amount = Math.max(0, Math.trunc(Number(input.default_amount)));
+    const due_date = input.due_date ?? null;
+    const title = input.title ?? null;
+    const is_active = input.is_active !== false;
+
+    // 1) 기존 row 확인 — RLS 우회는 일어나지 않음 (admin 만 SELECT 가능).
+    const existing = await supabase
+        .from(TABLE).select('id').eq('year', year).eq('month', month).maybeSingle();
+    if (existing.error) {
+        console.warn('[Finance/feeRules/upsert/select]', existing.error?.message ?? existing.error);
+        throw existing.error;
+    }
+
+    if (existing.data?.id) {
+        // UPDATE — created_by 는 덮어쓰지 않음.
+        const { data, error } = await supabase
+            .from(TABLE)
+            .update({
+                title,
+                default_amount,
+                due_date,
+                is_active,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.data.id)
+            .select('*')
+            .single();
+        if (error) {
+            console.warn('[Finance/feeRules/upsert/update]', error?.message ?? error);
+            throw error;
+        }
+        return data as FinanceFeeRule;
+    }
+
+    // INSERT — 신규 row 는 created_by 도 같이 기록.
     const { data, error } = await supabase
         .from(TABLE)
-        .upsert(payload, { onConflict: 'year,month' })
+        .insert([{
+            year, month, title, default_amount, due_date, is_active,
+            created_by: userId ?? null,
+        }])
         .select('*')
         .single();
     if (error) {
-        console.warn('[Finance/feeRules/upsert]', error?.message ?? error);
+        console.warn('[Finance/feeRules/upsert/insert]', error?.message ?? error);
         throw error;
     }
     return data as FinanceFeeRule;
 }
 
-/** 월 범위 일괄 적용 — 1~5월에 10,000원 같은 빠른 설정용. */
+/**
+ * 월 범위 일괄 적용 — 1~5월에 10,000원 같은 빠른 설정용.
+ * 내부적으로 upsertFeeRule 를 월별로 순차 호출 (PostgREST upsert 부작용 회피).
+ * 일부 월이 실패해도 다른 월은 그대로 진행 — UI 가 결과를 모아 표시.
+ */
 export async function bulkUpsertFeeRules(opts: {
     year: number;
     fromMonth: number;
@@ -83,28 +135,34 @@ export async function bulkUpsertFeeRules(opts: {
 }): Promise<FinanceFeeRule[]> {
     const from = Math.max(1, Math.min(opts.fromMonth, opts.toMonth));
     const to   = Math.min(12, Math.max(opts.fromMonth, opts.toMonth));
-    const rows = [];
+    const results: FinanceFeeRule[] = [];
+    const errors: { month: number; message: string }[] = [];
     for (let m = from; m <= to; m++) {
-        rows.push({
-            year: opts.year,
-            month: m,
-            title: opts.title ?? null,
-            default_amount: Math.max(0, Math.trunc(opts.amount)),
-            due_date: opts.dueDate ?? null,
-            is_active: true,
-            created_by: opts.userId ?? null,
-            updated_at: new Date().toISOString(),
-        });
+        try {
+            const r = await upsertFeeRule(
+                {
+                    year: opts.year,
+                    month: m,
+                    title: opts.title ?? null,
+                    default_amount: opts.amount,
+                    due_date: opts.dueDate ?? null,
+                    is_active: true,
+                },
+                opts.userId,
+            );
+            if (r) results.push(r);
+        } catch (e: any) {
+            errors.push({ month: m, message: e?.message || String(e) });
+        }
     }
-    const { data, error } = await supabase
-        .from(TABLE)
-        .upsert(rows, { onConflict: 'year,month' })
-        .select('*');
-    if (error) {
-        console.warn('[Finance/feeRules/bulkUpsert]', error?.message ?? error);
-        throw error;
+    if (errors.length > 0) {
+        console.warn('[Finance/feeRules/bulkUpsert] partial failure', errors);
+        if (results.length === 0) {
+            // 모두 실패 — 첫 오류 throw 해서 UI 가 alert.
+            throw new Error(`일괄 적용 실패 — ${errors[0].month}월: ${errors[0].message}`);
+        }
     }
-    return (data || []) as FinanceFeeRule[];
+    return results;
 }
 
 export async function deleteFeeRule(year: number, month: number): Promise<void> {
