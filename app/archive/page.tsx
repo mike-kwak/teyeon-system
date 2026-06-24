@@ -31,23 +31,24 @@ function ArchiveGuestBadge() {
 }
 
 // 경기 카드 선수명 1명 — 1줄 우선(한글 단어 단위 keep-all), 너무 길면 최대 2줄, 폭 좁으면 자동 축소.
-// 승리팀: deep navy + semibold / 패배팀: opacity 낮춤. (G)는 badge 로 분리.
-function ArchiveMatchName({ name, win }: { name: string; win: boolean }) {
+// 승리팀: deep navy + semibold / 패배팀: opacity 낮춤. (G)는 badge 로 분리(점수 쪽 정렬).
+function ArchiveMatchName({ name, win, align = 'center' }: { name: string; win: boolean; align?: 'left' | 'right' | 'center' }) {
   const isGuest = ARCHIVE_GUEST_RE.test(name);
   const clean = name.replace(ARCHIVE_GUEST_RE, '');
+  const justify = align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 3,
-      minWidth: 0, maxWidth: '100%',
+      display: 'inline-flex', alignItems: 'center', justifyContent: justify, gap: 3,
+      width: '100%', minWidth: 0, maxWidth: '100%',
       fontSize: 'clamp(11px, 3.2vw, 12.5px)',
       fontWeight: win ? 800 : 600,
-      color: '#0F2747', opacity: win ? 1 : 0.6,
+      color: '#0F2747', opacity: win ? 1 : 0.58,
       lineHeight: 1.2,
     }}>
       <span style={{
         minWidth: 0,
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-        overflow: 'hidden', textAlign: 'center',
+        overflow: 'hidden', textAlign: align,
         wordBreak: 'keep-all', overflowWrap: 'anywhere',
       }}>{clean}</span>
       {isGuest && <ArchiveGuestBadge />}
@@ -1283,75 +1284,86 @@ export default function ArchivePage() {
               <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>경기별 결과</h3>
               <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9CB2CC' }}>MATCHES</span>
             </div>
-            {/* 2열 카드 grid — 좁아도 가능한 한 2열 유지, ~330px 미만에서만 1열 fallback */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: 10,
-            }}>
-              {matches.map((m: any, idx: number) => {
-                const names = Array.from({ length: 4 }, (_, k) => resolveArchivePlayerName(m.player_names?.[k], (m.player_ids || m.playerIds || [])[k], session.playerMetadata || {}));
-                const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
-                const team1Win = s1 > s2;
-                const team2Win = s2 > s1;
-                const courtNo = m.court || ((idx % 4) + 1);
-                const roundNo = m.round || Math.floor(idx / 4) + 1;
-                // A조 Blue / B조 Amber — header strip + accent + border 로 즉시 구분.
-                const gKey = normalizeArchiveGroup(m.group_name || m.groupName || m.group);
-                const isB = gKey === 'B';
-                const accent = isB ? '#C2710C' : '#2563EB';
-                const softBg = isB ? '#FFF4E2' : '#EEF6FF';
-                const softBorder = isB ? '#F3D29B' : '#C7DCF1';
-                return (
-                  <div
-                    key={m.id || `match-${idx}`}
-                    style={{
-                      borderRadius: 14,
-                      background: '#FFFFFF',
-                      border: `1px solid ${softBorder}`,
-                      overflow: 'hidden',
-                      display: 'flex', flexDirection: 'column',
-                      minWidth: 0,
-                    }}
-                  >
-                    {/* 상단 tinted header strip */}
-                    <div style={{
-                      padding: '5px 8px', textAlign: 'center',
-                      background: softBg, borderBottom: `1px solid ${softBorder}`,
-                    }}>
-                      <span style={{
-                        fontSize: 9.5, fontWeight: 900, color: accent,
-                        letterSpacing: '0.04em', whiteSpace: 'nowrap',
-                      }}>
-                        {gKey ? `${gKey}조 · ` : ''}C{courtNo}-R{roundNo}
-                      </span>
-                    </div>
-                    {/* 본문: 팀1 / 점수(중앙·최강조) / 팀2 — 선수 1명당 독립 줄 */}
-                    <div style={{
-                      padding: '10px 8px',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                      minWidth: 0,
-                    }}>
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                        <ArchiveMatchName name={names[0]} win={team1Win} />
-                        <ArchiveMatchName name={names[1]} win={team1Win} />
+            {/* A조 / B조 섹션 그룹화 + 1열 compact row 카드 (chip | 팀1 | 점수 | 팀2). 카드 전체 A/B 색상 유지. */}
+            {(() => {
+              const norm = (m: any) => normalizeArchiveGroup(m.group_name || m.groupName || m.group);
+              const sections = ([
+                { key: 'A', label: 'A조 경기', accent: '#2563EB', softBg: '#EEF6FF', softBorder: '#C7DCF1', list: matches.filter((m: any) => norm(m) === 'A') },
+                { key: 'B', label: 'B조 경기', accent: '#C2710C', softBg: '#FFF4E2', softBorder: '#F3D29B', list: matches.filter((m: any) => norm(m) === 'B') },
+                { key: 'X', label: '조 미지정 경기', accent: '#64748B', softBg: '#F4F7FB', softBorder: '#D9E3EF', list: matches.filter((m: any) => { const g = norm(m); return g !== 'A' && g !== 'B'; }) },
+              ]).filter(s => s.list.length > 0);
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  {sections.map((sec) => (
+                    <div key={sec.key}>
+                      {/* 섹션 헤더 — 동일 A/B 색상 체계 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ width: 4, height: 16, borderRadius: 2, background: sec.accent }} />
+                        <h4 style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: sec.accent, letterSpacing: '-0.01em' }}>{sec.label}</h4>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#9CB2CC' }}>{sec.list.length}경기</span>
                       </div>
-                      <span style={{
-                        margin: '3px 0', fontSize: 20, fontWeight: 900, color: '#1F5FB5',
-                        letterSpacing: '0.02em', lineHeight: 1,
-                        fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
-                      }}>
-                        {s1}:{s2}
-                      </span>
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                        <ArchiveMatchName name={names[2]} win={team2Win} />
-                        <ArchiveMatchName name={names[3]} win={team2Win} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {sec.list.map((m: any, idx: number) => {
+                          const names = Array.from({ length: 4 }, (_, k) => resolveArchivePlayerName(m.player_names?.[k], (m.player_ids || m.playerIds || [])[k], session.playerMetadata || {}));
+                          const s1 = Number(m.score1 || 0), s2 = Number(m.score2 || 0);
+                          const team1Win = s1 > s2;
+                          const team2Win = s2 > s1;
+                          const courtNo = m.court || ((idx % 4) + 1);
+                          const roundNo = m.round || Math.floor(idx / 4) + 1;
+                          return (
+                            <div
+                              key={m.id || `match-${sec.key}-${idx}`}
+                              style={{
+                                borderRadius: 14,
+                                background: sec.softBg,
+                                border: `1px solid ${sec.softBorder}`,
+                                boxShadow: '0 4px 12px rgba(15,45,85,0.04)',
+                                padding: '10px 12px',
+                                minHeight: 72,
+                                display: 'grid',
+                                gridTemplateColumns: 'auto minmax(0,1fr) auto minmax(0,1fr)',
+                                alignItems: 'center', columnGap: 10,
+                              }}
+                            >
+                              {/* 경기번호 chip */}
+                              <span style={{
+                                flexShrink: 0,
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                padding: '3px 7px', borderRadius: 8,
+                                background: '#FFFFFF', border: `1px solid ${sec.softBorder}`,
+                                fontSize: 9.5, fontWeight: 900, color: sec.accent,
+                                letterSpacing: '0.02em', whiteSpace: 'nowrap',
+                              }}>
+                                C{courtNo}-R{roundNo}
+                              </span>
+                              {/* 팀1 — 점수 방향(우측) 정렬, 선수별 독립 줄 */}
+                              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
+                                <ArchiveMatchName name={names[0]} win={team1Win} align="right" />
+                                <ArchiveMatchName name={names[1]} win={team1Win} align="right" />
+                              </div>
+                              {/* 점수 — 중앙 고정, 최강조 */}
+                              <span style={{
+                                flexShrink: 0, minWidth: 42, textAlign: 'center', padding: '0 2px',
+                                fontSize: 19, fontWeight: 900, color: '#1F5FB5',
+                                fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', lineHeight: 1,
+                              }}>
+                                {s1}:{s2}
+                              </span>
+                              {/* 팀2 — 점수 방향(좌측) 정렬 */}
+                              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+                                <ArchiveMatchName name={names[2]} win={team2Win} align="left" />
+                                <ArchiveMatchName name={names[3]} win={team2Win} align="left" />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              );
+            })()}
           </section>
         )}
 

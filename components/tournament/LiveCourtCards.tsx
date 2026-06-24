@@ -405,7 +405,7 @@ export const CompletedMatchCard = ({
                 position: 'relative',
                 display: 'flex', flexDirection: 'column', minHeight: '100%',
                 borderRadius: 18,
-                background: '#FFFFFF', border: `1px solid ${softBorder}`,
+                background: softBg, border: `1px solid ${softBorder}`,
                 cursor: 'pointer',
                 overflow: 'hidden',
             }}

@@ -5652,7 +5652,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         </div>
                         <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">×</button>
                     </header>
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
                         <section className="space-y-4">
                             <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Toggle Active Players</h3>
                             <div className="grid grid-cols-4 gap-3">
@@ -5685,6 +5685,32 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         <p className="text-[10px] font-bold text-white/30 leading-relaxed uppercase tracking-widest text-center italic">
                             💡 선수를 추가하거나 제거하면, <br />아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
                         </p>
+
+                        {/* DANGER ZONE — 현재 세션 삭제 (CEO/ADMIN 만). 스크롤 영역 내부라 하단에서 항상 노출. */}
+                        {isAdmin && (
+                            <section className="space-y-3 pt-2">
+                                <h3 className="text-[10px] font-black text-red-400 tracking-[0.3em] uppercase">Danger Zone</h3>
+                                <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.07] p-4">
+                                    <p className="text-[13px] font-black text-red-200 mb-1.5">현재 세션 삭제</p>
+                                    <p className="text-[10.5px] font-bold text-white/45 leading-relaxed mb-3.5">
+                                        진행 중인 경기 데이터를 삭제합니다.<br />
+                                        공식 확정된 Archive 기록은 유지됩니다.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const cur: ActiveKdkSession = allActiveSessions.find(s => s.id === activeSessionId)
+                                                || { id: activeSessionId, title: sessionTitle, matchCount: matches.length, playerCount: selectedIds.size, lastActivity: '' };
+                                            setShowMemberEditModal(false);
+                                            setSessionDeleteTarget(cur);
+                                        }}
+                                        className="w-full py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] border border-red-500/50 text-red-200 bg-red-500/15 hover:bg-red-500/25 transition-colors"
+                                    >
+                                        🗑 현재 세션 삭제
+                                    </button>
+                                </div>
+                            </section>
+                        )}
                     </div>
                     <div className="mt-8">
                         <button
@@ -5694,26 +5720,6 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         >
                             {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
                         </button>
-                        {/* 현재 세션 삭제 — CEO/ADMIN 만. 기존 delete_kdk_live_session RPC 흐름 재사용. */}
-                        {isAdmin && (
-                            <div className="mt-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const cur: ActiveKdkSession = allActiveSessions.find(s => s.id === activeSessionId)
-                                            || { id: activeSessionId, title: sessionTitle, matchCount: matches.length, playerCount: selectedIds.size, lastActivity: '' };
-                                        setShowMemberEditModal(false);
-                                        setSessionDeleteTarget(cur);
-                                    }}
-                                    className="w-full py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] border border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20 transition-colors"
-                                >
-                                    🗑 현재 세션 삭제
-                                </button>
-                                <p className="mt-2 text-[9px] font-bold text-white/30 text-center tracking-wider leading-relaxed">
-                                    진행 중인 경기 데이터만 삭제됩니다 · 공식 Archive 기록은 보존됩니다
-                                </p>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}
