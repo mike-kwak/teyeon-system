@@ -5649,45 +5649,86 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 const curSession = allActiveSessions.find(s => s.id === activeSessionId);
                 const currentTitle = curSession?.title || sessionTitle;
                 const playerCount = curSession?.playerCount ?? selectedIds.size;
-                const statusLabel = matches.some(m => m.status === 'playing')
-                    ? '진행 중'
-                    : matches.length > 0 ? '대기 중' : '세션 없음';
+                const isPlaying = matches.some(m => m.status === 'playing');
+                const statusLabel = isPlaying ? '진행 중' : matches.length > 0 ? '대기 중' : '세션 없음';
+                const statusTone = isPlaying
+                    ? { bg: '#E0F5EB', color: '#16A085', border: '#B6E2CB' }   // 진행 중 — green
+                    : matches.length > 0
+                        ? { bg: '#EEF6FF', color: '#1F5FB5', border: '#C7DCF1' }   // 대기 — blue
+                        : { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' };  // 없음 — gray
                 return (
-                <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-2xl flex flex-col p-6 overflow-hidden">
-                    <header className="flex items-center justify-between mb-6 border-b border-white/10 pb-6">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Live Management</span>
-                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">세션 관리</h2>
-                        </div>
-                        <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">×</button>
-                    </header>
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-                        {/* 현재 세션 정보 (읽기 전용) */}
-                        <section className="space-y-3">
-                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">세션 정보</h3>
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.04] divide-y divide-white/10">
-                                <div className="flex items-center justify-between gap-3 px-4 py-3">
-                                    <span className="shrink-0 text-[10px] font-black text-white/40 uppercase tracking-widest">현재 세션</span>
-                                    <span className="text-[13px] font-black text-white text-right break-keep" style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>{currentTitle}</span>
+                <div
+                    onClick={() => setShowMemberEditModal(false)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 300,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(15,45,85,0.45)', backdropFilter: 'blur(6px)',
+                        padding: '16px',
+                        paddingTop: 'calc(16px + env(safe-area-inset-top))',
+                        paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+                        boxSizing: 'border-box',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            width: '100%', maxWidth: 520,
+                            maxHeight: 'calc(100dvh - 32px)',
+                            overflowY: 'auto', overflowX: 'hidden',
+                            background: '#FFFFFF', borderRadius: 24,
+                            border: '1px solid #DCE8F5',
+                            boxShadow: '0 28px 80px rgba(15,45,85,0.22)',
+                            boxSizing: 'border-box',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid #EAF1F9' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>Live Management</p>
+                                    <h2 style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>세션 관리</h2>
+                                    <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#7A93B3' }}>현재 진행 중인 KDK 세션을 관리합니다.</p>
                                 </div>
-                                <div className="flex items-center justify-between gap-3 px-4 py-3">
-                                    <span className="shrink-0 text-[10px] font-black text-white/40 uppercase tracking-widest">세션 상태</span>
-                                    <span className="text-[12px] font-black text-[#C9B075]">{statusLabel}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 px-4 py-3">
-                                    <span className="shrink-0 text-[10px] font-black text-white/40 uppercase tracking-widest">규모</span>
-                                    <span className="text-[12px] font-bold text-white/70">참가 {playerCount}명 · {matches.length}경기</span>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMemberEditModal(false)}
+                                    aria-label="닫기"
+                                    style={{
+                                        flexShrink: 0, width: 36, height: 36, borderRadius: '50%',
+                                        border: '1px solid #DCE8F5', background: '#F8FBFE', color: '#3B5A85',
+                                        fontSize: 20, fontWeight: 700, lineHeight: 1,
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                    }}
+                                >
+                                    ×
+                                </button>
                             </div>
-                        </section>
+                        </div>
 
-                        {/* DANGER ZONE — 현재 세션 삭제 (CEO/ADMIN 만). 참가자 그리드 제거로 진입 즉시 노출. */}
-                        {isAdmin && (
-                            <section className="space-y-3">
-                                <h3 className="text-[10px] font-black text-red-400 tracking-[0.3em] uppercase">Danger Zone</h3>
-                                <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.07] p-4">
-                                    <p className="text-[13px] font-black text-red-200 mb-1.5">현재 세션 삭제</p>
-                                    <p className="text-[10.5px] font-bold text-white/45 leading-relaxed mb-3.5">
+                        {/* Body */}
+                        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            {/* 세션 정보 카드 */}
+                            <section style={{ borderRadius: 16, background: '#EEF6FF', border: '1px solid #C7DCF1', padding: 14 }}>
+                                <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#1F5FB5' }}>현재 세션</p>
+                                <h3 style={{ margin: '6px 0 10px', fontSize: 16, fontWeight: 900, color: '#0F2747', lineHeight: 1.3, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>{currentTitle}</h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
+                                        fontSize: 11, fontWeight: 900,
+                                        background: statusTone.bg, color: statusTone.color, border: `1px solid ${statusTone.border}`,
+                                    }}>
+                                        {statusLabel}
+                                    </span>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#56729A' }}>참가 {playerCount}명 · {matches.length}경기</span>
+                                </div>
+                            </section>
+
+                            {/* Danger Zone — CEO/ADMIN 만 */}
+                            {isAdmin && (
+                                <section style={{ borderRadius: 16, background: '#FEF2F2', border: '1px solid #FBD0D0', padding: 14 }}>
+                                    <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#DC2626' }}>Danger Zone</p>
+                                    <p style={{ margin: '8px 0 2px', fontSize: 13.5, fontWeight: 900, color: '#B91C1C' }}>현재 세션 삭제</p>
+                                    <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, lineHeight: 1.55, color: '#A16B6B' }}>
                                         진행 중인 경기 데이터를 삭제합니다.<br />
                                         공식 확정된 Archive 기록은 유지됩니다.
                                     </p>
@@ -5699,13 +5740,18 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                             setShowMemberEditModal(false);
                                             setSessionDeleteTarget(cur);
                                         }}
-                                        className="w-full py-3.5 rounded-full font-black text-[11px] uppercase tracking-[0.2em] border border-red-500/50 text-red-200 bg-red-500/15 hover:bg-red-500/25 transition-colors"
+                                        style={{
+                                            width: '100%', height: 44, borderRadius: 12,
+                                            background: '#DC2626', color: '#FFFFFF', border: 'none',
+                                            fontSize: 12.5, fontWeight: 900, letterSpacing: '0.02em',
+                                            cursor: 'pointer', boxShadow: '0 8px 18px rgba(220,38,38,0.22)',
+                                        }}
                                     >
-                                        🗑 현재 세션 삭제
+                                        현재 세션 삭제
                                     </button>
-                                </div>
-                            </section>
-                        )}
+                                </section>
+                            )}
+                        </div>
                     </div>
                 </div>
                 );
