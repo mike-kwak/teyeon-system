@@ -165,6 +165,8 @@ export default function KDKPage() {
     const [allActiveSessions, setAllActiveSessions] = useState<ActiveKdkSession[]>([]);
     const [sessionDeleteTarget, setSessionDeleteTarget] = useState<ActiveKdkSession | null>(null);
     const [isDeletingSession, setIsDeletingSession] = useState(false);
+    // 완료 경기 → 대기로 되돌리기 2차 확인 대상(matchId).
+    const [resetMatchTarget, setResetMatchTarget] = useState<string | null>(null);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const activeSessionId = selectedSessionId || sessionId;
     const [showGateway, setShowGateway] = useState(false);
@@ -2255,6 +2257,34 @@ export default function KDKPage() {
             await syncActiveSession();
             alert("경기 취소 중 오류가 발생했습니다. 최신 상태로 갱신합니다.");
         } finally {
+            endAction(lockKey);
+        }
+    };
+
+    // 완료 경기 → 대기로 되돌리기. 곧바로 playing 복귀(옛 court 재사용)하지 않고
+    //   waiting + court=null + 점수 1:1 로 되돌린다. 이후 재투입은 start_kdk_match RPC 가
+    //   새 빈 코트를 원자적으로 배정 → 코트/선수 중복을 서버에서 보호.
+    const handleReopenMatch = async (matchId: string) => {
+        const lockKey = `edit:${matchId}`;
+        if (!beginAction(lockKey)) return; // 같은 경기 재수정 더블탭/중복 차단
+        try {
+            const { data, error } = await supabase.from('matches')
+                .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
+                .eq('id', String(matchId))
+                .eq('status', 'complete') // 완료 상태일 때만 되돌림
+                .select('id, status, court, score1, score2');
+            if (error) {
+                console.error('[KDK] reopen match error:', error);
+                alert('경기 상태 변경에 실패했습니다. 최신 상태로 갱신합니다.');
+                await syncActiveSession();
+            } else if (!data || data.length === 0) {
+                alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
+                await syncActiveSession();
+            } else {
+                await syncActiveSession();
+            }
+        } finally {
+            setResetMatchTarget(null);
             endAction(lockKey);
         }
     };
@@ -5488,7 +5518,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </div>
                             )}
                         </section>
-                        <div style={{ marginTop: '32px' }}>
+                        {/* NOW PLAYING 카드 영역 ↔ WAITING 섹션 사이 명확한 분리(A조/B조 공통 wrapper, 한쪽에만). */}
+                        <div style={{ marginTop: '40px' }}>
                             {(() => {
                                 const waitingMatches = matches.filter(m => m.status === 'waiting');
                                 if (waitingMatches.length === 0) return (
@@ -5584,33 +5615,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     matchNo={gMatchNo}
                                                     getPlayerName={getPlayerName}
                                                     isAdmin={isAdmin}
-                                                    onResetStatus={(id) => {
-                                                        if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\n(점수가 1:1로 초기화되며 랭킹에서 일시 제외됩니다)")) {
-                                                            const lockKey = `edit:${id}`;
-                                                            if (!beginAction(lockKey)) return;
-                                                            (async () => {
-                                                                try {
-                                                                    const { data, error } = await supabase.from('matches')
-                                                                        .update({ status: 'playing', score1: 1, score2: 1 })
-                                                                        .eq('id', id)
-                                                                        .eq('status', 'complete') // 완료 상태일 때만 되돌림
-                                                                        .select('id');
-                                                                    if (error) {
-                                                                        console.error('[KDK] reset match error:', error);
-                                                                        alert('경기 상태 변경에 실패했습니다. 최신 상태로 갱신합니다.');
-                                                                        await syncActiveSession();
-                                                                    } else if (!data || data.length === 0) {
-                                                                        alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
-                                                                        await syncActiveSession();
-                                                                    } else {
-                                                                        setSyncTick(t => t + 1);
-                                                                    }
-                                                                } finally {
-                                                                    endAction(lockKey);
-                                                                }
-                                                            })();
-                                                        }
-                                                    }}
+                                                    onResetStatus={(id) => setResetMatchTarget(id)}
                                                     onEdit={(match) => {
                                                         if (!isAdmin) return triggerAccessDenied();
                                                         setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
@@ -5884,6 +5889,17 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     icon="🗑️"
                     onConfirm={handleDeleteActiveSession}
                     onCancel={() => { if (!isDeletingSession) setSessionDeleteTarget(null); }}
+                />
+            )}
+
+            {resetMatchTarget && (
+                <CustomConfirmModal
+                    title="이 경기를 대기 상태로 되돌릴까요?"
+                    message="다시 투입한 뒤 점수를 입력할 수 있습니다."
+                    confirmText="대기로 되돌리기"
+                    icon="↩️"
+                    onConfirm={() => handleReopenMatch(resetMatchTarget)}
+                    onCancel={() => setResetMatchTarget(null)}
                 />
             )}
 
