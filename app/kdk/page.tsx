@@ -5244,6 +5244,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <div
                         style={{
                             marginTop: 4,
+                            marginBottom: 14,
                             paddingTop: 10,
                             paddingLeft: 10,
                             paddingRight: 4,
@@ -5310,29 +5311,29 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 {isAdmin && kdkEntryMode === 'LIVE' && activeSessionId && (
                     <div
                         style={{
-                            marginTop: 4,
-                            paddingTop: 10,
+                            marginTop: 0,
+                            paddingTop: 12,
                             paddingLeft: 10,
                             paddingRight: 4,
-                            borderTop: '1px dashed #E1EAF5',
+                            borderTop: '1px solid #EAF1F9',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 10,
+                            gap: 12,
                         }}
                     >
                         <span
                             style={{
                                 flexShrink: 0,
                                 display: 'inline-block',
-                                minWidth: 44,
+                                minWidth: 52,
                                 fontSize: 10,
                                 fontWeight: 900,
                                 color: '#1F5FB5',
-                                letterSpacing: '0.18em',
-                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                whiteSpace: 'nowrap',
                             }}
                         >
-                            정모
+                            정모 연결
                         </span>
                         <select
                             value={linkedScheduleId ?? ''}
