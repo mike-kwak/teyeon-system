@@ -203,6 +203,30 @@ export default function KDKPage() {
     const [isCheckingTitle, setIsCheckingTitle] = useState(false);
     const [isStartingMatch, setIsStartingMatch] = useState(false);
 
+    // [동시 조작 안정화] 액션별 in-flight lock — 전역 단일 boolean 대신 `action:matchId` 키로 구분.
+    //   ref = 동기 재진입(더블탭) 차단, state = 버튼 disable/문구용.
+    const pendingActionsRef = useRef<Set<string>>(new Set());
+    const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
+    const isActionPending = (key: string) => pendingActions.has(key);
+    const beginAction = (key: string): boolean => {
+        if (pendingActionsRef.current.has(key)) return false;
+        pendingActionsRef.current.add(key);
+        setPendingActions(new Set(pendingActionsRef.current));
+        return true;
+    };
+    const endAction = (key: string) => {
+        pendingActionsRef.current.delete(key);
+        setPendingActions(new Set(pendingActionsRef.current));
+    };
+
+    // [동시 조작 안정화] Realtime refresh debounce + stale 응답 폐기.
+    const realtimeRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const fetchMatchesSeqRef = useRef(0);
+    const scheduleRealtimeRefresh = (fn: () => void) => {
+        if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
+        realtimeRefreshTimerRef.current = setTimeout(fn, 220);
+    };
+
     // 전광판 티커 수동 메시지
     const [tickerMsg, setTickerMsg] = useState('');
     const [tickerSaving, setTickerSaving] = useState(false);
@@ -862,12 +886,12 @@ export default function KDKPage() {
                 const updatedSessionId = payload.new?.session_id || payload.old?.session_id;
                 
                 // [v35.2] STRICT SESSION FILTER: Only trigger refresh for the active session or if in gateway
+                // [동시 조작 안정화] 이벤트마다 즉시 재조회하지 않고 220ms debounce 후 1회만 재조회.
                 if (currentSid && updatedSessionId === currentSid) {
-                    fetchMatches(currentSid);
+                    scheduleRealtimeRefresh(() => fetchMatches(currentSid));
                 } else if (currentSid) {
                 } else if (!currentSid) {
-                    console.log('[KDK Realtime] session list change:', updatedSessionId);
-                    syncActiveSession();
+                    scheduleRealtimeRefresh(() => syncActiveSession());
                 }
             })
             .subscribe((status) => {
@@ -877,6 +901,7 @@ export default function KDKPage() {
         return () => {
             clearInterval(timer);
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
             supabase.removeChannel(matchesChannel);
         };
     }, [activeSessionId, showGateway, kdkEntryMode]);
@@ -1117,6 +1142,7 @@ export default function KDKPage() {
 
     const fetchMatches = async (targetSessionId: string) => {
         if (!targetSessionId) return;
+        const seq = ++fetchMatchesSeqRef.current; // 최신 요청 식별
 
         try {
             const { data, error } = await supabase
@@ -1128,6 +1154,10 @@ export default function KDKPage() {
                 .order('court', { ascending: true });
 
             if (error) throw error;
+
+            // stale 응답 폐기: 이 요청 이후 더 최신 fetch 가 시작됐으면 반영하지 않음
+            // (연속 Realtime 이벤트 / 세션 전환 시 이전 snapshot 이 최신 화면을 덮는 것 방지).
+            if (seq !== fetchMatchesSeqRef.current) return;
 
             persistManualGroupCache(targetSessionId, buildGroupCacheFromRows(data || []));
             const mappedMatches = (data || []).map(mapDbMatchToMatch);
@@ -2063,62 +2093,73 @@ export default function KDKPage() {
     };
 
     const startMatch = async (matchId: string) => {
-        if (isStartingMatch) return;
-
-        // [v8.0] Safety Guard: Prevent redundant entry & enforce court limits
-        const targetMatch = matches.find(m => m.id === matchId);
-        if (!targetMatch) return;
-        
-        if (targetMatch.status === 'playing') {
-            setToastMsg("이미 활성화된 경기입니다");
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
-            return;
-        }
-
-        // 1. Court Limit Check REMOVED (CEO: "코트 수는 무제한이라 생각하면 돼")
-        // No check against totalCourts here anymore.
-
-        // 2. Participant Conflict Check
-        const conflictPlayers = (targetMatch.playerIds || []).filter(pid => busyPlayerIds.has(pid));
-        if (conflictPlayers.length > 0) {
-            const names = conflictPlayers.map(pid => getPlayerName(pid)).join(', ');
-            setToastMsg(`참여자 중복: ${names} 선수가 이미 경기 중입니다`);
-            setShowToast(true);
-            if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
-            setTimeout(() => setShowToast(false), 3000);
-            return;
-        }
+        if (isStartingMatch) return;                  // 전역 투입 진행 중(코트 계산 충돌 완화)
+        const lockKey = `start:${matchId}`;
+        if (!beginAction(lockKey)) return;            // 같은 경기 더블탭 동기 차단
 
         try {
+            // [v8.0] Safety Guard: Prevent redundant entry & enforce court limits
+            const targetMatch = matches.find(m => m.id === matchId);
+            if (!targetMatch) return;
+
+            if (targetMatch.status === 'playing') {
+                setToastMsg("이미 활성화된 경기입니다");
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 3000);
+                return;
+            }
+
+            // 1. Court Limit Check REMOVED (CEO: "코트 수는 무제한이라 생각하면 돼")
+            // 2. Participant Conflict Check
+            const conflictPlayers = (targetMatch.playerIds || []).filter(pid => busyPlayerIds.has(pid));
+            if (conflictPlayers.length > 0) {
+                const names = conflictPlayers.map(pid => getPlayerName(pid)).join(', ');
+                setToastMsg(`참여자 중복: ${names} 선수가 이미 경기 중입니다`);
+                setShowToast(true);
+                if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+                setTimeout(() => setShowToast(false), 3000);
+                return;
+            }
+
             setIsStartingMatch(true);
 
-            // [v19.0] Required for court number allocation
+            // [v19.0] 빈 코트 계산은 로컬 state 기준(1차 유지).
+            // ⚠️ 한계: 서로 다른 두 경기를 두 운영자가 거의 동시에 투입하면 같은 코트가 배정될 수 있음.
+            //          코트 충돌 완전 차단은 2차 "원자적 투입 RPC(서버측 코트 할당)"에서 처리.
             const playingMatches = matches.filter(m => m.status === 'playing');
-
-            // Find lowest available court number
             const inUseCourts = playingMatches.map(m => m.court || 0);
             let nextCourt = 1;
             while (inUseCourts.includes(nextCourt)) nextCourt++;
 
             const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
-            
-            // Local state update
             setMatches(nextMatches);
             persistManualGroupCache(selectedSessionId || sessionId, buildGroupCacheFromMatches(nextMatches));
 
-            // DB Sync via Native Update (RPC 우회)
-            const { error: updateError } = await supabase
+            // DB Sync — 현재 상태가 'waiting' 일 때만 변경 + 실제 변경 행 검증.
+            const { data: updatedRows, error: updateError } = await supabase
                 .from('matches')
                 .update({ status: 'playing', court: nextCourt })
-                .eq('id', String(matchId));
+                .eq('id', String(matchId))
+                .eq('status', 'waiting')
+                .select('id, status, court');
 
             if (updateError) throw updateError;
 
-            // Manual Invalidation (sync state from server)
+            if (!updatedRows || updatedRows.length === 0) {
+                // 다른 운영자가 먼저 투입/변경 — optimistic 유지하지 않고 최신 상태로 갱신.
+                await syncActiveSession();
+                alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
+                return;
+            }
+
             await syncActiveSession();
+        } catch (err: any) {
+            console.error('[KDK] startMatch failed:', err);
+            await syncActiveSession();
+            alert('경기 투입에 실패했습니다. 최신 상태로 갱신합니다.');
         } finally {
             setIsStartingMatch(false);
+            endAction(lockKey);
         }
     };
 
@@ -2168,28 +2209,41 @@ export default function KDKPage() {
     };
 
     const cancelMatch = async (matchId: string) => {
+        const lockKey = `cancel:${matchId}`;
+        if (!beginAction(lockKey)) return; // 더블탭/중복 실행 차단
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
-            // 1. Supabase Sync via Native Update (RPC 우회)
-            const { error: syncError } = await supabase
+
+            // DB 먼저 — 현재 'playing' 일 때만 복귀 + 실제 변경 행 검증.
+            const { data: rows, error: syncError } = await supabase
                 .from('matches')
                 .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
-                .eq('id', String(matchId));
+                .eq('id', String(matchId))
+                .eq('status', 'playing')
+                .select('id');
 
-            if (syncError) console.error("❌ Cancel match sync error:", syncError);
+            if (syncError) throw syncError;
 
-            // 2. Local State Update & Invalidation (Removed setActiveMatchIds)
+            if (!rows || rows.length === 0) {
+                // 다른 운영자가 이미 상태 변경 — optimistic 적용하지 않고 최신 상태로 갱신.
+                setSpinningMatchId(null);
+                await syncActiveSession();
+                alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
+                return;
+            }
+
+            // 성공 시에만 로컬 반영 + 전체 재조회.
             setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
-
-            // 3. Manual Invalidation (sync state from server)
             await syncActiveSession();
-
-            setTimeout(() => setSpinningMatchId(null), 500); // 0.5s Fast spin as requested
+            setTimeout(() => setSpinningMatchId(null), 500);
         } catch (err: any) {
             console.error("Cancel match error:", err);
             setSpinningMatchId(null);
-            alert("경기 취소 중 오류가 발생했습니다: " + err.message);
+            await syncActiveSession();
+            alert("경기 취소 중 오류가 발생했습니다. 최신 상태로 갱신합니다.");
+        } finally {
+            endAction(lockKey);
         }
     };
 
@@ -2288,18 +2342,40 @@ export default function KDKPage() {
     };
 
     const finishMatch = async (matchId: string, s1: number, s2: number) => {
+        const lockKey = `finish:${matchId}`;
+        if (!beginAction(lockKey)) return; // 저장 더블탭/중복 실행 차단(UI disable 와 별개의 재진입 가드)
         try {
-            // 1. Prepare match data for archiving
             const matchToFinish = matches.find(m => m.id === matchId);
             if (!matchToFinish) return;
 
-            // Type Safety: Ensure scores are numbers
             const numS1 = Number(s1);
             const numS2 = Number(s2);
 
-            // Data Sanitization: Exclude internal UI fields like 'teams' (array of arrays) that may fail DB serialization
-            const { teams, ...safeMatchData } = matchToFinish as any;
+            // 최초 완료(playing→complete) / 완료 결과 재수정(complete→complete) 을 기대 상태로 구분.
+            const expectedStatus = matchToFinish.status === 'complete' ? 'complete' : 'playing';
 
+            // DB 먼저 — 기대 상태일 때만 변경 + 실제 변경 행 검증. 성공 전에는 모달을 닫지 않는다.
+            const { data: updatedRows, error: syncError } = await supabase
+                .from('matches')
+                .update({ status: 'complete', score1: numS1, score2: numS2 })
+                .eq('id', String(matchId))
+                .eq('status', expectedStatus)
+                .select('id, status, score1, score2');
+
+            if (syncError) {
+                console.error("Match result sync error:", syncError);
+                throw syncError;
+            }
+
+            if (!updatedRows || updatedRows.length === 0) {
+                // 다른 운영자가 먼저 완료/변경 — 모달을 성공으로 닫지 않고 최신 상태 안내.
+                await syncActiveSession();
+                alert('다른 운영자가 먼저 경기 결과를 변경했습니다. 최신 상태를 확인해주세요.');
+                return;
+            }
+
+            // 성공 → 로컬 반영 + 모달 닫기 (player_names/match_date 등은 로컬 표시용; 점수 계산식 무변경).
+            const { teams, ...safeMatchData } = matchToFinish as any;
             const pNames = matchToFinish.playerIds?.map(pid => getPlayerName(pid)) || [];
             const finishedMatchData: any = {
                 ...safeMatchData,
@@ -2308,51 +2384,21 @@ export default function KDKPage() {
                 status: 'complete',
                 player_names: pNames,
                 session_title: sessionTitle,
-                match_date: new Date().toISOString()
+                match_date: new Date().toISOString(),
             };
-
-            // 2. Local state update for immediate feedback (MUST HAVE playerIds for UI)
-            const nextMatches = matches.map(m => m.id === matchId ? finishedMatchData : m);
-            setMatches(nextMatches);
+            setMatches(prev => prev.map(m => m.id === matchId ? finishedMatchData : m));
             setShowScoreModal(null);
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
+            localStorage.removeItem(`kdk_score_buffer_${matchId}`);
 
-            // 3. Automated Server Archiving: Sanitized for DB
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const matchDateStr = `${yyyy}-${mm}-${dd}`;
-
-            // Deterministic Unique ID for Upsert (Session + Round + Court)
-            const deterministicId = `arch-${sessionId}-${matchToFinish.round}-${matchToFinish.court}`;
-
-            // 3. DB Sync via Native Update (RPC 우회)
-            const { error: syncError } = await supabase
-                .from('matches')
-                .update({ status: 'complete', score1: numS1, score2: numS2 })
-                .eq('id', String(matchId));
-            
-            if (syncError) {
-                console.error("Match result sync error:", syncError);
-                throw syncError;
-            }
-
-            // 4. Immediate 'Invalidation' (Manual State Refresh)
-            await syncActiveSession(); 
-            // window.location.reload(); // [DELETED] No more hard reloads for premium UX
-
-            // Success: Trigger Toast instead of Alert
+            await syncActiveSession();
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
-
-            // Clear Score Buffer
-            localStorage.removeItem(`kdk_score_buffer_${matchId}`);
         } catch (err: any) {
             console.error("Critical Finish Match Failure:", err);
             alert("경기 결과 저장에 실패했습니다: " + (err.message || "Unknown error"));
-            // We do NOT revert local state here to avoid confusion, 
-            // the user can retry or check the archive later.
+        } finally {
+            endAction(lockKey);
         }
     };
 
@@ -5527,9 +5573,29 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     isAdmin={isAdmin}
                                                     onResetStatus={(id) => {
                                                         if (window.confirm("이 경기를 다시 '진행 중(ONGOING)' 상태로 되돌리시겠습니까?\n(점수가 1:1로 초기화되며 랭킹에서 일시 제외됩니다)")) {
-                                                            supabase.from('matches').update({ status: 'playing', score1: 1, score2: 1 }).eq('id', id).then(() => {
-                                                                setSyncTick(t => t + 1);
-                                                            });
+                                                            const lockKey = `edit:${id}`;
+                                                            if (!beginAction(lockKey)) return;
+                                                            (async () => {
+                                                                try {
+                                                                    const { data, error } = await supabase.from('matches')
+                                                                        .update({ status: 'playing', score1: 1, score2: 1 })
+                                                                        .eq('id', id)
+                                                                        .eq('status', 'complete') // 완료 상태일 때만 되돌림
+                                                                        .select('id');
+                                                                    if (error) {
+                                                                        console.error('[KDK] reset match error:', error);
+                                                                        alert('경기 상태 변경에 실패했습니다. 최신 상태로 갱신합니다.');
+                                                                        await syncActiveSession();
+                                                                    } else if (!data || data.length === 0) {
+                                                                        alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
+                                                                        await syncActiveSession();
+                                                                    } else {
+                                                                        setSyncTick(t => t + 1);
+                                                                    }
+                                                                } finally {
+                                                                    endAction(lockKey);
+                                                                }
+                                                            })();
                                                         }
                                                     }}
                                                     onEdit={(match) => {
@@ -5665,13 +5731,14 @@ A    1    봉준    상윤    영호    광현    19:00`}
             )}
 
             {activeMatchForScore && (
-                <ScoreEntryModal 
+                <ScoreEntryModal
                     match={activeMatchForScore}
                     tempScores={tempScores}
                     setTempScores={setTempScores}
                     onSave={finishMatch}
                     onCancel={() => setShowScoreModal(null)}
                     getPlayerName={getPlayerName}
+                    isSubmitting={isActionPending(`finish:${activeMatchForScore.id}`)}
                 />
             )}
 

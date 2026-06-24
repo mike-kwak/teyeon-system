@@ -585,6 +585,9 @@ function KdkDisplayBoard() {
 
   const viewerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef(zoom);
+  // [동시 조작 안정화] Realtime refresh debounce + stale 응답 폐기 (표시 로직/디자인 무변경).
+  const realtimeRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchMatchesSeqRef = useRef(0);
   const tickerGroupRef = useRef<HTMLDivElement>(null);
   const [tickerDuration, setTickerDuration] = useState(18);
   const edgeSwipeRef = useRef({ isEdge: false, startX: 0, startY: 0 });
@@ -645,6 +648,7 @@ function KdkDisplayBoard() {
       return;
     }
 
+    const seq = ++fetchMatchesSeqRef.current; // 최신 요청 식별
     try {
       setError(null);
       const { data: sessionData, error: sessionError } = await supabase
@@ -695,6 +699,10 @@ function KdkDisplayBoard() {
         });
         setError(message);
       }
+
+      // stale 응답 폐기: 이 요청 이후 더 최신 fetch 가 시작됐으면 화면 반영하지 않음
+      // (연속 Realtime 이벤트 / 세션 전환 시 이전 snapshot 이 최신 화면을 덮는 것 방지).
+      if (seq !== fetchMatchesSeqRef.current) return;
 
       const nextMatches = data.map(mapMatch).sort(sortMatches);
       setResolvedSessionId(nextResolvedSessionId);
@@ -934,7 +942,9 @@ function KdkDisplayBoard() {
         const payloadSessionId = payload.new?.session_id || payload.old?.session_id;
         const payloadSessionTitle = payload.new?.session_title || payload.old?.session_title;
         if (payloadSessionId === activeRealtimeSessionId || payloadSessionTitle === sessionId) {
-          fetchMatches(activeRealtimeSessionId);
+          // [동시 조작 안정화] 이벤트마다 즉시 재조회하지 않고 220ms debounce 후 1회만 재조회.
+          if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
+          realtimeRefreshTimerRef.current = setTimeout(() => fetchMatches(activeRealtimeSessionId), 220);
         }
       })
       .on('postgres_changes', {
@@ -953,6 +963,7 @@ function KdkDisplayBoard() {
       });
 
     return () => {
+      if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [sessionId, resolvedSessionId]);

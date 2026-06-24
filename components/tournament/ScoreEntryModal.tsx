@@ -11,6 +11,8 @@ interface ScoreEntryModalProps {
     onSave: (matchId: string, s1: number, s2: number) => void;
     onCancel: () => void;
     getPlayerName: (id: string) => string;
+    /** 저장 처리 중 — 버튼 disable + 문구 변경(중복 클릭 방지). 입력값 계산 로직과 무관. */
+    isSubmitting?: boolean;
 }
 
 const stripGuestSuffix = (name: string) => name.replace(/\s*\(G\)$/i, '');
@@ -56,6 +58,7 @@ export const ScoreEntryModal = ({
     onSave,
     onCancel,
     getPlayerName,
+    isSubmitting = false,
 }: ScoreEntryModalProps) => {
     return (
         <div
@@ -207,33 +210,37 @@ export const ScoreEntryModal = ({
                 {/* CTAs */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <button
-                        onClick={() => onSave(match.id, tempScores.s1, tempScores.s2)}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => { if (!isSubmitting) onSave(match.id, tempScores.s1, tempScores.s2); }}
                         style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                             width: '100%', height: 56,
                             borderRadius: 16,
-                            background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                            background: isSubmitting ? '#AEC6E6' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
                             color: '#FFFFFF',
                             border: 'none',
                             fontSize: 14.5, fontWeight: 900, letterSpacing: '0.02em',
-                            boxShadow: '0 14px 28px rgba(37,99,235,0.26)',
-                            cursor: 'pointer',
+                            boxShadow: isSubmitting ? 'none' : '0 14px 28px rgba(37,99,235,0.26)',
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
                             transition: 'all 0.15s',
                         }}
                     >
-                        저장하고 경기 완료
-                        <Trophy size={17} color="#FFFFFF" />
+                        {isSubmitting ? '저장 중...' : '저장하고 경기 완료'}
+                        {!isSubmitting && <Trophy size={17} color="#FFFFFF" />}
                     </button>
                     <button
-                        onClick={onCancel}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => { if (!isSubmitting) onCancel(); }}
                         style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             width: '100%', height: 44,
                             borderRadius: 14,
                             background: '#FFFFFF', border: '1px solid #DCE8F5',
-                            color: '#3B5A85',
+                            color: isSubmitting ? '#AEC6E6' : '#3B5A85',
                             fontSize: 12.5, fontWeight: 800,
-                            cursor: 'pointer',
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
                         }}
                     >
                         취소
