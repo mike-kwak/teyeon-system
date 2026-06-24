@@ -5155,10 +5155,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#3B5A85',
                                 fontSize: 12.5, fontWeight: 900, letterSpacing: '0.04em',
                             }}
-                            title="라이브 설정"
+                            title="세션 관리"
                         >
                             <Settings className="h-3.5 w-3.5" />
-                            설정
+                            세션 관리
                         </button>
                     )}
                 </div>
@@ -5643,52 +5643,47 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 />
             )}
 
-            {showMemberEditModal && (
+            {showMemberEditModal && (() => {
+                // 설정 모달 → 세션 관리 화면으로 단순화.
+                // 참석자 수시 수정 UI 는 비노출(렌더만 제거 — toggleMember / handleMemberEditConfirm 등 로직은 보존).
+                const curSession = allActiveSessions.find(s => s.id === activeSessionId);
+                const currentTitle = curSession?.title || sessionTitle;
+                const playerCount = curSession?.playerCount ?? selectedIds.size;
+                const statusLabel = matches.some(m => m.status === 'playing')
+                    ? '진행 중'
+                    : matches.length > 0 ? '대기 중' : '세션 없음';
+                return (
                 <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-2xl flex flex-col p-6 overflow-hidden">
-                    <header className="flex items-center justify-between mb-8 border-b border-white/10 pb-6">
+                    <header className="flex items-center justify-between mb-6 border-b border-white/10 pb-6">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black bg-gradient-to-r from-[#C9B075] via-[#E5D29B] to-[#C9B075] bg-clip-text text-transparent tracking-[0.4em] uppercase mb-1">Live Management</span>
-                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">참석자 수시 수정</h2>
+                            <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">세션 관리</h2>
                         </div>
                         <button onClick={() => setShowMemberEditModal(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 text-3xl hover:bg-white/10 transition-colors">×</button>
                     </header>
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-                        <section className="space-y-4">
-                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">Toggle Active Players</h3>
-                            <div className="grid grid-cols-4 gap-3">
-                                {[...allMembers, ...tempGuests].map(m => {
-                                    const isSelected = selectedIds.has(m.id);
-                                    const isBusy = busyPlayerIds.has(m.id);
-                                    return (
-                                        <div
-                                            key={m.id}
-                                            onClick={() => {
-                                                if (isBusy) {
-                                                    alert("현재 경기 중인 선수는 기권 처리할 수 없습니다. 경기가 끝난 후 조정해 주세요.");
-                                                    return;
-                                                }
-                                                toggleMember(m.id);
-                                            }}
-                                            className={`h-16 rounded-2xl border transition-all flex flex-col items-center justify-center cursor-pointer text-center px-1
-                                            ${isSelected
-                                                    ? 'bg-[#C9B075] border-[#C9B075] text-black shadow-lg scale-105'
-                                                    : 'bg-white/[0.05] border-white/10 text-white/40'}
-                                            ${isBusy ? 'opacity-30 border-dashed cursor-not-allowed' : ''}`}
-                                        >
-                                            <span className="text-[10px] font-black truncate w-full px-1">{m.nickname}</span>
-                                            {isBusy && <span className="text-[6px] font-bold text-red-500 uppercase">Busy</span>}
-                                        </div>
-                                    );
-                                })}
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+                        {/* 현재 세션 정보 (읽기 전용) */}
+                        <section className="space-y-3">
+                            <h3 className="text-[10px] font-black text-[#C9B075] tracking-[0.3em] uppercase">세션 정보</h3>
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.04] divide-y divide-white/10">
+                                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                                    <span className="shrink-0 text-[10px] font-black text-white/40 uppercase tracking-widest">현재 세션</span>
+                                    <span className="text-[13px] font-black text-white text-right break-keep" style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>{currentTitle}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                                    <span className="shrink-0 text-[10px] font-black text-white/40 uppercase tracking-widest">세션 상태</span>
+                                    <span className="text-[12px] font-black text-[#C9B075]">{statusLabel}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                                    <span className="shrink-0 text-[10px] font-black text-white/40 uppercase tracking-widest">규모</span>
+                                    <span className="text-[12px] font-bold text-white/70">참가 {playerCount}명 · {matches.length}경기</span>
+                                </div>
                             </div>
                         </section>
-                        <p className="text-[10px] font-bold text-white/30 leading-relaxed uppercase tracking-widest text-center italic">
-                            💡 선수를 추가하거나 제거하면, <br />아직 투입되지 않은 모든 자동 대진이 다시 생성됩니다.
-                        </p>
 
-                        {/* DANGER ZONE — 현재 세션 삭제 (CEO/ADMIN 만). 스크롤 영역 내부라 하단에서 항상 노출. */}
+                        {/* DANGER ZONE — 현재 세션 삭제 (CEO/ADMIN 만). 참가자 그리드 제거로 진입 즉시 노출. */}
                         {isAdmin && (
-                            <section className="space-y-3 pt-2">
+                            <section className="space-y-3">
                                 <h3 className="text-[10px] font-black text-red-400 tracking-[0.3em] uppercase">Danger Zone</h3>
                                 <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.07] p-4">
                                     <p className="text-[13px] font-black text-red-200 mb-1.5">현재 세션 삭제</p>
@@ -5699,7 +5694,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            const cur: ActiveKdkSession = allActiveSessions.find(s => s.id === activeSessionId)
+                                            const cur: ActiveKdkSession = curSession
                                                 || { id: activeSessionId, title: sessionTitle, matchCount: matches.length, playerCount: selectedIds.size, lastActivity: '' };
                                             setShowMemberEditModal(false);
                                             setSessionDeleteTarget(cur);
@@ -5712,17 +5707,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             </section>
                         )}
                     </div>
-                    <div className="mt-8">
-                        <button
-                            disabled={isGenerating}
-                            onClick={handleMemberEditConfirm}
-                            className={`w-full py-5 rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl ${isGenerating ? 'bg-white/10 text-white/10' : 'bg-[#C9B075] text-black'}`}
-                        >
-                            {isGenerating ? '대진 재구성 중...' : '💾 실시간 인원 변경사항 적용'}
-                        </button>
-                    </div>
                 </div>
-            )}
+                );
+            })()}
 
             {showResetConfirm && (
                 <CustomConfirmModal
