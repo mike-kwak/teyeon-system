@@ -2123,35 +2123,47 @@ export default function KDKPage() {
 
             setIsStartingMatch(true);
 
-            // [v19.0] 빈 코트 계산은 로컬 state 기준(1차 유지).
-            // ⚠️ 한계: 서로 다른 두 경기를 두 운영자가 거의 동시에 투입하면 같은 코트가 배정될 수 있음.
-            //          코트 충돌 완전 차단은 2차 "원자적 투입 RPC(서버측 코트 할당)"에서 처리.
-            const playingMatches = matches.filter(m => m.status === 'playing');
-            const inUseCourts = playingMatches.map(m => m.court || 0);
-            let nextCourt = 1;
-            while (inUseCourts.includes(nextCourt)) nextCourt++;
+            // [2차] 원자적 투입 RPC — 코트 번호는 DB 가 최종 결정. 로컬 코트 계산/optimistic 없음.
+            //   세션 단위 advisory lock 으로 동시 투입 직렬화 + 선수 중복/상태 전제조건을 서버에서 검사.
+            //   ⚠️ RPC 미배포 시 직접 update 로 fallback 하지 않는다(원자성 보호).
+            const { data, error: rpcError } = await supabase.rpc('start_kdk_match', {
+                p_match_id: String(matchId),
+                p_club_id: clubId,
+            });
 
-            const nextMatches = matches.map(m => m.id === matchId ? { ...m, status: 'playing' as const, court: nextCourt } : m);
-            setMatches(nextMatches);
-            persistManualGroupCache(selectedSessionId || sessionId, buildGroupCacheFromMatches(nextMatches));
-
-            // DB Sync — 현재 상태가 'waiting' 일 때만 변경 + 실제 변경 행 검증.
-            const { data: updatedRows, error: updateError } = await supabase
-                .from('matches')
-                .update({ status: 'playing', court: nextCourt })
-                .eq('id', String(matchId))
-                .eq('status', 'waiting')
-                .select('id, status, court');
-
-            if (updateError) throw updateError;
-
-            if (!updatedRows || updatedRows.length === 0) {
-                // 다른 운영자가 먼저 투입/변경 — optimistic 유지하지 않고 최신 상태로 갱신.
+            if (rpcError) {
+                const code = (rpcError as any).code || '';
+                const detail = `${rpcError.message || ''} ${(rpcError as any).details || ''}`;
+                console.error('[KDK] start_kdk_match RPC error:', { code, message: rpcError.message, details: (rpcError as any).details });
+                if (code === '42501' || /not authorized|permission denied/i.test(detail)) {
+                    alert('경기 투입 권한이 없습니다.');
+                } else if (code === 'PGRST202' || /could not find the function|schema cache/i.test(detail)) {
+                    alert('경기 투입 함수가 준비되지 않았습니다. 관리자에게 문의해주세요.');
+                } else {
+                    alert('경기 투입에 실패했습니다. 최신 상태로 갱신합니다.');
+                }
                 await syncActiveSession();
-                alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
                 return;
             }
 
+            const result = (data || {}) as { ok?: boolean; reason?: string; court?: number };
+            if (!result.ok) {
+                switch (result.reason) {
+                    case 'player_busy':
+                        alert('이미 경기 중인 선수가 포함되어 있어 투입할 수 없습니다.');
+                        break;
+                    case 'not_found':
+                        alert('경기 정보를 찾을 수 없습니다. 최신 상태로 갱신합니다.');
+                        break;
+                    default: // not_waiting / already_changed / invalid_session
+                        alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
+                        break;
+                }
+                await syncActiveSession();
+                return;
+            }
+
+            // 성공 — 서버가 정한 court 반영을 위해 전체 재조회(optimistic 없음).
             await syncActiveSession();
         } catch (err: any) {
             console.error('[KDK] startMatch failed:', err);
@@ -5418,7 +5430,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
             <div className="flex-1 space-y-0 overflow-y-auto px-3 antialiased no-scrollbar sm:px-4" style={{ background: '#F4F8FC', paddingBottom: 'calc(var(--page-bottom-safe) + 100px)' }}>
                 {activeTab === 'MATCHES' && (
                     <>
-                        <section className="h-auto" style={{ marginTop: '12px', position: 'relative', zIndex: 10 }}>
+                        {/* 정모 연결 영역 ↔ NOW PLAYING 사이 명확한 여백(한쪽에만 적용해 중복 마진 방지). */}
+                        <section className="h-auto" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                 <div className="flex items-center gap-3 ml-2">
                                     <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', textTransform: 'uppercase', color: '#0F2747' }}>NOW PLAYING</h2>
