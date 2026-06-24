@@ -1423,6 +1423,7 @@ export default function KDKPage() {
 
     const handleDeleteActiveSession = async () => {
         if (!sessionDeleteTarget) return;
+        if (isDeletingSession) return; // 처리 중 중복 클릭 방지
         if (!isAdmin) {
             triggerAccessDenied("진행 중인 세션 삭제는 관리자만 가능합니다.");
             setSessionDeleteTarget(null);
@@ -1434,29 +1435,57 @@ export default function KDKPage() {
         try {
             // matches 는 RLS 로 직접 DELETE 가 막혀 있어, SECURITY DEFINER RPC 로 삭제한다.
             // (공식 Archive 는 건드리지 않고 라이브 matches 행만 제거 → 세션이 목록에서 사라짐)
-            // RPC 미배포 환경 대비: 함수 없음 오류면 기존 직접 DELETE 로 폴백.
+            let deletedCount = 0;
+
             const rpcRes = await supabase.rpc('delete_kdk_live_session', {
                 p_session_id: target.id,
                 p_club_id: clubId,
             });
-            if (rpcRes.error) {
-                const code = (rpcRes.error as any).code || '';
-                const msg = `${rpcRes.error.message || ''} ${(rpcRes.error as any).details || ''}`;
-                // RPC 미배포(함수 없음)일 때만 직접 DELETE 폴백. 권한 오류(42501) 등은 그대로 표면화.
-                const notDeployed = code === 'PGRST202' || /could not find the function|schema cache/i.test(msg);
-                if (!notDeployed) throw rpcRes.error;
-                const { error: delError } = await supabase
+
+            if (!rpcRes.error) {
+                // RPC 반환값 = 실제 삭제된 matches 행 수.
+                deletedCount = typeof rpcRes.data === 'number' ? rpcRes.data : Number(rpcRes.data ?? 0);
+            } else {
+                const err: any = rpcRes.error;
+                const code = err.code || '';
+                const detail = `${err.message || ''} ${err.details || ''}`;
+                // 내부 콘솔에는 실제 code / message / details 를 남긴다.
+                console.error('[KDK] delete_kdk_live_session RPC error:', { code, message: err.message, details: err.details, hint: err.hint });
+
+                const notDeployed = code === 'PGRST202' || /could not find the function|schema cache/i.test(detail);
+                const noPermission = code === '42501' || /not authorized|permission denied/i.test(detail);
+
+                if (noPermission) {
+                    throw new Error('세션 삭제 권한이 없습니다.');
+                }
+                if (!notDeployed) {
+                    throw new Error('진행 중인 세션 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+                }
+                // PGRST202(함수 미배포)일 때만 직접 DELETE 폴백 + .select() 로 삭제 행 검증.
+                console.warn('[KDK] delete_kdk_live_session RPC 미배포 — 직접 DELETE 폴백');
+                const { data: delRows, error: delError } = await supabase
                     .from('matches')
                     .delete()
                     .eq('club_id', clubId)
-                    .eq('session_id', target.id);
-                if (delError) throw delError;
+                    .eq('session_id', target.id)
+                    .select('id');
+                if (delError) {
+                    console.error('[KDK] fallback DELETE error:', { code: (delError as any).code, message: delError.message, details: (delError as any).details });
+                    throw new Error('세션 삭제 함수가 준비되지 않았습니다. 관리자에게 문의해주세요.');
+                }
+                deletedCount = (delRows || []).length;
+                // 폴백도 0건이면(RLS 차단 등) 성공으로 처리하지 않는다.
+                if (deletedCount === 0) {
+                    throw new Error('세션 삭제 함수가 준비되지 않았습니다. 관리자에게 문의해주세요.');
+                }
             }
 
-            const remainingSessions = allActiveSessions.filter(session => session.id !== target.id);
-            setAllActiveSessions(remainingSessions);
-            setSessionDeleteTarget(null);
+            // 서버에서 실제 삭제가 0건이면 성공으로 처리하지 않는다 — 목록에 다시 나타나는 원인.
+            if (deletedCount === 0) {
+                throw new Error('삭제할 경기 데이터가 없습니다. 최신 상태를 다시 확인해주세요.');
+            }
 
+            // 삭제 확정 → 로컬 상태/캐시 정리 후 전체 재조회(Realtime 만 기다리지 않음).
             if (selectedSessionId === target.id || sessionId === target.id) {
                 setSelectedSessionId(null);
                 setMatches([]);
@@ -1465,13 +1494,15 @@ export default function KDKPage() {
                 setShowGateway(true);
                 setStep(3);
             }
-
+            setAllActiveSessions(prev => prev.filter(session => session.id !== target.id));
             await syncActiveSession();
-        } catch (error) {
-            console.error('[KDK] Active session delete failed:', error);
-            alert("진행 중인 세션 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+            alert('세션이 삭제되었습니다.');
+        } catch (error: any) {
+            console.error('[KDK] Active session delete failed:', error?.code, error?.message, error);
+            alert(error?.message || '진행 중인 세션 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
             setIsDeletingSession(false);
+            setSessionDeleteTarget(null);
         }
     };
 
@@ -5735,10 +5766,15 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            const cur: ActiveKdkSession = curSession
+                                            const target: ActiveKdkSession = curSession
                                                 || { id: activeSessionId, title: sessionTitle, matchCount: matches.length, playerCount: selectedIds.size, lastActivity: '' };
+                                            if (!target?.id) {
+                                                alert('현재 세션을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.');
+                                                return;
+                                            }
+                                            // 확인 모달 target 을 먼저 설정한 뒤 세션 관리 모달을 닫는다.
+                                            setSessionDeleteTarget(target);
                                             setShowMemberEditModal(false);
-                                            setSessionDeleteTarget(cur);
                                         }}
                                         style={{
                                             width: '100%', height: 44, borderRadius: 12,
@@ -5756,6 +5792,19 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 </div>
                 );
             })()}
+
+            {/* 현재 세션 삭제 2차 확인 — 세션 관리 모달과 독립된 최상위 sibling.
+                (LIVE COURT return 에는 이 모달이 없어 Danger Zone 버튼을 눌러도 확인 모달이 뜨지 않던 버그 수정) */}
+            {sessionDeleteTarget && (
+                <CustomConfirmModal
+                    title="현재 세션을 삭제할까요?"
+                    message={`"${sessionDeleteTarget.title}" 세션의 진행 중인 경기 데이터가 삭제됩니다. 공식 확정된 Archive 기록은 유지됩니다.`}
+                    confirmText={isDeletingSession ? "삭제 중..." : "세션 삭제"}
+                    icon="🗑️"
+                    onConfirm={handleDeleteActiveSession}
+                    onCancel={() => { if (!isDeletingSession) setSessionDeleteTarget(null); }}
+                />
+            )}
 
             {showResetConfirm && (
                 <CustomConfirmModal

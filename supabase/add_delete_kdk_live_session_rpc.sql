@@ -34,13 +34,14 @@ begin
     return 0;
   end if;
 
-  -- 호출자 권한 검증: 로그인한 운영자(CEO/ADMIN)만 허용.
-  -- 전달된 club_id 가 아니라 실제 인증 사용자(auth.uid())의 역할을 신뢰한다.
+  -- 호출자 권한 검증: 로그인한 운영자(CEO/ADMIN)만 허용. (전달 club_id 가 아닌 인증 사용자 신뢰)
+  -- 매칭은 auth.uid() = profiles.id 기준만 사용한다(앱 계정은 profiles.id = auth.users.id 로 확인됨).
+  -- role 은 클라이언트 normalizeRole 과 동일하게 trim + upper 후 비교(공백/대소문자 오탐 방지).
   select exists (
     select 1
       from public.profiles pr
      where pr.id = auth.uid()
-       and upper(coalesce(pr.role, '')) in ('CEO', 'ADMIN')
+       and upper(btrim(coalesce(pr.role, ''))) in ('CEO', 'ADMIN')
   ) into v_is_admin;
 
   if not v_is_admin then
