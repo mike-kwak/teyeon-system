@@ -14,6 +14,11 @@ import {
     bulkUpsertFeeRules,
 } from '@/lib/finance/feeRulesService';
 import {
+    previewFeeRuleApplication,
+    applyFeeRuleToMonthlyReceivables,
+    type FeeApplyPreview,
+} from '@/lib/finance/duesService';
+import {
     FinancePageHeader,
     FINANCE_PAGE_STYLE,
     FINANCE_CONTAINER_STYLE,
@@ -57,6 +62,12 @@ export default function FinanceSettingsPage() {
     const [bulkDueDate, setBulkDueDate] = React.useState<string>('');
     const [bulkBusy, setBulkBusy] = React.useState(false);
 
+    // "기존 청구에도 적용" 확인 대화 상태. 회비 기준 저장만으로 기존 청구를 조용히 바꾸지 않는다.
+    const [pendingApply, setPendingApply] = React.useState<
+        { months: number[]; amount: number; preview: FeeApplyPreview } | null
+    >(null);
+    const [applyBusy, setApplyBusy] = React.useState(false);
+
     const load = React.useCallback(async () => {
         setLoading(true);
         const data = await fetchFeeRulesForYear(year);
@@ -98,10 +109,34 @@ export default function FinanceSettingsPage() {
             window.setTimeout(() => {
                 setSavedFlashMonth((m) => (m === month ? null : m));
             }, 1800);
+            // 기준 저장만으로 기존 청구를 자동 변경하지 않는다 — 기존 monthly_fee 청구가 있으면 확인.
+            const preview = await previewFeeRuleApplication(year, month, amount);
+            if (preview.changedCount > 0) {
+                setPendingApply({ months: [month], amount, preview });
+            }
         } catch (e: any) {
             alert(e?.message || '저장에 실패했습니다.');
         } finally {
             setSavingMonth(null);
+        }
+    };
+
+    // "기존 청구에도 적용" — pendingApply 의 각 월에 amount_due 변경(원자적). payment 불변.
+    const handleApplyToExisting = async () => {
+        if (!pendingApply) return;
+        setApplyBusy(true);
+        try {
+            let total = 0;
+            for (const m of pendingApply.months) {
+                total += await applyFeeRuleToMonthlyReceivables(year, m, pendingApply.amount);
+            }
+            setPendingApply(null);
+            await load();
+            alert(`기존 청구 ${total}건의 금액을 변경했습니다.`);
+        } catch (e: any) {
+            alert(e?.message || '기존 청구 적용에 실패했습니다.');
+        } finally {
+            setApplyBusy(false);
         }
     };
 
@@ -122,12 +157,37 @@ export default function FinanceSettingsPage() {
                 userId: user?.id,
             });
             await load();
+            // 범위 내 기존 monthly_fee 청구가 있으면 한 번에 확인 — 월별 preview 합산.
+            const from = Math.min(bulkFrom, bulkTo);
+            const to = Math.max(bulkFrom, bulkTo);
+            const months: number[] = [];
+            const agg: FeeApplyPreview = {
+                targetCount: 0, changedCount: 0, oldTotalDue: 0, newTotalDue: 0,
+                currentPaid: 0, newRemaining: 0, newPaidCount: 0, newPartialCount: 0, newPendingCount: 0,
+            };
+            for (let m = from; m <= to; m++) {
+                const p = await previewFeeRuleApplication(year, m, amt);
+                if (p.changedCount > 0) months.push(m);
+                agg.targetCount += p.targetCount;
+                agg.changedCount += p.changedCount;
+                agg.oldTotalDue += p.oldTotalDue;
+                agg.newTotalDue += p.newTotalDue;
+                agg.currentPaid += p.currentPaid;
+                agg.newRemaining += p.newRemaining;
+                agg.newPaidCount += p.newPaidCount;
+                agg.newPartialCount += p.newPartialCount;
+                agg.newPendingCount += p.newPendingCount;
+            }
+            if (months.length > 0) setPendingApply({ months, amount: amt, preview: agg });
         } catch (e: any) {
             alert(e?.message || '일괄 적용에 실패했습니다.');
         } finally {
             setBulkBusy(false);
         }
     };
+
+    // 저장된 12개월 기준을 연속 동일 금액 구간으로 묶어 칩으로 표시(저장 후 자동 재계산).
+    const feeBands = React.useMemo(() => computeFeeBands(ruleByMonth), [ruleByMonth]);
 
     return (
         <main style={FINANCE_PAGE_STYLE}>
@@ -153,6 +213,23 @@ export default function FinanceSettingsPage() {
                         {[2024, 2025, 2026, 2027, 2028, 2029].map((y) => <option key={y} value={y}>{y}년</option>)}
                     </select>
                 </div>
+
+                {/* 현재 저장된 회비 구간 — 12개월 기준을 연속 동일 금액으로 묶어 표시. 저장 시 자동 갱신. */}
+                {!loading && feeBands.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, color: '#94A3B8' }}>현재 구간</span>
+                        {feeBands.map((b) => (
+                            <span key={`${b.fromMonth}-${b.toMonth}`} style={{
+                                height: 26, display: 'inline-flex', alignItems: 'center',
+                                paddingLeft: 10, paddingRight: 10, borderRadius: 999,
+                                backgroundColor: '#F1F5F9', border: '1px solid rgba(15,23,42,0.08)',
+                                fontSize: 10.5, fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap',
+                            }}>
+                                {b.fromMonth === b.toMonth ? `${b.fromMonth}월` : `${b.fromMonth}~${b.toMonth}월`} {formatWon(b.amount)}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 {/* 일괄 적용 */}
                 <section style={FINANCE_CARD_STYLE}>
@@ -235,8 +312,104 @@ export default function FinanceSettingsPage() {
                     )}
                 </section>
             </div>
+
+            {pendingApply && (
+                <ApplyConfirmDialog
+                    year={year}
+                    months={pendingApply.months}
+                    amount={pendingApply.amount}
+                    preview={pendingApply.preview}
+                    busy={applyBusy}
+                    onSaveRuleOnly={() => setPendingApply(null)}
+                    onApply={handleApplyToExisting}
+                />
+            )}
         </main>
     );
+}
+
+function ApplyConfirmDialog({
+    year, months, amount, preview, busy, onSaveRuleOnly, onApply,
+}: {
+    year: number; months: number[]; amount: number; preview: FeeApplyPreview;
+    busy: boolean; onSaveRuleOnly: () => void; onApply: () => void;
+}) {
+    const monthLabel = months.length === 1 ? `${months[0]}월` : `${months.join(', ')}월`;
+    return (
+        <div
+            role="dialog" aria-modal="true"
+            style={{
+                position: 'fixed', inset: 0, zIndex: 500,
+                background: 'rgba(15,23,42,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+            }}
+        >
+            <div style={{
+                width: '100%', maxWidth: 380, background: '#FFFFFF', borderRadius: 16,
+                border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 24px 60px rgba(15,23,42,0.22)',
+                padding: 18, boxSizing: 'border-box',
+            }}>
+                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 900, color: '#0F172A', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                    {year}년 {monthLabel}에 이미 생성된 월회비 청구 {preview.changedCount}건이 있습니다.
+                </p>
+                <p style={{ margin: '6px 0 12px', fontSize: 12.5, fontWeight: 700, color: '#475569', wordBreak: 'keep-all' }}>
+                    기존 청구를 {formatWon(amount)}으로 변경하시겠습니까?
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: 12, borderRadius: 10, background: '#F8FAFC', border: '1px solid rgba(15,23,42,0.06)' }}>
+                    <PreviewRow label="대상 회원" value={`${preview.targetCount}명`} />
+                    <PreviewRow label="기존 총 청구" value={formatWon(preview.oldTotalDue)} />
+                    <PreviewRow label="변경 총 청구" value={formatWon(preview.newTotalDue)} strong />
+                    <PreviewRow label="현재 납부액" value={formatWon(preview.currentPaid)} />
+                    <PreviewRow label="변경 후 남은 금액" value={formatWon(preview.newRemaining)} strong />
+                    <PreviewRow label="변경 후 일부 납부" value={`${preview.newPartialCount}명`} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    <button type="button" onClick={onSaveRuleOnly} disabled={busy} style={{
+                        flex: 1, height: 42, borderRadius: 10, border: '1px solid rgba(15,23,42,0.12)',
+                        background: '#FFFFFF', color: '#334155', fontSize: 12.5, fontWeight: 800,
+                        cursor: busy ? 'not-allowed' : 'pointer',
+                    }}>
+                        기준만 저장
+                    </button>
+                    <button type="button" onClick={onApply} disabled={busy} style={{
+                        flex: 1, height: 42, borderRadius: 10, border: 'none',
+                        background: busy ? '#CBD5E1' : '#0F9F98', color: '#FFFFFF', fontSize: 12.5, fontWeight: 900,
+                        cursor: busy ? 'wait' : 'pointer',
+                    }}>
+                        {busy ? '적용 중...' : '기존 청구에도 적용'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PreviewRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748B' }}>{label}</span>
+            <span style={{ fontSize: 12.5, fontWeight: strong ? 900 : 800, color: strong ? '#0F172A' : '#334155', whiteSpace: 'nowrap' }}>{value}</span>
+        </div>
+    );
+}
+
+/** 12개월 rule map → 연속 동일 금액 구간. rule 이 없는 달은 구간을 끊는다. */
+function computeFeeBands(ruleByMonth: Record<number, FinanceFeeRule | undefined>): { fromMonth: number; toMonth: number; amount: number }[] {
+    const bands: { fromMonth: number; toMonth: number; amount: number }[] = [];
+    for (let m = 1; m <= 12; m++) {
+        const r = ruleByMonth[m];
+        if (!r) continue;
+        const amount = r.default_amount;
+        const last = bands[bands.length - 1];
+        if (last && last.toMonth === m - 1 && last.amount === amount) {
+            last.toMonth = m;
+        } else {
+            bands.push({ fromMonth: m, toMonth: m, amount });
+        }
+    }
+    return bands;
 }
 
 function MonthRuleRow({

@@ -530,3 +530,104 @@ export async function bulkCreateMonthlyReceivables(opts: {
     }
     return (data || []) as FinanceDuesReceivable[];
 }
+
+// ── 회비 기준 변경을 기존 청구에 적용 ───────────────────────────────────────
+// 회비 기준(finance_fee_rules)만 바꾸면 이미 생성된 monthly_fee receivable 의 amount_due 는
+// 그대로 남는다. 운영진이 "기존 청구에도 적용"을 선택하면 해당 연·월 monthly_fee 의
+// amount_due 만 새 금액으로 바꾼다. payment 는 건드리지 않으며, 표시 상태(paid/partial/pending)는
+// summarizeReceivable 가 payment 합계로 매번 파생하므로 자동 재계산된다.
+//
+// 보호: exempt / not_target 은 제외(운영진 결정 보존). penalty/guest_fee/event_fee 등 비월회비는
+//       receivable_type='monthly_fee' 필터로 애초에 대상 아님. payment 원본은 변경 없음.
+
+export interface FeeApplyPreview {
+    /** 적용 대상(= exempt/not_target 제외 monthly_fee) 수. */
+    targetCount: number;
+    /** 대상 중 amount_due 가 실제로 바뀌는 row 수. 0 이면 적용 불필요. */
+    changedCount: number;
+    oldTotalDue: number;
+    newTotalDue: number;
+    currentPaid: number;        // 기존 납부 합계(불변).
+    newRemaining: number;       // 변경 후 남은 금액 합계.
+    newPaidCount: number;
+    newPartialCount: number;
+    newPendingCount: number;
+}
+
+const EMPTY_FEE_PREVIEW: FeeApplyPreview = {
+    targetCount: 0, changedCount: 0, oldTotalDue: 0, newTotalDue: 0,
+    currentPaid: 0, newRemaining: 0, newPaidCount: 0, newPartialCount: 0, newPendingCount: 0,
+};
+
+/** (year, month) monthly_fee 청구에 새 금액을 적용했을 때의 예상 결과(미적용 — 조회만). */
+export async function previewFeeRuleApplication(
+    year: number,
+    month: number,
+    newAmount: number,
+): Promise<FeeApplyPreview> {
+    const amount = Math.max(0, Math.trunc(Number(newAmount)));
+    const { data: recvData, error } = await supabase
+        .from(TBL_RECV)
+        .select('id, amount_due, status')
+        .eq('target_year', year)
+        .eq('target_month', month)
+        .eq('receivable_type', 'monthly_fee')
+        .neq('status', 'exempt')
+        .neq('status', 'not_target');
+    if (error) {
+        console.warn('[Finance/recv/feePreview]', error?.message ?? error);
+        throw error;
+    }
+    const recv = (recvData || []) as { id: string; amount_due: number; status: string }[];
+    if (recv.length === 0) return { ...EMPTY_FEE_PREVIEW };
+
+    const ids = recv.map((r) => r.id);
+    const payments = await fetchPaymentsByReceivables(ids);
+    const paidByRecv = new Map<string, number>();
+    for (const p of payments) {
+        if (p.is_voided === true || !p.receivable_id) continue;
+        paidByRecv.set(p.receivable_id, (paidByRecv.get(p.receivable_id) || 0) + (p.amount || 0));
+    }
+
+    const out: FeeApplyPreview = { ...EMPTY_FEE_PREVIEW, targetCount: recv.length };
+    for (const r of recv) {
+        const paid = paidByRecv.get(r.id) || 0;
+        out.oldTotalDue += Math.max(0, r.amount_due);
+        out.newTotalDue += amount;
+        out.currentPaid += paid;
+        out.newRemaining += Math.max(0, amount - paid);
+        if (r.amount_due !== amount) out.changedCount += 1;
+        if (paid <= 0) out.newPendingCount += 1;
+        else if (paid < amount) out.newPartialCount += 1;
+        else out.newPaidCount += 1;
+    }
+    return out;
+}
+
+/**
+ * (year, month) monthly_fee 청구의 amount_due 를 새 금액으로 일괄 변경(단일 UPDATE = 원자적).
+ *   - exempt / not_target 제외. payment 는 변경/생성/삭제하지 않음.
+ *   - 같은 금액 재적용도 안전(idempotent — payment 추가 없음).
+ * 반환: 변경된 row 수.
+ */
+export async function applyFeeRuleToMonthlyReceivables(
+    year: number,
+    month: number,
+    newAmount: number,
+): Promise<number> {
+    const amount = Math.max(0, Math.trunc(Number(newAmount)));
+    const { data, error } = await supabase
+        .from(TBL_RECV)
+        .update({ amount_due: amount, updated_at: new Date().toISOString() })
+        .eq('target_year', year)
+        .eq('target_month', month)
+        .eq('receivable_type', 'monthly_fee')
+        .neq('status', 'exempt')
+        .neq('status', 'not_target')
+        .select('id');
+    if (error) {
+        console.warn('[Finance/recv/feeApply]', error?.message ?? error);
+        throw error;
+    }
+    return (data || []).length;
+}
