@@ -139,18 +139,27 @@ function normalizeDisplayGroup(value?: string) {
 function getDisplayGroupMeta(value?: string) {
   const normalizedGroup = normalizeDisplayGroup(value);
   const isGroupB = normalizedGroup === 'B';
+  // 앱 전체 통일 의미: A조 = Blue, B조 = Orange/Amber. 모바일과 같은 색 의미를 쓰되,
+  //   전광판(TV·원거리)에서는 채도·명도 대비를 더 강하게(보색 대비 Blue↔Orange)로 즉시 구분.
   return {
     normalizedGroup,
     isGroupB,
     groupLabel: isGroupB ? 'B조' : 'A조',
-    accent: isGroupB ? '#0E96AE' : '#2F6FEA',
-    accentStrong: isGroupB ? '#086C7C' : '#1747A0',
-    accentDeep: isGroupB ? '#06485A' : '#0B2A66',
-    // Calmer than v5: panel is recognizable group color without being toy-saturated.
-    panel: isGroupB
-      ? 'linear-gradient(165deg, #DDF0ED 0%, #B0D6CE 100%)'
-      : 'linear-gradient(165deg, #DDE8FA 0%, #ADC7EB 100%)',
-    chipBg: isGroupB ? '#0B6B7E' : '#1747A0',
+    accent: isGroupB ? '#F5811A' : '#2F6FEA',        // main vivid — top strip / border / queue plate
+    accentStrong: isGroupB ? '#C2570C' : '#1A52AC',  // strong border/text
+    accentDeep: isGroupB ? '#7A3A06' : '#0B2A66',    // deep — VS 원 / COURT 번호 / 배지
+    chipBg: isGroupB ? '#B45309' : '#1747A0',
+    tintPale: isGroupB ? '#FCEEDB' : '#E8F0FB',       // pale tint — meta capsule / strip 배경
+    // 좌측 COURT/Queue plate 솔리드(중간→딥) — 흰색 텍스트가 얹혀 원거리 식별.
+    plate: isGroupB
+      ? 'linear-gradient(180deg, #F5811A 0%, #C2570C 100%)'
+      : 'linear-gradient(180deg, #2F6FEA 0%, #1A47A6 100%)',
+    // 카드 본문 배경 — 선수명 가독성 위해 밝게 유지(연한 조 tint).
+    //   B조: 본문 넓은 영역 tint 는 강조 요소(plate/strip/border/capsule/VS)와 분리해
+    //   기존(#FBEEDC→#F4D9B2)보다 끝쪽 주황을 ~12% 완화한 더 밝은 cream-orange 로 조정.
+    backdrop: isGroupB
+      ? 'linear-gradient(165deg, #FDF3E6 0%, #F7E1C2 100%)'
+      : 'linear-gradient(165deg, #E9EFF8 0%, #CCD9EC 100%)',
   };
 }
 
@@ -288,7 +297,10 @@ function calculateDisplaySettlement(player: RankingEntry, rankIndex: number, tot
   // isPenalty includes the guest fee (for finance/settlement parity, untouched).
   // isRealPenalty is the rank-tier signal the Ranking Tower uses for its zone / PEN badge,
   // so guests/associates that aren't in a fine/penalty tier render as ordinary positive rows.
-  return { amount, isPenalty: amount < 0, isRealPenalty: isPenaltyTier || isFineTier };
+  // penaltyTier surfaces the EXISTING rank-tier fine amount (5000 / 3000 / 0) purely for color —
+  //   계산 로직은 그대로(위에서 이미 정한 tier 를 노출만). 게스트비는 penaltyTier 에 포함하지 않음.
+  const penaltyTier = isPenaltyTier ? l2Penalty : (isFineTier ? l1Penalty : 0);
+  return { amount, isPenalty: amount < 0, isRealPenalty: isPenaltyTier || isFineTier, penaltyTier };
 }
 
 function CourtCard({
@@ -310,17 +322,14 @@ function CourtCard({
   const live = !!match;
   const elapsed = live ? formatElapsed((match as any).startedAt, nowMs) : '';
 
-  // Softer Court palette — desaturated so the panel reads as a sports board, not a "blue card".
-  // Up Next still uses groupMeta.accent (saturated), so A/B identity stays vivid there.
-  const accent = live
-    ? (groupMeta.isGroupB ? '#7AA2A8' : '#7A92B8')
-    : '#7F90A8';
-  const accentDeep = live ? groupMeta.accentDeep : '#1F2A3F';
-  const backdrop = live
-    ? (groupMeta.isGroupB
-        ? 'linear-gradient(165deg, #E8F1EE 0%, #C8DDD6 100%)'
-        : 'linear-gradient(165deg, #E6ECF5 0%, #C6D5E7 100%)')
-    : 'linear-gradient(165deg, #E0E6F0 0%, #BFC9DA 100%)';
+  // 전광판 Court 팔레트 — TV·원거리용으로 strip/border 는 채도 높은 vivid accent 그대로 사용
+  //   (모바일보다 강하게). 좌측 plate 는 솔리드 조 색(흰 텍스트), 본문 backdrop 만 밝게 유지.
+  //   빈 코트(READY)는 중립 슬레이트로 분리.
+  const accent = live ? groupMeta.accent : '#7F90A8';
+  const accentDeep = live ? groupMeta.accentDeep : '#27324A';
+  const plateBg = live ? groupMeta.plate : 'linear-gradient(180deg, #8A98AD 0%, #5E6B80 100%)';
+  const metaTint = live ? groupMeta.tintPale : '#EEF1F6';
+  const backdrop = live ? groupMeta.backdrop : 'linear-gradient(165deg, #E6EAF1 0%, #C4CCDA 100%)';
 
   return (
     <section
@@ -338,19 +347,20 @@ function CourtCard({
         <div
           className="flex w-[80px] shrink-0 flex-col items-center justify-center gap-0.5"
           style={{
-            background: `linear-gradient(180deg, rgba(255,255,255,0.22) 0%, ${accentDeep}1F 100%)`,
-            borderRight: `1px solid ${accentDeep}33`,
+            background: plateBg,
+            borderRight: '1px solid rgba(255,255,255,0.22)',
+            boxShadow: 'inset -6px 0 12px rgba(0,0,0,0.10)',
           }}
         >
           <span
             className="text-[11px] font-black uppercase tracking-[0.24em]"
-            style={{ color: accentDeep, opacity: 0.72 }}
+            style={{ color: '#FFFFFF', opacity: 0.86 }}
           >
             COURT
           </span>
           <span
             className="text-[60px] font-black leading-none"
-            style={{ color: accentDeep }}
+            style={{ color: '#FFFFFF' }}
           >
             {court}
           </span>
@@ -371,8 +381,8 @@ function CourtCard({
               className="flex items-center gap-2 rounded-full px-5 py-1.5 text-[18px] font-black tracking-[0.02em] shadow-[0_2px_6px_rgba(20,62,146,0.12)]"
               style={{
                 color: accentDeep,
-                background: `linear-gradient(180deg, rgba(255,255,255,0.94) 0%, ${accentDeep}14 100%)`,
-                border: `1px solid ${accentDeep}33`,
+                background: metaTint,
+                border: `1px solid ${accentDeep}40`,
               }}
             >
               <span style={{ color: groupMeta.chipBg }}>{groupMeta.groupLabel}</span>
@@ -477,13 +487,13 @@ function UpNextCard({
   const teamA = teamLabel(match, 0, playerLookup);
   const teamB = teamLabel(match, 2, playerLookup);
 
-  // Meta strip uses group-coded soft tints — same family as Court (blue / cyan-mint)
-  // but lighter so the white body stays the primary reading area.
+  // Meta bar 는 조-코드 연한 tint(A=pale blue / B=pale amber) — 흰 본문이 주 가독 영역.
+  //   좌측 queue plate 는 솔리드 조 색(groupMeta.plate)으로 멀리서도 A/B 가 바로 보이게 한다.
   const metaStripBg = isNext
-    ? (groupMeta.isGroupB ? '#D5EBE4' : '#D8E5F8')
-    : (groupMeta.isGroupB ? '#E6F3EF' : '#E8F0FB');
+    ? (groupMeta.isGroupB ? '#FBDFC0' : '#D8E5F8')
+    : (groupMeta.isGroupB ? '#FCEEDB' : '#E8F0FB');
   const metaStripBorder = groupMeta.isGroupB
-    ? 'rgba(8,108,124,0.25)'
+    ? 'rgba(194,87,12,0.30)'
     : 'rgba(26,82,172,0.25)';
 
   return (
@@ -495,14 +505,14 @@ function UpNextCard({
           : `0 0 0 1px ${groupMeta.accent}55, 0 2px 6px rgba(31,49,87,0.10), inset 0 1px 0 rgba(255,255,255,0.75), inset 0 0 0 1px rgba(255,255,255,0.45)`,
       }}
     >
-      {/* Queue Plate — uniform 01/02/03/04 marker; carries the group tint so A/B is identifiable */}
+      {/* Queue Plate — uniform 01/02/03/04 marker; 솔리드 조 색 + 흰 숫자로 A/B 원거리 식별 */}
       <div
         className="flex w-[44px] shrink-0 flex-col items-center justify-center"
-        style={{ background: metaStripBg, borderRight: `1px solid ${metaStripBorder}` }}
+        style={{ background: groupMeta.plate, borderRight: '1px solid rgba(255,255,255,0.22)' }}
       >
         <span
           className="text-[22px] font-black leading-none tabular-nums"
-          style={{ color: groupMeta.accentDeep }}
+          style={{ color: '#FFFFFF' }}
         >
           {String(index + 1).padStart(2, '0')}
         </span>
@@ -1515,21 +1525,29 @@ function KdkDisplayBoard() {
                       // Use isRealPenalty (rank tier) for every visual decision so a guest who
                       // sits outside the fine/penalty tier renders like any other positive row.
                       const isPenZone = settlement.isRealPenalty;
-                      // Color diet: normal rows use only white ↔ pale blue-gray (no beige/gold);
-                      // RATE bar + left strip are uniformly muted slate. Gold is now reserved
-                      // for TOP3 / Leader / Ranking title; coral is reserved for penalty zone.
-                      const rowBg = isPenZone
+                      // 벌금 tier 별 색 분리(계산 결과만 시각화): 5,000원 = Coral/Red, 3,000원 = Amber/Orange.
+                      //   ※ 이 Amber 는 Ranking Tower row/PEN badge 전용 — Court/Up Next 의 B조 Orange 와 역할 분리.
+                      const penaltyTier = settlement.penaltyTier; // 5000 | 3000 | 0
+                      const isHeavyPen = penaltyTier === 5000;
+                      const isFinePen = penaltyTier === 3000;
+                      const rowBg = isHeavyPen
                         ? (isRankEven ? '#FAD9D2' : '#FFE6E1')
-                        : (isRankEven ? '#FFFFFF' : '#EAF1F8');
-                      const rowBorderColor = isPenZone
+                        : isFinePen
+                          ? (isRankEven ? '#FBE2BE' : '#FFF1D6')
+                          : (isRankEven ? '#FFFFFF' : '#EAF1F8');
+                      const rowBorderColor = isHeavyPen
                         ? 'rgba(170,70,60,0.22)'
-                        : 'rgba(60,80,110,0.20)';
-                      const rateTrackBg = isPenZone ? '#E8C6BB' : '#C9D3DE';
-                      const rateFill = isPenZone
+                        : isFinePen
+                          ? 'rgba(176,116,28,0.24)'
+                          : 'rgba(60,80,110,0.20)';
+                      const rateTrackBg = isHeavyPen ? '#E8C6BB' : isFinePen ? '#EAD6AE' : '#C9D3DE';
+                      const rateFill = isHeavyPen
                         ? 'linear-gradient(90deg, #B68A7E 0%, #CFA096 100%)'
-                        : 'linear-gradient(90deg, #5E748A 0%, #71869E 100%)';
+                        : isFinePen
+                          ? 'linear-gradient(90deg, #C79A4E 0%, #DDB877 100%)'
+                          : 'linear-gradient(90deg, #5E748A 0%, #71869E 100%)';
                       const leftAccentWidth = isPenZone ? 4 : 2;
-                      const leftAccentColor = isPenZone ? '#C72238' : '#7A8DA8';
+                      const leftAccentColor = isHeavyPen ? '#C72238' : isFinePen ? '#E0850E' : '#7A8DA8';
                       const prevIsRealPenalty = index > 0
                         ? calculateDisplaySettlement(liveRanking[rankIndex - 1], rankIndex - 1, liveRanking.length).isRealPenalty
                         : false;
@@ -1543,17 +1561,18 @@ function KdkDisplayBoard() {
                             flexShrink: 0,
                             background: rowBg,
                             borderBottom: `1px solid ${rowBorderColor}`,
-                            ...(isFirstPenalty ? { borderTop: '3px solid rgba(216,50,74,0.45)' } : {}),
+                            ...(isFirstPenalty ? { borderTop: `3px solid ${isHeavyPen ? 'rgba(216,50,74,0.45)' : 'rgba(224,133,14,0.45)'}` } : {}),
                           }}
                         >
                           <div className="pointer-events-none absolute inset-y-0 left-0" style={{ width: leftAccentWidth, background: leftAccentColor }} />
                           <span
-                            className={`flex h-7 w-7 items-center justify-center justify-self-center font-black leading-none ${
-                              settlement.isPenalty
-                                ? 'rounded-[5px] bg-[#D8324A] text-white'
-                                : 'tabular-nums text-[#3F2C08]'
-                            }`}
-                            style={{ fontSize: rankRankFont }}
+                            className="flex h-7 w-7 items-center justify-center justify-self-center font-black leading-none tabular-nums"
+                            style={{
+                              fontSize: rankRankFont,
+                              ...(penaltyTier > 0
+                                ? { borderRadius: 5, background: isHeavyPen ? '#C72238' : '#E0850E', color: '#FFFFFF' }
+                                : { color: '#3F2C08' }),
+                            }}
                           >
                             {rankIndex + 1}
                           </span>
@@ -1570,8 +1589,15 @@ function KdkDisplayBoard() {
                             >
                               {player.name}
                             </p>
-                            {isPenZone && (
-                              <span className="shrink-0 rounded-[4px] border border-[#D8324A]/30 bg-[#D8324A]/15 px-1 py-0.5 text-[8px] font-black leading-none text-[#7E1B26]">PEN</span>
+                            {penaltyTier > 0 && (
+                              <span
+                                className="shrink-0 rounded-[4px] px-1 py-0.5 text-[8px] font-black leading-none"
+                                style={isHeavyPen
+                                  ? { border: '1px solid rgba(216,50,74,0.30)', background: 'rgba(216,50,74,0.15)', color: '#7E1B26' }
+                                  : { border: '1px solid rgba(224,133,14,0.34)', background: 'rgba(224,133,14,0.16)', color: '#7A4708' }}
+                              >
+                                {isHeavyPen ? 'PEN 5K' : 'PEN 3K'}
+                              </span>
                             )}
                           </div>
                           <div
