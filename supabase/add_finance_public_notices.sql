@@ -65,7 +65,13 @@ drop policy if exists "fin_notice_update_admin" on public.finance_public_notices
 create policy "fin_notice_update_admin" on public.finance_public_notices
   for update using (public.is_finance_manager())
             with check (public.is_finance_manager());
--- delete 정책 없음 — MVP 는 삭제 대신 비활성화(is_active=false).
+
+-- DELETE — 운영자(CEO/ADMIN/FINANCE_MANAGER)만. 불필요한(주로 비활성) 공지 정리용.
+--   삭제 후 기존 공개 URL 은 get_public_finance_notice 에서 null → "공개되지 않은 공지" 표시.
+drop policy if exists "fin_notice_delete_admin" on public.finance_public_notices;
+create policy "fin_notice_delete_admin" on public.finance_public_notices
+  for delete to authenticated
+  using (public.is_finance_manager());
 
 -- ── 3. 공개 전용 RPC ────────────────────────────────────────────────────────
 -- token 으로 활성 공지 1건의 공개 가능 필드만 반환. 비활성/없음 → null.

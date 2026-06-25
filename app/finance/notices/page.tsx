@@ -9,6 +9,7 @@ import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import {
     listPublicNotices,
     deactivatePublicNotice,
+    deleteFinanceNotice,
     type FinancePublicNotice,
 } from '@/lib/finance/noticesService';
 import {
@@ -46,6 +47,24 @@ export default function FinanceNoticesPage() {
             await load();
         } catch (e: any) {
             alert(e?.message || '비활성화에 실패했습니다.');
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    // 삭제는 비활성 공지만. 활성 공지면 먼저 비활성화하도록 안내(방어 — UI 도 활성엔 삭제 버튼 미노출).
+    const handleDelete = async (id: string) => {
+        const target = notices.find((n) => n.id === id);
+        if (target?.is_active) {
+            alert('활성 공지는 삭제할 수 없습니다. 먼저 비활성화한 뒤 삭제해 주세요.');
+            return;
+        }
+        setBusyId(id);
+        try {
+            await deleteFinanceNotice(id);
+            await load();
+        } catch (e: any) {
+            alert(`공지 삭제에 실패했습니다.\n${e?.message || e}`);
         } finally {
             setBusyId(null);
         }
@@ -97,6 +116,7 @@ export default function FinanceNoticesPage() {
                                 notice={n}
                                 busy={busyId === n.id}
                                 onDeactivate={handleDeactivate}
+                                onDelete={handleDelete}
                             />
                         ))}
                     </div>

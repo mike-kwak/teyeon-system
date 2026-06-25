@@ -94,6 +94,21 @@ export function formatReferenceKo(dateStr: string): string {
     return `${m[1]}년 ${Number(m[2])}월 ${Number(m[3])}일`;
 }
 
+/** timestamptz(ISO) → 한국시간 'YYYY.MM.DD HH:mm' (Asia/Seoul). DB 원본은 timestamptz 유지, 표시만 변환. */
+export function formatSeoulDateTime(iso: string): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(d);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+    // en-CA + hour12:false → 24시간제 '00'~'23'.
+    return `${get('year')}.${get('month')}.${get('day')} ${get('hour')}:${get('minute')}`;
+}
+
 /** 오늘 'YYYY-MM-DD' (로컬). */
 export function todayISO(): string {
     const d = new Date();
@@ -137,6 +152,8 @@ export function buildNoticeSnapshot(opts: {
         const st = s.derivedStatus;
         const name = nameById[r.member_id] || '회원';
         if (st === 'exempt' || st === 'not_target') {
+            // 표시용 사유만 변환(DB status/판정 로직은 불변):
+            //   관리자 수동 면제(exempt) → '면제', 기타 비대상(not_target) → '비대상'.
             excluded.push({ displayName: name, reason: st === 'exempt' ? '면제' : '비대상' });
             continue;
         }
@@ -162,21 +179,23 @@ export function buildNoticeSnapshot(opts: {
         if (!isMonthlyFeeTargetMember(m.role)) {
             associateExcludedCount++;
             if (!billedIds.has(m.id)) {
-                excluded.push({ displayName: nameById[m.id] || '회원', reason: m.role === '게스트' ? '게스트' : '준회원' });
+                // 준회원 → '비대상(준회원)', 게스트 → '비대상(게스트)'.
+                excluded.push({ displayName: nameById[m.id] || '회원', reason: m.role === '게스트' ? '비대상(게스트)' : '비대상(준회원)' });
             }
             continue;
         }
         if (isMemberOnLeaveAtMonth(leaves, m.id, year, month)) {
             leaveExcludedCount++;
             if (!billedIds.has(m.id)) {
-                excluded.push({ displayName: nameById[m.id] || '회원', reason: '휴회' });
+                // 휴회 → '면제(휴회)'.
+                excluded.push({ displayName: nameById[m.id] || '회원', reason: '면제(휴회)' });
             }
         }
     }
 
     // 정렬 — 본문/제외 모두 이름 가나다순(중립).
     target.sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko'));
-    const reasonOrder: Record<string, number> = { '휴회': 0, '준회원': 1, '게스트': 2, '면제': 3, '비대상': 4 };
+    const reasonOrder: Record<string, number> = { '면제(휴회)': 0, '면제': 1, '비대상(준회원)': 2, '비대상(게스트)': 3, '비대상': 4 };
     excluded.sort((a, b) =>
         (reasonOrder[a.reason] ?? 9) - (reasonOrder[b.reason] ?? 9)
         || a.displayName.localeCompare(b.displayName, 'ko'),
@@ -276,6 +295,16 @@ export async function deactivatePublicNotice(id: string): Promise<void> {
         .from(TBL)
         .update({ is_active: false, deactivated_at: new Date().toISOString(), deactivated_by: by })
         .eq('id', id);
+    if (error) throw error;
+}
+
+/**
+ * 공지 row 완전 삭제 — 운영자만(DELETE RLS). 주로 비활성 공지 정리용.
+ *   삭제 후 기존 공개 URL 은 RPC 가 null 반환 → "공개되지 않은 공지" 표시.
+ *   (납부 원본 데이터는 건드리지 않는다 — finance_public_notices row 만 삭제.)
+ */
+export async function deleteFinanceNotice(id: string): Promise<void> {
+    const { error } = await supabase.from(TBL).delete().eq('id', id);
     if (error) throw error;
 }
 
