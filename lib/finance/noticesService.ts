@@ -140,56 +140,83 @@ export function buildNoticeSnapshot(opts: {
     for (const m of members) nameById[m.id] = fullName(m.nickname || '회원');
 
     const target: NoticeSnapshotMember[] = [];
-    const excluded: NoticeExcludedMember[] = [];
     let paidCount = 0, partialCount = 0, unpaidCount = 0;
     let totalDue = 0, totalPaid = 0, totalRemaining = 0;
 
-    // 1) receivable 기준 — 납부 대상(paid/partial/pending) + 면제/비대상(제외 섹션).
-    const billedIds = new Set<string>();
+    // 1) receivable 기준 — 납부 대상(paid/partial/pending) 본문 행 + 금액 집계.
+    //    ⚠️ exempt/not_target(generic) 은 여기서 사유를 정하지 않는다(휴회/role 판정보다 먼저 처리 금지).
+    //       사유 판정용 정보만 recvByMember 에 보관해 아래 우선순위에서 사용.
+    const targetMemberIds = new Set<string>();
+    const recvByMember = new Map<string, { status: string; exemptionReason: string | null }>();
     for (const r of receivables) {
-        billedIds.add(r.member_id);
         const s = summarizeReceivable(r, payments);
         const st = s.derivedStatus;
-        const name = nameById[r.member_id] || '회원';
-        if (st === 'exempt' || st === 'not_target') {
-            // 표시용 사유만 변환(DB status/판정 로직은 불변):
-            //   관리자 수동 면제(exempt) → '면제', 기타 비대상(not_target) → '비대상'.
-            excluded.push({ displayName: name, reason: st === 'exempt' ? '면제' : '비대상' });
-            continue;
+        if (st === 'paid' || st === 'partial' || st === 'pending') {
+            targetMemberIds.add(r.member_id);
+            if (st === 'paid') paidCount++;
+            else if (st === 'partial') partialCount++;
+            else unpaidCount++;
+            totalDue += Math.max(0, r.amount_due);
+            totalPaid += s.amount_paid;
+            totalRemaining += s.remaining;
+            target.push({
+                displayName: nameById[r.member_id] || '회원',
+                itemTitle: r.title || `${year}년 ${month}월 회비`,
+                amountDue: Math.max(0, r.amount_due),
+                amountPaid: s.amount_paid,
+                remainingAmount: s.remaining,
+                status: st, // 'paid' | 'partial' | 'pending'
+            });
+        } else {
+            const prev = recvByMember.get(r.member_id);
+            recvByMember.set(r.member_id, {
+                status: r.status,
+                exemptionReason: r.exemption_reason ?? prev?.exemptionReason ?? null,
+            });
         }
-        if (st === 'paid') paidCount++;
-        else if (st === 'partial') partialCount++;
-        else unpaidCount++;
-        totalDue += Math.max(0, r.amount_due);
-        totalPaid += s.amount_paid;
-        totalRemaining += s.remaining;
-        target.push({
-            displayName: name,
-            itemTitle: r.title || `${year}년 ${month}월 회비`,
-            amountDue: Math.max(0, r.amount_due),
-            amountPaid: s.amount_paid,
-            remainingAmount: s.remaining,
-            status: st, // 'paid' | 'partial' | 'pending'
-        });
     }
 
-    // 2) member 기준 — 준회원·게스트 / 휴회(제외 섹션 + 카운트). 청구 없는 회원만 추가.
+    // 2) 회비 제외 — member_id 단위 1회만(중복 방지). 우선순위로 가장 구체적인 사유 하나만 사용:
+    //    준회원 → 게스트 → 해당 연·월 휴회 → exemption_reason '휴회' 포함 → exempt → not_target.
+    //    role 은 trim 후 비교(기존 isMonthlyFeeTargetMember 재사용 — 준회원/게스트면 false).
+    const excluded: NoticeExcludedMember[] = [];
+    const excludedIds = new Set<string>();
     let associateExcludedCount = 0, leaveExcludedCount = 0;
+
+    const reasonFor = (
+        role: string,
+        onLeave: boolean,
+        recv?: { status: string; exemptionReason: string | null },
+    ): string | null => {
+        if (!isMonthlyFeeTargetMember(role)) return role === '게스트' ? '비대상(게스트)' : '비대상(준회원)';
+        if (onLeave) return '면제(휴회)';
+        if (recv?.exemptionReason && recv.exemptionReason.includes('휴회')) return '면제(휴회)';
+        if (recv?.status === 'exempt') return '면제';
+        if (recv?.status === 'not_target') return '비대상';
+        return null;
+    };
+
     for (const m of members) {
-        if (!isMonthlyFeeTargetMember(m.role)) {
-            associateExcludedCount++;
-            if (!billedIds.has(m.id)) {
-                // 준회원 → '비대상(준회원)', 게스트 → '비대상(게스트)'.
-                excluded.push({ displayName: nameById[m.id] || '회원', reason: m.role === '게스트' ? '비대상(게스트)' : '비대상(준회원)' });
-            }
-            continue;
+        const role = (m.role || '').trim();
+        const onLeave = isMemberOnLeaveAtMonth(leaves, m.id, year, month);
+        if (!isMonthlyFeeTargetMember(role)) associateExcludedCount++;
+        else if (onLeave) leaveExcludedCount++;
+
+        if (targetMemberIds.has(m.id) || excludedIds.has(m.id)) continue;
+        const reason = reasonFor(role, onLeave, recvByMember.get(m.id));
+        if (reason) {
+            excluded.push({ displayName: nameById[m.id] || '회원', reason });
+            excludedIds.add(m.id);
         }
-        if (isMemberOnLeaveAtMonth(leaves, m.id, year, month)) {
-            leaveExcludedCount++;
-            if (!billedIds.has(m.id)) {
-                // 휴회 → '면제(휴회)'.
-                excluded.push({ displayName: nameById[m.id] || '회원', reason: '면제(휴회)' });
-            }
+    }
+
+    // members 목록에 없는(드문) 면제/비대상 receivable 도 누락 없이 표시.
+    for (const [mid, recv] of recvByMember) {
+        if (targetMemberIds.has(mid) || excludedIds.has(mid)) continue;
+        const reason = reasonFor('', false, recv);
+        if (reason) {
+            excluded.push({ displayName: nameById[mid] || '회원', reason });
+            excludedIds.add(mid);
         }
     }
 
