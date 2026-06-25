@@ -37,6 +37,7 @@ export default function BottomNav() {
   // Guest Pass / TEYEON 공개 둘러보기(/club) 페이지에서는 앱 내부 chrome을 노출하지 않음.
   if (pathname?.startsWith('/guest/pass')) return null;
   if (pathname === '/club' || pathname?.startsWith('/club/')) return null;
+  if (pathname?.startsWith('/finance/public')) return null;
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {

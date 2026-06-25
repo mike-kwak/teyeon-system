@@ -33,6 +33,8 @@ import type {
     FinanceMemberLeave,
     PaymentDerivedStatus,
 } from '@/types/finance';
+import FinanceNoticeCreateModal from '@/components/finance/FinanceNoticeCreateModal';
+import { Megaphone, ChevronRight } from 'lucide-react';
 
 /**
  * /finance/payments — 월별 회원 납부 현황.
@@ -74,6 +76,7 @@ export default function FinancePaymentsPage() {
     const [leaves, setLeaves] = React.useState<FinanceMemberLeave[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [busy, setBusy] = React.useState(false);
+    const [showNoticeModal, setShowNoticeModal] = React.useState(false);
 
     const load = React.useCallback(async () => {
         setLoading(true);
@@ -258,6 +261,35 @@ export default function FinancePaymentsPage() {
                     {associateCount > 0 && <Tag>준회원·게스트 {associateCount}</Tag>}
                 </div>
 
+                {/* 회원 공지 — 현재 (연·월) 미납·일부 납부 현황을 스냅샷 공개 링크로 생성 / 목록 관리. */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                        type="button"
+                        onClick={() => setShowNoticeModal(true)}
+                        style={{
+                            flex: 1, height: 40, borderRadius: 10, border: 'none', cursor: 'pointer',
+                            backgroundColor: '#0F9F98', color: '#FFFFFF',
+                            fontSize: 12.5, fontWeight: 800,
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        }}
+                    >
+                        <Megaphone size={15} />
+                        회원 공지 만들기
+                    </button>
+                    <Link
+                        href="/finance/notices"
+                        style={{
+                            height: 40, paddingLeft: 12, paddingRight: 10, borderRadius: 10,
+                            border: '1px solid rgba(15,23,42,0.12)', backgroundColor: '#FFFFFF', color: '#334155',
+                            fontSize: 12, fontWeight: 800, textDecoration: 'none',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 2, flexShrink: 0,
+                        }}
+                    >
+                        공지 목록
+                        <ChevronRight size={14} />
+                    </Link>
+                </div>
+
                 {/* 필터 — 가로 스크롤. */}
                 <div style={{
                     display: 'flex', gap: 6, overflowX: 'auto',
@@ -374,6 +406,18 @@ export default function FinancePaymentsPage() {
                     </ul>
                 )}
             </div>
+
+            {showNoticeModal && (
+                <FinanceNoticeCreateModal
+                    year={year}
+                    month={month}
+                    members={members}
+                    receivables={receivables}
+                    payments={payments}
+                    leaves={leaves}
+                    onClose={() => setShowNoticeModal(false)}
+                />
+            )}
         </main>
     );
 }

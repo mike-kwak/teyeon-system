@@ -768,10 +768,11 @@ export default function Home() {
               />
               {/* 그룹 3 — 관리/재무 (gold) */}
               <MenuCard
-                label="클럽 재무"
-                description="회비, 미납, 월간 재무 리포트를 관리합니다."
+                label="TEYEON 재무"
+                description="회비 납부 현황과 미납 내역을 확인합니다."
                 icon={<CircleDollarSign size={21} strokeWidth={1.7} />}
                 path="/finance"
+                badge="FINANCE"
                 accent="gold"
                 locked={!isLoading && !canFinance}
                 deniedTitle="접근 권한이 없습니다"

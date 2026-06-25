@@ -170,7 +170,7 @@ function AdminFinanceHome() {
             <div style={FINANCE_CONTAINER_STYLE}>
                 <FinancePageHeader
                     eyebrow="TEYEON · FINANCE"
-                    title="클럽 재무"
+                    title="TEYEON 재무"
                     subtitle="회비·납부 관리"
                 />
 
