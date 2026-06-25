@@ -554,6 +554,9 @@ export default function Home() {
               unit="명"
               label="활동 회원"
               divider="right"
+              href="/members"
+              ariaLabel={`TEYEON 멤버 ${activeMemberCount}명 보기`}
+              hint
             />
             <StatCell
               icon={<Trophy size={14} strokeWidth={1.8} />}
@@ -766,6 +769,8 @@ function StatCell({
   divider,
   valueIsText,
   href,
+  ariaLabel,
+  hint,
 }: {
   icon: React.ReactNode;
   value: string;
@@ -773,8 +778,12 @@ function StatCell({
   label: string;
   divider?: 'right';
   valueIsText?: boolean;
-  /** 있을 경우 셀 전체가 해당 라우트로 이동. 다음 일정 선정 시 사용. */
+  /** 있을 경우 셀 전체가 해당 라우트로 이동. 다음 일정 / 멤버 요약 셀에서 사용. */
   href?: string;
+  /** href 링크의 접근성 라벨(스크린리더용). */
+  ariaLabel?: string;
+  /** 클릭 가능 보조 표시 — label 뒤 작은 chevron + hover 시 미세 상승. */
+  hint?: boolean;
 }) {
   const cellInner = (
     <>
@@ -826,9 +835,15 @@ function StatCell({
           color: '#94A3B8',
           letterSpacing: '-0.01em',
           whiteSpace: 'nowrap',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 2,
         }}
       >
         {label}
+        {hint && (
+          <ChevronRight size={10} strokeWidth={2.4} style={{ color: '#CBD5E1', flexShrink: 0 }} />
+        )}
       </span>
     </>
   );
@@ -851,7 +866,12 @@ function StatCell({
 
   if (href) {
     return (
-      <Link href={href} style={baseStyle} className="active:scale-[0.98]">
+      <Link
+        href={href}
+        aria-label={ariaLabel}
+        style={baseStyle}
+        className={`transition-transform active:scale-[0.98]${hint ? ' hover:-translate-y-px' : ''}`}
+      >
         {cellInner}
       </Link>
     );
