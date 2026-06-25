@@ -564,6 +564,9 @@ export default function Home() {
               unit="회"
               label="누적 KDK"
               divider="right"
+              href="/archive"
+              ariaLabel={`TEYEON 누적 KDK ${totalKdkCount}회 공식 기록 보기`}
+              hint
             />
             <StatCell
               icon={<MapPin size={14} strokeWidth={1.8} />}
