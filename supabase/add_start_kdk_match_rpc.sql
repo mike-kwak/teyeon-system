@@ -21,7 +21,12 @@
 --   성공: { ok:true,  reason:'started', match_id, session_id, court }
 --   실패: { ok:false, reason:'not_found' | 'not_waiting' | 'already_changed'
 --                            | 'player_busy' | 'invalid_session'
---                            | 'group_courts_full' (+group) | 'group_court_config_missing' }
+--                            | 'group_courts_full' (+group) | 'group_court_config_missing'
+--                            | 'court_conflict' }
+-- 코트 중복 하드 방어:
+--   partial unique index `matches_playing_court_uniq` 가 (club_id, session_id, court) playing
+--   유일성을 DB 에서 강제한다(별도 파일: supabase/add_matches_playing_court_unique_index.sql).
+--   이 RPC 는 그 위반(23505)을 court_conflict 로 변환해 안전 반환한다.
 -- =========================================================================
 
 create or replace function public.start_kdk_match(
@@ -178,11 +183,19 @@ begin
   end if;
 
   -- 7) 원자적 update — waiting 전제. row_count = 1 일 때만 성공.
-  update public.matches
-     set status = 'playing', court = v_court
-   where id::text = p_match_id and club_id = p_club_id
-     and session_id = v_session_id and status = 'waiting';
-  get diagnostics v_rows = row_count;
+  --    partial unique index(matches_playing_court_uniq) 가 코트 중복의 최종 방어선이다.
+  --    advisory lock 을 우회한 동시 배정 등으로 같은 club/session/court 에 playing 이 겹치면
+  --    23505(unique_violation) → court_conflict 로 안전 반환한다. (다른 오류는 그대로 전파)
+  begin
+    update public.matches
+       set status = 'playing', court = v_court
+     where id::text = p_match_id and club_id = p_club_id
+       and session_id = v_session_id and status = 'waiting';
+    get diagnostics v_rows = row_count;
+  exception
+    when unique_violation then
+      return jsonb_build_object('ok', false, 'reason', 'court_conflict');
+  end;
 
   if v_rows = 0 then
     return jsonb_build_object('ok', false, 'reason', 'already_changed');
@@ -201,20 +214,8 @@ grant execute on function public.start_kdk_match(text, text) to authenticated, s
 
 
 -- =========================================================================
--- [선택·후속] 코트 중복 DB 하드 방어 — partial unique index
+-- [후속] 코트 중복 DB 하드 방어 — partial unique index
 -- =========================================================================
--- advisory lock 은 이 RPC 경로의 동시 투입만 직렬화한다. 다른 직접 update 경로가
--- 남아 있거나 과거 데이터에 중복이 있으면 코트가 겹칠 수 있으므로, 아래 index 로
--- DB 차원에서 (club_id, session_id, court) playing 유일성을 강제할 수 있다.
---
--- ⚠️ 바로 실행하지 말 것. 먼저 아래로 현재 중복 여부를 확인한다(중복 있으면 생성 실패):
---   select club_id, session_id, court, count(*)
---     from public.matches
---    where status = 'playing' and court is not null
---    group by club_id, session_id, court
---   having count(*) > 1;
--- 위 결과가 0행일 때만 아래를 실행. (기존 중복 데이터는 임의 삭제/수정하지 말고 먼저 보고)
---
--- create unique index if not exists matches_playing_court_uniq
---   on public.matches (club_id, session_id, court)
---   where status = 'playing' and court is not null;
+-- 이 RPC 의 23505 → court_conflict 처리와 짝을 이루는 index 는 별도 파일로 분리했다:
+--   supabase/add_matches_playing_court_unique_index.sql
+-- (중복 검사 → 0행 확인 → index 생성 순서가 그 파일에 정리돼 있음. 이 파일에는 중복 생성하지 않음.)

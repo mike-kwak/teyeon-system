@@ -2271,6 +2271,11 @@ export default function KDKPage() {
                         // 조별 전용 코트가 켜져 있는데 이 경기 조의 코트 설정을 찾지 못함.
                         alert('이 경기의 조별 코트 설정을 확인해주세요.');
                         break;
+                    case 'court_conflict':
+                        // partial unique index(matches_playing_court_uniq) 최종 방어 — 같은 코트에
+                        //   다른 경기가 먼저 배정됨(23505). optimistic 없이 최신 상태로 갱신.
+                        alert('다른 경기가 먼저 해당 코트에 배정되었습니다. 최신 상태로 갱신합니다.');
+                        break;
                     default: // not_waiting / already_changed / invalid_session
                         alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
                         break;
