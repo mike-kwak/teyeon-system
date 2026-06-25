@@ -556,7 +556,9 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const isPublicPath =
       pathname?.startsWith('/guest/pass/') ||
       pathname === '/club' ||
-      pathname?.startsWith('/club/');
+      pathname?.startsWith('/club/') ||
+      // 재무 공개 공지(월회비·KDK 벌금/상금) — 로그인 없이 읽기 전용 접근 허용.
+      pathname?.startsWith('/finance/public/');
 
     const handleSearch = async () => {
         if (!inputValue || inputValue.length < 2) return;

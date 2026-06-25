@@ -109,7 +109,9 @@ begin
     'publicNote',    v.public_note,
     'stats',    coalesce(v.snapshot_data -> 'stats', '{}'::jsonb),
     'members',  coalesce(v.snapshot_data -> 'members', '[]'::jsonb),
-    'excluded', coalesce(v.snapshot_data -> 'excluded', '[]'::jsonb)
+    'excluded', coalesce(v.snapshot_data -> 'excluded', '[]'::jsonb),
+    -- 입금 계좌 스냅샷(공개 안전 필드). 구버전 공지엔 없을 수 있어 null 허용.
+    'paymentAccount', coalesce(v.snapshot_data -> 'paymentAccount', 'null'::jsonb)
   );
 end;
 $$;

@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { summarizeReceivable } from './calculatePaymentStatus';
 import { isMonthlyFeeTargetMember, type FinanceMember } from './duesService';
 import { isMemberOnLeaveAtMonth } from './leavesService';
+import { FINANCE_PAYMENT_ACCOUNT, type FinancePaymentAccountSnapshot } from './paymentAccount';
 import type { FinanceDuesPayment, FinanceDuesReceivable, FinanceMemberLeave } from '@/types/finance';
 
 const TBL = 'finance_public_notices';
@@ -71,6 +72,8 @@ export interface PublicNoticeView {
     stats: NoticeStats;
     members: NoticeSnapshotMember[];
     excluded: NoticeExcludedMember[];
+    /** 생성 시점 입금 계좌 스냅샷. 구버전 공지엔 없을 수 있어 optional. */
+    paymentAccount?: FinancePaymentAccountSnapshot | null;
 }
 
 // ── 이름 표시 ────────────────────────────────────────────────────────────────
@@ -264,6 +267,8 @@ export interface CreateNoticeInput {
     members: NoticeSnapshotMember[];
     excluded: NoticeExcludedMember[];
     stats: NoticeStats;
+    /** 미지정 시 현재 공용 계좌(FINANCE_PAYMENT_ACCOUNT)를 포함. null 로 명시하면 제외. */
+    paymentAccount?: FinancePaymentAccountSnapshot | null;
 }
 
 export async function createPublicNotice(input: CreateNoticeInput): Promise<FinancePublicNotice> {
@@ -289,8 +294,13 @@ export async function createPublicNotice(input: CreateNoticeInput): Promise<Fina
             partial_count: input.stats.partialCount,
             unpaid_count: input.stats.unpaidCount,
             total_unpaid_amount: input.stats.totalRemaining,
-            // 공개 필드 최소화: 실명 + 항목 + 금액 + 상태 + 사유 + 집계만. (member_id/연락처/메모 없음)
-            snapshot_data: { stats: input.stats, members: input.members, excluded: input.excluded },
+            // 공개 필드 최소화: 실명 + 항목 + 금액 + 상태 + 사유 + 집계 + 입금 계좌. (member_id/연락처/메모 없음)
+            snapshot_data: {
+                stats: input.stats,
+                members: input.members,
+                excluded: input.excluded,
+                paymentAccount: input.paymentAccount === undefined ? FINANCE_PAYMENT_ACCOUNT : input.paymentAccount,
+            },
             is_active: true,
             created_by: createdBy,
         })
@@ -353,16 +363,27 @@ export function publicNoticeUrl(token: string): string {
     return `${origin}/finance/public/${token}`;
 }
 
-/** 카카오톡 단체방 안내문(기준일 포함). */
-export function buildKakaoNoticeText(opts: { referenceDate: string; url: string }): string {
+/** 카카오톡 단체방 안내문(기준일 + 입금 계좌 포함). */
+export function buildKakaoNoticeText(opts: {
+    referenceDate: string;
+    url: string;
+    paymentAccount?: FinancePaymentAccountSnapshot | null;
+}): string {
     const ref = formatReferenceDot(opts.referenceDate);
-    return [
+    const lines = [
         '[TEYEON 회비 납부 현황]',
         '',
         `${ref} 기준 회비 납부 현황을 안내드립니다.`,
-        '',
-        '아래 링크에서 본인의 납부 완료 여부와 남은 금액을 확인해 주세요.',
-        '',
-        opts.url,
-    ].join('\n');
+    ];
+    if (opts.paymentAccount) {
+        lines.push('');
+        lines.push('입금 계좌');
+        lines.push(`${opts.paymentAccount.bankName} ${opts.paymentAccount.accountNumberDisplay}`);
+        lines.push(`예금주 ${opts.paymentAccount.accountHolder}`);
+    }
+    lines.push('');
+    lines.push('아래 링크에서 본인의 납부 완료 여부와 남은 금액을 확인해 주세요.');
+    lines.push('');
+    lines.push(opts.url);
+    return lines.join('\n');
 }

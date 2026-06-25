@@ -7,6 +7,7 @@ import {
     type PublicNoticeView,
     type NoticeMemberStatus,
 } from '@/lib/finance/noticesService';
+import PaymentAccountCard from '@/components/finance/PaymentAccountCard';
 
 /**
  * 회원 공지용 회비 납부 현황 공개 화면(읽기 전용, 로그인 불필요).
@@ -74,6 +75,11 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                     }}>
                         {notice.publicNote}
                     </p>
+                )}
+
+                {/* 입금 계좌 */}
+                {notice.paymentAccount && (
+                    <PaymentAccountCard account={notice.paymentAccount} label="회비 입금 계좌" />
                 )}
 
                 {/* 회원별 납부 현황 표 */}

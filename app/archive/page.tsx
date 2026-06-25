@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin } from 'lucide-react';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import ArchiveResultShare, { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
+import KdkFinancePenaltyModal from '@/components/archive/KdkFinancePenaltyModal';
+import { canManageFinance } from '@/lib/finance/getFinancePermissions';
+import { fetchAllMembers, type FinanceMember } from '@/lib/finance/duesService';
+import { buildKdkPenaltyPreview, fetchExistingKdkPenalties } from '@/lib/finance/kdkPenaltyService';
 
 /**
  * ArchivePage (v1.15.1): ABSOLUTE PRECISION & MUTED ELEGANCE
@@ -73,7 +78,13 @@ export default function ArchivePage() {
   const CEO_EMAIL = process.env.NEXT_PUBLIC_CEO_EMAIL || 'cws786@nate.com';
   const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',');
   const isAdmin = (userEmail && (userEmail === CEO_EMAIL || ADMIN_EMAILS.includes(userEmail))) || role === 'ADMIN' || role === 'CEO';
-  
+  // Finance 벌금 등록 권한: CEO / ADMIN / FINANCE_MANAGER 만. 일반 회원에게는 노출되지 않는다.
+  const canRegisterFinancePenalty = canManageFinance(role);
+
+  // Finance 벌금 등록 모달 + 세션별 등록 상태(등록 완료 / 일부 등록) 뱃지.
+  const [showFinancePenaltyModal, setShowFinancePenaltyModal] = useState(false);
+  const [penaltyStatus, setPenaltyStatus] = useState<{ registered: number; linkable: number } | null>(null);
+
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
@@ -371,6 +382,31 @@ export default function ArchivePage() {
   }, [filteredRecords]);
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
+
+  // 선택된 공식·비테스트 세션의 Finance 벌금 등록 현황을 조회 — 상세 화면의 등록 상태 뱃지용.
+  const loadPenaltyStatus = React.useCallback(async () => {
+    const s = selectedSession;
+    if (!canRegisterFinancePenalty || !s?.id || !s.is_official || s.is_test) {
+      setPenaltyStatus(null);
+      return;
+    }
+    const settlement = Array.isArray(s.settlementData) ? s.settlementData : [];
+    if (settlement.length === 0) { setPenaltyStatus(null); return; }
+    try {
+      const [members, existing] = await Promise.all([
+        fetchAllMembers(),
+        fetchExistingKdkPenalties(s.id),
+      ]);
+      const rows = buildKdkPenaltyPreview(settlement, members as FinanceMember[], existing);
+      const linkable = rows.filter(r => r.status !== 'needs_link').length;
+      const registered = rows.filter(r => r.status === 'registered').length;
+      setPenaltyStatus({ registered, linkable });
+    } catch {
+      setPenaltyStatus(null);
+    }
+  }, [selectedSession, canRegisterFinancePenalty]);
+
+  React.useEffect(() => { loadPenaltyStatus(); }, [loadPenaltyStatus]);
 
   const buildArchiveRankingResults = (session: any) => {
     const savedRanking = Array.isArray(session?.rankingData) ? session.rankingData : [];
@@ -1136,6 +1172,61 @@ export default function ArchivePage() {
           </section>
         )}
 
+        {/* FINANCE 벌금 등록 — CEO / ADMIN / FINANCE_MANAGER 전용. 일반 회원 미노출. */}
+        {canRegisterFinancePenalty && !session.isLocal && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                disabled={!(session.is_official && !session.is_test)}
+                onClick={() => setShowFinancePenaltyModal(true)}
+                style={{
+                  padding: '9px 16px', borderRadius: 999, border: 'none',
+                  fontSize: 11.5, fontWeight: 900,
+                  cursor: session.is_official && !session.is_test ? 'pointer' : 'not-allowed',
+                  background: session.is_official && !session.is_test
+                    ? 'linear-gradient(90deg, #0F9F98 0%, #16A085 100%)'
+                    : '#E2E8F0',
+                  color: session.is_official && !session.is_test ? '#FFFFFF' : '#94A3B8',
+                  boxShadow: session.is_official && !session.is_test ? '0 6px 14px rgba(15,159,152,0.22)' : 'none',
+                }}
+              >
+                Finance 벌금 등록
+              </button>
+              {session.is_official && !session.is_test && (
+                <Link
+                  href={`/finance/kdk/${encodeURIComponent(session.id)}`}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    padding: '9px 16px', borderRadius: 999,
+                    background: '#FFFFFF', border: '1px solid #0F9F98',
+                    color: '#0E7C76', fontSize: 11.5, fontWeight: 900,
+                    textDecoration: 'none',
+                  }}
+                >
+                  벌금·상금 정산 관리
+                </Link>
+              )}
+              {session.is_official && !session.is_test && penaltyStatus && penaltyStatus.registered > 0 && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', padding: '5px 11px', borderRadius: 999,
+                  background: penaltyStatus.registered >= penaltyStatus.linkable ? '#E0F5EB' : '#FFF4DE',
+                  border: `1px solid ${penaltyStatus.registered >= penaltyStatus.linkable ? '#B6E2CB' : '#F4C979'}`,
+                  color: penaltyStatus.registered >= penaltyStatus.linkable ? '#16A085' : '#B7791F',
+                  fontSize: 11, fontWeight: 900,
+                }}>
+                  {penaltyStatus.registered >= penaltyStatus.linkable ? 'Finance 등록 완료' : '일부 등록'}
+                </span>
+              )}
+            </div>
+            {!(session.is_official && !session.is_test) && (
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#B7791F', wordBreak: 'keep-all' }}>
+                공식 기록으로 확정된 KDK만 Finance에 반영할 수 있습니다.
+              </p>
+            )}
+          </section>
+        )}
+
         {/* TOP 3 HIGHLIGHT */}
         {top3.length > 0 && (
           <section
@@ -1431,6 +1522,25 @@ export default function ArchivePage() {
           matches={shareMatches}
           hasGroupSplit={hasGroupSplit}
         />
+
+        {/* FINANCE 벌금 등록 모달 — 운영진 전용. */}
+        {showFinancePenaltyModal && canRegisterFinancePenalty && (
+          <KdkFinancePenaltyModal
+            session={{
+              id: session.id,
+              title: session.title,
+              date: session.date,
+              venue: getSessionVenue(session) || null,
+              is_official: !!session.is_official,
+              is_test: !!session.is_test,
+              participantCount: session.participantCount,
+              settlementData: Array.isArray(session.settlementData) ? session.settlementData : [],
+            }}
+            createdBy={user?.id || null}
+            onClose={() => setShowFinancePenaltyModal(false)}
+            onRegistered={loadPenaltyStatus}
+          />
+        )}
       </>
     );
   }

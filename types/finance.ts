@@ -76,6 +76,8 @@ export interface FinanceDuesReceivable {
     memo: string | null;
     /** 운영진 전용 메모. RLS + RPC 양쪽에서 회원 응답 제외. 회원 자료엔 undefined. */
     admin_memo?: string | null;
+    /** KDK 공식 기록에서 자동 생성된 벌금일 때 출처 세션 id(teyeon_archive_v1.id). 수동 등록은 null. */
+    related_kdk_session_id?: string | null;
     created_by: string | null;
     created_at: string;
     updated_at: string;

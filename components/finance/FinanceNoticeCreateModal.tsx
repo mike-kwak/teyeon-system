@@ -12,6 +12,7 @@ import {
     todayISO,
     type FinancePublicNotice,
 } from '@/lib/finance/noticesService';
+import { FINANCE_PAYMENT_ACCOUNT } from '@/lib/finance/paymentAccount';
 import type { FinanceMember } from '@/lib/finance/duesService';
 import type { FinanceDuesPayment, FinanceDuesReceivable, FinanceMemberLeave } from '@/types/finance';
 
@@ -90,7 +91,7 @@ export default function FinanceNoticeCreateModal({
     };
 
     const url = created ? publicNoticeUrl(created.token) : '';
-    const kakao = created ? buildKakaoNoticeText({ referenceDate: created.reference_date, url }) : '';
+    const kakao = created ? buildKakaoNoticeText({ referenceDate: created.reference_date, url, paymentAccount: FINANCE_PAYMENT_ACCOUNT }) : '';
 
     return (
         <div
@@ -187,6 +188,9 @@ export default function FinanceNoticeCreateModal({
                                 </p>
                                 <p style={{ margin: '8px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5 }}>
                                     생성 시점 기준으로 고정 저장됩니다. 이후 납부 데이터가 바뀌어도 이 링크 내용은 변경되지 않습니다. 링크는 비활성화로 관리합니다(만료일 없음).
+                                </p>
+                                <p style={{ margin: '6px 0 0', fontSize: 10.5, fontWeight: 800, color: '#0E7C76', lineHeight: 1.5 }}>
+                                    공지에 카카오뱅크 입금 계좌가 포함됩니다.
                                 </p>
                             </div>
 
