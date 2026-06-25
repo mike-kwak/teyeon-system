@@ -241,6 +241,13 @@ export default function KDKPage() {
     const [linkedScheduleId, setLinkedScheduleId] = useState<string | null>(null);
     const [linkSaving, setLinkSaving] = useState(false);
 
+    // 조별 전용 코트 운영(세션 관리 모달). kdk_session_meta.group_courts 래핑형 jsonb 와 1:1.
+    //   enabled=false 또는 빈 groups → 전체 코트 자동 배정(기존 동작). 저장은 별도 버튼.
+    type GroupCourtsState = { enabled: boolean; groups: Record<string, number[]> };
+    const [groupCourts, setGroupCourts] = useState<GroupCourtsState>({ enabled: false, groups: {} });
+    const [groupCourtsSaving, setGroupCourtsSaving] = useState(false);
+    const [groupCourtsSaveOk, setGroupCourtsSaveOk] = useState(false);
+
     // [v16.0] Real-time participation tracker
     const busyPlayerIds = useMemo(() => {
         const playing = matches.filter(m => m.status === 'playing');
@@ -258,17 +265,32 @@ export default function KDKPage() {
         return `/kdk/display?session=${encodeURIComponent(targetSessionId)}`;
     };
 
+    // DB jsonb(group_courts) → 안전한 GroupCourtsState. 잘못된 형태는 비활성으로 해석.
+    const normalizeGroupCourts = (raw: any): GroupCourtsState => {
+        if (!raw || typeof raw !== 'object') return { enabled: false, groups: {} };
+        const groupsRaw = (raw.groups && typeof raw.groups === 'object') ? raw.groups : {};
+        const groups: Record<string, number[]> = {};
+        for (const key of Object.keys(groupsRaw)) {
+            const arr = Array.isArray(groupsRaw[key]) ? groupsRaw[key] : [];
+            const courts = Array.from(new Set(
+                arr.map((n: any) => Math.trunc(Number(n))).filter((n: number) => Number.isInteger(n) && n > 0)
+            )).sort((a, b) => a - b);
+            groups[key] = courts;
+        }
+        return { enabled: raw.enabled === true, groups };
+    };
+
     const loadTickerMsg = async (sid: string) => {
         if (!sid) return;
-        // ticker_message + club_schedule_id 동시 로드. club_schedule_id 컬럼 미적용 환경
+        // ticker_message + club_schedule_id + group_courts 동시 로드. 컬럼 미적용 환경
         // (마이그레이션 전) 대비 fallback.
         let row: any = null;
         const { data, error } = await supabase
             .from('kdk_session_meta')
-            .select('ticker_message, club_schedule_id')
+            .select('ticker_message, club_schedule_id, group_courts')
             .eq('session_id', sid)
             .maybeSingle();
-        if (error && /club_schedule_id/i.test(`${error.message || ''} ${error.details || ''}`)) {
+        if (error && /club_schedule_id|group_courts/i.test(`${error.message || ''} ${error.details || ''}`)) {
             const fb = await supabase
                 .from('kdk_session_meta')
                 .select('ticker_message')
@@ -280,6 +302,7 @@ export default function KDKPage() {
         }
         setTickerMsg(row?.ticker_message ?? '');
         setLinkedScheduleId(row?.club_schedule_id ?? null);
+        setGroupCourts(normalizeGroupCourts(row?.group_courts));
     };
 
     // 가까운 일정 목록 로드 (KDK ↔ 정모 연결용). 최초 마운트 1회 + 세션 변경 시 갱신.
@@ -382,6 +405,89 @@ export default function KDKPage() {
             // silent
         } finally {
             setTickerSaving(false);
+        }
+    };
+
+    // 조별 전용 코트 토글 — 빈 groups 로 켜면 A/B 기본 칸 노출. 저장은 별도 버튼에서.
+    const toggleGroupCourtsEnabled = (next: boolean) => {
+        setGroupCourts(prev => {
+            if (!next) return { ...prev, enabled: false };
+            // 켤 때 groups 가 비어 있으면 A/B 빈 배열을 만들어 UI 가 두 조를 노출하게 한다.
+            const groups = (prev.groups && Object.keys(prev.groups).length > 0)
+                ? prev.groups
+                : { A: [], B: [] };
+            return { enabled: true, groups };
+        });
+    };
+
+    // 특정 조의 코트 번호 토글(선택/해제).
+    const toggleGroupCourt = (group: string, court: number) => {
+        setGroupCourts(prev => {
+            const cur = prev.groups[group] || [];
+            const exists = cur.includes(court);
+            const nextArr = exists ? cur.filter(c => c !== court) : [...cur, court].sort((a, b) => a - b);
+            return { ...prev, groups: { ...prev.groups, [group]: nextArr } };
+        });
+    };
+
+    // 조별 코트 설정 저장 — 입력 검증 후 kdk_session_meta.group_courts upsert.
+    //   변경은 다음 신규 투입부터 적용(진행 중 경기 코트는 건드리지 않음).
+    const saveGroupCourts = async () => {
+        if (!activeSessionId) return;
+        // 검증: 활성 상태에서는 각 조에 최소 1개 코트, 조 간 코트 중복 금지(1차 정책).
+        if (groupCourts.enabled) {
+            const activeGroups = Object.keys(groupCourts.groups);
+            for (const g of activeGroups) {
+                if ((groupCourts.groups[g] || []).length === 0) {
+                    alert(`${g}조에 사용할 코트를 1개 이상 선택해주세요.`);
+                    return;
+                }
+            }
+            const seen = new Map<number, string>();
+            for (const g of activeGroups) {
+                for (const c of (groupCourts.groups[g] || [])) {
+                    if (seen.has(c)) {
+                        alert('같은 코트를 여러 조에 중복 지정할 수 없습니다.');
+                        return;
+                    }
+                    seen.set(c, g);
+                }
+            }
+        }
+        setGroupCourtsSaving(true);
+        try {
+            // 저장 payload — 코트 번호는 정수/양수/조 내 중복 제거 후 정렬(normalize 와 동일 규칙).
+            const cleanGroups: Record<string, number[]> = {};
+            for (const g of Object.keys(groupCourts.groups)) {
+                cleanGroups[g] = Array.from(new Set(
+                    (groupCourts.groups[g] || [])
+                        .map(n => Math.trunc(Number(n)))
+                        .filter(n => Number.isInteger(n) && n > 0)
+                )).sort((a, b) => a - b);
+            }
+            const payload = { enabled: groupCourts.enabled, groups: cleanGroups };
+            const { error } = await supabase
+                .from('kdk_session_meta')
+                .upsert(
+                    { session_id: activeSessionId, club_id: clubId, group_courts: payload, updated_at: new Date().toISOString() },
+                    { onConflict: 'session_id' }
+                );
+            if (error) {
+                const msg = `${error.message || ''} ${error.details || ''}`;
+                if (/group_courts/i.test(msg)) {
+                    alert('조별 코트 컬럼이 운영 DB에 아직 없습니다. supabase/add_kdk_group_courts.sql 을 적용해 주세요.');
+                } else {
+                    throw error;
+                }
+                return;
+            }
+            setGroupCourts({ enabled: payload.enabled, groups: payload.groups });
+            setGroupCourtsSaveOk(true);
+            setTimeout(() => setGroupCourtsSaveOk(false), 2000);
+        } catch (e: any) {
+            alert(e?.message || '조별 코트 설정 저장에 실패했습니다.');
+        } finally {
+            setGroupCourtsSaving(false);
         }
     };
 
@@ -2148,7 +2254,7 @@ export default function KDKPage() {
                 return;
             }
 
-            const result = (data || {}) as { ok?: boolean; reason?: string; court?: number };
+            const result = (data || {}) as { ok?: boolean; reason?: string; court?: number; group?: string };
             if (!result.ok) {
                 switch (result.reason) {
                     case 'player_busy':
@@ -2156,6 +2262,14 @@ export default function KDKPage() {
                         break;
                     case 'not_found':
                         alert('경기 정보를 찾을 수 없습니다. 최신 상태로 갱신합니다.');
+                        break;
+                    case 'group_courts_full':
+                        // 해당 조 전용 코트가 모두 진행 중 — 다른 조 빈 코트로 우회하지 않음.
+                        alert(`${result.group || ''}조 사용 코트가 모두 진행 중입니다.`);
+                        break;
+                    case 'group_court_config_missing':
+                        // 조별 전용 코트가 켜져 있는데 이 경기 조의 코트 설정을 찾지 못함.
+                        alert('이 경기의 조별 코트 설정을 확인해주세요.');
                         break;
                     default: // not_waiting / already_changed / invalid_session
                         alert('다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
@@ -5327,140 +5441,14 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     </span>
                 </div>
 
-                {/* ROW 4: TICKER input + SAVE (admin only) — label aligned with RULES (≈ 10px in) */}
-                {isAdmin && kdkEntryMode === 'LIVE' && (
-                    <div
-                        style={{
-                            marginTop: 4,
-                            marginBottom: 14,
-                            paddingTop: 10,
-                            paddingLeft: 10,
-                            paddingRight: 4,
-                            borderTop: '1px dashed #E1EAF5',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                        }}
-                    >
-                        <span
-                            style={{
-                                flexShrink: 0,
-                                display: 'inline-block',
-                                minWidth: 44,
-                                fontSize: 10,
-                                fontWeight: 900,
-                                color: '#1F5FB5',
-                                letterSpacing: '0.18em',
-                                textTransform: 'uppercase',
-                            }}
-                        >
-                            TICKER
-                        </span>
-                        <input
-                            type="text"
-                            value={tickerMsg}
-                            onChange={(e) => setTickerMsg(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') saveTickerMsg(); }}
-                            maxLength={120}
-                            placeholder="전광판 티커 메시지 입력..."
-                            style={{
-                                minWidth: 0, flex: 1, height: 34,
-                                borderRadius: 10, border: '1px solid #DCE8F5',
-                                background: '#F8FBFE',
-                                padding: '0 12px',
-                                fontSize: 12, fontWeight: 700,
-                                color: '#0F2747',
-                                outline: 'none',
-                            }}
-                        />
-                        <button
-                            type="button"
-                            onClick={saveTickerMsg}
-                            disabled={tickerSaving || !activeSessionId}
-                            className="shrink-0 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                            style={{
-                                height: 34, padding: '0 14px', borderRadius: 999,
-                                fontSize: 11, fontWeight: 900,
-                                letterSpacing: '0.04em',
-                                background: tickerSaveOk ? '#E0F5EB' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
-                                border: tickerSaveOk ? '1px solid #B6E2CB' : 'none',
-                                color: tickerSaveOk ? '#16A085' : '#FFFFFF',
-                                boxShadow: tickerSaveOk ? 'none' : '0 6px 14px rgba(37,99,235,0.22)',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {tickerSaveOk ? '저장됨' : tickerSaving ? '···' : '저장'}
-                        </button>
-                    </div>
-                )}
-
-                {/* KDK 세션 → TEYEON 정모 연결 (Guest Pass 자동 전환에 사용) */}
-                {isAdmin && kdkEntryMode === 'LIVE' && activeSessionId && (
-                    <div
-                        style={{
-                            marginTop: 0,
-                            paddingTop: 12,
-                            paddingLeft: 10,
-                            paddingRight: 4,
-                            borderTop: '1px solid #EAF1F9',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                        }}
-                    >
-                        <span
-                            style={{
-                                flexShrink: 0,
-                                display: 'inline-block',
-                                minWidth: 52,
-                                fontSize: 10,
-                                fontWeight: 900,
-                                color: '#1F5FB5',
-                                letterSpacing: '0.04em',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            정모 연결
-                        </span>
-                        <select
-                            value={linkedScheduleId ?? ''}
-                            onChange={(e) => saveLinkedSchedule(e.target.value || null)}
-                            disabled={linkSaving}
-                            style={{
-                                minWidth: 0, flex: 1, height: 34,
-                                borderRadius: 10, border: '1px solid #DCE8F5',
-                                background: '#F8FBFE',
-                                padding: '0 10px',
-                                fontSize: 12, fontWeight: 700,
-                                color: '#0F2747',
-                                outline: 'none',
-                            }}
-                        >
-                            <option value="">연결 안 함</option>
-                            {upcomingSchedules.map((cs) => (
-                                <option key={cs.id} value={cs.id}>
-                                    {cs.schedule_date.slice(5)} · {cs.title}
-                                </option>
-                            ))}
-                        </select>
-                        <span
-                            style={{
-                                flexShrink: 0,
-                                fontSize: 9.5, fontWeight: 700, color: '#94A3B8',
-                                letterSpacing: '0.02em',
-                            }}
-                        >
-                            {linkSaving ? '저장 중' : linkedScheduleId ? '연결됨' : '미연결'}
-                        </span>
-                    </div>
-                )}
+                {/* 운영성 입력(TICKER · 정모 연결)은 상단에서 제거하고 [세션 관리] 모달의
+                    "운영 설정" 영역으로 이동했다. 상단은 운영 정보 요약(WIN/PEN/GUEST/RULES)만 노출. */}
             </header>
 
             <div className="flex-1 space-y-0 overflow-y-auto px-3 antialiased no-scrollbar sm:px-4" style={{ background: '#F4F8FC', paddingBottom: 'calc(var(--page-bottom-safe) + 100px)' }}>
                 {activeTab === 'MATCHES' && (
                     <>
-                        {/* 정모 연결 영역 ↔ NOW PLAYING 사이 명확한 여백(한쪽에만 적용해 중복 마진 방지). */}
+                        {/* 헤더(RULES 요약) ↔ NOW PLAYING 사이 명확한 여백(한쪽에만 적용해 중복 마진 방지). */}
                         <section className="h-auto" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
                                 <div className="flex items-center gap-3 ml-2">
@@ -5773,6 +5761,15 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     : matches.length > 0
                         ? { bg: '#EEF6FF', color: '#1F5FB5', border: '#C7DCF1' }   // 대기 — blue
                         : { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' };  // 없음 — gray
+                // 조별 코트 버튼 범위: totalCourts 가 99(무제한 개념)면 실제 운영 기준으로 환산.
+                //   실제 사용 중 최대 코트 / 이미 선택된 코트 / 작은 totalCourts 를 반영, 4~12 범위로 클램프.
+                const usedMaxCourt = matches.reduce((mx, m) => Math.max(mx, m.court || 0), 0);
+                const selectedMaxCourt = Object.values(groupCourts.groups || {}).reduce(
+                    (mx, arr) => Math.max(mx, ...(arr.length ? arr : [0])), 0
+                );
+                const realTotalCourts = totalCourts > 0 && totalCourts <= 12 ? totalCourts : 0;
+                const courtButtonCount = Math.min(12, Math.max(4, usedMaxCourt, selectedMaxCourt, realTotalCourts));
+                const courtButtons = Array.from({ length: courtButtonCount }, (_, i) => i + 1);
                 return (
                 <div
                     onClick={() => setShowMemberEditModal(false)}
@@ -5789,17 +5786,20 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <div
                         onClick={(e) => e.stopPropagation()}
                         style={{
+                            // 카드는 스크롤하지 않고(overflow hidden), 내부 본문(modal-scroll-body)만 스크롤한다.
+                            //   flex column 으로 헤더 고정 + 본문 flex:1 → 하단 BottomNav 에 가리지 않게 본문 끝까지 스크롤 가능.
+                            display: 'flex', flexDirection: 'column',
                             width: '100%', maxWidth: 520,
-                            maxHeight: 'calc(100dvh - 32px)',
-                            overflowY: 'auto', overflowX: 'hidden',
+                            maxHeight: 'calc(100dvh - 24px)',
+                            overflow: 'hidden',
                             background: '#FFFFFF', borderRadius: 24,
                             border: '1px solid #DCE8F5',
                             boxShadow: '0 28px 80px rgba(15,45,85,0.22)',
                             boxSizing: 'border-box',
                         }}
                     >
-                        {/* Header */}
-                        <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid #EAF1F9' }}>
+                        {/* Header — 고정(스크롤 안 함) */}
+                        <div style={{ flexShrink: 0, padding: '18px 18px 14px', borderBottom: '1px solid #EAF1F9' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                                 <div style={{ minWidth: 0 }}>
                                     <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>Live Management</p>
@@ -5822,8 +5822,15 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             </div>
                         </div>
 
-                        {/* Body */}
-                        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {/* Body — 실제 스크롤 영역(modal-scroll-body). 하단 BottomNav(약 96px)+safe-area 만큼
+                            paddingBottom 확보해 Danger Zone 삭제 버튼 아래까지 완전히 스크롤되게 한다. */}
+                        <div style={{
+                            flex: 1, minHeight: 0,
+                            overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+                            display: 'flex', flexDirection: 'column', gap: 14,
+                            padding: 16,
+                            paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
+                        }}>
                             {/* 세션 정보 카드 */}
                             <section style={{ borderRadius: 16, background: '#EEF6FF', border: '1px solid #C7DCF1', padding: 14 }}>
                                 <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#1F5FB5' }}>현재 세션</p>
@@ -5839,6 +5846,151 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <span style={{ fontSize: 12, fontWeight: 700, color: '#56729A' }}>참가 {playerCount}명 · {matches.length}경기</span>
                                 </div>
                             </section>
+
+                            {/* 운영 설정 — CEO/ADMIN 만. 상단 헤더에서 이동한 전광판 티커 / 정모 연결.
+                                기존 state·handler·upsert 로직을 그대로 재사용하고 위치만 모달로 옮김. */}
+                            {isAdmin && (
+                                <section style={{ borderRadius: 16, background: '#F8FBFE', border: '1px solid #E1EAF5', padding: 14 }}>
+                                    <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#1F5FB5' }}>운영 설정</p>
+
+                                    {/* 전광판 티커 */}
+                                    <div style={{ marginTop: 12 }}>
+                                        <label style={{ display: 'block', fontSize: 11.5, fontWeight: 900, color: '#3F5B82', marginBottom: 7 }}>전광판 티커</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <input
+                                                type="text"
+                                                value={tickerMsg}
+                                                onChange={(e) => setTickerMsg(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') saveTickerMsg(); }}
+                                                maxLength={120}
+                                                placeholder="전광판 티커 메시지 입력..."
+                                                style={{
+                                                    minWidth: 0, flex: 1, height: 38,
+                                                    borderRadius: 10, border: '1px solid #DCE8F5',
+                                                    background: '#FFFFFF', padding: '0 12px',
+                                                    fontSize: 12.5, fontWeight: 700, color: '#0F2747', outline: 'none',
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={saveTickerMsg}
+                                                disabled={tickerSaving || !activeSessionId}
+                                                className="shrink-0 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                                                style={{
+                                                    height: 38, padding: '0 16px', borderRadius: 999,
+                                                    fontSize: 11.5, fontWeight: 900, letterSpacing: '0.04em',
+                                                    background: tickerSaveOk ? '#E0F5EB' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                                    border: tickerSaveOk ? '1px solid #B6E2CB' : 'none',
+                                                    color: tickerSaveOk ? '#16A085' : '#FFFFFF',
+                                                    boxShadow: tickerSaveOk ? 'none' : '0 6px 14px rgba(37,99,235,0.22)',
+                                                    cursor: 'pointer', whiteSpace: 'nowrap',
+                                                }}
+                                            >
+                                                {tickerSaveOk ? '저장됨' : tickerSaving ? '···' : '저장'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 정모 연결 — 기본값 '연결 안 함'. 운영 중 변경 가능, 기존 경기 데이터에 영향 없음. */}
+                                    <div style={{ marginTop: 16 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                                            <label style={{ fontSize: 11.5, fontWeight: 900, color: '#3F5B82' }}>정모 연결</label>
+                                            <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.02em' }}>
+                                                {linkSaving ? '저장 중' : linkedScheduleId ? '연결됨' : '미연결'}
+                                            </span>
+                                        </div>
+                                        <select
+                                            value={linkedScheduleId ?? ''}
+                                            onChange={(e) => saveLinkedSchedule(e.target.value || null)}
+                                            disabled={linkSaving || !activeSessionId}
+                                            style={{
+                                                width: '100%', height: 38,
+                                                borderRadius: 10, border: '1px solid #DCE8F5',
+                                                background: '#FFFFFF', padding: '0 10px',
+                                                fontSize: 12.5, fontWeight: 700, color: '#0F2747', outline: 'none',
+                                            }}
+                                        >
+                                            <option value="">연결 안 함</option>
+                                            {upcomingSchedules.map((cs) => (
+                                                <option key={cs.id} value={cs.id}>
+                                                    {cs.schedule_date.slice(5)} · {cs.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* 조별 코트 운영 — 조마다 사용할 코트를 지정. 변경은 다음 신규 투입부터 적용. */}
+                                    <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px dashed #E1EAF5' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                                            <span style={{ fontSize: 11.5, fontWeight: 900, color: '#3F5B82' }}>조별 전용 코트 사용</span>
+                                            <input
+                                                type="checkbox"
+                                                checked={groupCourts.enabled}
+                                                onChange={(e) => toggleGroupCourtsEnabled(e.target.checked)}
+                                                style={{ width: 18, height: 18, accentColor: '#2563EB', cursor: 'pointer' }}
+                                            />
+                                        </label>
+
+                                        {groupCourts.enabled && (
+                                            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                                {['A', 'B'].map((g) => {
+                                                    const selected = groupCourts.groups[g] || [];
+                                                    return (
+                                                        <div key={g}>
+                                                            <p style={{ margin: '0 0 7px', fontSize: 11, fontWeight: 900, color: '#1F5FB5' }}>{g}조 사용 코트</p>
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                                {courtButtons.map((c) => {
+                                                                    const active = selected.includes(c);
+                                                                    return (
+                                                                        <button
+                                                                            key={`${g}-${c}`}
+                                                                            type="button"
+                                                                            onClick={() => toggleGroupCourt(g, c)}
+                                                                            style={{
+                                                                                minWidth: 44, height: 40, padding: '0 12px',
+                                                                                borderRadius: 12,
+                                                                                background: active ? '#2563EB' : '#FFFFFF',
+                                                                                border: active ? 'none' : '1px solid #DCE8F5',
+                                                                                color: active ? '#FFFFFF' : '#56729A',
+                                                                                fontSize: 14, fontWeight: 900,
+                                                                                boxShadow: active ? '0 6px 14px rgba(37,99,235,0.24)' : 'none',
+                                                                                cursor: 'pointer', transition: 'all 0.12s',
+                                                                            }}
+                                                                        >
+                                                                            {c}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        <p style={{ margin: '12px 0 0', fontSize: 10.5, fontWeight: 700, lineHeight: 1.5, color: '#94A3B8' }}>
+                                            변경된 코트 설정은 다음 경기 투입부터 적용됩니다. 진행 중인 경기 코트는 바뀌지 않습니다.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={saveGroupCourts}
+                                            disabled={groupCourtsSaving || !activeSessionId}
+                                            className="transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                                            style={{
+                                                width: '100%', height: 40, marginTop: 10, borderRadius: 12,
+                                                fontSize: 12, fontWeight: 900, letterSpacing: '0.04em',
+                                                background: groupCourtsSaveOk ? '#E0F5EB' : 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
+                                                border: groupCourtsSaveOk ? '1px solid #B6E2CB' : 'none',
+                                                color: groupCourtsSaveOk ? '#16A085' : '#FFFFFF',
+                                                boxShadow: groupCourtsSaveOk ? 'none' : '0 8px 18px rgba(37,99,235,0.2)',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            {groupCourtsSaveOk ? '저장됨' : groupCourtsSaving ? '저장 중...' : '조별 코트 설정 저장'}
+                                        </button>
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Danger Zone — CEO/ADMIN 만 */}
                             {isAdmin && (

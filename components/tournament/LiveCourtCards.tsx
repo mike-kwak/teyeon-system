@@ -26,8 +26,9 @@ const getGroupPresentation = (value?: string) => {
         label: isGroupB ? 'B조' : 'A조',
         shortLabel: isGroupB ? 'B' : 'A',
         accentColor: isGroupB ? '#C2710C' : '#2563EB',
-        softBg: isGroupB ? '#FFF4E2' : '#EEF6FF',
-        softBorder: isGroupB ? '#F3D29B' : '#C7DCF1',
+        softBg: isGroupB ? '#FFF4E2' : '#EEF6FF',       // 카드 전체 배경(soft amber / soft blue)
+        softBorder: isGroupB ? '#F2C77F' : '#B9D5F5',   // 강화된 테두리 — A/B 현장 즉시 구분
+        headerBg: isGroupB ? '#FFE8C2' : '#E5F1FF',     // 카드 배경보다 약간 진한 헤더 톤
     };
 };
 
@@ -96,7 +97,7 @@ export const PlayingMatchCard = ({
     toastMsg?: string;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
-    const { normalizedGroup, accentColor, softBg, softBorder } = groupMeta;
+    const { normalizedGroup, accentColor, softBg, softBorder, headerBg } = groupMeta;
 
     return (
         <div
@@ -104,17 +105,18 @@ export const PlayingMatchCard = ({
                 position: 'relative',
                 display: 'flex', flexDirection: 'column', height: '100%',
                 borderRadius: 18,
-                background: '#FFFFFF',
+                // 카드 전체를 조별 soft 톤으로 채워 A(blue)/B(amber)를 즉시 구분. 테두리도 강화 톤.
+                background: softBg,
                 border: `1px solid ${softBorder}`,
                 boxShadow: '0 10px 24px rgba(15,45,85,0.06)',
                 overflow: 'hidden',
             }}
         >
-            {/* SECTION HEADER BAR */}
+            {/* SECTION HEADER BAR — 카드 배경보다 약간 진한 헤더 톤 + accent 텍스트 */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '8px 12px',
-                background: softBg, borderBottom: `1px solid ${softBorder}`,
+                background: headerBg, borderBottom: `1px solid ${softBorder}`,
                 position: 'relative',
             }}>
                 <span style={{

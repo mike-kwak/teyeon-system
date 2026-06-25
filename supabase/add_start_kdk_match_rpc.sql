@@ -11,10 +11,17 @@
 -- 보안:
 --   - SECURITY DEFINER + search_path 고정 + 운영자(CEO/ADMIN) 검증 + anon revoke.
 --   - 권한 실패는 SQLSTATE 42501. (delete_kdk_live_session 과 동일 정책)
+-- 조별 전용 코트(kdk_session_meta.group_courts):
+--   - 활성(enabled=true)이면 대상 경기 group_name 을 A/B 로 정규화 후, 그 조에 지정된
+--     코트 목록 안에서만 빈 최저 코트를 배정한다(다른 조 빈 코트로 우회하지 않음).
+--   - 그 조 코트가 모두 사용 중이면 group_courts_full, 조 설정이 없으면
+--     group_court_config_missing 으로 차단한다.
+--   - 비활성/미설정({} 또는 enabled=false)이면 기존 전체 코트 자동 배정.
 -- 반환(jsonb 단일 객체):
 --   성공: { ok:true,  reason:'started', match_id, session_id, court }
 --   실패: { ok:false, reason:'not_found' | 'not_waiting' | 'already_changed'
---                            | 'player_busy' | 'invalid_session' }
+--                            | 'player_busy' | 'invalid_session'
+--                            | 'group_courts_full' (+group) | 'group_court_config_missing' }
 -- =========================================================================
 
 create or replace function public.start_kdk_match(
@@ -33,6 +40,11 @@ declare
   v_player_ids text[];
   v_court int;
   v_rows int;
+  v_group_name text;       -- 대상 경기의 원본 group_name (예: 'A', 'A조', 'BLUE')
+  v_group text;            -- 정규화된 조 키 ('A' | 'B' | '')
+  v_group_courts jsonb;    -- kdk_session_meta.group_courts (래핑형)
+  v_group_arr jsonb;       -- 해당 조 코트 배열
+  v_group_enabled boolean; -- 조별 전용 코트 활성 여부
 begin
   -- 1) 권한: 로그인 운영자(CEO/ADMIN)만. profiles.id = auth.uid().
   if auth.uid() is null then
@@ -69,8 +81,8 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(p_club_id || ':' || v_session_id, 0));
 
   -- 4) 락 이후 대상 경기 재조회 + 상태 재검증(락 전 값 신뢰하지 않음).
-  select session_id, status, player_ids
-    into v_session_id, v_status, v_player_ids
+  select session_id, status, player_ids, group_name
+    into v_session_id, v_status, v_player_ids, v_group_name
     from public.matches
    where id::text = p_match_id and club_id = p_club_id
    limit 1;
@@ -97,20 +109,73 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'player_busy');
   end if;
 
-  -- 6) 빈 최저 코트 계산(중간 빈 번호 우선). 같은 club/session/playing/court not null.
-  select min(c) into v_court
-    from generate_series(1, (
-      select coalesce(max(court), 0) + 1
-        from public.matches
-       where club_id = p_club_id and session_id = v_session_id
-         and status = 'playing' and court is not null
-    )) as c
-   where c not in (
-      select court from public.matches
-       where club_id = p_club_id and session_id = v_session_id
-         and status = 'playing' and court is not null
-    );
-  v_court := coalesce(v_court, 1);
+  -- 6) 코트 배정. 조별 전용 코트 설정이 활성이면 그 조의 코트 목록 안에서만, 아니면 전체.
+  --    설정 조회: 세션 메타. 컬럼/행이 없으면 v_group_courts = null → 전체 코트 fallback.
+  select group_courts into v_group_courts
+    from public.kdk_session_meta
+   where session_id = v_session_id
+   limit 1;
+
+  v_group_enabled := coalesce((v_group_courts ->> 'enabled')::boolean, false);
+
+  -- 'groups' 객체 존재 확인. jsonb `?` 연산자는 일부 쿼리 러너가 바인드 파라미터로 오해할 수 있어
+  --   동등한 jsonb_typeof 비교로 대체(재배포 안전성).
+  if v_group_enabled and jsonb_typeof(v_group_courts -> 'groups') = 'object' then
+    -- 6a) 대상 경기 group_name 정규화 → 'A' | 'B'.
+    --     클라이언트 normalizeStoredKdkGroup 의 우선순위를 그대로 1:1 포트(source of truth):
+    --       1) BLUE 포함 | 정확히 'B' | 'B조' 로 시작 → B
+    --       2) GOLD 포함 | 정확히 'A' | 'A조' 로 시작 → A
+    --       3) 'B' 포함 → B   4) 'A' 포함 → A   5) 그 외 ''
+    v_group := upper(btrim(coalesce(v_group_name, '')));
+    if v_group like '%BLUE%' or v_group = 'B' or v_group like 'B조%' then
+      v_group := 'B';
+    elsif v_group like '%GOLD%' or v_group = 'A' or v_group like 'A조%' then
+      v_group := 'A';
+    elsif position('B' in v_group) > 0 then
+      v_group := 'B';
+    elsif position('A' in v_group) > 0 then
+      v_group := 'A';
+    else
+      v_group := '';
+    end if;
+
+    -- 6b) 해당 조 코트 배열. 활성인데 조 설정이 없으면 차단(전체 fallback 금지).
+    v_group_arr := v_group_courts -> 'groups' -> v_group;
+    if v_group = '' or v_group_arr is null or jsonb_typeof(v_group_arr) <> 'array' then
+      return jsonb_build_object('ok', false, 'reason', 'group_court_config_missing');
+    end if;
+
+    -- 6c) 그 조 코트 목록 중 빈 최저 코트. 다른 조 빈 코트로 우회하지 않음.
+    select min(gc) into v_court
+      from (
+        select (jsonb_array_elements_text(v_group_arr))::int as gc
+      ) g
+     where gc > 0
+       and gc not in (
+         select court from public.matches
+          where club_id = p_club_id and session_id = v_session_id
+            and status = 'playing' and court is not null
+       );
+
+    if v_court is null then
+      return jsonb_build_object('ok', false, 'reason', 'group_courts_full', 'group', v_group);
+    end if;
+  else
+    -- 6d) 미설정/비활성 — 기존 전체 빈 최저 코트(중간 빈 번호 우선).
+    select min(c) into v_court
+      from generate_series(1, (
+        select coalesce(max(court), 0) + 1
+          from public.matches
+         where club_id = p_club_id and session_id = v_session_id
+           and status = 'playing' and court is not null
+      )) as c
+     where c not in (
+        select court from public.matches
+         where club_id = p_club_id and session_id = v_session_id
+           and status = 'playing' and court is not null
+      );
+    v_court := coalesce(v_court, 1);
+  end if;
 
   -- 7) 원자적 update — waiting 전제. row_count = 1 일 때만 성공.
   update public.matches
