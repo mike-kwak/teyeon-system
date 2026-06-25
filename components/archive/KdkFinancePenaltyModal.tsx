@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import { fetchAllMembers, type FinanceMember } from '@/lib/finance/duesService';
 import {
@@ -46,6 +47,9 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
     const [selected, setSelected] = React.useState<Set<string>>(new Set());
     const [busy, setBusy] = React.useState(false);
     const [result, setResult] = React.useState<RegisterKdkPenaltiesResult | null>(null);
+
+    // 모달이 떠 있는 동안 배경(Archive 페이지) 스크롤 잠금.
+    useBodyScrollLock(true);
 
     const settlementData = React.useMemo<KdkSettlementEntry[]>(
         () => (Array.isArray(session.settlementData) ? session.settlementData : []),
@@ -145,6 +149,7 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
                 background: 'rgba(15,23,42,0.55)',
                 display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                 padding: 0,
+                overflow: 'hidden', overscrollBehavior: 'none', touchAction: 'none',
             }}
         >
             <div
@@ -183,7 +188,7 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
                     </button>
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {/* SESSION SUMMARY */}
                     <section style={CARD}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: NAVY, wordBreak: 'keep-all' }}>

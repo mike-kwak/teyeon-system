@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import { FINANCE_PAYMENT_ACCOUNT } from '@/lib/finance/paymentAccount';
 import type { KdkPenaltyRow } from '@/lib/finance/kdkSettlementService';
@@ -49,6 +50,9 @@ export default function KdkNoticeCreateModal({ sessionId, kdkDate, sessionTitle,
     const [busy, setBusy] = React.useState(false);
     const [result, setResult] = React.useState<{ url: string; kakao: string } | null>(null);
     const [copied, setCopied] = React.useState<'url' | 'kakao' | null>(null);
+
+    // 모달이 떠 있는 동안 배경(Finance 정산 페이지) 스크롤 잠금.
+    useBodyScrollLock(true);
 
     const members = React.useMemo(() => buildKdkNoticeMembers(penaltyRows), [penaltyRows]);
     const stats = React.useMemo(() => buildKdkNoticeStats(members), [members]);
@@ -190,10 +194,10 @@ function localToISO(v: string): string | null {
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' };
+const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden', overscrollBehavior: 'none', touchAction: 'none' };
 const sheet: React.CSSProperties = { width: '100%', maxWidth: 480, maxHeight: '92dvh', background: '#F4F7FB', borderTopLeftRadius: 22, borderTopRightRadius: 22, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 -10px 40px rgba(15,45,85,0.25)' };
 const header: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', background: '#FFFFFF', borderBottom: '1px solid #E3ECF6' };
-const body: React.CSSProperties = { flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 };
+const body: React.CSSProperties = { flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 };
 const closeBtn: React.CSSProperties = { width: 32, height: 32, borderRadius: 10, border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#56729A', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
 const input: React.CSSProperties = { width: '100%', height: 40, borderRadius: 10, border: '1px solid #DCE8F5', background: '#FFFFFF', padding: '0 12px', fontSize: 13, fontWeight: 600, color: NAVY, boxSizing: 'border-box', outline: 'none' };
 const copyBtn: React.CSSProperties = { padding: '0 14px', height: 40, borderRadius: 10, border: 'none', background: '#0F9F98', color: '#FFFFFF', fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' };
