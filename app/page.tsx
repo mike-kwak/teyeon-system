@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Layout,
+  Lock,
   MapPin,
   Settings,
   Swords,
@@ -63,8 +64,15 @@ const formatNextScheduleValue = (item: NextScheduleItem): string => {
  */
 
 export default function Home() {
-  const { user, signInWithKakao, isLoading, systemMessage } = useAuth();
+  const { user, signInWithKakao, isLoading, systemMessage, role } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
+  // 권한 없는 제한 메뉴 클릭 시 안내(제목+내용). 프론트 UX 전용 — 실제 보호는 각 페이지/RLS 유지.
+  const [permAlert, setPermAlert] = useState<{ title: string; body: string } | null>(null);
+  // 기존 role 판별 재사용. 메뉴 카드는 user 로그인 + 로딩 완료 후에만 렌더되므로 role 은 확정 상태.
+  //   재무: 게스트만 차단 — 일반 회원(MEMBER)은 기존처럼 /finance 의 '나의 납부 현황' 진입 유지.
+  //   관리자 설정: CEO/ADMIN 만 진입(그 외 MEMBER/게스트 차단). 실제 보호는 각 페이지/RLS 가 유지.
+  const canFinance = role !== 'GUEST';
+  const canAdmin = role === 'CEO' || role === 'ADMIN';
   const [isMounted, setIsMounted] = useState(false);
   const [activeMemberCount, setActiveMemberCount] = useState<number>(24);
   const [totalKdkCount, setTotalKdkCount] = useState<number>(0);
@@ -244,6 +252,9 @@ export default function Home() {
     comingSoon,
     badge,
     accent = 'teal',
+    locked = false,
+    deniedTitle,
+    deniedBody,
   }: {
     label: string;
     description?: string;
@@ -252,28 +263,34 @@ export default function Home() {
     comingSoon?: boolean;
     badge?: string;
     accent?: AccentGroup;
+    /** 권한 없는 사용자에게만 true — Link 대신 클릭 시 권한 안내(permAlert) 표시. */
+    locked?: boolean;
+    deniedTitle?: string;
+    deniedBody?: string;
   }) => {
     const c = ACCENT_GROUPS[accent];
-    return (
-    <Link
-      href={path}
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        borderRadius: 14,
-        backgroundColor: '#FFFFFF',
-        border: '1px solid rgba(0,0,0,0.06)',
-        boxShadow: '0 1px 5px rgba(0,0,0,0.05)',
-        padding: '13px 16px 13px 16px',
-        textDecoration: 'none',
-        transition: 'box-shadow 0.18s',
-        opacity: comingSoon ? 0.68 : 1,
-        overflow: 'hidden',
-      }}
-      className="active:scale-[0.982]"
-    >
+    const showDenied = () =>
+      setPermAlert({ title: deniedTitle || '접근 권한이 없습니다', body: deniedBody || '' });
+    const cardStyle: React.CSSProperties = {
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      borderRadius: 14,
+      backgroundColor: '#FFFFFF',
+      border: '1px solid rgba(0,0,0,0.06)',
+      boxShadow: '0 1px 5px rgba(0,0,0,0.05)',
+      padding: '13px 16px 13px 16px',
+      textDecoration: 'none',
+      transition: 'box-shadow 0.18s',
+      // 잠금 카드도 과한 회색 처리 금지 — 살짝만 낮춰 사전 인지 정도로만.
+      opacity: comingSoon ? 0.68 : locked ? 0.94 : 1,
+      overflow: 'hidden',
+      color: 'inherit',
+      cursor: 'pointer',
+    };
+    const inner = (
+      <>
       {/* 좌측 accent line — 모든 카드 공통 정렬 가이드.
           두께/시작점/끝점은 모든 카드 동일. 색은 그룹별로 다름. */}
       <span
@@ -330,7 +347,7 @@ export default function Home() {
           >
             {label}
           </span>
-          {badge && !comingSoon && (
+          {badge && !comingSoon && !locked && (
             <span
               style={{
                 flexShrink: 0,
@@ -366,6 +383,27 @@ export default function Home() {
               SOON
             </span>
           )}
+          {locked && !comingSoon && (
+            <span
+              style={{
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                fontSize: 8,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                padding: '2px 6px',
+                borderRadius: 5,
+                backgroundColor: 'rgba(100,116,139,0.10)',
+                color: '#64748B',
+                border: '1px solid rgba(100,116,139,0.22)',
+              }}
+            >
+              <Lock size={8} strokeWidth={2.6} />
+              권한 필요
+            </span>
+          )}
         </div>
         {description && (
           <p
@@ -390,7 +428,33 @@ export default function Home() {
         size={14}
         style={{ flexShrink: 0, color: '#CBD5E1', marginLeft: 4 }}
       />
-    </Link>
+      </>
+    );
+
+    // 권한 없는 사용자: navigation 차단 + 권한 안내. (pointer-events:none 미사용 — 클릭 안내 필요)
+    if (locked) {
+      return (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={`${label} — 접근 권한 없음`}
+          onClick={showDenied}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDenied(); }
+          }}
+          style={cardStyle}
+          className="active:scale-[0.982]"
+        >
+          {inner}
+        </div>
+      );
+    }
+
+    // 권한 있는 사용자: 기존 Link/navigation 그대로 유지.
+    return (
+      <Link href={path} style={cardStyle} className="active:scale-[0.982]">
+        {inner}
+      </Link>
     );
   };
 
@@ -709,6 +773,9 @@ export default function Home() {
                 icon={<CircleDollarSign size={21} strokeWidth={1.7} />}
                 path="/finance"
                 accent="gold"
+                locked={!isLoading && !canFinance}
+                deniedTitle="접근 권한이 없습니다"
+                deniedBody="재무 담당자 또는 관리자 권한이 필요한 메뉴입니다."
               />
               {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
@@ -727,6 +794,9 @@ export default function Home() {
                 path="/admin"
                 badge="ADMIN"
                 accent="gold"
+                locked={!isLoading && !canAdmin}
+                deniedTitle="접근 권한이 없습니다"
+                deniedBody="관리자 권한이 필요한 메뉴입니다."
               />
             </div>
           </>
@@ -757,6 +827,88 @@ export default function Home() {
           }}
         >
           {toast || systemMessage}
+        </div>
+      )}
+
+      {/* 권한 안내 — 작은 Alert Modal(닫기 가능). 제한 메뉴 클릭 시 무반응 방지 + 명확한 안내.
+          프론트 UX 전용 — 실제 접근 제어는 각 페이지/RLS 가 유지. */}
+      {permAlert && (
+        <div
+          onClick={() => setPermAlert(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={permAlert.title}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(15,23,42,0.45)',
+            backdropFilter: 'blur(4px)',
+            padding: 20,
+            paddingTop: 'calc(20px + env(safe-area-inset-top))',
+            paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              border: '1px solid rgba(0,0,0,0.06)',
+              boxShadow: '0 20px 50px rgba(15,23,42,0.24)',
+              padding: 20,
+              textAlign: 'center',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                margin: '0 auto',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(100,116,139,0.10)',
+                color: '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Lock size={20} strokeWidth={2.2} />
+            </div>
+            <h2 style={{ margin: '12px 0 0', fontSize: 16, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>
+              {permAlert.title}
+            </h2>
+            {permAlert.body && (
+              <p style={{ margin: '8px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                {permAlert.body}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setPermAlert(null)}
+              style={{
+                marginTop: 16,
+                width: '100%',
+                height: 44,
+                borderRadius: 11,
+                border: 'none',
+                backgroundColor: '#0F766E',
+                color: '#FFFFFF',
+                fontSize: 13.5,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              확인
+            </button>
+          </div>
         </div>
       )}
     </main>
