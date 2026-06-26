@@ -12,6 +12,7 @@ import { formatWon, isValidPaymentAmount } from '@/lib/finance/formatFinanceAmou
 import {
     fetchAllMembers,
     fetchReceivablesByMonth,
+    fetchMonthlyReceivableMap,
     insertPaymentsBulk,
     type FinanceMember,
 } from '@/lib/finance/duesService';
@@ -178,20 +179,55 @@ export default function FinanceBulkPage() {
     const handleSave = async () => {
         if (!validAmount) { alert('금액을 입력해 주세요.'); return; }
         if (selected.size === 0) { alert('회원을 1명 이상 선택해 주세요.'); return; }
+        const memberIds = Array.from(selected);
+
+        // 월회비는 반드시 "선택한 연·월"의 monthly_fee 청구에 연결한다.
+        //   화면 state(receivables)는 연·월 전환 직후 load() 비동기 경합으로 직전 달(예: 현재 월) 데이터가
+        //   남아 있을 수 있어, 그대로 쓰면 다른 달 청구에 잘못 연결된다(선택=5월인데 6월 청구에 붙는 버그).
+        //   → 저장 직전에 (선택 연·월) 기준으로 다시 조회해 연결하고, 정확한 달 청구가 없으면 다른 달로
+        //     fallback 하지 않고 저장을 중단한다. (월회비 외 항목은 기존 동작 유지)
+        const receivableMap: Record<string, string | null> = {};
+        if (paymentType === 'monthly_fee') {
+            let freshMap: Map<string, FinanceDuesReceivable>;
+            try {
+                freshMap = await fetchMonthlyReceivableMap(memberIds, year, month);
+            } catch {
+                alert('청구 정보를 확인하지 못했습니다. 다시 시도해 주세요.');
+                return;
+            }
+            const missing = memberIds.filter((id) => !freshMap.has(id));
+            if (missing.length > 0) {
+                const names = missing.map((id) => members.find((m) => m.id === id)?.nickname || '회원').join(', ');
+                alert(
+                    `${year}년 ${month}월 월회비 청구를 찾을 수 없어 납부를 저장하지 않았습니다.\n` +
+                    `대상: ${names}\n납부 현황에서 청구를 먼저 생성해 주세요.`,
+                );
+                return;
+            }
+            for (const id of memberIds) receivableMap[id] = freshMap.get(id)!.id;
+        } else {
+            for (const id of memberIds) receivableMap[id] = memberStatus[id]?.receivableId ?? null;
+        }
+
         if (selectedAlreadyPaid.length > 0) {
             const ok = window.confirm(
                 `이미 납부 완료된 회원 ${selectedAlreadyPaid.length}명이 포함되어 있습니다.\n중복 기록을 추가하시겠습니까?`
             );
             if (!ok) return;
         }
+
+        // 대상 월을 명확히 보여 "현재 월로 잘못 저장"을 저장 직전에 잡는다. (월회비만)
+        if (paymentType === 'monthly_fee') {
+            const ok = window.confirm(
+                `${year}년 ${month}월 회비 ${memberIds.length}명 납부 처리\n납부일 ${paidAt}\n진행하시겠습니까?`,
+            );
+            if (!ok) return;
+        }
+
         setSaving(true);
         try {
-            const receivableMap: Record<string, string | null> = {};
-            for (const id of Array.from(selected)) {
-                receivableMap[id] = memberStatus[id]?.receivableId ?? null;
-            }
             await insertPaymentsBulk({
-                memberIds: Array.from(selected),
+                memberIds,
                 receivableMap,
                 payment_type: paymentType,
                 amount,
@@ -199,6 +235,7 @@ export default function FinanceBulkPage() {
                 memo: memo.trim() || null,
                 userId: user?.id,
             });
+            // 저장 성공 → 방금 처리한 "선택 연·월" 현황으로 이동(현재 월로 튀지 않게).
             router.push(`/finance/payments?year=${year}&month=${month}`);
         } catch (e: any) {
             alert(e?.message || '일괄 저장에 실패했습니다.');
@@ -378,16 +415,22 @@ export default function FinanceBulkPage() {
                 <button
                     type="button"
                     onClick={handleSave}
-                    disabled={saving || !validAmount || selected.size === 0}
+                    disabled={saving || loading || !validAmount || selected.size === 0}
                     style={{
                         height: 44, borderRadius: 12,
-                        backgroundColor: saving || !validAmount || selected.size === 0 ? '#CBD5E1' : '#0F9F98',
+                        backgroundColor: saving || loading || !validAmount || selected.size === 0 ? '#CBD5E1' : '#0F9F98',
                         color: '#FFFFFF', border: 'none',
                         fontSize: 13, fontWeight: 900,
-                        cursor: saving ? 'wait' : (!validAmount || selected.size === 0 ? 'not-allowed' : 'pointer'),
+                        cursor: saving ? 'wait' : (loading || !validAmount || selected.size === 0 ? 'not-allowed' : 'pointer'),
                     }}
                 >
-                    {saving ? '저장 중...' : `${selected.size}명에게 ${formatWon(amount)} 일괄 처리`}
+                    {saving
+                        ? '저장 중...'
+                        : loading
+                            ? '불러오는 중...'
+                            : paymentType === 'monthly_fee'
+                                ? `${year}년 ${month}월 회비 ${selected.size}명 납부 처리`
+                                : `${selected.size}명에게 ${formatWon(amount)} 일괄 처리`}
                 </button>
             </div>
         </main>

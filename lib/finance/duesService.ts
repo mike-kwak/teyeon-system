@@ -658,6 +658,38 @@ export async function findMonthlyReceivable(
     return (data as FinanceDuesReceivable) ?? null;
 }
 
+/**
+ * 여러 회원의 (year, month) monthly_fee receivable 을 한 번에 조회해 member_id → receivable 맵으로 반환.
+ *   - 일괄 납부(/finance/bulk)가 저장 직전 "선택한 연·월"의 청구를 다시 확인하는 용도.
+ *     화면 state(receivables)는 연·월 전환 직후 비동기 로드 경합으로 직전 달 데이터가 남아 있을 수 있어,
+ *     그대로 쓰면 다른 달 청구에 잘못 연결된다. 저장 시점에 이 함수로 정확한 달 청구만 다시 묶는다.
+ *   - receivable_type='monthly_fee' 만 대상. (member, year, month) 는 unique 라 회원당 최대 1건.
+ *     exempt/not_target 도 포함해 반환 — 대상 여부 판단은 호출자가 한다.
+ */
+export async function fetchMonthlyReceivableMap(
+    memberIds: string[],
+    year: number,
+    month: number,
+): Promise<Map<string, FinanceDuesReceivable>> {
+    const out = new Map<string, FinanceDuesReceivable>();
+    if (memberIds.length === 0) return out;
+    const { data, error } = await supabase
+        .from(TBL_RECV)
+        .select('*')
+        .eq('target_year', year)
+        .eq('target_month', month)
+        .eq('receivable_type', 'monthly_fee')
+        .in('member_id', memberIds);
+    if (error) {
+        console.warn('[Finance/recv/monthlyMap]', error?.message ?? error);
+        throw error;
+    }
+    for (const r of (data || []) as FinanceDuesReceivable[]) {
+        if (!out.has(r.member_id)) out.set(r.member_id, r);
+    }
+    return out;
+}
+
 export interface AnnualFeeMonthLine {
     month: number;
     receivableId: string;

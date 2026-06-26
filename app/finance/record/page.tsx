@@ -228,8 +228,15 @@ export default function FinanceRecordPage() {
                 const yr = it.target_year as number;
                 await payAnnualFeeRemainder(memberId, yr, paidAt, memo.trim() || `${yr}년 연회비 일괄 납부`);
             }
-            // 저장 성공 — 집계가 반영되는 화면(선택 연·월 유지)으로 이동해 재조회.
-            router.push(financeHref);
+            // 저장 성공 — 방금 기록한 "대상 월"의 현황으로 이동(현재 월/URL 월로 튀지 않게).
+            //   월회비 항목의 target_year/month 우선, 없으면 기존 컨텍스트(initYear/initMonth).
+            const savedMonthly = amountItems.find(
+                (it) => it.payment_type === 'monthly_fee' && it.target_year && it.target_month,
+            );
+            const dest = savedMonthly
+                ? `/finance?year=${savedMonthly.target_year}&month=${savedMonthly.target_month}`
+                : financeHref;
+            router.push(dest);
         } catch (e: any) {
             setSaveError(e?.message || '납부 기록을 저장하지 못했습니다. 다시 시도해 주세요.');
         } finally {
