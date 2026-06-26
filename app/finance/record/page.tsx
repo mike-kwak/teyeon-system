@@ -13,6 +13,10 @@ import {
     fetchAllMembers,
     insertPayment,
     findDuplicatePayment,
+    findMonthlyReceivable,
+    fetchAnnualFeePreview,
+    payAnnualFeeRemainder,
+    type AnnualFeePreview,
     type FinanceMember,
 } from '@/lib/finance/duesService';
 import { fetchFeeRule } from '@/lib/finance/feeRulesService';
@@ -72,6 +76,10 @@ export default function FinanceRecordPage() {
     const [saving, setSaving] = React.useState(false);
     const [saveError, setSaveError] = React.useState<string | null>(null);
 
+    // 연회비(annual_fee) 항목별 월회비 잔액 미리보기 (회원 + 대상 연도 기준).
+    const [annualPreviews, setAnnualPreviews] = React.useState<Record<string, AnnualFeePreview | null>>({});
+    const [annualLoading, setAnnualLoading] = React.useState<Record<string, boolean>>({});
+
     React.useEffect(() => {
         if (!isAdmin) return;
         (async () => {
@@ -79,6 +87,33 @@ export default function FinanceRecordPage() {
             setMembers(list);
         })();
     }, [isAdmin]);
+
+    // 연회비 항목이 있으면 (회원, 연도)별 월회비 잔액을 조회. annualKey 가 바뀔 때만 재조회.
+    const annualKey = items
+        .filter((it) => it.payment_type === 'annual_fee')
+        .map((it) => `${it.id}:${it.target_year ?? ''}`)
+        .join(',');
+    React.useEffect(() => {
+        if (!memberId) { setAnnualPreviews({}); return; }
+        const annualItems = items.filter((it) => it.payment_type === 'annual_fee' && it.target_year);
+        if (annualItems.length === 0) { setAnnualPreviews({}); return; }
+        let cancelled = false;
+        (async () => {
+            for (const it of annualItems) {
+                setAnnualLoading((p) => ({ ...p, [it.id]: true }));
+                try {
+                    const preview = await fetchAnnualFeePreview(memberId, it.target_year as number);
+                    if (!cancelled) setAnnualPreviews((p) => ({ ...p, [it.id]: preview }));
+                } catch {
+                    if (!cancelled) setAnnualPreviews((p) => ({ ...p, [it.id]: null }));
+                } finally {
+                    if (!cancelled) setAnnualLoading((p) => ({ ...p, [it.id]: false }));
+                }
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [memberId, annualKey]);
 
     if (!isLoading && !isAdmin) {
         return (
@@ -95,8 +130,16 @@ export default function FinanceRecordPage() {
 
     const memberName = members.find((m) => m.id === memberId)?.nickname ?? null;
 
-    const totalAmount = items.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
-    const validItems = items.filter((it) => isValidPaymentAmount(Number(it.amount)));
+    // 저장 대상 분리: 금액 입력 항목(월회비/벌금/게스트비/행사비/기타)과 연회비(잔액 일괄).
+    const isAnnual = (it: ItemDraft) => it.payment_type === 'annual_fee';
+    const amountItems = items.filter((it) => !isAnnual(it) && isValidPaymentAmount(Number(it.amount)));
+    const annualItems = items.filter((it) => isAnnual(it) && (annualPreviews[it.id]?.payableCount ?? 0) > 0);
+    const hasSavable = amountItems.length > 0 || annualItems.length > 0;
+    const amountTotal = amountItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+    const annualTotal = annualItems.reduce((acc, it) => acc + (annualPreviews[it.id]?.totalRemaining ?? 0), 0);
+    const grandTotal = amountTotal + annualTotal;
+    // 연회비만 단독으로 저장하는 흔한 경우엔 버튼 문구를 연회비 일괄 납부로.
+    const annualOnly = annualItems.length === 1 && amountItems.length === 0;
 
     const updateItem = (id: string, patch: Partial<ItemDraft>) => {
         setItems((prev) => prev.map((it) => it.id === id ? { ...it, ...patch } : it));
@@ -126,10 +169,31 @@ export default function FinanceRecordPage() {
 
     const handleSave = async () => {
         if (!memberId) { alert('회원을 선택해 주세요.'); return; }
-        if (validItems.length === 0) { alert('금액을 1건 이상 입력해 주세요.'); return; }
+        if (!hasSavable) { alert('납부할 항목을 1건 이상 입력해 주세요.'); return; }
+        setSaveError(null);
 
-        // 중복 경고 — 같은 회원 / 같은 type / 같은 날짜 / 같은 금액.
-        for (const it of validItems) {
+        // 월회비 항목은 반드시 해당 (회원·연·월) receivable 에 연결해야 집계에 반영된다.
+        //   연결할 청구가 없으면 조용히 미반영되는 것을 막기 위해 저장을 중단하고 안내.
+        const monthlyRecvMap = new Map<string, string>();
+        const missing: string[] = [];
+        for (const it of amountItems) {
+            if (it.payment_type !== 'monthly_fee' || !it.target_year || !it.target_month) continue;
+            try {
+                const recv = await findMonthlyReceivable(memberId, it.target_year, it.target_month);
+                if (recv) monthlyRecvMap.set(it.id, recv.id);
+                else missing.push(`${it.target_year}년 ${it.target_month}월`);
+            } catch {
+                setSaveError('청구 정보를 확인하지 못했습니다. 다시 시도해 주세요.');
+                return;
+            }
+        }
+        if (missing.length > 0) {
+            setSaveError(`월회비 청구가 없는 달이 있어 납부를 연결할 수 없습니다: ${missing.join(', ')}. 납부 현황에서 청구를 먼저 생성해 주세요.`);
+            return;
+        }
+
+        // 중복 경고 — 금액 입력 항목만 (연회비는 RPC 가 잔액만 정확히 처리).
+        for (const it of amountItems) {
             const dup = await findDuplicatePayment({
                 member_id: memberId,
                 payment_type: it.payment_type,
@@ -147,21 +211,27 @@ export default function FinanceRecordPage() {
         }
 
         setSaving(true);
-        setSaveError(null);
         try {
-            // 항목별로 분리 저장.
-            for (const it of validItems) {
+            // 1) 금액 입력 항목 — 월회비는 receivable_id 연결, 그 외는 기존 방식 유지.
+            for (const it of amountItems) {
                 await insertPayment({
                     member_id: memberId,
+                    receivable_id: it.payment_type === 'monthly_fee' ? (monthlyRecvMap.get(it.id) ?? null) : null,
                     payment_type: it.payment_type,
                     amount: Number(it.amount),
                     paid_at: paidAt,
                     memo: memo.trim() || null,
                 }, user?.id);
             }
+            // 2) 연회비 항목 — 선택 연도 월회비 잔액을 월별 payment 로 일괄(서버 RPC, 원자적).
+            for (const it of annualItems) {
+                const yr = it.target_year as number;
+                await payAnnualFeeRemainder(memberId, yr, paidAt, memo.trim() || `${yr}년 연회비 일괄 납부`);
+            }
+            // 저장 성공 — 집계가 반영되는 화면(선택 연·월 유지)으로 이동해 재조회.
             router.push(financeHref);
         } catch (e: any) {
-            setSaveError(e?.message || '저장에 실패했습니다.');
+            setSaveError(e?.message || '납부 기록을 저장하지 못했습니다. 다시 시도해 주세요.');
         } finally {
             setSaving(false);
         }
@@ -226,6 +296,8 @@ export default function FinanceRecordPage() {
                                 key={it.id}
                                 item={it}
                                 index={idx}
+                                annualPreview={annualPreviews[it.id] ?? null}
+                                annualLoading={!!annualLoading[it.id]}
                                 onChangeType={(t) => handleItemTypeChange(it.id, t)}
                                 onChangeMonth={(y, m) => handleItemMonthChange(it.id, y, m)}
                                 onChangeAmount={(v) => updateItem(it.id, { amount: v })}
@@ -237,13 +309,13 @@ export default function FinanceRecordPage() {
                 </section>
 
                 {/* 3. 요약 */}
-                {memberId && validItems.length > 0 && (
+                {memberId && hasSavable && (
                     <section style={{ ...FINANCE_CARD_STYLE, backgroundColor: '#F8FAFC' }}>
                         <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#0F172A' }}>
                             {memberName ?? '회원'}
                         </h3>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {validItems.map((it) => (
+                            {amountItems.map((it) => (
                                 <li
                                     key={it.id}
                                     style={{
@@ -261,6 +333,20 @@ export default function FinanceRecordPage() {
                                     </strong>
                                 </li>
                             ))}
+                            {annualItems.map((it) => (
+                                <li
+                                    key={it.id}
+                                    style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        fontSize: 12, fontWeight: 700, color: '#475569',
+                                    }}
+                                >
+                                    <span>{it.target_year}년 연회비 잔액 ({annualPreviews[it.id]?.payableCount ?? 0}개월)</span>
+                                    <strong style={{ color: '#0F172A', whiteSpace: 'nowrap' }}>
+                                        {formatWon(annualPreviews[it.id]?.totalRemaining ?? 0)}
+                                    </strong>
+                                </li>
+                            ))}
                         </ul>
                         <div style={{
                             marginTop: 10, paddingTop: 10,
@@ -269,7 +355,7 @@ export default function FinanceRecordPage() {
                         }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>총 납부 금액</span>
                             <strong style={{ fontSize: 15, fontWeight: 900, color: '#0E7C76' }}>
-                                {formatWon(totalAmount)}
+                                {formatWon(grandTotal)}
                             </strong>
                         </div>
                         <p style={{ margin: '6px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', textAlign: 'right' }}>
@@ -287,16 +373,20 @@ export default function FinanceRecordPage() {
                 <button
                     type="button"
                     onClick={handleSave}
-                    disabled={saving || !memberId || validItems.length === 0}
+                    disabled={saving || !memberId || !hasSavable}
                     style={{
                         height: 44, borderRadius: 12,
-                        backgroundColor: saving || !memberId || validItems.length === 0 ? '#CBD5E1' : '#0F9F98',
+                        backgroundColor: saving || !memberId || !hasSavable ? '#CBD5E1' : '#0F9F98',
                         color: '#FFFFFF', border: 'none',
                         fontSize: 13, fontWeight: 900,
-                        cursor: saving ? 'wait' : (!memberId || validItems.length === 0 ? 'not-allowed' : 'pointer'),
+                        cursor: saving ? 'wait' : (!memberId || !hasSavable ? 'not-allowed' : 'pointer'),
                     }}
                 >
-                    {saving ? '저장 중...' : '납부 기록 저장'}
+                    {saving
+                        ? '저장 중...'
+                        : annualOnly
+                            ? `연회비 잔액 ${formatWon(annualTotal)} 일괄 납부`
+                            : '납부 기록 저장'}
                 </button>
             </div>
         </main>
@@ -304,10 +394,12 @@ export default function FinanceRecordPage() {
 }
 
 function ItemRow({
-    item, index, onChangeType, onChangeMonth, onChangeAmount, onRemove, removable,
+    item, index, annualPreview, annualLoading, onChangeType, onChangeMonth, onChangeAmount, onRemove, removable,
 }: {
     item: ItemDraft;
     index: number;
+    annualPreview: AnnualFeePreview | null;
+    annualLoading: boolean;
     onChangeType: (t: FinanceReceivableType) => void;
     onChangeMonth: (y: number, m: number) => void;
     onChangeAmount: (v: string) => void;
@@ -315,6 +407,7 @@ function ItemRow({
     removable: boolean;
 }) {
     const isMonthly = item.payment_type === 'monthly_fee';
+    const isAnnual = item.payment_type === 'annual_fee';
     return (
         <div
             style={{
@@ -356,8 +449,8 @@ function ItemRow({
                         ))}
                     </select>
                 </Field>
-                {isMonthly && (
-                    <div style={{ display: 'flex', gap: 8 }}>
+                {isAnnual ? (
+                    <>
                         <Field label="대상 연도">
                             <select
                                 value={item.target_year ?? ''}
@@ -367,31 +460,97 @@ function ItemRow({
                                 {[2024, 2025, 2026, 2027, 2028].map((y) => <option key={y} value={y}>{y}년</option>)}
                             </select>
                         </Field>
-                        <Field label="대상 월">
-                            <select
-                                value={item.target_month ?? ''}
-                                onChange={(e) => onChangeMonth(item.target_year ?? new Date().getFullYear(), Number(e.target.value))}
+                        <AnnualPreviewView preview={annualPreview} loading={annualLoading} year={item.target_year ?? null} />
+                    </>
+                ) : (
+                    <>
+                        {isMonthly && (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <Field label="대상 연도">
+                                    <select
+                                        value={item.target_year ?? ''}
+                                        onChange={(e) => onChangeMonth(Number(e.target.value), item.target_month ?? 1)}
+                                        style={inputStyle}
+                                    >
+                                        {[2024, 2025, 2026, 2027, 2028].map((y) => <option key={y} value={y}>{y}년</option>)}
+                                    </select>
+                                </Field>
+                                <Field label="대상 월">
+                                    <select
+                                        value={item.target_month ?? ''}
+                                        onChange={(e) => onChangeMonth(item.target_year ?? new Date().getFullYear(), Number(e.target.value))}
+                                        style={inputStyle}
+                                    >
+                                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{m}월</option>)}
+                                    </select>
+                                </Field>
+                            </div>
+                        )}
+                        <Field label="금액 (원)">
+                            <input
+                                type="number"
+                                inputMode="numeric"
+                                value={item.amount}
+                                onChange={(e) => onChangeAmount(e.target.value)}
+                                placeholder="0"
                                 style={inputStyle}
-                            >
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{m}월</option>)}
-                            </select>
+                            />
                         </Field>
-                    </div>
+                    </>
                 )}
-                <Field label="금액 (원)">
-                    <input
-                        type="number"
-                        inputMode="numeric"
-                        value={item.amount}
-                        onChange={(e) => onChangeAmount(e.target.value)}
-                        placeholder="0"
-                        style={inputStyle}
-                    />
-                </Field>
             </div>
         </div>
     );
 }
+
+function AnnualPreviewView({ preview, loading, year }: { preview: AnnualFeePreview | null; loading: boolean; year: number | null }) {
+    if (loading) {
+        return <p style={annualNote}>{year ? `${year}년 ` : ''}연회비 잔액 계산 중...</p>;
+    }
+    if (!preview) {
+        return <p style={annualNote}>회원과 대상 연도를 선택하면 월회비 잔액을 계산합니다.</p>;
+    }
+    return (
+        <div style={{ borderRadius: 10, border: '1px solid rgba(15,23,42,0.08)', backgroundColor: '#FFFFFF', padding: 10 }}>
+            <p style={{ margin: '0 0 6px', fontSize: 11.5, fontWeight: 900, color: '#0F172A' }}>{preview.year}년 연회비 잔액</p>
+            {preview.lines.length === 0 ? (
+                <p style={{ ...annualNote, marginTop: 0 }}>해당 연도에 생성된 월회비 청구가 없습니다.</p>
+            ) : (
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {preview.lines.map((l) => (
+                        <li key={l.month} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5, fontWeight: 700 }}>
+                            <span style={{ color: '#475569' }}>{l.month}월</span>
+                            <span style={{ color: l.remaining > 0 ? '#B91C1C' : '#0E7C76', whiteSpace: 'nowrap' }}>
+                                {l.status === 'paid' ? '납부 완료'
+                                    : l.status === 'exempt' ? '면제'
+                                    : l.status === 'not_target' ? '비대상'
+                                    : `남은 금액 ${formatWon(l.remaining)}`}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {preview.missingMonths.length > 0 && (
+                <p style={{ ...annualNote, color: '#B7791F' }}>
+                    월회비 청구가 생성되지 않은 월이 있어 해당 월은 연회비 계산에서 제외되었습니다. ({preview.missingMonths.join(', ')}월)
+                </p>
+            )}
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(15,23,42,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>총 납부 금액 ({preview.payableCount}개월)</span>
+                <strong style={{ fontSize: 13, fontWeight: 900, color: preview.totalRemaining > 0 ? '#0E7C76' : '#94A3B8' }}>
+                    {formatWon(preview.totalRemaining)}
+                </strong>
+            </div>
+            {preview.totalRemaining === 0 && preview.lines.length > 0 && (
+                <p style={{ ...annualNote, color: '#0E7C76' }}>해당 연도의 월회비가 모두 납부되었습니다.</p>
+            )}
+        </div>
+    );
+}
+
+const annualNote: React.CSSProperties = {
+    margin: '8px 0 0', fontSize: 10.5, fontWeight: 700, color: '#94A3B8', lineHeight: 1.5,
+};
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
