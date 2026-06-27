@@ -260,6 +260,45 @@ export async function upsertAttendance(input: AttendanceUpsertInput): Promise<At
 }
 
 /**
+ * 본인 참석 응답 취소 — 자신의 attendance row 를 삭제해 미응답 상태로 복구한다.
+ *   - 별도 'cancelled' 상태를 저장하지 않는다(row 자체 삭제 → row 부재 = 미응답).
+ *   - 회원 전용: members.auth_user_id = auth.uid() 매핑이 있어야 한다(upsert 와 동일 기준).
+ *   - 삭제 범위는 schedule_id + user_id(=auth.uid()) 로 강제 → 본인 row 만, 타인 row 삭제 불가.
+ *     caller 가 attendance id 를 넘기더라도 사용하지 않는다(사칭/우회 방지).
+ *   - DB 의 DELETE 정책(club_schedule_attendances_delete: auth.uid() = user_id)이 서버단 이중 방어.
+ */
+export async function deleteMyAttendance(scheduleId: string, userId: string): Promise<void> {
+    if (!scheduleId || !userId) {
+        throw new AttendanceForbiddenError('일정 또는 사용자 정보가 없어 응답을 취소할 수 없습니다.');
+    }
+    // 1) 현재 세션 확인 + caller 가 넘긴 userId 가 실제 auth.uid() 와 일치하는지(사칭 방지).
+    const { data: { session } } = await supabase.auth.getSession();
+    const sessionUid = session?.user?.id;
+    if (!sessionUid || sessionUid !== userId) {
+        throw new AttendanceForbiddenError('로그인 세션을 확인할 수 없어 응답을 취소할 수 없습니다.');
+    }
+    // 2) 연결 회원 확인(회원 전용 정책 — 미연결/게스트는 취소 불가).
+    const linked = await resolveLinkedMemberByAuthUid(userId);
+    if (!linked) {
+        throw new AttendanceForbiddenError();
+    }
+    // 3) 본인 row 만 삭제. RLS(auth.uid() = user_id)가 서버단에서 한 번 더 보장.
+    const { error } = await supabase
+        .from('club_schedule_attendances')
+        .delete()
+        .eq('schedule_id', scheduleId)
+        .eq('user_id', userId);
+    if (error) {
+        // 개인정보 제외, 디버그용 코드/메시지만.
+        console.warn(
+            `[Attendances/cancel] code=${(error as any)?.code} | message=${(error as any)?.message} | ` +
+            `details=${(error as any)?.details} | hint=${(error as any)?.hint}`,
+        );
+        throw error;
+    }
+}
+
+/**
  * 일정의 모든 참석 row + members 닉네임을 가져온다.
  *
  * 이전에는 `select('*, members:member_id(...)')`로 inner join을 시도했는데,

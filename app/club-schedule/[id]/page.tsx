@@ -15,6 +15,7 @@ import { fetchClubScheduleById } from '@/lib/clubScheduleService';
 import {
     fetchMyAttendance,
     upsertAttendance,
+    deleteMyAttendance,
     fetchAttendancesWithMembers,
     buildAttendanceSummary,
     evaluateAttendanceWindow,
@@ -128,6 +129,8 @@ export default function ClubScheduleAttendancePage() {
     const [memberCountError, setMemberCountError] = useState<string>('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [saveError, setSaveError] = useState<string>('');
+    const [cancelOpen, setCancelOpen] = useState(false);      // 응답 취소 확인 모달
+    const [cancelling, setCancelling] = useState(false);      // 취소 처리 중
     const [commentBody, setCommentBody] = useState('');
     const [commentCategory, setCommentCategory] = useState<string | null>('일반');
     const [postingComment, setPostingComment] = useState(false);
@@ -532,6 +535,52 @@ export default function ClubScheduleAttendancePage() {
             setSaveError('참석 상태 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         }
     }, [user?.id, schedule, linkedMember, linkedMemberStatus, myAttendance?.note, isReadOnly, activeMembers, guardWriteAction]);
+
+    // ── 응답 취소 (본인 attendance row 삭제 → 미응답 복구) ──────────────────────
+    const handleCancelResponse = useCallback(async () => {
+        if (!user?.id || !schedule) return;
+        if (isReadOnly) return;
+        if (!guardWriteAction('응답 취소')) return; // 촬영 모드: 실제 삭제 차단
+        if (linkedMemberStatus !== 'linked' || !linkedMember) {
+            setCancelOpen(false);
+            setSaveStatus('error');
+            setSaveError('회원 계정 연결을 확인할 수 없어 응답을 취소하지 못했습니다.');
+            return;
+        }
+        setCancelling(true);
+        setSaveError('');
+        try {
+            await deleteMyAttendance(schedule.id, user.id);
+            // 성공 후에만 로컬 상태 정리(실패 시 기존 응답 유지). 화면 새로고침/깜빡임 없음.
+            setMyAttendance(null);
+            setSaveStatus('idle');
+            setCancelOpen(false);
+            // 명단/집계 즉시 갱신 — 본인/전체 attendance refetch.
+            try {
+                const [refreshedMine, refreshedAll] = await Promise.all([
+                    fetchMyAttendance(schedule.id, user.id),
+                    fetchAttendancesWithMembers(schedule.id),
+                ]);
+                setMyAttendance(refreshedMine); // null 예상 → 미응답
+                setAllAttendances(refreshedAll);
+                setAttendancesError('');
+            } catch (refreshErr: any) {
+                logSupabaseError('Attendances/refresh', refreshErr);
+            }
+        } catch (err: any) {
+            if (err instanceof AttendanceForbiddenError) {
+                setSaveStatus('error');
+                setSaveError('회원 계정 연결을 확인할 수 없어 응답을 취소하지 못했습니다.');
+            } else {
+                logSupabaseError('Attendance/cancel', err);
+                setSaveStatus('error');
+                setSaveError('응답을 취소하지 못했습니다. 다시 시도해 주세요.');
+            }
+            setCancelOpen(false);
+        } finally {
+            setCancelling(false);
+        }
+    }, [user?.id, schedule, isReadOnly, linkedMember, linkedMemberStatus, guardWriteAction]);
 
     const handlePickArrival = (t: ArrivalTimeOption) => {
         if (isReadOnly) return;
@@ -1061,6 +1110,26 @@ export default function ClubScheduleAttendancePage() {
                                     <StatusBanner status={myStatus} arrival={myArrival} leave={myLeave} />
                                 )}
 
+                                {/* 응답 취소 — 응답한 회원에게만. 보조(낮은 계층) 빨간 outline. */}
+                                {myAttendance && !isReadOnly && (
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0 4px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCancelOpen(true)}
+                                            disabled={cancelling}
+                                            style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                                height: 32, padding: '0 12px', borderRadius: 9,
+                                                border: '1px solid rgba(192,57,43,0.45)', backgroundColor: 'transparent',
+                                                color: '#C0392B', fontSize: 11.5, fontWeight: 700,
+                                                cursor: cancelling ? 'default' : 'pointer', opacity: cancelling ? 0.6 : 1,
+                                            }}
+                                        >
+                                            응답 취소
+                                        </button>
+                                    </div>
+                                )}
+
                                 {!myAttendance && !isReadOnly && (
                                     <p style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B', margin: '0 0 14px', lineHeight: 1.55 }}>
                                         참석 가능한 시작 시간을 하나 선택해 주세요. 조퇴 예정이면 시간도 함께 표시할 수 있어요.
@@ -1130,6 +1199,33 @@ export default function ClubScheduleAttendancePage() {
                                         }}
                                     >
                                         참석 체크 마감 · 현황과 명단은 계속 확인할 수 있어요
+                                    </div>
+                                )}
+
+                                {/* 응답 취소 확인 모달 */}
+                                {cancelOpen && (
+                                    <div
+                                        role="dialog" aria-modal="true" aria-label="참석 응답 취소 확인"
+                                        onClick={() => { if (!cancelling) setCancelOpen(false); }}
+                                        style={{ position: 'fixed', inset: 0, zIndex: 80, backgroundColor: 'rgba(15,27,51,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+                                    >
+                                        <div
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{ width: '100%', maxWidth: 320, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20, boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}
+                                        >
+                                            <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#0F1B33' }}>참석 응답을 취소할까요?</p>
+                                            <p style={{ margin: '8px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B', lineHeight: 1.6 }}>취소하면 미응답 상태로 돌아갑니다.</p>
+                                            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+                                                <button type="button" onClick={() => setCancelOpen(false)} disabled={cancelling}
+                                                    style={{ flex: 1, height: 42, borderRadius: 11, border: '1px solid #D9E1EC', backgroundColor: '#FFFFFF', color: '#334155', fontSize: 13, fontWeight: 800, cursor: cancelling ? 'default' : 'pointer' }}>
+                                                    돌아가기
+                                                </button>
+                                                <button type="button" onClick={handleCancelResponse} disabled={cancelling}
+                                                    style={{ flex: 1, height: 42, borderRadius: 11, border: 'none', backgroundColor: '#C0392B', color: '#FFFFFF', fontSize: 13, fontWeight: 800, cursor: cancelling ? 'default' : 'pointer', opacity: cancelling ? 0.7 : 1 }}>
+                                                    {cancelling ? '취소 중...' : '응답 취소'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </>
