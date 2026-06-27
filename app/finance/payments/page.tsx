@@ -35,7 +35,8 @@ import type {
     PaymentDerivedStatus,
 } from '@/types/finance';
 import FinanceNoticeCreateModal from '@/components/finance/FinanceNoticeCreateModal';
-import { Megaphone, ChevronRight } from 'lucide-react';
+import MonthlyResetModal from '@/components/finance/MonthlyResetModal';
+import { Megaphone, ChevronRight, RotateCcw } from 'lucide-react';
 
 /**
  * /finance/payments — 월별 회원 납부 현황.
@@ -79,6 +80,7 @@ export default function FinancePaymentsPage() {
     const [loading, setLoading] = React.useState(true);
     const [busy, setBusy] = React.useState(false);
     const [showNoticeModal, setShowNoticeModal] = React.useState(false);
+    const [showResetModal, setShowResetModal] = React.useState(false);
 
     const load = React.useCallback(async () => {
         setLoading(true);
@@ -296,6 +298,22 @@ export default function FinancePaymentsPage() {
                     </Link>
                 </div>
 
+                {/* 월 납부 초기화 — 선택 월 월회비 납부 기록만 취소(청구 유지). 운영자 확인 필요. */}
+                <button
+                    type="button"
+                    onClick={() => setShowResetModal(true)}
+                    style={{
+                        height: 38, borderRadius: 10, cursor: 'pointer',
+                        backgroundColor: '#FFFFFF', color: '#B91C1C',
+                        border: '1px solid rgba(220,38,38,0.30)',
+                        fontSize: 12, fontWeight: 800,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                >
+                    <RotateCcw size={14} />
+                    {year}년 {month}월 납부 초기화
+                </button>
+
                 {/* 필터 — 가로 스크롤. */}
                 <div style={{
                     display: 'flex', gap: 6, overflowX: 'auto',
@@ -437,6 +455,17 @@ export default function FinancePaymentsPage() {
                     leaves={leaves}
                     annualPaidIds={annualPaidSet}
                     onClose={() => setShowNoticeModal(false)}
+                />
+            )}
+
+            {showResetModal && (
+                <MonthlyResetModal
+                    year={year}
+                    month={month}
+                    receivables={receivables}
+                    payments={payments}
+                    onClose={() => setShowResetModal(false)}
+                    onDone={() => { load(); }}
                 />
             )}
         </main>

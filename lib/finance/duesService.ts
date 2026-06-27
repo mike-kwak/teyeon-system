@@ -942,3 +942,85 @@ export async function payAnnualFeeFull(
         totalAmount: Number(j.totalAmount || 0),
     };
 }
+
+// ── 월 납부 초기화 (월회비 payment soft-cancel) ───────────────────────────────
+// 선택 월의 monthly_fee 청구는 유지하고, 그 청구에 연결된 유효 monthly_fee payment 만 취소해
+// 그 달을 미납으로 되돌린다. 청구/금액/다른 월·타입 payment 는 건드리지 않는다.
+
+export interface MonthlyResetPreview {
+    year: number;
+    month: number;
+    /** 해당 월 월회비 청구 인원(수). */
+    receivableCount: number;
+    /** 초기화(취소) 대상 = 유효 monthly_fee payment 건수. */
+    resetCount: number;
+    /** 초기화 대상 총액. */
+    resetTotal: number;
+    /** 이미 취소된 payment 건수(중복 처리 안 됨). */
+    alreadyVoidedCount: number;
+    /** 초기화 후 예상 — 모든 유효 납부가 취소되므로 완료/일부 0, 미납 = 의무 청구 수. */
+    afterPaid: number;
+    afterPartial: number;
+    afterPending: number;
+}
+
+/**
+ * 월 납부 초기화 미리보기(읽기 전용 순수 계산).
+ *   - receivables: 해당 (year, month) 의 receivable(어떤 타입이든) — monthly_fee 만 사용.
+ *   - payments: 그 receivable 들에 연결된 payment.
+ */
+export function computeMonthlyResetPreview(
+    year: number,
+    month: number,
+    receivables: FinanceDuesReceivable[],
+    payments: FinanceDuesPayment[],
+): MonthlyResetPreview {
+    const monthlyRecv = receivables.filter(
+        (r) => r.receivable_type === 'monthly_fee' && r.target_year === year && r.target_month === month,
+    );
+    const recvIds = new Set(monthlyRecv.map((r) => r.id));
+    const linked = payments.filter(
+        (p) => p.payment_type === 'monthly_fee' && p.receivable_id != null && recvIds.has(p.receivable_id),
+    );
+    const valid = linked.filter((p) => p.is_voided !== true);
+    const obligation = monthlyRecv.filter((r) => r.status !== 'exempt' && r.status !== 'not_target');
+    return {
+        year,
+        month,
+        receivableCount: monthlyRecv.length,
+        resetCount: valid.length,
+        resetTotal: valid.reduce((s, p) => s + (p.amount || 0), 0),
+        alreadyVoidedCount: linked.filter((p) => p.is_voided === true).length,
+        afterPaid: 0,
+        afterPartial: 0,
+        afterPending: obligation.length,
+    };
+}
+
+/**
+ * 월 납부 초기화 실행 — 선택 월 monthly_fee 청구의 유효 payment 만 soft-cancel(서버 RPC, 원자적).
+ *   - 물리 삭제 없음. 청구/금액/다른 월·타입 payment 보존. 재실행해도 이미 취소된 건 중복 처리 안 함.
+ * 반환: 취소 건수 + 총액.
+ */
+export async function resetMonthlyPayments(
+    year: number,
+    month: number,
+): Promise<{ voidedCount: number; totalAmount: number }> {
+    const { data, error } = await supabase.rpc('reset_monthly_payments', {
+        p_year: year,
+        p_month: month,
+    });
+    if (error) {
+        const msg = String(error?.message || '');
+        if (String(error?.code) === 'PGRST202' || /reset_monthly_payments/i.test(msg)) {
+            throw new Error('월 납부 초기화 기능이 아직 활성화되지 않았습니다. (supabase/add_reset_monthly_payments_rpc.sql 적용 필요)');
+        }
+        if (/permission denied/i.test(msg)) {
+            throw new Error('월 납부 초기화 권한이 없습니다.');
+        }
+        console.warn('[Finance/pay/resetMonth]', msg || error);
+        throw new Error(msg || '월 납부 초기화에 실패했습니다.');
+    }
+    const j = (data || {}) as any;
+    return { voidedCount: Number(j.voidedCount || 0), totalAmount: Number(j.totalAmount || 0) };
+}
