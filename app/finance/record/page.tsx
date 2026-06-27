@@ -26,6 +26,8 @@ import {
     FINANCE_CONTAINER_STYLE,
     FINANCE_CARD_STYLE,
 } from '@/components/finance/FinanceCommon';
+import ProfileAvatar from '@/components/ProfileAvatar';
+import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import {
     RECEIVABLE_TYPE_LABEL,
     type FinanceReceivableType,
@@ -68,8 +70,18 @@ export default function FinanceRecordPage() {
     const initMonth = parseMonthParam(searchParams?.get('month'), today.getMonth() + 1);
     const financeHref = `/finance?year=${initYear}&month=${initMonth}`;
 
+    // 회원 상세에서 진입 시 ?memberId=&returnTo=member 로 회원을 미리 확정해 넘긴다.
+    //   - memberId 는 UX 편의값일 뿐 — 실제 존재 여부는 members 조회로 검증한다(신뢰 금지).
+    //   - returnTo='member' 면 저장 후 그 회원 상세로 복귀. 그 외(직접 진입)는 기존 동작 유지.
+    const queryMemberId = (searchParams?.get('memberId') || '').trim();
+    const returnToMember = (searchParams?.get('returnTo') || '') === 'member';
+
     const [members, setMembers] = React.useState<FinanceMember[]>([]);
-    const [memberId, setMemberId] = React.useState<string>('');
+    // queryMemberId 가 있으면 낙관적으로 선택값으로 두고, members 로드 후 실존 검증.
+    const [memberId, setMemberId] = React.useState<string>(queryMemberId);
+    // 회원 변경 UI 펼침 여부. queryMemberId 가 있으면 기본은 자동 선택 카드(잠금) 표시.
+    const [memberPickerOpen, setMemberPickerOpen] = React.useState<boolean>(!queryMemberId);
+    const [memberLookupError, setMemberLookupError] = React.useState<string | null>(null);
     const [paidAt, setPaidAt] = React.useState<string>(() => new Date().toISOString().slice(0, 10));
     const [memo, setMemo] = React.useState<string>('');
     const [items, setItems] = React.useState<ItemDraft[]>(() => [newItem(initYear, initMonth)]);
@@ -85,8 +97,21 @@ export default function FinanceRecordPage() {
         (async () => {
             const list = await fetchAllMembers();
             setMembers(list);
+            // 회원 상세에서 넘어온 memberId 검증: 실존하면 자동 선택 유지, 없으면 안내 후 재선택.
+            if (queryMemberId) {
+                const found = list.some((m) => m.id === queryMemberId);
+                if (found) {
+                    setMemberId(queryMemberId);
+                    setMemberPickerOpen(false);
+                    setMemberLookupError(null);
+                } else {
+                    setMemberId('');
+                    setMemberPickerOpen(true);
+                    setMemberLookupError('선택한 회원 정보를 찾을 수 없습니다. 회원을 다시 선택해 주세요.');
+                }
+            }
         })();
-    }, [isAdmin]);
+    }, [isAdmin, queryMemberId]);
 
     // 연회비 항목이 있으면 (회원, 연도)별 월회비 잔액을 조회. annualKey 가 바뀔 때만 재조회.
     const annualKey = items
@@ -128,7 +153,8 @@ export default function FinanceRecordPage() {
         );
     }
 
-    const memberName = members.find((m) => m.id === memberId)?.nickname ?? null;
+    const selectedMember = members.find((m) => m.id === memberId) ?? null;
+    const memberName = selectedMember?.nickname ?? null;
 
     // 저장 대상 분리: 금액 입력 항목(월회비/벌금/게스트비/행사비/기타)과 연회비(잔액 일괄).
     const isAnnual = (it: ItemDraft) => it.payment_type === 'annual_fee';
@@ -169,6 +195,12 @@ export default function FinanceRecordPage() {
 
     const handleSave = async () => {
         if (!memberId) { alert('회원을 선택해 주세요.'); return; }
+        // URL memberId 는 그대로 신뢰하지 않는다 — 실제 회원 목록에 존재할 때만 저장 진행.
+        if (!members.some((m) => m.id === memberId)) {
+            setMemberPickerOpen(true);
+            setMemberLookupError('선택한 회원 정보를 찾을 수 없습니다. 회원을 다시 선택해 주세요.');
+            return;
+        }
         if (!hasSavable) { alert('납부할 항목을 1건 이상 입력해 주세요.'); return; }
         setSaveError(null);
 
@@ -228,14 +260,19 @@ export default function FinanceRecordPage() {
                 const yr = it.target_year as number;
                 await payAnnualFeeRemainder(memberId, yr, paidAt, memo.trim() || `${yr}년 연회비 일괄 납부`);
             }
-            // 저장 성공 — 방금 기록한 "대상 월"의 현황으로 이동(현재 월/URL 월로 튀지 않게).
+            // 저장 성공 — 방금 기록한 "대상 월" 기준으로 이동(현재 월/URL 월로 튀지 않게).
             //   월회비 항목의 target_year/month 우선, 없으면 기존 컨텍스트(initYear/initMonth).
             const savedMonthly = amountItems.find(
                 (it) => it.payment_type === 'monthly_fee' && it.target_year && it.target_month,
             );
-            const dest = savedMonthly
-                ? `/finance?year=${savedMonthly.target_year}&month=${savedMonthly.target_month}`
-                : financeHref;
+            const destYear = savedMonthly?.target_year ?? initYear;
+            const destMonth = savedMonthly?.target_month ?? initMonth;
+            // 회원 상세에서 진입(returnTo=member)했으면 그 회원 상세로 복귀, 아니면 기존 동작 유지.
+            const dest = returnToMember
+                ? `/finance/members/${encodeURIComponent(memberId)}?year=${destYear}&month=${destMonth}`
+                : savedMonthly
+                    ? `/finance?year=${destYear}&month=${destMonth}`
+                    : financeHref;
             router.push(dest);
         } catch (e: any) {
             setSaveError(e?.message || '납부 기록을 저장하지 못했습니다. 다시 시도해 주세요.');
@@ -251,24 +288,83 @@ export default function FinanceRecordPage() {
                     eyebrow="TEYEON · FINANCE"
                     title="납부 기록 등록"
                     subtitle="회원이 입금한 내용을 직접 기록합니다."
-                    backHref={financeHref}
+                    backHref={returnToMember && memberId
+                        ? `/finance/members/${encodeURIComponent(memberId)}?year=${initYear}&month=${initMonth}`
+                        : financeHref}
                 />
 
                 {/* 1. 회원 / 날짜 / 메모 */}
                 <section style={FINANCE_CARD_STYLE}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <Field label="회원">
-                            <select
-                                value={memberId}
-                                onChange={(e) => setMemberId(e.target.value)}
-                                style={inputStyle}
-                            >
-                                <option value="">회원 선택</option>
-                                {members.map((m) => (
-                                    <option key={m.id} value={m.id}>{m.nickname || '회원 정보 없음'}</option>
-                                ))}
-                            </select>
-                        </Field>
+                        {/* 회원 — 상세에서 넘어온 경우 자동 선택 카드, 그 외/회원 변경 시 선택 목록. */}
+                        {!memberPickerOpen && selectedMember ? (
+                            <div>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>납부 대상 회원</span>
+                                <div style={{
+                                    marginTop: 4, display: 'flex', alignItems: 'center', gap: 10,
+                                    paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10,
+                                    borderRadius: 8,
+                                    border: '1px solid rgba(15,159,152,0.24)',
+                                    backgroundColor: 'rgba(15,159,152,0.06)',
+                                }}>
+                                    <div style={{ width: 36, height: 36, flexShrink: 0 }}>
+                                        {selectedMember.avatar_url ? (
+                                            <ProfileAvatar
+                                                src={selectedMember.avatar_url}
+                                                alt="프로필 이미지"
+                                                size={36}
+                                                className="rounded-full"
+                                                fallbackIcon={<InitialAvatar name={memberName || '회원'} size={36} />}
+                                            />
+                                        ) : (
+                                            <InitialAvatar name={memberName || '회원'} size={36} />
+                                        )}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>
+                                            {memberName || '회원 정보 없음'}
+                                        </p>
+                                        <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>
+                                            {initYear}년 {initMonth}월 납부 기록
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMemberPickerOpen(true)}
+                                        style={{
+                                            flexShrink: 0,
+                                            height: 28, paddingLeft: 10, paddingRight: 10,
+                                            borderRadius: 999,
+                                            backgroundColor: '#FFFFFF',
+                                            color: '#0E7C76',
+                                            border: '1px solid rgba(15,159,152,0.30)',
+                                            fontSize: 11, fontWeight: 800,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        회원 변경
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <Field label="회원">
+                                <select
+                                    value={memberId}
+                                    onChange={(e) => { setMemberId(e.target.value); setMemberLookupError(null); }}
+                                    style={inputStyle}
+                                >
+                                    <option value="">회원 선택</option>
+                                    {members.map((m) => (
+                                        <option key={m.id} value={m.id}>{m.nickname || '회원 정보 없음'}</option>
+                                    ))}
+                                </select>
+                                {memberLookupError && (
+                                    <span style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: '#B91C1C' }}>
+                                        {memberLookupError}
+                                    </span>
+                                )}
+                            </Field>
+                        )}
                         <Field label="납부일">
                             <input
                                 type="date"

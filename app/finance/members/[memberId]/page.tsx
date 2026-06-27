@@ -525,7 +525,7 @@ export default function FinanceMemberDetailPage() {
 
                 <div style={{ display: 'flex', gap: 8 }}>
                     <Link
-                        href={`/finance/record?year=${year}&month=${monthQuery}`}
+                        href={`/finance/record?memberId=${encodeURIComponent(memberId)}&year=${year}&month=${monthQuery}&returnTo=member`}
                         style={{
                             ...FINANCE_CARD_STYLE,
                             flex: 1,
