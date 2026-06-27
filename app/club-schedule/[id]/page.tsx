@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2, Check, MessageSquare } from 'lucide-react';
 import { shareOrCopyClubSchedule, shareClubScheduleStatus } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
+import { useAnalytics } from '@/components/analytics/AnalyticsProvider';
 import { supabase } from '@/lib/supabase';
 import { fetchClubScheduleById } from '@/lib/clubScheduleService';
 import {
@@ -81,6 +82,7 @@ export default function ClubScheduleAttendancePage() {
     const router = useRouter();
     const scheduleId = params?.id || '';
     const { user, role } = useAuth();
+    const { track } = useAnalytics();
     const isAdmin = role === 'CEO' || role === 'ADMIN';
 
     // 활성 회원 — 미응답 명단 계산 + 총원 표시용. members 테이블에서 직접 fetch.
@@ -495,6 +497,9 @@ export default function ClubScheduleAttendancePage() {
             // 1) 내 응답 즉시 갱신
             setMyAttendance(saved);
             setSaveStatus('saved');
+
+            // Analytics — 참석 저장이 DB 에 성공한 이후에만 기록(비차단·무예외). 개인정보 미포함.
+            track('attendance_submit', { status: opts.status, schedule_type: 'club_schedule' });
 
             // 2) 본인 + 전체 현황을 모두 명시적으로 재조회 — 사용자 가이드 순서.
             //    한쪽이 실패해도 다른 쪽은 갱신되도록 try 분리.

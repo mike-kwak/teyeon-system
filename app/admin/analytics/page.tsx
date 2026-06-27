@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
-    buildRange, fetchAnalytics, fetchAgeDistribution,
+    buildRange, fetchAnalytics, fetchAgeDistribution, checkAnalyticsEventsReady,
     type RangeKey, type AnalyticsRange, type AnalyticsResult, type AgeResult,
 } from '@/lib/analytics/analyticsService';
 import { TrendChart, HBarList, VBars, Donut } from '@/components/admin/AnalyticsCharts';
@@ -36,6 +36,7 @@ export default function AdminAnalyticsPage() {
     const [age, setAge] = React.useState<AgeResult | null>(null);
     const [fetching, setFetching] = React.useState(true);
     const [fetchedAt, setFetchedAt] = React.useState<string | null>(null);
+    const [eventsReady, setEventsReady] = React.useState<boolean | null>(null); // analytics_events 수집 활성 여부
 
     const allowed = role === 'CEO' || hasPermission('stats') === 'WRITE';
 
@@ -52,11 +53,12 @@ export default function AdminAnalyticsPage() {
         (async () => {
             setFetching(true);
             const r = buildRange(rangeKey);
-            const [a, ag] = await Promise.all([fetchAnalytics(r), fetchAgeDistribution()]);
+            const [a, ag, ready] = await Promise.all([fetchAnalytics(r), fetchAgeDistribution(), checkAnalyticsEventsReady()]);
             if (cancelled) return;
             setRange(r);
             setData(a);
             setAge(ag);
+            setEventsReady(ready);
             const now = new Date();
             setFetchedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
             setFetching(false);
@@ -117,12 +119,24 @@ export default function AdminAnalyticsPage() {
                 <div style={{ ...CARD, display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14, borderLeft: '3px solid #2563EB', backgroundColor: '#F8FAFF' }}>
                     <Info size={18} style={{ color: '#2563EB', flexShrink: 0, marginTop: 1 }} />
                     <div style={{ minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33' }}>집계 기준 안내</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33' }}>집계 기준 안내</p>
+                            {eventsReady === true ? (
+                                <span style={{ fontSize: 10, fontWeight: 800, color: '#0E7C76', backgroundColor: 'rgba(15,124,118,0.10)', padding: '3px 8px', borderRadius: 999 }}>방문 이벤트 수집: 활성</span>
+                            ) : eventsReady === false ? (
+                                <span style={{ fontSize: 10, fontWeight: 800, color: '#92400E', backgroundColor: 'rgba(146,64,14,0.10)', padding: '3px 8px', borderRadius: 999 }}>방문 이벤트 수집: 대기(migration 미적용)</span>
+                            ) : null}
+                        </div>
                         <p style={{ margin: '3px 0 0', fontSize: 12, fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
-                            현재 앱에는 <b>페이지 방문 로그가 수집되지 않습니다.</b> 따라서 아래 수치는 “방문”이 아니라
-                            공지·댓글·권한변경 등 <b>실제로 기록된 활동(이벤트)</b> 기준입니다.
-                            고유 방문자·총 방문·재방문율·인기 조회 메뉴 등 방문 중심 지표는 가짜 숫자를 만들지 않고
-                            <b> ‘수집 필요’</b>로 표시합니다. (방문 이벤트 수집 도입 시 정확 집계 가능)
+                            {eventsReady === true ? (
+                                <>방문 이벤트(<b>analytics_events</b>) 수집이 활성화되어 있습니다. 아래 활동 집계와 별도로
+                                고유 방문자·페이지 조회·세션·재방문율을 단계적으로 연결할 수 있습니다.</>
+                            ) : (
+                                <>현재 앱에는 <b>페이지 방문 로그가 아직 적재되지 않습니다.</b> 따라서 아래 수치는 “방문”이 아니라
+                                공지·댓글·권한변경 등 <b>실제로 기록된 활동(이벤트)</b> 기준입니다.
+                                고유 방문자·총 방문·재방문율·인기 조회 메뉴 등 방문 중심 지표는 가짜 숫자를 만들지 않고
+                                <b> ‘수집 필요’</b>로 표시합니다. (analytics_events migration 적용 시 정확 집계 가능)</>
+                            )}
                         </p>
                     </div>
                 </div>

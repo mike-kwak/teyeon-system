@@ -237,6 +237,66 @@ export interface AgeResult {
     filled: number;    // age 입력된 회원 수
 }
 
+// ── analytics_events(2차 수집 기반) 연결 — 단계적 전환용 ─────────────────────────
+//   migration 적용 전: 테이블 부재 → { ready:false }. 적용 후: 방문 기반 KPI 활성.
+//   INTERNAL(CEO/ADMIN) 은 일반 사용 분석에서 제외한다.
+export interface VisitorKpis {
+    ready: boolean;                 // analytics_events 조회 가능 여부(migration 적용 + RLS 통과)
+    uniqueVisitors: number;         // auth_user_id 또는 anonymous_id distinct
+    pageViews: number;              // page_view 이벤트 수
+    sessions: number;               // session_id distinct
+    userTypes: { type: string; count: number }[];
+}
+
+/** analytics_events 사용 가능 여부(테이블 존재 + RLS select 허용)만 빠르게 확인. */
+export async function checkAnalyticsEventsReady(): Promise<boolean> {
+    try {
+        const { error } = await supabase
+            .from('analytics_events')
+            .select('id', { count: 'exact', head: true })
+            .limit(1);
+        return !error;
+    } catch {
+        return false;
+    }
+}
+
+/** 방문 기반 KPI(미적용 시 ready:false). INTERNAL 제외. page_view 기준. */
+export async function fetchVisitorKpis(range: AnalyticsRange): Promise<VisitorKpis> {
+    const empty: VisitorKpis = { ready: false, uniqueVisitors: 0, pageViews: 0, sessions: 0, userTypes: [] };
+    try {
+        const { data, error } = await supabase
+            .from('analytics_events')
+            .select('event_name, auth_user_id, anonymous_id, session_id, user_type')
+            .gte('created_at', range.start.toISOString())
+            .lt('created_at', range.end.toISOString())
+            .neq('user_type', 'INTERNAL') // 운영자(CEO/ADMIN) 제외
+            .limit(20000);
+        if (error || !data) return empty;
+
+        const visitors = new Set<string>();
+        const sessions = new Set<string>();
+        const typeCount = new Map<string, number>();
+        let pageViews = 0;
+        for (const r of data as { event_name: string; auth_user_id: string | null; anonymous_id: string | null; session_id: string; user_type: string }[]) {
+            const vid = r.auth_user_id || r.anonymous_id;
+            if (vid) visitors.add(vid);
+            if (r.session_id) sessions.add(r.session_id);
+            if (r.event_name === 'page_view') pageViews++;
+            typeCount.set(r.user_type, (typeCount.get(r.user_type) || 0) + 1);
+        }
+        return {
+            ready: true,
+            uniqueVisitors: visitors.size,
+            pageViews,
+            sessions: sessions.size,
+            userTypes: [...typeCount.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
+        };
+    } catch {
+        return empty;
+    }
+}
+
 export async function fetchAgeDistribution(): Promise<AgeResult> {
     try {
         const { data, error } = await supabase.from('members').select('age').limit(5000);

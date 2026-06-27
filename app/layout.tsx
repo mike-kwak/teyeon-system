@@ -6,6 +6,7 @@ import RootShell from "@/components/RootShell";
 import StitchesRegistry from "./registry";
 import ThemeProvider from "@/components/ThemeProvider";
 import { LoadingProvider } from "@/context/LoadingContext";
+import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 
 const rajdhani = Rajdhani({
   variable: "--font-rajdhani",
@@ -165,7 +166,9 @@ export default function RootLayout({
           <AuthProvider>
             <ThemeProvider>
             <LoadingProvider>
-              <RootShell>{children}</RootShell>
+              <AnalyticsProvider>
+                <RootShell>{children}</RootShell>
+              </AnalyticsProvider>
             </LoadingProvider>
             </ThemeProvider>
           </AuthProvider>
