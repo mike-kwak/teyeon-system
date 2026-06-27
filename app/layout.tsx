@@ -2,14 +2,10 @@ import type { Metadata } from "next";
 import { Rajdhani, Orbitron, Geist } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-import GlobalHeader from "@/components/GlobalHeader";
-import BottomNav from "@/components/BottomNav";
+import RootShell from "@/components/RootShell";
 import StitchesRegistry from "./registry";
 import ThemeProvider from "@/components/ThemeProvider";
-import SplashScreen from "@/components/SplashScreen";
-import LoadingOverlay from "@/components/LoadingOverlay";
 import { LoadingProvider } from "@/context/LoadingContext";
-import { styled } from "@/stitches.config";
 
 const rajdhani = Rajdhani({
   variable: "--font-rajdhani",
@@ -57,18 +53,6 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
 };
-
-const GlobalMain = styled('main', {
-  flex: 1,
-  backgroundColor: '#F2F4F7',
-  minHeight: '100dvh',
-  position: 'relative',
-  overflowX: 'hidden',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  paddingBottom: 'var(--page-bottom-safe)',
-});
 
 export default function RootLayout({
   children,
@@ -181,26 +165,7 @@ export default function RootLayout({
           <AuthProvider>
             <ThemeProvider>
             <LoadingProvider>
-              <div style={{
-                width: '100%',
-                maxWidth: '450px',
-                minHeight: '100dvh',
-                backgroundColor: '#F2F4F7',
-                position: 'relative',
-                boxShadow: '0 0 60px rgba(0,0,0,0.30), 0 0 20px rgba(0,0,0,0.15)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflowX: 'hidden',
-                margin: '0 auto'
-              }}>
-                <SplashScreen />
-                <LoadingOverlay />
-                <GlobalHeader />
-                <GlobalMain id="main-container">
-                  {children}
-                </GlobalMain>
-                <BottomNav />
-              </div>
+              <RootShell>{children}</RootShell>
             </LoadingProvider>
             </ThemeProvider>
           </AuthProvider>

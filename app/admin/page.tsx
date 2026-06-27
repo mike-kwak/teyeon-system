@@ -1,604 +1,316 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+// TEYEON Admin Dashboard (1차 골격).
+//   - 실제 데이터: 다음 정모(club_schedules) + 참석/게스트(club_schedule_attendance) + 최근 로그(app_logs, 안전 시).
+//   - 연결 못한 항목은 가짜 숫자 없이 빈 상태로 표시.
+//   - 접근 제어는 middleware(서버) + admin layout(클라이언트 2차) 가 담당.
+
+import React from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { logAction } from '@/lib/logging';
-import Link from 'next/link';
-import ProfileAvatar from '@/components/ProfileAvatar';
+import { fetchClubSchedules } from '@/lib/clubScheduleService';
+import { fetchAttendancesWithMembers } from '@/lib/clubScheduleAttendanceService';
+import { buildClubScheduleAttendanceGuideText } from '@/lib/clubScheduleShare';
+import { copyTextSafe } from '@/lib/clubScheduleShare';
+import {
+    formatTimeRangeAmPm,
+    formatCourtLabel,
+    type ClubSchedule,
+} from '@/lib/clubScheduleData';
+import {
+    CalendarDays, Users, UserPlus, ListChecks, ArrowRight, ExternalLink,
+    Plus, Copy, Check, Swords, ClipboardList,
+} from 'lucide-react';
 
-interface AdminMember {
-  id: string; // member table id
-  email?: string | null;
-  nickname: string;
-  role: string;
-  avatar_url: string | null;
-  is_guest?: boolean;
+interface NextMeetingData {
+    schedule: ClubSchedule;
+    attending: number;
+    notAttending: number;
+    guests: number;
 }
 
-interface AdminProfile {
-  id: string;
-  email: string | null;
-  nickname: string | null;
-  role: 'GUEST' | 'MEMBER' | 'ADMIN' | 'CEO';
-  avatar_url: string | null;
-  updated_at?: string | null;
-}
-
-const ROLE_OPTIONS = [
-  { group: '운영진 (Staff)', roles: ['회장', '부회장', '총무', '재무', '경기', '섭외'] },
-  { group: '회원 (Member)', roles: ['정회원', '준회원', '게스트'] }
-];
-
-const APP_ROLE_OPTIONS: AdminProfile['role'][] = ['GUEST', 'MEMBER', 'ADMIN', 'CEO'];
-
-const getErrorMessage = (err: any) => {
-  return err?.message || err?.details || err?.hint || JSON.stringify(err) || String(err);
+const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-type ProfilesQueryResult = {
-  data: any[] | null;
-  error: any;
-};
+export default function AdminDashboardPage() {
+    const { role } = useAuth();
+    const [loading, setLoading] = React.useState(true);
+    const [next, setNext] = React.useState<NextMeetingData | null>(null);
+    const [thisMonthCount, setThisMonthCount] = React.useState<number | null>(null);
+    const [upcomingCount, setUpcomingCount] = React.useState<number | null>(null);
+    const [logs, setLogs] = React.useState<{ action: string; path: string; created_at: string }[] | null>(null);
+    const [logsBlocked, setLogsBlocked] = React.useState(false);
+    const [copied, setCopied] = React.useState(false);
 
-const withTimeout = async <T,>(promise: PromiseLike<T>, ms = 10000): Promise<T> => {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error('Profiles request timed out.')), ms);
-  });
-  try {
-    return await Promise.race([Promise.resolve(promise), timeout]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-};
+    React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            // 1) 일정 — 다음 정모 + 이번 달/예정 수.
+            try {
+                const all = await fetchClubSchedules();
+                if (!cancelled) {
+                    const today = todayStr();
+                    const ym = today.slice(0, 7);
+                    const future = all
+                        .filter((s) => s.schedule_date >= today)
+                        .sort((a, b) => a.schedule_date.localeCompare(b.schedule_date) || (a.start_time || '').localeCompare(b.start_time || ''));
+                    setUpcomingCount(future.length);
+                    setThisMonthCount(all.filter((s) => s.schedule_date.slice(0, 7) === ym).length);
+                    const n = future[0] || null;
+                    if (n) {
+                        let attending = 0, notAttending = 0, guests = 0;
+                        try {
+                            const rows = await fetchAttendancesWithMembers(n.id);
+                            for (const r of rows) {
+                                if (r.attendance_status === 'attending') attending++;
+                                else if (r.attendance_status === 'not_attending') notAttending++;
+                                if (r.is_guest) guests++;
+                            }
+                        } catch { /* 참석 데이터 실패 → 0 유지 */ }
+                        if (!cancelled) setNext({ schedule: n, attending, notAttending, guests });
+                    } else if (!cancelled) {
+                        setNext(null);
+                    }
+                }
+            } catch {
+                if (!cancelled) { setUpcomingCount(null); setThisMonthCount(null); setNext(null); }
+            }
+            // 2) 최근 변경 내역 — app_logs (RLS/스키마 안전 시에만).
+            try {
+                const { data, error } = await supabase
+                    .from('app_logs')
+                    .select('action, path, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(6);
+                if (cancelled) return;
+                if (error) { setLogsBlocked(true); setLogs(null); }
+                else setLogs((data || []) as { action: string; path: string; created_at: string }[]);
+            } catch {
+                if (!cancelled) { setLogsBlocked(true); setLogs(null); }
+            }
+            if (!cancelled) setLoading(false);
+        })();
+        return () => { cancelled = true; };
+    }, []);
 
-const FEATURE_REGISTRY: Record<string, { label: string, icon: string }> = {
-  notice: { label: '클럽 공지사항', icon: '📢' },
-  profile: { label: '멤버 프로필', icon: '👤' },
-  profiles: { label: '멤버 프로필', icon: '👤' },
-  tournament: { label: '스페셜 매치', icon: '🔥' },
-  kdk: { label: 'KDK 대진 운영', icon: '⚙️' },
-  live_court: { label: '라이브 코트', icon: '🎾' },
-  scores: { label: '라이브 코트', icon: '🎾' },
-  archive: { label: '경기 아카이브', icon: '📂' },
-  finance: { label: '클럽 재무 장부', icon: '💰' },
-  admin_settings: { label: '마스터 관리 설정', icon: '🛠️' },
-  stats: { label: '방문 통계/기록', icon: '📈' }
-};
+    const handleCopyGuide = async () => {
+        if (!next) return;
+        const text = buildClubScheduleAttendanceGuideText(next.schedule, { includeUrl: true });
+        const ok = await copyTextSafe(text);
+        if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    };
 
-const ALL_FEATURES = ['notice', 'profile', 'tournament', 'kdk', 'live_court', 'archive', 'finance', 'stats', 'admin'] as const;
-
-const ADMIN_TAB_LABELS = {
-  members: '멤버 관리',
-  accounts: '앱 계정',
-  permissions: '기능 권한',
-  menu: '메뉴 순서',
-  history: '운영 로그'
-} as const;
-
-const MANAGEMENT_LINKS = [
-  { label: 'KDK 운영 설정', href: '/kdk', meta: '승리 점수, 벌금, 코트 운영 기준', status: '운영 화면' },
-  { label: '공식 Archive 관리', href: '/archive', meta: '공식/비공식/테스트 기록 확인', status: '바로가기' },
-  { label: '대회 캘린더 관리', href: '/tournament-calendar', meta: '대회, 출전 페어, 성적 관리', status: '바로가기' },
-  { label: '프로필 기록 관리', href: '/profile', meta: '공식 KDK 기록 반영 상태 확인', status: '준비중' },
-  { label: '재무 관리', href: '/finance', meta: '상금, 벌금, 게스트비 정산 연동 예정', status: '준비중' },
-  { label: '운영 통계', href: '/admin/stats', meta: '방문 기록과 운영 지표 확인', status: 'CEO' }
-] as const;
-
-export default function AdminPage() {
-  const { user, role, appConfig, isLoading, refreshConfig } = useAuth();
-  const router = useRouter();
-  
-  // Data State
-  const [members, setMembers] = useState<AdminMember[]>([]);
-  const [profiles, setProfiles] = useState<AdminProfile[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [stats, setStats] = useState<any[]>([]);
-  
-  // UI State
-  const [activeTab, setActiveTab] = useState<'members' | 'accounts' | 'permissions' | 'menu' | 'history'>('members');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [fetchingMembers, setFetchingMembers] = useState(false);
-  const [fetchingProfiles, setFetchingProfiles] = useState(false);
-  const [fetchingHistory, setFetchingHistory] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [updatingProfileId, setUpdatingProfileId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  // Gating
-  useEffect(() => {
-    if (!isLoading && (role !== 'CEO' && role !== 'ADMIN')) {
-      router.replace('/');
-    }
-  }, [role, isLoading, router]);
-
-  const fetchMembersData = async (force = false) => {
-    if (!force && members.length > 0) return;
-    setFetchingMembers(true);
-    setFetchError(null);
-    try {
-      const { data, error } = await supabase
-        .from('members')
-        .select('id, nickname, role, avatar_url')
-        .order('nickname', { ascending: true });
-      if (error) throw error;
-      setMembers((data || []).map((m: any) => ({ ...m, is_guest: false })));
-    } catch (err: any) {
-      console.warn('[Admin] Fetch Members Error:', err);
-      setFetchError(getErrorMessage(err));
-    } finally {
-      setFetchingMembers(false);
-    }
-  };
-
-  const fetchProfilesData = async (force = false) => {
-    if (!force && profiles.length > 0) return;
-    if (fetchingProfiles) return;
-    setFetchingProfiles(true);
-    setFetchError(null);
-    try {
-      const runQuery = (orderBy: 'updated_at' | 'email') => supabase
-        .from('profiles')
-        .select('id, email, nickname, role, avatar_url, updated_at')
-        .order(orderBy, { ascending: orderBy === 'email' });
-
-      let { data, error } = await withTimeout<ProfilesQueryResult>(runQuery('updated_at'));
-      if (error && getErrorMessage(error).includes('updated_at')) {
-        const fallback = await withTimeout<ProfilesQueryResult>(runQuery('email'));
-        data = fallback.data;
-        error = fallback.error;
-      }
-      if (error) throw error;
-      setProfiles((data || []).map((p: any) => ({
-        ...p,
-        role: APP_ROLE_OPTIONS.includes(p.role) ? p.role : 'GUEST'
-      })));
-    } catch (err: any) {
-      console.warn('[Admin] Fetch Profiles Error:', err);
-      setFetchError(getErrorMessage(err));
-    } finally {
-      setFetchingProfiles(false);
-    }
-  };
-
-  const fetchHistoryData = async (force = false) => {
-    if (!force && logs.length > 0) return;
-    setFetchingHistory(true);
-    try {
-      const { data: logsData } = await supabase
-        .from('app_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setLogs(logsData || []);
-
-      // Optional/Safety RPC
-      try {
-        const { data: statsData } = await supabase.rpc('get_daily_visit_stats'); 
-        if (statsData) setStats(statsData);
-      } catch (rpcErr) {
-        console.warn('Daily stats RPC error, skipping:', rpcErr);
-      }
-    } catch (err) {
-      console.warn('[Admin] History fetch error:', err);
-    } finally {
-      setFetchingHistory(false);
-    }
-  };
-
-  // Tab Trigger
-  useEffect(() => {
-    if (role === 'CEO' || role === 'ADMIN') {
-      if (activeTab === 'members') fetchMembersData();
-      if (activeTab === 'accounts') fetchProfilesData();
-      if (activeTab === 'history' && role === 'CEO') fetchHistoryData();
-    }
-  }, [role, activeTab]);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
-
-  const updateConfig = async (newConfig: any) => {
-    setIsSyncing(true);
-    try {
-      const { error } = await supabase
-        .from('app_config')
-        .update(newConfig)
-        .eq('id', 'primary');
-      if (error) throw error;
-      await refreshConfig();
-      showToast('마스터 설정 동기화 완료');
-    } catch (err: any) {
-      showToast('저장 실패: ' + err.message);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleRoleChange = async (member: AdminMember, newRole: string) => {
-    if (member.role === newRole) return;
-    setUpdatingId(member.id);
-    try {
-      await supabase.from('members').update({ role: newRole }).eq('id', member.id);
-      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
-      logAction('/admin', 'role_changed', { target: member.nickname, newRole });
-      showToast(`${member.nickname} ➔ ${newRole}`);
-    } catch (err: any) {
-      showToast('변경 실패: ' + err.message);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleProfileRoleChange = async (profile: AdminProfile, newRole: AdminProfile['role']) => {
-    if (profile.role === newRole) return;
-    if (profile.id === user?.id && role === 'CEO' && newRole !== 'CEO') {
-      showToast('본인 CEO 권한은 여기서 낮출 수 없습니다.');
-      return;
+    // 처리 필요 — 현재 안전하게 판단 가능한 항목만.
+    const tasks: { label: string; meta: string; href: string }[] = [];
+    if (next && next.guests > 0) {
+        tasks.push({ label: '게스트 확인 필요', meta: `${next.schedule.title} · 게스트 ${next.guests}명`, href: `/club-schedule/${next.schedule.id}` });
     }
 
-    setUpdatingProfileId(profile.id);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', profile.id);
-      if (error) throw error;
-      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, role: newRole } : p));
-      logAction('/admin', 'profile_role_changed', { target: profile.email || profile.nickname || profile.id, newRole });
-      showToast(`${profile.email || profile.nickname || '계정'} ➔ ${newRole}`);
-    } catch (err: any) {
-      showToast('권한 변경 실패: ' + err.message);
-    } finally {
-      setUpdatingProfileId(null);
-    }
-  };
-
-  if (isLoading || (role !== 'CEO' && role !== 'ADMIN')) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#000000]">
-        <div className="w-10 h-10 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  const globalIsSyncing = isSyncing || fetchingMembers || fetchingProfiles || fetchingHistory || updatingId !== null || updatingProfileId !== null;
-
-  return (
-    <main 
-      className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full"
-      style={{ paddingBottom: '250px' }}
-    >
-      <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/')} className="text-[#D4AF37] text-xl font-bold w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full">←</button>
-          <div className="leading-tight">
-            <span className="text-[10px] text-[#D4AF37] font-black uppercase tracking-[0.2em]">CONTROL CENTER</span>
-            <h1 className="text-sm font-black tracking-tight text-white uppercase opacity-80">Master Configuration</h1>
-          </div>
-        </div>
-        <div onClick={() => activeTab === 'accounts' ? fetchProfilesData(true) : fetchMembersData(true)} className="flex items-center gap-2 cursor-pointer bg-[#D4AF37]/10 px-3 py-1.5 rounded-full border border-[#D4AF37]/20 hover:bg-[#D4AF37]/20 transition-all group">
-            <span className={`text-xs ${globalIsSyncing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>⚔️</span>
-            <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">{globalIsSyncing ? 'SYNCING...' : 'MASTER AUTH'}</span>
-        </div>
-      </header>
-
-      {/* Navigation Tabs */}
-      <nav className="flex px-4 mt-6 border-b border-white/10 sticky top-[73px] z-30 bg-black/95 overflow-x-auto">
-        {(['members', 'accounts', 'permissions', 'menu', 'history'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`
-              flex-1 min-w-fit px-2 pb-4 text-[10px] sm:text-[11px] font-black tracking-[0.1em] transition-all relative mt-2 whitespace-nowrap
-              ${activeTab === tab ? 'text-[#D4AF37]' : 'text-white/40 hover:text-white'}
-            `}
-          >
-            {ADMIN_TAB_LABELS[tab]}
-            {activeTab === tab && (
-              <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.8)]"></div>
-            )}
-          </button>
-        ))}
-      </nav>
-
-      <div className="px-5 py-6 flex-1 w-full max-w-5xl mx-auto">
-        <section className="mb-7 rounded-[32px] border border-[#D4AF37]/15 bg-white/[0.025] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-[#D4AF37]/70">OPERATIONS HUB</p>
-              <h2 className="mt-1 text-[16px] font-black tracking-tight text-white">운영 관리 바로가기</h2>
-            </div>
-            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-white/35">
-              1차 기반
-            </span>
-          </div>
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {MANAGEMENT_LINKS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="group rounded-[22px] border border-white/7 bg-black/25 p-4 transition-all hover:border-[#D4AF37]/35 hover:bg-[#D4AF37]/5 active:scale-[0.98]"
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="min-w-0 truncate text-[12px] font-black text-white/90">{item.label}</p>
-                  <span className="shrink-0 rounded-full border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-2 py-0.5 text-[8px] font-black text-[#D4AF37]/80">
-                    {item.status}
-                  </span>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            {/* A. 헤더 */}
+            <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+                <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-rajdhani), sans-serif', fontSize: 11, fontWeight: 800, letterSpacing: '0.26em', color: '#2563EB' }}>
+                        TEYEON ADMIN
+                    </p>
+                    <h1 style={{ margin: '3px 0 0', fontSize: 24, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.02em' }}>
+                        운영 대시보드
+                    </h1>
+                    <p style={{ margin: '5px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B' }}>
+                        클럽 운영 현황을 한눈에 확인하고 관리합니다. {role && <span style={{ color: '#2563EB', fontWeight: 800 }}>· {role}</span>}
+                    </p>
                 </div>
-                <p className="line-clamp-2 text-[10px] font-bold leading-snug text-white/38">{item.meta}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Link href="/club/schedule" style={primaryBtn}>
+                        <Plus size={15} /> 새 정모 일정
+                    </Link>
+                    <Link href="/" style={ghostBtn}>
+                        일반 앱으로 <ExternalLink size={13} />
+                    </Link>
+                </div>
+            </header>
 
-        {/* Tab 1: Personnel */}
-        {activeTab === 'members' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-start justify-between mb-6 px-1 gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">멤버 관리</h3>
-                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-white/35">이 값은 앱 접근 권한이 아니라 클럽 내 회원 직책/회원 구분입니다.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {fetchingMembers && <div className="w-2.5 h-2.5 border border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
-                    <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 uppercase">Total {members.length}</span>
-                </div>
+            {/* B. 요약 카드 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
+                <SummaryCard
+                    icon={<CalendarDays size={18} />} tone="blue" label="다음 정모"
+                    value={loading ? '…' : next ? formatMonthDay(next.schedule.schedule_date) : '—'}
+                    sub={loading ? '' : next ? next.schedule.title : '예정된 정모 없음'}
+                />
+                <SummaryCard
+                    icon={<Users size={18} />} tone="teal" label="참석 확정"
+                    value={loading ? '…' : next ? `${next.attending}명` : '—'}
+                    sub={next ? '다음 정모 기준' : '데이터 연결 전'}
+                />
+                <SummaryCard
+                    icon={<UserPlus size={18} />} tone="amber" label="게스트"
+                    value={loading ? '…' : next ? `${next.guests}명` : '—'}
+                    sub={next ? '다음 정모 기준' : '데이터 연결 전'}
+                />
+                <SummaryCard
+                    icon={<ListChecks size={18} />} tone="red" label="처리 필요"
+                    value={loading ? '…' : `${tasks.length}건`}
+                    sub={tasks.length === 0 ? '확인할 항목 없음' : '아래 목록 확인'}
+                />
             </div>
 
-            {fetchError ? (
-                <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-3xl text-xs text-red-500 font-bold mb-6">
-                   ⚠️ Sync Error: {fetchError}
-                   <button onClick={() => fetchMembersData(true)} className="block mt-2 underline opacity-60">재시도</button>
-                </div>
-            ) : (
-                <div className="space-y-2.5">
-                    {members.map(m => (
-                        <div key={m.id} className="bg-white/[0.03] border border-white/5 p-4 rounded-[32px] flex items-center gap-4 hover:border-white/20 transition-all hover:bg-white/[0.05]">
-                            <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={40} className="rounded-full shrink-0 border border-white/10 shadow-sm" fallbackIcon="👤" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-black tracking-tight">{m.nickname}{m.is_guest ? ' (G)' : ''}</p>
-                                <p className="text-[9px] text-[#A3E635] font-black tracking-[0.1em] mt-0.5 truncate uppercase">클럽 직책 · {m.role}</p>
+            {/* 2단: 다음 정모 / (처리 필요 + 최근 변경) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+                {/* C. 다음 정모 */}
+                <Card>
+                    <CardTitle icon={<CalendarDays size={16} />}>다음 정모</CardTitle>
+                    {loading ? (
+                        <Empty>불러오는 중...</Empty>
+                    ) : !next ? (
+                        <Empty>예정된 정모가 없습니다.</Empty>
+                    ) : (
+                        <div>
+                            <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F1B33', wordBreak: 'keep-all' }}>{next.schedule.title}</p>
+                            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, fontWeight: 600, color: '#475569' }}>
+                                <InfoLine k="날짜" v={formatFullDate(next.schedule.schedule_date)} />
+                                <InfoLine k="시간" v={formatTimeRangeAmPm(next.schedule.start_time, next.schedule.end_time) || '미정'} />
+                                <InfoLine k="장소" v={next.schedule.location || '미정'} />
+                                <InfoLine k="코트" v={formatCourtLabel(next.schedule.court_mode, next.schedule.court_count) || '미정'} />
                             </div>
-                            <select 
-                                value={m.role}
-                                onChange={(e) => handleRoleChange(m, e.target.value)}
-                                disabled={updatingId === m.id}
-                                className={`bg-[#0A0A0F] text-[#D4AF37] text-[10px] font-black px-3 py-2 rounded-xl border border-white/10 outline-none ${updatingId === m.id ? 'opacity-20' : 'hover:border-[#D4AF37]/50'}`}
-                            >
-                                {ROLE_OPTIONS.map(g => (
-                                    <optgroup key={g.group} label={g.group} className="bg-[#0A0A0F] text-white italic">
-                                        {g.roles.map(r => <option key={r} value={r}>{r}</option>)}
-                                    </optgroup>
+                            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <Stat label="참석" value={next.attending} color="#0E7C76" />
+                                <Stat label="불참" value={next.notAttending} color="#B91C1C" />
+                                <Stat label="게스트" value={next.guests} color="#92400E" />
+                            </div>
+                            <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <Link href={`/club-schedule/${next.schedule.id}`} style={miniAction}>참석 현황</Link>
+                                <Link href="/club/schedule" style={miniAction}>정모 관리</Link>
+                                <Link href="/kdk" style={miniAction}><Swords size={12} /> KDK 준비</Link>
+                                <button type="button" onClick={handleCopyGuide} style={{ ...miniAction, cursor: 'pointer' }}>
+                                    {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? '복사됨' : '안내문 복사'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </Card>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* D. 처리 필요 */}
+                    <Card id="tasks">
+                        <CardTitle icon={<ListChecks size={16} />}>처리 필요</CardTitle>
+                        {loading ? (
+                            <Empty>불러오는 중...</Empty>
+                        ) : tasks.length === 0 ? (
+                            <Empty>지금 확인할 항목이 없습니다.</Empty>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {tasks.map((t, i) => (
+                                    <Link key={i} href={t.href} style={taskRow}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33' }}>{t.label}</p>
+                                            <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.meta}</p>
+                                        </div>
+                                        <ArrowRight size={14} style={{ color: '#CBD5E1', flexShrink: 0 }} />
+                                    </Link>
                                 ))}
-                            </select>
-                        </div>
-                    ))}
-                    {members.length === 0 && !fetchingMembers && (
-                        <div className="py-20 text-center opacity-20 italic font-medium">No results found.</div>
-                    )}
-                </div>
-            )}
-          </section>
-        )}
+                            </div>
+                        )}
+                        <p style={{ margin: '10px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5 }}>
+                            KDK 확정 대기 · 미응답 집계는 다음 단계에서 연결 예정입니다.
+                        </p>
+                    </Card>
 
-        {/* Tab 2: Login Accounts */}
-        {activeTab === 'accounts' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-start justify-between mb-6 px-1 gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">앱 계정 권한</h3>
-                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-white/35">앱 권한은 화면 접근과 관리 기능 노출에 사용됩니다.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {fetchingProfiles && <div className="w-2.5 h-2.5 border border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
-                    <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 uppercase">Total {profiles.length}</span>
+                    {/* E. 최근 변경 내역 */}
+                    <Card>
+                        <CardTitle icon={<ClipboardList size={16} />}>최근 변경 내역</CardTitle>
+                        {loading ? (
+                            <Empty>불러오는 중...</Empty>
+                        ) : logsBlocked || logs === null ? (
+                            <Empty>최근 활동 연결 예정 · 보안 정책(RLS) 확인 필요</Empty>
+                        ) : logs.length === 0 ? (
+                            <Empty>최근 활동이 없습니다.</Empty>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {logs.map((l, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderTop: i === 0 ? 'none' : '1px dashed #EEF2F6' }}>
+                                        <span style={{ fontSize: 10, fontWeight: 800, color: '#2563EB', backgroundColor: 'rgba(37,99,235,0.08)', padding: '2px 7px', borderRadius: 999, whiteSpace: 'nowrap' }}>{l.action || 'log'}</span>
+                                        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.path || '/'}</span>
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap' }}>{formatTime(l.created_at)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
                 </div>
             </div>
 
-            {fetchError ? (
-                <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-3xl text-xs text-red-500 font-bold mb-6">
-                   ⚠️ Sync Error: {fetchError}
-                   <button onClick={() => fetchProfilesData(true)} className="block mt-2 underline opacity-60">재시도</button>
+            {/* F. 이번 달 운영 */}
+            <Card style={{ marginTop: 12 }}>
+                <CardTitle icon={<CalendarDays size={16} />}>이번 달 운영</CardTitle>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+                    <MiniStat label="이번 달 정모" value={thisMonthCount === null ? '—' : `${thisMonthCount}회`} />
+                    <MiniStat label="예정된 정모" value={upcomingCount === null ? '—' : `${upcomingCount}건`} />
+                    <MiniStat label="KDK 세션" value="연결 예정" muted />
+                    <MiniStat label="게스트 누적" value="연결 예정" muted />
                 </div>
-            ) : (
-                <div className="space-y-2.5">
-                    {profiles.map(p => (
-                        <div key={p.id} className="bg-white/[0.03] border border-white/5 p-4 rounded-[32px] flex items-center gap-4 hover:border-white/20 transition-all hover:bg-white/[0.05]">
-                            <ProfileAvatar src={p.avatar_url} alt={p.nickname || p.email || 'Account'} size={40} className="rounded-full shrink-0 border border-white/10 shadow-sm" fallbackIcon="👤" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-black tracking-tight truncate">{p.nickname || p.email || 'Unknown Account'}</p>
-                                <p className="text-[9px] text-white/30 font-black tracking-[0.1em] mt-0.5 truncate uppercase">{p.email || p.id}</p>
-                            </div>
-                            <select
-                                value={p.role}
-                                onChange={(e) => handleProfileRoleChange(p, e.target.value as AdminProfile['role'])}
-                                disabled={updatingProfileId === p.id || (p.id === user?.id && role === 'CEO')}
-                                className={`bg-[#0A0A0F] text-[#D4AF37] text-[10px] font-black px-3 py-2 rounded-xl border border-white/10 outline-none ${updatingProfileId === p.id || (p.id === user?.id && role === 'CEO') ? 'opacity-40' : 'hover:border-[#D4AF37]/50'}`}
-                            >
-                                {APP_ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                        </div>
-                    ))}
-                    {profiles.length === 0 && !fetchingProfiles && (
-                        <div className="py-20 text-center opacity-20 italic font-medium">No login accounts found.</div>
-                    )}
-                </div>
-            )}
-          </section>
-        )}
-
-        {/* Tab 2: Permissions */}
-        {activeTab === 'permissions' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-5">
-            <div className="px-1 mb-2">
-                <h3 className="text-xs font-black text-white uppercase tracking-[0.3em]">기능 권한</h3>
-                <p className="text-[9px] text-[#A3E635] font-black mt-1 uppercase tracking-widest opacity-60 italic">앱 기능별 읽기/쓰기/숨김 제어</p>
-                <p className="mt-2 rounded-2xl border border-amber-300/15 bg-amber-300/5 px-4 py-3 text-[10px] font-bold leading-relaxed text-amber-100/55">
-                  일부 기능 권한 키는 과거 구조가 남아 있어 추후 AuthContext 기준으로 정비 예정입니다. 이번 단계에서는 기존 저장 방식만 유지합니다.
+                <p style={{ margin: '10px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5 }}>
+                    KDK 세션·게스트 누적·공식 기록 확정은 데이터 구조 확인 후 다음 단계에서 `4/4 세션`처럼 기준과 함께 연결합니다.
                 </p>
-            </div>
-            {ALL_FEATURES.map(feat => {
-                const reg = FEATURE_REGISTRY[feat] || { label: feat, icon: '🛡️' };
-                return (
-                    <div key={feat} className="bg-white/[0.03] rounded-[36px] p-6 border border-white/5">
-                        <div className="flex items-center gap-4 mb-6">
-                            <span className="text-2xl">{reg.icon}</span>
-                            <span className="text-[14px] font-black text-white/90 tracking-tight uppercase">{reg.label}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                            {(['ADMIN', 'MEMBER', 'GUEST'] as const).map(roleKey => {
-                                const level = appConfig?.permissions?.[roleKey]?.[feat] || 'HIDE';
-                                return (
-                                    <div key={roleKey} className="flex flex-col gap-2">
-                                        <span className="text-[8px] font-black text-white/30 text-center uppercase tracking-[0.1em]">{roleKey}</span>
-                                        <button 
-                                            disabled={isSyncing}
-                                            onClick={() => {
-                                                const levels = { ...(appConfig?.permissions || {}) };
-                                                if (!levels[roleKey]) levels[roleKey] = {};
-                                                const nextLevel = level === 'WRITE' ? 'READ' : level === 'READ' ? 'HIDE' : 'WRITE';
-                                                (levels[roleKey] as any)[feat] = nextLevel;
-                                                updateConfig({ permissions: levels });
-                                            }}
-                                            className={`
-                                                w-full text-[10px] font-black py-3 rounded-2xl text-center border transition-all active:scale-90
-                                                ${level === 'WRITE' ? 'bg-[#22C55E]/10 border-[#22C55E]/40 text-[#22C55E]' : 
-                                                  level === 'READ' ? 'bg-[#3B82F6]/10 border-[#3B82F6]/40 text-[#3B82F6]' : 
-                                                  'bg-white/5 border-white/5 text-white/20'}
-                                                ${isSyncing ? 'opacity-30 cursor-not-allowed' : ''}
-                                            `}
-                                        >
-                                            {level === 'WRITE' ? '쓰기' : level === 'READ' ? '읽기' : '제한'}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                );
-            })}
-          </section>
-        )}
-
-        {/* Tab 3: Orchestration (Menu Order) */}
-        {activeTab === 'menu' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-7 px-1">
-              <h3 className="text-xs font-black text-white uppercase tracking-[0.3em] opacity-80">메뉴 순서</h3>
-              <p className="mt-2 text-[10px] font-bold leading-relaxed text-white/35">역할별 메인 메뉴 노출 순서를 조정합니다.</p>
-            </div>
-            {(['ADMIN', 'MEMBER', 'GUEST'] as const).map(roleKey => (
-                <div key={roleKey} className="mb-12 last:mb-0">
-                    <h4 className="text-[10px] font-black text-[#D4AF37] tracking-[0.2em] uppercase mb-4 px-2">{roleKey} VIEW SEQUENCE</h4>
-                    <div className="bg-white/[0.02] rounded-[24px] p-2 space-y-1.5 border border-white/5 text-sm">
-                        {(appConfig?.menu_order?.[roleKey] || []).map((itemId, idx) => {
-                             const lowerId = itemId.toLowerCase();
-                             const reg = FEATURE_REGISTRY[lowerId] || FEATURE_REGISTRY[itemId] || { label: itemId, icon: '⚙️' };
-                             return (
-                                <div key={itemId} className="flex items-center gap-4 p-4 bg-white/[0.03] rounded-[30px] border border-white/5">
-                                    <span className="text-[10px] font-black text-[#D4AF37]/30 w-4 text-center">{idx + 1}</span>
-                                    <span className="text-xl">{reg.icon}</span>
-                                    <span className="text-[13px] font-bold flex-1 text-white/90 truncate tracking-tight">{reg.label}</span>
-                                    <div className="flex gap-1.5 text-xs">
-                                        <button 
-                                            disabled={idx === 0 || isSyncing}
-                                            onClick={() => {
-                                                const order = [...(appConfig?.menu_order?.[roleKey] || [])];
-                                                [order[idx-1], order[idx]] = [order[idx], order[idx-1]];
-                                                updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } });
-                                            }}
-                                            className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 active:scale-90 transition-all disabled:opacity-5"
-                                        >↑</button>
-                                        <button 
-                                            disabled={idx === (appConfig?.menu_order?.[roleKey]?.length || 0) - 1 || isSyncing}
-                                            onClick={() => {
-                                                const order = [...(appConfig?.menu_order?.[roleKey] || [])];
-                                                [order[idx], order[idx+1]] = [order[idx+1], order[idx]];
-                                                updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } });
-                                            }}
-                                            className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 active:scale-90 transition-all disabled:opacity-5"
-                                        >↓</button>
-                                    </div>
-                                </div>
-                             );
-                        })}
-                    </div>
-                </div>
-            ))}
-          </section>
-        )}
-
-        {/* Tab 4: Visiting Stats (CEO Only) */}
-        {activeTab === 'history' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {role !== 'CEO' ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white/[0.02] rounded-[24px] border border-white/5 mx-2">
-                <span className="text-5xl opacity-20 grayscale">🔒</span>
-                <div className="leading-tight">
-                    <p className="text-sm font-black text-[#D4AF37] uppercase tracking-tighter shadow-sm mb-1">CEO EXCLUSIVE VAULT</p>
-                    <p className="text-[10px] text-white/30 font-medium font-sans">관리자 탭 중 방문 통계는 오직 회장님만 열람 가능합니다.</p>
-                </div>
-                <button onClick={() => setActiveTab('members')} className="text-[11px] font-bold text-white/40 hover:text-white underline decoration-[#D4AF37] underline-offset-8 transition-all px-8 py-3 bg-white/5 rounded-full">멤버 관리로 돌아가기</button>
-              </div>
-            ) : (
-            <div className="flex flex-col gap-9">
-                <div className="bg-gradient-to-br from-[#1A253D] to-[#14141F] rounded-[48px] p-8 border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group">
-                    <div className="relative z-10">
-                        <h3 className="text-xs font-black text-[#D4AF37] uppercase tracking-[0.3em] mb-7 flex items-center gap-3">
-                            Audience Velocity
-                            {fetchingHistory && <div className="w-2.5 h-2.5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
-                        </h3>
-                        <div className="flex justify-between items-end gap-2.5 h-36">
-                            {(stats.length > 0 ? stats : [4, 7, 12, 8, 15, 22, 18]).map((v: any, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-3.5 group/bar">
-                                    <div className="w-full bg-gradient-to-t from-[#D4AF37]/10 to-[#D4AF37]/80 rounded-full transition-all duration-300 group-hover/bar:brightness-150" style={{ height: `${(typeof v === 'object' ? v.count : v) / 1.5}rem` }}></div>
-                                    <span className="text-[9px] text-white/10 font-black uppercase tracking-widest">{6-i === 0 ? 'Now' : `d-${6-i}`}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                   <div className="flex items-center justify-between mb-6 px-3">
-                       <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Chronos Security Feed</h3>
-                       <div className="px-3 py-1 bg-[#A3E635]/10 rounded-full border border-[#A3E635]/20 text-[8px] font-black text-[#A3E635] uppercase tracking-widest animate-pulse font-sans">Live Feed</div>
-                   </div>
-                   <div className="space-y-3 font-sans">
-                        {logs.slice(0, 15).map((log, i) => (
-                            <div key={i} className="bg-white/[0.03] border border-white/5 p-5 rounded-[36px] flex flex-col gap-3">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-[#A3E635] uppercase tracking-widest">{log.action || 'INTERACT'}</span>
-                                        <span className="text-[13px] font-black text-white mt-1 tracking-tight">{log.path || '/'}</span>
-                                    </div>
-                                    <span className="text-[9px] text-white/20 font-mono font-black uppercase">{new Date(log.created_at).toLocaleTimeString()}</span>
-                                </div>
-                                <div className="flex items-center gap-2 pt-2 border-t border-white/[0.03]">
-                                    <ProfileAvatar src={null} alt="User" size={14} className="opacity-30 rounded-full" fallbackIcon="👤" />
-                                    <p className="text-[9px] text-white/30 truncate font-mono tracking-tighter uppercase">{log.user_email || 'SECURE GUEST'}</p>
-                                </div>
-                            </div>
-                        ))}
-                   </div>
-                </div>
-            </div>
-            )}
-          </section>
-        )}
-      </div>
-
-      {toast && (
-        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 bg-[#D4AF37] text-black px-10 py-4 rounded-full font-black shadow-[0_20px_60px_rgba(212,175,55,0.4)] animate-in slide-in-from-bottom-5 fade-in border border-white/20 text-[10px] uppercase tracking-[0.2em] whitespace-nowrap">
-            🏆 {toast}
+            </Card>
         </div>
-      )}
-    </main>
-  );
+    );
 }
+
+// ── 표시 helper ──────────────────────────────────────────────────────────────
+function formatMonthDay(date: string) { const [, m, d] = date.split('-'); return `${Number(m)}/${Number(d)}`; }
+function formatFullDate(date: string) {
+    const [y, m, d] = date.split('-').map(Number);
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()];
+    return `${y}년 ${m}월 ${d}일 (${wd})`;
+}
+function formatTime(iso: string) { const dt = new Date(iso); return Number.isNaN(dt.getTime()) ? '' : `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`; }
+
+const CARD: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: 14, border: '1px solid #E3E9F2', boxShadow: '0 1px 3px rgba(15,27,51,0.05)', padding: 16 };
+function Card({ children, style, id }: { children: React.ReactNode; style?: React.CSSProperties; id?: string }) {
+    return <section id={id} style={{ ...CARD, ...style }}>{children}</section>;
+}
+function CardTitle({ children, icon }: { children: React.ReactNode; icon: React.ReactNode }) {
+    return <h3 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 900, color: '#0F1B33' }}><span style={{ color: '#2563EB' }}>{icon}</span>{children}</h3>;
+}
+function Empty({ children }: { children: React.ReactNode }) {
+    return <p style={{ margin: '8px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#94A3B8' }}>{children}</p>;
+}
+function InfoLine({ k, v }: { k: string; v: string }) {
+    return <div style={{ display: 'flex', gap: 8 }}><span style={{ width: 38, flexShrink: 0, color: '#94A3B8', fontWeight: 700 }}>{k}</span><span style={{ flex: 1, minWidth: 0, color: '#334155', wordBreak: 'keep-all' }}>{v}</span></div>;
+}
+function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+    return <div style={{ flex: '1 1 80px', minWidth: 70, textAlign: 'center', padding: '8px 4px', borderRadius: 10, backgroundColor: '#F6F8FC', border: '1px solid #E3E9F2' }}><p style={{ margin: 0, fontSize: 18, fontWeight: 900, color }}>{value}</p><p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 700, color: '#64748B' }}>{label}</p></div>;
+}
+function MiniStat({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+    return <div style={{ padding: '12px 12px', borderRadius: 10, backgroundColor: '#F6F8FC', border: '1px solid #E3E9F2' }}><p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#64748B' }}>{label}</p><p style={{ margin: '4px 0 0', fontSize: muted ? 12 : 18, fontWeight: 900, color: muted ? '#94A3B8' : '#0F1B33', whiteSpace: 'nowrap' }}>{value}</p></div>;
+}
+
+const TONE: Record<string, { bg: string; color: string }> = {
+    blue: { bg: 'rgba(37,99,235,0.08)', color: '#2563EB' },
+    teal: { bg: 'rgba(15,124,118,0.08)', color: '#0E7C76' },
+    amber: { bg: 'rgba(146,64,14,0.08)', color: '#92400E' },
+    red: { bg: 'rgba(185,28,28,0.08)', color: '#B91C1C' },
+};
+function SummaryCard({ icon, tone, label, value, sub }: { icon: React.ReactNode; tone: keyof typeof TONE; label: string; value: string; sub: string }) {
+    const t = TONE[tone];
+    return (
+        <div style={{ ...CARD, padding: 14, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: t.bg, color: t.color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, color: '#64748B' }}>{label}</span>
+            </div>
+            <p style={{ margin: '10px 0 0', fontSize: 22, fontWeight: 900, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</p>
+        </div>
+    );
+}
+
+const primaryBtn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, paddingLeft: 14, paddingRight: 14, borderRadius: 10, backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: 12.5, fontWeight: 800, textDecoration: 'none' };
+const ghostBtn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 5, height: 38, paddingLeft: 14, paddingRight: 14, borderRadius: 10, backgroundColor: '#FFFFFF', color: '#334155', border: '1px solid #D9E1EC', fontSize: 12.5, fontWeight: 800, textDecoration: 'none' };
+const miniAction: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, paddingLeft: 11, paddingRight: 11, borderRadius: 8, backgroundColor: '#F6F8FC', color: '#334155', border: '1px solid #E3E9F2', fontSize: 11.5, fontWeight: 800, textDecoration: 'none' };
+const taskRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, backgroundColor: '#FBFCFE', border: '1px solid #E3E9F2', textDecoration: 'none' };
