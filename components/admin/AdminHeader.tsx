@@ -7,10 +7,10 @@ import { Menu as MenuIcon } from 'lucide-react';
 export default function AdminHeader({ role, onMenu }: { role: string | null; onMenu: () => void }) {
     return (
         <header
-            className="lg:hidden"
+            className="flex lg:hidden"
             style={{
                 position: 'sticky', top: 0, zIndex: 30,
-                display: 'flex', alignItems: 'center', gap: 10,
+                alignItems: 'center', gap: 10,
                 paddingTop: 'calc(10px + env(safe-area-inset-top))',
                 paddingBottom: 10, paddingLeft: 14, paddingRight: 14,
                 backgroundColor: '#0F1B33',

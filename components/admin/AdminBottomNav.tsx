@@ -10,10 +10,9 @@ export default function AdminBottomNav({ onMenu }: { onMenu: () => void }) {
     const pathname = usePathname();
     return (
         <nav
-            className="lg:hidden"
+            className="flex lg:hidden"
             style={{
                 position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30,
-                display: 'flex',
                 backgroundColor: '#0F1B33',
                 borderTop: '1px solid rgba(255,255,255,0.08)',
                 paddingBottom: 'env(safe-area-inset-bottom)',

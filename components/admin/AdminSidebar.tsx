@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ExternalLink, ArrowLeft } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ExternalLink } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import { ADMIN_NAV_SECTIONS } from './AdminNavConfig';
 
 const NAVY = '#0F1B33';
@@ -23,6 +24,13 @@ function isActive(pathname: string | null, href: string): boolean {
 
 export default function AdminSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { user, role, signOut } = useAuth();
+    const adminName = (user?.user_metadata?.nickname as string) || user?.email?.split('@')[0] || '관리자';
+    const initial = adminName.trim().charAt(0) || 'A';
+    const handleLogout = async () => {
+        try { await signOut(); } finally { router.replace('/'); }
+    };
     return (
         <aside
             className="hidden lg:flex"
@@ -82,19 +90,35 @@ export default function AdminSidebar() {
                 ))}
             </nav>
 
-            {/* 일반 앱으로 */}
+            {/* 관리자 프로필 + 보조 액션(일반 앱 이동 / 로그아웃) */}
             <div style={{ padding: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <Link
-                    href="/"
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 9,
-                        padding: '10px 11px', borderRadius: 10, textDecoration: 'none',
-                        backgroundColor: NAVY_SOFT, color: TEXT, fontSize: 12.5, fontWeight: 700,
-                    }}
-                >
-                    <ArrowLeft size={15} />
-                    일반 앱으로 돌아가기
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 4px 10px' }}>
+                    <span style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        backgroundColor: NAVY_SOFT, color: ACTIVE_TEXT, border: '1px solid rgba(56,189,248,0.25)',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 900,
+                    }}>
+                        {initial}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {adminName}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: TEXT_DIM }}>
+                            {role || 'ADMIN'} · 운영
+                        </p>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingLeft: 4 }}>
+                    <Link href="/" style={{ fontSize: 11.5, fontWeight: 700, color: TEXT, textDecoration: 'none' }}>
+                        일반 앱으로 이동
+                    </Link>
+                    <span style={{ color: 'rgba(255,255,255,0.18)' }}>·</span>
+                    <button type="button" onClick={handleLogout} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: TEXT_DIM }}>
+                        로그아웃
+                    </button>
+                </div>
             </div>
         </aside>
     );

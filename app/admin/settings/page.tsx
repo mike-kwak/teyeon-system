@@ -1,20 +1,26 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+// 관리자 설정 — Cool Premium Light(Admin 디자인 시스템) 통합본.
+//   ⚠️ UI/레이아웃만 정리. 데이터/저장/권한 로직은 기존과 동일하게 보존:
+//      - 멤버 클럽 직책 변경(members.role), 앱 계정 Role 변경(profiles.role),
+//        기능 권한(app_config.permissions), 메뉴 순서(app_config.menu_order).
+//   방문 통계 탭은 별도 /admin/stats 로 분리되어 여기서는 제거(기능 보존, 중복만 제거).
+//   다크 헤더/뒤로가기/검정 Select/형광 텍스트/바로가기 카드 제거(Admin shell 이 chrome 제공).
+
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { logAction } from '@/lib/logging';
-import Link from 'next/link';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { Users, UserCog, ShieldCheck, ListOrdered, ArrowUp, ArrowDown, Loader2, Link2, Link2Off } from 'lucide-react';
 
 interface AdminMember {
-  id: string; // member table id
-  email?: string | null;
+  id: string;
   nickname: string;
   role: string;
   avatar_url: string | null;
-  is_guest?: boolean;
+  auth_user_id?: string | null;
 }
 
 interface AdminProfile {
@@ -28,91 +34,59 @@ interface AdminProfile {
 
 const ROLE_OPTIONS = [
   { group: '운영진 (Staff)', roles: ['회장', '부회장', '총무', '재무', '경기', '섭외'] },
-  { group: '회원 (Member)', roles: ['정회원', '준회원', '게스트'] }
+  { group: '회원 (Member)', roles: ['정회원', '준회원', '게스트'] },
 ];
-
 const APP_ROLE_OPTIONS: AdminProfile['role'][] = ['GUEST', 'MEMBER', 'ADMIN', 'CEO'];
 
-const getErrorMessage = (err: any) => {
-  return err?.message || err?.details || err?.hint || JSON.stringify(err) || String(err);
-};
+const getErrorMessage = (err: any) => err?.message || err?.details || err?.hint || JSON.stringify(err) || String(err);
 
-type ProfilesQueryResult = {
-  data: any[] | null;
-  error: any;
-};
-
+type ProfilesQueryResult = { data: any[] | null; error: any };
 const withTimeout = async <T,>(promise: PromiseLike<T>, ms = 10000): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error('Profiles request timed out.')), ms);
-  });
-  try {
-    return await Promise.race([Promise.resolve(promise), timeout]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
+  const timeout = new Promise<never>((_, reject) => { timeoutId = setTimeout(() => reject(new Error('Profiles request timed out.')), ms); });
+  try { return await Promise.race([Promise.resolve(promise), timeout]); }
+  finally { if (timeoutId) clearTimeout(timeoutId); }
 };
 
-const FEATURE_REGISTRY: Record<string, { label: string, icon: string }> = {
-  notice: { label: '클럽 공지사항', icon: '📢' },
-  profile: { label: '멤버 프로필', icon: '👤' },
-  profiles: { label: '멤버 프로필', icon: '👤' },
-  tournament: { label: '스페셜 매치', icon: '🔥' },
-  kdk: { label: 'KDK 대진 운영', icon: '⚙️' },
-  live_court: { label: '라이브 코트', icon: '🎾' },
-  scores: { label: '라이브 코트', icon: '🎾' },
-  archive: { label: '경기 아카이브', icon: '📂' },
-  finance: { label: '클럽 재무 장부', icon: '💰' },
-  admin_settings: { label: '마스터 관리 설정', icon: '🛠️' },
-  stats: { label: '방문 통계/기록', icon: '📈' }
+const FEATURE_REGISTRY: Record<string, { label: string; desc: string }> = {
+  notice: { label: '클럽 공지사항', desc: '공지 작성·열람' },
+  profile: { label: '멤버 프로필', desc: '프로필 조회·기록' },
+  tournament: { label: '스페셜 매치', desc: '특별 경기 운영' },
+  kdk: { label: 'KDK 대진 운영', desc: '대진·정산 운영' },
+  live_court: { label: '라이브 코트', desc: '실시간 점수' },
+  archive: { label: '경기 아카이브', desc: '공식/비공식 기록' },
+  finance: { label: '클럽 재무 장부', desc: '회비·정산' },
+  stats: { label: '방문 통계', desc: '활동 기록 열람' },
+  admin: { label: '관리자 설정', desc: 'Admin Console' },
 };
-
 const ALL_FEATURES = ['notice', 'profile', 'tournament', 'kdk', 'live_court', 'archive', 'finance', 'stats', 'admin'] as const;
 
-const ADMIN_TAB_LABELS = {
-  members: '멤버 관리',
-  accounts: '앱 계정',
-  permissions: '기능 권한',
-  menu: '메뉴 순서',
-  history: '운영 로그'
-} as const;
+type TabKey = 'members' | 'accounts' | 'permissions' | 'menu';
+const TABS: { key: TabKey; label: string; icon: typeof Users }[] = [
+  { key: 'members', label: '멤버 관리', icon: Users },
+  { key: 'accounts', label: '앱 계정', icon: UserCog },
+  { key: 'permissions', label: '기능 권한', icon: ShieldCheck },
+  { key: 'menu', label: '메뉴 순서', icon: ListOrdered },
+];
 
-const MANAGEMENT_LINKS = [
-  { label: 'KDK 운영 설정', href: '/kdk', meta: '승리 점수, 벌금, 코트 운영 기준', status: '운영 화면' },
-  { label: '공식 Archive 관리', href: '/archive', meta: '공식/비공식/테스트 기록 확인', status: '바로가기' },
-  { label: '대회 캘린더 관리', href: '/tournament-calendar', meta: '대회, 출전 페어, 성적 관리', status: '바로가기' },
-  { label: '프로필 기록 관리', href: '/profile', meta: '공식 KDK 기록 반영 상태 확인', status: '준비중' },
-  { label: '재무 관리', href: '/finance', meta: '상금, 벌금, 게스트비 정산 연동 예정', status: '준비중' },
-  { label: '운영 통계', href: '/admin/stats', meta: '방문 기록과 운영 지표 확인', status: 'CEO' }
-] as const;
-
-export default function AdminPage() {
+export default function AdminSettingsPage() {
   const { user, role, appConfig, isLoading, refreshConfig } = useAuth();
   const router = useRouter();
 
-  // Data State
   const [members, setMembers] = useState<AdminMember[]>([]);
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [stats, setStats] = useState<any[]>([]);
-
-  // UI State
-  const [activeTab, setActiveTab] = useState<'members' | 'accounts' | 'permissions' | 'menu' | 'history'>('members');
+  const [activeTab, setActiveTab] = useState<TabKey>('members');
   const [isSyncing, setIsSyncing] = useState(false);
   const [fetchingMembers, setFetchingMembers] = useState(false);
   const [fetchingProfiles, setFetchingProfiles] = useState(false);
-  const [fetchingHistory, setFetchingHistory] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [updatingProfileId, setUpdatingProfileId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Gating
+  // Gating — 비관리자 차단(서버 middleware 1차, 여기 2차).
   useEffect(() => {
-    if (!isLoading && (role !== 'CEO' && role !== 'ADMIN')) {
-      router.replace('/');
-    }
+    if (!isLoading && role !== 'CEO' && role !== 'ADMIN') router.replace('/');
   }, [role, isLoading, router]);
 
   const fetchMembersData = async (force = false) => {
@@ -122,10 +96,10 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from('members')
-        .select('id, nickname, role, avatar_url')
+        .select('id, nickname, role, avatar_url, auth_user_id')
         .order('nickname', { ascending: true });
       if (error) throw error;
-      setMembers((data || []).map((m: any) => ({ ...m, is_guest: false })));
+      setMembers((data || []) as AdminMember[]);
     } catch (err: any) {
       console.warn('[Admin] Fetch Members Error:', err);
       setFetchError(getErrorMessage(err));
@@ -144,18 +118,13 @@ export default function AdminPage() {
         .from('profiles')
         .select('id, email, nickname, role, avatar_url, updated_at')
         .order(orderBy, { ascending: orderBy === 'email' });
-
       let { data, error } = await withTimeout<ProfilesQueryResult>(runQuery('updated_at'));
       if (error && getErrorMessage(error).includes('updated_at')) {
         const fallback = await withTimeout<ProfilesQueryResult>(runQuery('email'));
-        data = fallback.data;
-        error = fallback.error;
+        data = fallback.data; error = fallback.error;
       }
       if (error) throw error;
-      setProfiles((data || []).map((p: any) => ({
-        ...p,
-        role: APP_ROLE_OPTIONS.includes(p.role) ? p.role : 'GUEST'
-      })));
+      setProfiles((data || []).map((p: any) => ({ ...p, role: APP_ROLE_OPTIONS.includes(p.role) ? p.role : 'GUEST' })));
     } catch (err: any) {
       console.warn('[Admin] Fetch Profiles Error:', err);
       setFetchError(getErrorMessage(err));
@@ -164,55 +133,23 @@ export default function AdminPage() {
     }
   };
 
-  const fetchHistoryData = async (force = false) => {
-    if (!force && logs.length > 0) return;
-    setFetchingHistory(true);
-    try {
-      const { data: logsData } = await supabase
-        .from('app_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setLogs(logsData || []);
-
-      // Optional/Safety RPC
-      try {
-        const { data: statsData } = await supabase.rpc('get_daily_visit_stats');
-        if (statsData) setStats(statsData);
-      } catch (rpcErr) {
-        console.warn('Daily stats RPC error, skipping:', rpcErr);
-      }
-    } catch (err) {
-      console.warn('[Admin] History fetch error:', err);
-    } finally {
-      setFetchingHistory(false);
-    }
-  };
-
-  // Tab Trigger
   useEffect(() => {
     if (role === 'CEO' || role === 'ADMIN') {
       if (activeTab === 'members') fetchMembersData();
       if (activeTab === 'accounts') fetchProfilesData();
-      if (activeTab === 'history' && role === 'CEO') fetchHistoryData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, activeTab]);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
   const updateConfig = async (newConfig: any) => {
     setIsSyncing(true);
     try {
-      const { error } = await supabase
-        .from('app_config')
-        .update(newConfig)
-        .eq('id', 'primary');
+      const { error } = await supabase.from('app_config').update(newConfig).eq('id', 'primary');
       if (error) throw error;
       await refreshConfig();
-      showToast('마스터 설정 동기화 완료');
+      showToast('설정이 저장되었습니다.');
     } catch (err: any) {
       showToast('저장 실패: ' + err.message);
     } finally {
@@ -225,9 +162,9 @@ export default function AdminPage() {
     setUpdatingId(member.id);
     try {
       await supabase.from('members').update({ role: newRole }).eq('id', member.id);
-      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
+      setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, role: newRole } : m)));
       logAction('/admin', 'role_changed', { target: member.nickname, newRole });
-      showToast(`${member.nickname} ➔ ${newRole}`);
+      showToast(`${member.nickname} → ${newRole}`);
     } catch (err: any) {
       showToast('변경 실패: ' + err.message);
     } finally {
@@ -241,17 +178,13 @@ export default function AdminPage() {
       showToast('본인 CEO 권한은 여기서 낮출 수 없습니다.');
       return;
     }
-
     setUpdatingProfileId(profile.id);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', profile.id);
+      const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', profile.id);
       if (error) throw error;
-      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, role: newRole } : p));
+      setProfiles((prev) => prev.map((p) => (p.id === profile.id ? { ...p, role: newRole } : p)));
       logAction('/admin', 'profile_role_changed', { target: profile.email || profile.nickname || profile.id, newRole });
-      showToast(`${profile.email || profile.nickname || '계정'} ➔ ${newRole}`);
+      showToast(`${profile.email || profile.nickname || '계정'} → ${newRole}`);
     } catch (err: any) {
       showToast('권한 변경 실패: ' + err.message);
     } finally {
@@ -261,344 +194,228 @@ export default function AdminPage() {
 
   if (isLoading || (role !== 'CEO' && role !== 'ADMIN')) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#000000]">
-        <div className="w-10 h-10 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+      <div style={{ minHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={30} className="animate-spin" style={{ color: '#2563EB' }} />
       </div>
     );
   }
 
-  const globalIsSyncing = isSyncing || fetchingMembers || fetchingProfiles || fetchingHistory || updatingId !== null || updatingProfileId !== null;
-
   return (
-    <main
-      className="flex flex-col min-h-screen bg-[#000000] text-white font-sans w-full"
-      style={{ paddingBottom: '250px' }}
-    >
-      <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/admin')} className="text-[#D4AF37] text-xl font-bold w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full">←</button>
-          <div className="leading-tight">
-            <span className="text-[10px] text-[#D4AF37] font-black uppercase tracking-[0.2em]">CONTROL CENTER</span>
-            <h1 className="text-sm font-black tracking-tight text-white uppercase opacity-80">Master Configuration</h1>
-          </div>
-        </div>
-        <div onClick={() => activeTab === 'accounts' ? fetchProfilesData(true) : fetchMembersData(true)} className="flex items-center gap-2 cursor-pointer bg-[#D4AF37]/10 px-3 py-1.5 rounded-full border border-[#D4AF37]/20 hover:bg-[#D4AF37]/20 transition-all group">
-            <span className={`text-xs ${globalIsSyncing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>⚔️</span>
-            <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">{globalIsSyncing ? 'SYNCING...' : 'MASTER AUTH'}</span>
-        </div>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <header style={{ marginBottom: 16 }}>
+        <p style={{ margin: 0, fontFamily: 'var(--font-rajdhani), sans-serif', fontSize: 11, fontWeight: 800, letterSpacing: '0.26em', color: '#2563EB' }}>TEYEON ADMIN</p>
+        <h1 style={{ margin: '3px 0 0', fontSize: 24, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.02em' }}>관리자 설정</h1>
+        <p style={{ margin: '5px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B' }}>회원, 권한, 메뉴와 앱 운영 설정을 관리합니다.</p>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="flex px-4 mt-6 border-b border-white/10 sticky top-[73px] z-30 bg-black/95 overflow-x-auto">
-        {(['members', 'accounts', 'permissions', 'menu', 'history'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`
-              flex-1 min-w-fit px-2 pb-4 text-[10px] sm:text-[11px] font-black tracking-[0.1em] transition-all relative mt-2 whitespace-nowrap
-              ${activeTab === tab ? 'text-[#D4AF37]' : 'text-white/40 hover:text-white'}
-            `}
-          >
-            {ADMIN_TAB_LABELS[tab]}
-            {activeTab === tab && (
-              <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.8)]"></div>
-            )}
-          </button>
-        ))}
-      </nav>
-
-      <div className="px-5 py-6 flex-1 w-full max-w-5xl mx-auto">
-        <section className="mb-7 rounded-[32px] border border-[#D4AF37]/15 bg-white/[0.025] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-[#D4AF37]/70">OPERATIONS HUB</p>
-              <h2 className="mt-1 text-[16px] font-black tracking-tight text-white">운영 관리 바로가기</h2>
-            </div>
-            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-white/35">
-              1차 기반
-            </span>
-          </div>
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {MANAGEMENT_LINKS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="group rounded-[22px] border border-white/7 bg-black/25 p-4 transition-all hover:border-[#D4AF37]/35 hover:bg-[#D4AF37]/5 active:scale-[0.98]"
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="min-w-0 truncate text-[12px] font-black text-white/90">{item.label}</p>
-                  <span className="shrink-0 rounded-full border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-2 py-0.5 text-[8px] font-black text-[#D4AF37]/80">
-                    {item.status}
-                  </span>
-                </div>
-                <p className="line-clamp-2 text-[10px] font-bold leading-snug text-white/38">{item.meta}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* Tab 1: Personnel */}
-        {activeTab === 'members' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-start justify-between mb-6 px-1 gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">멤버 관리</h3>
-                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-white/35">이 값은 앱 접근 권한이 아니라 클럽 내 회원 직책/회원 구분입니다.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {fetchingMembers && <div className="w-2.5 h-2.5 border border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
-                    <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 uppercase">Total {members.length}</span>
-                </div>
-            </div>
-
-            {fetchError ? (
-                <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-3xl text-xs text-red-500 font-bold mb-6">
-                   ⚠️ Sync Error: {fetchError}
-                   <button onClick={() => fetchMembersData(true)} className="block mt-2 underline opacity-60">재시도</button>
-                </div>
-            ) : (
-                <div className="space-y-2.5">
-                    {members.map(m => (
-                        <div key={m.id} className="bg-white/[0.03] border border-white/5 p-4 rounded-[32px] flex items-center gap-4 hover:border-white/20 transition-all hover:bg-white/[0.05]">
-                            <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={40} className="rounded-full shrink-0 border border-white/10 shadow-sm" fallbackIcon="👤" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-black tracking-tight">{m.nickname}{m.is_guest ? ' (G)' : ''}</p>
-                                <p className="text-[9px] text-[#A3E635] font-black tracking-[0.1em] mt-0.5 truncate uppercase">클럽 직책 · {m.role}</p>
-                            </div>
-                            <select
-                                value={m.role}
-                                onChange={(e) => handleRoleChange(m, e.target.value)}
-                                disabled={updatingId === m.id}
-                                className={`bg-[#0A0A0F] text-[#D4AF37] text-[10px] font-black px-3 py-2 rounded-xl border border-white/10 outline-none ${updatingId === m.id ? 'opacity-20' : 'hover:border-[#D4AF37]/50'}`}
-                            >
-                                {ROLE_OPTIONS.map(g => (
-                                    <optgroup key={g.group} label={g.group} className="bg-[#0A0A0F] text-white italic">
-                                        {g.roles.map(r => <option key={r} value={r}>{r}</option>)}
-                                    </optgroup>
-                                ))}
-                            </select>
-                        </div>
-                    ))}
-                    {members.length === 0 && !fetchingMembers && (
-                        <div className="py-20 text-center opacity-20 italic font-medium">No results found.</div>
-                    )}
-                </div>
-            )}
-          </section>
-        )}
-
-        {/* Tab 2: Login Accounts */}
-        {activeTab === 'accounts' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-start justify-between mb-6 px-1 gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">앱 계정 권한</h3>
-                  <p className="mt-1 text-[10px] font-bold leading-relaxed text-white/35">앱 권한은 화면 접근과 관리 기능 노출에 사용됩니다.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {fetchingProfiles && <div className="w-2.5 h-2.5 border border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
-                    <span className="text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-3 py-1 rounded-full border border-[#D4AF37]/20 uppercase">Total {profiles.length}</span>
-                </div>
-            </div>
-
-            {fetchError ? (
-                <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-3xl text-xs text-red-500 font-bold mb-6">
-                   ⚠️ Sync Error: {fetchError}
-                   <button onClick={() => fetchProfilesData(true)} className="block mt-2 underline opacity-60">재시도</button>
-                </div>
-            ) : (
-                <div className="space-y-2.5">
-                    {profiles.map(p => (
-                        <div key={p.id} className="bg-white/[0.03] border border-white/5 p-4 rounded-[32px] flex items-center gap-4 hover:border-white/20 transition-all hover:bg-white/[0.05]">
-                            <ProfileAvatar src={p.avatar_url} alt={p.nickname || p.email || 'Account'} size={40} className="rounded-full shrink-0 border border-white/10 shadow-sm" fallbackIcon="👤" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-black tracking-tight truncate">{p.nickname || p.email || 'Unknown Account'}</p>
-                                <p className="text-[9px] text-white/30 font-black tracking-[0.1em] mt-0.5 truncate uppercase">{p.email || p.id}</p>
-                            </div>
-                            <select
-                                value={p.role}
-                                onChange={(e) => handleProfileRoleChange(p, e.target.value as AdminProfile['role'])}
-                                disabled={updatingProfileId === p.id || (p.id === user?.id && role === 'CEO')}
-                                className={`bg-[#0A0A0F] text-[#D4AF37] text-[10px] font-black px-3 py-2 rounded-xl border border-white/10 outline-none ${updatingProfileId === p.id || (p.id === user?.id && role === 'CEO') ? 'opacity-40' : 'hover:border-[#D4AF37]/50'}`}
-                            >
-                                {APP_ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                        </div>
-                    ))}
-                    {profiles.length === 0 && !fetchingProfiles && (
-                        <div className="py-20 text-center opacity-20 italic font-medium">No login accounts found.</div>
-                    )}
-                </div>
-            )}
-          </section>
-        )}
-
-        {/* Tab 2: Permissions */}
-        {activeTab === 'permissions' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-5">
-            <div className="px-1 mb-2">
-                <h3 className="text-xs font-black text-white uppercase tracking-[0.3em]">기능 권한</h3>
-                <p className="text-[9px] text-[#A3E635] font-black mt-1 uppercase tracking-widest opacity-60 italic">앱 기능별 읽기/쓰기/숨김 제어</p>
-                <p className="mt-2 rounded-2xl border border-amber-300/15 bg-amber-300/5 px-4 py-3 text-[10px] font-bold leading-relaxed text-amber-100/55">
-                  일부 기능 권한 키는 과거 구조가 남아 있어 추후 AuthContext 기준으로 정비 예정입니다. 이번 단계에서는 기존 저장 방식만 유지합니다.
-                </p>
-            </div>
-            {ALL_FEATURES.map(feat => {
-                const reg = FEATURE_REGISTRY[feat] || { label: feat, icon: '🛡️' };
-                return (
-                    <div key={feat} className="bg-white/[0.03] rounded-[36px] p-6 border border-white/5">
-                        <div className="flex items-center gap-4 mb-6">
-                            <span className="text-2xl">{reg.icon}</span>
-                            <span className="text-[14px] font-black text-white/90 tracking-tight uppercase">{reg.label}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                            {(['ADMIN', 'MEMBER', 'GUEST'] as const).map(roleKey => {
-                                const level = appConfig?.permissions?.[roleKey]?.[feat] || 'HIDE';
-                                return (
-                                    <div key={roleKey} className="flex flex-col gap-2">
-                                        <span className="text-[8px] font-black text-white/30 text-center uppercase tracking-[0.1em]">{roleKey}</span>
-                                        <button
-                                            disabled={isSyncing}
-                                            onClick={() => {
-                                                const levels = { ...(appConfig?.permissions || {}) };
-                                                if (!levels[roleKey]) levels[roleKey] = {};
-                                                const nextLevel = level === 'WRITE' ? 'READ' : level === 'READ' ? 'HIDE' : 'WRITE';
-                                                (levels[roleKey] as any)[feat] = nextLevel;
-                                                updateConfig({ permissions: levels });
-                                            }}
-                                            className={`
-                                                w-full text-[10px] font-black py-3 rounded-2xl text-center border transition-all active:scale-90
-                                                ${level === 'WRITE' ? 'bg-[#22C55E]/10 border-[#22C55E]/40 text-[#22C55E]' :
-                                                  level === 'READ' ? 'bg-[#3B82F6]/10 border-[#3B82F6]/40 text-[#3B82F6]' :
-                                                  'bg-white/5 border-white/5 text-white/20'}
-                                                ${isSyncing ? 'opacity-30 cursor-not-allowed' : ''}
-                                            `}
-                                        >
-                                            {level === 'WRITE' ? '쓰기' : level === 'READ' ? '읽기' : '제한'}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                );
-            })}
-          </section>
-        )}
-
-        {/* Tab 3: Orchestration (Menu Order) */}
-        {activeTab === 'menu' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-7 px-1">
-              <h3 className="text-xs font-black text-white uppercase tracking-[0.3em] opacity-80">메뉴 순서</h3>
-              <p className="mt-2 text-[10px] font-bold leading-relaxed text-white/35">역할별 메인 메뉴 노출 순서를 조정합니다.</p>
-            </div>
-            {(['ADMIN', 'MEMBER', 'GUEST'] as const).map(roleKey => (
-                <div key={roleKey} className="mb-12 last:mb-0">
-                    <h4 className="text-[10px] font-black text-[#D4AF37] tracking-[0.2em] uppercase mb-4 px-2">{roleKey} VIEW SEQUENCE</h4>
-                    <div className="bg-white/[0.02] rounded-[24px] p-2 space-y-1.5 border border-white/5 text-sm">
-                        {(appConfig?.menu_order?.[roleKey] || []).map((itemId, idx) => {
-                             const lowerId = itemId.toLowerCase();
-                             const reg = FEATURE_REGISTRY[lowerId] || FEATURE_REGISTRY[itemId] || { label: itemId, icon: '⚙️' };
-                             return (
-                                <div key={itemId} className="flex items-center gap-4 p-4 bg-white/[0.03] rounded-[30px] border border-white/5">
-                                    <span className="text-[10px] font-black text-[#D4AF37]/30 w-4 text-center">{idx + 1}</span>
-                                    <span className="text-xl">{reg.icon}</span>
-                                    <span className="text-[13px] font-bold flex-1 text-white/90 truncate tracking-tight">{reg.label}</span>
-                                    <div className="flex gap-1.5 text-xs">
-                                        <button
-                                            disabled={idx === 0 || isSyncing}
-                                            onClick={() => {
-                                                const order = [...(appConfig?.menu_order?.[roleKey] || [])];
-                                                [order[idx-1], order[idx]] = [order[idx], order[idx-1]];
-                                                updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } });
-                                            }}
-                                            className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 active:scale-90 transition-all disabled:opacity-5"
-                                        >↑</button>
-                                        <button
-                                            disabled={idx === (appConfig?.menu_order?.[roleKey]?.length || 0) - 1 || isSyncing}
-                                            onClick={() => {
-                                                const order = [...(appConfig?.menu_order?.[roleKey] || [])];
-                                                [order[idx], order[idx+1]] = [order[idx+1], order[idx]];
-                                                updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } });
-                                            }}
-                                            className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 active:scale-90 transition-all disabled:opacity-5"
-                                        >↓</button>
-                                    </div>
-                                </div>
-                             );
-                        })}
-                    </div>
-                </div>
-            ))}
-          </section>
-        )}
-
-        {/* Tab 4: Visiting Stats (CEO Only) */}
-        {activeTab === 'history' && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {role !== 'CEO' ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white/[0.02] rounded-[24px] border border-white/5 mx-2">
-                <span className="text-5xl opacity-20 grayscale">🔒</span>
-                <div className="leading-tight">
-                    <p className="text-sm font-black text-[#D4AF37] uppercase tracking-tighter shadow-sm mb-1">CEO EXCLUSIVE VAULT</p>
-                    <p className="text-[10px] text-white/30 font-medium font-sans">관리자 탭 중 방문 통계는 오직 회장님만 열람 가능합니다.</p>
-                </div>
-                <button onClick={() => setActiveTab('members')} className="text-[11px] font-bold text-white/40 hover:text-white underline decoration-[#D4AF37] underline-offset-8 transition-all px-8 py-3 bg-white/5 rounded-full">멤버 관리로 돌아가기</button>
-              </div>
-            ) : (
-            <div className="flex flex-col gap-9">
-                <div className="bg-gradient-to-br from-[#1A253D] to-[#14141F] rounded-[48px] p-8 border border-[#D4AF37]/20 shadow-2xl relative overflow-hidden group">
-                    <div className="relative z-10">
-                        <h3 className="text-xs font-black text-[#D4AF37] uppercase tracking-[0.3em] mb-7 flex items-center gap-3">
-                            Audience Velocity
-                            {fetchingHistory && <div className="w-2.5 h-2.5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>}
-                        </h3>
-                        <div className="flex justify-between items-end gap-2.5 h-36">
-                            {(stats.length > 0 ? stats : [4, 7, 12, 8, 15, 22, 18]).map((v: any, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-3.5 group/bar">
-                                    <div className="w-full bg-gradient-to-t from-[#D4AF37]/10 to-[#D4AF37]/80 rounded-full transition-all duration-300 group-hover/bar:brightness-150" style={{ height: `${(typeof v === 'object' ? v.count : v) / 1.5}rem` }}></div>
-                                    <span className="text-[9px] text-white/10 font-black uppercase tracking-widest">{6-i === 0 ? 'Now' : `d-${6-i}`}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                   <div className="flex items-center justify-between mb-6 px-3">
-                       <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Chronos Security Feed</h3>
-                       <div className="px-3 py-1 bg-[#A3E635]/10 rounded-full border border-[#A3E635]/20 text-[8px] font-black text-[#A3E635] uppercase tracking-widest animate-pulse font-sans">Live Feed</div>
-                   </div>
-                   <div className="space-y-3 font-sans">
-                        {logs.slice(0, 15).map((log, i) => (
-                            <div key={i} className="bg-white/[0.03] border border-white/5 p-5 rounded-[36px] flex flex-col gap-3">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-[#A3E635] uppercase tracking-widest">{log.action || 'INTERACT'}</span>
-                                        <span className="text-[13px] font-black text-white mt-1 tracking-tight">{log.path || '/'}</span>
-                                    </div>
-                                    <span className="text-[9px] text-white/20 font-mono font-black uppercase">{new Date(log.created_at).toLocaleTimeString()}</span>
-                                </div>
-                                <div className="flex items-center gap-2 pt-2 border-t border-white/[0.03]">
-                                    <ProfileAvatar src={null} alt="User" size={14} className="opacity-30 rounded-full" fallbackIcon="👤" />
-                                    <p className="text-[9px] text-white/30 truncate font-mono tracking-tighter uppercase">{log.user_email || 'SECURE GUEST'}</p>
-                                </div>
-                            </div>
-                        ))}
-                   </div>
-                </div>
-            </div>
-            )}
-          </section>
-        )}
+      {/* 탭 — 얇은 underline */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E3E9F2', marginBottom: 16, overflowX: 'auto' }}>
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = activeTab === t.key;
+          return (
+            <button key={t.key} type="button" onClick={() => setActiveTab(t.key)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                padding: '10px 12px', border: 'none', background: 'none', cursor: 'pointer',
+                borderBottom: `2px solid ${active ? '#2563EB' : 'transparent'}`,
+                color: active ? '#0F1B33' : '#64748B', fontSize: 13, fontWeight: active ? 900 : 700, marginBottom: -1,
+              }}>
+              <Icon size={15} style={{ color: active ? '#2563EB' : '#94A3B8' }} /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {toast && (
-        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 bg-[#D4AF37] text-black px-10 py-4 rounded-full font-black shadow-[0_20px_60px_rgba(212,175,55,0.4)] animate-in slide-in-from-bottom-5 fade-in border border-white/20 text-[10px] uppercase tracking-[0.2em] whitespace-nowrap">
-            🏆 {toast}
+      {fetchError && (
+        <div style={{ ...CARD, borderColor: '#F3B4B4', backgroundColor: '#FEF2F2', marginBottom: 12 }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#B91C1C' }}>불러오기 오류: {fetchError}</p>
+          <button type="button" onClick={() => (activeTab === 'accounts' ? fetchProfilesData(true) : fetchMembersData(true))} style={{ marginTop: 6, background: 'none', border: 'none', color: '#B91C1C', fontSize: 11.5, fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }}>재시도</button>
         </div>
       )}
-    </main>
+
+      {/* 멤버 관리 */}
+      {activeTab === 'members' && (
+        <section style={CARD}>
+          <SectionHead title="멤버 관리" desc="클럽 내 직책/회원 구분입니다. (앱 접근 권한은 ‘앱 계정’ 탭)" count={members.length} loading={fetchingMembers} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {members.map((m, i) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6' }}>
+                <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={38} className="rounded-full" fallbackIcon="👤" />
+                <div style={{ flex: 1, minWidth: 140 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nickname || '이름 없음'}</p>
+                  <div style={{ marginTop: 3, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                    <Badge tone="slate">{m.role || '미지정'}</Badge>
+                    {m.auth_user_id
+                      ? <Badge tone="teal"><Link2 size={10} /> 연결됨</Badge>
+                      : <Badge tone="muted"><Link2Off size={10} /> 미연결</Badge>}
+                  </div>
+                </div>
+                <select value={m.role} onChange={(e) => handleRoleChange(m, e.target.value)} disabled={updatingId === m.id} className="admin-select" style={selectStyle(updatingId === m.id)}>
+                  {ROLE_OPTIONS.map((g) => (
+                    <optgroup key={g.group} label={g.group}>
+                      {g.roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            ))}
+            {members.length === 0 && !fetchingMembers && <Empty>회원이 없습니다.</Empty>}
+          </div>
+        </section>
+      )}
+
+      {/* 앱 계정 */}
+      {activeTab === 'accounts' && (
+        <section style={CARD}>
+          <SectionHead title="앱 계정 권한" desc="화면 접근·관리 기능 노출에 사용되는 앱 역할입니다." count={profiles.length} loading={fetchingProfiles} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {profiles.map((p, i) => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6' }}>
+                <ProfileAvatar src={p.avatar_url} alt={p.nickname || p.email || 'Account'} size={38} className="rounded-full" fallbackIcon="👤" />
+                <div style={{ flex: 1, minWidth: 140 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nickname || p.email || '알 수 없음'}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email || p.id}</p>
+                </div>
+                <select value={p.role} onChange={(e) => handleProfileRoleChange(p, e.target.value as AdminProfile['role'])} disabled={updatingProfileId === p.id || (p.id === user?.id && role === 'CEO')} className="admin-select" style={selectStyle(updatingProfileId === p.id || (p.id === user?.id && role === 'CEO'))}>
+                  {APP_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            ))}
+            {profiles.length === 0 && !fetchingProfiles && <Empty>앱 계정이 없습니다.</Empty>}
+          </div>
+        </section>
+      )}
+
+      {/* 기능 권한 */}
+      {activeTab === 'permissions' && (
+        <section style={CARD}>
+          <SectionHead title="기능 권한" desc="역할별 기능 읽기/쓰기/제한을 설정합니다." />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {ALL_FEATURES.map((feat) => {
+              const reg = FEATURE_REGISTRY[feat] || { label: feat, desc: '' };
+              return (
+                <div key={feat} style={{ padding: 12, borderRadius: 10, backgroundColor: '#FBFCFE', border: '1px solid #E3E9F2' }}>
+                  <div style={{ marginBottom: 10 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33' }}>{reg.label}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{reg.desc}</p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                    {(['ADMIN', 'MEMBER', 'GUEST'] as const).map((roleKey) => {
+                      const level = appConfig?.permissions?.[roleKey]?.[feat] || 'HIDE';
+                      const txt = level === 'WRITE' ? '쓰기' : level === 'READ' ? '읽기' : '제한';
+                      const c = level === 'WRITE' ? { bg: '#E7F6EF', fg: '#047857', bd: '#A7E3C9' } : level === 'READ' ? { bg: '#E6EEFE', fg: '#2563EB', bd: '#B9CEFB' } : { bg: '#F1F5F9', fg: '#94A3B8', bd: '#E2E8F0' };
+                      return (
+                        <div key={roleKey} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', textAlign: 'center', letterSpacing: '0.06em' }}>{roleKey}</span>
+                          <button type="button" disabled={isSyncing}
+                            onClick={() => {
+                              const levels = { ...(appConfig?.permissions || {}) } as any;
+                              if (!levels[roleKey]) levels[roleKey] = {};
+                              const next = level === 'WRITE' ? 'READ' : level === 'READ' ? 'HIDE' : 'WRITE';
+                              levels[roleKey][feat] = next;
+                              updateConfig({ permissions: levels });
+                            }}
+                            style={{ width: '100%', padding: '9px 4px', borderRadius: 8, cursor: isSyncing ? 'not-allowed' : 'pointer', fontSize: 11.5, fontWeight: 800, backgroundColor: c.bg, color: c.fg, border: `1px solid ${c.bd}`, opacity: isSyncing ? 0.5 : 1 }}>
+                            {txt}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 메뉴 순서 */}
+      {activeTab === 'menu' && (
+        <section style={CARD}>
+          <SectionHead title="메뉴 순서" desc="역할별 메인 메뉴 노출 순서를 조정합니다." />
+          {(['ADMIN', 'MEMBER', 'GUEST'] as const).map((roleKey) => (
+            <div key={roleKey} style={{ marginBottom: 18 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 800, color: '#2563EB', letterSpacing: '0.06em' }}>{roleKey}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(appConfig?.menu_order?.[roleKey] || []).map((itemId, idx, arr) => {
+                  const reg = FEATURE_REGISTRY[itemId.toLowerCase()] || FEATURE_REGISTRY[itemId] || { label: itemId, desc: '' };
+                  return (
+                    <div key={itemId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, backgroundColor: '#FBFCFE', border: '1px solid #E3E9F2' }}>
+                      <span style={{ width: 18, textAlign: 'center', fontSize: 11, fontWeight: 800, color: '#CBD5E1' }}>{idx + 1}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{reg.label}</span>
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        <button type="button" disabled={idx === 0 || isSyncing} onClick={() => { const order = [...arr]; [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]]; updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } }); }} style={orderBtn(idx === 0 || isSyncing)}><ArrowUp size={14} /></button>
+                        <button type="button" disabled={idx === arr.length - 1 || isSyncing} onClick={() => { const order = [...arr]; [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]]; updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } }); }} style={orderBtn(idx === arr.length - 1 || isSyncing)}><ArrowDown size={14} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(appConfig?.menu_order?.[roleKey] || []).length === 0 && <Empty>설정된 메뉴 순서가 없습니다.</Empty>}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 'calc(20px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)', zIndex: 80, backgroundColor: '#0F1B33', color: '#FFFFFF', padding: '11px 20px', borderRadius: 999, fontSize: 12, fontWeight: 800, boxShadow: '0 12px 30px rgba(15,27,51,0.25)', whiteSpace: 'nowrap', maxWidth: '90vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {toast}
+        </div>
+      )}
+
+      <style>{`
+        .admin-select:focus { outline: none; border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 0.8s linear infinite; }
+      `}</style>
+    </div>
   );
+}
+
+const CARD: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: 14, border: '1px solid #E3E9F2', boxShadow: '0 1px 3px rgba(15,27,51,0.05)', padding: 16 };
+
+function SectionHead({ title, desc, count, loading }: { title: string; desc: string; count?: number; loading?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+      <div style={{ minWidth: 0 }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F1B33' }}>{title}</h3>
+        <p style={{ margin: '3px 0 0', fontSize: 11, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5, wordBreak: 'keep-all' }}>{desc}</p>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {loading && <Loader2 size={14} className="animate-spin" style={{ color: '#2563EB' }} />}
+        {count !== undefined && <span style={{ fontSize: 11, fontWeight: 800, color: '#2563EB', backgroundColor: 'rgba(37,99,235,0.08)', padding: '3px 10px', borderRadius: 999 }}>{count}명</span>}
+      </div>
+    </div>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p style={{ margin: '20px 0', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#94A3B8' }}>{children}</p>;
+}
+
+const BADGE_TONE: Record<string, { bg: string; fg: string; bd: string }> = {
+  slate: { bg: '#F1F5F9', fg: '#475569', bd: '#E2E8F0' },
+  teal: { bg: '#E7F6EF', fg: '#047857', bd: '#A7E3C9' },
+  muted: { bg: '#F8FAFC', fg: '#94A3B8', bd: '#EEF2F6' },
+};
+function Badge({ children, tone }: { children: React.ReactNode; tone: keyof typeof BADGE_TONE }) {
+  const t = BADGE_TONE[tone];
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 6, backgroundColor: t.bg, color: t.fg, border: `1px solid ${t.bd}`, whiteSpace: 'nowrap' }}>{children}</span>;
+}
+
+function selectStyle(disabled: boolean): React.CSSProperties {
+  return {
+    height: 34, paddingLeft: 10, paddingRight: 10, borderRadius: 8,
+    border: '1px solid #D9E1EC', backgroundColor: '#FFFFFF', color: '#0F1B33',
+    fontSize: 12, fontWeight: 700, outline: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.5 : 1, maxWidth: '100%',
+  };
+}
+function orderBtn(disabled: boolean): React.CSSProperties {
+  return {
+    width: 32, height: 32, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#475569',
+    cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1,
+  };
 }

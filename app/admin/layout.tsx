@@ -15,7 +15,7 @@ import AdminBottomNav from '@/components/admin/AdminBottomNav';
 import { ADMIN_NAV_SECTIONS } from '@/components/admin/AdminNavConfig';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { user, role, isLoading } = useAuth();
+    const { user, role, isLoading, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const [menuOpen, setMenuOpen] = React.useState(false);
@@ -103,9 +103,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     </div>
                                 </div>
                             ))}
-                            <Link href="/" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, textDecoration: 'none', backgroundColor: '#16264A', color: '#C7D2E3', fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>
-                                <ArrowLeft size={15} /> 일반 앱으로 돌아가기
-                            </Link>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                                <Link href="/" onClick={() => setMenuOpen(false)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, textDecoration: 'none', backgroundColor: '#16264A', color: '#C7D2E3', fontSize: 12.5, fontWeight: 700 }}>
+                                    <ArrowLeft size={15} /> 일반 앱으로
+                                </Link>
+                                <button type="button" onClick={async () => { setMenuOpen(false); try { await signOut(); } finally { router.replace('/'); } }} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'transparent', color: '#8C99B3', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+                                    로그아웃
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
