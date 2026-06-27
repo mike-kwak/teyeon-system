@@ -94,7 +94,7 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                 <section>
                     <SectionTitle>회원별 납부 현황</SectionTitle>
                     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                        <table style={{ width: '100%', minWidth: 420, borderCollapse: 'collapse', fontSize: 13 }}>
+                        <table style={{ width: '100%', minWidth: 0, borderCollapse: 'collapse', fontSize: 13 }}>
                             <thead>
                                 <tr style={{ backgroundColor: '#F8FAFC' }}>
                                     <Th style={{ width: 38, textAlign: 'center' }}>No.</Th>
@@ -102,7 +102,8 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                                     <Th className="hidden sm:table-cell" style={{ textAlign: 'right' }}>납부 대상</Th>
                                     <Th style={{ textAlign: 'right' }}>납부 완료</Th>
                                     <Th style={{ textAlign: 'right' }}>남은 금액</Th>
-                                    <Th style={{ textAlign: 'center', width: 78 }}>상태</Th>
+                                    {/* 상태 열 — 모바일(≤sm)에서는 숨기고 이름 셀 안 배지로 표시 */}
+                                    <Th className="hidden sm:table-cell" style={{ textAlign: 'center', width: 78 }}>상태</Th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -111,15 +112,18 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                                         <Td style={{ textAlign: 'center', color: '#94A3B8', fontWeight: 700 }}>{i + 1}</Td>
                                         <Td>
                                             <span style={{ fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap' }}>{m.displayName}</span>
-                                            {/* 모바일: 납부 대상 열 대신 이름 아래 보조 문구 */}
+                                            {/* 모바일: 납부 대상 열 대신 이름 아래 보조 문구 + 상태 배지 */}
                                             <span className="sm:hidden" style={{ display: 'block', marginTop: 1, fontSize: 10.5, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap' }}>
                                                 대상 {formatWon(m.amountDue)}
+                                            </span>
+                                            <span className="sm:hidden" style={{ display: 'inline-block', marginTop: 4 }}>
+                                                <StatusPill status={m.status} annual={m.annualFeePaid} />
                                             </span>
                                         </Td>
                                         <Td className="hidden sm:table-cell" style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#334155' }}>{formatWon(m.amountDue)}</Td>
                                         <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#0E7C76', fontWeight: 700 }}>{formatWon(m.amountPaid)}</Td>
                                         <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 800, color: m.remainingAmount > 0 ? '#B91C1C' : '#94A3B8' }}>{formatWon(m.remainingAmount)}</Td>
-                                        <Td style={{ textAlign: 'center' }}><StatusPill status={m.status} annual={m.annualFeePaid} /></Td>
+                                        <Td className="hidden sm:table-cell" style={{ textAlign: 'center' }}><StatusPill status={m.status} annual={m.annualFeePaid} /></Td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -129,7 +133,7 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                                     <Td className="hidden sm:table-cell" style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 800, color: '#334155' }}>{formatWon(s.totalDue)}</Td>
                                     <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 800, color: '#0E7C76' }}>{formatWon(s.totalPaid)}</Td>
                                     <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 900, color: '#B91C1C' }}>{formatWon(s.totalRemaining)}</Td>
-                                    <Td />
+                                    <Td className="hidden sm:table-cell" />
                                 </tr>
                             </tfoot>
                         </table>
@@ -153,7 +157,7 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                     <section>
                         <SectionTitle>이전 월 이월 미납</SectionTitle>
                         <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                            <table style={{ width: '100%', minWidth: 360, borderCollapse: 'collapse', fontSize: 13 }}>
+                            <table style={{ width: '100%', minWidth: 0, borderCollapse: 'collapse', fontSize: 13 }}>
                                 <thead>
                                     <tr style={{ backgroundColor: '#F8FAFC' }}>
                                         <Th>이름</Th>

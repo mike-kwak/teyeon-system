@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Link2, MessageSquare, Check, Power, Trash2 } from 'lucide-react';
+import { Link2, MessageSquare, Check, Power, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import {
     publicNoticeUrl,
@@ -11,6 +11,8 @@ import {
     formatSeoulDateTime,
     type FinancePublicNotice,
 } from '@/lib/finance/noticesService';
+import { renderFinanceNoticeImageBlob, shareFinanceNoticeImage } from '@/lib/finance/createFinanceNoticeImage';
+import { FINANCE_PAYMENT_ACCOUNT } from '@/lib/finance/paymentAccount';
 
 /**
  * 관리자 공지 목록의 한 장.
@@ -29,7 +31,43 @@ export default function FinanceNoticeCard({
     busy?: boolean;
 }) {
     const [copied, setCopied] = React.useState<'link' | 'kakao' | null>(null);
+    const [imageBusy, setImageBusy] = React.useState(false);
     const url = publicNoticeUrl(notice.token);
+
+    // 이미지로 공유 — 불변 스냅샷(공개 RPC)을 다시 조회해 1080px PNG 생성 → Web Share/저장.
+    const handleImage = async () => {
+        if (imageBusy) return;
+        setImageBusy(true);
+        try {
+            const view = await fetchPublicNoticeByToken(notice.token);
+            if (!view) {
+                alert('공지 스냅샷을 불러오지 못했습니다. (비활성 공지일 수 있습니다)');
+                return;
+            }
+            const blob = await renderFinanceNoticeImageBlob({
+                title: view.title,
+                referenceDate: view.referenceDate,
+                targetYear: view.targetYear,
+                targetMonth: view.targetMonth,
+                stats: view.stats,
+                members: view.members,
+                excluded: view.excluded,
+                priorArrears: view.priorArrears,
+                priorArrearsStats: view.priorArrearsStats,
+                overallOutstandingAmount: view.overallOutstandingAmount,
+                paymentAccount: view.paymentAccount ?? FINANCE_PAYMENT_ACCOUNT,
+            });
+            const fileName = `TEYEON_회비현황_${view.targetYear}-${String(view.targetMonth).padStart(2, '0')}.png`;
+            const res = await shareFinanceNoticeImage(blob, fileName, { title: 'TEYEON 회비 납부 현황', text: url, url });
+            if (res === 'downloaded-copied') alert('이미지를 저장했습니다. 카카오톡에 이미지와 복사된 링크를 함께 공유해 주세요.');
+            else if (res === 'downloaded') alert('이미지를 저장했습니다. 카카오톡에 저장한 이미지를 공유해 주세요.');
+            else if (res === 'failed') alert('이미지 생성에 실패했습니다. 다시 시도해 주세요.');
+        } catch {
+            alert('이미지 생성에 실패했습니다. 다시 시도해 주세요.');
+        } finally {
+            setImageBusy(false);
+        }
+    };
 
     const copy = async (text: string, kind: 'link' | 'kakao') => {
         try {
@@ -102,6 +140,24 @@ export default function FinanceNoticeCard({
                 <span style={{ color: '#B91C1C' }}>미납 {notice.unpaid_count}명</span>
                 <span>남은 {formatWon(notice.total_unpaid_amount)}</span>
             </div>
+
+            {/* 이미지로 공유 — 가장 주요 버튼(활성 공지만). 비활성 공지는 공개 RPC 가 null 반환. */}
+            {notice.is_active && (
+                <button
+                    type="button"
+                    onClick={handleImage}
+                    disabled={imageBusy}
+                    style={{
+                        marginTop: 10, width: '100%', height: 38, borderRadius: 10, border: 'none',
+                        backgroundColor: imageBusy ? '#CBD5E1' : '#0F9F98', color: '#FFFFFF',
+                        fontSize: 12.5, fontWeight: 900, cursor: imageBusy ? 'wait' : 'pointer',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                >
+                    {imageBusy ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+                    {imageBusy ? '이미지 생성 중...' : '이미지로 공유'}
+                </button>
+            )}
 
             {/* 액션 */}
             <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>

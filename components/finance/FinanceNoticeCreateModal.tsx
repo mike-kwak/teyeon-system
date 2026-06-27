@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Link2, MessageSquare, Check } from 'lucide-react';
+import { X, Link2, MessageSquare, Check, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import {
     buildNoticeSnapshot,
@@ -16,6 +16,7 @@ import {
     type FinancePublicNotice,
     type PriorArrearLine,
 } from '@/lib/finance/noticesService';
+import { renderFinanceNoticeImageBlob, shareFinanceNoticeImage } from '@/lib/finance/createFinanceNoticeImage';
 import { FINANCE_PAYMENT_ACCOUNT } from '@/lib/finance/paymentAccount';
 import type { FinanceMember } from '@/lib/finance/duesService';
 import type { FinanceDuesPayment, FinanceDuesReceivable, FinanceMemberLeave } from '@/types/finance';
@@ -51,6 +52,8 @@ export default function FinanceNoticeCreateModal({
     const [busy, setBusy] = React.useState(false);
     const [created, setCreated] = React.useState<FinancePublicNotice | null>(null);
     const [copied, setCopied] = React.useState<'link' | 'kakao' | null>(null);
+    const [imageBusy, setImageBusy] = React.useState(false);
+    const [imageMsg, setImageMsg] = React.useState<string | null>(null);
 
     // 공지 생성 직전, 해당 월 청구의 "유효 payment"만 DB 에서 새로 조회(취소분 stale 합산 방지).
     //   로딩 전/실패 시엔 전달받은 payments 에서 is_voided !== true 만 사용(이중 안전).
@@ -145,6 +148,43 @@ export default function FinanceNoticeCreateModal({
     };
 
     const url = created ? publicNoticeUrl(created.token) : '';
+
+    // 이미지로 공유 — 불변 스냅샷(preview + priorArrears)으로 1080px PNG 생성 → Web Share/저장.
+    const handleShareImage = async () => {
+        if (imageBusy || !created) return;
+        setImageBusy(true);
+        setImageMsg(null);
+        try {
+            const blob = await renderFinanceNoticeImageBlob({
+                title: created.title,
+                referenceDate: created.reference_date,
+                targetYear: year,
+                targetMonth: month,
+                stats: preview.stats,
+                members: preview.members,
+                excluded: preview.excluded,
+                priorArrears,
+                priorArrearsStats,
+                overallOutstandingAmount,
+                paymentAccount: FINANCE_PAYMENT_ACCOUNT,
+            });
+            const fileName = `TEYEON_회비현황_${year}-${String(month).padStart(2, '0')}.png`;
+            const res = await shareFinanceNoticeImage(blob, fileName, {
+                title: 'TEYEON 회비 납부 현황',
+                text: url,
+                url,
+            });
+            if (res === 'shared') setImageMsg('공유가 완료되었습니다.');
+            else if (res === 'downloaded-copied') setImageMsg('이미지를 저장했습니다. 카카오톡에 이미지와 복사된 링크를 함께 공유해 주세요.');
+            else if (res === 'downloaded') setImageMsg('이미지를 저장했습니다. 카카오톡에 저장한 이미지를 공유해 주세요.');
+            else setImageMsg('이미지 생성에 실패했습니다. 다시 시도해 주세요.');
+        } catch {
+            setImageMsg('이미지 생성에 실패했습니다. 다시 시도해 주세요.');
+        } finally {
+            setImageBusy(false);
+        }
+    };
+
     const kakao = created
         ? buildKakaoNoticeText({
             year, month,
@@ -281,13 +321,23 @@ export default function FinanceNoticeCreateModal({
                                 </div>
                             </Field>
 
+                            {/* 이미지로 공유 — 가장 주요 버튼 */}
+                            <button type="button" onClick={handleShareImage} disabled={imageBusy} style={primaryBtn(imageBusy)}>
+                                {imageBusy ? <Loader2 size={15} className="animate-spin" /> : <ImageIcon size={15} />}
+                                {imageBusy ? '이미지 생성 중...' : '이미지로 공유'}
+                            </button>
+                            {imageMsg && (
+                                <p style={{ margin: '-4px 0 0', fontSize: 11, fontWeight: 700, color: '#0E7C76', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                                    {imageMsg}
+                                </p>
+                            )}
+                            <button type="button" onClick={() => copy(kakao, 'kakao')} style={secondaryBtn}>
+                                {copied === 'kakao' ? <Check size={15} /> : <MessageSquare size={15} />}
+                                {copied === 'kakao' ? '복사됨' : '카톡 문구 복사'}
+                            </button>
                             <button type="button" onClick={() => copy(url, 'link')} style={secondaryBtn}>
                                 {copied === 'link' ? <Check size={15} /> : <Link2 size={15} />}
                                 {copied === 'link' ? '복사됨' : '링크 복사'}
-                            </button>
-                            <button type="button" onClick={() => copy(kakao, 'kakao')} style={primaryBtn(false)}>
-                                {copied === 'kakao' ? <Check size={15} /> : <MessageSquare size={15} />}
-                                {copied === 'kakao' ? '복사됨' : '카카오톡 안내문 복사'}
                             </button>
 
                             <div style={{ backgroundColor: '#F8FAFC', borderRadius: 12, border: '1px solid rgba(15,23,42,0.06)', padding: 12 }}>
