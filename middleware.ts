@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { AUTH_STORAGE_KEY, AUTH_COOKIE_OPTIONS } from '@/lib/supabaseSessionConfig';
 
 export async function middleware(request: NextRequest) {
   // Create an unmodified response
@@ -13,6 +14,10 @@ export async function middleware(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    // 브라우저 클라이언트(lib/supabase.ts)와 동일한 auth 쿠키 이름/속성을 사용해야
+    // getUser() 가 브라우저가 쓴 세션 쿠키를 읽을 수 있다(쿠키 이름 = storageKey).
+    auth: { storageKey: AUTH_STORAGE_KEY },
+    cookieOptions: AUTH_COOKIE_OPTIONS,
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value;

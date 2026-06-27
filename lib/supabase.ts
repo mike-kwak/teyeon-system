@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { AUTH_STORAGE_KEY, AUTH_COOKIE_OPTIONS } from './supabaseSessionConfig';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -55,14 +56,9 @@ export const supabase = createBrowserClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: 'teyeon_auth_session',
+      storageKey: AUTH_STORAGE_KEY,
       flowType: 'pkce',
     },
-    cookieOptions: {
-      maxAge: 60 * 60 * 24 * 30, // 30 Days (Standard Persistence)
-      path: '/',
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    }
+    cookieOptions: AUTH_COOKIE_OPTIONS
   }
 );
