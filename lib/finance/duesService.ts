@@ -347,21 +347,24 @@ export interface MyFinanceYearResult {
     receivables: FinanceDuesReceivable[];
     payments: FinanceDuesPayment[];
     leaves: { id: string; start_date: string; end_date: string | null; reason: string | null }[];
+    /** 선택 연도 연회비(월회비 12개월) 완료 여부 — 서버 본인 전용 판정. 구버전 RPC 면 false. */
+    annualFeePaid: boolean;
 }
 
 export async function fetchMyFinanceYear(year: number): Promise<MyFinanceYearResult> {
     const { data, error } = await supabase.rpc('get_my_finance_year', { p_year: year });
     if (error) {
         console.warn('[Finance/RPC/get_my_finance_year]', error?.message ?? error);
-        return { memberFound: false, receivables: [], payments: [], leaves: [] };
+        return { memberFound: false, receivables: [], payments: [], leaves: [], annualFeePaid: false };
     }
-    if (!data) return { memberFound: false, receivables: [], payments: [], leaves: [] };
+    if (!data) return { memberFound: false, receivables: [], payments: [], leaves: [], annualFeePaid: false };
     const j = data as any;
     return {
         memberFound: !!j.memberFound,
         receivables: Array.isArray(j.receivables) ? j.receivables as FinanceDuesReceivable[] : [],
         payments: Array.isArray(j.payments) ? j.payments as FinanceDuesPayment[] : [],
         leaves: Array.isArray(j.leaves) ? j.leaves : [],
+        annualFeePaid: !!j.annualFeePaid,
     };
 }
 

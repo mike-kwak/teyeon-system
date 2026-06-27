@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { fetchMyFinanceYear } from '@/lib/finance/duesService';
 import { summarizeMemberYear, summarizeReceivable } from '@/lib/finance/calculatePaymentStatus';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
@@ -35,6 +36,7 @@ export default function MemberFinanceView({ authUserId: _authUserId }: { authUse
     const [receivables, setReceivables] = React.useState<FinanceDuesReceivable[]>([]);
     const [payments, setPayments] = React.useState<FinanceDuesPayment[]>([]);
     const [leaves, setLeaves] = React.useState<{ id: string; start_date: string; end_date: string | null; reason: string | null }[]>([]);
+    const [annualFeePaid, setAnnualFeePaid] = React.useState(false);
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
@@ -46,6 +48,7 @@ export default function MemberFinanceView({ authUserId: _authUserId }: { authUse
                 if (cancelled) return;
                 if (!data.memberFound) {
                     setMemberFound('missing');
+                    setAnnualFeePaid(false);
                     setLoading(false);
                     return;
                 }
@@ -53,6 +56,7 @@ export default function MemberFinanceView({ authUserId: _authUserId }: { authUse
                 setReceivables(data.receivables);
                 setPayments(data.payments);
                 setLeaves(data.leaves);
+                setAnnualFeePaid(data.annualFeePaid);
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -79,14 +83,15 @@ export default function MemberFinanceView({ authUserId: _authUserId }: { authUse
         (!l.end_date   || l.end_date   >= todayStr)
     );
 
+    // 상태 1) 로그인 계정과 members 연결 자체가 없음(회원 매핑 실패).
     if (memberFound === 'missing') {
         return (
             <section style={FINANCE_CARD_STYLE}>
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
-                    회원 매핑을 찾지 못했습니다.
+                    회원 정보를 확인할 수 없습니다
                 </p>
                 <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 600, color: '#64748B', lineHeight: 1.5 }}>
-                    운영진에게 가입 확인을 요청해 주세요.
+                    운영진에게 계정 연결을 요청해 주세요.
                 </p>
             </section>
         );
@@ -136,6 +141,27 @@ export default function MemberFinanceView({ authUserId: _authUserId }: { authUse
                         {activeLeave.start_date} ~ {activeLeave.end_date ?? '무기한'}
                         {activeLeave.reason ? ` · ${activeLeave.reason}` : ''}
                     </p>
+                </section>
+            )}
+
+            {/* 연회비 납부 완료 배지 — 연도 선택 아래 / KPI 위. 연한 teal 성공 카드. */}
+            {!loading && memberFound === 'found' && annualFeePaid && (
+                <section style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    paddingTop: 11, paddingBottom: 11, paddingLeft: 12, paddingRight: 12,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(15,159,152,0.08)',
+                    border: '1px solid rgba(15,159,152,0.24)',
+                }}>
+                    <CheckCircle2 size={18} style={{ color: '#0E7C76', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0E7C76', wordBreak: 'keep-all' }}>
+                            {year}년 연회비 납부 완료
+                        </p>
+                        <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 600, color: '#0F766E', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                            올해 납부해야 할 월회비를 모두 납부했습니다.
+                        </p>
+                    </div>
                 </section>
             )}
 
@@ -211,6 +237,18 @@ export default function MemberFinanceView({ authUserId: _authUserId }: { authUse
 
                     <KakaoBankNotice />
                 </>
+            )}
+
+            {/* 상태 3) 회원 연결은 정상이나 선택 연도 납부 데이터가 없음. */}
+            {!loading && memberFound === 'found' && !summary && (
+                <section style={FINANCE_CARD_STYLE}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
+                        등록된 납부 항목이 없습니다
+                    </p>
+                    <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 600, color: '#64748B', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                        {year}년에 납부할 회비나 벌금 내역이 아직 등록되지 않았습니다.
+                    </p>
+                </section>
             )}
         </>
     );
