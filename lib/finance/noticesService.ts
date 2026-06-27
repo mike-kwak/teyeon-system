@@ -261,6 +261,27 @@ export function buildNoticeSnapshot(opts: {
     return { members: target, excluded, stats };
 }
 
+/**
+ * 공지 스냅샷 생성 직전, 해당 receivable 들의 "유효 payment"만 DB 에서 새로 조회.
+ *   - 화면 state 의 payments 는 다른 화면에서 취소(soft-cancel)된 직후 stale 일 수 있어,
+ *     취소(is_voided=true)분이 유효처럼 남아 합산되는 문제(완료 금액 과다)를 막는다.
+ *   - 조회 단계 .eq('is_voided', false) + 조회 후 is_voided !== true 이중 안전(기존 null 행 대비).
+ *   - 합계 계산은 기존 summarizeReceivable 을 그대로 사용(별도 합계식 만들지 않음).
+ */
+export async function fetchValidNoticePayments(receivableIds: string[]): Promise<FinanceDuesPayment[]> {
+    if (receivableIds.length === 0) return [];
+    const { data, error } = await supabase
+        .from('finance_dues_payments')
+        .select('*')
+        .in('receivable_id', receivableIds)
+        .eq('is_voided', false);
+    if (error) {
+        console.warn('[Finance/notices/validPayments]', error?.message ?? error);
+        return [];
+    }
+    return ((data || []) as FinanceDuesPayment[]).filter((p) => p.is_voided !== true);
+}
+
 // ── 토큰 ─────────────────────────────────────────────────────────────────────
 /** 추측 어려운 24자 base62 랜덤 토큰(crypto). */
 export function generatePublicToken(): string {

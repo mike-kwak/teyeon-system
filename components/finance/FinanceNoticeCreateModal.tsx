@@ -8,6 +8,7 @@ import {
     createPublicNotice,
     publicNoticeUrl,
     buildKakaoNoticeText,
+    fetchValidNoticePayments,
     formatReferenceDot,
     todayISO,
     type FinancePublicNotice,
@@ -48,10 +49,27 @@ export default function FinanceNoticeCreateModal({
     const [created, setCreated] = React.useState<FinancePublicNotice | null>(null);
     const [copied, setCopied] = React.useState<'link' | 'kakao' | null>(null);
 
+    // 공지 생성 직전, 해당 월 청구의 "유효 payment"만 DB 에서 새로 조회(취소분 stale 합산 방지).
+    //   로딩 전/실패 시엔 전달받은 payments 에서 is_voided !== true 만 사용(이중 안전).
+    const [freshPayments, setFreshPayments] = React.useState<FinanceDuesPayment[] | null>(null);
+    React.useEffect(() => {
+        let cancelled = false;
+        const recvIds = receivables.map((r) => r.id);
+        (async () => {
+            const valid = await fetchValidNoticePayments(recvIds);
+            if (!cancelled) setFreshPayments(valid);
+        })();
+        return () => { cancelled = true; };
+    }, [receivables]);
+    const effectivePayments = React.useMemo(
+        () => freshPayments ?? payments.filter((p) => p.is_voided !== true),
+        [freshPayments, payments],
+    );
+
     // 현재 입력값 기준 스냅샷 미리보기(전체 납부 대상 + 회비 제외 + 집계).
     const preview = React.useMemo(
-        () => buildNoticeSnapshot({ members, receivables, payments, leaves, year, month, annualPaidIds }),
-        [members, receivables, payments, leaves, year, month, annualPaidIds],
+        () => buildNoticeSnapshot({ members, receivables, payments: effectivePayments, leaves, year, month, annualPaidIds }),
+        [members, receivables, effectivePayments, leaves, year, month, annualPaidIds],
     );
 
     const handleCreate = async () => {
