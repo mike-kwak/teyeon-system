@@ -654,6 +654,12 @@ export default function GuestPage() {
                 </span>
               </label>
 
+              {/* 서비스 품질 개선용 익명 사용 기록 고지 (별도 동의 아님 · 정보 제공) */}
+              <p style={{ fontSize: 10.5, fontWeight: 500, color: '#94A3B8', lineHeight: 1.6, margin: '-6px 0 16px' }}>
+                서비스 품질 개선을 위해 익명화된 방문 및 기능 사용 기록을 수집할 수 있습니다.
+                Analytics 목적으로 전화번호, 이메일, 위치 정보 또는 IP 주소를 수집하지 않습니다.
+              </p>
+
               {/* Error */}
               {error && (
                 <p style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', margin: '-8px 0 12px', lineHeight: 1.5 }}>

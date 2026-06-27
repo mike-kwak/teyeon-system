@@ -11,14 +11,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
-    buildRange, fetchAnalytics, fetchAgeDistribution, checkAnalyticsEventsReady,
-    type RangeKey, type AnalyticsRange, type AnalyticsResult, type AgeResult,
+    buildRangeKST, fetchAnalytics, fetchAgeDistribution, fetchVisitorAnalytics,
+    type RangeKey, type AnalyticsRange, type AnalyticsResult, type AgeResult, type VisitorAnalytics, type VisitorStatus,
 } from '@/lib/analytics/analyticsService';
-import { TrendChart, HBarList, VBars, Donut } from '@/components/admin/AnalyticsCharts';
+import { TrendChart, VisitorTrendChart, HBarList, VBars, Donut } from '@/components/admin/AnalyticsCharts';
 import {
     BarChart3, Users, Activity, Repeat, Layers, PieChart, ListOrdered,
     Sparkles, Info, ShieldAlert, Monitor, Database, ArrowRight, CircleSlash,
+    Eye, MousePointerClick, Footprints, UserCheck,
 } from 'lucide-react';
+
+const USER_TYPE_META: Record<string, { label: string; color: string; desc: string }> = {
+    MEMBER: { label: '회원(MEMBER)', color: '#2563EB', desc: '로그인한 일반 회원' },
+    GUEST: { label: '게스트(GUEST)', color: '#0E7C76', desc: '로그인한 게스트 역할' },
+    PUBLIC: { label: '공개(PUBLIC)', color: '#94A3B8', desc: '비로그인 익명 방문자' },
+    UNKNOWN: { label: '미상(UNKNOWN)', color: '#CBD5E1', desc: '유형 판정 불가' },
+};
 
 const RANGES: { key: RangeKey; label: string }[] = [
     { key: 'today', label: '오늘' },
@@ -36,7 +44,7 @@ export default function AdminAnalyticsPage() {
     const [age, setAge] = React.useState<AgeResult | null>(null);
     const [fetching, setFetching] = React.useState(true);
     const [fetchedAt, setFetchedAt] = React.useState<string | null>(null);
-    const [eventsReady, setEventsReady] = React.useState<boolean | null>(null); // analytics_events 수집 활성 여부
+    const [visitor, setVisitor] = React.useState<VisitorAnalytics | null>(null); // 방문 Analytics(analytics_events)
 
     const allowed = role === 'CEO' || hasPermission('stats') === 'WRITE';
 
@@ -52,13 +60,13 @@ export default function AdminAnalyticsPage() {
         let cancelled = false;
         (async () => {
             setFetching(true);
-            const r = buildRange(rangeKey);
-            const [a, ag, ready] = await Promise.all([fetchAnalytics(r), fetchAgeDistribution(), checkAnalyticsEventsReady()]);
+            const r = buildRangeKST(rangeKey);
+            const [a, ag, v] = await Promise.all([fetchAnalytics(r), fetchAgeDistribution(), fetchVisitorAnalytics(r)]);
             if (cancelled) return;
             setRange(r);
             setData(a);
             setAge(ag);
-            setEventsReady(ready);
+            setVisitor(v);
             const now = new Date();
             setFetchedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
             setFetching(false);
@@ -104,8 +112,17 @@ export default function AdminAnalyticsPage() {
                         </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                        <MiniSummary label="식별 사용자" value={fetching ? '…' : `${data?.identifiedUsers ?? 0}`} />
-                        <MiniSummary label="기록 이벤트" value={fetching ? '…' : `${data?.totalEvents ?? 0}`} />
+                        {visitor?.status === 'ok' ? (
+                            <>
+                                <MiniSummary label="고유 방문자" value={fetching ? '…' : `${visitor.uniqueVisitors}`} />
+                                <MiniSummary label="페이지 조회" value={fetching ? '…' : `${visitor.pageViews}`} />
+                            </>
+                        ) : (
+                            <>
+                                <MiniSummary label="식별 사용자" value={fetching ? '…' : `${data?.identifiedUsers ?? 0}`} />
+                                <MiniSummary label="기록 이벤트" value={fetching ? '…' : `${data?.totalEvents ?? 0}`} />
+                            </>
+                        )}
                     </div>
                     <p style={{ margin: 0, fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>
                         {range?.label || ''} 기준 · 자세한 분석은 PC에서 열어 주세요.
@@ -121,21 +138,21 @@ export default function AdminAnalyticsPage() {
                     <div style={{ minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33' }}>집계 기준 안내</p>
-                            {eventsReady === true ? (
-                                <span style={{ fontSize: 10, fontWeight: 800, color: '#0E7C76', backgroundColor: 'rgba(15,124,118,0.10)', padding: '3px 8px', borderRadius: 999 }}>방문 이벤트 수집: 활성</span>
-                            ) : eventsReady === false ? (
-                                <span style={{ fontSize: 10, fontWeight: 800, color: '#92400E', backgroundColor: 'rgba(146,64,14,0.10)', padding: '3px 8px', borderRadius: 999 }}>방문 이벤트 수집: 대기(migration 미적용)</span>
-                            ) : null}
+                            <StatusChip status={visitor?.status ?? null} />
                         </div>
                         <p style={{ margin: '3px 0 0', fontSize: 12, fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
-                            {eventsReady === true ? (
-                                <>방문 이벤트(<b>analytics_events</b>) 수집이 활성화되어 있습니다. 아래 활동 집계와 별도로
-                                고유 방문자·페이지 조회·세션·재방문율을 단계적으로 연결할 수 있습니다.</>
+                            {visitor?.status === 'ok' ? (
+                                <>방문 이벤트(<b>analytics_events</b>) 수집이 활성화되어 <b>방문 Analytics</b>(고유 방문자·페이지 조회·세션·재방문율)를 실제 데이터로 표시합니다.
+                                아래 <b>운영 활동 로그</b>는 공지·댓글·권한변경 등 app_logs 기반으로 별도 구분됩니다. 모든 수치는 Asia/Seoul 기준입니다.</>
+                            ) : visitor?.status === 'empty' ? (
+                                <>방문 이벤트 수집은 <b>활성</b>이나 선택 기간에 적재된 데이터가 아직 없습니다. 방문이 쌓이면 <b>방문 Analytics</b>가 자동 표시됩니다.
+                                아래는 기존 app_logs 기반 <b>운영 활동 로그</b>입니다.</>
+                            ) : visitor?.status === 'error' ? (
+                                <><b>방문 이벤트 조회 오류</b>가 발생했습니다(RLS/네트워크 확인 필요). 아래 <b>운영 활동 로그</b>(app_logs)는 정상 표시됩니다.</>
                             ) : (
-                                <>현재 앱에는 <b>페이지 방문 로그가 아직 적재되지 않습니다.</b> 따라서 아래 수치는 “방문”이 아니라
-                                공지·댓글·권한변경 등 <b>실제로 기록된 활동(이벤트)</b> 기준입니다.
-                                고유 방문자·총 방문·재방문율·인기 조회 메뉴 등 방문 중심 지표는 가짜 숫자를 만들지 않고
-                                <b> ‘수집 필요’</b>로 표시합니다. (analytics_events migration 적용 시 정확 집계 가능)</>
+                                <>방문 이벤트 수집이 <b>아직 적용되지 않았습니다(migration 대기).</b> 따라서 아래 수치는 “방문”이 아니라
+                                공지·댓글·권한변경 등 <b>실제로 기록된 활동(이벤트)</b> 기준이며, 방문 중심 지표는 가짜 숫자 없이
+                                <b> ‘수집 필요’</b>로 표시합니다. (analytics_events migration 적용 시 방문 Analytics 활성화)</>
                             )}
                         </p>
                     </div>
@@ -161,6 +178,41 @@ export default function AdminAnalyticsPage() {
                     </div>
                     {range && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#94A3B8' }}>{range.start.toLocaleDateString()} ~ {range.label}</span>}
                 </div>
+
+                {/* ── 방문 Analytics (analytics_events) ─────────────────────────── */}
+                {visitor?.status === 'ok' && (
+                    <div style={{ marginBottom: 20 }}>
+                        <SectionHeading title="방문 Analytics" sub="실제 페이지 방문 기준 · Asia/Seoul · 관리자(INTERNAL)·전광판 제외" />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }}>
+                            <Kpi icon={<Eye size={18} />} tone="blue" label="고유 방문자" value={`${visitor.uniqueVisitors}`} sub="로그인 ID 또는 익명 ID 기준" />
+                            <Kpi icon={<MousePointerClick size={18} />} tone="teal" label="페이지 조회" value={`${visitor.pageViews}`} sub="page_view 총 건수" />
+                            <Kpi icon={<Footprints size={18} />} tone="blue" label="세션 수" value={`${visitor.sessions}`} sub={`30분 비활성 기준${visitor.avgPagesPerSession != null ? ` · 평균 ${visitor.avgPagesPerSession.toFixed(1)}p/세션` : ''}`} />
+                            {visitor.returningRate != null
+                                ? <Kpi icon={<UserCheck size={18} />} tone="teal" label="재방문율" value={`${Math.round(visitor.returningRate * 100)}%`} sub={visitor.returningLowConfidence ? '수집 기간 짧음 · 정확도 낮음' : '기간 시작 이전 방문 이력 보유'} />
+                                : <Kpi icon={<UserCheck size={18} />} tone="muted" label="재방문율" needsData sub="이전 방문 데이터 부족" />}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 12, marginBottom: 14 }}>
+                            <Section icon={<BarChart3 size={16} />} title="방문 추이" hint="일별 고유 방문자·페이지 조회·세션">
+                                {visitor.pageViews === 0 && visitor.uniqueVisitors === 0
+                                    ? <Empty>선택 기간에 방문 데이터가 없습니다.</Empty>
+                                    : <VisitorTrendChart data={visitor.daily} />}
+                            </Section>
+                            <Section icon={<PieChart size={16} />} title="사용자 유형" hint="INTERNAL 제외">
+                                <Donut segments={visitor.userTypes.map((t) => ({ label: USER_TYPE_META[t.type]?.label || t.type, value: t.count, color: USER_TYPE_META[t.type]?.color || '#CBD5E1' }))} />
+                                <Note>MEMBER=로그인 회원 · GUEST=로그인 게스트 · PUBLIC=비로그인 익명 · UNKNOWN=판정 불가. GUEST 데이터가 없으면 0으로 표시하며 MEMBER로 합치지 않습니다.</Note>
+                            </Section>
+                        </div>
+                        <Section icon={<ListOrdered size={16} />} title="인기 메뉴 (방문)" hint="normalized_path 기준 · 원시 경로/토큰 미노출">
+                            {visitor.topMenus.length === 0
+                                ? <Empty>방문 경로 데이터가 없습니다.</Empty>
+                                : <HBarList rows={visitor.topMenus.map((m) => ({ label: m.label, count: m.count }))} accent="#0E7C76" />}
+                        </Section>
+                    </div>
+                )}
+
+                {(visitor?.status === 'ok' || visitor?.status === 'empty') && (
+                    <SectionHeading title="운영 활동 로그" sub="app_logs 기반 · 공지·댓글·권한 변경 (방문 Analytics 와 분리)" />
+                )}
 
                 {data?.blocked ? (
                     <Section icon={<ShieldAlert size={16} />} title="활동 로그">
@@ -271,8 +323,17 @@ export default function AdminAnalyticsPage() {
                             </Section>
                             <Section icon={<Database size={16} />} title="데이터 품질">
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <QRow label="수집 중" tone="ok" items={['공지 작성/수정', '댓글 작성', '권한 변경(감사)', '회원 연령(members.age)']} />
-                                    <QRow label="누락(수집 필요)" tone="warn" items={['페이지 방문(page view)', '익명 세션 식별자', '조회 이벤트(KDK/Archive/Guest 등)', '참석 체크 전환', '성별 정보']} />
+                                    {visitor?.status === 'ok' || visitor?.status === 'empty' ? (
+                                        <>
+                                            <QRow label="수집 중" tone="ok" items={['페이지 방문(page_view)', '세션·익명 ID', '참석 저장(attendance_submit)', '공지/댓글/권한(app_logs)', '회원 연령(members.age)']} />
+                                            <QRow label="누락(수집 필요)" tone="warn" items={['조회 세부 전환(정모→참석)', '성별 정보']} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <QRow label="수집 중" tone="ok" items={['공지 작성/수정', '댓글 작성', '권한 변경(감사)', '회원 연령(members.age)']} />
+                                            <QRow label="누락(수집 필요)" tone="warn" items={['페이지 방문(page view)', '익명 세션 식별자', '조회 이벤트(KDK/Archive/Guest 등)', '참석 체크 전환', '성별 정보']} />
+                                        </>
+                                    )}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid #F1F5FA' }}>
                                         <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748B' }}>마지막 집계</span>
                                         <span style={{ fontSize: 11.5, fontWeight: 800, color: '#0F1B33' }}>{fetchedAt || '—'}</span>
@@ -308,6 +369,25 @@ function Section({ icon, title, hint, children }: { icon: React.ReactNode; title
 
 function Empty({ children }: { children: React.ReactNode }) {
     return <p style={{ margin: '20px 0', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.6 }}>{children}</p>;
+}
+function SectionHeading({ title, sub }: { title: string; sub: string }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '2px 0 12px', flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.01em' }}>{title}</h2>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>{sub}</span>
+        </div>
+    );
+}
+const STATUS_CHIP: Record<VisitorStatus, { t: string; c: string; bg: string }> = {
+    ok: { t: '방문 이벤트 수집: 활성', c: '#0E7C76', bg: 'rgba(15,124,118,0.10)' },
+    empty: { t: '방문 이벤트 수집: 활성 · 데이터 없음', c: '#2563EB', bg: 'rgba(37,99,235,0.10)' },
+    not_ready: { t: '방문 이벤트 수집: 대기(migration 미적용)', c: '#92400E', bg: 'rgba(146,64,14,0.10)' },
+    error: { t: '방문 이벤트 조회 오류', c: '#B91C1C', bg: 'rgba(185,28,28,0.10)' },
+};
+function StatusChip({ status }: { status: VisitorStatus | null }) {
+    if (!status) return null;
+    const m = STATUS_CHIP[status];
+    return <span style={{ fontSize: 10, fontWeight: 800, color: m.c, backgroundColor: m.bg, padding: '3px 8px', borderRadius: 999 }}>{m.t}</span>;
 }
 function Hint({ children }: { children: React.ReactNode }) {
     return <span style={{ display: 'block', marginTop: 4, fontSize: 11, fontWeight: 600, color: '#B6C0CE' }}>{children}</span>;

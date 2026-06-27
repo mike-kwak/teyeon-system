@@ -64,7 +64,8 @@ create policy analytics_events_admin_select
 -- INSERT/UPDATE/DELETE: 클라이언트 정책 없음 → 전면 차단. INSERT 는 SECURITY DEFINER RPC 로만.
 
 -- grant: anon 은 테이블 직접 권한 없음. authenticated 는 RLS 게이트된 select 만.
-revoke all on public.analytics_events from anon, authenticated;
+--   PUBLIC 포함 모든 기본 grant 제거 후 최소 권한만 부여.
+revoke all on public.analytics_events from public, anon, authenticated;
 grant select on public.analytics_events to authenticated;
 
 -- 3) 기록 RPC -----------------------------------------------------------------
@@ -131,6 +132,8 @@ begin
 end;
 $$;
 
+-- 함수 기본 grant(PUBLIC EXECUTE)를 제거하고 anon/authenticated 에만 명시 부여.
+revoke all on function public.track_analytics_event(text, text, text, uuid, text, uuid, jsonb) from public;
 grant execute on function public.track_analytics_event(text, text, text, uuid, text, uuid, jsonb)
     to anon, authenticated;
 

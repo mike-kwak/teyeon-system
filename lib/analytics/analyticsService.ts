@@ -46,6 +46,39 @@ export function buildRange(key: RangeKey, now: Date = new Date()): AnalyticsRang
 const localDateKey = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// ── Asia/Seoul 기간 (방문 Analytics 전용) ─────────────────────────────────────
+//   한국은 DST 가 없어 항상 UTC+9. 브라우저 TZ 와 무관하게 KST 날짜 경계로 집계한다.
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+/** UTC instant → KST 날짜 키('YYYY-MM-DD'). */
+export const kstDateKey = (iso: string | Date): string => {
+    const t = (typeof iso === 'string' ? new Date(iso) : iso).getTime();
+    const k = new Date(t + KST_OFFSET_MS); // UTC 필드가 KST 벽시계
+    return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, '0')}-${String(k.getUTCDate()).padStart(2, '0')}`;
+};
+/** KST 자정(날짜 d 00:00 KST)의 UTC instant. */
+const kstMidnightUtc = (y: number, m: number, d: number): Date => new Date(Date.UTC(y, m, d) - KST_OFFSET_MS);
+
+/** Asia/Seoul 기준 기간. start/end 는 UTC instant(쿼리용), 일자 버킷은 KST 날짜. */
+export function buildRangeKST(key: RangeKey, nowMs: number = Date.now()): AnalyticsRange {
+    const kNow = new Date(nowMs + KST_OFFSET_MS); // UTC 필드 = KST 벽시계
+    const y = kNow.getUTCFullYear(), m = kNow.getUTCMonth(), d = kNow.getUTCDate();
+    const todayStart = kstMidnightUtc(y, m, d);
+    const tomorrow = new Date(todayStart.getTime() + 86400000);
+    switch (key) {
+        case 'today':
+            return { key, label: '오늘', start: todayStart, end: tomorrow, days: 1 };
+        case '7d':
+            return { key, label: '최근 7일', start: new Date(todayStart.getTime() - 6 * 86400000), end: tomorrow, days: 7 };
+        case 'month': {
+            const s = kstMidnightUtc(y, m, 1);
+            return { key, label: '이번 달', start: s, end: tomorrow, days: Math.round((tomorrow.getTime() - s.getTime()) / 86400000) };
+        }
+        case '30d':
+        default:
+            return { key, label: '최근 30일', start: new Date(todayStart.getTime() - 29 * 86400000), end: tomorrow, days: 30 };
+    }
+}
+
 // ── 경로 정규화 (instruction §6) ──────────────────────────────────────────────
 //   동적 ID 포함 경로는 같은 메뉴로 묶고, /admin 은 일반 사용자 분석에서 제외(null 반환).
 export function normalizeMenu(path: string | null | undefined): string | null {
@@ -237,64 +270,176 @@ export interface AgeResult {
     filled: number;    // age 입력된 회원 수
 }
 
-// ── analytics_events(2차 수집 기반) 연결 — 단계적 전환용 ─────────────────────────
-//   migration 적용 전: 테이블 부재 → { ready:false }. 적용 후: 방문 기반 KPI 활성.
-//   INTERNAL(CEO/ADMIN) 은 일반 사용 분석에서 제외한다.
-export interface VisitorKpis {
-    ready: boolean;                 // analytics_events 조회 가능 여부(migration 적용 + RLS 통과)
-    uniqueVisitors: number;         // auth_user_id 또는 anonymous_id distinct
-    pageViews: number;              // page_view 이벤트 수
-    sessions: number;               // session_id distinct
-    userTypes: { type: string; count: number }[];
+// ── analytics_events(2차 수집 기반) 방문 Analytics ──────────────────────────────
+//   migration 적용 전: 'not_ready'. 적용+데이터: 'ok'. 적용+무데이터: 'empty'. 조회오류: 'error'.
+//   INTERNAL(CEO/ADMIN) 은 일반 사용자 분석에서 제외. 고유 방문자 키 = auth_user_id || anonymous_id.
+
+export type VisitorStatus = 'ok' | 'empty' | 'not_ready' | 'error';
+
+export const MENU_LABELS: Record<string, string> = {
+    home: '메인',
+    calendar: 'TEYEON Calendar',
+    club_schedule: '정모 상세',
+    kdk: 'KDK',
+    live_court: 'LIVE COURT',
+    archive: 'Archive',
+    member_profile: '멤버 프로필',
+    guest_pass: 'Guest Pass',
+    public_club: '공개 TEYEON',
+    finance: 'Finance',
+    notice: '공지사항',
+};
+export const menuLabel = (slug: string): string => MENU_LABELS[slug] || slug;
+
+export interface VisitorAnalytics {
+    status: VisitorStatus;
+    uniqueVisitors: number;
+    pageViews: number;
+    sessions: number;
+    avgPagesPerSession: number | null;
+    returningRate: number | null;          // 0~1. null = 계산 불가
+    returningLowConfidence: boolean;        // 수집 기간이 짧아 정확도 낮음
+    userTypes: { type: string; count: number }[]; // MEMBER/GUEST/PUBLIC/UNKNOWN (INTERNAL 제외)
+    topMenus: { slug: string; label: string; count: number }[];
+    daily: { date: string; visitors: number; pageViews: number; sessions: number }[];
 }
 
-/** analytics_events 사용 가능 여부(테이블 존재 + RLS select 허용)만 빠르게 확인. */
+const VISITOR_TYPES = ['MEMBER', 'GUEST', 'PUBLIC', 'UNKNOWN'] as const;
+
+/** analytics_events 가 조회 가능한지(테이블 존재 + RLS select 허용)만 빠르게 확인. */
 export async function checkAnalyticsEventsReady(): Promise<boolean> {
     try {
-        const { error } = await supabase
-            .from('analytics_events')
-            .select('id', { count: 'exact', head: true })
-            .limit(1);
+        const { error } = await supabase.from('analytics_events').select('id', { count: 'exact', head: true }).limit(1);
         return !error;
     } catch {
         return false;
     }
 }
 
-/** 방문 기반 KPI(미적용 시 ready:false). INTERNAL 제외. page_view 기준. */
-export async function fetchVisitorKpis(range: AnalyticsRange): Promise<VisitorKpis> {
-    const empty: VisitorKpis = { ready: false, uniqueVisitors: 0, pageViews: 0, sessions: 0, userTypes: [] };
+interface RawEvent {
+    event_name: string;
+    normalized_path: string | null;
+    auth_user_id: string | null;
+    anonymous_id: string | null;
+    session_id: string;
+    user_type: string;
+    created_at: string;
+}
+
+const isTableMissing = (err: { code?: string; message?: string } | null): boolean => {
+    if (!err) return false;
+    const code = err.code || '';
+    const msg = (err.message || '').toLowerCase();
+    return code === 'PGRST205' || code === '42P01' || msg.includes('does not exist') || (msg.includes('could not find the table') && msg.includes('analytics_events'));
+};
+
+/** 방문 KPI/추이/유형/인기메뉴. Asia/Seoul 날짜 버킷. INTERNAL 제외. */
+export async function fetchVisitorAnalytics(range: AnalyticsRange): Promise<VisitorAnalytics> {
+    const base: VisitorAnalytics = {
+        status: 'not_ready', uniqueVisitors: 0, pageViews: 0, sessions: 0, avgPagesPerSession: null,
+        returningRate: null, returningLowConfidence: false, userTypes: [], topMenus: [], daily: [],
+    };
+
+    let rows: RawEvent[];
     try {
         const { data, error } = await supabase
             .from('analytics_events')
-            .select('event_name, auth_user_id, anonymous_id, session_id, user_type')
+            .select('event_name, normalized_path, auth_user_id, anonymous_id, session_id, user_type, created_at')
             .gte('created_at', range.start.toISOString())
             .lt('created_at', range.end.toISOString())
-            .neq('user_type', 'INTERNAL') // 운영자(CEO/ADMIN) 제외
-            .limit(20000);
-        if (error || !data) return empty;
-
-        const visitors = new Set<string>();
-        const sessions = new Set<string>();
-        const typeCount = new Map<string, number>();
-        let pageViews = 0;
-        for (const r of data as { event_name: string; auth_user_id: string | null; anonymous_id: string | null; session_id: string; user_type: string }[]) {
-            const vid = r.auth_user_id || r.anonymous_id;
-            if (vid) visitors.add(vid);
-            if (r.session_id) sessions.add(r.session_id);
-            if (r.event_name === 'page_view') pageViews++;
-            typeCount.set(r.user_type, (typeCount.get(r.user_type) || 0) + 1);
-        }
-        return {
-            ready: true,
-            uniqueVisitors: visitors.size,
-            pageViews,
-            sessions: sessions.size,
-            userTypes: [...typeCount.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
-        };
+            .neq('user_type', 'INTERNAL')
+            .limit(50000);
+        if (error) return { ...base, status: isTableMissing(error) ? 'not_ready' : 'error' };
+        rows = (data || []) as RawEvent[];
     } catch {
-        return empty;
+        return { ...base, status: 'error' };
     }
+
+    if (rows.length === 0) return { ...base, status: 'empty' };
+
+    // 일자 버킷(KST) 0 채움.
+    const dayMap = new Map<string, { v: Set<string>; pv: number; s: Set<string> }>();
+    for (let i = 0; i < range.days; i++) {
+        const dk = kstDateKey(new Date(range.start.getTime() + i * 86400000));
+        dayMap.set(dk, { v: new Set(), pv: 0, s: new Set() });
+    }
+
+    const visitors = new Set<string>();
+    const sessions = new Set<string>();
+    const typeCount = new Map<string, number>();
+    const menuCount = new Map<string, number>();
+    let pageViews = 0;
+
+    for (const r of rows) {
+        const vid = r.auth_user_id || r.anonymous_id || '';
+        if (vid) visitors.add(vid);
+        if (r.session_id) sessions.add(r.session_id);
+        typeCount.set(r.user_type, (typeCount.get(r.user_type) || 0) + 1);
+
+        const bucket = dayMap.get(kstDateKey(r.created_at));
+        if (r.event_name === 'page_view') {
+            pageViews++;
+            if (r.normalized_path) menuCount.set(r.normalized_path, (menuCount.get(r.normalized_path) || 0) + 1);
+            if (bucket) { bucket.pv++; if (vid) bucket.v.add(vid); if (r.session_id) bucket.s.add(r.session_id); }
+        }
+    }
+
+    // 재방문율 — 기간 시작 이전에도 page_view 가 있던 방문자 비율.
+    let returningRate: number | null = null;
+    let returningLowConfidence = false;
+    try {
+        const { data: prior, error: priorErr } = await supabase
+            .from('analytics_events')
+            .select('auth_user_id, anonymous_id, created_at')
+            .eq('event_name', 'page_view')
+            .lt('created_at', range.start.toISOString())
+            .neq('user_type', 'INTERNAL')
+            .order('created_at', { ascending: true })
+            .limit(50000);
+        if (!priorErr && prior) {
+            const priorSet = new Set<string>();
+            let earliest: number | null = null;
+            for (const p of prior as { auth_user_id: string | null; anonymous_id: string | null; created_at: string }[]) {
+                const k = p.auth_user_id || p.anonymous_id;
+                if (k) priorSet.add(k);
+                const t = new Date(p.created_at).getTime();
+                if (earliest === null || t < earliest) earliest = t;
+            }
+            if (visitors.size > 0) {
+                let returningCount = 0;
+                visitors.forEach((v) => { if (priorSet.has(v)) returningCount++; });
+                returningRate = returningCount / visitors.size;
+            }
+            // 수집 시작이 기간 시작보다 7일 미만 앞이면 정확도 낮음으로 안내.
+            if (earliest === null || range.start.getTime() - earliest < 7 * 86400000) returningLowConfidence = true;
+        } else {
+            returningLowConfidence = true; // 이전 데이터 없음/조회불가
+        }
+    } catch {
+        returningLowConfidence = true;
+    }
+
+    const topMenus = [...menuCount.entries()]
+        .map(([slug, count]) => ({ slug, label: menuLabel(slug), count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+
+    const userTypes = VISITOR_TYPES
+        .map((type) => ({ type, count: typeCount.get(type) || 0 }))
+        .filter((t) => t.count > 0 || t.type === 'MEMBER' || t.type === 'PUBLIC'); // MEMBER/PUBLIC 은 0 도 표시
+
+    return {
+        status: 'ok',
+        uniqueVisitors: visitors.size,
+        pageViews,
+        sessions: sessions.size,
+        avgPagesPerSession: sessions.size > 0 ? pageViews / sessions.size : null,
+        returningRate,
+        returningLowConfidence,
+        userTypes,
+        topMenus,
+        daily: [...dayMap.entries()].map(([date, v]) => ({ date, visitors: v.v.size, pageViews: v.pv, sessions: v.s.size })),
+    };
 }
 
 export async function fetchAgeDistribution(): Promise<AgeResult> {

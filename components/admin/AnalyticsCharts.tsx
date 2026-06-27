@@ -58,6 +58,40 @@ export function TrendChart({ data }: { data: { date: string; total: number; iden
     );
 }
 
+// ── 방문 추이 (3계열: 고유 방문자 / 페이지 조회 / 세션) ──────────────────────────
+export function VisitorTrendChart({ data }: { data: { date: string; visitors: number; pageViews: number; sessions: number }[] }) {
+    const W = 720, H = 210, padL = 34, padR = 12, padT = 14, padB = 26;
+    const max = Math.max(1, ...data.map((d) => Math.max(d.visitors, d.pageViews, d.sessions)));
+    const n = data.length;
+    const x = (i: number) => padL + (n <= 1 ? 0 : (i * (W - padL - padR)) / (n - 1));
+    const y = (v: number) => padT + (1 - v / max) * (H - padT - padB);
+    const line = (sel: (d: { visitors: number; pageViews: number; sessions: number }) => number) =>
+        data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(sel(d)).toFixed(1)}`).join(' ');
+    const ticks = [0, 0.5, 1].map((f) => Math.round(max * f));
+    const labelEvery = Math.ceil(n / 8);
+    return (
+        <div style={{ width: '100%', overflow: 'hidden' }}>
+            <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="일별 방문 추이">
+                {ticks.map((t, i) => {
+                    const gy = y(t);
+                    return (<g key={i}><line x1={padL} y1={gy} x2={W - padR} y2={gy} stroke="#EEF2F6" /><text x={padL - 6} y={gy + 3} textAnchor="end" fontSize={9} fill={MUTED}>{t}</text></g>);
+                })}
+                <path d={line((d) => d.pageViews)} fill="none" stroke="#94A3B8" strokeWidth={1.6} strokeLinejoin="round" />
+                <path d={line((d) => d.sessions)} fill="none" stroke={TEAL} strokeWidth={1.6} strokeDasharray="4 3" strokeLinejoin="round" />
+                <path d={line((d) => d.visitors)} fill="none" stroke={BLUE} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
+                {data.map((d, i) => (i % labelEvery === 0 || i === n - 1) ? (
+                    <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize={9} fill={MUTED}>{d.date.slice(5)}</text>
+                ) : null)}
+            </svg>
+            <div style={{ display: 'flex', gap: 16, marginTop: 6, paddingLeft: 6, flexWrap: 'wrap' }}>
+                <Legend color={BLUE} label="고유 방문자" />
+                <Legend color="#94A3B8" label="페이지 조회" />
+                <Legend color={TEAL} label="세션" dashed />
+            </div>
+        </div>
+    );
+}
+
 function Legend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
     return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#64748B' }}>
