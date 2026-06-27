@@ -21,6 +21,10 @@ export interface NoticeSnapshotMember {
     amountPaid: number;
     remainingAmount: number;
     status: NoticeMemberStatus;
+    /** 선택 연도 연회비(월회비 12개월)를 모두 완납한 회원. 구버전 스냅샷엔 없음(optional). */
+    annualFeePaid?: boolean;
+    /** 공개 표시 문구. 연회비 완료 → '연회비 납부 완료', 그 외 → 월 상태 라벨. 구버전 스냅샷엔 없음. */
+    statusLabel?: string;
 }
 
 /** 회비 제외 대상 1건 — 실명 + 사유(휴회/준회원/게스트/면제/비대상). 상세 사유/메모는 비공개. */
@@ -129,6 +133,12 @@ export function todayISO(): string {
  *   - 금액/대상 집계는 면제·비대상·준회원·휴회 제외.
  *   - 이름은 실명 전체로 저장(TEYEON 내부 회원 공지용). 정렬은 이름 가나다순.
  */
+const STATUS_LABEL: Record<NoticeMemberStatus, string> = {
+    paid: '납부 완료',
+    partial: '일부 납부',
+    pending: '미납',
+};
+
 export function buildNoticeSnapshot(opts: {
     members: FinanceMember[];
     receivables: FinanceDuesReceivable[];
@@ -136,8 +146,10 @@ export function buildNoticeSnapshot(opts: {
     leaves: FinanceMemberLeave[];
     year: number;
     month: number;
+    /** 선택 연도 연회비 완료 회원 id — 공개 표에 '연회비 납부 완료' 로 표시. */
+    annualPaidIds?: Set<string>;
 }): { members: NoticeSnapshotMember[]; excluded: NoticeExcludedMember[]; stats: NoticeStats } {
-    const { members, receivables, payments, leaves, year, month } = opts;
+    const { members, receivables, payments, leaves, year, month, annualPaidIds } = opts;
 
     const nameById: Record<string, string> = {};
     for (const m of members) nameById[m.id] = fullName(m.nickname || '회원');
@@ -162,6 +174,7 @@ export function buildNoticeSnapshot(opts: {
             totalDue += Math.max(0, r.amount_due);
             totalPaid += s.amount_paid;
             totalRemaining += s.remaining;
+            const annualPaid = annualPaidIds?.has(r.member_id) ?? false;
             target.push({
                 displayName: nameById[r.member_id] || '회원',
                 itemTitle: r.title || `${year}년 ${month}월 회비`,
@@ -169,6 +182,8 @@ export function buildNoticeSnapshot(opts: {
                 amountPaid: s.amount_paid,
                 remainingAmount: s.remaining,
                 status: st, // 'paid' | 'partial' | 'pending'
+                annualFeePaid: annualPaid,
+                statusLabel: annualPaid ? '연회비 납부 완료' : STATUS_LABEL[st],
             });
         } else {
             const prev = recvByMember.get(r.member_id);
@@ -363,11 +378,13 @@ export function publicNoticeUrl(token: string): string {
     return `${origin}/finance/public/${token}`;
 }
 
-/** 카카오톡 단체방 안내문(기준일 + 입금 계좌 포함). */
+/** 카카오톡 단체방 안내문(기준일 + 입금 계좌 + 연회비 완료 회원 포함). */
 export function buildKakaoNoticeText(opts: {
     referenceDate: string;
     url: string;
     paymentAccount?: FinancePaymentAccountSnapshot | null;
+    /** 연회비 납부 완료 회원 실명 목록(있으면 별도 안내). */
+    annualPaidNames?: string[];
 }): string {
     const ref = formatReferenceDot(opts.referenceDate);
     const lines = [
@@ -380,6 +397,11 @@ export function buildKakaoNoticeText(opts: {
         lines.push('입금 계좌');
         lines.push(`${opts.paymentAccount.bankName} ${opts.paymentAccount.accountNumberDisplay}`);
         lines.push(`예금주 ${opts.paymentAccount.accountHolder}`);
+    }
+    if (opts.annualPaidNames && opts.annualPaidNames.length > 0) {
+        lines.push('');
+        lines.push('연회비 납부 완료');
+        lines.push(opts.annualPaidNames.join(', '));
     }
     lines.push('');
     lines.push('아래 링크에서 본인의 납부 완료 여부와 남은 금액을 확인해 주세요.');

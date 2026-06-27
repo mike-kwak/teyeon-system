@@ -27,6 +27,7 @@ export default function FinanceNoticeCreateModal({
     receivables,
     payments,
     leaves,
+    annualPaidIds,
     onClose,
     onCreated,
 }: {
@@ -36,6 +37,7 @@ export default function FinanceNoticeCreateModal({
     receivables: FinanceDuesReceivable[];
     payments: FinanceDuesPayment[];
     leaves: FinanceMemberLeave[];
+    annualPaidIds?: Set<string>;
     onClose: () => void;
     onCreated?: (notice: FinancePublicNotice) => void;
 }) {
@@ -48,8 +50,8 @@ export default function FinanceNoticeCreateModal({
 
     // 현재 입력값 기준 스냅샷 미리보기(전체 납부 대상 + 회비 제외 + 집계).
     const preview = React.useMemo(
-        () => buildNoticeSnapshot({ members, receivables, payments, leaves, year, month }),
-        [members, receivables, payments, leaves, year, month],
+        () => buildNoticeSnapshot({ members, receivables, payments, leaves, year, month, annualPaidIds }),
+        [members, receivables, payments, leaves, year, month, annualPaidIds],
     );
 
     const handleCreate = async () => {
@@ -91,7 +93,10 @@ export default function FinanceNoticeCreateModal({
     };
 
     const url = created ? publicNoticeUrl(created.token) : '';
-    const kakao = created ? buildKakaoNoticeText({ referenceDate: created.reference_date, url, paymentAccount: FINANCE_PAYMENT_ACCOUNT }) : '';
+    const annualPaidNames = preview.members.filter((m) => m.annualFeePaid).map((m) => m.displayName);
+    const kakao = created
+        ? buildKakaoNoticeText({ referenceDate: created.reference_date, url, paymentAccount: FINANCE_PAYMENT_ACCOUNT, annualPaidNames })
+        : '';
 
     return (
         <div

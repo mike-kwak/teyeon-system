@@ -15,8 +15,9 @@ import {
     findDuplicatePayment,
     findMonthlyReceivable,
     fetchAnnualFeePreview,
-    payAnnualFeeRemainder,
+    payAnnualFeeFull,
     type AnnualFeePreview,
+    type AnnualFeeMonthLine,
     type FinanceMember,
 } from '@/lib/finance/duesService';
 import { fetchFeeRule } from '@/lib/finance/feeRulesService';
@@ -224,6 +225,16 @@ export default function FinanceRecordPage() {
             return;
         }
 
+        // 연회비 — fee rule 이 없는 의무 월이 있으면 처리 중단(현재/직전 월 금액으로 대체 금지).
+        for (const it of annualItems) {
+            const pv = annualPreviews[it.id];
+            if (pv?.blocked) {
+                const yr = it.target_year as number;
+                setSaveError(`${yr}년 ${pv.missingFeeRuleMonths.join(', ')}월 회비 기준이 설정되지 않아 연회비를 계산할 수 없습니다. 회비 기준 설정에서 먼저 등록한 뒤 다시 시도해 주세요.`);
+                return;
+            }
+        }
+
         // 중복 경고 — 금액 입력 항목만 (연회비는 RPC 가 잔액만 정확히 처리).
         for (const it of amountItems) {
             const dup = await findDuplicatePayment({
@@ -255,10 +266,11 @@ export default function FinanceRecordPage() {
                     memo: memo.trim() || null,
                 }, user?.id);
             }
-            // 2) 연회비 항목 — 선택 연도 월회비 잔액을 월별 payment 로 일괄(서버 RPC, 원자적).
+            // 2) 연회비 항목 — 누락 청구 생성 + 선택 연도 월회비 잔액을 월별 payment 로 일괄(서버 RPC, 원자적).
             for (const it of annualItems) {
                 const yr = it.target_year as number;
-                await payAnnualFeeRemainder(memberId, yr, paidAt, memo.trim() || `${yr}년 연회비 일괄 납부`);
+                const pv = annualPreviews[it.id];
+                await payAnnualFeeFull(memberId, yr, paidAt, memo.trim() || `${yr}년 연회비 일괄 납부`, pv?.toCreate ?? []);
             }
             // 저장 성공 — 방금 기록한 "대상 월" 기준으로 이동(현재 월/URL 월로 튀지 않게).
             //   월회비 항목의 target_year/month 우선, 없으면 기존 컨텍스트(initYear/initMonth).
@@ -606,46 +618,72 @@ function ItemRow({
     );
 }
 
+function annualLineText(l: AnnualFeeMonthLine): { text: string; color: string } {
+    switch (l.status) {
+        case 'paid':          return { text: '납부 완료', color: '#0E7C76' };
+        case 'partial':       return { text: `일부 납부 · 남은 ${formatWon(l.remaining)}`, color: '#B45309' };
+        case 'pending':       return l.willCreate
+            ? { text: `청구 예정 · 남은 ${formatWon(l.remaining)}`, color: '#B91C1C' }
+            : { text: `남은 금액 ${formatWon(l.remaining)}`, color: '#B91C1C' };
+        case 'exempt':        return { text: '면제', color: '#94A3B8' };
+        case 'not_target':    return { text: '비대상', color: '#94A3B8' };
+        case 'leave_excluded':return { text: '휴회 제외', color: '#94A3B8' };
+        case 'no_fee_rule':   return { text: '회비 기준 없음', color: '#B7791F' };
+        default:              return { text: '', color: '#475569' };
+    }
+}
+
 function AnnualPreviewView({ preview, loading, year }: { preview: AnnualFeePreview | null; loading: boolean; year: number | null }) {
     if (loading) {
-        return <p style={annualNote}>{year ? `${year}년 ` : ''}연회비 잔액 계산 중...</p>;
+        return <p style={annualNote}>{year ? `${year}년 ` : ''}연회비 계산 중...</p>;
     }
     if (!preview) {
-        return <p style={annualNote}>회원과 대상 연도를 선택하면 월회비 잔액을 계산합니다.</p>;
+        return <p style={annualNote}>회원과 대상 연도를 선택하면 1~12월 연회비를 계산합니다.</p>;
     }
     return (
         <div style={{ borderRadius: 10, border: '1px solid rgba(15,23,42,0.08)', backgroundColor: '#FFFFFF', padding: 10 }}>
-            <p style={{ margin: '0 0 6px', fontSize: 11.5, fontWeight: 900, color: '#0F172A' }}>{preview.year}년 연회비 잔액</p>
-            {preview.lines.length === 0 ? (
-                <p style={{ ...annualNote, marginTop: 0 }}>해당 연도에 생성된 월회비 청구가 없습니다.</p>
-            ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {preview.lines.map((l) => (
-                        <li key={l.month} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5, fontWeight: 700 }}>
-                            <span style={{ color: '#475569' }}>{l.month}월</span>
-                            <span style={{ color: l.remaining > 0 ? '#B91C1C' : '#0E7C76', whiteSpace: 'nowrap' }}>
-                                {l.status === 'paid' ? '납부 완료'
-                                    : l.status === 'exempt' ? '면제'
-                                    : l.status === 'not_target' ? '비대상'
-                                    : `남은 금액 ${formatWon(l.remaining)}`}
+            <p style={{ margin: '0 0 6px', fontSize: 11.5, fontWeight: 900, color: '#0F172A' }}>{preview.year}년 연회비</p>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {preview.lines.map((l) => {
+                    const s = annualLineText(l);
+                    return (
+                        <li key={l.month} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 11.5, fontWeight: 700 }}>
+                            <span style={{ color: '#475569', flexShrink: 0 }}>
+                                {l.month}월{l.amountDue > 0 ? ` · 청구 ${formatWon(l.amountDue)}` : ''}
                             </span>
+                            <span style={{ color: s.color, whiteSpace: 'nowrap', textAlign: 'right' }}>{s.text}</span>
                         </li>
-                    ))}
-                </ul>
-            )}
-            {preview.missingMonths.length > 0 && (
-                <p style={{ ...annualNote, color: '#B7791F' }}>
-                    월회비 청구가 생성되지 않은 월이 있어 해당 월은 연회비 계산에서 제외되었습니다. ({preview.missingMonths.join(', ')}월)
+                    );
+                })}
+            </ul>
+
+            {preview.blocked && (
+                <p style={{ ...annualNote, color: '#B91C1C' }}>
+                    {preview.year}년 {preview.missingFeeRuleMonths.join(', ')}월 회비 기준이 설정되지 않아 연회비를 계산할 수 없습니다.
+                    회비 기준 설정에서 먼저 등록한 뒤 다시 시도해 주세요.
                 </p>
             )}
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(15,23,42,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>총 납부 금액 ({preview.payableCount}개월)</span>
-                <strong style={{ fontSize: 13, fontWeight: 900, color: preview.totalRemaining > 0 ? '#0E7C76' : '#94A3B8' }}>
-                    {formatWon(preview.totalRemaining)}
-                </strong>
+
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#64748B' }}>
+                    <span>납부 완료 {preview.paidObligationCount}개월</span>
+                    <span>남은 대상 {preview.payableCount}개월</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>연회비 잔액</span>
+                    <strong style={{ fontSize: 13, fontWeight: 900, color: preview.totalRemaining > 0 ? '#0E7C76' : '#94A3B8' }}>
+                        {formatWon(preview.totalRemaining)}
+                    </strong>
+                </div>
             </div>
-            {preview.totalRemaining === 0 && preview.lines.length > 0 && (
-                <p style={{ ...annualNote, color: '#0E7C76' }}>해당 연도의 월회비가 모두 납부되었습니다.</p>
+
+            {!preview.blocked && preview.annualFeePaid && (
+                <p style={{ ...annualNote, color: '#0E7C76' }}>{preview.year}년 연회비가 모두 납부되었습니다.</p>
+            )}
+            {!preview.blocked && preview.toCreate.length > 0 && (
+                <p style={{ ...annualNote, color: '#0E7C76' }}>
+                    저장 시 청구가 없는 {preview.toCreate.map((c) => c.month).join(', ')}월 월회비 청구를 먼저 생성한 뒤 잔액을 납부합니다.
+                </p>
             )}
         </div>
     );

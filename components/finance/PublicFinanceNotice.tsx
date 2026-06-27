@@ -111,7 +111,7 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                                         <Td className="hidden sm:table-cell" style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#334155' }}>{formatWon(m.amountDue)}</Td>
                                         <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#0E7C76', fontWeight: 700 }}>{formatWon(m.amountPaid)}</Td>
                                         <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 800, color: m.remainingAmount > 0 ? '#B91C1C' : '#94A3B8' }}>{formatWon(m.remainingAmount)}</Td>
-                                        <Td style={{ textAlign: 'center' }}><StatusPill status={m.status} /></Td>
+                                        <Td style={{ textAlign: 'center' }}><StatusPill status={m.status} annual={m.annualFeePaid} /></Td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -187,13 +187,16 @@ function Summary({ label, value, tone }: { label: string; value: number; tone?: 
     );
 }
 
-function StatusPill({ status }: { status: NoticeMemberStatus }) {
+function StatusPill({ status, annual }: { status: NoticeMemberStatus; annual?: boolean }) {
     const map: Record<NoticeMemberStatus, { label: string; bg: string; color: string; border: string }> = {
         paid:    { label: '납부 완료', bg: '#E7F6EF', color: '#047857', border: '#A7E3C9' },
         partial: { label: '일부 납부', bg: '#FEF3D7', color: '#92400E', border: '#F4D58A' },
         pending: { label: '미납',     bg: '#FCE4E4', color: '#B91C1C', border: '#F3B4B4' },
     };
-    const t = map[status];
+    // 연회비 완료 회원은 월 상태 대신 '연회비 납부 완료' 로 표시.
+    const t = annual
+        ? { label: '연회비 납부 완료', bg: '#E7F6EF', color: '#0E7C76', border: '#A7E3C9' }
+        : map[status];
     return (
         <span style={{
             display: 'inline-block', whiteSpace: 'nowrap',

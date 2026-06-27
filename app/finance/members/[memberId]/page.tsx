@@ -14,6 +14,7 @@ import {
     fetchPaymentsByMember,
     updateReceivableStatus,
     fetchOverlappingMonthlyReceivables,
+    fetchAnnualFeePreview,
 } from '@/lib/finance/duesService';
 import {
     fetchLeavesByMember,
@@ -81,6 +82,7 @@ export default function FinanceMemberDetailPage() {
     const [loading, setLoading] = React.useState(true);
     const [copyState, setCopyState] = React.useState<'idle' | 'copied'>('idle');
     const [editingPayment, setEditingPayment] = React.useState<FinanceDuesPayment | null>(null);
+    const [annualFeePaid, setAnnualFeePaid] = React.useState(false);
 
     // 휴회 입력 form
     const [leaveStart, setLeaveStart] = React.useState('');
@@ -89,17 +91,20 @@ export default function FinanceMemberDetailPage() {
 
     const load = React.useCallback(async () => {
         setLoading(true);
-        const [recv, pays, mRow, lvs] = await Promise.all([
+        const [recv, pays, mRow, lvs, annual] = await Promise.all([
             fetchReceivablesByMember(memberId, year),
             fetchPaymentsByMember(memberId, year),
             supabase.from('members').select('nickname, avatar_url').eq('id', memberId).maybeSingle(),
             fetchLeavesByMember(memberId),
+            // 연회비 완료 여부 — 실제 월별 청구·납부 잔액 기준(메모 문구 아님).
+            fetchAnnualFeePreview(memberId, year).catch(() => null),
         ]);
         setReceivables(recv);
         setPayments(pays);
         setMemberName((mRow.data?.nickname as string) || '회원 정보 없음');
         setMemberAvatar((mRow.data?.avatar_url as string) || null);
         setLeaves(lvs);
+        setAnnualFeePaid(!!annual?.annualFeePaid);
         setLoading(false);
     }, [memberId, year]);
 
@@ -273,9 +278,12 @@ export default function FinanceMemberDetailPage() {
                             )}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>
-                                {memberName}
-                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>
+                                    {memberName}
+                                </p>
+                                {annualFeePaid && <AnnualFeeBadge year={year} />}
+                            </div>
                             <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>
                                 {year}년 납부 현황
                             </p>
@@ -564,6 +572,22 @@ export default function FinanceMemberDetailPage() {
                 userId={user?.id}
             />
         </main>
+    );
+}
+
+/** 연회비 납부 완료 배지 — 월별 청구·납부 잔액 기준 판정 결과. */
+function AnnualFeeBadge({ year }: { year: number }) {
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center',
+            paddingTop: 2, paddingBottom: 2, paddingLeft: 8, paddingRight: 8,
+            borderRadius: 999, whiteSpace: 'nowrap',
+            backgroundColor: 'rgba(15,159,152,0.12)', color: '#0E7C76',
+            border: '1px solid rgba(15,159,152,0.28)',
+            fontSize: 10, fontWeight: 800,
+        }}>
+            {year}년 연회비 납부 완료
+        </span>
     );
 }
 

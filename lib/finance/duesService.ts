@@ -1,9 +1,12 @@
 // 회원별 납부 대상(receivables) + 실제 납부 기록(payments) service.
 
 import { supabase } from '../supabase';
+import { fetchFeeRulesForYear } from './feeRulesService';
+import { fetchLeavesByMember, isMemberOnLeaveAtMonth } from './leavesService';
 import type {
     FinanceDuesPayment,
     FinanceDuesReceivable,
+    FinanceMemberLeave,
     FinanceReceivableStatus,
     FinanceReceivableType,
 } from '@/types/finance';
@@ -690,111 +693,252 @@ export async function fetchMonthlyReceivableMap(
     return out;
 }
 
+export type AnnualMonthStatus =
+    | 'paid' | 'partial' | 'pending'
+    | 'exempt' | 'not_target'
+    | 'no_fee_rule'      // 청구도 없고 회비 기준도 없음 — 연회비 계산 불가(처리 중단 사유)
+    | 'leave_excluded';  // 청구 없음 + 해당 월 휴회 — 대상 제외(생성 안 함)
+
 export interface AnnualFeeMonthLine {
     month: number;
-    receivableId: string;
+    /** 아직 생성되지 않은 달은 null. */
+    receivableId: string | null;
     amountDue: number;
     amountPaid: number;
     remaining: number;
-    status: 'paid' | 'partial' | 'pending' | 'exempt' | 'not_target';
+    status: AnnualMonthStatus;
+    /** 저장 시 fee rule 로 새로 생성될 누락 청구. */
+    willCreate: boolean;
 }
 
 export interface AnnualFeePreview {
     year: number;
-    /** 해당 연도에 monthly_fee 청구가 있는 달(월 오름차순). */
+    /** 1~12월 전체(항상 12개). */
     lines: AnnualFeeMonthLine[];
-    /** 남은 금액 > 0 이고 exempt/not_target 아닌 달 = 실제 납부 대상. */
+    /** 실제 납부 대상(paid/partial/pending) 중 남은 금액 > 0 인 달. */
     payableLines: AnnualFeeMonthLine[];
     totalRemaining: number;
     payableCount: number;
-    /** 청구 자체가 없는 달(1~12 중) — 안내용. 자동 생성하지 않는다. */
+    /** 실제 의무 대상 월 수(exempt/not_target/leave/no_fee_rule 제외). */
+    obligationCount: number;
+    paidObligationCount: number;
+    /** 저장 시 생성할 누락 청구(fee rule 존재 월만). */
+    toCreate: { month: number; amount: number; dueDate: string | null }[];
+    /** 의무 대상인데 fee rule 이 없어 계산 불가인 달 — 있으면 처리 중단. */
+    missingFeeRuleMonths: number[];
+    /** missingFeeRuleMonths.length > 0 — 연회비 처리 불가. */
+    blocked: boolean;
+    /** 선택 연도 월회비 의무가 모두 완납(차단 없음 + 의무 1건 이상). */
+    annualFeePaid: boolean;
+    /** 청구 자체가 없는 달(1~12 중) — 안내용(하위 호환). */
     missingMonths: number[];
 }
 
 /**
- * 선택 회원·연도의 "월회비 잔액"을 계산(읽기 전용 미리보기).
- *   - monthly_fee 만 대상. penalty/guest_fee/event_fee/other 는 포함하지 않는다.
- *   - exempt/not_target 은 잔액 0(대상 제외).
- *   - 청구가 없는 달은 missingMonths 로 안내(자동 생성 금지).
+ * 한 회원·한 연도의 연회비(=월회비 12개월) 상태를 순수 계산(읽기 전용, DB 접근 없음).
+ *   - 월회비 청구가 있으면 그 금액/납부로 paid/partial/pending/exempt/not_target 판정.
+ *   - 청구가 없으면: 준회원·게스트(비대상) → not_target / 해당 월 휴회 → leave_excluded /
+ *     fee rule 존재 → willCreate(저장 시 생성) / fee rule 없음 → no_fee_rule(차단).
+ *   - 12개월을 단일 금액×12 로 단순화하지 않고 월별 fee rule·receivable 기준으로 계산.
+ *   - 대상 판정은 기존 isMonthlyFeeTargetMember / isMemberOnLeaveAtMonth 를 재사용(복제 금지).
  */
-export async function fetchAnnualFeePreview(memberId: string, year: number): Promise<AnnualFeePreview> {
-    const { data: recvData, error } = await supabase
-        .from(TBL_RECV)
-        .select('id, target_month, amount_due, status')
-        .eq('member_id', memberId)
-        .eq('target_year', year)
-        .eq('receivable_type', 'monthly_fee');
-    if (error) {
-        console.warn('[Finance/annual/preview]', error?.message ?? error);
-        throw error;
-    }
-    const recv = (recvData || []) as { id: string; target_month: number | null; amount_due: number; status: string }[];
-    const ids = recv.map((r) => r.id);
-    const payments = ids.length > 0 ? await fetchPaymentsByReceivables(ids) : [];
+export function computeAnnualFeeStatus(opts: {
+    year: number;
+    role: string | null;
+    /** 회원의 해당 연도 receivable(어떤 타입이든) — monthly_fee 만 사용. */
+    receivables: FinanceDuesReceivable[];
+    /** payment 목록(receivable_id 로 내부 필터). */
+    payments: FinanceDuesPayment[];
+    feeRuleByMonth: Map<number, { default_amount: number; due_date: string | null }>;
+    isOnLeave: (month: number) => boolean;
+}): AnnualFeePreview {
+    const { year, role, receivables, payments, feeRuleByMonth, isOnLeave } = opts;
+    const isTarget = isMonthlyFeeTargetMember(role);
+
     const paidByRecv = new Map<string, number>();
     for (const p of payments) {
         if (p.is_voided === true || !p.receivable_id) continue;
         paidByRecv.set(p.receivable_id, (paidByRecv.get(p.receivable_id) || 0) + (p.amount || 0));
     }
+    const recvByMonth = new Map<number, FinanceDuesReceivable>();
+    for (const r of receivables) {
+        if (r.receivable_type !== 'monthly_fee' || r.target_month == null) continue;
+        if (!recvByMonth.has(r.target_month)) recvByMonth.set(r.target_month, r);
+    }
 
-    const present = new Set<number>();
-    const lines: AnnualFeeMonthLine[] = recv.map((r) => {
-        if (r.target_month != null) present.add(r.target_month);
-        const due = Math.max(0, r.amount_due);
-        const paid = paidByRecv.get(r.id) || 0;
-        let status: AnnualFeeMonthLine['status'];
-        let remaining: number;
-        if (r.status === 'exempt') { status = 'exempt'; remaining = 0; }
-        else if (r.status === 'not_target') { status = 'not_target'; remaining = 0; }
-        else if (paid <= 0) { status = 'pending'; remaining = due; }
-        else if (paid < due) { status = 'partial'; remaining = due - paid; }
-        else { status = 'paid'; remaining = 0; }
-        return { month: r.target_month ?? 0, receivableId: r.id, amountDue: due, amountPaid: paid, remaining, status };
-    }).sort((a, b) => a.month - b.month);
-
-    const payableLines = lines.filter((l) => l.remaining > 0 && l.status !== 'exempt' && l.status !== 'not_target');
+    const lines: AnnualFeeMonthLine[] = [];
+    const toCreate: { month: number; amount: number; dueDate: string | null }[] = [];
+    const missingFeeRuleMonths: number[] = [];
     const missingMonths: number[] = [];
-    for (let m = 1; m <= 12; m++) if (!present.has(m)) missingMonths.push(m);
 
+    for (let m = 1; m <= 12; m++) {
+        const r = recvByMonth.get(m);
+        const rule = feeRuleByMonth.get(m);
+        if (!r) missingMonths.push(m);
+        if (r) {
+            const due = Math.max(0, r.amount_due);
+            const paid = paidByRecv.get(r.id) || 0;
+            let status: AnnualMonthStatus; let remaining: number;
+            if (r.status === 'exempt') { status = 'exempt'; remaining = 0; }
+            else if (r.status === 'not_target') { status = 'not_target'; remaining = 0; }
+            else if (paid <= 0) { status = 'pending'; remaining = due; }
+            else if (paid < due) { status = 'partial'; remaining = due - paid; }
+            else { status = 'paid'; remaining = 0; }
+            lines.push({ month: m, receivableId: r.id, amountDue: due, amountPaid: paid, remaining, status, willCreate: false });
+        } else if (!isTarget) {
+            lines.push({ month: m, receivableId: null, amountDue: 0, amountPaid: 0, remaining: 0, status: 'not_target', willCreate: false });
+        } else if (isOnLeave(m)) {
+            lines.push({ month: m, receivableId: null, amountDue: 0, amountPaid: 0, remaining: 0, status: 'leave_excluded', willCreate: false });
+        } else if (rule) {
+            const amt = Math.max(0, Math.trunc(rule.default_amount));
+            lines.push({ month: m, receivableId: null, amountDue: amt, amountPaid: 0, remaining: amt, status: 'pending', willCreate: true });
+            toCreate.push({ month: m, amount: amt, dueDate: rule.due_date ?? null });
+        } else {
+            lines.push({ month: m, receivableId: null, amountDue: 0, amountPaid: 0, remaining: 0, status: 'no_fee_rule', willCreate: false });
+            missingFeeRuleMonths.push(m);
+        }
+    }
+
+    const obligationLines = lines.filter((l) => l.status === 'paid' || l.status === 'partial' || l.status === 'pending');
+    const payableLines = obligationLines.filter((l) => l.remaining > 0);
+    const blocked = missingFeeRuleMonths.length > 0;
+    const totalRemaining = payableLines.reduce((s, l) => s + l.remaining, 0);
     return {
         year,
         lines,
         payableLines,
-        totalRemaining: payableLines.reduce((s, l) => s + l.remaining, 0),
+        totalRemaining,
         payableCount: payableLines.length,
+        obligationCount: obligationLines.length,
+        paidObligationCount: obligationLines.filter((l) => l.remaining === 0).length,
+        toCreate,
+        missingFeeRuleMonths,
+        blocked,
+        annualFeePaid: !blocked && obligationLines.length > 0 && totalRemaining === 0,
         missingMonths,
     };
 }
 
 /**
- * 연회비 잔액 일괄 납부 — 선택 연도 monthly_fee 청구의 "남은 금액"만큼 월별 payment 를 생성.
- *   - 원자성/동시성/초과납부 방어를 위해 서버 RPC(pay_annual_fee_remainder) 로 처리.
- *     RPC 가 트랜잭션 안에서 각 receivable 을 FOR UPDATE 로 잠그고 최신 잔액을 다시 계산해
- *     실제 남은 금액만큼만 INSERT 한다(이미 완납/초과/중복 클릭 방어).
- *   - 각 payment 는 해당 monthly_fee receivable 에 연결되고 payment_type='monthly_fee'.
- *   - payment 원본/벌금·게스트비 등은 건드리지 않는다.
- * 반환: 생성 payment 수 + 총액.
+ * 선택 회원·연도의 연회비(월회비 12개월) 미리보기.
+ *   - 누락된 달은 fee rule 존재 시 willCreate(저장 때 생성), fee rule 없으면 no_fee_rule(차단).
+ *   - 회원 role / 휴회를 반영(준회원·게스트·휴회 제외 규칙 유지).
  */
-export async function payAnnualFeeRemainder(
+export async function fetchAnnualFeePreview(memberId: string, year: number): Promise<AnnualFeePreview> {
+    const [mRes, recvRes, feeRules, leaves] = await Promise.all([
+        supabase.from('members').select('role').eq('id', memberId).maybeSingle(),
+        supabase.from(TBL_RECV).select('*')
+            .eq('member_id', memberId).eq('target_year', year).eq('receivable_type', 'monthly_fee'),
+        fetchFeeRulesForYear(year),
+        fetchLeavesByMember(memberId),
+    ]);
+    if (recvRes.error) {
+        console.warn('[Finance/annual/preview]', recvRes.error?.message ?? recvRes.error);
+        throw recvRes.error;
+    }
+    const recv = (recvRes.data || []) as FinanceDuesReceivable[];
+    const ids = recv.map((r) => r.id);
+    const payments = ids.length > 0 ? await fetchPaymentsByReceivables(ids) : [];
+    const feeRuleByMonth = new Map<number, { default_amount: number; due_date: string | null }>();
+    for (const fr of feeRules) {
+        if (fr.is_active !== false) feeRuleByMonth.set(fr.month, { default_amount: fr.default_amount, due_date: fr.due_date });
+    }
+    return computeAnnualFeeStatus({
+        year,
+        role: (mRes.data?.role as string) ?? null,
+        receivables: recv,
+        payments,
+        feeRuleByMonth,
+        isOnLeave: (m) => isMemberOnLeaveAtMonth(leaves, memberId, year, m),
+    });
+}
+
+/**
+ * 여러 회원의 "연회비 납부 완료" 여부를 한 번에 계산해 memberId Set 으로 반환.
+ *   - 회원 상세 배지 / 납부 현황 배지 / 공개 공지 스냅샷에서 공통 사용.
+ *   - 메모 문구가 아니라 실제 월별 청구·납부 잔액 기준으로 판정(computeAnnualFeeStatus).
+ */
+export async function fetchAnnualFeePaidSet(
+    year: number,
+    members: { id: string; role: string | null }[],
+    leaves: FinanceMemberLeave[],
+): Promise<Set<string>> {
+    const out = new Set<string>();
+    if (members.length === 0) return out;
+    const [feeRules, allRecv] = await Promise.all([
+        fetchFeeRulesForYear(year),
+        fetchReceivablesByYear(year),
+    ]);
+    const feeRuleByMonth = new Map<number, { default_amount: number; due_date: string | null }>();
+    for (const fr of feeRules) {
+        if (fr.is_active !== false) feeRuleByMonth.set(fr.month, { default_amount: fr.default_amount, due_date: fr.due_date });
+    }
+    const monthlyRecv = allRecv.filter((r) => r.receivable_type === 'monthly_fee');
+    const recvIds = monthlyRecv.map((r) => r.id);
+    const payments = recvIds.length > 0 ? await fetchPaymentsByReceivables(recvIds) : [];
+    const byMember = new Map<string, FinanceDuesReceivable[]>();
+    for (const r of monthlyRecv) {
+        const arr = byMember.get(r.member_id);
+        if (arr) arr.push(r); else byMember.set(r.member_id, [r]);
+    }
+    for (const m of members) {
+        const st = computeAnnualFeeStatus({
+            year,
+            role: m.role,
+            receivables: byMember.get(m.id) ?? [],
+            payments,
+            feeRuleByMonth,
+            isOnLeave: (mon) => isMemberOnLeaveAtMonth(leaves, m.id, year, mon),
+        });
+        if (st.annualFeePaid) out.add(m.id);
+    }
+    return out;
+}
+
+/**
+ * 연회비 일괄 납부(누락 청구 생성 + 잔액 납부) — 단일 RPC(pay_annual_fee_full) 트랜잭션.
+ *   1) toCreate(누락 + fee rule 존재 월)의 monthly_fee 청구를 생성(이미 있으면 건너뜀, 중복/수정 없음).
+ *   2) 선택 연도 monthly_fee 청구(exempt/not_target 제외)의 남은 금액만큼만 payment 생성.
+ *   - 청구 생성과 잔액 납부가 한 트랜잭션 — 일부만 생성되고 payment 가 빠지는 중간 상태 없음.
+ *   - paid_at/메모는 동일 적용. 이미 완납 월은 payment 추가 안 함(재실행 시 0건).
+ * 반환: 생성 청구 수 + 생성 payment 수 + 총액.
+ */
+export async function payAnnualFeeFull(
     memberId: string,
     year: number,
     paidAt: string,
     memo: string,
-): Promise<{ paymentCount: number; totalAmount: number }> {
-    const { data, error } = await supabase.rpc('pay_annual_fee_remainder', {
+    toCreate: { month: number; amount: number; dueDate: string | null }[],
+): Promise<{ createdCount: number; paymentCount: number; totalAmount: number }> {
+    // 서버가 DB fee rule 기준으로 금액/대상 재검증하도록 "월 번호만" 전달(금액 미전송 — 변조 차단).
+    const { data, error } = await supabase.rpc('pay_annual_fee_full', {
         p_member_id: memberId,
         p_year: year,
         p_paid_at: paidAt,
         p_memo: memo,
+        p_months: Array.from(new Set(toCreate.map((c) => c.month))).sort((a, b) => a - b),
     });
     if (error) {
         const msg = String(error?.message || '');
-        if (String(error?.code) === 'PGRST202' || /pay_annual_fee_remainder/i.test(msg)) {
-            throw new Error('연회비 일괄 납부 기능이 아직 활성화되지 않았습니다. (supabase/add_annual_fee_payment_rpc.sql 적용 필요)');
+        if (String(error?.code) === 'PGRST202' || /pay_annual_fee_full/i.test(msg)) {
+            throw new Error('연회비 일괄 납부 기능이 아직 활성화되지 않았습니다. (supabase/add_annual_fee_full_rpc.sql 적용 필요)');
         }
-        console.warn('[Finance/annual/pay]', msg || error);
+        if (/inactive fee rule/i.test(msg)) {
+            throw new Error('비활성 회비 기준이 있어 연회비를 처리할 수 없습니다. 회비 기준 설정을 확인해 주세요.');
+        }
+        if (/no fee rule/i.test(msg)) {
+            throw new Error('회비 기준이 설정되지 않은 달이 있어 연회비를 처리할 수 없습니다. 회비 기준 설정에서 먼저 등록해 주세요.');
+        }
+        if (/duplicate month/i.test(msg)) {
+            throw new Error('중복된 월 요청으로 연회비 처리를 중단했습니다. 다시 시도해 주세요.');
+        }
+        console.warn('[Finance/annual/payFull]', msg || error);
         throw new Error(msg || '연회비 일괄 납부에 실패했습니다.');
     }
     const j = (data || {}) as any;
-    return { paymentCount: Number(j.paymentCount || 0), totalAmount: Number(j.totalAmount || 0) };
+    return {
+        createdCount: Number(j.createdCount || 0),
+        paymentCount: Number(j.paymentCount || 0),
+        totalAmount: Number(j.totalAmount || 0),
+    };
 }

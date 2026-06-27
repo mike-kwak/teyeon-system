@@ -12,6 +12,7 @@ import {
     fetchReceivablesByMonth,
     fetchAllMembers,
     bulkCreateMonthlyReceivables,
+    fetchAnnualFeePaidSet,
     isMonthlyFeeTargetMember,
     type FinanceMember,
 } from '@/lib/finance/duesService';
@@ -74,6 +75,7 @@ export default function FinancePaymentsPage() {
     const [receivables, setReceivables] = React.useState<FinanceDuesReceivable[]>([]);
     const [payments, setPayments] = React.useState<FinanceDuesPayment[]>([]);
     const [leaves, setLeaves] = React.useState<FinanceMemberLeave[]>([]);
+    const [annualPaidSet, setAnnualPaidSet] = React.useState<Set<string>>(new Set());
     const [loading, setLoading] = React.useState(true);
     const [busy, setBusy] = React.useState(false);
     const [showNoticeModal, setShowNoticeModal] = React.useState(false);
@@ -94,6 +96,10 @@ export default function FinancePaymentsPage() {
         setPayments((payRows || []) as FinanceDuesPayment[]);
         setLeaves(lvs);
         setLoading(false);
+        // 연회비 완료 회원(선택 연도 기준) — 배지/공지에 사용. 본문 로딩과 분리(실패해도 화면 영향 없음).
+        fetchAnnualFeePaidSet(year, mems, lvs)
+            .then(setAnnualPaidSet)
+            .catch(() => setAnnualPaidSet(new Set()));
     }, [year, month]);
 
     React.useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
@@ -372,12 +378,26 @@ export default function FinancePaymentsPage() {
                                     }}
                                 >
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <p style={{
-                                            margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F172A',
-                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                        }}>
-                                            {memberById[r.member_id]?.nickname || '회원 정보 없음'}
-                                        </p>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                            <p style={{
+                                                margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F172A',
+                                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            }}>
+                                                {memberById[r.member_id]?.nickname || '회원 정보 없음'}
+                                            </p>
+                                            {annualPaidSet.has(r.member_id) && (
+                                                <span style={{
+                                                    flexShrink: 0,
+                                                    paddingTop: 1, paddingBottom: 1, paddingLeft: 6, paddingRight: 6,
+                                                    borderRadius: 999, whiteSpace: 'nowrap',
+                                                    backgroundColor: 'rgba(15,159,152,0.12)', color: '#0E7C76',
+                                                    border: '1px solid rgba(15,159,152,0.28)',
+                                                    fontSize: 9, fontWeight: 800,
+                                                }}>
+                                                    연회비 완료
+                                                </span>
+                                            )}
+                                        </div>
                                         <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#64748B' }}>
                                             {r.title || `${year}년 ${month}월 회비`}
                                         </p>
@@ -415,6 +435,7 @@ export default function FinancePaymentsPage() {
                     receivables={receivables}
                     payments={payments}
                     leaves={leaves}
+                    annualPaidIds={annualPaidSet}
                     onClose={() => setShowNoticeModal(false)}
                 />
             )}
