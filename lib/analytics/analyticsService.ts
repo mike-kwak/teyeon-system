@@ -1,0 +1,265 @@
+// TEYEON Admin Analytics — read model.
+//   원칙: 가짜/추정 숫자 금지. app_logs(실제 기록 이벤트)와 members.age(실제 나이)만 집계한다.
+//   현재 app_logs 에는 "페이지 방문" 로그가 없다(logAction 은 공지/댓글/권한변경 등 일부 행동만 기록).
+//   → 방문 중심 지표(고유 방문자/총 방문/인기 조회 메뉴/재방문율)는 신뢰할 수 없어 "수집 필요"로 표시한다.
+//   집계 단위는 "방문"이 아니라 "기록된 활동(이벤트)"임을 UI 라벨에서 명확히 한다.
+
+import { supabase } from '@/lib/supabase';
+
+// ── 기간 ─────────────────────────────────────────────────────────────────────
+export type RangeKey = 'today' | '7d' | '30d' | 'month';
+
+export interface AnalyticsRange {
+    key: RangeKey;
+    label: string;
+    start: Date;
+    end: Date; // exclusive
+    days: number;
+}
+
+const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+export function buildRange(key: RangeKey, now: Date = new Date()): AnalyticsRange {
+    const todayStart = startOfDay(now);
+    const tomorrow = new Date(todayStart);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    switch (key) {
+        case 'today':
+            return { key, label: '오늘', start: todayStart, end: tomorrow, days: 1 };
+        case '7d': {
+            const s = new Date(todayStart); s.setDate(s.getDate() - 6);
+            return { key, label: '최근 7일', start: s, end: tomorrow, days: 7 };
+        }
+        case 'month': {
+            const s = new Date(now.getFullYear(), now.getMonth(), 1);
+            const days = Math.round((tomorrow.getTime() - s.getTime()) / 86400000);
+            return { key, label: '이번 달', start: s, end: tomorrow, days };
+        }
+        case '30d':
+        default: {
+            const s = new Date(todayStart); s.setDate(s.getDate() - 29);
+            return { key, label: '최근 30일', start: s, end: tomorrow, days: 30 };
+        }
+    }
+}
+
+const localDateKey = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// ── 경로 정규화 (instruction §6) ──────────────────────────────────────────────
+//   동적 ID 포함 경로는 같은 메뉴로 묶고, /admin 은 일반 사용자 분석에서 제외(null 반환).
+export function normalizeMenu(path: string | null | undefined): string | null {
+    if (!path) return '메인';
+    const p = path.split('?')[0].split('#')[0];
+    if (p === '/') return '메인';
+    if (p.startsWith('/admin')) return null; // 관리자 페이지 제외
+    if (p.startsWith('/kdk/live') || p.startsWith('/kdk/display')) return 'LIVE COURT';
+    if (p.startsWith('/kdk')) return 'KDK';
+    if (p.startsWith('/club-schedule')) return '정모 상세';
+    if (p.startsWith('/calendar')) return 'TEYEON Calendar';
+    if (p.startsWith('/archive')) return 'Archive';
+    if (p.startsWith('/members')) return '멤버 프로필';
+    if (p.startsWith('/guest')) return 'Guest Pass';
+    if (p.startsWith('/notice')) return '공지사항';
+    if (p.startsWith('/finance')) return 'Finance';
+    if (p.startsWith('/club')) return '공개 TEYEON';
+    const seg = p.split('/').filter(Boolean)[0];
+    return seg ? `/${seg}` : '메인';
+}
+
+// ── action 라벨/분류 ──────────────────────────────────────────────────────────
+const AUDIT_ACTIONS = new Set(['role_changed', 'profile_role_changed']);
+const ACTION_LABELS: Record<string, string> = {
+    role_changed: '회원 권한 변경',
+    profile_role_changed: '계정 권한 변경',
+    notice_created: '공지 작성',
+    notice_updated: '공지 수정',
+    comment_posted: '댓글 작성',
+    menu_click: '메뉴 이동(레거시)',
+};
+export const actionLabel = (a: string): string => ACTION_LABELS[a] || a || '기타';
+export const isAuditAction = (a: string): boolean => AUDIT_ACTIONS.has(a);
+
+// ── 주요 기능 사용량 후보 (instruction §7) ────────────────────────────────────
+//   tracked=true 인 항목만 app_logs 로 실제 집계 가능. 나머지는 조회 로깅이 없어 "수집 필요".
+export interface FeatureUsageRow {
+    key: string;
+    label: string;
+    count: number | null; // null = 수집 필요
+    tracked: boolean;
+}
+
+// ── 결과 타입 ─────────────────────────────────────────────────────────────────
+export interface AnalyticsResult {
+    ok: boolean;       // 쿼리 성공
+    blocked: boolean;  // RLS 등으로 조회 차단
+    totalEvents: number;
+    identifiedUsers: number;   // user_id 가 있는 고유 사용자 수
+    identifiedEvents: number;
+    anonymousEvents: number;   // user_id 없음(공개/미식별)
+    avgMenusPerUser: number | null; // 식별 사용자당 평균 활동 메뉴 수
+    daily: { date: string; total: number; identified: number }[];
+    topMenus: { menu: string; count: number }[];
+    featureUsage: FeatureUsageRow[];
+    eventTypes: { action: string; label: string; count: number; audit: boolean }[];
+    auditEvents: number;       // 관리자 감사 이벤트 수(일반 사용 분석과 분리)
+    lastEventAt: string | null;
+    hasPageViewLogging: boolean; // page-view 로깅 존재 여부(현재 false 추정)
+}
+
+interface RawLog {
+    user_id: string | null;
+    path: string | null;
+    action: string | null;
+    created_at: string;
+}
+
+const FEATURE_TEMPLATE: { key: string; label: string; action?: string }[] = [
+    { key: 'notice_created', label: '공지 작성', action: 'notice_created' },
+    { key: 'notice_updated', label: '공지 수정', action: 'notice_updated' },
+    { key: 'comment_posted', label: '댓글 작성', action: 'comment_posted' },
+    { key: 'calendar_view', label: 'Calendar 조회' },
+    { key: 'schedule_view', label: '정모 상세 조회' },
+    { key: 'attendance_done', label: '참석 체크 완료' },
+    { key: 'kdk_view', label: 'KDK 조회' },
+    { key: 'live_view', label: 'LIVE COURT 조회' },
+    { key: 'archive_view', label: 'Archive 조회' },
+    { key: 'guest_view', label: 'Guest Pass 조회' },
+];
+
+export async function fetchAnalytics(range: AnalyticsRange): Promise<AnalyticsResult> {
+    const empty = (blocked: boolean): AnalyticsResult => ({
+        ok: !blocked, blocked,
+        totalEvents: 0, identifiedUsers: 0, identifiedEvents: 0, anonymousEvents: 0,
+        avgMenusPerUser: null, daily: [], topMenus: [], featureUsage: [], eventTypes: [],
+        auditEvents: 0, lastEventAt: null, hasPageViewLogging: false,
+    });
+
+    let rows: RawLog[] = [];
+    try {
+        const { data, error } = await supabase
+            .from('app_logs')
+            .select('user_id, path, action, created_at')
+            .gte('created_at', range.start.toISOString())
+            .lt('created_at', range.end.toISOString())
+            .order('created_at', { ascending: false })
+            .limit(5000);
+        if (error) return empty(true);
+        rows = (data || []) as RawLog[];
+    } catch {
+        return empty(true);
+    }
+
+    // 일별 버킷(기간 전체를 0 으로 채운 시간축 — 조용한 날의 실제 0 이며 가짜값 아님).
+    const dailyMap = new Map<string, { total: number; identified: number }>();
+    for (let i = 0; i < range.days; i++) {
+        const d = new Date(range.start); d.setDate(d.getDate() + i);
+        dailyMap.set(localDateKey(d), { total: 0, identified: 0 });
+    }
+
+    const userIds = new Set<string>();
+    const menuCount = new Map<string, number>();
+    const actionCount = new Map<string, number>();
+    const userMenus = new Map<string, Set<string>>();
+    let identifiedEvents = 0;
+    let anonymousEvents = 0;
+    let auditEvents = 0;
+    let lastEventAt: string | null = rows[0]?.created_at ?? null;
+
+    for (const r of rows) {
+        const bucket = dailyMap.get(localDateKey(new Date(r.created_at)));
+        if (bucket) bucket.total++;
+        const action = r.action || 'unknown';
+        actionCount.set(action, (actionCount.get(action) || 0) + 1);
+        if (isAuditAction(action)) auditEvents++;
+
+        if (r.user_id) {
+            identifiedEvents++;
+            userIds.add(r.user_id);
+            if (bucket) bucket.identified++;
+            const menu = normalizeMenu(r.path);
+            if (menu) {
+                let set = userMenus.get(r.user_id);
+                if (!set) { set = new Set(); userMenus.set(r.user_id, set); }
+                set.add(menu);
+            }
+        } else {
+            anonymousEvents++;
+        }
+
+        // 인기 "활동 경로" — /admin 제외, 동적 ID 묶음.
+        const menu = normalizeMenu(r.path);
+        if (menu) menuCount.set(menu, (menuCount.get(menu) || 0) + 1);
+    }
+
+    const topMenus = [...menuCount.entries()]
+        .map(([menu, count]) => ({ menu, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+    const eventTypes = [...actionCount.entries()]
+        .map(([action, count]) => ({ action, label: actionLabel(action), count, audit: isAuditAction(action) }))
+        .sort((a, b) => b.count - a.count);
+
+    const featureUsage: FeatureUsageRow[] = FEATURE_TEMPLATE.map((f) => ({
+        key: f.key,
+        label: f.label,
+        tracked: Boolean(f.action),
+        count: f.action ? (actionCount.get(f.action) || 0) : null,
+    }));
+
+    let totalDistinctMenus = 0;
+    userMenus.forEach((s) => { totalDistinctMenus += s.size; });
+    const avgMenusPerUser = userIds.size > 0 ? totalDistinctMenus / userIds.size : null;
+
+    return {
+        ok: true, blocked: false,
+        totalEvents: rows.length,
+        identifiedUsers: userIds.size,
+        identifiedEvents,
+        anonymousEvents,
+        avgMenusPerUser,
+        daily: [...dailyMap.entries()].map(([date, v]) => ({ date, total: v.total, identified: v.identified })),
+        topMenus,
+        featureUsage,
+        eventTypes,
+        auditEvents,
+        lastEventAt,
+        hasPageViewLogging: false,
+    };
+}
+
+// ── 연령대 (instruction §8) — members.age(실제 INTEGER 나이)만 집계 ─────────────
+export interface AgeResult {
+    ok: boolean;
+    buckets: { label: string; count: number }[];
+    total: number;     // 전체 회원 수
+    filled: number;    // age 입력된 회원 수
+}
+
+export async function fetchAgeDistribution(): Promise<AgeResult> {
+    try {
+        const { data, error } = await supabase.from('members').select('age').limit(5000);
+        if (error || !data) return { ok: false, buckets: [], total: 0, filled: 0 };
+        const buckets = [
+            { label: '20대 이하', count: 0 },
+            { label: '30대', count: 0 },
+            { label: '40대', count: 0 },
+            { label: '50대 이상', count: 0 },
+            { label: '미입력', count: 0 },
+        ];
+        for (const m of data as { age: number | null }[]) {
+            const age = typeof m.age === 'number' && Number.isFinite(m.age) ? m.age : null;
+            if (age === null || age <= 0) buckets[4].count++;
+            else if (age < 30) buckets[0].count++;
+            else if (age < 40) buckets[1].count++;
+            else if (age < 50) buckets[2].count++;
+            else buckets[3].count++;
+        }
+        const total = data.length;
+        const filled = total - buckets[4].count;
+        return { ok: true, buckets, total, filled };
+    } catch {
+        return { ok: false, buckets: [], total: 0, filled: 0 };
+    }
+}

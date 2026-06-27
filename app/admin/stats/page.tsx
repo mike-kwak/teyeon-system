@@ -5,10 +5,11 @@
 //   다크 테마/자체 헤더/뒤로가기는 제거(Admin shell 이 chrome 제공). 향후 /admin/analytics 확장 대비 골격만.
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { BarChart3, Users, History, MousePointerClick, Rocket } from 'lucide-react';
+import { BarChart3, Users, History, MousePointerClick, Rocket, LineChart, Info } from 'lucide-react';
 
 interface LogEntry {
   id: string;
@@ -60,15 +61,29 @@ export default function AdminStatsPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <header style={{ marginBottom: 20 }}>
-        <p style={{ margin: 0, fontFamily: 'var(--font-rajdhani), sans-serif', fontSize: 11, fontWeight: 800, letterSpacing: '0.26em', color: '#2563EB' }}>
-          TEYEON ADMIN
-        </p>
-        <h1 style={{ margin: '3px 0 0', fontSize: 24, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.02em' }}>방문 통계</h1>
-        <p style={{ margin: '5px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B' }}>
-          최근 활동 기록을 확인합니다. (상세 분석은 추후 방문 분석으로 확장 예정)
-        </p>
+      <header style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontFamily: 'var(--font-rajdhani), sans-serif', fontSize: 11, fontWeight: 800, letterSpacing: '0.26em', color: '#2563EB' }}>
+            TEYEON ADMIN
+          </p>
+          <h1 style={{ margin: '3px 0 0', fontSize: 24, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.02em' }}>방문 로그</h1>
+          <p style={{ margin: '5px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B' }}>
+            기록된 원시 활동 로그(app_logs)를 최신순으로 확인합니다.
+          </p>
+        </div>
+        <Link href="/admin/analytics" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, paddingLeft: 13, paddingRight: 13, borderRadius: 10, backgroundColor: '#FFFFFF', border: '1px solid #D9E1EC', color: '#334155', fontSize: 12.5, fontWeight: 800, textDecoration: 'none' }}>
+          <LineChart size={15} style={{ color: '#2563EB' }} /> 사용 분석으로
+        </Link>
       </header>
+
+      {/* 신뢰도 안내 — 이 화면은 집계가 아니라 원시 로그이며, 페이지 방문 전체를 담지 않는다. */}
+      <div style={{ ...CARD, display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, borderLeft: '3px solid #2563EB', backgroundColor: '#F8FAFF' }}>
+        <Info size={16} style={{ color: '#2563EB', flexShrink: 0, marginTop: 1 }} />
+        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
+          이 로그는 공지·댓글·권한변경 등 <b>일부 활동만</b> 기록합니다. 페이지 방문 전체가 저장되지 않아
+          전체 방문량 지표로 보기에는 신뢰도가 낮습니다. 집계·차트는 <b>사용 분석</b>을 이용하세요.
+        </p>
+      </div>
 
       {/* 요약 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>

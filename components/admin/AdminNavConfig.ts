@@ -12,7 +12,8 @@ import {
     Trophy,
     Wallet,
     Settings,
-    BarChart3,
+    LineChart,
+    ScrollText,
     Home,
     ListChecks,
     Menu,
@@ -43,6 +44,13 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         ],
     },
     {
+        title: '분석',
+        items: [
+            { id: 'analytics', label: '사용 분석', href: '/admin/analytics', icon: LineChart },
+            { id: 'stats', label: '방문 로그', href: '/admin/stats', icon: ScrollText },
+        ],
+    },
+    {
         title: '기록 · 정산',
         items: [
             { id: 'archive', label: '아카이브', href: '/archive', icon: Archive, external: true },
@@ -54,7 +62,6 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         title: '회원 · 시스템',
         items: [
             { id: 'settings', label: '관리자 설정', href: '/admin/settings', icon: Settings },
-            { id: 'stats', label: '방문 통계', href: '/admin/stats', icon: BarChart3 },
         ],
     },
 ];
