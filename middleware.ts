@@ -67,21 +67,45 @@ export async function middleware(request: NextRequest) {
   //   - 실제 데이터 보호는 각 테이블 RLS 가 담당(2차 방어선).
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
+      console.warn('[admin-guard] redirect: no authenticated user');
       return NextResponse.redirect(new URL('/', request.url));
     }
-    let isAdminConsole = false;
+    // profile 조회 — AuthContext 와 동일한 id → email fallback 으로 일치.
+    //   1순위: profiles.id = user.id
+    //   2순위: id row 없으면, 인증된 user.email 과 profiles.email 정확 일치(이메일 하드코딩 whitelist 아님).
+    let role = '';
+    let lookup: 'id' | 'email' | 'not-found' = 'not-found';
     try {
-      const { data: profile } = await supabase
+      const byId = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .maybeSingle();
-      const adminRole = String(profile?.role ?? '').trim().toUpperCase();
-      isAdminConsole = adminRole === 'CEO' || adminRole === 'ADMIN';
+      if (byId.data?.role) {
+        role = String(byId.data.role).trim().toUpperCase();
+        lookup = 'id';
+      } else if (user.email) {
+        const byEmail = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('email', user.email)
+          .limit(1);
+        const emailRole = byEmail.data?.[0]?.role;
+        if (emailRole) {
+          role = String(emailRole).trim().toUpperCase();
+          lookup = 'email';
+        }
+      }
     } catch {
-      isAdminConsole = false; // 오류 시 안전하게 차단.
+      // role 조회 실패 — 안전하게 차단. (민감정보 없이 사유만 로그)
+      console.warn('[admin-guard] redirect: profile lookup error');
+      return NextResponse.redirect(new URL('/', request.url));
     }
+
+    const isAdminConsole = role === 'CEO' || role === 'ADMIN';
     if (!isAdminConsole) {
+      // 이메일/토큰은 로그에 남기지 않는다. 진단용 사유만.
+      console.warn('[admin-guard] redirect: not admin role', { hasUser: true, lookup, role: role || 'none' });
       return NextResponse.redirect(new URL('/', request.url));
     }
   }

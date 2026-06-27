@@ -15,7 +15,7 @@ import AdminBottomNav from '@/components/admin/AdminBottomNav';
 import { ADMIN_NAV_SECTIONS } from '@/components/admin/AdminNavConfig';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { role, isLoading } = useAuth();
+    const { user, role, isLoading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const [menuOpen, setMenuOpen] = React.useState(false);
@@ -23,8 +23,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const isAdminUser = role === 'CEO' || role === 'ADMIN';
 
     React.useEffect(() => {
-        if (!isLoading && !isAdminUser) router.replace('/');
-    }, [isLoading, isAdminUser, router]);
+        // auth 로딩/role 미확정 중에는 redirect 하지 않는다(새로고침 직후 CEO 가 튕기는 문제 방지).
+        if (isLoading) return;
+        // 로딩 완료 + (미로그인 또는 비관리자)일 때만 차단. 실제 차단은 서버(middleware)가 1차.
+        if (!user || !isAdminUser) router.replace('/');
+    }, [isLoading, user, isAdminUser, router]);
 
     // 라우트 이동 시 시트 닫기.
     React.useEffect(() => { setMenuOpen(false); }, [pathname]);
