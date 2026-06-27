@@ -6,6 +6,7 @@ import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import {
     publicNoticeUrl,
     buildKakaoNoticeText,
+    fetchPublicNoticeByToken,
     formatReferenceDot,
     formatSeoulDateTime,
     type FinancePublicNotice,
@@ -38,6 +39,26 @@ export default function FinanceNoticeCard({
         } catch {
             window.prompt('복사할 내용을 길게 눌러 복사해 주세요.', text);
         }
+    };
+
+    // 안내문 복사 — 불변 스냅샷(members/stats/priorArrears)을 다시 조회해 생성 시점과 동일한 문구 생성.
+    const handleKakao = async () => {
+        const view = await fetchPublicNoticeByToken(notice.token);
+        if (!view) {
+            window.prompt('복사할 내용을 길게 눌러 복사해 주세요.', url);
+            return;
+        }
+        const text = buildKakaoNoticeText({
+            year: view.targetYear,
+            month: view.targetMonth,
+            referenceDate: view.referenceDate,
+            url,
+            members: view.members,
+            stats: view.stats,
+            priorArrears: view.priorArrears,
+            paymentAccount: view.paymentAccount,
+        });
+        await copy(text, 'kakao');
     };
 
     return (
@@ -88,7 +109,7 @@ export default function FinanceNoticeCard({
                     {copied === 'link' ? <Check size={13} /> : <Link2 size={13} />}
                     {copied === 'link' ? '복사됨' : '링크'}
                 </button>
-                <button type="button" onClick={() => copy(buildKakaoNoticeText({ referenceDate: notice.reference_date, url }), 'kakao')} style={miniBtn}>
+                <button type="button" onClick={handleKakao} style={miniBtn}>
                     {copied === 'kakao' ? <Check size={13} /> : <MessageSquare size={13} />}
                     {copied === 'kakao' ? '복사됨' : '안내문'}
                 </button>

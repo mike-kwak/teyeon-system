@@ -4,6 +4,7 @@ import React from 'react';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import {
     formatReferenceDot,
+    groupPriorArrears,
     type PublicNoticeView,
     type NoticeMemberStatus,
 } from '@/lib/finance/noticesService';
@@ -18,6 +19,13 @@ import PaymentAccountCard from '@/components/finance/PaymentAccountCard';
 export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeView }) {
     const ref = formatReferenceDot(notice.referenceDate);
     const s = notice.stats;
+
+    // 이전 월 이월 미납(구버전 공지엔 없음 — optional). 회원별로 묶어 표시.
+    const priorGroups = groupPriorArrears(notice.priorArrears ?? []);
+    const hasPrior = priorGroups.length > 0;
+    const priorRemaining = notice.priorArrearsStats?.remainingAmount
+        ?? priorGroups.reduce((sum, g) => sum + g.totalRemaining, 0);
+    const overallOutstanding = notice.overallOutstandingAmount ?? (s.totalRemaining + priorRemaining);
 
     return (
         <main
@@ -128,6 +136,60 @@ export default function PublicFinanceNotice({ notice }: { notice: PublicNoticeVi
                     </div>
                 </section>
 
+                {/* 금액 요약 — 선택 월 / 이전 월 미납 / 전체 분리(이전 월 미납이 있을 때만). */}
+                {hasPrior && (
+                    <section style={{
+                        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1,
+                        backgroundColor: '#E2E8F0', border: '1px solid #E2E8F0', borderRadius: 8, overflow: 'hidden',
+                    }}>
+                        <MoneyCell label={`${notice.targetMonth}월 남은 금액`} value={s.totalRemaining} />
+                        <MoneyCell label="이전 월 미납" value={priorRemaining} />
+                        <MoneyCell label="현재 전체 미납" value={overallOutstanding} strong />
+                    </section>
+                )}
+
+                {/* 이전 월 이월 미납 — 선택 월보다 이전(같은 연도) monthly_fee 미납. 회원별 그룹. */}
+                {hasPrior && (
+                    <section>
+                        <SectionTitle>이전 월 이월 미납</SectionTitle>
+                        <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: 8 }}>
+                            <table style={{ width: '100%', minWidth: 360, borderCollapse: 'collapse', fontSize: 13 }}>
+                                <thead>
+                                    <tr style={{ backgroundColor: '#F8FAFC' }}>
+                                        <Th>이름</Th>
+                                        <Th>미납 월</Th>
+                                        <Th style={{ textAlign: 'right', width: 110 }}>이전 미납 금액</Th>
+                                        <Th style={{ textAlign: 'center', width: 80 }}>상태</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {priorGroups.map((g, i) => {
+                                        const monthsLabel = `${g.months[0].targetYear}년 ${g.months.map((m) => `${m.targetMonth}월`).join(', ')}`;
+                                        const anyPartial = g.months.some((m) => m.amountPaid > 0);
+                                        return (
+                                            <tr key={i} style={{ borderTop: '1px solid #EEF2F6' }}>
+                                                <Td><span style={{ fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap' }}>{g.displayName}</span></Td>
+                                                <Td><span style={{ fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>{monthsLabel}</span></Td>
+                                                <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 900, color: '#B91C1C' }}>{formatWon(g.totalRemaining)}</Td>
+                                                <Td style={{ textAlign: 'center' }}>
+                                                    <StatusPill status={anyPartial ? 'partial' : 'pending'} />
+                                                </Td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot>
+                                    <tr style={{ borderTop: '2px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
+                                        <Td style={{ textAlign: 'center' }} colSpan={2}><span style={{ fontWeight: 800, color: '#475569' }}>이전 월 미납 합계</span></Td>
+                                        <Td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 900, color: '#B91C1C' }}>{formatWon(priorRemaining)}</Td>
+                                        <Td />
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </section>
+                )}
+
                 {/* 회비 제외 대상 */}
                 {notice.excluded.length > 0 && (
                     <section>
@@ -183,6 +245,20 @@ function Summary({ label, value, tone }: { label: string; value: number; tone?: 
         <div style={{ backgroundColor: '#FFFFFF', padding: '9px 8px', textAlign: 'center', minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>{label}</p>
             <p style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 900, color, whiteSpace: 'nowrap' }}>{value}</p>
+        </div>
+    );
+}
+
+function MoneyCell({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
+    return (
+        <div style={{ backgroundColor: '#FFFFFF', padding: '9px 8px', textAlign: 'center', minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>{label}</p>
+            <p style={{
+                margin: '2px 0 0', fontSize: strong ? 15 : 13.5, fontWeight: 900,
+                color: value > 0 ? '#B91C1C' : '#0E7C76', whiteSpace: 'nowrap',
+            }}>
+                {formatWon(value)}
+            </p>
         </div>
     );
 }

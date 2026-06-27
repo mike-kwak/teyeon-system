@@ -3,6 +3,7 @@
 //   공개 조회는 get_public_finance_notice RPC(anon 허용) 만 사용.
 
 import { supabase } from '../supabase';
+import { formatWon } from './formatFinanceAmount';
 import { summarizeReceivable } from './calculatePaymentStatus';
 import { isMonthlyFeeTargetMember, type FinanceMember } from './duesService';
 import { isMemberOnLeaveAtMonth } from './leavesService';
@@ -47,6 +48,32 @@ export interface NoticeStats {
     totalRemaining: number;         // 총 남은 금액
 }
 
+// ── 이전 월 이월 미납 (선택 월보다 이전, 같은 연도) ──────────────────────────
+/** 이전 월 미납 1건 — 월별 청구 단위. 공개 화면/카카오는 회원별로 묶어 표시. */
+export interface PriorArrearLine {
+    memberId: string;
+    displayName: string;
+    targetYear: number;
+    targetMonth: number;
+    amountDue: number;
+    amountPaid: number;
+    remainingAmount: number;
+    status: 'partial' | 'pending';
+}
+
+export interface PriorArrearsStats {
+    memberCount: number;
+    receivableCount: number;
+    remainingAmount: number;
+}
+
+/** 회원별로 묶은 이전 월 미납(표시용). */
+export interface PriorArrearGroup {
+    displayName: string;
+    months: PriorArrearLine[];   // 오래된 월부터.
+    totalRemaining: number;
+}
+
 /** 관리자 목록/관리용 row. */
 export interface FinancePublicNotice {
     id: string;
@@ -78,6 +105,11 @@ export interface PublicNoticeView {
     excluded: NoticeExcludedMember[];
     /** 생성 시점 입금 계좌 스냅샷. 구버전 공지엔 없을 수 있어 optional. */
     paymentAccount?: FinancePaymentAccountSnapshot | null;
+    /** 선택 월보다 이전(같은 연도)의 monthly_fee 이월 미납. 구버전 공지엔 없음(optional). */
+    priorArrears?: PriorArrearLine[];
+    priorArrearsStats?: PriorArrearsStats | null;
+    /** 선택 월 남은 금액 + 이전 월 미납 합계. 구버전 공지엔 없음(optional). */
+    overallOutstandingAmount?: number | null;
 }
 
 // ── 이름 표시 ────────────────────────────────────────────────────────────────
@@ -282,6 +314,94 @@ export async function fetchValidNoticePayments(receivableIds: string[]): Promise
     return ((data || []) as FinanceDuesPayment[]).filter((p) => p.is_voided !== true);
 }
 
+// ── 이전 월 이월 미납 조회/집계 ──────────────────────────────────────────────
+/**
+ * 선택 월보다 이전(같은 연도)의 monthly_fee 이월 미납을 생성 직전 최신 DB 에서 조회.
+ *   - receivable_type='monthly_fee', target_year=year, target_month < month, exempt/not_target 제외.
+ *   - 유효 payment(is_voided=false)만 합산 → remaining = max(amount_due - paid, 0), remaining>0 만 포함.
+ *   - paid_at(실제 납부일)은 월 판정에 사용하지 않는다(귀속월=target_month 기준).
+ *   - 현재 페이지 state/이전 snapshot 재사용 금지 — 항상 fresh.
+ */
+export async function fetchPriorMonthArrears(opts: {
+    year: number;
+    month: number;
+    nameById: Record<string, string>;
+}): Promise<PriorArrearLine[]> {
+    const { year, month, nameById } = opts;
+    if (month <= 1) return [];
+    const { data: recvData, error } = await supabase
+        .from('finance_dues_receivables')
+        .select('*')
+        .eq('receivable_type', 'monthly_fee')
+        .eq('target_year', year)
+        .lt('target_month', month);
+    if (error) {
+        console.warn('[Finance/notices/priorArrears/recv]', error?.message ?? error);
+        return [];
+    }
+    const recv = ((recvData || []) as FinanceDuesReceivable[])
+        .filter((r) => r.status !== 'exempt' && r.status !== 'not_target' && r.target_month != null);
+    const ids = recv.map((r) => r.id);
+    const payments = await fetchValidNoticePayments(ids);
+    const paidByRecv = new Map<string, number>();
+    for (const p of payments) {
+        if (p.is_voided === true || !p.receivable_id) continue;
+        paidByRecv.set(p.receivable_id, (paidByRecv.get(p.receivable_id) || 0) + (p.amount || 0));
+    }
+    const lines: PriorArrearLine[] = [];
+    for (const r of recv) {
+        const due = Math.max(0, r.amount_due);
+        const paid = paidByRecv.get(r.id) || 0;
+        const remaining = Math.max(due - paid, 0);
+        if (remaining <= 0) continue;
+        lines.push({
+            memberId: r.member_id,
+            displayName: fullName(nameById[r.member_id] || '회원'),
+            targetYear: r.target_year as number,
+            targetMonth: r.target_month as number,
+            amountDue: due,
+            amountPaid: paid,
+            remainingAmount: remaining,
+            status: paid > 0 ? 'partial' : 'pending',
+        });
+    }
+    return lines;
+}
+
+/** 이전 월 미납 집계(회원 수 / 청구 수 / 총 남은 금액). */
+export function priorArrearsStatsOf(lines: PriorArrearLine[]): PriorArrearsStats {
+    const members = new Set(lines.map((l) => l.memberId));
+    return {
+        memberCount: members.size,
+        receivableCount: lines.length,
+        remainingAmount: lines.reduce((s, l) => s + l.remainingAmount, 0),
+    };
+}
+
+/**
+ * 이전 월 미납을 회원별로 묶어 표시용 그룹으로 변환.
+ *   - 정렬: 회원 합계 큰 순 → 이름 가나다순. 회원 내 월은 오래된 월부터.
+ */
+export function groupPriorArrears(lines: PriorArrearLine[]): PriorArrearGroup[] {
+    const byMember = new Map<string, PriorArrearLine[]>();
+    for (const l of lines) {
+        const arr = byMember.get(l.memberId);
+        if (arr) arr.push(l); else byMember.set(l.memberId, [l]);
+    }
+    const groups: PriorArrearGroup[] = [];
+    for (const arr of byMember.values()) {
+        const months = [...arr].sort((a, b) => a.targetMonth - b.targetMonth);
+        groups.push({
+            displayName: months[0]?.displayName || '회원',
+            months,
+            totalRemaining: months.reduce((s, l) => s + l.remainingAmount, 0),
+        });
+    }
+    groups.sort((a, b) =>
+        (b.totalRemaining - a.totalRemaining) || a.displayName.localeCompare(b.displayName, 'ko'));
+    return groups;
+}
+
 // ── 토큰 ─────────────────────────────────────────────────────────────────────
 /** 추측 어려운 24자 base62 랜덤 토큰(crypto). */
 export function generatePublicToken(): string {
@@ -305,6 +425,10 @@ export interface CreateNoticeInput {
     stats: NoticeStats;
     /** 미지정 시 현재 공용 계좌(FINANCE_PAYMENT_ACCOUNT)를 포함. null 로 명시하면 제외. */
     paymentAccount?: FinancePaymentAccountSnapshot | null;
+    /** 이전 월 이월 미납(월별 청구 단위). 없으면 빈 배열로 저장. */
+    priorArrears?: PriorArrearLine[];
+    priorArrearsStats?: PriorArrearsStats | null;
+    overallOutstandingAmount?: number | null;
 }
 
 export async function createPublicNotice(input: CreateNoticeInput): Promise<FinancePublicNotice> {
@@ -336,6 +460,10 @@ export async function createPublicNotice(input: CreateNoticeInput): Promise<Fina
                 members: input.members,
                 excluded: input.excluded,
                 paymentAccount: input.paymentAccount === undefined ? FINANCE_PAYMENT_ACCOUNT : input.paymentAccount,
+                // 이전 월 이월 미납(선택 월보다 이전, 같은 연도). 구버전 호환 위해 항상 키 저장.
+                priorArrears: input.priorArrears ?? [],
+                priorArrearsStats: input.priorArrearsStats ?? null,
+                overallOutstandingAmount: input.overallOutstandingAmount ?? null,
             },
             is_active: true,
             created_by: createdBy,
@@ -399,34 +527,101 @@ export function publicNoticeUrl(token: string): string {
     return `${origin}/finance/public/${token}`;
 }
 
-/** 카카오톡 단체방 안내문(기준일 + 입금 계좌 + 연회비 완료 회원 포함). */
+/** 남은 금액 큰 순 → 이름 가나다순. */
+function byRemainingThenName<T extends { remainingAmount: number; displayName: string }>(a: T, b: T): number {
+    return (b.remainingAmount - a.remainingAmount) || a.displayName.localeCompare(b.displayName, 'ko');
+}
+
+/**
+ * 카카오톡 단체방 안내문 — 선택 월 회비 현황 + 이전 월 이월 미납 + 전체 미납 + 연회비 완료 + 계좌 + 링크.
+ *   - 데이터는 생성된 공지의 불변 스냅샷(members/stats/priorArrears)만 사용(실시간 재조회 없음).
+ *   - 선택 월 일부 납부/미납과 이전 월 미납은 별도 영역으로 분리(합치지 않음).
+ *   - 면제/휴회/준회원/게스트 등은 members 에 애초에 없으므로 명단에 포함되지 않는다.
+ */
 export function buildKakaoNoticeText(opts: {
+    year: number;
+    month: number;
     referenceDate: string;
     url: string;
+    members: NoticeSnapshotMember[];
+    stats: NoticeStats;
+    priorArrears?: PriorArrearLine[];
     paymentAccount?: FinancePaymentAccountSnapshot | null;
-    /** 연회비 납부 완료 회원 실명 목록(있으면 별도 안내). */
-    annualPaidNames?: string[];
 }): string {
+    const { year, month, members, stats } = opts;
     const ref = formatReferenceDot(opts.referenceDate);
-    const lines = [
-        '[TEYEON 회비 납부 현황]',
+
+    const curPartial = members
+        .filter((m) => m.amountPaid > 0 && m.remainingAmount > 0)
+        .sort(byRemainingThenName);
+    const curUnpaid = members
+        .filter((m) => m.amountPaid <= 0 && m.remainingAmount > 0)
+        .sort(byRemainingThenName);
+    const annualNames = members.filter((m) => m.annualFeePaid).map((m) => m.displayName);
+
+    const priorGroups = groupPriorArrears(opts.priorArrears ?? []);
+    const priorRemaining = priorArrearsStatsOf(opts.priorArrears ?? []).remainingAmount;
+    const currentRemaining = stats.totalRemaining;
+    const overall = currentRemaining + priorRemaining;
+    const noArrears = curPartial.length === 0 && curUnpaid.length === 0 && priorGroups.length === 0;
+
+    const lines: string[] = [
+        `[TEYEON ${month}월 회비 및 미납 현황]`,
         '',
-        `${ref} 기준 회비 납부 현황을 안내드립니다.`,
+        `${year}년 ${month}월 회비 납부 현황을 안내드립니다.`,
+        `${ref} 기준`,
+        '',
+        `[${month}월 회비]`,
+        `납부 대상 ${stats.targetCount}명`,
+        `납부 완료 ${stats.paidCount}명`,
+        `일부 납부 ${stats.partialCount}명`,
+        `미납 ${stats.unpaidCount}명`,
+        `${month}월 남은 금액 ${formatWon(currentRemaining)}`,
+        '',
+        `[${month}월 일부 납부]`,
+        ...(curPartial.length > 0
+            ? curPartial.map((m) => `- ${m.displayName}: 납부 ${formatWon(m.amountPaid)} / 남은 금액 ${formatWon(m.remainingAmount)}`)
+            : ['- 없음']),
+        '',
+        `[${month}월 미납]`,
+        ...(curUnpaid.length > 0
+            ? curUnpaid.map((m) => `- ${m.displayName}: ${formatWon(m.remainingAmount)}`)
+            : ['- 없음']),
+        '',
+        `[이전 월 이월 미납]`,
+        ...(priorGroups.length > 0
+            ? priorGroups.flatMap((g) => {
+                const monthsStr = g.months.map((mm) => `${mm.targetMonth}월 ${formatWon(mm.remainingAmount)}`).join(' / ');
+                const row = [`- ${g.displayName}: ${monthsStr}`];
+                if (g.months.length > 1) row.push(`  이전 미납 합계 ${formatWon(g.totalRemaining)}`);
+                return row;
+            })
+            : ['- 없음']),
+        '',
+        `이전 월 미납 ${formatWon(priorRemaining)}`,
+        `현재 전체 미납 ${formatWon(overall)}`,
     ];
+
+    if (noArrears) {
+        lines.push('');
+        lines.push('모든 대상 회원의 회비 납부가 완료되었습니다.');
+    }
+
+    if (annualNames.length > 0) {
+        lines.push('');
+        lines.push('[연회비 납부 완료]');
+        for (const n of annualNames) lines.push(`- ${n}`);
+    }
+
     if (opts.paymentAccount) {
         lines.push('');
         lines.push('입금 계좌');
         lines.push(`${opts.paymentAccount.bankName} ${opts.paymentAccount.accountNumberDisplay}`);
         lines.push(`예금주 ${opts.paymentAccount.accountHolder}`);
     }
-    if (opts.annualPaidNames && opts.annualPaidNames.length > 0) {
-        lines.push('');
-        lines.push('연회비 납부 완료');
-        lines.push(opts.annualPaidNames.join(', '));
-    }
+
     lines.push('');
-    lines.push('아래 링크에서 본인의 납부 완료 여부와 남은 금액을 확인해 주세요.');
-    lines.push('');
+    lines.push('상세 납부 현황');
     lines.push(opts.url);
     return lines.join('\n');
 }

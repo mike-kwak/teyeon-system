@@ -9,9 +9,12 @@ import {
     publicNoticeUrl,
     buildKakaoNoticeText,
     fetchValidNoticePayments,
+    fetchPriorMonthArrears,
+    priorArrearsStatsOf,
     formatReferenceDot,
     todayISO,
     type FinancePublicNotice,
+    type PriorArrearLine,
 } from '@/lib/finance/noticesService';
 import { FINANCE_PAYMENT_ACCOUNT } from '@/lib/finance/paymentAccount';
 import type { FinanceMember } from '@/lib/finance/duesService';
@@ -66,11 +69,39 @@ export default function FinanceNoticeCreateModal({
         [freshPayments, payments],
     );
 
+    // 이전 월 이월 미납(선택 월보다 이전, 같은 연도) — 생성 직전 최신 DB 조회.
+    const [priorArrears, setPriorArrears] = React.useState<PriorArrearLine[]>([]);
+    React.useEffect(() => {
+        let cancelled = false;
+        const nameById: Record<string, string> = {};
+        for (const m of members) nameById[m.id] = m.nickname || '회원';
+        (async () => {
+            const lines = await fetchPriorMonthArrears({ year, month, nameById });
+            if (!cancelled) setPriorArrears(lines);
+        })();
+        return () => { cancelled = true; };
+    }, [year, month, members]);
+
     // 현재 입력값 기준 스냅샷 미리보기(전체 납부 대상 + 회비 제외 + 집계).
     const preview = React.useMemo(
         () => buildNoticeSnapshot({ members, receivables, payments: effectivePayments, leaves, year, month, annualPaidIds }),
         [members, receivables, effectivePayments, leaves, year, month, annualPaidIds],
     );
+    const priorArrearsStats = React.useMemo(() => priorArrearsStatsOf(priorArrears), [priorArrears]);
+    const overallOutstandingAmount = preview.stats.totalRemaining + priorArrearsStats.remainingAmount;
+
+    // 무결성 경고 — annualFeePaid 회원이 이전 월 미납으로 검출되면 숨기지 않고 개발 경고만.
+    //   공개 스냅샷은 실제 receivable 잔액(priorArrears)을 우선한다.
+    React.useEffect(() => {
+        if (!annualPaidIds || priorArrears.length === 0) return;
+        const conflict = priorArrears.filter((a) => annualPaidIds.has(a.memberId));
+        if (conflict.length > 0) {
+            console.warn(
+                '[Finance/notice] annualFeePaid 회원이 이전 월 미납으로 검출됨 — 연회비 판정/미납 계산 확인 필요:',
+                conflict.map((c) => `${c.displayName} ${c.targetYear}-${c.targetMonth} ${c.remainingAmount}원`),
+            );
+        }
+    }, [priorArrears, annualPaidIds]);
 
     const handleCreate = async () => {
         if (busy) return;
@@ -89,6 +120,9 @@ export default function FinanceNoticeCreateModal({
                 members: preview.members,
                 excluded: preview.excluded,
                 stats: preview.stats,
+                priorArrears,
+                priorArrearsStats,
+                overallOutstandingAmount,
             });
             setCreated(notice);
             onCreated?.(notice);
@@ -111,9 +145,16 @@ export default function FinanceNoticeCreateModal({
     };
 
     const url = created ? publicNoticeUrl(created.token) : '';
-    const annualPaidNames = preview.members.filter((m) => m.annualFeePaid).map((m) => m.displayName);
     const kakao = created
-        ? buildKakaoNoticeText({ referenceDate: created.reference_date, url, paymentAccount: FINANCE_PAYMENT_ACCOUNT, annualPaidNames })
+        ? buildKakaoNoticeText({
+            year, month,
+            referenceDate: created.reference_date,
+            url,
+            members: preview.members,
+            stats: preview.stats,
+            priorArrears,
+            paymentAccount: FINANCE_PAYMENT_ACCOUNT,
+        })
         : '';
 
     return (
