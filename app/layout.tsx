@@ -7,6 +7,7 @@ import StitchesRegistry from "./registry";
 import ThemeProvider from "@/components/ThemeProvider";
 import { LoadingProvider } from "@/context/LoadingContext";
 import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
+import GuideRecordingProvider from "@/components/guide/GuideRecordingProvider";
 
 const rajdhani = Rajdhani({
   variable: "--font-rajdhani",
@@ -167,7 +168,9 @@ export default function RootLayout({
             <ThemeProvider>
             <LoadingProvider>
               <AnalyticsProvider>
-                <RootShell>{children}</RootShell>
+                <GuideRecordingProvider>
+                  <RootShell>{children}</RootShell>
+                </GuideRecordingProvider>
               </AnalyticsProvider>
             </LoadingProvider>
             </ThemeProvider>

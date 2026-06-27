@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { supabase } from '@/lib/supabase';
 import { logAction } from '@/lib/logging';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -71,6 +72,7 @@ const TABS: { key: TabKey; label: string; icon: typeof Users }[] = [
 
 export default function AdminSettingsPage() {
   const { user, role, appConfig, isLoading, refreshConfig } = useAuth();
+  const { guardWriteAction } = useGuideRecording();
   const router = useRouter();
 
   const [members, setMembers] = useState<AdminMember[]>([]);
@@ -144,6 +146,7 @@ export default function AdminSettingsPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
   const updateConfig = async (newConfig: any) => {
+    if (!guardWriteAction('관리자 설정 저장')) return; // 촬영 모드 차단
     setIsSyncing(true);
     try {
       const { error } = await supabase.from('app_config').update(newConfig).eq('id', 'primary');
@@ -159,6 +162,7 @@ export default function AdminSettingsPage() {
 
   const handleRoleChange = async (member: AdminMember, newRole: string) => {
     if (member.role === newRole) return;
+    if (!guardWriteAction('멤버 직책 변경')) return; // 촬영 모드 차단
     setUpdatingId(member.id);
     try {
       await supabase.from('members').update({ role: newRole }).eq('id', member.id);
@@ -174,6 +178,7 @@ export default function AdminSettingsPage() {
 
   const handleProfileRoleChange = async (profile: AdminProfile, newRole: AdminProfile['role']) => {
     if (profile.role === newRole) return;
+    if (!guardWriteAction('계정 권한 변경')) return; // 촬영 모드 차단
     if (profile.id === user?.id && role === 'CEO' && newRole !== 'CEO') {
       showToast('본인 CEO 권한은 여기서 낮출 수 없습니다.');
       return;

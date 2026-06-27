@@ -14,6 +14,7 @@ import {
     Settings,
     LineChart,
     ScrollText,
+    Clapperboard,
     Home,
     ListChecks,
     Menu,
@@ -62,6 +63,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         title: '회원 · 시스템',
         items: [
             { id: 'settings', label: '관리자 설정', href: '/admin/settings', icon: Settings },
+            { id: 'guide-recording', label: '가이드 및 촬영', href: '/admin/guide-recording', icon: Clapperboard },
         ],
     },
 ];

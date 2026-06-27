@@ -9,6 +9,7 @@ import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2
 import { shareOrCopyClubSchedule, shareClubScheduleStatus } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { useAnalytics } from '@/components/analytics/AnalyticsProvider';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { supabase } from '@/lib/supabase';
 import { fetchClubScheduleById } from '@/lib/clubScheduleService';
 import {
@@ -83,7 +84,8 @@ export default function ClubScheduleAttendancePage() {
     const scheduleId = params?.id || '';
     const { user, role } = useAuth();
     const { track } = useAnalytics();
-    const isAdmin = role === 'CEO' || role === 'ADMIN';
+    const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
+    const isAdmin = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
 
     // 활성 회원 — 미응답 명단 계산 + 총원 표시용. members 테이블에서 직접 fetch.
     // ⚠️ 운영 DB의 members 테이블에는 is_guest / active / status 같은 분류 컬럼이 없다.
@@ -468,6 +470,7 @@ export default function ClubScheduleAttendancePage() {
     }) => {
         if (!user?.id || !schedule) return;
         if (isReadOnly) return;
+        if (!guardWriteAction('참석 저장')) return; // 촬영 모드: 실제 저장 차단
         // ── 권한 게이트 (UI 1차) ────────────────────────────────────────────
         // strict 매핑이 안 됐으면 service 호출 자체를 막는다. service 도 같은 검사를 하므로 이중 방어.
         if (linkedMemberStatus !== 'linked' || !linkedMember) {
@@ -528,7 +531,7 @@ export default function ClubScheduleAttendancePage() {
             setSaveStatus('error');
             setSaveError('참석 상태 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         }
-    }, [user?.id, schedule, linkedMember, linkedMemberStatus, myAttendance?.note, isReadOnly, activeMembers]);
+    }, [user?.id, schedule, linkedMember, linkedMemberStatus, myAttendance?.note, isReadOnly, activeMembers, guardWriteAction]);
 
     const handlePickArrival = (t: ArrivalTimeOption) => {
         if (isReadOnly) return;
@@ -668,6 +671,7 @@ export default function ClubScheduleAttendancePage() {
         if (!user?.id || !schedule) return;
         const body = commentBody.trim();
         if (!body) return;
+        if (!guardWriteAction(editingCommentId ? '댓글 수정' : '댓글 작성')) return; // 촬영 모드 차단
         setPostingComment(true);
         try {
             if (editingCommentId) {
@@ -727,6 +731,7 @@ export default function ClubScheduleAttendancePage() {
     };
 
     const handleDeleteComment = async (id: string) => {
+        if (!guardWriteAction('댓글 삭제')) return; // 촬영 모드 차단
         if (!confirm('이 댓글을 삭제하시겠어요?')) return;
         try {
             await deleteComment(id);
