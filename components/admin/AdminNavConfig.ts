@@ -3,6 +3,7 @@
 //   external=true 인 항목은 /admin shell 을 벗어나 기존 일반 앱 화면으로 이동(런치패드 역할).
 
 import type { LucideIcon } from 'lucide-react';
+import { isFullAdminRole, canViewAdminSettings } from '@/lib/admin/adminAccess';
 import {
     LayoutDashboard,
     CalendarDays,
@@ -87,4 +88,20 @@ export const ADMIN_BOTTOM_NAV: AdminBottomNavItem[] = [
 /** 모든 sidebar 항목 평탄화(시트/검색용). */
 export function allAdminNavItems(): AdminNavItem[] {
     return ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
+}
+
+/**
+ * 역할별 노출 메뉴 — PC Sidebar / 모바일 전체 메뉴 시트가 같은 기준을 공유.
+ *   - FULL_ADMIN(CEO/ADMIN)            → 전체 섹션.
+ *   - 설정 조회 가능(OPERATOR/FINANCE_MANAGER) → '관리자 설정' + '가이드 및 촬영'만.
+ *   - 그 외                            → 없음(Admin 진입 자체가 차단됨).
+ *   Sidebar 에서만 숨기고 URL 을 여는 구조 금지 — 서버 middleware/layout 가드와 함께 적용.
+ */
+const OPERATOR_VISIBLE_ITEM_IDS = new Set(['settings', 'guide-recording']);
+export function getVisibleAdminNavSections(role?: string | null): AdminNavSection[] {
+    if (isFullAdminRole(role)) return ADMIN_NAV_SECTIONS;
+    if (!canViewAdminSettings(role)) return [];
+    return ADMIN_NAV_SECTIONS
+        .map((s) => ({ ...s, items: s.items.filter((it) => OPERATOR_VISIBLE_ITEM_IDS.has(it.id)) }))
+        .filter((s) => s.items.length > 0);
 }

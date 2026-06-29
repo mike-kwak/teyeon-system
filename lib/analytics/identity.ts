@@ -66,17 +66,18 @@ export function getSessionId(): string | null {
     }
 }
 
-/** 사용자 유형 판정. CEO/ADMIN 은 INTERNAL(운영자, 기본 분석 제외용). FINANCE_MANAGER 는 일반 회원으로 합산. */
+/** 사용자 유형 판정. CEO/ADMIN/OPERATOR/FINANCE_MANAGER 는 INTERNAL(운영진, 일반 방문 통계 제외용). */
 export function resolveUserType(hasUser: boolean, role: string | null): AnalyticsUserType {
     if (!hasUser) return 'PUBLIC';
     switch ((role || '').toUpperCase()) {
         case 'CEO':
         case 'ADMIN':
+        case 'OPERATOR':
+        case 'FINANCE_MANAGER':
             return 'INTERNAL';
         case 'GUEST':
             return 'GUEST';
         case 'MEMBER':
-        case 'FINANCE_MANAGER':
             return 'MEMBER';
         default:
             return 'UNKNOWN';

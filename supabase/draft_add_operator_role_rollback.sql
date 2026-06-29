@@ -1,0 +1,33 @@
+-- =============================================================================
+-- TEYEON — 'OPERATOR' Role 추가 rollback (설계 초안)
+--
+-- 상태: DRAFT ONLY · DO NOT APPLY · 운영 DB 미적용 · 승인 전 실행 금지.
+-- draft_add_operator_role.sql 을 되돌린다. 비파괴(구조 변경 없음). 변경 범위와 정확히 대응.
+--
+-- 주의: 데이터 원복은 "배정 전 prior role"이 필요하다. 적용 STEP 1 에서 기록한 값으로
+--       각 계정을 되돌릴 것. 기록이 없으면 운영진 계정은 일반적으로 'MEMBER' 로 원복.
+-- =============================================================================
+
+-- ── STEP A. OPERATOR 계정을 이전 Role 로 원복 ────────────────────────────────
+--   prior role 을 기록해 두었으면 계정별로 정확히 원복(아래는 일괄 MEMBER 원복 예시).
+--   CEO/ADMIN/FINANCE_MANAGER 는 애초 OPERATOR 로 바뀌지 않았으므로 영향 없음.
+--
+-- update public.profiles
+--    set role = 'MEMBER'                     -- 또는 계정별 기록된 prior role
+--  where role = 'OPERATOR'
+--    and email in ('operator1@example.com', 'operator2@example.com');
+
+-- ── STEP B. (STEP 2 에서 제약을 바꿨다면) CHECK 제약에서 'OPERATOR' 제거 ────────
+--   OPERATOR 계정이 모두 원복된 뒤에 실행(제약 위반 방지).
+--
+-- alter table public.profiles
+--   drop constraint if exists profiles_role_check;
+-- alter table public.profiles
+--   add constraint profiles_role_check
+--   check (role in ('CEO','ADMIN','FINANCE_MANAGER','MEMBER','GUEST'));
+--
+--   (STEP 2 를 적용하지 않았다면 — 원래 제약이 없던 환경 — 이 블록도 건너뜀.)
+
+-- ── STEP C. 검증 ──────────────────────────────────────────────────────────────
+-- select count(*) as remaining_operators from public.profiles where role = 'OPERATOR'; -- 기대: 0
+-- =============================================================================

@@ -11,6 +11,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
+import { canViewAdminSettings, canEditAdminSettings } from '@/lib/admin/adminAccess';
+import { maskEmail } from '@/lib/guide/masking';
 import { supabase } from '@/lib/supabase';
 import { logAction } from '@/lib/logging';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -74,6 +76,10 @@ export default function AdminSettingsPage() {
   const { user, role, appConfig, isLoading, refreshConfig } = useAuth();
   const { guardWriteAction } = useGuideRecording();
   const router = useRouter();
+  // 접근: CEO/ADMIN/OPERATOR/FINANCE_MANAGER 조회 / 변경은 CEO·ADMIN 만(실제 profiles.role 기준).
+  //   ⚠ 촬영 보호(guardWriteAction)와 별개 — 이건 실제 역할 권한 기반 읽기 전용 차단.
+  const canView = canViewAdminSettings(role);
+  const canEdit = canEditAdminSettings(role);
 
   const [members, setMembers] = useState<AdminMember[]>([]);
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
@@ -86,10 +92,13 @@ export default function AdminSettingsPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Gating — 비관리자 차단(서버 middleware 1차, 여기 2차).
+  // Gating — 조회 권한 없는 사용자 차단(서버 middleware 1차, 여기 2차).
   useEffect(() => {
-    if (!isLoading && role !== 'CEO' && role !== 'ADMIN') router.replace('/');
-  }, [role, isLoading, router]);
+    if (!isLoading && !canView) router.replace('/');
+  }, [canView, isLoading, router]);
+
+  // 읽기 전용 사용자가 변경을 시도하면 단일 안내 후 중단(촬영 가드와 별개, 실제 역할 기준).
+  const showReadonlyNotice = () => showToast('CEO·ADMIN만 변경할 수 있습니다. (운영진 조회 모드)');
 
   const fetchMembersData = async (force = false) => {
     if (!force && members.length > 0) return;
@@ -136,17 +145,18 @@ export default function AdminSettingsPage() {
   };
 
   useEffect(() => {
-    if (role === 'CEO' || role === 'ADMIN') {
+    if (canView) {
       if (activeTab === 'members') fetchMembersData();
       if (activeTab === 'accounts') fetchProfilesData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, activeTab]);
+  }, [canView, activeTab]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
   const updateConfig = async (newConfig: any) => {
-    if (!guardWriteAction('관리자 설정 저장')) return; // 촬영 모드 차단
+    if (!canEdit) { showReadonlyNotice(); return; } // 운영진 읽기 전용(실제 역할 기준)
+    if (!guardWriteAction('관리자 설정 저장')) return; // 촬영 모드 차단(별개 체계)
     setIsSyncing(true);
     try {
       const { error } = await supabase.from('app_config').update(newConfig).eq('id', 'primary');
@@ -162,7 +172,8 @@ export default function AdminSettingsPage() {
 
   const handleRoleChange = async (member: AdminMember, newRole: string) => {
     if (member.role === newRole) return;
-    if (!guardWriteAction('멤버 직책 변경')) return; // 촬영 모드 차단
+    if (!canEdit) { showReadonlyNotice(); return; } // 운영진 읽기 전용
+    if (!guardWriteAction('멤버 직책 변경')) return; // 촬영 모드 차단(별개 체계)
     setUpdatingId(member.id);
     try {
       await supabase.from('members').update({ role: newRole }).eq('id', member.id);
@@ -178,7 +189,8 @@ export default function AdminSettingsPage() {
 
   const handleProfileRoleChange = async (profile: AdminProfile, newRole: AdminProfile['role']) => {
     if (profile.role === newRole) return;
-    if (!guardWriteAction('계정 권한 변경')) return; // 촬영 모드 차단
+    if (!canEdit) { showReadonlyNotice(); return; } // 운영진 읽기 전용
+    if (!guardWriteAction('계정 권한 변경')) return; // 촬영 모드 차단(별개 체계)
     if (profile.id === user?.id && role === 'CEO' && newRole !== 'CEO') {
       showToast('본인 CEO 권한은 여기서 낮출 수 없습니다.');
       return;
@@ -197,7 +209,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (isLoading || (role !== 'CEO' && role !== 'ADMIN')) {
+  if (isLoading || !canView) {
     return (
       <div style={{ minHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={30} className="animate-spin" style={{ color: '#2563EB' }} />
@@ -209,9 +221,21 @@ export default function AdminSettingsPage() {
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       <header style={{ marginBottom: 16 }}>
         <p style={{ margin: 0, fontFamily: 'var(--font-rajdhani), sans-serif', fontSize: 11, fontWeight: 800, letterSpacing: '0.26em', color: '#2563EB' }}>TEYEON ADMIN</p>
-        <h1 style={{ margin: '3px 0 0', fontSize: 24, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.02em' }}>관리자 설정</h1>
+        <h1 style={{ margin: '3px 0 0', fontSize: 24, fontWeight: 900, color: '#0F1B33', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 9 }}>
+          관리자 설정
+          {!canEdit && <span style={{ fontSize: 10, fontWeight: 800, color: '#0E7C76', backgroundColor: 'rgba(15,124,118,0.10)', border: '1px solid rgba(15,124,118,0.25)', padding: '3px 9px', borderRadius: 999, letterSpacing: '0.02em' }}>읽기 전용</span>}
+        </h1>
         <p style={{ margin: '5px 0 0', fontSize: 12.5, fontWeight: 600, color: '#64748B' }}>회원, 권한, 메뉴와 앱 운영 설정을 관리합니다.</p>
       </header>
+
+      {!canEdit && (
+        <div style={{ ...CARD, marginBottom: 16, borderLeft: '3px solid #0E7C76', backgroundColor: '#F6FBFA' }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#0F1B33' }}>운영진 조회 모드</p>
+          <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
+            현재 관리자 설정과 권한 구성을 확인할 수 있습니다. 직책, 계정 권한, 기능 권한 및 메뉴 순서 변경은 CEO·ADMIN만 가능합니다.
+          </p>
+        </div>
+      )}
 
       {/* 탭 — 얇은 underline */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E3E9F2', marginBottom: 16, overflowX: 'auto' }}>
@@ -243,6 +267,7 @@ export default function AdminSettingsPage() {
       {activeTab === 'members' && (
         <section style={CARD}>
           <SectionHead title="멤버 관리" desc="클럽 내 직책/회원 구분입니다. (앱 접근 권한은 ‘앱 계정’ 탭)" count={members.length} loading={fetchingMembers} />
+          {!canEdit && <ReadonlyNote>현재 멤버 직책을 확인할 수 있습니다. 직책 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {members.map((m, i) => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6' }}>
@@ -256,13 +281,17 @@ export default function AdminSettingsPage() {
                       : <Badge tone="muted"><Link2Off size={10} /> 미연결</Badge>}
                   </div>
                 </div>
-                <select value={m.role} onChange={(e) => handleRoleChange(m, e.target.value)} disabled={updatingId === m.id} className="admin-select" style={selectStyle(updatingId === m.id)}>
-                  {ROLE_OPTIONS.map((g) => (
-                    <optgroup key={g.group} label={g.group}>
-                      {g.roles.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </optgroup>
-                  ))}
-                </select>
+                {canEdit ? (
+                  <select value={m.role} onChange={(e) => handleRoleChange(m, e.target.value)} disabled={updatingId === m.id} className="admin-select" style={selectStyle(updatingId === m.id)}>
+                    {ROLE_OPTIONS.map((g) => (
+                      <optgroup key={g.group} label={g.group}>
+                        {g.roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                ) : (
+                  <Badge tone="slate">{m.role || '미지정'}</Badge>
+                )}
               </div>
             ))}
             {members.length === 0 && !fetchingMembers && <Empty>회원이 없습니다.</Empty>}
@@ -274,17 +303,22 @@ export default function AdminSettingsPage() {
       {activeTab === 'accounts' && (
         <section style={CARD}>
           <SectionHead title="앱 계정 권한" desc="화면 접근·관리 기능 노출에 사용되는 앱 역할입니다." count={profiles.length} loading={fetchingProfiles} />
+          {!canEdit && <ReadonlyNote>계정 연결 상태와 앱 Role을 확인할 수 있습니다. Role 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {profiles.map((p, i) => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6' }}>
                 <ProfileAvatar src={p.avatar_url} alt={p.nickname || p.email || 'Account'} size={38} className="rounded-full" fallbackIcon="👤" />
                 <div style={{ flex: 1, minWidth: 140 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nickname || p.email || '알 수 없음'}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email || p.id}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{canEdit ? (p.email || p.id) : (p.email ? maskEmail(p.email) : p.id)}</p>
                 </div>
-                <select value={p.role} onChange={(e) => handleProfileRoleChange(p, e.target.value as AdminProfile['role'])} disabled={updatingProfileId === p.id || (p.id === user?.id && role === 'CEO')} className="admin-select" style={selectStyle(updatingProfileId === p.id || (p.id === user?.id && role === 'CEO'))}>
-                  {APP_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
+                {canEdit ? (
+                  <select value={p.role} onChange={(e) => handleProfileRoleChange(p, e.target.value as AdminProfile['role'])} disabled={updatingProfileId === p.id || (p.id === user?.id && role === 'CEO')} className="admin-select" style={selectStyle(updatingProfileId === p.id || (p.id === user?.id && role === 'CEO'))}>
+                    {APP_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                ) : (
+                  <Badge tone="slate">{p.role}</Badge>
+                )}
               </div>
             ))}
             {profiles.length === 0 && !fetchingProfiles && <Empty>앱 계정이 없습니다.</Empty>}
@@ -296,6 +330,7 @@ export default function AdminSettingsPage() {
       {activeTab === 'permissions' && (
         <section style={CARD}>
           <SectionHead title="기능 권한" desc="역할별 기능 읽기/쓰기/제한을 설정합니다." />
+          {!canEdit && <ReadonlyNote>현재 역할별 기능 권한을 확인할 수 있습니다. 권한 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {ALL_FEATURES.map((feat) => {
               const reg = FEATURE_REGISTRY[feat] || { label: feat, desc: '' };
@@ -313,17 +348,21 @@ export default function AdminSettingsPage() {
                       return (
                         <div key={roleKey} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                           <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', textAlign: 'center', letterSpacing: '0.06em' }}>{roleKey}</span>
-                          <button type="button" disabled={isSyncing}
-                            onClick={() => {
-                              const levels = { ...(appConfig?.permissions || {}) } as any;
-                              if (!levels[roleKey]) levels[roleKey] = {};
-                              const next = level === 'WRITE' ? 'READ' : level === 'READ' ? 'HIDE' : 'WRITE';
-                              levels[roleKey][feat] = next;
-                              updateConfig({ permissions: levels });
-                            }}
-                            style={{ width: '100%', padding: '9px 4px', borderRadius: 8, cursor: isSyncing ? 'not-allowed' : 'pointer', fontSize: 11.5, fontWeight: 800, backgroundColor: c.bg, color: c.fg, border: `1px solid ${c.bd}`, opacity: isSyncing ? 0.5 : 1 }}>
-                            {txt}
-                          </button>
+                          {canEdit ? (
+                            <button type="button" disabled={isSyncing}
+                              onClick={() => {
+                                const levels = { ...(appConfig?.permissions || {}) } as any;
+                                if (!levels[roleKey]) levels[roleKey] = {};
+                                const next = level === 'WRITE' ? 'READ' : level === 'READ' ? 'HIDE' : 'WRITE';
+                                levels[roleKey][feat] = next;
+                                updateConfig({ permissions: levels });
+                              }}
+                              style={{ width: '100%', padding: '9px 4px', borderRadius: 8, cursor: isSyncing ? 'not-allowed' : 'pointer', fontSize: 11.5, fontWeight: 800, backgroundColor: c.bg, color: c.fg, border: `1px solid ${c.bd}`, opacity: isSyncing ? 0.5 : 1 }}>
+                              {txt}
+                            </button>
+                          ) : (
+                            <span style={{ width: '100%', padding: '9px 4px', borderRadius: 8, textAlign: 'center', fontSize: 11.5, fontWeight: 800, backgroundColor: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>{txt}</span>
+                          )}
                         </div>
                       );
                     })}
@@ -339,6 +378,7 @@ export default function AdminSettingsPage() {
       {activeTab === 'menu' && (
         <section style={CARD}>
           <SectionHead title="메뉴 순서" desc="역할별 메인 메뉴 노출 순서를 조정합니다." />
+          {!canEdit && <ReadonlyNote>현재 앱 메뉴 구성을 확인할 수 있습니다. 메뉴 순서 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
           {(['ADMIN', 'MEMBER', 'GUEST'] as const).map((roleKey) => (
             <div key={roleKey} style={{ marginBottom: 18 }}>
               <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 800, color: '#2563EB', letterSpacing: '0.06em' }}>{roleKey}</p>
@@ -349,10 +389,12 @@ export default function AdminSettingsPage() {
                     <div key={itemId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, backgroundColor: '#FBFCFE', border: '1px solid #E3E9F2' }}>
                       <span style={{ width: 18, textAlign: 'center', fontSize: 11, fontWeight: 800, color: '#CBD5E1' }}>{idx + 1}</span>
                       <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{reg.label}</span>
-                      <div style={{ display: 'flex', gap: 5 }}>
-                        <button type="button" disabled={idx === 0 || isSyncing} onClick={() => { const order = [...arr]; [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]]; updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } }); }} style={orderBtn(idx === 0 || isSyncing)}><ArrowUp size={14} /></button>
-                        <button type="button" disabled={idx === arr.length - 1 || isSyncing} onClick={() => { const order = [...arr]; [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]]; updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } }); }} style={orderBtn(idx === arr.length - 1 || isSyncing)}><ArrowDown size={14} /></button>
-                      </div>
+                      {canEdit && (
+                        <div style={{ display: 'flex', gap: 5 }}>
+                          <button type="button" disabled={idx === 0 || isSyncing} onClick={() => { const order = [...arr]; [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]]; updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } }); }} style={orderBtn(idx === 0 || isSyncing)}><ArrowUp size={14} /></button>
+                          <button type="button" disabled={idx === arr.length - 1 || isSyncing} onClick={() => { const order = [...arr]; [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]]; updateConfig({ menu_order: { ...appConfig?.menu_order, [roleKey]: order } }); }} style={orderBtn(idx === arr.length - 1 || isSyncing)}><ArrowDown size={14} /></button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -397,6 +439,10 @@ function SectionHead({ title, desc, count, loading }: { title: string; desc: str
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p style={{ margin: '20px 0', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#94A3B8' }}>{children}</p>;
+}
+/** 운영진 읽기 전용 탭 상단 보조 안내. */
+function ReadonlyNote({ children }: { children: React.ReactNode }) {
+  return <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, color: '#0E7C76', backgroundColor: 'rgba(15,124,118,0.07)', border: '1px solid rgba(15,124,118,0.18)', borderRadius: 8, padding: '7px 10px', lineHeight: 1.5 }}>{children}</p>;
 }
 
 const BADGE_TONE: Record<string, { bg: string; fg: string; bd: string }> = {

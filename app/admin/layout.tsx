@@ -9,10 +9,11 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { X, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { canAccessAdminRoute } from '@/lib/admin/adminAccess';
 import AdminSidebar, { ADMIN_SIDEBAR_WIDTH } from '@/components/admin/AdminSidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminBottomNav from '@/components/admin/AdminBottomNav';
-import { ADMIN_NAV_SECTIONS } from '@/components/admin/AdminNavConfig';
+import { getVisibleAdminNavSections } from '@/components/admin/AdminNavConfig';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { user, role, isLoading, signOut } = useAuth();
@@ -20,14 +21,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
     const [menuOpen, setMenuOpen] = React.useState(false);
 
-    const isAdminUser = role === 'CEO' || role === 'ADMIN';
+    // route 별 접근 판정(서버 middleware 와 동일 기준 — lib/admin/adminAccess). 클라이언트는 2차(플래시 방지).
+    const allowed = !!user && canAccessAdminRoute(pathname || '', role);
 
     React.useEffect(() => {
         // auth 로딩/role 미확정 중에는 redirect 하지 않는다(새로고침 직후 CEO 가 튕기는 문제 방지).
         if (isLoading) return;
-        // 로딩 완료 + (미로그인 또는 비관리자)일 때만 차단. 실제 차단은 서버(middleware)가 1차.
-        if (!user || !isAdminUser) router.replace('/');
-    }, [isLoading, user, isAdminUser, router]);
+        // 로딩 완료 + (미로그인 또는 현재 route 미허용)일 때만 차단. 실제 차단은 서버(middleware)가 1차.
+        if (!allowed) router.replace('/');
+    }, [isLoading, allowed, router]);
 
     // 라우트 이동 시 시트 닫기.
     React.useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -40,11 +42,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
         );
     }
-    if (!isAdminUser) {
+    if (!allowed) {
         return (
             <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2F7', padding: 24, textAlign: 'center' }}>
-                <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0F172A' }}>관리자 전용 화면입니다.</p>
+                <div style={{ maxWidth: 320 }}>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#0F172A' }}>이 메뉴는 CEO·ADMIN 전용입니다.</p>
+                    <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 600, color: '#64748B', lineHeight: 1.6 }}>운영진은 관리자 설정 조회와 가이드 및 촬영 기능을 이용할 수 있습니다.</p>
                     <Link href="/" style={{ display: 'inline-block', marginTop: 12, fontSize: 12, fontWeight: 700, color: '#2563EB' }}>← 일반 앱으로</Link>
                 </div>
             </div>
@@ -86,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </button>
                         </div>
                         <div style={{ padding: '6px 12px 12px' }}>
-                            {ADMIN_NAV_SECTIONS.map((section) => (
+                            {getVisibleAdminNavSections(role).map((section) => (
                                 <div key={section.title} style={{ marginBottom: 14 }}>
                                     <p style={{ margin: '0 0 6px 10px', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: '#7C8AA5' }}>{section.title}</p>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>

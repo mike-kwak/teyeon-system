@@ -7,7 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { withRetry } from '@/utils/withRetry';
 
-export type UserRole = 'CEO' | 'ADMIN' | 'FINANCE_MANAGER' | 'MEMBER' | 'GUEST';
+export type UserRole = 'CEO' | 'ADMIN' | 'OPERATOR' | 'FINANCE_MANAGER' | 'MEMBER' | 'GUEST';
 export type AccessLevel = 'WRITE' | 'READ' | 'HIDE';
 
 export type FeatureKey = 
@@ -50,7 +50,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const VALID_ROLES: UserRole[] = ['CEO', 'ADMIN', 'FINANCE_MANAGER', 'MEMBER', 'GUEST'];
+const VALID_ROLES: UserRole[] = ['CEO', 'ADMIN', 'OPERATOR', 'FINANCE_MANAGER', 'MEMBER', 'GUEST'];
 
 const normalizeRole = (value?: string | null): UserRole => {
   const normalized = value?.trim().toUpperCase();

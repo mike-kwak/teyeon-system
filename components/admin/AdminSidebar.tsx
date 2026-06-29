@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { ADMIN_NAV_SECTIONS } from './AdminNavConfig';
+import { getVisibleAdminNavSections } from './AdminNavConfig';
 
 const NAVY = '#0F1B33';
 const NAVY_SOFT = '#16264A';
@@ -55,7 +55,7 @@ export default function AdminSidebar() {
 
             {/* 메뉴 */}
             <nav style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
-                {ADMIN_NAV_SECTIONS.map((section) => (
+                {getVisibleAdminNavSections(role).map((section) => (
                     <div key={section.title} style={{ marginBottom: 18 }}>
                         <p style={{ margin: '0 0 8px 10px', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: TEXT_DIM }}>
                             {section.title}
