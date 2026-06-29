@@ -19,6 +19,8 @@
 //    운영 데이터상 CEO/ADMIN 역할도 members.role 에 존재하므로 본인 TENNIS LOG 사용을 허용한다.)
 //   차단 목록(blocklist) 방식이 아니라, 위 10개만 허용하는 whitelist 로 처리한다.
 //   잠금 대상: 게스트 · 빈 값 · 알 수 없는 역할 · members 미연결.
+//   다중 역할: members.role 에 'CEO, 재무' 처럼 쉼표로 여러 역할이 저장될 수 있어,
+//             쉼표로 분리·trim 후 하나라도 허용 역할이면 통과한다('게스트, CEO' → allowed).
 
 export type TennisLogAccess = 'loading' | 'unauthenticated' | 'locked' | 'allowed';
 
@@ -46,9 +48,14 @@ export function resolveTennisLogAccess(
   memberRole: string | null | undefined,
 ): Exclude<TennisLogAccess, 'loading'> {
   if (!hasUser) return 'unauthenticated';
-  const r = (memberRole ?? '').trim();
-  // 허용 목록에 정확히 있는 경우에만 통과. 그 외(빈 값/미연결/알 수 없는 역할)는 모두 잠금.
-  return ALLOWED_MEMBER_ROLES.has(r) ? 'allowed' : 'locked';
+  // members.role 은 'CEO, 재무' 처럼 쉼표로 다중 역할이 저장될 수 있다.
+  // 쉼표로 분리 → 각 역할 trim → 빈 값 제거 후, 하나라도 허용 역할이면 통과.
+  // (단일 역할도 동일하게 동작: '정회원' → ['정회원'] → 통과.)
+  const roles = (memberRole ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return roles.some((value) => ALLOWED_MEMBER_ROLES.has(value)) ? 'allowed' : 'locked';
 }
 
 // 잠금/안내 문구 — 카드 클릭 안내와 라우트 가드 화면이 동일 문구를 사용.

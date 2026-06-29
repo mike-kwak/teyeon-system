@@ -140,8 +140,15 @@ as $$
                )
              )
            )
-       -- 화이트리스트: 아래 10개 역할만 허용. 그 외(게스트·빈 값·알 수 없는 역할)는 제외.
-       and btrim(coalesce(m.role, '')) in ('정회원', '준회원', '회장', '부회장', '총무', '재무', '경기', '섭외', 'CEO', 'ADMIN')
+       -- 화이트리스트(다중 역할 지원): members.role 을 쉼표로 분리해 각 역할을 trim 후 비교.
+       --   분리된 역할 중 하나라도 아래 10개에 속하면 허용(예: 'CEO, 재무' → 허용, '게스트, CEO' → 허용).
+       --   분리 결과가 모두 비허용(게스트·빈 값·알 수 없는 역할)이면 제외.
+       and exists (
+         select 1
+           from unnest(string_to_array(coalesce(m.role, ''), ',')) as role_part(value)
+          where btrim(role_part.value) in
+                ('정회원', '준회원', '회장', '부회장', '총무', '재무', '경기', '섭외', 'CEO', 'ADMIN')
+       )
   );
 $$;
 
