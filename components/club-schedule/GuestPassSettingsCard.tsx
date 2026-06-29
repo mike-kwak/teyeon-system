@@ -22,6 +22,8 @@ import {
     copyText,
 } from '@/lib/guestPassMessage';
 import type { GuestPassParticipation } from '@/lib/guestPassData';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
+import { maskToken } from '@/lib/guide/masking';
 
 /**
  * Club Schedule 상세에 마운트하는 CEO/ADMIN 전용 Guest Pass 설정 카드.
@@ -42,6 +44,7 @@ interface GuestPassSettingsCardProps {
 }
 
 export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSettingsCardProps) {
+    const { guardWriteAction, shouldMaskPrivateData } = useGuideRecording();
     const [loadStatus, setLoadStatus] = React.useState<'loading' | 'ok' | 'failed'>('loading');
     const [perMeet, setPerMeet] = React.useState<ScheduleGuestPass | null>(null);
     const [defaults, setDefaults] = React.useState<GuestPassDefaults | null>(null);
@@ -93,8 +96,11 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
     const isActive = !!perMeet?.isActive;
     const token = perMeet?.publicToken ?? null;
     const guestPassUrl = buildGuestPassUrl({ token });
+    // 촬영 마스킹: 화면 표시 텍스트에서만 token 을 가린다(실제 href/복사 링크는 원본 유지).
+    const displayUrl = shouldMaskPrivateData && token ? guestPassUrl.replace(token, maskToken(token)) : guestPassUrl;
 
     const handleSave = async (opts: { isActive: boolean }) => {
+        if (!guardWriteAction('Guest Pass 설정 저장')) return; // 촬영 보호 모드 차단
         setSaving(true);
         setSaveError(null);
         try {
@@ -146,6 +152,7 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
     };
 
     const handleRegenerate = async () => {
+        if (!guardWriteAction('Guest Pass 안내 링크 새로 만들기')) return; // 촬영 보호 모드 차단
         if (!perMeet) {
             alert('먼저 Guest Pass를 공개 상태로 활성화해 주세요.');
             return;
@@ -326,7 +333,7 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
                                 fontSize: 10.5, fontWeight: 600, color: '#64748B',
                                 wordBreak: 'break-all',
                             }}>
-                                {guestPassUrl}
+                                {displayUrl}
                             </p>
                         ) : isActive ? (
                             <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: '#B45309' }}>

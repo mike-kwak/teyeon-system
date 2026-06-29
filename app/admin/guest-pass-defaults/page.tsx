@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 import GuestPassDefaultsEditor from '@/components/admin/GuestPassDefaultsEditor';
 import {
     fetchGuestPassDefaults,
@@ -26,7 +27,9 @@ import {
 export default function GuestPassDefaultsPage() {
     const router = useRouter();
     const { user, role, isLoading } = useAuth();
-    const isAdmin = role === 'CEO' || role === 'ADMIN';
+    const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
+    // 촬영 보호/미리보기에서는 편집 화면을 숨긴다(기존 권한 조건 유지 + 촬영 숨김 조건 추가).
+    const isAdmin = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
 
     const [defaults, setDefaults] = React.useState<GuestPassDefaults | null>(null);
     const [loadStatus, setLoadStatus] = React.useState<'loading' | 'ok' | 'failed'>('loading');
@@ -52,6 +55,7 @@ export default function GuestPassDefaultsPage() {
     }, [isAdmin]);
 
     const handleSave = async (input: GuestPassDefaultsInput) => {
+        if (!guardWriteAction('Guest Pass 공통 기본값 저장')) return; // 촬영 보호 모드 차단
         setSaving(true);
         setSaveError(null);
         try {

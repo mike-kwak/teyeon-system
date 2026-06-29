@@ -160,14 +160,14 @@ export default function GuideRecordingPage() {
                                 <li>Admin 설정 · 직책 · 권한</li>
                                 <li>KDK / LIVE COURT</li>
                                 <li>Archive (공식 기록)</li>
+                                <li>Guest Pass 설정</li>
+                                <li>일정 등록 · 수정 (Calendar)</li>
                             </ul>
                         </div>
                         <div>
                             <Tag tone="muted">후속</Tag>
                             <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, fontWeight: 700, color: '#94A3B8', lineHeight: 1.8 }}>
-                                <li>Guest Pass</li>
                                 <li>Finance</li>
-                                <li>일정 등록</li>
                                 <li>프로필 개인정보</li>
                             </ul>
                         </div>

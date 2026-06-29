@@ -49,6 +49,7 @@ import {
 } from '@/lib/clubScheduleService';
 import ClubScheduleEditorModal from '@/components/ClubScheduleEditorModal';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 
 // ─── TEYEON Calendar 구조 ─────────────────────────────────────────────────────
 // Tournament Schedule (대외 대회 일정) + Club Schedule (정모/번개 등) 통합 뷰.
@@ -165,13 +166,16 @@ function formatDayLabel(dateStr: string) {
 
 export default function TournamentCalendarPage() {
   const { user, role } = useAuth();
-  const isAdmin = canManageTournamentCalendar(role);
+  const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
+  // 촬영 보호/미리보기에서는 운영 버튼을 숨긴다(기존 권한 조건 유지 + 촬영 숨김 조건 추가).
+  //   일반 모드에서는 shouldHideAdminControls=false 라 기존과 동일(영향 0).
+  const isAdmin = canManageTournamentCalendar(role) && !shouldHideAdminControls;
   // TODO: CALENDAR_MANAGER 역할 도입 시 이 조건에 추가 — profiles.role 컬럼 값 'CALENDAR_MANAGER' 확인 필요
-  const canEditEvent = role === 'CEO' || role === 'ADMIN';
+  const canEditEvent = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
   // CSV 업로드: MVP에서 CEO/ADMIN 전용 (TODO: CALENDAR_MANAGER 확장 시 추가)
-  const canUploadCSV = role === 'CEO' || role === 'ADMIN';
+  const canUploadCSV = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
   // Club Schedule 등록/수정: CEO/ADMIN 전용 (TODO: CALENDAR_MANAGER 확장 시 추가)
-  const canEditClubSchedule = role === 'CEO' || role === 'ADMIN';
+  const canEditClubSchedule = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
 
   // 첫 진입 잔상 방지: events / clubSchedules 는 빈 배열로 시작.
   // demo 시드를 초기값으로 주면 fetch 전에 demo 카드가 잠깐 보였다 사라지는 잔상이 발생.
@@ -359,6 +363,7 @@ export default function TournamentCalendarPage() {
   const openEditEditor = (event: TournamentEvent) => { setEditingEvent(event); setIsEditorOpen(true); };
 
   const handleSaveEvent = async (input: TournamentEventInput) => {
+    if (!guardWriteAction('대회 일정 저장')) return; // 촬영 보호 모드 차단
     if (!isAdmin) return;
     if (!input.title.trim()) { alert('대회명을 입력해 주세요.'); return; }
     if (!input.date) { alert('대회일을 입력해 주세요.'); return; }
@@ -381,6 +386,7 @@ export default function TournamentCalendarPage() {
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    if (!guardWriteAction('대회 일정 삭제')) return; // 촬영 보호 모드 차단
     if (!isAdmin) return;
     const ok = window.confirm('정말 이 대회를 삭제할까요? 실제 취소는 상태를 대회취소로 변경하는 것을 권장합니다.');
     if (!ok) return;
@@ -400,6 +406,7 @@ export default function TournamentCalendarPage() {
   };
 
   const handleSaveClubSchedule = async (input: ClubScheduleInput) => {
+    if (!guardWriteAction('정모 일정 저장')) return; // 촬영 보호 모드 차단
     if (!canEditClubSchedule) return;
     if (!input.title.trim()) { alert('일정명을 입력해 주세요.'); return; }
     if (!input.schedule_date) { alert('날짜를 입력해 주세요.'); return; }
@@ -436,6 +443,7 @@ export default function TournamentCalendarPage() {
   };
 
   const handleDeleteClubSchedule = async (id: string) => {
+    if (!guardWriteAction('정모 일정 삭제')) return; // 촬영 보호 모드 차단
     if (!canEditClubSchedule) return;
     const ok = window.confirm('이 클럽 일정을 삭제할까요?');
     if (!ok) return;
