@@ -38,9 +38,17 @@ export default function BottomNav() {
   if (pathname?.startsWith('/guest/pass')) return null;
   if (pathname === '/club' || pathname?.startsWith('/club/')) return null;
   if (pathname?.startsWith('/finance/public')) return null;
-  // TENNIS LOG 작성/수정 화면 — 하단 저장 바를 쓰므로 BottomNav 숨김(홈 /tennis-log 는 유지).
-  //   경로 관례: 복수형(tournaments / 향후 lessons). 단수형 경로는 추가하지 않음.
-  if (pathname?.startsWith('/tennis-log/tournaments') || pathname?.startsWith('/tennis-log/lessons')) return null;
+  // TENNIS LOG 작성/수정 화면(신규·수정)만 하단 저장 바를 쓰므로 BottomNav 숨김.
+  //   홈/목록/상세(/tennis-log, /tennis-log/tournaments, /tennis-log/tournaments/[id])에서는 유지.
+  //   대상: /tennis-log/{tournaments|lessons}/new, /tennis-log/{tournaments|lessons}/[id]/edit
+  {
+    const p = pathname || '';
+    const isTennisLogFormRoute =
+      p === '/tennis-log/tournaments/new' ||
+      p === '/tennis-log/lessons/new' ||
+      /^\/tennis-log\/(tournaments|lessons)\/[^/]+\/edit$/.test(p);
+    if (isTennisLogFormRoute) return null;
+  }
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {

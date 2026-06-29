@@ -7,23 +7,32 @@
 //   · 회원 게스트/준회원 구분은 members.role 로 한다. (운영 members 테이블에
 //     is_guest 컬럼은 존재하지 않으므로 사용하지 않는다 — memberDisplayResolver 주석 참조.)
 //
-// 판정:
-//   · 미로그인                         → 'unauthenticated' (로그인 유도/리다이렉트)
-//   · members 미연결(role 없음)        → 'locked' (확인된 클럽 회원이 아님 → 안전한 잠금 기본값)
-//   · members.role ∈ {준회원, 게스트}   → 'locked'
-//   · 그 외(정회원 + 운영진 직책)       → 'allowed'
+// 판정(화이트리스트 — 허용 역할만 명시):
+//   · 미로그인                          → 'unauthenticated' (로그인 유도/리다이렉트)
+//   · members.role ∈ 허용 목록           → 'allowed'
+//   · 그 외 전부 → 'locked'
+//       (준회원·게스트·빈 값·알 수 없는 신규 역할·members 미연결·조회 실패 포함)
 //
-// (역할명/값을 추측해 새로 만들지 않는다. members.role 의 실제 값:
-//  회장·부회장·총무·재무·경기·섭외(운영진 직책)·정회원·준회원·게스트 — scripts/sync_members.js,
-//  AuthContext 의 members 조회 기준으로 확인됨.)
+// 허용 역할(SQL can_access_tennis_log() 와 동일 기준):
+//   정회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외
+//   (members.role 실제 값 — scripts/sync_members.js / AuthContext members 조회 기준으로 확인됨.)
+//   차단 목록(blocklist) 방식이 아니라, 위 7개만 허용하는 whitelist 로 처리한다.
 
 export type TennisLogAccess = 'loading' | 'unauthenticated' | 'locked' | 'allowed';
 
-// 잠금 대상 클럽 자격(정회원/운영진 외). 'GUEST' 는 일부 데이터의 영문 표기 호환.
-const LOCKED_MEMBER_ROLES = new Set<string>(['준회원', '게스트', 'GUEST']);
+// 허용 클럽 자격(이 목록에 정확히 포함되는 members.role 만 접근 가능).
+const ALLOWED_MEMBER_ROLES = new Set<string>([
+  '정회원',
+  '회장',
+  '부회장',
+  '총무',
+  '재무',
+  '경기',
+  '섭외',
+]);
 
 /**
- * TENNIS LOG 접근 권한(순수 판정). 로딩은 호출측(useTennisLogAccess)에서 관리한다.
+ * TENNIS LOG 접근 권한(순수 판정, 화이트리스트). 로딩은 호출측(useTennisLogAccess)에서 관리한다.
  * @param hasUser    로그인 여부
  * @param memberRole 연결된 members.role (없으면 null) — 보안 Role 아님, 클럽 자격
  */
@@ -33,9 +42,8 @@ export function resolveTennisLogAccess(
 ): Exclude<TennisLogAccess, 'loading'> {
   if (!hasUser) return 'unauthenticated';
   const r = (memberRole ?? '').trim();
-  if (!r) return 'locked'; // 회원 미연결 → 안전한 잠금 기본값
-  if (LOCKED_MEMBER_ROLES.has(r) || r.toUpperCase() === 'GUEST') return 'locked';
-  return 'allowed';
+  // 허용 목록에 정확히 있는 경우에만 통과. 그 외(빈 값/미연결/알 수 없는 역할)는 모두 잠금.
+  return ALLOWED_MEMBER_ROLES.has(r) ? 'allowed' : 'locked';
 }
 
 // 잠금/안내 문구 — 카드 클릭 안내와 라우트 가드 화면이 동일 문구를 사용.

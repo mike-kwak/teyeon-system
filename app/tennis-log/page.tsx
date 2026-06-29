@@ -18,6 +18,8 @@ import {
   TENNIS_LOG_LOCKED_BODY,
 } from '@/lib/tennisLogAccess';
 import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
+import { countTournamentsByYear, getRecentTournaments } from '@/lib/tennisLogTournamentService';
+import { displayFinalResult, type TournamentRecord } from '@/types/tennisLog';
 
 // Cool Premium Light 토큰
 const NAVY = '#0F1B33';
@@ -37,15 +39,34 @@ export default function TennisLogPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // 올해 요약 — 향후 실제 기록 바인딩을 위한 타입드 상태(현재는 0). 연도는 동적.
+  // 올해 요약 — 외부 대회는 실제 DB 연동. 레슨은 이번 작업 범위 밖(0 유지).
   const currentYear = new Date().getFullYear();
-  const [yearlyTournamentCount] = useState<number>(0);
+  const [yearlyTournamentCount, setYearlyTournamentCount] = useState<number | null>(null);
+  const [recentTournaments, setRecentTournaments] = useState<TournamentRecord[]>([]);
   const [yearlyLessonCount] = useState<number>(0);
   const [practiceGoal] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // 홈 실제 데이터 — 회원 접근 허용 시에만 조회.
+  useEffect(() => {
+    if (access !== 'allowed') return;
+    let cancelled = false;
+    (async () => {
+      const [countRes, recentRes] = await Promise.all([
+        countTournamentsByYear(currentYear),
+        getRecentTournaments(2),
+      ]);
+      if (cancelled) return;
+      setYearlyTournamentCount(countRes.error ? 0 : countRes.data ?? 0);
+      setRecentTournaments(recentRes.error ? [] : recentRes.data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [access, currentYear]);
 
   // 미로그인은 NavigationGuard 가 '/'로 보내지만, 안전하게 한 번 더 가드.
   useEffect(() => {
@@ -226,7 +247,8 @@ export default function TennisLogPage() {
           icon={<Trophy size={18} strokeWidth={1.9} />}
           accent={TEAL}
           label={`${currentYear} 외부 대회`}
-          count={yearlyTournamentCount}
+          count={yearlyTournamentCount ?? 0}
+          loading={yearlyTournamentCount === null}
         />
         <SummaryCard
           icon={<GraduationCap size={18} strokeWidth={1.9} />}
@@ -297,13 +319,25 @@ export default function TennisLogPage() {
         />
       </div>
 
-      {/* 최근 대회 */}
-      <SectionHeaderRow title="최근 대회" onViewAll={() => setToast(NEXT_STEP_TOAST)} />
-      <EmptyState
-        icon={<Trophy size={20} strokeWidth={1.8} />}
-        title="아직 기록한 대회가 없어요"
-        body="외부 대회 결과를 기록하면 이곳에 모여요."
-      />
+      {/* 최근 대회 — 실제 DB 연동 */}
+      <SectionHeaderRow title="최근 대회" onViewAll={() => router.push('/tennis-log/tournaments')} />
+      {recentTournaments.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {recentTournaments.map((r) => (
+            <RecentTournamentCard
+              key={r.id}
+              record={r}
+              onClick={() => router.push(`/tennis-log/tournaments/${r.id}`)}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={<Trophy size={20} strokeWidth={1.8} />}
+          title="아직 기록한 대회가 없어요"
+          body="외부 대회 결과를 기록하면 이곳에 모여요."
+        />
+      )}
 
       {/* 최근 레슨 */}
       <div style={{ height: 18 }} />
@@ -384,11 +418,13 @@ function SummaryCard({
   accent,
   label,
   count,
+  loading,
 }: {
   icon: React.ReactNode;
   accent: string;
   label: string;
   count: number;
+  loading?: boolean;
 }) {
   return (
     <div
@@ -431,13 +467,94 @@ function SummaryCard({
       >
         {label}
       </p>
-      <p style={{ margin: 0, display: 'flex', alignItems: 'baseline', gap: 2 }}>
-        <span style={{ fontSize: 22, fontWeight: 800, color: INK, letterSpacing: '-0.02em', lineHeight: 1 }}>
-          {count}
-        </span>
+      <p style={{ margin: 0, display: 'flex', alignItems: 'baseline', gap: 2, minHeight: 22 }}>
+        {loading ? (
+          <span style={{ width: 26, height: 18, borderRadius: 5, backgroundColor: 'rgba(0,0,0,0.07)', display: 'inline-block' }} className="animate-pulse" />
+        ) : (
+          <span style={{ fontSize: 22, fontWeight: 800, color: INK, letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {count}
+          </span>
+        )}
         <span style={{ fontSize: 12, fontWeight: 700, color: SUB }}>회</span>
       </p>
     </div>
+  );
+}
+
+function RecentTournamentCard({ record, onClick }: { record: TournamentRecord; onClick: () => void }) {
+  const dateLabel = (() => {
+    const [y, m, d] = (record.tournament_date || '').split('-');
+    return y && m && d ? `${y}.${m}.${d}` : record.tournament_date || '';
+  })();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        width: '100%',
+        boxSizing: 'border-box',
+        backgroundColor: '#FFFFFF',
+        border: `1px solid ${CARD_BORDER}`,
+        borderRadius: 14,
+        boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+        padding: '13px 15px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        cursor: 'pointer',
+      }}
+      className="active:scale-[0.99]"
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: SUB, whiteSpace: 'nowrap' }}>
+          {dateLabel}
+          {record.partner_name ? ` · ${record.partner_name}` : ''}
+        </span>
+        <span
+          style={{
+            flexShrink: 0,
+            padding: '3px 9px',
+            borderRadius: 999,
+            backgroundColor: 'rgba(14,124,118,0.10)',
+            color: TEAL,
+            fontSize: 11,
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+            maxWidth: '52%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {displayFinalResult(record)}
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: TEAL, flexShrink: 0 }}>{record.event_type}</span>
+        <span style={{ color: '#D5DCE6', flexShrink: 0 }}>·</span>
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: INK, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {record.tournament_name}
+        </span>
+      </div>
+      {record.one_line_review && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: '#586478',
+            lineHeight: 1.5,
+            display: '-webkit-box',
+            WebkitLineClamp: 1,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            wordBreak: 'keep-all',
+          }}
+        >
+          {record.one_line_review}
+        </p>
+      )}
+    </button>
   );
 }
 
