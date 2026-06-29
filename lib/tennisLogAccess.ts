@@ -11,24 +11,29 @@
 //   · 미로그인                          → 'unauthenticated' (로그인 유도/리다이렉트)
 //   · members.role ∈ 허용 목록           → 'allowed'
 //   · 그 외 전부 → 'locked'
-//       (준회원·게스트·빈 값·알 수 없는 신규 역할·members 미연결·조회 실패 포함)
+//       (게스트·빈 값·알 수 없는 신규 역할·members 미연결·조회 실패 포함)
 //
 // 허용 역할(SQL can_access_tennis_log() 와 동일 기준):
-//   정회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외
-//   (members.role 실제 값 — scripts/sync_members.js / AuthContext members 조회 기준으로 확인됨.)
-//   차단 목록(blocklist) 방식이 아니라, 위 7개만 허용하는 whitelist 로 처리한다.
+//   정회원 · 준회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외 · CEO · ADMIN
+//   (members.role 실제 값 — scripts/sync_members.js / AuthContext members 조회 기준으로 확인됨.
+//    운영 데이터상 CEO/ADMIN 역할도 members.role 에 존재하므로 본인 TENNIS LOG 사용을 허용한다.)
+//   차단 목록(blocklist) 방식이 아니라, 위 10개만 허용하는 whitelist 로 처리한다.
+//   잠금 대상: 게스트 · 빈 값 · 알 수 없는 역할 · members 미연결.
 
 export type TennisLogAccess = 'loading' | 'unauthenticated' | 'locked' | 'allowed';
 
 // 허용 클럽 자격(이 목록에 정확히 포함되는 members.role 만 접근 가능).
 const ALLOWED_MEMBER_ROLES = new Set<string>([
   '정회원',
+  '준회원',
   '회장',
   '부회장',
   '총무',
   '재무',
   '경기',
   '섭외',
+  'CEO',
+  'ADMIN',
 ]);
 
 /**
@@ -49,4 +54,4 @@ export function resolveTennisLogAccess(
 // 잠금/안내 문구 — 카드 클릭 안내와 라우트 가드 화면이 동일 문구를 사용.
 export const TENNIS_LOG_LOCKED_TITLE = 'TEYEON 회원 전용 기능';
 export const TENNIS_LOG_LOCKED_BODY =
-  'TENNIS LOG는 TEYEON 정회원 전용 기능입니다. 준회원·게스트는 이용할 수 없으며, 정회원으로 활동 중인 회원만 나만의 테니스 기록을 이용할 수 있습니다.';
+  'TENNIS LOG는 TEYEON 회원 전용 기능입니다. 게스트 계정은 이용할 수 없으며, 클럽 회원만 나만의 테니스 기록을 이용할 수 있습니다.';

@@ -4,7 +4,7 @@
 -- TENNIS LOG — 외부 대회 개인 기록(프라이빗). 본인만 SELECT/INSERT/UPDATE/DELETE.
 --   · CEO/ADMIN/운영진도 타인의 TENNIS LOG 를 열람/수정/삭제할 수 없다(개인 데이터).
 --   · anon(비로그인) 접근 불가.
---   · TENNIS LOG 자체가 정회원/운영진 직책 전용 → RLS 에서도 회원 자격을 함께 검증.
+--   · TENNIS LOG 는 클럽 회원 전용(게스트 제외) → RLS 에서도 회원 자격을 함께 검증.
 --
 -- 상태: 검토용(DRAFT). 운영 Supabase 에서 아직 실행되지 않음. 승인 전 실행 금지.
 -- 성격: idempotent(재실행 안전) — CREATE ... IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS.
@@ -17,8 +17,8 @@
 --   STEP 5  (선택) 자체 검증 쿼리 — 주석 처리되어 있음
 --
 -- 회원 자격 판정(앱 lib/tennisLogAccess.ts 와 동일 기준 · 화이트리스트):
---   허용(정확히 이 7개 members.role 만): 정회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외
---   그 외 전부 잠금: 준회원 · 게스트 · 빈 값 · 알 수 없는 신규 역할 · members 미연결.
+--   허용(정확히 이 10개 members.role 만): 정회원 · 준회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외 · CEO · ADMIN
+--   그 외 전부 잠금: 게스트 · 빈 값 · 알 수 없는 신규 역할 · members 미연결.
 --   (차단 목록 방식이 아니라 허용 목록만 명시하는 whitelist.)
 --   로그인 사용자 ↔ members 연결 우선순위:
 --     1순위  members.auth_user_id = auth.uid()
@@ -140,8 +140,8 @@ as $$
                )
              )
            )
-       -- 화이트리스트: 아래 7개 역할만 허용. 그 외(준회원·게스트·빈 값·알 수 없는 역할)는 제외.
-       and btrim(coalesce(m.role, '')) in ('정회원', '회장', '부회장', '총무', '재무', '경기', '섭외')
+       -- 화이트리스트: 아래 10개 역할만 허용. 그 외(게스트·빈 값·알 수 없는 역할)는 제외.
+       and btrim(coalesce(m.role, '')) in ('정회원', '준회원', '회장', '부회장', '총무', '재무', '경기', '섭외', 'CEO', 'ADMIN')
   );
 $$;
 
@@ -190,7 +190,7 @@ create policy "tennis_log_tournaments_delete_own"
 
 -- ── STEP 5. (선택) 자체 검증 — 운영 적용 후 세션에서 확인 ────────────────────
 -- 1) 회원 자격 함수가 본인에 대해 true 인지:
---    select public.can_access_tennis_log();           -- 정회원/운영진: true, 준회원/게스트: false
+--    select public.can_access_tennis_log();           -- 허용 역할(정회원·준회원·운영진·CEO·ADMIN): true, 게스트/미연결: false
 -- 2) 타인 owner_user_id 로 INSERT 시 RLS 거절(with check 위반) 되는지:
 --    insert into public.tennis_log_tournaments (owner_user_id, tournament_date, tournament_name,
 --      event_type, final_result, one_line_review)
