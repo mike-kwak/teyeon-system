@@ -11,6 +11,7 @@ import {
   Layout,
   Lock,
   MapPin,
+  NotebookPen,
   Settings,
   Swords,
   Trophy,
@@ -21,6 +22,11 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import { fetchTournamentEvents } from '@/lib/tournamentCalendarService';
+import {
+  TENNIS_LOG_LOCKED_TITLE,
+  TENNIS_LOG_LOCKED_BODY,
+} from '@/lib/tennisLogAccess';
+import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
 
 // ─── 다음 일정 선정 ───────────────────────────────────────────────────────
 // Club Schedule + Tournament Schedule을 단일 비교 구조로 변환해 가장 가까운 1건 선정.
@@ -73,6 +79,9 @@ export default function Home() {
   //   관리자 설정: CEO/ADMIN 만 진입(그 외 MEMBER/게스트 차단). 실제 보호는 각 페이지/RLS 가 유지.
   const canFinance = role !== 'GUEST';
   const canAdmin = role === 'CEO' || role === 'ADMIN';
+  // TENNIS LOG(회원 전용 개인 기록): 실제 클럽 회원 자격(members.role) 기준 공통 판정.
+  //   조회 중(loading)에는 'allowed'가 아니므로 카드가 정상 접근으로 보이지 않음(안전한 잠금 기본값).
+  const tennisLogStatus = useTennisLogAccess();
   const [isMounted, setIsMounted] = useState(false);
   const [activeMemberCount, setActiveMemberCount] = useState<number>(24);
   const [totalKdkCount, setTotalKdkCount] = useState<number>(0);
@@ -253,6 +262,7 @@ export default function Home() {
     badge,
     accent = 'teal',
     locked = false,
+    lockedBadge = '권한 필요',
     deniedTitle,
     deniedBody,
   }: {
@@ -265,6 +275,8 @@ export default function Home() {
     accent?: AccentGroup;
     /** 권한 없는 사용자에게만 true — Link 대신 클릭 시 권한 안내(permAlert) 표시. */
     locked?: boolean;
+    /** 잠금 배지 문구. 기본 '권한 필요' — 회원 전용 메뉴는 '회원 전용' 등으로 지정. */
+    lockedBadge?: string;
     deniedTitle?: string;
     deniedBody?: string;
   }) => {
@@ -401,7 +413,7 @@ export default function Home() {
               }}
             >
               <Lock size={8} strokeWidth={2.6} />
-              권한 필요
+              {lockedBadge}
             </span>
           )}
         </div>
@@ -786,6 +798,19 @@ export default function Home() {
                 path="/guest"
                 badge="OPEN"
                 accent="aqua"
+              />
+              {/* TENNIS LOG — 회원 전용 개인 테니스 기록 (teal).
+                  정회원/운영진은 진입, 게스트/준회원(=GUEST)은 잠금 + 회원 전용 안내. */}
+              <MenuCard
+                label="TENNIS LOG"
+                description="나만의 테니스 기록 · 외부 대회와 레슨을 기록하세요"
+                icon={<NotebookPen size={21} strokeWidth={1.7} />}
+                path="/tennis-log"
+                accent="teal"
+                locked={tennisLogStatus !== 'allowed'}
+                lockedBadge="회원 전용"
+                deniedTitle={TENNIS_LOG_LOCKED_TITLE}
+                deniedBody={TENNIS_LOG_LOCKED_BODY}
               />
               {/* 그룹 3 — 관리/재무 (gold) */}
               <MenuCard
