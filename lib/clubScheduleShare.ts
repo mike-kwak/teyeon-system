@@ -21,14 +21,6 @@ export function buildClubScheduleShareUrl(scheduleId: string): string {
 }
 
 /**
- * 공유 문구 하단 공통 "앱에서 열기" 안내 한 줄.
- * 안내문 복사 / 현황 공유 모두 동일 문구를 사용한다(중복 문자열 단일화).
- */
-export function getOpenInAppGuideText(): string {
-    return "앱 이용자는 링크를 연 뒤 'TEYEON 앱에서 열기'를 눌러주세요.";
-}
-
-/**
  * 마감 ISO → '6월 30일 오전 11:00' 형식. 마감 없으면 빈 문자열.
  */
 function formatDeadlineForShare(iso?: string | null): string {
@@ -96,8 +88,6 @@ export function buildClubScheduleAttendanceGuideText(
         lines.push('');
         lines.push('TEYEON 앱 로그인 후 아래 링크에서 참석 시간을 선택해 주세요.');
         lines.push(url);
-        lines.push('');
-        lines.push(getOpenInAppGuideText());
     }
 
     return lines.join('\n');
@@ -175,8 +165,6 @@ export function buildClubScheduleStatusShareText(
         lines.push('');
         lines.push('아래 링크에서 현재 참석 현황을 확인할 수 있습니다.');
         lines.push(url);
-        lines.push('');
-        lines.push(getOpenInAppGuideText());
     }
 
     return lines.join('\n');

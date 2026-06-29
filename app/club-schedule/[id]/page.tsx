@@ -6,8 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2, Check, MessageSquare } from 'lucide-react';
-import { shareOrCopyClubSchedule, shareClubScheduleStatus, buildClubScheduleShareUrl } from '@/lib/clubScheduleShare';
-import OpenInTeyeonAppBanner from '@/components/pwa/OpenInTeyeonAppBanner';
+import { shareOrCopyClubSchedule, shareClubScheduleStatus } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { useAnalytics } from '@/components/analytics/AnalyticsProvider';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
@@ -1088,9 +1087,6 @@ export default function ClubScheduleAttendancePage() {
                         </div>
                     )}
                 </section>
-
-                {/* 웹/카카오 인앱 브라우저에서 열었을 때만 노출(앱 standalone 이면 숨김). 같은 정모 URL 유지. */}
-                <OpenInTeyeonAppBanner url={buildClubScheduleShareUrl(scheduleId)} />
 
                 {/* 내 참석 시간 */}
                 {attendanceEnabledFlag && (
