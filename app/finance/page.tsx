@@ -9,6 +9,7 @@ import {
     FileEdit, Users, Layers, Settings, ChevronRight, AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import {
@@ -42,7 +43,11 @@ import MemberFinanceView from '@/components/finance/MemberFinanceView';
  */
 export default function FinancePage() {
     const { user, role, isLoading } = useAuth();
-    const isAdmin = canManageFinance(role);
+    const { shouldHideAdminControls } = useGuideRecording();
+    // 촬영 보호/미리보기에서는 관리자 홈을 숨기고 일반 회원 본인 납부 뷰만 보여준다.
+    //   (관리자 Finance 전체 보호 확대가 아니라, 회원 조회 촬영 경로만 보장.)
+    //   일반 모드에서는 shouldHideAdminControls=false 라 기존과 동일(영향 0).
+    const isAdmin = canManageFinance(role) && !shouldHideAdminControls;
 
     if (isLoading) {
         return (
@@ -78,6 +83,11 @@ export default function FinancePage() {
                     title="나의 납부 현황"
                     subtitle="본인의 납부 예정·완료 금액을 확인합니다."
                 />
+                {shouldHideAdminControls && (
+                    <p style={{ margin: '0 0 10px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: '#0E7C76', backgroundColor: 'rgba(15,124,118,0.10)', padding: '4px 10px', borderRadius: 999 }}>
+                        읽기 전용 · 본인 납부 현황만 표시
+                    </p>
+                )}
                 <MemberFinanceView authUserId={user.id} />
             </div>
         </main>

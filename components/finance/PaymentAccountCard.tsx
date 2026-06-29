@@ -9,6 +9,8 @@
 import React from 'react';
 import { Copy, Check } from 'lucide-react';
 import { copyTextSafe } from '@/lib/clubScheduleShare';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
+import { maskAccountNumber, maskName } from '@/lib/guide/masking';
 import type { FinancePaymentAccountSnapshot } from '@/lib/finance/paymentAccount';
 
 export default function PaymentAccountCard({
@@ -19,13 +21,17 @@ export default function PaymentAccountCard({
     label: string;   // '회비 입금 계좌' | '벌금 입금 계좌'
 }) {
     const [copied, setCopied] = React.useState(false);
+    const { shouldMaskPrivateData } = useGuideRecording();
+    // 촬영 모드: 화면 표시만 마스킹(실제 복사는 원본 유지). 단, prompt fallback 은 원본 노출이라 촬영 중 비활성.
+    const numberText = shouldMaskPrivateData ? maskAccountNumber(account.accountNumberDisplay) : account.accountNumberDisplay;
+    const holderText = shouldMaskPrivateData ? maskName(account.accountHolder) : account.accountHolder;
 
     const handleCopy = async () => {
         const ok = await copyTextSafe(account.accountNumberCopy);
         if (ok) {
             setCopied(true);
             setTimeout(() => setCopied(false), 1800);
-        } else {
+        } else if (!shouldMaskPrivateData) {
             window.prompt('계좌번호를 길게 눌러 복사해 주세요.', account.accountNumberCopy);
         }
     };
@@ -40,9 +46,9 @@ export default function PaymentAccountCard({
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>{account.bankName}</p>
                     <p style={{ margin: '1px 0 0', fontSize: 15, fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
-                        {account.accountNumberDisplay}
+                        {numberText}
                     </p>
-                    <p style={{ margin: '1px 0 0', fontSize: 11, fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>예금주 {account.accountHolder}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: 11, fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>예금주 {holderText}</p>
                 </div>
                 <button
                     type="button"

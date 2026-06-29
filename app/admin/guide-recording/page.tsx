@@ -22,6 +22,7 @@ const SHORTCUTS: { label: string; href: string; external?: boolean }[] = [
     { label: 'Archive', href: '/archive' },
     { label: '개인 프로필', href: '/profile' },
     { label: '멤버 프로필', href: '/members' },
+    { label: '내 재무 현황', href: '/finance' },
     { label: '공개 TEYEON', href: '/club' },
     { label: '정모 일정', href: '/club/schedule' },
 ];
@@ -162,19 +163,28 @@ export default function GuideRecordingPage() {
                                 <li>Archive (공식 기록)</li>
                                 <li>Guest Pass 설정</li>
                                 <li>일정 등록 · 수정 (Calendar)</li>
+                                <li>일반 회원 Finance 조회</li>
+                                <li>프로필 개인정보 마스킹</li>
                             </ul>
                         </div>
                         <div>
                             <Tag tone="muted">후속</Tag>
                             <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, fontWeight: 700, color: '#94A3B8', lineHeight: 1.8 }}>
-                                <li>Finance</li>
-                                <li>프로필 개인정보</li>
+                                <li>Finance 관리자 전체 작업 보호</li>
+                                <li>기타 세부 PII</li>
                             </ul>
                         </div>
                     </div>
                     <p style={{ margin: '12px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>
                         “완료” 화면은 촬영 보호 모드에서 운영 버튼이 숨겨지고 쓰기 동작이 차단됩니다. 전체 화면이 적용된 것은 아니므로 “모든 쓰기 차단”은 아닙니다.
                     </p>
+                    <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 10, backgroundColor: '#FFF7ED', border: '1px solid #FED7AA' }}>
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#9A3412' }}>Finance 촬영 안내</p>
+                        <p style={{ margin: '3px 0 0', fontSize: 10.5, fontWeight: 600, color: '#9A3412', lineHeight: 1.55 }}>
+                            Finance 촬영은 <b>일반 회원의 본인 납부 현황 조회 화면만</b> 지원합니다. 관리자 납부 처리·벌금·상금·정산 화면은 촬영 대상에서 제외됩니다.
+                            계좌번호가 보이는 공개 공지 화면에서는 반드시 <b>촬영 보호 모드를 켜</b> 계좌번호·예금주가 마스킹되도록 하세요.
+                        </p>
+                    </div>
                 </section>
 
                 {/* 안전 안내 */}

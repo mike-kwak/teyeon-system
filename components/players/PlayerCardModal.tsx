@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { supabase } from '@/lib/supabase';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { Lock, X } from 'lucide-react';
@@ -306,6 +307,7 @@ export function PlayerCardModal({
     onVisibilitySaved,
 }: PlayerCardModalProps) {
     const { user } = useAuth();
+    const { guardWriteAction } = useGuideRecording();
     const roleLabel = getRoleLabel(member);
     const variant = getBadgeVariant(roleLabel, member.is_admin);
     const accentColor = ACCENT[variant];
@@ -331,6 +333,7 @@ export function PlayerCardModal({
     const showPrivacyNote = effectiveVisibility !== 'public';
 
     const handleVisibilitySave = async (level: VisibilityLevel) => {
+        if (!guardWriteAction('프로필 공개 범위 저장')) return; // 촬영 보호 모드 차단
         if (!user?.email) {
             setSaveError('로그인 정보를 확인할 수 없어요.');
             return;

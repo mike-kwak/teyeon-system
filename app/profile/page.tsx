@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
+import { maskEmail } from '@/lib/guide/masking';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { supabase } from '@/lib/supabase';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
@@ -55,6 +57,7 @@ const formatSigned = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
 export default function ProfilePage() {
     const { user, role, signOut, isLoading } = useAuth();
+    const { shouldMaskPrivateData } = useGuideRecording();
     const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
     const [summary, setSummary] = useState<ProfileKdkSummary>(emptyProfileSummary);
     const [recentRecords, setRecentRecords] = useState<RecentOfficialRecord[]>([]);
@@ -197,7 +200,9 @@ export default function ProfilePage() {
         (user?.user_metadata?.full_name as string | undefined) ||
         '';
 
-    const subName = (user?.user_metadata?.full_name as string | undefined) || user?.email || '';
+    const subNameRaw = (user?.user_metadata?.full_name as string | undefined) || user?.email || '';
+    // 촬영 모드: 이메일 형태면 마스킹(전화는 프로필에 미표시). 이름(full_name)은 유지.
+    const subName = shouldMaskPrivateData && subNameRaw.includes('@') ? maskEmail(subNameRaw) : subNameRaw;
     const roleLabel = role === 'CEO' ? 'CEO' : role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
     const intro = linkedMember?.intro || '매 순간이 챔피언 샷입니다. 🎾';
     const avatarUrl = (user?.user_metadata?.avatar_url || user?.user_metadata?.picture) as string | undefined;
