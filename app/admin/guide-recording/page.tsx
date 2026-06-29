@@ -149,6 +149,34 @@ export default function GuideRecordingPage() {
                     <p style={{ margin: '10px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>현재 미리보기/녹화 상태를 유지한 채 해당 화면으로 이동합니다.</p>
                 </section>
 
+                {/* 촬영 보호 적용 현황 */}
+                <section style={{ ...CARD, marginBottom: 14 }}>
+                    <SectionTitle icon={<ShieldCheck size={16} />}>촬영 보호 적용 현황</SectionTitle>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                        <div>
+                            <Tag tone="ok">완료</Tag>
+                            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, fontWeight: 700, color: '#334155', lineHeight: 1.8 }}>
+                                <li>정모 참석 · 댓글</li>
+                                <li>Admin 설정 · 직책 · 권한</li>
+                                <li>KDK / LIVE COURT</li>
+                                <li>Archive (공식 기록)</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <Tag tone="muted">후속</Tag>
+                            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, fontWeight: 700, color: '#94A3B8', lineHeight: 1.8 }}>
+                                <li>Guest Pass</li>
+                                <li>Finance</li>
+                                <li>일정 등록</li>
+                                <li>프로필 개인정보</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p style={{ margin: '12px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>
+                        “완료” 화면은 촬영 보호 모드에서 운영 버튼이 숨겨지고 쓰기 동작이 차단됩니다. 전체 화면이 적용된 것은 아니므로 “모든 쓰기 차단”은 아닙니다.
+                    </p>
+                </section>
+
                 {/* 안전 안내 */}
                 <section style={{ ...CARD, borderLeft: '3px solid #0E7C76', backgroundColor: '#F6FBFA' }}>
                     <SectionTitle icon={<ShieldCheck size={16} />}>안전 안내</SectionTitle>

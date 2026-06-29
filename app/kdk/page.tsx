@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { useLoading } from '@/context/LoadingContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import { RotateCw, CheckCircle2, Settings } from 'lucide-react';
@@ -37,12 +38,15 @@ type KdkEntryBackTarget = 'ENTRY_CHOICE' | 'MAIN' | null;
 export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage } = useAuth();
+    const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
     const { showLoading, hideLoading } = useLoading();
     const [showToast, setShowToast] = useState(false);
     const [toastMsg, setToastMsg] = useState("결과가 안전하게 기록되었습니다");
 
     // [v12.0] 개방형 권한 시스템: Admin 여부 판별 (ADMIN 포함)
-    const isAdmin = role === 'CEO' || role === 'ADMIN';
+    //   촬영 보호 모드/미리보기에서는 운영 UI 를 숨긴다(기존 권한 조건 유지 + 촬영 숨김 조건 추가).
+    //   일반 모드에서는 shouldHideAdminControls=false 라 기존과 동일하게 동작(영향 0).
+    const isAdmin = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
     const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
     // 권한 제한 알림 헬퍼
@@ -334,6 +338,7 @@ export default function KDKPage() {
     // 1:1 보장 — 이미 다른 KDK 세션이 연결된 정모를 선택하면 안내 후 저장 중단.
     const saveLinkedSchedule = async (scheduleId: string | null) => {
         if (!activeSessionId) return;
+        if (!guardWriteAction('공식 기록 연결')) return; // 촬영 보호 모드 차단
         setLinkSaving(true);
         try {
             if (scheduleId) {
@@ -390,6 +395,7 @@ export default function KDKPage() {
 
     const saveTickerMsg = async () => {
         if (!activeSessionId) return;
+        if (!guardWriteAction('전광판 메시지 저장')) return; // 촬영 보호 모드 차단
         setTickerSaving(true);
         try {
             const { error } = await supabase
@@ -434,6 +440,7 @@ export default function KDKPage() {
     //   변경은 다음 신규 투입부터 적용(진행 중 경기 코트는 건드리지 않음).
     const saveGroupCourts = async () => {
         if (!activeSessionId) return;
+        if (!guardWriteAction('조별 코트 설정 저장')) return; // 촬영 보호 모드 차단
         // 검증: 활성 상태에서는 각 조에 최소 1개 코트, 조 간 코트 중복 금지(1차 정책).
         if (groupCourts.enabled) {
             const activeGroups = Object.keys(groupCourts.groups);
@@ -663,6 +670,7 @@ export default function KDKPage() {
 
     // Stage 2: Official Archive & Shutdown (Admin Only)
     const handleFinalArchive = async () => {
+        if (!guardWriteAction('공식 기록 확정/아카이브')) return; // 촬영 보호 모드 차단
         if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
 
         try {
@@ -843,6 +851,7 @@ export default function KDKPage() {
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const resetSession = async () => {
+        if (!guardWriteAction('세션 초기화')) return; // 촬영 보호 모드 차단
         // --- 0. Delete active matches from DB (Prevents ghost resurrection) ---
         const targetSessionId = selectedSessionId || sessionId;
         if (targetSessionId) {
@@ -1562,6 +1571,7 @@ export default function KDKPage() {
     const handleDeleteActiveSession = async () => {
         if (!sessionDeleteTarget) return;
         if (isDeletingSession) return; // 처리 중 중복 클릭 방지
+        if (!guardWriteAction('세션 삭제')) { setSessionDeleteTarget(null); return; } // 촬영 보호 모드 차단
         if (!isAdmin) {
             triggerAccessDenied("진행 중인 세션 삭제는 관리자만 가능합니다.");
             setSessionDeleteTarget(null);
@@ -1844,6 +1854,7 @@ export default function KDKPage() {
     };
 
     const generateKDK = async () => {
+        if (!guardWriteAction('대진 생성/저장')) return; // 촬영 보호 모드 차단
         // Late Gaming: Permission Check at Final Button
         if (hasPermission('kdk') !== 'WRITE') {
             alert(getRestrictionMessage('kdk'));
@@ -2007,6 +2018,7 @@ export default function KDKPage() {
 
     const saveManualKDKMatches = async () => {
         if (isGenerating) return;
+        if (!guardWriteAction('수동 대진 저장')) return; // 촬영 보호 모드 차단
 
         if (hasPermission('kdk') !== 'WRITE') {
             alert(getRestrictionMessage('kdk'));
@@ -2202,6 +2214,7 @@ export default function KDKPage() {
 
     const startMatch = async (matchId: string) => {
         if (isStartingMatch) return;                  // 전역 투입 진행 중(코트 계산 충돌 완화)
+        if (!guardWriteAction('코트 투입/경기 시작')) return; // 촬영 보호 모드 차단
         const lockKey = `start:${matchId}`;
         if (!beginAction(lockKey)) return;            // 같은 경기 더블탭 동기 차단
 
@@ -2298,6 +2311,7 @@ export default function KDKPage() {
 
     // [v35.6] Manual Repair: Force Push local names/metadata to server
     const execFullRepair = async () => {
+        if (!guardWriteAction('데이터 강제 동기화')) return; // 촬영 보호 모드 차단
         if (!isAdmin || isGenerating) return;
         
         try {
@@ -2342,6 +2356,7 @@ export default function KDKPage() {
     };
 
     const cancelMatch = async (matchId: string) => {
+        if (!guardWriteAction('경기 취소(대기 이동)')) return; // 촬영 보호 모드 차단
         const lockKey = `cancel:${matchId}`;
         if (!beginAction(lockKey)) return; // 더블탭/중복 실행 차단
         try {
@@ -2384,6 +2399,7 @@ export default function KDKPage() {
     //   waiting + court=null + 점수 1:1 로 되돌린다. 이후 재투입은 start_kdk_match RPC 가
     //   새 빈 코트를 원자적으로 배정 → 코트/선수 중복을 서버에서 보호.
     const handleReopenMatch = async (matchId: string) => {
+        if (!guardWriteAction('경기 되돌리기')) return; // 촬영 보호 모드 차단
         const lockKey = `edit:${matchId}`;
         if (!beginAction(lockKey)) return; // 같은 경기 재수정 더블탭/중복 차단
         try {
@@ -2432,6 +2448,7 @@ export default function KDKPage() {
     };
 
     const handleMemberEditConfirm = async () => {
+        if (!guardWriteAction('참가자 이름 매칭 저장')) return; // 촬영 보호 모드 차단
         const result = validateGroups();
         if (!result.ok) {
             setWarningMsg(result.msg);
@@ -2503,6 +2520,7 @@ export default function KDKPage() {
     };
 
     const finishMatch = async (matchId: string, s1: number, s2: number) => {
+        if (!guardWriteAction('점수 입력/경기 완료')) return; // 촬영 보호 모드 차단
         const lockKey = `finish:${matchId}`;
         if (!beginAction(lockKey)) return; // 저장 더블탭/중복 실행 차단(UI disable 와 별개의 재진입 가드)
         try {
@@ -5727,7 +5745,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             players={resolvedRanking}
                             sessionTitle={sessionTitle}
                             isArchive={false}
-                            isAdmin={role === 'CEO'}
+                            isAdmin={role === 'CEO' && !shouldHideAdminControls}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
                             onShareMatch={execCopySchedule}
                             onShareResult={copyFinalResults}
