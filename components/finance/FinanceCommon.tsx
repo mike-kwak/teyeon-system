@@ -17,7 +17,10 @@ export const FINANCE_CONTAINER_STYLE: React.CSSProperties = {
     width: '100%',
     maxWidth: 430,
     margin: '0 auto',
-    paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16,
+    // 하단 디자인 여백 40px: GlobalMain(--page-bottom-safe)의 +24px만으로는 실기기에서 마지막 액션
+    // (예: "벌금 현황 공지 만들기")이 BottomNav 반투명 배경/그림자에 가려짐. BottomNav 높이/safe-area를
+    // 다시 더하지 않고 컨테이너 디자인 여백만 보강(과여백 방지: 총 64px 미만 유지).
+    paddingTop: 16, paddingRight: 16, paddingBottom: 40, paddingLeft: 16,
     display: 'flex', flexDirection: 'column', gap: 12,
     boxSizing: 'border-box',
 };

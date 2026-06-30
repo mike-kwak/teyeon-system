@@ -521,7 +521,10 @@ export default function Home() {
         style={{
           width: '100%',
           maxWidth: 430,
-          padding: '0 16px',
+          // 하단 디자인 여백 40px: GlobalMain(--page-bottom-safe)의 +24px만으로는 실기기에서
+          // BottomNav 반투명 배경/상단 그림자 + 카드 자체 그림자에 마지막 카드가 살짝 잘려 보임.
+          // BottomNav 높이/safe-area를 다시 더하지 않고 카드 아래 디자인 여백만 보강(과여백 방지: 64px 미만 유지).
+          padding: '0 16px 40px',
           display: 'flex',
           flexDirection: 'column',
         }}
