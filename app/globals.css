@@ -13,7 +13,11 @@
   /* BottomNav layout tokens.
      Use --bottom-nav-area for the full visual height of the BottomNav
      (icon row + iOS home indicator). Use --page-bottom-safe for the
-     standard page bottom padding so the last CTA sits above the nav. */
+     standard page bottom padding so the last CTA/card sits above the nav.
+     This is the SINGLE source of truth for BottomNav clearance: GlobalMain
+     applies it once for every in-app page. Pages must NOT re-add their own
+     BottomNav-height padding on top, and must NOT add env(safe-area-inset-
+     bottom) again (--safe-bottom is already folded into --bottom-nav-area). */
   --bottom-nav-base-height: 72px;
   --bottom-nav-area: calc(var(--bottom-nav-base-height) + var(--safe-bottom));
   --page-bottom-safe: calc(var(--bottom-nav-area) + 24px);

@@ -19,7 +19,7 @@ const Container = styled('main', {
   margin: '0 auto',
   width: '100%',
   backgroundColor: '$black',
-  paddingBottom: '250px',
+  // 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이 단일 적용. 250px nav clearance 제거(이중 패딩 방지).
 });
 
 const Subtitle = styled('p', {

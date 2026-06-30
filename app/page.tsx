@@ -483,8 +483,8 @@ export default function Home() {
         flexDirection: 'column',
         alignItems: 'center',
         overflowX: 'hidden',
-        // BottomNav가 마지막 카드를 침범하지 않도록 안전 영역 + 약간의 여백
-        paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
+        // 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이 단 한 번만 적용.
+        // 페이지에서 BottomNav 높이/safe-area를 다시 계산하지 않는다(이중 패딩 방지).
       }}
     >
       {/* ─── 향후 조건부 NoticeBar 슬롯 ──────────────────────────────────────

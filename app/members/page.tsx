@@ -491,7 +491,7 @@ export default function MembersPage() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
+                    // 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이 단일 적용. 페이지 자체 clearance 제거(이중 패딩 방지).
                 }}
             >
                 <div

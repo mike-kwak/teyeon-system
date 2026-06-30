@@ -4,12 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 
-/** Finance 공용 페이지 컨테이너 — BottomNav 가리지 않는 padding 적용. */
+/** Finance 공용 페이지 컨테이너. 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이
+ *  단일 적용하므로 여기서 BottomNav 높이/safe-area를 다시 더하지 않는다(이중 패딩 방지).
+ *  카드 하단 디자인 여백은 FINANCE_CONTAINER_STYLE.paddingBottom(16)이 담당. */
 export const FINANCE_PAGE_STYLE: React.CSSProperties = {
     width: '100%',
     minHeight: '100dvh',
     backgroundColor: '#F2F4F7',
-    paddingBottom: 'calc(100px + env(safe-area-inset-bottom))',
 };
 
 export const FINANCE_CONTAINER_STYLE: React.CSSProperties = {
