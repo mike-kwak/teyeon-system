@@ -196,6 +196,35 @@ export async function saveGuestPassDefaults(
     return mapDefaultsRow(data);
 }
 
+// ── 정모 게스트비 해소 (KDK 신규 세션 초기값용) ──────────────────────────────
+
+/**
+ * 정모(schedule)의 실제 게스트비 금액을 기존 우선순위로 해소한다.
+ *   fee_amount_override(정모 override) → schedule.fee_amount(정모 기본) →
+ *   default_fee_amount(클럽 공통) → fallback(기본 10,000).
+ * Guest Pass 표시값과 동일한 식(mergeGuestPassData)을 재사용해 불일치를 막는다.
+ * 원본 데이터는 읽기만 한다(수정/저장 없음).
+ *
+ * @param scheduleId        대상 정모 id
+ * @param scheduleFeeAmount 호출부가 이미 보유한 schedule.fee_amount(없으면 null)
+ * @param fallback          전부 없을 때 기본값(기본 10,000)
+ */
+export async function resolveScheduleGuestFee(
+    scheduleId: string,
+    scheduleFeeAmount: number | null | undefined,
+    fallback = 10000,
+): Promise<number> {
+    const [perMeet, defaults] = await Promise.all([
+        fetchScheduleGuestPass(scheduleId),
+        fetchGuestPassDefaults(),
+    ]);
+    const fee = perMeet?.feeAmountOverride
+        ?? scheduleFeeAmount
+        ?? defaults?.defaultFeeAmount
+        ?? fallback;
+    return typeof fee === 'number' && fee >= 0 ? fee : fallback;
+}
+
 // ── Schedule guest pass CRUD ─────────────────────────────────────────────────
 
 export async function fetchScheduleGuestPass(scheduleId: string): Promise<ScheduleGuestPass | null> {

@@ -16,7 +16,7 @@ import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
 import RankingTab from '@/components/RankingTab';
 import { useRanking } from '@/hooks/useRanking';
-import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer, KDK_GUEST_FEE } from '@/lib/kdk/settlement';
+import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer } from '@/lib/kdk/settlement';
 import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
@@ -24,6 +24,10 @@ import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/compon
 import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
+import { resolveScheduleGuestFee } from '@/lib/guestPassService';
+
+// 게스트비 fallback(원) — 세션 snapshot(kdk_session_meta.guest_fee)이 없을 때(레거시/미연결).
+const DEFAULT_KDK_GUEST_FEE = 10000;
 
 // KDK 대진 생성 스텝 공통 하단 여백 — inline-CTA(다음/생성) 스텝의 실제 스크롤 콘텐츠 끝에
 // 적용해 마지막 CTA가 BottomNav 아래로 깔리지 않게 한다.
@@ -163,6 +167,10 @@ export default function KDKPage() {
     const [firstPrize, setFirstPrize] = useState(10000);
     const [bottom25Late, setBottom25Late] = useState(3000);
     const [bottom25Penalty, setBottom25Penalty] = useState(5000);
+    // 게스트비(원) — KDK 세션 snapshot. 표시·정산 단일 출처. 정수 원 단위.
+    const [guestFee, setGuestFee] = useState(DEFAULT_KDK_GUEST_FEE);
+    // 이 세션의 guest_fee 가 DB 에 저장되어 있는지(=비-레거시). 레거시(null)는 자동 덮어쓰지 않는다.
+    const guestFeeStoredRef = useRef(false);
 
     useEffect(() => {
         setTotalCourtsInput(String(totalCourts));
@@ -299,10 +307,10 @@ export default function KDKPage() {
         let row: any = null;
         const { data, error } = await supabase
             .from('kdk_session_meta')
-            .select('ticker_message, club_schedule_id, group_courts')
+            .select('ticker_message, club_schedule_id, group_courts, guest_fee')
             .eq('session_id', sid)
             .maybeSingle();
-        if (error && /club_schedule_id|group_courts/i.test(`${error.message || ''} ${error.details || ''}`)) {
+        if (error && /club_schedule_id|group_courts|guest_fee/i.test(`${error.message || ''} ${error.details || ''}`)) {
             const fb = await supabase
                 .from('kdk_session_meta')
                 .select('ticker_message')
@@ -315,6 +323,15 @@ export default function KDKPage() {
         setTickerMsg(row?.ticker_message ?? '');
         setLinkedScheduleId(row?.club_schedule_id ?? null);
         setGroupCourts(normalizeGroupCourts(row?.group_courts));
+        // 게스트비 snapshot 복원. null = 레거시 세션 → 기본값 fallback(자동 저장하지 않음).
+        const storedFee = row?.guest_fee;
+        if (typeof storedFee === 'number' && storedFee >= 0) {
+            setGuestFee(storedFee);
+            guestFeeStoredRef.current = true;
+        } else {
+            setGuestFee(DEFAULT_KDK_GUEST_FEE);
+            guestFeeStoredRef.current = false;
+        }
     };
 
     // 가까운 일정 목록 로드 (KDK ↔ 정모 연결용). 최초 마운트 1회 + 세션 변경 시 갱신.
@@ -341,6 +358,36 @@ export default function KDKPage() {
         })();
         return () => { cancelled = true; };
     }, []);
+
+    // 게스트비 snapshot 저장 — kdk_session_meta.guest_fee upsert(해당 컬럼만 갱신).
+    //   운영자 직접 수정 / 정모 연결 시드에서 호출. 단순 세션 진입만으로는 호출하지 않는다.
+    const saveGuestFee = async (value: number) => {
+        if (!activeSessionId) return;
+        const fee = Math.max(0, Math.trunc(value));
+        const { error } = await supabase
+            .from('kdk_session_meta')
+            .upsert(
+                { session_id: activeSessionId, club_id: clubId, guest_fee: fee, updated_at: new Date().toISOString() },
+                { onConflict: 'session_id' },
+            );
+        if (error) {
+            const msg = `${error.message || ''} ${error.details || ''}`;
+            if (/guest_fee/i.test(msg)) {
+                console.warn('[KDK/guestFee] guest_fee 컬럼 미적용 — supabase/add_kdk_session_guest_fee.sql 적용 필요.');
+            } else {
+                console.warn('[KDK/guestFee] 저장 실패:', msg);
+            }
+            return;
+        }
+        guestFeeStoredRef.current = true;
+    };
+
+    // 게스트비 운영자 변경 — 0원 이상, 1,000원 단위. state + DB snapshot 동시 갱신.
+    const changeGuestFee = (next: number) => {
+        const fee = Math.max(0, Math.trunc(next));
+        setGuestFee(fee);
+        void saveGuestFee(fee);
+    };
 
     // 정모 연결 변경 — 운영진이 명시적으로 선택한 경우만 저장. 자동 추정 금지.
     // 1:1 보장 — 이미 다른 KDK 세션이 연결된 정모를 선택하면 안내 후 저장 중단.
@@ -393,6 +440,22 @@ export default function KDKPage() {
                 }
             } else {
                 setLinkedScheduleId(scheduleId);
+                // 신규/미설정(guest_fee 미저장) 세션이 정모에 연결될 때만 1회 정모 게스트비를 초기값으로 시드.
+                //   이미 저장된 세션(운영자 수정 포함)은 덮어쓰지 않는다. Guest Pass 원본은 읽기만.
+                if (scheduleId && !guestFeeStoredRef.current) {
+                    try {
+                        const sched = upcomingSchedules.find((s) => s.id === scheduleId);
+                        const seededFee = await resolveScheduleGuestFee(
+                            scheduleId,
+                            sched?.fee_amount ?? null,
+                            DEFAULT_KDK_GUEST_FEE,
+                        );
+                        setGuestFee(seededFee);
+                        await saveGuestFee(seededFee);
+                    } catch {
+                        /* 시드 실패는 무시 — 기본값 유지 */
+                    }
+                }
             }
         } catch (e: any) {
             alert(e?.message || '정모 연결 저장에 실패했습니다.');
@@ -706,7 +769,7 @@ export default function KDKPage() {
             const settlementPrizes = { first: firstPrize, l1: bottom25Late, l2: bottom25Penalty };
             const totalRankedPlayers = resolvedRanking.length;
             const settlementSnapshot = resolvedRanking.map((p, idx) => {
-                const s = computeSettlement(p, idx, totalRankedPlayers, settlementPrizes, KDK_GUEST_FEE);
+                const s = computeSettlement(p, idx, totalRankedPlayers, settlementPrizes, guestFee);
                 return {
                     player_id: p.id ?? null,
                     player_name: p.name,
@@ -732,7 +795,7 @@ export default function KDKPage() {
                 ranking_data: rankingSnapshot,
                 settlement_data: settlementSnapshot,
                 settlement_meta: {
-                    guest_fee: KDK_GUEST_FEE,
+                    guest_fee: guestFee,
                     prizes: settlementPrizes,
                     generated_at: new Date().toISOString(),
                 },
@@ -2794,7 +2857,7 @@ export default function KDKPage() {
 
         let text = `🏆 오늘의 최종 결과: ${sessionTitle || 'Live Tournament'}\n`;
         text += `🏦 계좌: ${accountInfo}\n`;
-        text += `💰 상금/벌금: 1위 ${firstPrize.toLocaleString()} / L1 ${bottom25Late.toLocaleString()} / L2 ${bottom25Penalty.toLocaleString()} / 게스트 10,000\n`;
+        text += `💰 상금/벌금: 1위 ${firstPrize.toLocaleString()} / L1 ${bottom25Late.toLocaleString()} / L2 ${bottom25Penalty.toLocaleString()} / 게스트 ${guestFee.toLocaleString()}\n`;
         text += `━━━━━━━━━━━━━━\n\n`;
 
         const sortedPlayers = [...allPlayersInRanking];
@@ -4937,6 +5000,19 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <button onClick={() => setBottom25Penalty(bottom25Penalty + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
                                 </div>
                             </div>
+
+                            {/* 게스트비 — 세션 snapshot(kdk_session_meta.guest_fee). 정모 연결 시 자동 시드, 수동 ±1,000원. */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FBFE', padding: '0 18px', height: '72px', borderRadius: '16px', border: '1px solid #E1EAF5' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#16A085', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Guest Fee</span>
+                                    <span style={{ fontSize: '10px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>게스트 1인당</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
+                                    <button onClick={() => changeGuestFee(guestFee - 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>−</button>
+                                    <span style={{ fontSize: '22px', fontWeight: 900, color: '#0F2747', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{(guestFee / 1000).toFixed(0)}k</span>
+                                    <button onClick={() => changeGuestFee(guestFee + 1000)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>+</button>
+                                </div>
+                            </div>
                         </div>
 
 
@@ -5013,7 +5089,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, fontSize: 11 }}>
                                     <span style={{ flexShrink: 0, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1F5FB5' }}>Rules</span>
                                     <span style={{ textAlign: 'right', fontWeight: 700, color: '#3F5B82' }}>
-                                        Win 6 / L1 {(bottom25Late / 1000).toFixed(0)}k / L2 {(bottom25Penalty / 1000).toFixed(0)}k / Guest 10k
+                                        Win 6 / L1 {(bottom25Late / 1000).toFixed(0)}k / L2 {(bottom25Penalty / 1000).toFixed(0)}k / Guest {(guestFee / 1000).toFixed(0)}k
                                     </span>
                                 </div>
                             </div>
@@ -5469,7 +5545,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         background: '#EEF5FB', border: '1px solid #DCE8F5',
                     }}>
                         <span style={{ fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>GUEST</span>
-                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>10K</span>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>{guestFee / 1000}K</span>
                     </span>
                     <span
                         style={{
@@ -5674,6 +5750,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             isArchive={false}
                             isAdmin={isAdmin}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
+                            guestFee={guestFee}
                             onShareMatch={execCopySchedule}
                             onShareResult={copyFinalResults}
                             onFinalize={handleFinalArchive}
@@ -5773,6 +5850,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             isArchive={false}
                             isAdmin={role === 'CEO' && !shouldHideAdminControls}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
+                            guestFee={guestFee}
                             onShareMatch={execCopySchedule}
                             onShareResult={copyFinalResults}
                             onFinalize={handleFinalArchive}

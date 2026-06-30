@@ -13,6 +13,8 @@ interface RankingTabProps {
     isArchive?: boolean;
     isAdmin?: boolean;
     prizes?: { first: number, l1: number, l2: number };
+    /** 게스트비(원) — KDK 세션 snapshot 값. 표시·정산 단일 출처. 미전달 시 10,000 fallback. */
+    guestFee?: number;
     onShareMatch?: () => void;
     onShareResult?: () => void;
     onFinalize?: () => void;
@@ -43,6 +45,7 @@ export default function RankingTab({
     isArchive = false, 
     isAdmin = false,
     prizes = { first: 10000, l1: 3000, l2: 5000 },
+    guestFee = 10000,
     onShareMatch,
     onShareResult,
     onFinalize,
@@ -74,7 +77,7 @@ export default function RankingTab({
         }
     }, [ceremonyMode]);
 
-    const guestFee = 10000;
+    // guestFee 는 prop(세션 snapshot). 하드코딩 제거 — 표시/정산 모두 이 값 사용.
     const guestFeeLabel = `게스트 ${guestFee.toLocaleString()}`;
     const finalImageLabels = {
         personalDetail: '\uAC1C\uC778\uBCC4 \uC0C1\uC138\uD45C',
