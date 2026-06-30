@@ -3950,7 +3950,18 @@ export default function KDKPage() {
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'INPUT' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        // 이 div 가 '다음: 이름 매칭' CTA 를 직접 감싸는 스크롤 콘텐츠 끝.
+                        // 자체적으로 BottomNav 높이 + 48px + safe-area 만큼 하단 여백을 두어
+                        // (바깥 wrapper 의존 없이) CTA 가 BottomNav 아래로 깔리지 않게 한다.
+                        <div
+                            data-kdk-manual-input-scroll-end
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 14,
+                                paddingBottom: 'calc(var(--bottom-nav-area, 72px) + 48px + env(safe-area-inset-bottom))',
+                            }}
+                        >
                             {/* PASTE CARD */}
                             <div style={{
                                 borderRadius: 22, background: '#FFFFFF',
@@ -4063,6 +4074,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #E1EAF5' }}>
                                     <button
                                         type="button"
+                                        data-kdk-next-name-matching
                                         disabled={!canProceedToNameMatching}
                                         onClick={() => setManualStep('MATCH_NAMES')}
                                         style={{
