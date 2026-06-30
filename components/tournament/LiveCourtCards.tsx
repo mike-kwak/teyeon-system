@@ -3,6 +3,7 @@
 import React from 'react';
 import { RotateCw, CheckCircle2, Trophy, Layers } from 'lucide-react';
 import { Match } from '@/lib/tournament_types';
+import PlayerNameTag from './PlayerNameTag';
 
 interface CardProps {
     match: Match;
@@ -32,49 +33,12 @@ const getGroupPresentation = (value?: string) => {
     };
 };
 
-const stripGuestSuffix = (name: string) => name.replace(/\s*\(G\)$/i, '');
-const isGuestName = (name: string) => /\(G\)\s*$/i.test(name);
-
-const GuestBadge = ({ size = 14 }: { size?: number }) => (
-    <span
-        aria-label="게스트"
-        style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: size, height: size, borderRadius: '50%',
-            background: '#FFF4DE', border: '1px solid #F4C979',
-            color: '#B7791F',
-            fontSize: Math.max(8, Math.round(size * 0.55)),
-            fontWeight: 900, lineHeight: 1,
-            flexShrink: 0,
-        }}
-    >
-        G
-    </span>
+// 선수명 렌더 — 공통 PlayerNameTag 사용(이름 한 줄 + (G) 배지 분리 + 길이별 폰트 축소).
+//   기존 PlayerNameRow 시그니처({name, fontSize})를 유지해 호출부를 그대로 둔다.
+//   fontSize 는 "이름 4자 이하" 기준 base 폰트로 전달된다.
+const PlayerNameRow = ({ name, fontSize = 16 }: { name: string; fontSize?: number }) => (
+    <PlayerNameTag name={name} baseSize={fontSize} weight={800} live />
 );
-
-const PlayerNameRow = ({ name, fontSize = 14 }: { name: string; fontSize?: number }) => {
-    const isGuest = isGuestName(name);
-    const cleanName = stripGuestSuffix(name);
-    // 작은 화면 대응: 폭이 좁으면 글자 자동 축소 + 최대 2줄 줄바꿈(한글은 단어 단위 keep-all).
-    // (G)는 문자열이 아닌 badge 로 분리해 잘림/겹침 방지.
-    const responsiveSize = `clamp(11px, 3.4vw, ${fontSize}px)`;
-    return (
-        <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            minWidth: 0, maxWidth: '100%',
-            fontSize: responsiveSize, fontWeight: 800, lineHeight: 1.18,
-            color: '#0F2747',
-        }}>
-            <span style={{
-                minWidth: 0,
-                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                overflow: 'hidden', textAlign: 'center',
-                overflowWrap: 'anywhere', wordBreak: 'keep-all',
-            }}>{cleanName}</span>
-            {isGuest && <GuestBadge size={13} />}
-        </span>
-    );
-};
 
 // 1. 진행 중인 경기 카드 (NOW PLAYING)
 export const PlayingMatchCard = ({
@@ -154,10 +118,10 @@ export const PlayingMatchCard = ({
                 )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, padding: '14px 10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, padding: '14px 3px' }}>
                 <div style={{
                     display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
-                    alignItems: 'center', gap: 6,
+                    alignItems: 'center', gap: 2,
                 }}>
                     {/* TEAM A */}
                     <div style={{
@@ -166,20 +130,20 @@ export const PlayingMatchCard = ({
                         background: '#F8FBFE', border: '1px solid #E1EAF5',
                         display: 'flex', flexDirection: 'column',
                         alignItems: 'center', justifyContent: 'center',
-                        padding: '4px 8px', minWidth: 0,
+                        padding: '4px 3px', minWidth: 0,
                     }}>
                         <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
-                            <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={14} />
+                            <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={16} />
                         </div>
                         <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center', marginTop: 2 }}>
-                            <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={14} />
+                            <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={16} />
                         </div>
                     </div>
 
                     <span style={{
                         flexShrink: 0,
-                        fontSize: 10, fontWeight: 900, textTransform: 'uppercase',
-                        color: accentColor, padding: '2px 6px',
+                        fontSize: 8, fontWeight: 900, textTransform: 'uppercase',
+                        color: accentColor, padding: '1px 2px',
                         borderRadius: 999, border: `1px solid ${softBorder}`,
                     }}>VS</span>
 
@@ -190,13 +154,13 @@ export const PlayingMatchCard = ({
                         background: '#F8FBFE', border: '1px solid #E1EAF5',
                         display: 'flex', flexDirection: 'column',
                         alignItems: 'center', justifyContent: 'center',
-                        padding: '4px 8px', minWidth: 0,
+                        padding: '4px 3px', minWidth: 0,
                     }}>
                         <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
-                            <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={14} />
+                            <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={16} />
                         </div>
                         <div style={{ width: '100%', textAlign: 'center', overflow: 'hidden', display: 'flex', justifyContent: 'center', marginTop: 2 }}>
-                            <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={14} />
+                            <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={16} />
                         </div>
                     </div>
                 </div>
@@ -314,8 +278,8 @@ export const WaitingMatchCard = ({
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 3,
                 }}>
-                    <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={14} />
-                    <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={14} />
+                    <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={16} />
+                    <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={16} />
                 </div>
                 <span style={{
                     flexShrink: 0, padding: '2px 6px',
@@ -328,8 +292,8 @@ export const WaitingMatchCard = ({
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 3,
                 }}>
-                    <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={14} />
-                    <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={14} />
+                    <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={16} />
+                    <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={16} />
                 </div>
             </div>
 
@@ -460,8 +424,8 @@ export const CompletedMatchCard = ({
                     alignItems: 'center', gap: 8,
                 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0, gap: 2 }}>
-                        <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={13} />
-                        <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={13} />
+                        <PlayerNameRow name={getPlayerName(match.playerIds[0], match.id)} fontSize={14} />
+                        <PlayerNameRow name={getPlayerName(match.playerIds[1], match.id)} fontSize={14} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, padding: '0 4px' }}>
                         <span style={{
@@ -478,8 +442,8 @@ export const CompletedMatchCard = ({
                         </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0, gap: 2 }}>
-                        <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={13} />
-                        <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={13} />
+                        <PlayerNameRow name={getPlayerName(match.playerIds[2], match.id)} fontSize={14} />
+                        <PlayerNameRow name={getPlayerName(match.playerIds[3], match.id)} fontSize={14} />
                     </div>
                 </div>
             </div>

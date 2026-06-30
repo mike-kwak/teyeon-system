@@ -2,28 +2,13 @@ import React from 'react';
 import { ChevronUp, ChevronDown, Minus } from 'lucide-react';
 import { RankedPlayer } from '@/lib/tournament_types';
 import { InitialAvatar } from './InitialAvatar';
+import PlayerNameTag from './PlayerNameTag';
 
 interface RankingRowProps {
     player: RankedPlayer;
     rank: number;
     amount: number;
 }
-
-const GuestBadge = () => (
-    <span
-        aria-label="게스트"
-        style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 16, height: 16, borderRadius: '50%',
-            background: '#FFF4DE', border: '1px solid #F4C979',
-            color: '#B7791F',
-            fontSize: 9, fontWeight: 900, lineHeight: 1,
-            flexShrink: 0,
-        }}
-    >
-        G
-    </span>
-);
 
 export default function RankingRow({ player, rank, amount }: RankingRowProps) {
     const formatRankingPlayerName = (name?: string, id?: string) => {
@@ -97,15 +82,15 @@ export default function RankingRow({ player, rank, amount }: RankingRowProps) {
                 )}
             </div>
 
-            {/* Name + G badge */}
-            <div
-                className="flex min-w-0 items-center gap-1.5 pl-2 text-left"
-                style={{ fontSize: 14, fontWeight: 800, color: '#0F2747', letterSpacing: '-0.01em' }}
-            >
-                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {cleanName}
-                </span>
-                {isGuest && <GuestBadge />}
+            {/* Name + G badge (공통 렌더러 — 한 줄 + 길이별 폰트 축소) */}
+            <div className="flex min-w-0 items-center pl-2 text-left">
+                <PlayerNameTag
+                    name={rawName}
+                    isGuest={isGuest}
+                    baseSize={14}
+                    weight={800}
+                    justify="flex-start"
+                />
             </div>
 
             {/* P (games) */}

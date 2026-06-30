@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RankingRow from './tournament/RankingRow';
 import { InitialAvatar } from './tournament/InitialAvatar';
+import PlayerNameTag from './tournament/PlayerNameTag';
 
 import { Match, RankedPlayer } from '@/lib/tournament_types';
 
@@ -288,17 +289,13 @@ export default function RankingTab({
                                         </div>
 
                                         <div className="flex flex-col items-center gap-2 w-full px-3 relative z-10">
-                                            <div
-                                                className="text-center truncate w-full"
-                                                style={{
-                                                    fontSize: isFirst ? 24 : 16,
-                                                    fontWeight: 900,
-                                                    color: '#0F2747',
-                                                    letterSpacing: '-0.02em',
-                                                    lineHeight: 1.15,
-                                                }}
-                                            >
-                                                {p.name}
+                                            <div className="w-full">
+                                                <PlayerNameTag
+                                                    name={p.name}
+                                                    isGuest={isGuestRankedPlayer(p)}
+                                                    baseSize={isFirst ? 24 : 16}
+                                                    weight={900}
+                                                />
                                             </div>
 
                                             <div
@@ -1750,9 +1747,72 @@ export default function RankingTab({
                     </div>
                 </div>
 
-                {/* Spacer to keep the last scrollable content above the fixed Archive CTA card */}
+                {/* 공식 기록 확정 — 순위 탭 콘텐츠의 마지막 섹션(일반 문서 흐름).
+                    sticky/fixed/overlay 아님. 아래 padding 으로 경기/순위 탭 바 + BottomNav 와 겹치지 않게 확보. */}
                 {!isArchive && (
-                    <div aria-hidden="true" style={{ height: 220 }} />
+                    <section
+                        style={{
+                            position: 'relative',
+                            width: '100%',
+                            maxWidth: 420,
+                            margin: '28px auto 0',
+                            padding: '0 16px',
+                            paddingBottom: 'calc(var(--bottom-nav-area) + 96px + env(safe-area-inset-bottom))',
+                            boxSizing: 'border-box',
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: 'flex', flexDirection: 'column', gap: 12,
+                                borderRadius: 20,
+                                background: '#FFFFFF',
+                                border: '1px solid #DCE8F5',
+                                padding: '16px',
+                                boxShadow: '0 10px 28px rgba(15,45,85,0.10)',
+                            }}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center' }}>
+                                <span style={{
+                                    fontSize: 10, fontWeight: 900, color: '#3B82F6',
+                                    letterSpacing: '0.22em', textTransform: 'uppercase',
+                                }}>
+                                    FINAL ARCHIVE
+                                </span>
+                                <p style={{
+                                    margin: 0, fontSize: 11.5, fontWeight: 700, lineHeight: 1.5,
+                                    color: '#3F5B82',
+                                }}>
+                                    이 세션의 최종 결과를 Archive와 개인 기록에 반영합니다.
+                                </p>
+                            </div>
+                            <button
+                                disabled={isGenerating}
+                                onClick={() => {
+                                    if (!isAdmin) {
+                                        alert("관리자만 아카이브를 확정할 수 있습니다.");
+                                        return;
+                                    }
+                                    onFinalize?.();
+                                }}
+                                className="w-full transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                                style={{
+                                    height: 54, borderRadius: 16,
+                                    background: isAdmin
+                                        ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)'
+                                        : '#F6FAFD',
+                                    color: isAdmin ? '#FFFFFF' : '#9CB2CC',
+                                    border: isAdmin ? 'none' : '1px solid #DCE8F5',
+                                    fontSize: 14, fontWeight: 900, letterSpacing: '0.04em',
+                                    boxShadow: isAdmin ? '0 14px 30px rgba(37,99,235,0.30)' : 'none',
+                                    cursor: isGenerating || !isAdmin ? 'not-allowed' : 'pointer',
+                                    opacity: isGenerating ? 0.6 : 1,
+                                }}
+                            >
+                                <span style={{ fontSize: 18 }}>{isAdmin ? '🏆' : '🔒'}</span>
+                                <span>{isGenerating ? '저장 중...' : (isAdmin ? '공식 기록 확정' : '관리자 전용')}</span>
+                            </button>
+                        </div>
+                    </section>
                 )}
 
                 {isArchive && snapshot_data && snapshot_data.length > 0 && (
@@ -1826,66 +1886,6 @@ export default function RankingTab({
                 )}
             </div>
 
-            {!isArchive && (
-                <div
-                    className="fixed left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-[100]"
-                    style={{ bottom: 'calc(var(--bottom-nav-area) + 120px)' }}
-                >
-                    <div
-                        style={{
-                            display: 'flex', flexDirection: 'column', gap: 12,
-                            borderRadius: 20,
-                            background: 'rgba(255,255,255,0.96)',
-                            border: '1px solid #DCE8F5',
-                            padding: '14px 16px',
-                            boxShadow: '0 20px 40px rgba(15,45,85,0.18)',
-                            backdropFilter: 'blur(10px)',
-                            WebkitBackdropFilter: 'blur(10px)',
-                        }}
-                    >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'center' }}>
-                            <span style={{
-                                fontSize: 10, fontWeight: 900, color: '#3B82F6',
-                                letterSpacing: '0.22em', textTransform: 'uppercase',
-                            }}>
-                                FINAL ARCHIVE
-                            </span>
-                            <p style={{
-                                margin: 0, fontSize: 11.5, fontWeight: 700, lineHeight: 1.5,
-                                color: '#3F5B82',
-                            }}>
-                                이 세션의 최종 결과를 Archive와 개인 기록에 반영합니다.
-                            </p>
-                        </div>
-                        <button
-                            disabled={isGenerating}
-                            onClick={() => {
-                                if (!isAdmin) {
-                                    alert("관리자만 아카이브를 확정할 수 있습니다.");
-                                    return;
-                                }
-                                onFinalize?.();
-                            }}
-                            className="w-full transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-                            style={{
-                                height: 54, borderRadius: 16,
-                                background: isAdmin
-                                    ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)'
-                                    : '#F6FAFD',
-                                color: isAdmin ? '#FFFFFF' : '#9CB2CC',
-                                border: isAdmin ? 'none' : '1px solid #DCE8F5',
-                                fontSize: 14, fontWeight: 900, letterSpacing: '0.04em',
-                                boxShadow: isAdmin ? '0 14px 30px rgba(37,99,235,0.30)' : 'none',
-                                cursor: isGenerating || !isAdmin ? 'not-allowed' : 'pointer',
-                                opacity: isGenerating ? 0.6 : 1,
-                            }}
-                        >
-                            <span style={{ fontSize: 18 }}>{isAdmin ? '🏆' : '🔒'}</span>
-                            <span>{isGenerating ? '저장 중...' : (isAdmin ? '공식 기록 확정' : '관리자 전용')}</span>
-                        </button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
