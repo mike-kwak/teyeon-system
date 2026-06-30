@@ -37,6 +37,16 @@ const DEFAULT_KDK_GUEST_FEE = 10000;
 //   · 결과적으로 CTA 는 BottomNav 위로 약 88px(노치 시 더 큼) 떠서 절대 가려지지 않는다.
 const KDK_STEP_BOTTOM_PADDING = 'calc(64px + env(safe-area-inset-bottom))';
 
+// 룰 설정/대진 생성(STEP 3 · RULES) 전용 — 하단 fixed CTA(메인+임시저장) 실측 높이 기반 여백.
+//   · fixed CTA 컨테이너: bottom = var(--bottom-nav-area)+16px, 내부 높이 = 56(메인)+10(gap)+44(임시저장) = 110px.
+//     → CTA 상단은 BottomNav 위로 약 126px. 마지막 RULES/WARNINGS 카드가 이 위로 완전히 올라오려면
+//       콘텐츠 paddingBottom ≥ var(--bottom-nav-area)+142px 필요.
+//   · 이 스텝 root <main> 은 marginBottom: -var(--page-bottom-safe) 를 함께 쓰는데, 이 음수 마진이
+//     paddingBottom 의 스크롤 기여분을 갉아먹어 과거 가림이 발생했다. 그 불확실성을 흡수하도록
+//     142px 최소값에 충분한 헤드룸을 더해 220px 로 고정한다(노치 포함 — --bottom-nav-area 에 safe-area 내장).
+//   · safe-area 중복 금지: --bottom-nav-area 가 이미 env(safe-area-inset-bottom) 을 포함하므로 env() 를 또 더하지 않는다.
+const KDK_RULES_CTA_CLEARANCE = 220;
+
 type ActiveKdkSession = {
     id: string;
     title: string;
@@ -4492,12 +4502,13 @@ A    1    봉준    상윤    영호    광현    19:00`}
         return (
             <main
                 className="relative w-full font-sans"
+                data-kdk-rules-scroll-end
                 style={{
                     minHeight: '100dvh',
                     marginBottom: 'calc(-1 * var(--page-bottom-safe))',
                     backgroundColor: '#F4F8FC',
                     color: '#0F2747',
-                    paddingBottom: 'calc(var(--bottom-nav-area) + 150px)',
+                    paddingBottom: `calc(var(--bottom-nav-area) + ${KDK_RULES_CTA_CLEARANCE}px)`,
                     boxSizing: 'border-box',
                 }}
             >
@@ -5114,9 +5125,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
 
                 {isAdmin && (
-                    <div style={{ position: 'fixed', bottom: 'calc(var(--bottom-nav-area) + 16px)', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 450, padding: '0 16px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                    <div data-kdk-rules-fixed-cta style={{ position: 'fixed', bottom: 'calc(var(--bottom-nav-area) + 16px)', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 450, padding: '0 16px', zIndex: 9999, pointerEvents: 'none', boxSizing: 'border-box' }}>
                         <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
                             <button
+                                data-kdk-rules-primary-cta
                                 disabled={isStep2ButtonDisabled}
                                 onClick={() => {
                                     if (isManualRulesMode) {
@@ -5150,6 +5162,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             </button>
                             <button
                                 type="button"
+                                data-kdk-rules-draft-cta
                                 onClick={() => {
                                     setShowWarning(true);
                                     setWarningMsg('임시 저장 기능은 다음 업데이트에서 제공됩니다.');
