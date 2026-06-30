@@ -17,8 +17,9 @@
 --   STEP 5  (선택) 자체 검증 쿼리 — 주석 처리되어 있음
 --
 -- 회원 자격 판정(앱 lib/tennisLogAccess.ts 와 동일 기준 · 화이트리스트):
---   허용(정확히 이 10개 members.role 만): 정회원 · 준회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외 · CEO · ADMIN
---   그 외 전부 잠금: 게스트 · 빈 값 · 알 수 없는 신규 역할 · members 미연결.
+--   허용(정확히 이 9개 members.role 만): 정회원 · 준회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외 · CEO
+--   그 외 전부 잠금: ADMIN 단독 · 게스트 · 빈 값 · 알 수 없는 신규 역할 · members 미연결.
+--   (ADMIN 은 시스템 보안 권한이며 클럽 회원 자격이 아니므로 TENNIS LOG 단독 접근 불가.)
 --   (차단 목록 방식이 아니라 허용 목록만 명시하는 whitelist.)
 --   로그인 사용자 ↔ members 연결 우선순위:
 --     1순위  members.auth_user_id = auth.uid()
@@ -141,13 +142,14 @@ as $$
              )
            )
        -- 화이트리스트(다중 역할 지원): members.role 을 쉼표로 분리해 각 역할을 trim 후 비교.
-       --   분리된 역할 중 하나라도 아래 10개에 속하면 허용(예: 'CEO, 재무' → 허용, '게스트, CEO' → 허용).
+       --   분리된 역할 중 하나라도 아래 9개에 속하면 허용(예: 'CEO, 재무' → 허용, '게스트, CEO' → 허용).
        --   분리 결과가 모두 비허용(게스트·빈 값·알 수 없는 역할)이면 제외.
+       --   ADMIN 은 시스템 보안 권한이지 클럽 회원 자격이 아니므로 화이트리스트에서 제외(단독 잠금).
        and exists (
          select 1
            from unnest(string_to_array(coalesce(m.role, ''), ',')) as role_part(value)
           where btrim(role_part.value) in
-                ('정회원', '준회원', '회장', '부회장', '총무', '재무', '경기', '섭외', 'CEO', 'ADMIN')
+                ('정회원', '준회원', '회장', '부회장', '총무', '재무', '경기', '섭외', 'CEO')
        )
   );
 $$;
@@ -197,7 +199,7 @@ create policy "tennis_log_tournaments_delete_own"
 
 -- ── STEP 5. (선택) 자체 검증 — 운영 적용 후 세션에서 확인 ────────────────────
 -- 1) 회원 자격 함수가 본인에 대해 true 인지:
---    select public.can_access_tennis_log();           -- 허용 역할(정회원·준회원·운영진·CEO·ADMIN): true, 게스트/미연결: false
+--    select public.can_access_tennis_log();           -- 허용 역할(정회원·준회원·운영진·CEO): true, ADMIN단독/게스트/미연결: false
 -- 2) 타인 owner_user_id 로 INSERT 시 RLS 거절(with check 위반) 되는지:
 --    insert into public.tennis_log_tournaments (owner_user_id, tournament_date, tournament_name,
 --      event_type, final_result, one_line_review)

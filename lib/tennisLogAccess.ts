@@ -14,11 +14,12 @@
 //       (게스트·빈 값·알 수 없는 신규 역할·members 미연결·조회 실패 포함)
 //
 // 허용 역할(SQL can_access_tennis_log() 와 동일 기준):
-//   정회원 · 준회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외 · CEO · ADMIN
+//   정회원 · 준회원 · 회장 · 부회장 · 총무 · 재무 · 경기 · 섭외 · CEO
 //   (members.role 실제 값 — scripts/sync_members.js / AuthContext members 조회 기준으로 확인됨.
-//    운영 데이터상 CEO/ADMIN 역할도 members.role 에 존재하므로 본인 TENNIS LOG 사용을 허용한다.)
-//   차단 목록(blocklist) 방식이 아니라, 위 10개만 허용하는 whitelist 로 처리한다.
-//   잠금 대상: 게스트 · 빈 값 · 알 수 없는 역할 · members 미연결.
+//    운영 데이터상 CEO 클럽 역할은 members.role 에 존재하므로 본인 TENNIS LOG 사용을 허용한다.
+//    단, ADMIN 은 시스템 보안 권한이지 클럽 회원 자격이 아니므로 단독으로는 허용하지 않는다.)
+//   차단 목록(blocklist) 방식이 아니라, 위 9개만 허용하는 whitelist 로 처리한다.
+//   잠금 대상: ADMIN 단독 · 게스트 · 빈 값 · 알 수 없는 역할 · members 미연결.
 //   다중 역할: members.role 에 'CEO, 재무' 처럼 쉼표로 여러 역할이 저장될 수 있어,
 //             쉼표로 분리·trim 후 하나라도 허용 역할이면 통과한다('게스트, CEO' → allowed).
 
@@ -35,7 +36,6 @@ const ALLOWED_MEMBER_ROLES = new Set<string>([
   '경기',
   '섭외',
   'CEO',
-  'ADMIN',
 ]);
 
 /**
