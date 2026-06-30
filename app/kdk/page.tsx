@@ -25,6 +25,14 @@ import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
 
+// KDK 대진 생성 스텝 공통 하단 여백 — inline-CTA(다음/생성) 스텝의 실제 스크롤 콘텐츠 끝에
+// 적용해 마지막 CTA가 BottomNav 아래로 깔리지 않게 한다.
+//   · 스텝 root 의 음수 margin(-page-bottom-safe)을 제거했으므로 GlobalMain 의 기존
+//     하단 padding(var(--page-bottom-safe) = BottomNav 높이 + 24px)이 그대로 살아 nav 를 비운다.
+//   · 그 위에 이 값(64px + safe-area)을 콘텐츠 wrapper 에 더해 CTA 아래 실제 빈 공간을 확보한다.
+//   · 결과적으로 CTA 는 BottomNav 위로 약 88px(노치 시 더 큼) 떠서 절대 가려지지 않는다.
+const KDK_STEP_BOTTOM_PADDING = 'calc(64px + env(safe-area-inset-bottom))';
+
 type ActiveKdkSession = {
     id: string;
     title: string;
@@ -3100,13 +3108,12 @@ export default function KDKPage() {
             className="relative w-full font-sans"
             style={{
                 minHeight: '100dvh',
-                marginBottom: 'calc(-1 * var(--page-bottom-safe))',
                 backgroundColor: '#F4F8FC',
                 color: '#0F2747',
                 boxSizing: 'border-box',
             }}
         >
-            <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '20px 16px var(--page-bottom-safe)', boxSizing: 'border-box' }}>
+            <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: `20px 16px ${KDK_STEP_BOTTOM_PADDING}`, boxSizing: 'border-box' }}>
                 {/* HEADER ROW */}
                 <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                     {sessionSelectorBackTarget === 'ENTRY_CHOICE' ? (
@@ -3400,7 +3407,6 @@ export default function KDKPage() {
                 className="relative w-full font-sans"
                 style={{
                     minHeight: '100dvh',
-                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
                     backgroundColor: '#F4F8FC',
                     color: '#0F2747',
                     boxSizing: 'border-box',
@@ -3411,7 +3417,7 @@ export default function KDKPage() {
                         width: '100%',
                         maxWidth: 520,
                         margin: '0 auto',
-                        padding: '20px 16px var(--page-bottom-safe)',
+                        padding: `20px 16px ${KDK_STEP_BOTTOM_PADDING}`,
                         boxSizing: 'border-box',
                     }}
                 >
@@ -3560,7 +3566,6 @@ export default function KDKPage() {
                 className="relative w-full font-sans"
                 style={{
                     minHeight: '100dvh',
-                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
                     backgroundColor: '#F4F8FC',
                     color: '#0F2747',
                     boxSizing: 'border-box',
@@ -3571,7 +3576,7 @@ export default function KDKPage() {
                         width: '100%',
                         maxWidth: '520px',
                         margin: '0 auto',
-                        padding: '20px 16px var(--page-bottom-safe)',
+                        padding: `20px 16px ${KDK_STEP_BOTTOM_PADDING}`,
                         boxSizing: 'border-box',
                     }}
                 >
@@ -3858,10 +3863,9 @@ export default function KDKPage() {
                 className="relative w-full font-sans"
                 style={{
                     minHeight: '100dvh',
-                    marginBottom: 'calc(-1 * var(--page-bottom-safe))',
                     backgroundColor: '#F4F8FC',
                     color: '#0F2747',
-                    padding: '20px 16px var(--page-bottom-safe)',
+                    padding: `20px 16px ${KDK_STEP_BOTTOM_PADDING}`,
                     boxSizing: 'border-box',
                 }}
             >
