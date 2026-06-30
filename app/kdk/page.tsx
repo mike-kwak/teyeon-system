@@ -4106,7 +4106,17 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     )}
 
                     {manualInputMode === 'PASTE' && manualStep === 'MATCH_NAMES' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        // 이름 매칭(MATCH_NAMES) 단계의 실제 스크롤 콘텐츠 끝 — '다음: 룰 설정' CTA 포함.
+                        // INPUT 단계와 동일하게 self-contained 하단 여백을 두어 CTA 가 BottomNav 아래로 깔리지 않게 한다.
+                        <div
+                            data-kdk-match-names-scroll-end
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 14,
+                                paddingBottom: 'calc(var(--bottom-nav-area, 72px) + 48px + env(safe-area-inset-bottom))',
+                            }}
+                        >
                             <button
                                 type="button"
                                 onClick={() => setManualStep('INPUT')}
