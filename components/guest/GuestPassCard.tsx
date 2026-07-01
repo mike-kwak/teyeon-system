@@ -15,6 +15,7 @@ import {
     ShieldCheck,
     Timer,
     Wallet,
+    RefreshCw,
 } from 'lucide-react';
 import type {
     GuestPassData,
@@ -374,6 +375,63 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                     `}</style>
                 </SectionCard>
 
+                {/* ── 꼭 확인해주세요 — 대진표/정산 재확인 강조 (게스트가 놓치지 않도록) ──
+                    Cool Premium Light 톤 유지 + teal/blue accent 로 시각 강조. 상태 로직 변경 없음(정적 안내). */}
+                <section
+                    style={{
+                        position: 'relative',
+                        borderRadius: 16,
+                        border: '1px solid rgba(15,159,152,0.30)',
+                        background: 'linear-gradient(180deg, #F1FBF9 0%, #FFFFFF 62%)',
+                        boxShadow: '0 2px 12px rgba(15,159,152,0.10)',
+                        padding: 16,
+                        overflow: 'hidden',
+                    }}
+                >
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #0E7E76, #1EA89B 55%, #1F5FB5)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,159,152,0.12)' }}>
+                                <Info size={15} strokeWidth={2.4} style={{ color: '#0E8079' }} />
+                            </span>
+                            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>꼭 확인해주세요</h3>
+                        </div>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 22, padding: '0 9px', borderRadius: 999, background: 'rgba(31,95,181,0.10)', color: '#1F5FB5', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap' }}>
+                            <RefreshCw size={11} strokeWidth={2.6} /> 다시 확인
+                        </span>
+                    </div>
+
+                    {/* 대진표 */}
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 12px', borderRadius: 12, background: '#FFFFFF', border: '1px solid rgba(15,159,152,0.18)' }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,159,152,0.12)' }}>
+                            <CalendarDays size={15} strokeWidth={2.2} style={{ color: '#0E8079' }} />
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>대진표는 이 화면에서 확인해요</p>
+                            <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                                운영진이 대진을 확정하면 이 화면에서 바로 볼 수 있어요. <b style={{ color: '#0E8079' }}>경기 시작 전 이 링크를 다시 열어</b> 확인해주세요.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* 경기 후 정산 */}
+                    <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 12px', borderRadius: 12, background: '#FFFFFF', border: '1px solid rgba(31,95,181,0.18)' }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(31,95,181,0.10)' }}>
+                            <Trophy size={15} strokeWidth={2.2} style={{ color: '#1F5FB5' }} />
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>경기 후 순위·게스트비·벌금 정산도 여기서</p>
+                            <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                                경기가 끝나면 최종 순위와 게스트비·벌금 정산을 운영진이 확정한 뒤 <b style={{ color: '#1F5FB5' }}>이 화면에서</b> 확인할 수 있어요.
+                            </p>
+                        </div>
+                    </div>
+
+                    <p style={{ margin: '12px 4px 0', fontSize: 11, fontWeight: 800, color: '#0E8079', lineHeight: 1.55, textAlign: 'center', wordBreak: 'keep-all' }}>
+                        이 링크를 저장해두고 <b>경기 전 · 경기 후 다시</b> 확인해주세요.
+                    </p>
+                </section>
+
                 {/* ── 이번 정모 추가 공지 (운영진이 입력한 경우만) ─────────── */}
                 {data.extraNotice && (
                     <SectionCard style={{ backgroundColor: '#FFFBEB', borderColor: 'rgba(245,158,11,0.30)' }}>
@@ -426,6 +484,13 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                             </div>
                         );
                     })()}
+                    {/* 정산 흐름 안내 — 게스트비/벌금 혼동 방지. 경기 전 선납 인상·벌금 상시 인상 금지. */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '0 0 12px', padding: '9px 11px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)' }}>
+                        <Timer size={13} strokeWidth={2.2} style={{ color: '#B45309', flexShrink: 0, marginTop: 1 }} />
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#92400E', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                            게스트비는 <b>정모가 끝난 뒤 정산</b>됩니다. 벌금이 발생한 경우 최종 순위와 함께 이 화면에서 안내돼요.
+                        </p>
+                    </div>
                     {data.fee.note && (
                         <p style={{ margin: '0 0 12px', fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.5 }}>
                             {data.fee.note}
@@ -567,6 +632,13 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                         }}>
                             {data.match.body}
                         </p>
+                        {/* 재확인 강조 — 게스트가 경기 전/후 다시 열어보도록. 상태 로직 변경 없음(정적). */}
+                        <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, background: 'rgba(31,95,181,0.08)', border: '1px solid rgba(31,95,181,0.20)' }}>
+                            <RefreshCw size={12} strokeWidth={2.6} style={{ color: '#1F5FB5', flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#1F5FB5', wordBreak: 'keep-all', lineHeight: 1.5, textAlign: 'center' }}>
+                                경기 전 · 경기 후 이 링크를 다시 열면 대진표와 결과를 확인할 수 있어요
+                            </span>
+                        </div>
                         {/* 향후 확장 — actions[] 채워지면 자동 노출. 1차는 비어있어 렌더 X. */}
                         {data.match.actions && data.match.actions.length > 0 && (
                             <div style={{
