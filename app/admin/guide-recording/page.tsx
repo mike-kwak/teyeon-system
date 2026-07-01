@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { maskPhone, maskEmail, maskAccountNumber } from '@/lib/guide/masking';
+import TennisLogRecordingGuide from '@/components/guide/TennisLogRecordingGuide';
 import {
     Clapperboard, Play, UserCircle, Users, Globe, Crown, Square,
     Eye, EyeOff, Lock, ShieldCheck, MousePointer2, Phone, Mail, CreditCard,
@@ -149,6 +150,9 @@ export default function GuideRecordingPage() {
                     </div>
                     <p style={{ margin: '10px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>현재 미리보기/녹화 상태를 유지한 채 해당 화면으로 이동합니다.</p>
                 </section>
+
+                {/* TENNIS LOG 회원용 가이드 촬영 대상 */}
+                <TennisLogRecordingGuide />
 
                 {/* 촬영 보호 적용 현황 */}
                 <section style={{ ...CARD, marginBottom: 14 }}>
