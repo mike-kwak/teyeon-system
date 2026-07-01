@@ -21,6 +21,7 @@ import {
     registerKdkPenalties,
     type KdkPenaltyPreviewRow,
 } from './kdkPenaltyService';
+import { fetchGuestPenaltyState } from './kdkGuestPenaltyService';
 import type { FinanceDuesPayment, FinanceDuesReceivable } from '@/types/finance';
 
 const TBL_RECV = 'finance_dues_receivables';
@@ -72,6 +73,8 @@ export type KdkPenaltyPaymentStatus =
 
 export interface KdkPenaltyRow {
     memberId: string | null;
+    /** 공식 Archive settlement_data[].player_id (게스트 납부 식별용 안정 id). 없으면 null. */
+    playerId: string | null;
     playerName: string;
     memberName: string | null;
     isGuest: boolean;
@@ -81,6 +84,9 @@ export interface KdkPenaltyRow {
     status: KdkPenaltyPaymentStatus;
     amountPaid: number;
     paidAt: string | null;     // 최근 납부일('YYYY-MM-DD').
+    /** 게스트 전용 벌금 납부(kdk_guest_penalty_payments)로 처리 가능한 행인지.
+     *  = 게스트 + 안정 participant_id 존재 + 저장소(테이블) 적용됨. */
+    isGuestPayable?: boolean;
 }
 
 export interface KdkPenaltySummary {
@@ -121,9 +127,10 @@ export async function loadKdkPenaltyContext(
     sessionId: string,
     settlementData: any[],
 ): Promise<KdkPenaltyContext> {
-    const [members, receivables] = await Promise.all([
+    const [members, receivables, guestState] = await Promise.all([
         fetchAllMembers(),
         fetchSessionPenaltyReceivables(sessionId),
+        fetchGuestPenaltyState(sessionId),
     ]);
     const recvIds = receivables.map((r) => r.id);
     const payments = recvIds.length > 0 ? await fetchPaymentsByReceivables(recvIds) : [];
@@ -135,16 +142,29 @@ export async function loadKdkPenaltyContext(
 
     const rows: KdkPenaltyRow[] = preview.map((p) => {
         if (!p.memberId) {
+            // 회원 미매칭. 게스트 + 안정 participant_id + 저장소 적용 시엔 게스트 전용 납부로 처리.
+            const canGuestPay = p.isGuest && !!p.playerId && guestState.available;
+            if (canGuestPay) {
+                const paid = guestState.paidByParticipant.get(p.playerId as string);
+                return {
+                    memberId: null, playerId: p.playerId, playerName: p.playerName, memberName: null, isGuest: true,
+                    amount: p.amount, matchType: p.matchType, receivableId: null,
+                    status: paid ? 'paid' : 'pending',
+                    amountPaid: paid ? p.amount : 0,
+                    paidAt: paid?.paidAt ? String(paid.paidAt).slice(0, 10) : null,
+                    isGuestPayable: true,
+                };
+            }
             return {
-                memberId: null, playerName: p.playerName, memberName: null, isGuest: p.isGuest,
+                memberId: null, playerId: p.playerId, playerName: p.playerName, memberName: null, isGuest: p.isGuest,
                 amount: p.amount, matchType: p.matchType, receivableId: null,
-                status: 'needs_link', amountPaid: 0, paidAt: null,
+                status: 'needs_link', amountPaid: 0, paidAt: null, isGuestPayable: false,
             };
         }
         const recv = recvByMember.get(p.memberId);
         if (!recv) {
             return {
-                memberId: p.memberId, playerName: p.playerName, memberName: p.memberNickname, isGuest: p.isGuest,
+                memberId: p.memberId, playerId: p.playerId, playerName: p.playerName, memberName: p.memberNickname, isGuest: p.isGuest,
                 amount: p.amount, matchType: p.matchType, receivableId: null,
                 status: 'unregistered', amountPaid: 0, paidAt: null,
             };
@@ -153,7 +173,7 @@ export async function loadKdkPenaltyContext(
         const status: KdkPenaltyPaymentStatus =
             s.derivedStatus === 'paid' ? 'paid' : s.derivedStatus === 'partial' ? 'partial' : 'pending';
         return {
-            memberId: p.memberId, playerName: p.playerName, memberName: p.memberNickname, isGuest: p.isGuest,
+            memberId: p.memberId, playerId: p.playerId, playerName: p.playerName, memberName: p.memberNickname, isGuest: p.isGuest,
             amount: Math.max(0, recv.amount_due), matchType: p.matchType, receivableId: recv.id,
             status, amountPaid: s.amount_paid, paidAt: s.latestPaidAt,
         };

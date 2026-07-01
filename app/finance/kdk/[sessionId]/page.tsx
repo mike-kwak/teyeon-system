@@ -27,6 +27,7 @@ import {
     type KdkPenaltyContext,
     type KdkPenaltyRow,
 } from '@/lib/finance/kdkSettlementService';
+import { markGuestPenaltyPaid, revertGuestPenaltyPaid } from '@/lib/finance/kdkGuestPenaltyService';
 import {
     deriveKdkPrize,
     fetchPrizePayout,
@@ -115,6 +116,16 @@ export default function KdkSettlementPage() {
     const handleUnpaid = (row: KdkPenaltyRow) => withBusy(async () => {
         if (!row.receivableId || !ctx) return;
         await markPenaltyUnpaid(row.receivableId, ctx.payments, user?.id);
+    });
+    // 게스트 벌금(비회원) — SECURITY DEFINER RPC 로 납부/되돌리기(sessionId+participantId 만 전달).
+    //   금액/이름/식별자는 서버가 공식 Archive 에서 확정. withBusy 가 load()로 실제 DB 상태 재조회.
+    const handleGuestPaid = (row: KdkPenaltyRow) => withBusy(async () => {
+        if (!row.playerId) return;
+        await markGuestPenaltyPaid({ sessionId, participantId: row.playerId });
+    });
+    const handleGuestUnpaid = (row: KdkPenaltyRow) => withBusy(async () => {
+        if (!row.playerId) return;
+        await revertGuestPenaltyPaid({ sessionId, participantId: row.playerId });
     });
     const handleBulkPaid = () => {
         if (!ctx) return;
@@ -250,7 +261,11 @@ export default function KdkSettlementPage() {
                                         )}
                                         {ctx.rows.map((r, idx) => {
                                             const key = rowKey(r);
-                                            const payable = !!r.receivableId && r.status !== 'paid';
+                                            const payable = !!r.receivableId && r.status !== 'paid'; // 회원(체크박스/일괄 대상)
+                                            // 게스트 전용 벌금 납부(회원 receivable 없음). 공식 확정 세션에서만 신규 납부 가능.
+                                            const guestPayable = !r.receivableId && r.isGuestPayable === true && r.status !== 'paid' && canRegister;
+                                            const memberPaidRevert = r.status === 'paid' && !!r.receivableId;
+                                            const guestPaidRevert = r.status === 'paid' && !r.receivableId && r.isGuestPayable === true;
                                             return (
                                                 <li key={key} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 13px', borderTop: idx === 0 ? 'none' : '1px solid #EEF2F6' }}>
                                                     <input
@@ -270,12 +285,18 @@ export default function KdkSettlementPage() {
                                                         </p>
                                                     </div>
                                                     <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                        <PenaltyStatusBadge status={r.status} />
+                                                        <PenaltyStatusBadge status={r.status} isGuest={r.isGuest} />
                                                         {payable && (
                                                             <button type="button" disabled={busy} onClick={() => handlePaid(r)} style={miniBtn('#0F9F98')}>납부 완료</button>
                                                         )}
-                                                        {r.status === 'paid' && (
+                                                        {guestPayable && (
+                                                            <button type="button" disabled={busy} onClick={() => handleGuestPaid(r)} style={miniBtn('#0F9F98')}>납부 완료</button>
+                                                        )}
+                                                        {memberPaidRevert && (
                                                             <button type="button" disabled={busy} onClick={() => handleUnpaid(r)} style={miniBtn('#94A3B8')}>미납으로</button>
+                                                        )}
+                                                        {guestPaidRevert && (
+                                                            <button type="button" disabled={busy} onClick={() => handleGuestUnpaid(r)} style={miniBtn('#94A3B8')}>미납으로</button>
                                                         )}
                                                     </div>
                                                 </li>
@@ -456,17 +477,23 @@ function NoticeRow({ notice, first, onChanged, busy, setBusy }: {
 }
 
 // ── 작은 헬퍼/스타일 ─────────────────────────────────────────────────────────
-function rowKey(r: KdkPenaltyRow) { return `${r.memberId ?? 'noid'}__${r.playerName}`; }
+function rowKey(r: KdkPenaltyRow) {
+    // 회원=member id, 게스트=participant id(동명이인 구분), 둘 다 없으면 이름.
+    if (r.memberId) return `m:${r.memberId}`;
+    if (r.playerId) return `g:${r.playerId}`;
+    return `n:${r.playerName}`;
+}
 function selectedPayableCount(rows: KdkPenaltyRow[], selected: Set<string>) {
     return rows.filter((r) => selected.has(rowKey(r)) && r.receivableId && r.status !== 'paid').length;
 }
 
-function PenaltyStatusBadge({ status }: { status: KdkPenaltyRow['status'] }) {
+function PenaltyStatusBadge({ status, isGuest }: { status: KdkPenaltyRow['status']; isGuest?: boolean }) {
     if (status === 'paid') return <StatusBadge tone="paid">납부 완료</StatusBadge>;
     if (status === 'partial') return <StatusBadge tone="partial">일부 납부</StatusBadge>;
     if (status === 'pending') return <StatusBadge tone="pending">미납</StatusBadge>;
     if (status === 'unregistered') return <StatusBadge tone="not_target">미등록</StatusBadge>;
-    return <StatusBadge tone="not_target">회원 연결 필요</StatusBadge>;
+    // needs_link — 게스트는 회원 연결이 아니라 안정 식별값(공식 기록) 확인 문제.
+    return <StatusBadge tone="not_target">{isGuest ? '게스트 식별값 확인 필요' : '회원 연결 필요'}</StatusBadge>;
 }
 
 function SectionHeader({ title }: { title: string }) {
