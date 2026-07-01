@@ -1263,7 +1263,7 @@ export default function ClubScheduleAttendancePage() {
                     {summary.arrivalBuckets.map((b) => (
                         <BucketRow
                             key={b.time}
-                            color={ARRIVAL_DOT_COLOR[b.time]}
+                            color={ARRIVAL_DOT_COLOR[b.time] ?? '#10B981'}
                             label={`${b.time} 참석`}
                             count={b.count}
                             members={b.members}
@@ -1340,6 +1340,9 @@ export default function ClubScheduleAttendancePage() {
                     )}
 
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* 참석/불참 집계는 회원 명단(activeMembers) 기준 매칭에 의존한다.
+                            명단 로딩 중/실패 시엔 확정 0 이 아니라 '집계 중'/'확인 불가' 로 표시해
+                            "참석 0명" 처럼 잘못 보이는 것을 막는다(미응답 행과 동일 정책, 시작 시간과 무관). */}
                         <NameListRow
                             color="#10B981"
                             label="참석"
@@ -1347,6 +1350,16 @@ export default function ClubScheduleAttendancePage() {
                             names={summary.attendingList.map((m) =>
                                 `${m.nickname || '회원 정보 없음'}${m.is_guest ? '(G)' : ''}`,
                             )}
+                            emptyPlaceholder={
+                                membersLoadStatus === 'loading' ? '회원 명단 불러오는 중…'
+                                    : membersLoadStatus === 'failed' ? '계산 불가 (회원 명단 미수신)'
+                                        : '—'
+                            }
+                            countOverride={
+                                membersLoadStatus === 'loading' ? '집계 중'
+                                    : membersLoadStatus === 'failed' ? '확인 불가'
+                                        : undefined
+                            }
                         />
                         <NameListRow
                             color="#EF4444"
@@ -1355,6 +1368,16 @@ export default function ClubScheduleAttendancePage() {
                             names={summary.notAttendingList.map((m) =>
                                 `${m.nickname || '회원 정보 없음'}${m.is_guest ? '(G)' : ''}`,
                             )}
+                            emptyPlaceholder={
+                                membersLoadStatus === 'loading' ? '회원 명단 불러오는 중…'
+                                    : membersLoadStatus === 'failed' ? '계산 불가 (회원 명단 미수신)'
+                                        : '—'
+                            }
+                            countOverride={
+                                membersLoadStatus === 'loading' ? '집계 중'
+                                    : membersLoadStatus === 'failed' ? '확인 불가'
+                                        : undefined
+                            }
                         />
                         {/* 미응답: 활성 회원 중 attendance row 가 없는 회원. members.nickname 사용.
                             로딩/실패 상태에서는 숫자 대신 안내문을 placeholder로 사용. */}
