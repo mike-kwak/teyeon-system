@@ -196,3 +196,70 @@ export async function deleteClubSchedule(id: string): Promise<void> {
     .eq('id', id);
   if (error) throw error;
 }
+
+// ── 삭제 안전성 판정 (상세/캘린더 공용) ──────────────────────────────────────
+// club_schedules 삭제 시 FK 정책상 attendance/댓글/Guest Pass 는 CASCADE 로 함께 삭제되지만,
+// kdk_session_meta.club_schedule_id 는 SET NULL 이라 KDK 세션이 고아로 남는다.
+// → KDK 가 연결된 일정은 삭제 차단. 명시적 club_schedule_id 만 사용(날짜/제목 추정 금지).
+// 연결 조회 실패는 fail-closed('check_failed'). KDK/Archive 는 절대 자동 삭제/변경하지 않는다.
+export type ClubScheduleDeleteReason = 'safe' | 'kdk_linked' | 'official_kdk' | 'check_failed';
+export interface ClubScheduleDeleteSafety {
+  canDelete: boolean;
+  reason: ClubScheduleDeleteReason;
+  linkedSessionCount: number;
+}
+
+export async function checkClubScheduleDeleteSafety(scheduleId: string): Promise<ClubScheduleDeleteSafety> {
+  if (!scheduleId) return { canDelete: false, reason: 'check_failed', linkedSessionCount: 0 };
+
+  // 1) 연결된 KDK 세션 조회 (명시적 연결 키). 실패 → fail-closed.
+  const { data, error } = await supabase
+    .from('kdk_session_meta')
+    .select('session_id')
+    .eq('club_schedule_id', scheduleId);
+  if (error) {
+    logSupabaseError('DeleteSafety/kdk', error);
+    return { canDelete: false, reason: 'check_failed', linkedSessionCount: 0 };
+  }
+  const rows = (data as { session_id: string }[]) || [];
+  if (rows.length === 0) return { canDelete: true, reason: 'safe', linkedSessionCount: 0 };
+
+  // 2) 공식 Archive 여부 — teyeon_archive_v1.id = KDK session_id, is_official=true.
+  //    조회 실패해도 연결 자체로 차단되므로(kdk_linked) 삭제되진 않는다(더 약한 차단으로만 강등).
+  let official = false;
+  const sessionIds = rows.map((r) => r.session_id).filter(Boolean);
+  if (sessionIds.length > 0) {
+    const { data: arch, error: archErr } = await supabase
+      .from('teyeon_archive_v1')
+      .select('id, is_official')
+      .in('id', sessionIds);
+    if (archErr) {
+      logSupabaseError('DeleteSafety/archive', archErr);
+    } else if ((arch || []).some((a: any) => a?.is_official === true)) {
+      official = true;
+    }
+  }
+
+  return {
+    canDelete: false,
+    reason: official ? 'official_kdk' : 'kdk_linked',
+    linkedSessionCount: rows.length,
+  };
+}
+
+/**
+ * 삭제 차단 사유 → 사용자 안내 문구. 차단 대상이 아니면(safe) null.
+ * 상세/캘린더가 동일 문구를 쓰도록 한 곳에서 관리(문구 drift 방지).
+ */
+export function clubScheduleDeleteBlockAlert(safety: ClubScheduleDeleteSafety): string | null {
+  switch (safety.reason) {
+    case 'safe':
+      return null;
+    case 'official_kdk':
+      return '공식 확정된 KDK 기록이 연결되어 삭제할 수 없습니다.';
+    case 'kdk_linked':
+      return 'KDK 세션이 연결되어 있어 삭제할 수 없습니다. KDK 설정에서 정모 연결을 해제한 후 다시 시도해주세요.';
+    case 'check_failed':
+      return 'KDK 연결 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.';
+  }
+}

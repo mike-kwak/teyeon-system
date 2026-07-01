@@ -47,6 +47,8 @@ import {
   fetchClubSchedules,
   saveClubSchedule as saveClubScheduleToDb,
   deleteClubSchedule as deleteClubScheduleFromDb,
+  checkClubScheduleDeleteSafety,
+  clubScheduleDeleteBlockAlert,
   ClubScheduleInput,
 } from '@/lib/clubScheduleService';
 import ClubScheduleEditorModal from '@/components/ClubScheduleEditorModal';
@@ -447,10 +449,19 @@ export default function TournamentCalendarPage() {
   const handleDeleteClubSchedule = async (id: string) => {
     if (!guardWriteAction('정모 일정 삭제')) return; // 촬영 보호 모드 차단
     if (!canEditClubSchedule) return;
-    const ok = window.confirm('이 클럽 일정을 삭제할까요?');
-    if (!ok) return;
+    if (isSavingClub) return; // 중복 클릭/동시 처리 방지
     setIsSavingClub(true);
     try {
+      // KDK 연결 보호 — confirm/delete 전에 반드시 확인(상세 화면과 동일 helper, fail-closed).
+      //   KDK·Archive 는 자동 삭제/변경하지 않는다. 차단 대상이면 안내 후 중단.
+      const safety = await checkClubScheduleDeleteSafety(id);
+      const blockMsg = clubScheduleDeleteBlockAlert(safety);
+      if (blockMsg) { alert(blockMsg); return; }
+
+      // 안전한 일정만 최종 삭제 확인. attendance/댓글/Guest Pass 는 CASCADE 로 함께 삭제됨.
+      const ok = window.confirm('이 클럽 일정을 삭제할까요?\n\n연결된 참석 기록·댓글·Guest Pass(있는 경우)가 함께 삭제됩니다.');
+      if (!ok) return;
+
       await deleteClubScheduleFromDb(id);
       await loadClubSchedules();
       setIsClubEditorOpen(false);

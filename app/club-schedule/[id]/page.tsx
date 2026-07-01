@@ -11,7 +11,15 @@ import { useAuth } from '@/context/AuthContext';
 import { useAnalytics } from '@/components/analytics/AnalyticsProvider';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { supabase } from '@/lib/supabase';
-import { fetchClubScheduleById } from '@/lib/clubScheduleService';
+import {
+    fetchClubScheduleById,
+    saveClubSchedule,
+    deleteClubSchedule,
+    checkClubScheduleDeleteSafety,
+    clubScheduleDeleteBlockAlert,
+    type ClubScheduleInput,
+} from '@/lib/clubScheduleService';
+import ClubScheduleEditorModal from '@/components/ClubScheduleEditorModal';
 import {
     fetchMyAttendance,
     upsertAttendance,
@@ -124,6 +132,10 @@ export default function ClubScheduleAttendancePage() {
 
     const [pageLoading, setPageLoading] = useState(true);
     const [scheduleLoadError, setScheduleLoadError] = useState<string>('');
+    // 일정 관리(운영진 전용) — 수정 모달 열림 / 저장·삭제 진행중(중복 클릭 방지).
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+    const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
     const [attendancesError, setAttendancesError] = useState<string>('');
     const [commentsError, setCommentsError] = useState<string>('');
     const [memberCountError, setMemberCountError] = useState<string>('');
@@ -174,6 +186,70 @@ export default function ClubScheduleAttendancePage() {
             setScheduleLoadError(err?.message || 'failed');
         }
     }, [scheduleId]);
+
+    // ── 일정 수정 저장 (운영진 전용) ───────────────────────────────────────────
+    //   기존 생성/수정 service(saveClubSchedule)를 그대로 재사용. 저장 성공 시에만 상세를
+    //   재조회해 최신값 반영. 게스트비는 여기서 다루지 않으며(단일 출처=KDK), fee_amount 는
+    //   editor 폼이 기존값을 그대로 실어 보내 보존된다.
+    const handleSaveSchedule = async (input: ClubScheduleInput) => {
+        if (!guardWriteAction('정모 일정 저장')) return; // 촬영 보호 모드 차단
+        if (!isAdmin) return;
+        if (!input.title.trim()) { alert('일정명을 입력해 주세요.'); return; }
+        if (!input.schedule_date) { alert('날짜를 입력해 주세요.'); return; }
+        setIsSavingSchedule(true);
+        try {
+            await saveClubSchedule(input, user?.id);
+            await loadSchedule();       // 성공 시에만 상세 재조회 — attendance/댓글/Guest Pass/KDK 연결은 건드리지 않음.
+            setIsEditorOpen(false);
+            alert('일정이 저장되었습니다.');
+        } catch (err: any) {
+            logSupabaseError('Schedule/save', err);
+            alert('일정 저장에 실패했습니다. 잠시 후 다시 시도해주세요.\n(DB 새 컬럼 미적용 시 콘솔의 안내 SQL을 확인해주세요.)');
+        } finally {
+            setIsSavingSchedule(false);
+        }
+    };
+
+    // ── 일정 삭제 (운영진 전용) ───────────────────────────────────────────────
+    //   삭제 전 KDK 연결(kdk_session_meta.club_schedule_id) 을 반드시 확인한다.
+    //   club_schedules 삭제 시 FK 정책상 attendance/댓글/Guest Pass 는 CASCADE 로 함께 삭제되지만,
+    //   kdk_session_meta.club_schedule_id 는 SET NULL 이라 KDK 세션이 고아로 남는다.
+    //   → KDK 가 연결된 일정은 삭제 차단(공식 Archive 여부로 안내 문구만 구체화). 자동 삭제 없음.
+    const handleDeleteSchedule = async (id: string) => {
+        if (!guardWriteAction('정모 일정 삭제')) return; // 촬영 보호 모드 차단
+        if (!isAdmin || !schedule) return;
+        if (isSavingSchedule || isDeletingSchedule) return; // 중복 클릭/동시 처리 방지
+        setIsDeletingSchedule(true);
+        try {
+            // 1) KDK 연결 보호 — 상세/캘린더 공용 helper 사용(명시적 연결 키, fail-closed).
+            //    KDK·Archive 는 자동 삭제/변경하지 않는다.
+            const safety = await checkClubScheduleDeleteSafety(id);
+            const blockMsg = clubScheduleDeleteBlockAlert(safety);
+            if (blockMsg) { alert(blockMsg); return; }
+
+            // 2) 연결 데이터 경고 후 확인. attendance/댓글/Guest Pass 는 CASCADE 로 함께 삭제됨(고아 없음).
+            const timeLabel = formatTimeRangeAmPm(schedule.start_time, schedule.end_time);
+            const ok = window.confirm(
+                '일정을 삭제하시겠습니까?\n\n' +
+                `일정: ${schedule.title}\n` +
+                `일시: ${formatDateKo(schedule.schedule_date)}${timeLabel ? ` · ${timeLabel}` : ''}\n\n` +
+                '연결된 참석 기록·댓글·Guest Pass(있는 경우)가 함께 삭제됩니다.\n' +
+                '삭제 후에는 복구가 어렵습니다.'
+            );
+            if (!ok) return;
+
+            await deleteClubSchedule(id);
+            setIsEditorOpen(false);
+            alert('일정이 삭제되었습니다.');
+            // 삭제된 상세가 뒤로가기 캐시로 다시 보이지 않도록 목록(캘린더)으로 replace 이동.
+            router.replace('/tournament-calendar');
+        } catch (err: any) {
+            logSupabaseError('Schedule/delete', err);
+            alert('일정 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        } finally {
+            setIsDeletingSchedule(false);
+        }
+    };
 
     // ── 보조 데이터 로드 (각각 try/catch — 하나가 실패해도 페이지 표시 유지) ──
     const loadAuxiliary = useCallback(async () => {
@@ -1088,6 +1164,49 @@ export default function ClubScheduleAttendancePage() {
                     )}
                 </section>
 
+                {/* 일정 관리 — 운영진(CEO/ADMIN) 전용. 기존 canEditClubSchedule 와 동일 권한 기준(isAdmin). */}
+                {isAdmin && (
+                    <section style={cardStyle}>
+                        <SectionTitle title="일정 관리" inline />
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditorOpen(true)}
+                                disabled={isSavingSchedule || isDeletingSchedule}
+                                style={{
+                                    flex: 1, minWidth: 120, height: 44, borderRadius: 12,
+                                    border: '1px solid rgba(59,130,246,0.30)', backgroundColor: 'rgba(59,130,246,0.08)',
+                                    color: '#1D4ED8', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    opacity: (isSavingSchedule || isDeletingSchedule) ? 0.5 : 1,
+                                    WebkitTapHighlightColor: 'transparent',
+                                }}
+                            >
+                                <Calendar size={14} /> 일정 수정
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleDeleteSchedule(schedule.id)}
+                                disabled={isSavingSchedule || isDeletingSchedule}
+                                style={{
+                                    flex: 1, minWidth: 120, height: 44, borderRadius: 12,
+                                    border: '1px solid rgba(239,68,68,0.28)', backgroundColor: '#FFFFFF',
+                                    color: '#DC2626', fontSize: 13, fontWeight: 800,
+                                    cursor: (isSavingSchedule || isDeletingSchedule) ? 'wait' : 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    opacity: (isSavingSchedule || isDeletingSchedule) ? 0.5 : 1,
+                                    WebkitTapHighlightColor: 'transparent',
+                                }}
+                            >
+                                <Trash2 size={14} /> {isDeletingSchedule ? '삭제 중…' : '일정 삭제'}
+                            </button>
+                        </div>
+                        <p style={{ fontSize: 10.5, fontWeight: 600, color: '#94A3B8', margin: '8px 0 0', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                            게스트비는 KDK 설정에서 관리합니다. KDK 세션이 연결된 일정은 삭제할 수 없습니다.
+                        </p>
+                    </section>
+                )}
+
                 {/* 내 참석 시간 */}
                 {attendanceEnabledFlag && (
                     <section style={cardStyle}>
@@ -1592,6 +1711,18 @@ export default function ClubScheduleAttendancePage() {
                     </div>
                 )}
             </div>
+
+            {/* 일정 수정 모달 — 운영진 전용. 기존 ClubScheduleEditorModal(생성/수정 공용) 재사용.
+                overlay z-index 9000 이라 BottomNav 위에 표시. 삭제 버튼은 handleDeleteSchedule 로 라우팅(가드 동일). */}
+            {isAdmin && isEditorOpen && (
+                <ClubScheduleEditorModal
+                    schedule={schedule}
+                    isSaving={isSavingSchedule || isDeletingSchedule}
+                    onClose={() => { if (!isSavingSchedule && !isDeletingSchedule) setIsEditorOpen(false); }}
+                    onSave={handleSaveSchedule}
+                    onDelete={handleDeleteSchedule}
+                />
+            )}
         </main>
     );
 }
