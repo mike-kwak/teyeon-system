@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import nextDynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +15,8 @@ import { RotateCw, CheckCircle2, Settings } from 'lucide-react';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
-import RankingTab from '@/components/RankingTab';
+// 성능: RankingTab(1894줄 + canvas 이미지 생성 3개)은 순위/정산 탭에서만 렌더 → 지연 로드.
+const RankingTab = nextDynamic(() => import('@/components/RankingTab'), { ssr: false });
 import { useRanking } from '@/hooks/useRanking';
 import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer } from '@/lib/kdk/settlement';
 import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';

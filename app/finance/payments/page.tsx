@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React from 'react';
+import nextDynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -34,7 +35,8 @@ import type {
     FinanceMemberLeave,
     PaymentDerivedStatus,
 } from '@/types/finance';
-import FinanceNoticeCreateModal from '@/components/finance/FinanceNoticeCreateModal';
+// 성능: 회비 공지 생성 모달(회비 현황 canvas 이미지 생성)은 "회원 공지 만들기" 클릭 시에만 로드.
+const FinanceNoticeCreateModal = nextDynamic(() => import('@/components/finance/FinanceNoticeCreateModal'), { ssr: false });
 import MonthlyResetModal from '@/components/finance/MonthlyResetModal';
 import { Megaphone, ChevronRight, RotateCcw } from 'lucide-react';
 

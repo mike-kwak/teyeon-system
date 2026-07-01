@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import nextDynamic from 'next/dynamic';
 import {
   Bell,
   CheckSquare,
@@ -18,7 +19,8 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import TournamentCSVUploadModal from '@/components/TournamentCSVUploadModal';
+// 성능: CSV 업로드 모달(1145줄 + papaparse)은 "CSV 업로드" 클릭 시에만 로드(초기 번들에서 제외).
+const TournamentCSVUploadModal = nextDynamic(() => import('@/components/TournamentCSVUploadModal'), { ssr: false });
 import {
   formatTournamentDate,
   getTournamentDday,

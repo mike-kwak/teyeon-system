@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import nextDynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin } from 'lucide-react';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
-import ArchiveResultShare, { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
+import { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
+// 성능: 결과 공유 렌더러(canvas 이미지 생성)는 아카이브 상세 화면에서만 로드.
+const ArchiveResultShare = nextDynamic(() => import('@/components/archive/ArchiveResultShare'), { ssr: false });
 import KdkFinancePenaltyModal from '@/components/archive/KdkFinancePenaltyModal';
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import { fetchAllMembers, type FinanceMember } from '@/lib/finance/duesService';

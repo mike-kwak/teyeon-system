@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Home, Medal, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -32,6 +32,7 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, setSystemMessage } = useAuth();
 
   // Guest Pass / TEYEON 공개 둘러보기(/club) 페이지에서는 앱 내부 chrome을 노출하지 않음.
@@ -58,7 +59,13 @@ export default function BottomNav() {
       return;
     }
     e.preventDefault();
-    window.location.href = '/kdk?entry=live';
+    // 성능/UX: 다른 화면에서 LIVE COURT 진입 시 전체 문서 리로드(=앱 재시작 체감) 대신 소프트 내비.
+    //   이미 /kdk 안이면 entry=live 재적용(마운트 1회 파싱)을 위해 기존 하드 내비 유지.
+    if (pathname?.startsWith('/kdk')) {
+      window.location.href = '/kdk?entry=live';
+    } else {
+      router.push('/kdk?entry=live');
+    }
   };
 
   const handleGuestClick = (e: React.MouseEvent, itemLabel: string) => {
