@@ -1326,7 +1326,7 @@ export default function ClubScheduleAttendancePage() {
                                     <div
                                         role="dialog" aria-modal="true" aria-label="참석 응답 취소 확인"
                                         onClick={() => { if (!cancelling) setCancelOpen(false); }}
-                                        style={{ position: 'fixed', inset: 0, zIndex: 80, backgroundColor: 'rgba(15,27,51,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+                                        style={{ position: 'fixed', inset: 0, zIndex: 1200, backgroundColor: 'rgba(15,27,51,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
                                     >
                                         <div
                                             onClick={(e) => e.stopPropagation()}

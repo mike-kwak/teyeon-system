@@ -179,7 +179,9 @@ export default function TennisLogPage() {
         maxWidth: 450,
         margin: '0 auto',
         padding: '0 16px',
-        paddingBottom: 'calc(28px + env(safe-area-inset-bottom))',
+        // 하단 BottomNav clearance + safe-area 는 공통 GlobalMain(var(--page-bottom-safe))이 담당.
+        // 여기서는 카드 디자인용 소량 여백만 두고 safe-area 를 다시 더하지 않는다(이중 방지).
+        paddingBottom: 28,
         display: 'flex',
         flexDirection: 'column',
         boxSizing: 'border-box',
@@ -383,7 +385,7 @@ export default function TennisLogPage() {
         <div
           style={{
             position: 'fixed',
-            bottom: 88,
+            bottom: 'calc(var(--bottom-nav-area) + 12px)',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 2000,

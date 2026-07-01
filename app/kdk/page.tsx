@@ -5396,7 +5396,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     <div style={{
                         position: 'fixed', inset: 0,
                         background: 'rgba(15,45,85,0.45)', backdropFilter: 'blur(8px)',
-                        zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: 24,
                     }}>
                         <div style={{
@@ -6115,7 +6115,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 <div
                     onClick={() => setShowMemberEditModal(false)}
                     style={{
-                        position: 'fixed', inset: 0, zIndex: 300,
+                        position: 'fixed', inset: 0, zIndex: 1200,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: 'rgba(15,45,85,0.45)', backdropFilter: 'blur(6px)',
                         padding: '16px',

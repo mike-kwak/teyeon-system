@@ -86,7 +86,8 @@ export default function TournamentListPage() {
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        paddingBottom: 'calc(28px + env(safe-area-inset-bottom))',
+        // BottomNav clearance/safe-area 는 공통 GlobalMain(var(--page-bottom-safe))이 담당. 여기선 소량 여백만(safe-area 이중 방지).
+        paddingBottom: 28,
       }}
     >
       {/* 헤더 바 */}

@@ -231,9 +231,8 @@ export default function GuestPage() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        // GlobalMain은 paddingBottom: 120px이지만 Stitches 적용 타이밍에 의존하지 않고
-        // BottomNav(72px) + safe-area + buffer를 직접 명시
-        paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
+        // 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이 단 한 번만 적용한다.
+        // 페이지 자체 clearance(88px + safe-area)는 이중 패딩 + safe-area 중복이라 제거.
       }}
     >
       {/* ── Content wrapper ── */}
