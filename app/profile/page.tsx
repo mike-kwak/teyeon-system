@@ -66,46 +66,83 @@ export default function ProfilePage() {
     const [kdkError, setKdkError] = useState('');
     const [memberLookupDone, setMemberLookupDone] = useState(false);
     const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
+    // 회원 연결 상태: none(정상/미판정) · no-link(연결 없음) · conflict(중복/충돌 — 운영진 확인 필요)
+    const [linkIssue, setLinkIssue] = useState<'none' | 'no-link' | 'conflict'>('none');
 
     useEffect(() => {
-        if (!user?.email) return;
+        // 인증 uid 기준으로 조회 — 이메일이 없어도 members.auth_user_id 매칭이 가능해야 함.
+        if (!user?.id) return;
 
         let cancelled = false;
+        const authEmailNorm = (user.email || '').trim().toLowerCase();
+
+        // 안전한 회원 연결 우선순위:
+        //   1순위: members.auth_user_id === auth.uid() 정확 일치
+        //   2순위: 검증된 auth 이메일과 members.email 정확 일치(소문자·trim, 정확히 1명, 안전 조건 충족)
+        // 이름/닉네임 부분 일치·첫 결과 자동 선택·임의 덮어쓰기는 절대 사용하지 않는다.
+        const resolveLinkedMember = async (): Promise<{ member: LinkedMember | null; issue: 'none' | 'no-link' | 'conflict' }> => {
+            // 1순위: auth_user_id 정확 일치
+            const { data: byAuth, error: authErr } = await supabase
+                .from('members')
+                .select('*')
+                .eq('auth_user_id', user.id);
+            if (authErr) throw authErr;
+            if (byAuth && byAuth.length > 1) return { member: null, issue: 'conflict' }; // 동일 auth_user_id 중복 연결
+            if (byAuth && byAuth.length === 1) return { member: byAuth[0] as LinkedMember, issue: 'none' };
+
+            // 2순위: 검증된 이메일 exact match(안전 조건 모두 충족 시에만 표시)
+            if (authEmailNorm) {
+                const { data: byEmailRaw, error: emailErr } = await supabase
+                    .from('members')
+                    .select('*')
+                    .ilike('email', user.email!.trim()); // 대소문자 무시 coarse 필터
+                if (emailErr) throw emailErr;
+                // ilike coarse 결과를 JS에서 소문자·trim 정확 일치로 최종 검증(부분 일치 방지).
+                const exact = (byEmailRaw || []).filter(
+                    (m: any) => (m.email || '').trim().toLowerCase() === authEmailNorm,
+                );
+                if (exact.length > 1) return { member: null, issue: 'conflict' }; // 동일 이메일 회원 2명+
+                if (exact.length === 1) {
+                    const m = exact[0] as any;
+                    const mAuth = (m.auth_user_id || '').trim();
+                    // member.auth_user_id 가 비어있거나 현재 uid 와 동일할 때만 안전.
+                    // (1순위에서 이 uid 로 연결된 member 가 없음을 확인했으므로, 다른 uid 연결이면 충돌)
+                    if (!mAuth || mAuth === user.id) return { member: m as LinkedMember, issue: 'none' };
+                    return { member: null, issue: 'conflict' };
+                }
+            }
+
+            return { member: null, issue: 'no-link' };
+        };
 
         const loadOfficialKdkStats = async () => {
             setKdkLoading(true);
             setKdkError('');
             setMemberLookupDone(false);
+            setLinkIssue('none');
 
             try {
-                const { data: members, error: memberError } = await supabase
-                    .from('members')
-                    .select('*')
-                    .eq('email', user.email)
-                    .limit(1);
-
-                if (memberError) throw memberError;
-
-                const member = members?.[0] as LinkedMember | undefined;
+                const { member, issue } = await resolveLinkedMember();
                 if (!member) {
                     if (!cancelled) {
                         setLinkedMember(null);
                         setSummary(emptyProfileSummary);
                         setRecentRecords([]);
                         setPlayerCardStats(undefined);
+                        setLinkIssue(issue);
                         setMemberLookupDone(true);
                     }
                     return;
                 }
 
-                // profile_visibility_level / profile avatar 보강 — /members 페이지와 동일 패턴
+                // profile_visibility_level / profile avatar 보강 — auth uid(profiles.id) 기준.
                 let profileVisibility: ProfileVisibility | undefined;
                 let profileAvatarUrl: string | undefined;
                 try {
                     const { data: profileRow } = await supabase
                         .from('profiles')
                         .select('avatar_url, profile_visibility_level')
-                        .eq('email', user.email)
+                        .eq('id', user.id)
                         .maybeSingle();
                     if (profileRow) {
                         profileVisibility = (profileRow.profile_visibility_level as ProfileVisibility) || undefined;
@@ -133,6 +170,7 @@ export default function ProfilePage() {
                     setSummary(result.summary);
                     setRecentRecords(result.recentRecords);
                     setPlayerCardStats(result.playerCardStats);
+                    setLinkIssue('none');
                     setMemberLookupDone(true);
                 }
             } catch (err: any) {
@@ -142,6 +180,7 @@ export default function ProfilePage() {
                     setSummary(emptyProfileSummary);
                     setRecentRecords([]);
                     setPlayerCardStats(undefined);
+                    setLinkIssue('none');
                     setMemberLookupDone(true);
                 }
             } finally {
@@ -154,7 +193,7 @@ export default function ProfilePage() {
         return () => {
             cancelled = true;
         };
-    }, [user?.email]);
+    }, [user?.id, user?.email]);
 
     const handleVisibilitySaved = useCallback((level: VisibilityLevel) => {
         setLinkedMember((prev) => prev ? { ...prev, profile_visibility_level: level } : prev);
@@ -253,8 +292,8 @@ export default function ProfilePage() {
                     </button>
                 </header>
 
-                {/* LOADING */}
-                {isLoading || (user && !memberLookupDone && kdkLoading) ? (
+                {/* LOADING — 인증 로딩 중 또는 회원 조회 완료 전에는 "회원 연결 없음"을 먼저 보이지 않게 함 */}
+                {isLoading || (user && !memberLookupDone) ? (
                     <section
                         style={{
                             borderRadius: 22, background: '#FFFFFF',
@@ -427,11 +466,29 @@ export default function ProfilePage() {
                                 }}
                             >
                                 <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>
-                                    멤버 프로필 연결이 필요합니다
+                                    {kdkError
+                                        ? '기록을 불러오지 못했습니다'
+                                        : linkIssue === 'conflict'
+                                            ? '회원 계정 연결 확인이 필요합니다'
+                                            : '회원 계정 연결을 확인해 주세요'}
                                 </p>
-                                <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 700, color: '#56729A', lineHeight: 1.55 }}>
-                                    카카오 계정과 클럽 멤버 프로필이 연결되면 공식 KDK 기록이 이곳에 누적됩니다.
+                                <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 700, color: '#56729A', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                                    {kdkError
+                                        ? '일시적인 오류로 회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+                                        : linkIssue === 'conflict'
+                                            ? '현재 로그인 계정과 TEYEON 회원 정보 연결에 확인이 필요한 상태입니다(중복 또는 충돌). 운영진에게 계정 연결 확인을 요청해 주세요.'
+                                            : '현재 로그인 계정과 TEYEON 회원 정보가 연결되지 않았습니다. 실제 회원이라면 운영진에게 계정 연결을 요청해 주세요.'}
                                 </p>
+                                {!kdkError && (
+                                    <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 12, background: '#F6FAFD', border: '1px solid #DCE8F5' }}>
+                                        <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: '#7A93B3', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                            운영진 전달용 · 로그인 이메일
+                                        </p>
+                                        <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 800, color: '#0F2747', wordBreak: 'break-all' }}>
+                                            {shouldMaskPrivateData ? maskEmail(user?.email || '') : (user?.email || '(이메일 정보 없음)')}
+                                        </p>
+                                    </div>
+                                )}
                             </section>
                         )}
 
