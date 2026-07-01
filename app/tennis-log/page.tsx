@@ -19,7 +19,12 @@ import {
 } from '@/lib/tennisLogAccess';
 import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
 import { countTournamentsByYear, getRecentTournaments } from '@/lib/tennisLogTournamentService';
-import { displayFinalResult, type TournamentRecord } from '@/types/tennisLog';
+import {
+  countLessonsByYear,
+  getRecentLessons,
+  getCurrentPracticeGoal,
+} from '@/lib/tennisLogLessonService';
+import { displayFinalResult, type TournamentRecord, type TennisLessonRecord } from '@/types/tennisLog';
 
 // Cool Premium Light 토큰
 const NAVY = '#0F1B33';
@@ -30,7 +35,6 @@ const SUB = '#64748B';
 const FAINT = '#94A3B8';
 const CARD_BORDER = 'rgba(0,0,0,0.06)';
 
-const NEXT_STEP_TOAST = '다음 단계에서 제공될 기능입니다.';
 const PRIVATE_NOTE = 'TENNIS LOG 기록은 본인만 확인할 수 있습니다.';
 
 export default function TennisLogPage() {
@@ -39,12 +43,13 @@ export default function TennisLogPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // 올해 요약 — 외부 대회는 실제 DB 연동. 레슨은 이번 작업 범위 밖(0 유지).
+  // 올해 요약 — 외부 대회·레슨 모두 실제 DB 연동.
   const currentYear = new Date().getFullYear();
   const [yearlyTournamentCount, setYearlyTournamentCount] = useState<number | null>(null);
   const [recentTournaments, setRecentTournaments] = useState<TournamentRecord[]>([]);
-  const [yearlyLessonCount] = useState<number>(0);
-  const [practiceGoal] = useState<string | null>(null);
+  const [yearlyLessonCount, setYearlyLessonCount] = useState<number | null>(null);
+  const [recentLessons, setRecentLessons] = useState<TennisLessonRecord[]>([]);
+  const [practiceGoal, setPracticeGoal] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -55,13 +60,19 @@ export default function TennisLogPage() {
     if (access !== 'allowed') return;
     let cancelled = false;
     (async () => {
-      const [countRes, recentRes] = await Promise.all([
+      const [tCount, tRecent, lCount, lRecent, goal] = await Promise.all([
         countTournamentsByYear(currentYear),
         getRecentTournaments(2),
+        countLessonsByYear(currentYear),
+        getRecentLessons(2),
+        getCurrentPracticeGoal(),
       ]);
       if (cancelled) return;
-      setYearlyTournamentCount(countRes.error ? 0 : countRes.data ?? 0);
-      setRecentTournaments(recentRes.error ? [] : recentRes.data ?? []);
+      setYearlyTournamentCount(tCount.error ? 0 : tCount.data ?? 0);
+      setRecentTournaments(tRecent.error ? [] : tRecent.data ?? []);
+      setYearlyLessonCount(lCount.error ? 0 : lCount.data ?? 0);
+      setRecentLessons(lRecent.error ? [] : lRecent.data ?? []);
+      setPracticeGoal(goal.error ? null : goal.data ?? null);
     })();
     return () => {
       cancelled = true;
@@ -254,7 +265,8 @@ export default function TennisLogPage() {
           icon={<GraduationCap size={18} strokeWidth={1.9} />}
           accent={AQUA}
           label={`${currentYear} 레슨`}
-          count={yearlyLessonCount}
+          count={yearlyLessonCount ?? 0}
+          loading={yearlyLessonCount === null}
         />
       </div>
 
@@ -293,9 +305,9 @@ export default function TennisLogPage() {
             <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: INK, lineHeight: 1.5 }}>{practiceGoal}</p>
           ) : (
             <>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: INK }}>아직 설정한 목표가 없어요</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: INK }}>아직 설정된 연습 목표가 없습니다.</p>
               <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 500, color: FAINT, lineHeight: 1.5 }}>
-                이번 시즌의 연습 목표를 기록해 보세요.
+                레슨일지에 다음 목표를 기록해 보세요.
               </p>
             </>
           )}
@@ -315,7 +327,7 @@ export default function TennisLogPage() {
           icon={<GraduationCap size={17} strokeWidth={1.9} />}
           accent={AQUA}
           label="레슨일지 작성"
-          onClick={() => setToast(NEXT_STEP_TOAST)}
+          onClick={() => router.push('/tennis-log/lessons/new')}
         />
       </div>
 
@@ -339,14 +351,26 @@ export default function TennisLogPage() {
         />
       )}
 
-      {/* 최근 레슨 */}
+      {/* 최근 레슨 — 실제 DB 연동 */}
       <div style={{ height: 18 }} />
-      <SectionHeaderRow title="최근 레슨" onViewAll={() => setToast(NEXT_STEP_TOAST)} />
-      <EmptyState
-        icon={<GraduationCap size={20} strokeWidth={1.8} />}
-        title="아직 작성한 레슨일지가 없어요"
-        body="레슨 내용을 남기면 이곳에서 다시 볼 수 있어요."
-      />
+      <SectionHeaderRow title="최근 레슨" onViewAll={() => router.push('/tennis-log/lessons')} />
+      {recentLessons.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {recentLessons.map((r) => (
+            <RecentLessonCard
+              key={r.id}
+              record={r}
+              onClick={() => router.push(`/tennis-log/lessons/${r.id}`)}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={<GraduationCap size={20} strokeWidth={1.8} />}
+          title="아직 작성한 레슨일지가 없습니다."
+          body="오늘 배운 내용을 짧게 기록해 보세요."
+        />
+      )}
 
       {/* Toast */}
       {toast && (
@@ -552,6 +576,62 @@ function RecentTournamentCard({ record, onClick }: { record: TournamentRecord; o
           }}
         >
           {record.one_line_review}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function RecentLessonCard({ record, onClick }: { record: TennisLessonRecord; onClick: () => void }) {
+  const dateLabel = (() => {
+    const [y, m, d] = (record.lesson_date || '').split('-');
+    return y && m && d ? `${y}.${m}.${d}` : record.lesson_date || '';
+  })();
+  // 요약: 오늘 배운 점 우선, 없으면 핵심 교정 포인트.
+  const summary = (record.learned_points || record.correction_points || '').trim();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        width: '100%',
+        boxSizing: 'border-box',
+        backgroundColor: '#FFFFFF',
+        border: `1px solid ${CARD_BORDER}`,
+        borderRadius: 14,
+        boxShadow: '0 1px 5px rgba(0,0,0,0.04)',
+        padding: '13px 15px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 5,
+        cursor: 'pointer',
+      }}
+      className="active:scale-[0.99]"
+    >
+      <span style={{ fontSize: 11.5, fontWeight: 700, color: SUB, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {dateLabel}
+        {record.coach_name ? ` · ${record.coach_name}` : ''}
+      </span>
+      <span style={{ fontSize: 13.5, fontWeight: 800, color: INK, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {record.lesson_topic}
+      </span>
+      {summary && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: '#586478',
+            lineHeight: 1.5,
+            display: '-webkit-box',
+            WebkitLineClamp: 1,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            wordBreak: 'keep-all',
+          }}
+        >
+          {summary}
         </p>
       )}
     </button>

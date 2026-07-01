@@ -1,5 +1,9 @@
-// TENNIS LOG — 외부 대회 개인 기록 타입.
-// DB: public.tennis_log_tournaments (supabase/add_tennis_log_tournaments.sql)
+// TENNIS LOG — 개인 기록 타입(외부 대회 + 레슨일지).
+// DB: public.tennis_log_tournaments, public.tennis_log_lessons
+//
+// 네이밍: DB row 와 1:1 대응되는 snake_case 필드를 사용한다(대회 기록 TournamentRecord 와 동일 관례).
+//   지시문의 camelCase 권장(TennisLessonLog)은 기존 tennis-log 모듈 관례와 충돌하므로,
+//   일관성을 위해 snake_case 로 조정하되 의미는 동일하게 유지한다.
 
 export type TournamentMatchOutcome = 'win' | 'loss' | 'draw' | 'other';
 
@@ -139,4 +143,34 @@ export function displayFinalResult(record: Pick<TournamentRecord, 'final_result'
     return detail ? `본선 · ${detail}` : '본선';
   }
   return finalResultLongLabel(record.final_result);
+}
+
+// ── 레슨일지 (DB: public.tennis_log_lessons) ─────────────────────────────────
+
+/** DB row 와 1:1 대응되는 레슨일지 기록. */
+export interface TennisLessonRecord {
+  id: string;
+  owner_user_id: string;
+  lesson_date: string; // 'YYYY-MM-DD'
+  coach_name: string | null;
+  lesson_topic: string; // 레슨 주제
+  learned_points: string; // 오늘 배운 핵심 내용
+  correction_points: string | null; // 자세/동작 교정 포인트
+  practice_tasks: string | null; // 다음 레슨 전 연습 과제
+  next_goal: string | null; // 현재 연습 목표로 사용
+  free_memo: string | null; // 자유 메모
+  created_at: string;
+  updated_at: string;
+}
+
+/** 생성/수정 입력값(owner_user_id·id·타임스탬프 제외). */
+export interface TennisLessonInput {
+  lesson_date: string;
+  coach_name?: string | null;
+  lesson_topic: string;
+  learned_points: string;
+  correction_points?: string | null;
+  practice_tasks?: string | null;
+  next_goal?: string | null;
+  free_memo?: string | null;
 }
