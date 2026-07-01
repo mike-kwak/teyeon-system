@@ -5133,7 +5133,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '160px', height: '40px' }}>
                                     <button onClick={() => changeGuestFee((guestFee ?? 0) - 1000)} disabled={officialLocked} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: officialLocked ? 'not-allowed' : 'pointer', opacity: officialLocked ? 0.4 : 1, flex: 'none' }}>−</button>
-                                    <span style={{ fontSize: guestFee == null ? '13px' : '22px', fontWeight: 900, color: guestFee == null ? '#9CA3AF' : '#0F2747', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{guestFee == null ? '미설정' : `${(guestFee / 1000).toFixed(0)}k`}</span>
+                                    <span style={{ fontSize: guestFee == null || guestFee === 0 ? '13px' : '22px', fontWeight: 900, color: guestFee == null ? '#9CA3AF' : '#0F2747', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', flex: 'none' }}>{guestFee == null ? '미설정' : guestFee === 0 ? '무료' : `${(guestFee / 1000).toFixed(0)}k`}</span>
                                     <button onClick={() => changeGuestFee((guestFee ?? 0) + 1000)} disabled={officialLocked} style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: '22px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: officialLocked ? 'not-allowed' : 'pointer', opacity: officialLocked ? 0.4 : 1, flex: 'none' }}>+</button>
                                 </div>
                             </div>
@@ -5669,7 +5669,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         background: '#EEF5FB', border: '1px solid #DCE8F5',
                     }}>
                         <span style={{ fontSize: 9, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.16em', textTransform: 'uppercase' }}>GUEST</span>
-                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>{guestFee == null ? '미설정' : `${guestFee / 1000}K`}</span>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#0F2747' }}>{guestFee == null ? '미설정' : guestFee === 0 ? '무료' : `${guestFee / 1000}K`}</span>
                     </span>
                     <span
                         style={{
@@ -6168,6 +6168,42 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+
+                                    {/* 이번 KDK 게스트비 — kdk_session_meta.guest_fee 단일 출처.
+                                        기존 changeGuestFee(officialLocked 차단 · 진행중 확인모달 · 저장직전 fail-closed · 성공시에만 반영)를
+                                        그대로 재사용. 별도 저장 로직/저장 버튼 없이 ± 로 확정 저장한다. null=미설정, 0=무료(유효). */}
+                                    <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px dashed #E1EAF5' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                            <label style={{ fontSize: 11.5, fontWeight: 900, color: '#3F5B82' }}>이번 KDK 게스트비</label>
+                                            <span style={{ fontSize: 9.5, fontWeight: 800, color: officialLocked ? '#B7791F' : '#94A3B8', letterSpacing: '0.02em' }}>
+                                                {officialLocked ? '확정 잠금' : guestFee == null ? '미설정' : guestFee === 0 ? '무료' : `${(guestFee / 1000).toFixed(0)}K`}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => changeGuestFee((guestFee ?? 0) - 1000)}
+                                                disabled={officialLocked}
+                                                aria-label="게스트비 1,000원 감소"
+                                                style={{ width: 44, height: 44, borderRadius: 12, background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: officialLocked ? 'not-allowed' : 'pointer', opacity: officialLocked ? 0.4 : 1, flex: 'none' }}
+                                            >−</button>
+                                            <span style={{ flex: 1, textAlign: 'center', fontSize: guestFee == null ? 14 : 18, fontWeight: 900, color: guestFee == null ? '#9CA3AF' : '#0F2747', letterSpacing: '-0.01em' }}>
+                                                {guestFee == null ? '미설정' : guestFee === 0 ? '무료' : `${guestFee.toLocaleString()}원`}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => changeGuestFee((guestFee ?? 0) + 1000)}
+                                                disabled={officialLocked}
+                                                aria-label="게스트비 1,000원 증가"
+                                                style={{ width: 44, height: 44, borderRadius: 12, background: '#FFFFFF', border: '1px solid #DCE8F5', color: '#1F5FB5', fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: officialLocked ? 'not-allowed' : 'pointer', opacity: officialLocked ? 0.4 : 1, flex: 'none' }}
+                                            >+</button>
+                                        </div>
+                                        <p style={{ margin: '8px 0 0', fontSize: 10, fontWeight: 600, color: officialLocked ? '#B7791F' : '#94A3B8', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                                            {officialLocked
+                                                ? OFFICIAL_LOCK_MSG
+                                                : '이 금액은 정모 일정, Guest Pass, 순위표와 최종 결과에 동일하게 적용됩니다.'}
+                                        </p>
                                     </div>
 
                                     {/* 조별 코트 운영 — 조마다 사용할 코트를 지정. 변경은 다음 신규 투입부터 적용. */}
