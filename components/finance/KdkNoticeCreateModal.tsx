@@ -102,7 +102,7 @@ export default function KdkNoticeCreateModal({ sessionId, kdkDate, sessionTitle,
                     <button type="button" onClick={onClose} aria-label="닫기" style={closeBtn}><X size={16} /></button>
                 </div>
 
-                <div style={body}>
+                <div data-kdk-notice-modal-scroll style={body}>
                     {!result ? (
                         <>
                             {/* 요약 미리보기 */}
@@ -197,7 +197,9 @@ function localToISO(v: string): string | null {
 const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden', overscrollBehavior: 'none', touchAction: 'none' };
 const sheet: React.CSSProperties = { width: '100%', maxWidth: 480, maxHeight: '92dvh', background: '#F4F7FB', borderTopLeftRadius: 22, borderTopRightRadius: 22, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 -10px 40px rgba(15,45,85,0.25)' };
 const header: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', background: '#FFFFFF', borderBottom: '1px solid #E3ECF6' };
-const body: React.CSSProperties = { flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 };
+// 하단 패딩에 safe-area 포함: 바텀시트가 뷰포트 바닥에 붙어 있어, 마지막 요소(공지 생성 버튼)가
+// 홈 인디케이터(safe-area-inset-bottom)에 가려지지 않도록 스크롤 영역 자체에 여백을 확보한다.
+const body: React.CSSProperties = { flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '16px 16px calc(24px + env(safe-area-inset-bottom)) 16px', display: 'flex', flexDirection: 'column', gap: 12 };
 const closeBtn: React.CSSProperties = { width: 32, height: 32, borderRadius: 10, border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#56729A', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
 const input: React.CSSProperties = { width: '100%', height: 40, borderRadius: 10, border: '1px solid #DCE8F5', background: '#FFFFFF', padding: '0 12px', fontSize: 13, fontWeight: 600, color: NAVY, boxSizing: 'border-box', outline: 'none' };
 const copyBtn: React.CSSProperties = { padding: '0 14px', height: 40, borderRadius: 10, border: 'none', background: '#0F9F98', color: '#FFFFFF', fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' };

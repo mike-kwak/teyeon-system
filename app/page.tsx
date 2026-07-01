@@ -521,10 +521,7 @@ export default function Home() {
         style={{
           width: '100%',
           maxWidth: 430,
-          // 하단 디자인 여백 40px: GlobalMain(--page-bottom-safe)의 +24px만으로는 실기기에서
-          // BottomNav 반투명 배경/상단 그림자 + 카드 자체 그림자에 마지막 카드가 살짝 잘려 보임.
-          // BottomNav 높이/safe-area를 다시 더하지 않고 카드 아래 디자인 여백만 보강(과여백 방지: 64px 미만 유지).
-          padding: '0 16px 40px',
+          padding: '0 16px',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -830,6 +827,10 @@ export default function Home() {
             </div>
           </>
         )}
+        {/* 하단 스크롤 spacer — 실제 흐름 요소(flexShrink:0 고정 높이)라 부모의 min-height/border-box에
+            흡수되지 않고 항상 scrollHeight 를 늘린다. 모바일 동적 뷰포트(dvh)에서 마지막 메뉴 카드가
+            BottomNav 뒤로 깔리지 않도록 카드 아래 실제 빈 공간(64px)을 보장한다. */}
+        <div data-home-content-end aria-hidden style={{ height: 64, flexShrink: 0 }} />
       </div>
 
       {/* Toast */}
