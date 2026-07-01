@@ -89,6 +89,48 @@ type ActiveKdkSession = {
 
 type KdkEntryBackTarget = 'ENTRY_CHOICE' | 'MAIN' | null;
 
+// ── 공식 기록 확정/완료 화면 — Cool Premium Light 공용 스타일 ─────────────────
+const FINALIZE_OVERLAY: React.CSSProperties = {
+    position: 'fixed', inset: 0, zIndex: 9000,
+    background: 'linear-gradient(180deg, #F4F9FD 0%, #E8F0F8 100%)',
+    overflowY: 'auto',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: `max(20px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))`,
+    WebkitOverflowScrolling: 'touch',
+};
+const FINALIZE_CARD: React.CSSProperties = {
+    width: '100%', maxWidth: 380,
+    background: '#FFFFFF', border: '1px solid #E1EAF5', borderRadius: 20,
+    padding: 24, boxShadow: '0 18px 48px rgba(15,39,71,0.12)',
+    margin: 'auto',
+};
+const FINALIZE_SESSION_BOX: React.CSSProperties = {
+    marginTop: 14, padding: '12px 14px', borderRadius: 12,
+    background: '#F8FBFE', border: '1px solid #E1EAF5',
+};
+const FINALIZE_BTN_PRIMARY: React.CSSProperties = {
+    flex: 1, height: 46, borderRadius: 12, border: 'none',
+    background: 'linear-gradient(90deg, #16A085 0%, #1F5FB5 100%)',
+    color: '#FFFFFF', fontSize: 13.5, fontWeight: 800, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 8px 18px rgba(31,95,181,0.20)', WebkitTapHighlightColor: 'transparent',
+};
+const FINALIZE_BTN_SECONDARY: React.CSSProperties = {
+    flex: 1, height: 46, borderRadius: 12,
+    border: '1px solid #DCE8F5', background: '#FFFFFF',
+    color: '#1F5FB5', fontSize: 13.5, fontWeight: 800, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    WebkitTapHighlightColor: 'transparent',
+};
+function FinalizeRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '11px 14px', background: '#FFFFFF' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748B', flexShrink: 0 }}>{label}</span>
+            <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong ? 900 : 800, color: '#0F2747', textAlign: 'right', wordBreak: 'keep-all', lineHeight: 1.35 }}>{value}</span>
+        </div>
+    );
+}
+
 export default function KDKPage() {
     const router = useRouter();
     const { role, hasPermission, getRestrictionMessage, user } = useAuth();
@@ -258,6 +300,12 @@ export default function KDKPage() {
     const [archiveSuccessUrl, setArchiveSuccessUrl] = useState("");
     const [showConfetti, setShowConfetti] = useState(false);
     const [celebrationMode, setCelebrationMode] = useState(false);
+    // 공식 기록 확정 전 확인 모달 + 확정/완료 화면 공용 요약(기존 정산식 재사용, 새 계산 없음).
+    const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+    const [finalizeSummary, setFinalizeSummary] = useState<{
+        title: string; dateLabel: string; participants: number; matchCount: number;
+        winner: string | null; guestFee: number | null; penaltyCount: number; penaltyTotal: number;
+    } | null>(null);
     const [isMembersLoading, setIsMembersLoading] = useState(true);
     const [isMembersError, setIsMembersError] = useState(false);
     // isMembersLoading → LoadingOverlay 연동 (fetchMembers 로직 무변경)
@@ -832,15 +880,47 @@ export default function KDKPage() {
     };
 
     // Stage 2: Official Archive & Shutdown (Admin Only)
-    const handleFinalArchive = async () => {
+    // 공식 기록 확정 요청 — 곧바로 저장하지 않고 확인 모달을 연다.
+    //   guestFee null 차단은 기존 정책 유지(모달 이전에 차단). 요약은 기존 정산식(computeSettlement) 재사용.
+    const requestFinalArchive = () => {
         if (!guardWriteAction('공식 기록 확정/아카이브')) return; // 촬영 보호 모드 차단
-        // 게스트비 미설정(null)이면 공식 확정 차단 — settlement_data 에 임의 금액(10,000)을 박제하지 않는다.
-        //   0원은 유효한 확정값이므로 차단하지 않는다(== null 로만 판단).
         if (guestFee == null) {
             alert('게스트비가 설정되지 않았습니다.\n\nKDK 설정에서 이번 게스트비를 입력한 후 결과를 확정해주세요.');
             return;
         }
-        if (!confirm("🏆 대회를 공식적으로 종료하고 '심층 기록소'에 박제하시겠습니까?\n(라이브 데이터가 삭제되고 아카이브 포털로 즉시 이동합니다.)")) return;
+        // 벌금 요약 — 화면/Archive 와 동일한 정산식. 게스트비와 합치지 않고 벌금(penaltyAmount)만 집계.
+        const settlementPrizes = { first: firstPrize, l1: bottom25Late, l2: bottom25Penalty };
+        const total = resolvedRanking.length;
+        let penaltyCount = 0;
+        let penaltyTotal = 0;
+        resolvedRanking.forEach((p, idx) => {
+            const s = computeSettlement(p, idx, total, settlementPrizes, guestFee);
+            if (s.penaltyAmount < 0) { penaltyCount += 1; penaltyTotal += Math.abs(s.penaltyAmount); }
+        });
+        const now = new Date();
+        const dateLabel = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+        setFinalizeSummary({
+            title: sessionTitle || 'KDK 세션',
+            dateLabel,
+            participants: total,
+            matchCount: matches.length,
+            winner: resolvedRanking[0]?.name ?? null,
+            guestFee,
+            penaltyCount,
+            penaltyTotal,
+        });
+        setShowFinalizeConfirm(true);
+    };
+
+    const handleFinalArchive = async () => {
+        if (!guardWriteAction('공식 기록 확정/아카이브')) return; // 촬영 보호 모드 차단
+        // 게스트비 미설정(null)이면 공식 확정 차단 — settlement_data 에 임의 금액(10,000)을 박제하지 않는다.
+        //   0원은 유효한 확정값이므로 차단하지 않는다(== null 로만 판단). (확인 모달 이전에도 이미 차단됨)
+        if (guestFee == null) {
+            alert('게스트비가 설정되지 않았습니다.\n\nKDK 설정에서 이번 게스트비를 입력한 후 결과를 확정해주세요.');
+            return;
+        }
+        setShowFinalizeConfirm(false); // 확인 모달을 닫고 저장을 시작한다.
 
         try {
             // [CEO 현장 검증 로직 가동]
@@ -933,6 +1013,8 @@ export default function KDKPage() {
                 console.error("Local backup failed", err);
             }
 
+            // 서버 저장이 실제 확인됐을 때만 완료 화면을 띄운다(로컬 백업만으론 성공으로 표시하지 않음).
+            let serverArchived = false;
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
             const endpoint = `${supabaseUrl}/rest/v1/teyeon_archive_v1`;
@@ -956,21 +1038,29 @@ export default function KDKPage() {
                     throw new Error(`Server Rejected: ${errText}`);
                 }
                 console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
+                serverArchived = true;
             } catch (err: any) {
                 console.error("❌ [v14.0] CRITICAL SYNC ERROR:", err);
-                // [v10.0] CEO Request: Specific wording
-                alert(`서버 통신 지연으로 기기에 임시 저장되었습니다. (${err.message})\n아카이브에서 확인 가능합니다.`);
+                // 서버 Archive 저장 미확인 — 로컬 백업만 성공. 성공으로 표시하지 않고 재시도를 안내한다.
+                alert(`로컬 백업은 완료되었지만 Archive 저장을 확인하지 못했습니다.\n잠시 후 다시 시도해주세요. (${err.message})`);
             }
 
-            // [v10.0] Championship Celebration (금색 가루 뿌리기)
+            // 서버 저장이 확인된 경우에만 완료 화면 + 라이브 정리.
+            //   서버 미확인(로컬 백업만): 성공 화면/정리 없이 종료 → 결과·라이브 데이터·로컬 백업 유지, 재시도 가능.
+            //   (payload / 저장 순서 / 로컬 백업 정책은 변경하지 않는다.)
+            if (!serverArchived) {
+                return; // finally 에서 setIsGenerating(false).
+            }
+
+            // [v10.0] Championship Celebration
             const archiveUrl = getArchiveUrl(sessionId);
             if (archiveUrl) setArchiveSuccessUrl(archiveUrl);
             setShowArchiveSuccess(true);
             setShowConfetti(true);
             setCelebrationMode(true);
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
-            
-            // 3. Cleanup Live Data from Supabase
+
+            // 3. Cleanup Live Data from Supabase (서버 저장 확인 후에만 라이브 데이터 삭제)
             const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
             if (delError) console.error("Cleanup Error (Non-Fatal):", delError);
 
@@ -5877,7 +5967,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             guestFee={guestFee}
                             onShareMatch={execCopySchedule}
                             onShareResult={copyFinalResults}
-                            onFinalize={handleFinalArchive}
+                            onFinalize={requestFinalArchive}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
                             detailedResults={playerDetailedResults}
@@ -5977,7 +6067,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             guestFee={guestFee}
                             onShareMatch={execCopySchedule}
                             onShareResult={copyFinalResults}
-                            onFinalize={handleFinalArchive}
+                            onFinalize={requestFinalArchive}
                             isGenerating={isGenerating}
                             ceremonyMode={showCeremony}
                             detailedResults={playerDetailedResults}
@@ -6356,75 +6446,93 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     onClose={() => setShowWarning(false)}
                 />
             )}
-            {showArchiveSuccess && (
-                <div className="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center animate-in fade-in duration-1000">
-                    {/* [v10.0] Golden Confetti Sprinkling */}
-                    <div className="absolute inset-0 pointer-events-none z-[5001] overflow-hidden">
-                        {[...Array(50)].map((_, i) => (
-                            <div 
-                                key={i} 
-                                className="absolute top-[-20px] w-2 h-2 rounded-full animate-bounce" 
-                                style={{ 
-                                    left: `${Math.random() * 100}%`, 
-                                    animation: `falling ${2 + Math.random() * 3}s linear infinite`,
-                                    background: i % 2 === 0 ? '#C9B075' : '#E5D29B',
-                                    opacity: Math.random(),
-                                    transform: `scale(${0.5 + Math.random()})`
-                                }} 
-                            />
-                        ))}
-                    </div>
-                    <style jsx>{`
-                        @keyframes falling {
-                            0% { transform: translateY(-10vh) rotate(0deg); }
-                            100% { transform: translateY(110vh) rotate(720deg); }
-                        }
-                    `}</style>
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#C9B075]/30 via-transparent to-transparent" />
-                    <div className="relative z-10 flex flex-col items-center text-center px-12 space-y-8">
-                        <div className="w-40 h-40 rounded-full bg-[#C9B075]/10 border-2 border-[#C9B075]/50 flex items-center justify-center animate-bounce shadow-[0_0_80px_rgba(201,176,117,0.5)]">
-                            <span className="text-8xl drop-shadow-2xl">🏆</span>
-                        </div>
-                        <div className="space-y-4">
-                            <h2 className="text-5xl font-black italic text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(201,176,117,0.8)]">
-                                Match<br />Completed
-                            </h2>
-                            <p className="text-[#C9B075] text-xs font-black uppercase tracking-[0.6em] animate-pulse">
-                                테연 클럽 아카이브 저장 완료!
+            {/* 공식 기록 확정 전 확인 — Cool Premium Light. 기존 정산 요약(finalizeSummary)만 표시. */}
+            {showFinalizeConfirm && finalizeSummary && (() => {
+                const fs = finalizeSummary;
+                const feeText = fs.guestFee == null ? '미설정' : fs.guestFee === 0 ? '무료' : `${fs.guestFee.toLocaleString()}원`;
+                const penaltyText = fs.penaltyCount === 0 ? '없음' : `${fs.penaltyCount}명 · 총 ${fs.penaltyTotal.toLocaleString()}원`;
+                return (
+                    <div style={FINALIZE_OVERLAY}>
+                        <div style={FINALIZE_CARD}>
+                            <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#1F5FB5' }}>공식 기록 확정</p>
+                            <h2 style={{ margin: '8px 0 0', fontSize: 19, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em' }}>공식 기록으로 확정합니다</h2>
+                            <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                                확정된 결과는 Archive와 개인 공식 기록에 반영됩니다. 저장 후 일반 수정은 제한됩니다.
                             </p>
-                        </div>
-                        <div className="w-full max-w-[360px] space-y-3 rounded-[28px] border border-[#C9B075]/25 bg-black/60 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
-                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white/80">
-                                Archive 저장 완료
-                            </p>
-                            <p className="break-all text-[11px] font-bold leading-relaxed text-white/45">
-                                {archiveSuccessUrl || getArchiveUrl(sessionId) || '/archive'}
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={openArchiveSuccessLink}
-                                    className="h-12 rounded-2xl border border-[#C9B075]/70 bg-[#C9B075] text-[12px] font-black uppercase tracking-[0.08em] text-black shadow-[0_0_24px_rgba(201,176,117,0.28)] active:scale-95"
-                                >
-                                    Archive 열기
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={copyArchiveSuccessLink}
-                                    className="h-12 rounded-2xl border border-white/15 bg-white/10 text-[12px] font-black uppercase tracking-[0.08em] text-[#C9B075] active:scale-95"
-                                >
-                                    링크 복사
+
+                            <div style={FINALIZE_SESSION_BOX}>
+                                <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747', wordBreak: 'break-word', lineHeight: 1.35 }}>{fs.title}</p>
+                                <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 700, color: '#64748B' }}>{fs.dateLabel} · 참가 {fs.participants}명 · {fs.matchCount}경기</p>
+                            </div>
+
+                            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 12, overflow: 'hidden', border: '1px solid #E1EAF5' }}>
+                                <FinalizeRow label="최종 1위" value={fs.winner ?? '—'} strong />
+                                <FinalizeRow label="게스트비" value={feeText} />
+                                <FinalizeRow label="벌금" value={penaltyText} />
+                            </div>
+
+                            <div style={{ marginTop: 12, padding: '11px 13px', borderRadius: 12, background: '#F6FAFD', border: '1px solid #DCE8F5' }}>
+                                <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.06em', color: '#3F5B82' }}>반영 범위</p>
+                                <p style={{ margin: '5px 0 0', fontSize: 11.5, fontWeight: 700, color: '#56729A', lineHeight: 1.7 }}>
+                                    Archive 공식 기록 · 멤버 개인 기록 · 최종 순위 및 정산 스냅샷
+                                </p>
+                                <p style={{ margin: '7px 0 0', fontSize: 11, fontWeight: 700, color: '#B7791F', lineHeight: 1.6 }}>
+                                    확정 후 일반 수정은 제한됩니다.
+                                </p>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                                <button type="button" onClick={() => setShowFinalizeConfirm(false)} disabled={isGenerating} style={FINALIZE_BTN_SECONDARY}>취소</button>
+                                <button type="button" onClick={handleFinalArchive} disabled={isGenerating} style={{ ...FINALIZE_BTN_PRIMARY, opacity: isGenerating ? 0.6 : 1 }}>
+                                    {isGenerating ? '확정 중…' : '공식 기록 확정'}
                                 </button>
                             </div>
                         </div>
-                        <div className="flex gap-3">
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="w-2 h-2 rounded-full bg-[#C9B075] animate-ping" style={{ animationDelay: `${i * 0.2}s` }} />
-                            ))}
+                    </div>
+                );
+            })()}
+
+            {/* 공식 기록 저장 완료 — Cool Premium Light. URL 원문 미노출, 복사 링크는 기존 handler 유지. */}
+            {showArchiveSuccess && (() => {
+                const fs = finalizeSummary;
+                const feeText = !fs ? null : fs.guestFee == null ? '미설정' : fs.guestFee === 0 ? '무료' : `${fs.guestFee.toLocaleString()}원`;
+                const penaltyText = !fs ? null : fs.penaltyCount === 0 ? '없음' : `${fs.penaltyCount}명 · 총 ${fs.penaltyTotal.toLocaleString()}원`;
+                return (
+                    <div style={FINALIZE_OVERLAY}>
+                        <div style={FINALIZE_CARD}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(199,154,58,0.12)', border: '1px solid rgba(199,154,58,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <span style={{ fontSize: 27, lineHeight: 1 }}>🏆</span>
+                                </div>
+                                <h2 style={{ margin: '12px 0 0', fontSize: 19, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.01em' }}>공식 기록 저장 완료</h2>
+                                <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', lineHeight: 1.6 }}>Archive에 공식 기록으로 저장되었습니다.</p>
+                            </div>
+
+                            {fs && (
+                                <>
+                                    <div style={{ ...FINALIZE_SESSION_BOX, marginTop: 16 }}>
+                                        <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747', wordBreak: 'break-word', lineHeight: 1.35 }}>{fs.title}</p>
+                                        <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 700, color: '#64748B' }}>참가 {fs.participants}명 · 총 {fs.matchCount}경기</p>
+                                    </div>
+                                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 12, overflow: 'hidden', border: '1px solid #E1EAF5' }}>
+                                        <FinalizeRow label="최종 1위" value={fs.winner ?? '—'} strong />
+                                        <FinalizeRow label="게스트비" value={feeText ?? '—'} />
+                                        <FinalizeRow label="벌금" value={penaltyText ?? '—'} />
+                                    </div>
+                                </>
+                            )}
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                                <button type="button" onClick={openArchiveSuccessLink} style={FINALIZE_BTN_PRIMARY}>Archive에서 보기</button>
+                                <button type="button" onClick={copyArchiveSuccessLink} style={FINALIZE_BTN_SECONDARY}>공유 링크 복사</button>
+                                <button type="button" onClick={() => setShowArchiveSuccess(false)} style={{ height: 40, borderRadius: 12, border: 'none', background: 'transparent', color: '#64748B', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                                    KDK 화면으로 돌아가기
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </main>
     );
 }
