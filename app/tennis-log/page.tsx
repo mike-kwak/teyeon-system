@@ -18,6 +18,8 @@ import {
   TENNIS_LOG_LOCKED_BODY,
 } from '@/lib/tennisLogAccess';
 import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
+import { useAuth } from '@/context/AuthContext';
+import TennisLogCalendar from '@/components/tennis-log/TennisLogCalendar';
 import { countTournamentsByYear, getRecentTournaments } from '@/lib/tennisLogTournamentService';
 import {
   countLessonsByYear,
@@ -40,6 +42,7 @@ const PRIVATE_NOTE = 'TENNIS LOG 기록은 본인만 확인할 수 있습니다.
 export default function TennisLogPage() {
   const router = useRouter();
   const access = useTennisLogAccess();
+  const { user } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -330,6 +333,9 @@ export default function TennisLogPage() {
           onClick={() => router.push('/tennis-log/lessons/new')}
         />
       </div>
+
+      {/* 기록 캘린더 — 접힘 기본, 핀 고정 시 다음 방문부터 펼침 */}
+      <TennisLogCalendar userId={user?.id ?? null} onToast={setToast} />
 
       {/* 최근 대회 — 실제 DB 연동 */}
       <SectionHeaderRow title="최근 대회" onViewAll={() => router.push('/tennis-log/tournaments')} />

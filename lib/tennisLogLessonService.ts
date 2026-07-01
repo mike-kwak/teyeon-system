@@ -199,3 +199,27 @@ export async function getCurrentPracticeGoal(): Promise<ServiceResult<string | n
     .find((g: string) => g.length > 0);
   return { data: goal ?? null, error: null };
 }
+
+/**
+ * 월 범위 본인 레슨 기록 — 기록 캘린더용. [startDate 포함, endDateExclusive 미만).
+ *   date 오름차순 + created_at 내림차순(같은 날짜 안에서 최신 먼저).
+ *   RLS(owner_user_id = auth.uid()) 위에 명시 필터로 본인 데이터만 반환.
+ */
+export async function listLessonsByDateRange(
+  startDate: string,
+  endDateExclusive: string,
+): Promise<ServiceResult<TennisLessonRecord[]>> {
+  const owner = await getOwnerId();
+  if (!owner) return { data: null, error: NOT_LOGGED_IN };
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('owner_user_id', owner)
+    .gte('lesson_date', startDate)
+    .lt('lesson_date', endDateExclusive)
+    .order('lesson_date', { ascending: true })
+    .order('created_at', { ascending: false });
+  if (error) return { data: null, error: humanizeError(error) };
+  return { data: (data ?? []).map(rowToRecord), error: null };
+}

@@ -242,3 +242,27 @@ export async function getRecentTournaments(limit = 3): Promise<ServiceResult<Tou
   if (error) return { data: null, error: humanizeError(error) };
   return { data: (data ?? []).map(rowToRecord), error: null };
 }
+
+/**
+ * 월 범위 본인 대회 기록 — 기록 캘린더용. [startDate 포함, endDateExclusive 미만).
+ *   date 오름차순 + created_at 내림차순(같은 날짜 안에서 최신 먼저).
+ *   RLS(owner_user_id = auth.uid()) 위에 명시 필터로 본인 데이터만 반환.
+ */
+export async function listTournamentsByDateRange(
+  startDate: string,
+  endDateExclusive: string,
+): Promise<ServiceResult<TournamentRecord[]>> {
+  const owner = await getOwnerId();
+  if (!owner) return { data: null, error: NOT_LOGGED_IN };
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('owner_user_id', owner)
+    .gte('tournament_date', startDate)
+    .lt('tournament_date', endDateExclusive)
+    .order('tournament_date', { ascending: true })
+    .order('created_at', { ascending: false });
+  if (error) return { data: null, error: humanizeError(error) };
+  return { data: (data ?? []).map(rowToRecord), error: null };
+}
