@@ -168,7 +168,11 @@ export default function NoticeDetailPage({ params }: { params: Promise<{ id: str
   if (!notice) return <div className="min-h-screen bg-black text-white p-20 text-center">공지를 찾을 수 없습니다.</div>;
 
   return (
-    <main className="min-h-screen bg-[#06060A] text-white font-sans w-full pb-32 pt-6">
+    <main
+      className="min-h-screen bg-[#06060A] text-white font-sans w-full pt-6"
+      /* pb-32 제거 → 공통 GlobalMain clearance + 다크 full-bleed idiom(라이트 스트립/과다 여백 제거). */
+      style={{ marginBottom: 'calc(-1 * var(--page-bottom-safe))', paddingBottom: 'var(--page-bottom-safe)' }}
+    >
 
       <article className="px-6 py-8">
         <header className="mb-8">

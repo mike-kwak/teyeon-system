@@ -73,7 +73,13 @@ export default function NoticeListPage() {
 
 
   return (
-    <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-[250px] relative pt-6">
+    <main
+      className="min-h-screen bg-[#000000] text-white font-sans w-full relative pt-6"
+      /* 하단 여백: 과다한 pb-[250px] 제거. 공통 GlobalMain(var(--page-bottom-safe)) clearance 를
+         쓰되, 다크 배경이 nav 아래까지 full-bleed 되도록 풀블리드 idiom(음수 margin + 내부 재패딩)
+         적용 → 라이트 스트립 제거 + 과도 여백 제거. (profile/archive 와 동일 패턴) */
+      style={{ marginBottom: 'calc(-1 * var(--page-bottom-safe))', paddingBottom: 'var(--page-bottom-safe)' }}
+    >
       {isStaff && (
         <div className="px-6 mb-4 flex justify-end">
           <button 

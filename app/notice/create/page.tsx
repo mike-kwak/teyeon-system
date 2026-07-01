@@ -92,7 +92,11 @@ export default function CreateNoticePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#000000] text-white font-sans w-full pb-20">
+    <main
+      className="min-h-screen bg-[#000000] text-white font-sans w-full"
+      /* pb-20 제거 → 공통 GlobalMain clearance + 다크 full-bleed idiom(라이트 스트립/과다 여백 제거). */
+      style={{ marginBottom: 'calc(-1 * var(--page-bottom-safe))', paddingBottom: 'var(--page-bottom-safe)' }}
+    >
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5 px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="text-[#D4AF37] text-2xl hover:bg-white/5 w-10 h-10 flex items-center justify-center rounded-full transition-all">←</button>

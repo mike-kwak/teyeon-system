@@ -165,7 +165,11 @@ export default function RankingPage() {
   const mvp = integratedSortedMembers[0];
 
   return (
-    <main className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans w-full pb-20">
+    <main
+      className="flex flex-col min-h-screen bg-[#0A0A0F] text-white font-sans w-full"
+      /* pb-20 제거 → 공통 GlobalMain clearance + 다크 full-bleed idiom(라이트 스트립/과다 여백 제거). */
+      style={{ marginBottom: 'calc(-1 * var(--page-bottom-safe))', paddingBottom: 'var(--page-bottom-safe)' }}
+    >
       <header className="sticky top-0 z-30 bg-[#14141F]/80 backdrop-blur-xl p-6 flex items-center justify-between border-b border-white/5">
         <button onClick={() => router.back()} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 active:scale-95">
           <span className="text-xl">←</span>
