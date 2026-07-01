@@ -49,6 +49,12 @@ export default function BottomNav() {
       p === '/tennis-log/lessons/new' ||
       /^\/tennis-log\/(tournaments|lessons)\/[^/]+\/edit$/.test(p);
     if (isTennisLogFormRoute) return null;
+    // 공지 작성/수정 화면도 폼 화면 — 작성 중 탭 이동으로 인한 입력 유실/키보드 겹침 방지 위해 숨김.
+    //   목록(/notice)·상세(/notice/[id])는 유지. 정확 경로만 매칭(전체 /notice 숨김 금지).
+    const isNoticeFormRoute =
+      p === '/notice/create' ||
+      /^\/notice\/edit\/[^/]+$/.test(p);
+    if (isNoticeFormRoute) return null;
   }
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {

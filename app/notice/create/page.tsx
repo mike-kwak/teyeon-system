@@ -94,8 +94,10 @@ export default function CreateNoticePage() {
   return (
     <main
       className="min-h-screen bg-[#000000] text-white font-sans w-full"
-      /* pb-20 제거 → 공통 GlobalMain clearance + 다크 full-bleed idiom(라이트 스트립/과다 여백 제거). */
-      style={{ marginBottom: 'calc(-1 * var(--page-bottom-safe))', paddingBottom: 'var(--page-bottom-safe)' }}
+      /* 작성 화면은 BottomNav 숨김(components/BottomNav.tsx). 음수 margin 으로 GlobalMain 의 상시
+         var(--page-bottom-safe) 를 상쇄해 다크 배경을 끝까지 full-bleed(라이트 스트립 방지)하고,
+         내부 paddingBottom 은 nav 높이 없이 디자인 여백 + safe-area 만 둔다(불필요한 nav 여백 제거). */
+      style={{ marginBottom: 'calc(-1 * var(--page-bottom-safe))', paddingBottom: 'calc(24px + var(--safe-bottom))' }}
     >
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5 px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
