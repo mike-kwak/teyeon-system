@@ -39,6 +39,48 @@ const DEFAULT_KDK_GUEST_FEE = 10000;
 //   · 결과적으로 CTA 는 BottomNav 위로 약 88px(노치 시 더 큼) 떠서 절대 가려지지 않는다.
 const KDK_STEP_BOTTOM_PADDING = 'calc(64px + env(safe-area-inset-bottom))';
 
+// LIVE COURT 복원 — 마지막으로 보던 세션/탭을 사용자별 localStorage 에 저장(핵심 복원값).
+//   · sessionStorage 는 PWA/앱 프로세스 종료 시 사라져 복원에 부적합 → localStorage 사용.
+//   · uid 단위 key 로 분리(로그아웃/다른 계정 로그인 시 이전 사용자 상태 재사용 방지).
+//   · 경기 데이터 자체는 저장하지 않는다(세션 id/탭만). 최신 데이터는 진입 후 Supabase 에서 재조회.
+const KDK_LAST_LIVE_KEY_PREFIX = 'teyeon:kdk:last-live-session:';
+type KdkLiveTab = 'MATCHES' | 'RANKING';
+interface KdkLastLiveSession { sessionId: string; tab: KdkLiveTab; at: number; }
+
+function kdkLastLiveKey(uid: string): string {
+    return `${KDK_LAST_LIVE_KEY_PREFIX}${uid}`;
+}
+function readLastLiveSession(uid: string | null | undefined): KdkLastLiveSession | null {
+    if (!uid || typeof window === 'undefined') return null;
+    try {
+        const raw = window.localStorage.getItem(kdkLastLiveKey(uid));
+        if (!raw) return null;
+        const p = JSON.parse(raw);
+        if (p && typeof p.sessionId === 'string' && p.sessionId) {
+            return { sessionId: p.sessionId, tab: p.tab === 'RANKING' ? 'RANKING' : 'MATCHES', at: Number(p.at) || 0 };
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+function writeLastLiveSession(uid: string | null | undefined, value: KdkLastLiveSession): void {
+    if (!uid || typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(kdkLastLiveKey(uid), JSON.stringify(value));
+    } catch {
+        /* 저장 실패해도 운영 화면은 정상 동작 */
+    }
+}
+function clearLastLiveSession(uid: string | null | undefined): void {
+    if (!uid || typeof window === 'undefined') return;
+    try {
+        window.localStorage.removeItem(kdkLastLiveKey(uid));
+    } catch {
+        /* noop */
+    }
+}
+
 type ActiveKdkSession = {
     id: string;
     title: string;
@@ -51,7 +93,9 @@ type KdkEntryBackTarget = 'ENTRY_CHOICE' | 'MAIN' | null;
 
 export default function KDKPage() {
     const router = useRouter();
-    const { role, hasPermission, getRestrictionMessage } = useAuth();
+    const { role, hasPermission, getRestrictionMessage, user } = useAuth();
+    const uid = user?.id ?? null;
+    const uidRef = useRef<string | null>(null); // 비동기 syncActiveSession 에서 최신 uid 참조용
     const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
     const { showLoading, hideLoading } = useLoading();
     const [showToast, setShowToast] = useState(false);
@@ -1133,6 +1177,17 @@ export default function KDKPage() {
         }
     }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, manualStep, manualPasteText, manualNameOverrides, sessionTitle, sessionId, selectedSessionId]);
 
+    // uid 최신값 동기화(비동기 syncActiveSession 복원 로직에서 참조).
+    useEffect(() => { uidRef.current = uid; }, [uid]);
+
+    // LIVE COURT 복원값 저장 — 세션 운영 화면(선택된 세션 + 게이트웨이 아님)을 보는 동안 마지막 세션/탭 기록.
+    //   entry=live 진입이든 게이트웨이 선택이든 모두 포함. 경기 데이터는 저장하지 않고 sessionId/tab 만 저장.
+    useEffect(() => {
+        if (selectedSessionId && !showGateway && uid) {
+            writeLastLiveSession(uid, { sessionId: selectedSessionId, tab: activeTab, at: Date.now() });
+        }
+    }, [selectedSessionId, showGateway, activeTab, uid]);
+
     // Independent Score Buffer for Active Modal
     useEffect(() => {
         if (showScoreModal && (tempScores.s1 > 0 || tempScores.s2 > 0)) {
@@ -1375,6 +1430,7 @@ export default function KDKPage() {
                 setAllActiveSessions([]);
                 setHasRestoredSession(false);
                 if (latestEntryMode === 'LIVE') {
+                    clearLastLiveSession(uidRef.current); // 활성 세션 0개 → 저장된 복원 세션 폐기
                     setSelectedSessionId(null);
                     setMatches([]);
                     setShowGateway(true);
@@ -1498,12 +1554,17 @@ export default function KDKPage() {
                     }
                 }
             } else if (latestEntryMode === 'LIVE') {
-                if (sessionList.length === 1) {
-                    applySession(sessionList[0].id);
+                // LIVE COURT 복원 우선순위:
+                //   (1) 마지막으로 보던 세션이 아직 활성 → 바로 복귀(+마지막 탭)
+                //   (2) 없거나 stale → 가장 최근 활성 세션 자동 진입(섹션 선택 화면 생략)
+                // sessionList 는 lastActivity desc 정렬이며, 이 분기는 rows.length>0(활성 세션 존재)에서만 도달.
+                const stored = readLastLiveSession(uidRef.current);
+                if (stored?.sessionId && sessionsMap[stored.sessionId]) {
+                    applySession(stored.sessionId);
+                    setActiveTab(stored.tab);
                 } else {
-                    setMatches([]);
-                    setShowGateway(true);
-                    setStep(3);
+                    if (stored?.sessionId) clearLastLiveSession(uidRef.current); // 완료/삭제/접근불가 세션 → 저장값 폐기
+                    applySession(sessionList[0].id);
                 }
             } else if (latestEntryMode === 'CHECKING') {
                 setCreateBackTarget(null);

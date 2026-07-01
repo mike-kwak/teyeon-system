@@ -27,8 +27,14 @@ export default function SplashScreen() {
         if (pathname === '/club' || pathname?.startsWith('/club/')) return;
 
         try {
-            if (sessionStorage.getItem('teyeon_splash_v1')) return;
-            sessionStorage.setItem('teyeon_splash_v1', '1');
+            // 6시간 이내 재진입(LIVE COURT 복귀 등)은 Splash 생략. PWA/앱 종료로 sessionStorage 가
+            // 지워져도 localStorage 타임스탬프로 스킵되며, 6시간 경과(대개 다음 날 첫 진입) 시에만
+            // Signature Serve 를 다시 재생한다. (Splash 구조·애니메이션은 변경하지 않음)
+            const SPLASH_KEY = 'teyeon_splash_last_shown';
+            const SPLASH_WINDOW_MS = 6 * 60 * 60 * 1000;
+            const last = Number(window.localStorage.getItem(SPLASH_KEY) || 0);
+            if (Number.isFinite(last) && last > 0 && Date.now() - last < SPLASH_WINDOW_MS) return;
+            window.localStorage.setItem(SPLASH_KEY, String(Date.now()));
         } catch {
             return;
         }
