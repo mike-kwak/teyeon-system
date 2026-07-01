@@ -12,8 +12,10 @@ import {
     saveScheduleGuestPass,
     regenerateGuestPassToken,
     mergeGuestPassData,
+    resolveKdkSessionGuestFeeBySchedule,
     type ScheduleGuestPass,
     type GuestPassDefaults,
+    type KdkScheduleGuestFee,
 } from '@/lib/guestPassService';
 import {
     buildGuestPassUrl,
@@ -50,7 +52,11 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
     const [defaults, setDefaults] = React.useState<GuestPassDefaults | null>(null);
 
     // 편집 폼 (퍼시스트는 명시적 저장 버튼)
+    // feeOverrideStr: 게스트비 입력란은 제거됐지만, 저장 시 기존 DB 값(fee_amount_override)을
+    // 그대로 재전송해 보존하기 위해 로드값을 계속 보관한다(초기화/삭제 금지).
     const [feeOverrideStr, setFeeOverrideStr] = React.useState('');
+    // 게스트비 단일 출처(KDK 세션) — 읽기 전용 표시용.
+    const [kdkGuestFee, setKdkGuestFee] = React.useState<KdkScheduleGuestFee | null>(null);
     const [showBank, setShowBank] = React.useState(true);
     const [extraNotice, setExtraNotice] = React.useState('');
     const [matchHeadlineOverride, setMatchHeadlineOverride] = React.useState('');
@@ -70,13 +76,15 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
         let cancelled = false;
         (async () => {
             try {
-                const [pm, d] = await Promise.all([
+                const [pm, d, kdkFee] = await Promise.all([
                     fetchScheduleGuestPass(schedule.id),
                     fetchGuestPassDefaults(),
+                    resolveKdkSessionGuestFeeBySchedule(schedule.id),
                 ]);
                 if (cancelled) return;
                 setPerMeet(pm);
                 setDefaults(d);
+                setKdkGuestFee(kdkFee);
                 setFeeOverrideStr(pm?.feeAmountOverride != null ? String(pm.feeAmountOverride) : '');
                 setShowBank(pm?.showBankAccount !== false);
                 setExtraNotice(pm?.extraNotice ?? '');
@@ -140,7 +148,8 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
     const handleCopyKakao = async () => {
         if (!guestPassUrl) return;
         // 카카오 메시지는 합쳐진 GuestPassData 기준 — defaults 없으면 메시지 일부가 비어 있음.
-        const data = mergeGuestPassData({ schedule, defaults, perMeet });
+        // 게스트비는 KDK 세션 단일 출처(kdkGuestFee)를 사용해 카드/순위표/결과와 동일 값 유지.
+        const data = mergeGuestPassData({ schedule, defaults, perMeet, kdkGuestFee: kdkGuestFee ?? undefined });
         const message = buildKakaoMessage({ data, guestPassUrl });
         try {
             await copyText(message);
@@ -349,22 +358,32 @@ export default function GuestPassSettingsCard({ schedule, userId }: GuestPassSet
                     {/* ── 3. 이번 정모 설정 ────────────────────────────── */}
                     <SectionLabel>이번 정모 설정</SectionLabel>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <FormRow label="게스트비 (원)">
-                            <input
-                                type="number"
-                                inputMode="numeric"
-                                value={feeOverrideStr}
-                                onChange={(e) => setFeeOverrideStr(e.target.value)}
-                                placeholder={
-                                    schedule.fee_amount != null
-                                        ? `${schedule.fee_amount.toLocaleString()} (정모 설정)`
-                                        : defaults?.defaultFeeAmount != null
-                                            ? `${defaults.defaultFeeAmount.toLocaleString()} (공통 기본값)`
-                                            : '예: 10000'
-                                }
-                                style={inputStyle}
-                            />
-                            <Hint>비워두면 공통 기본값을 사용합니다.</Hint>
+                        {/* 게스트비 — KDK 세션 단일 출처(읽기 전용). 여기서 입력·수정하지 않는다.
+                            기존 fee_amount_override DB 값은 저장 시 그대로 재전송되어 보존된다. */}
+                        <FormRow label="게스트비">
+                            {(() => {
+                                const status = kdkGuestFee?.status ?? 'unlinked';
+                                const fee = kdkGuestFee?.guestFee;
+                                const display =
+                                    status === 'confirmed' && typeof fee === 'number'
+                                        ? (fee === 0 ? '무료 (0원)' : `${fee.toLocaleString()}원`)
+                                        : status === 'unset' ? '미설정'
+                                            : status === 'conflict' ? '연결 확인 필요'
+                                                : '추후 안내 (KDK 미연결)';
+                                const isConfirmed = status === 'confirmed' && typeof fee === 'number';
+                                return (
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        padding: '9px 12px', borderRadius: 8,
+                                        background: '#F6FAFD', border: '1px solid #E2E8F0',
+                                    }}>
+                                        <span style={{ fontSize: 14, fontWeight: 800, color: isConfirmed ? '#0F172A' : '#64748B' }}>
+                                            {display}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
+                            <Hint>게스트비는 KDK 설정에서 입력·수정합니다. (정모·순위표·결과·게스트 안내 동일 적용)</Hint>
                         </FormRow>
 
                         <FormRow label="계좌 공개">

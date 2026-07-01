@@ -13,6 +13,7 @@ import type {
     GuestPassData,
     GuestPassParticipation,
     CourtMode,
+    GuestFeeStatus,
 } from './guestPassData';
 import { fetchClubScheduleById } from './clubScheduleService';
 import type { ClubSchedule } from './clubScheduleData';
@@ -196,33 +197,48 @@ export async function saveGuestPassDefaults(
     return mapDefaultsRow(data);
 }
 
-// ── 정모 게스트비 해소 (KDK 신규 세션 초기값용) ──────────────────────────────
+// ⚠️ 제거됨: resolveScheduleGuestFee (fee_amount_override → schedule.fee_amount → default → 10,000)
+//    게스트비 3단 fallback 해소기. 새 정책에서 게스트비 source 는 오직 KDK 세션(guest_fee)이며,
+//    이 함수는 임의 fallback(10,000)을 만들어내므로 완전히 제거했다.
+//    → 대체: resolveKdkSessionGuestFeeBySchedule(scheduleId) 사용.
+
+// ── 게스트비 단일 출처: 연결된 KDK 세션의 guest_fee ─────────────────────────
+// 새 운영 정책 — 게스트비 source of truth 는 오직 KDK 세션(kdk_session_meta.guest_fee).
+//   Club Schedule / Guest Pass 는 이 값을 읽기 전용으로만 표시한다.
+//   club_schedules.fee_amount / fee_amount_override / default_fee_amount 는 게스트비 출처로 쓰지 않는다.
+// GuestPassFee.guestFeeStatus 와 동일한 상태 집합 — 공유 타입을 재사용해 불일치를 막는다.
+export type KdkScheduleGuestFeeStatus = GuestFeeStatus;
+export interface KdkScheduleGuestFee {
+    /** 확정 게스트비(원). null = 미설정/미연결/충돌. 0 은 유효한 확정값. */
+    guestFee: number | null;
+    status: KdkScheduleGuestFeeStatus;
+}
 
 /**
- * 정모(schedule)의 실제 게스트비 금액을 기존 우선순위로 해소한다.
- *   fee_amount_override(정모 override) → schedule.fee_amount(정모 기본) →
- *   default_fee_amount(클럽 공통) → fallback(기본 10,000).
- * Guest Pass 표시값과 동일한 식(mergeGuestPassData)을 재사용해 불일치를 막는다.
- * 원본 데이터는 읽기만 한다(수정/저장 없음).
- *
- * @param scheduleId        대상 정모 id
- * @param scheduleFeeAmount 호출부가 이미 보유한 schedule.fee_amount(없으면 null)
- * @param fallback          전부 없을 때 기본값(기본 10,000)
+ * 정모(schedule)에 연결된 KDK 세션의 확정 게스트비를 읽는다.
+ *   연결 키: kdk_session_meta.club_schedule_id (schedule 당 KDK 유니크).
+ *   0건=미연결(unlinked), 2건 이상=대표 미정(conflict),
+ *   1건: guest_fee 숫자(≥0)=확정(confirmed), null=미설정(unset).
+ *   0원은 유효한 확정값이므로 null(미설정)과 반드시 구분한다.
  */
-export async function resolveScheduleGuestFee(
+export async function resolveKdkSessionGuestFeeBySchedule(
     scheduleId: string,
-    scheduleFeeAmount: number | null | undefined,
-    fallback = 10000,
-): Promise<number> {
-    const [perMeet, defaults] = await Promise.all([
-        fetchScheduleGuestPass(scheduleId),
-        fetchGuestPassDefaults(),
-    ]);
-    const fee = perMeet?.feeAmountOverride
-        ?? scheduleFeeAmount
-        ?? defaults?.defaultFeeAmount
-        ?? fallback;
-    return typeof fee === 'number' && fee >= 0 ? fee : fallback;
+): Promise<KdkScheduleGuestFee> {
+    if (!scheduleId) return { guestFee: null, status: 'unlinked' };
+    const { data, error } = await supabase
+        .from('kdk_session_meta')
+        .select('guest_fee')
+        .eq('club_schedule_id', scheduleId);
+    if (error) {
+        console.warn('[GuestPass/kdk-guest-fee]', error?.message ?? error);
+        return { guestFee: null, status: 'unlinked' };
+    }
+    const rows = data || [];
+    if (rows.length === 0) return { guestFee: null, status: 'unlinked' };
+    if (rows.length > 1) return { guestFee: null, status: 'conflict' };
+    const fee = (rows[0] as any).guest_fee;
+    if (typeof fee === 'number' && fee >= 0) return { guestFee: fee, status: 'confirmed' };
+    return { guestFee: null, status: 'unset' };
 }
 
 // ── Schedule guest pass CRUD ─────────────────────────────────────────────────
@@ -329,12 +345,14 @@ export function mergeGuestPassData(opts: {
     schedule: ClubSchedule;
     defaults: GuestPassDefaults | null;
     perMeet: ScheduleGuestPass | null;
+    /** 게스트비 단일 출처(KDK 세션). 미전달 시 'unlinked'(→ "추후 안내")로 안전 처리. */
+    kdkGuestFee?: KdkScheduleGuestFee;
 }): GuestPassData {
-    const { schedule, defaults, perMeet } = opts;
-    const fee = perMeet?.feeAmountOverride
-        ?? schedule.fee_amount
-        ?? defaults?.defaultFeeAmount
-        ?? 0;
+    const { schedule, defaults, perMeet, kdkGuestFee } = opts;
+    // 게스트비는 KDK 세션 단일 출처만 사용한다. feeAmountOverride/schedule.fee_amount/defaultFeeAmount
+    // 3단 fallback 은 더 이상 게스트비 source 로 쓰지 않는다.
+    const guestFeeStatus: GuestFeeStatus = kdkGuestFee?.status ?? 'unlinked';
+    const guestFee = guestFeeStatus === 'confirmed' ? (kdkGuestFee?.guestFee ?? null) : null;
 
     const showBank = perMeet?.showBankAccount !== false;
 
@@ -358,7 +376,9 @@ export function mergeGuestPassData(opts: {
             participation: perMeet?.participationStatus ?? 'confirmed',
         },
         fee: {
-            amount: fee,
+            amount: guestFee ?? 0, // 하위호환(표시엔 미사용) — 게스트비 표시는 guestFee/guestFeeStatus 사용.
+            guestFee,
+            guestFeeStatus,
             // 계좌 OFF 시 입금 안내 / 계좌 객체 자체를 DTO 에서 제외 — UI 가림이 아닌 데이터 미포함.
             note: showBank ? (defaults?.paymentNote ?? undefined) : undefined,
             bank: showBank
@@ -431,17 +451,31 @@ export async function buildGuestPassDataFromToken(token: string): Promise<GuestP
             courtCount: j.schedule?.courtCount ?? undefined,
             participation: (j.schedule?.participation as any) ?? 'confirmed',
         },
-        fee: {
-            amount: Number(j.fee?.amount ?? 0),
-            note: showBank ? (j.fee?.note ?? undefined) : undefined,
-            bank: showBank && bank
-                ? {
-                    bankName: bank.bankName ?? '',
-                    accountNumber: bank.accountNumber ?? '',
-                    accountHolder: bank.accountHolder ?? '',
-                }
-                : { bankName: '', accountNumber: '', accountHolder: '' },
-        },
+        // 게스트비: KDK 세션 단일 출처. 새 RPC(update_public_guest_pass_kdk_fee.sql)가
+        // 적용되면 fee.guest_fee / fee.guest_fee_status(또는 최상위 guestFeeStatus)를 사용한다.
+        // 구형 RPC(필드 없음)에서는 status 를 알 수 없으므로 'unlinked'(→ "추후 안내")로 안전 처리하고,
+        // 구형 fee.amount 값(3단 fallback)을 게스트비로 재사용하지 않는다(5,000/10,000 새어나감 방지).
+        fee: (() => {
+            const rawStatus = (j.fee?.guest_fee_status ?? j.guestFeeStatus) as string | undefined;
+            const status = (rawStatus === 'unlinked' || rawStatus === 'unset' || rawStatus === 'confirmed' || rawStatus === 'conflict')
+                ? rawStatus
+                : 'unlinked';
+            const rawFee = j.fee?.guest_fee;
+            const guestFee = status === 'confirmed' && typeof rawFee === 'number' && rawFee >= 0 ? rawFee : null;
+            return {
+                amount: guestFee ?? 0, // 하위호환(표시엔 미사용). 구형 amount 재사용 금지 → confirmed 만 반영.
+                guestFee,
+                guestFeeStatus: status,
+                note: showBank ? (j.fee?.note ?? undefined) : undefined,
+                bank: showBank && bank
+                    ? {
+                        bankName: bank.bankName ?? '',
+                        accountNumber: bank.accountNumber ?? '',
+                        accountHolder: bank.accountHolder ?? '',
+                    }
+                    : { bankName: '', accountNumber: '', accountHolder: '' },
+            };
+        })(),
         showBankAccount: showBank,
         extraNotice: j.extraNotice ?? null,
         preparation: {
@@ -466,11 +500,12 @@ export async function buildGuestPassDataFromToken(token: string): Promise<GuestP
 
 /** scheduleId 로 운영진 preview 데이터 해소 — 활성 여부 무관. */
 export async function buildGuestPassDataForSchedule(scheduleId: string): Promise<GuestPassData | null> {
-    const [schedule, perMeet, defaults] = await Promise.all([
+    const [schedule, perMeet, defaults, kdkGuestFee] = await Promise.all([
         fetchClubScheduleById(scheduleId),
         fetchScheduleGuestPass(scheduleId),
         fetchGuestPassDefaults(),
+        resolveKdkSessionGuestFeeBySchedule(scheduleId),
     ]);
     if (!schedule) return null;
-    return mergeGuestPassData({ schedule, defaults, perMeet });
+    return mergeGuestPassData({ schedule, defaults, perMeet, kdkGuestFee });
 }

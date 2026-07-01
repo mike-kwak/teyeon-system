@@ -13,6 +13,10 @@ export interface SettlementPrizes {
     l2: number;    // 하위 25% 벌금 (L2)
 }
 
+/**
+ * @deprecated 게스트비 임의 기본값. 더 이상 정산 fallback 으로 쓰지 않는다.
+ * 게스트비는 세션 단일 출처(kdk_session_meta.guest_fee)에서만 온다. 신규 코드에서 사용 금지.
+ */
 export const KDK_GUEST_FEE = 10000;
 
 // 준회원이지만 매 세션 게스트비를 부담하는 whitelist (현재 운영 규칙 그대로).
@@ -58,7 +62,9 @@ export function computeSettlement(
     idx: number,
     total: number,
     prizes: SettlementPrizes,
-    guestFee: number = KDK_GUEST_FEE,
+    // 게스트비는 호출부에서 세션 단일 출처(kdk_session_meta.guest_fee) 값을 명시적으로 전달한다.
+    // 임의 기본값(10,000) fabrication 을 막기 위해 필수 인자로 둔다(0 은 유효, null 은 호출 전 차단).
+    guestFee: number,
 ): SettlementBreakdown {
     const bottomHalfCount = Math.ceil(total / 2);
     const penaltyCount = Math.ceil(bottomHalfCount / 2);

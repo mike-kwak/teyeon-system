@@ -608,15 +608,13 @@ export default function ClubScheduleEditorModal({
                   </div>
                 )}
 
-                {/* 게스트비 */}
-                <div>
-                  <FieldLabel>게스트비 (원)</FieldLabel>
-                  <NumberInput
-                    value={form.fee_amount}
-                    onChange={(v) => set('fee_amount', v)}
-                    placeholder="미입력 시 무료"
-                    min={0}
-                  />
+                {/* 게스트비 — KDK 설정 단일 출처(읽기 전용). 여기서 입력하지 않는다(기존 fee_amount 값은 보존). */}
+                <div style={{ padding: '11px 13px', borderRadius: 10, background: '#F6FAFD', border: '1px solid #DCE8F5' }}>
+                  <FieldLabel>게스트비</FieldLabel>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#56729A', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                    게스트비는 <b>KDK 설정</b>에서 입력·수정합니다. 정모에 KDK를 연결한 뒤 KDK 설정에서 이번 게스트비를 저장하면
+                    이 정모와 Guest Pass, 순위표·결과에 동일하게 적용됩니다.
+                  </p>
                 </div>
               </div>
             )}

@@ -23,8 +23,18 @@ function trimSeconds(t?: string): string {
     return t ? t.slice(0, 5) : '';
 }
 
-function formatFeeKo(amount: number): string {
-    return amount > 0 ? `${amount.toLocaleString()}원` : '무료';
+/**
+ * 게스트비 표기 — KDK 세션 단일 출처 상태 기준.
+ * confirmed(0 포함)만 실제 금액(0→무료), 그 외에는 안내 문구(임의 금액 노출 금지).
+ */
+function formatGuestFeeKo(fee: GuestPassData['fee']): string {
+    const status = fee.guestFeeStatus ?? 'unlinked';
+    if (status === 'confirmed' && typeof fee.guestFee === 'number') {
+        return fee.guestFee > 0 ? `${fee.guestFee.toLocaleString()}원` : '무료';
+    }
+    if (status === 'unset') return '미설정 (KDK 설정에서 입력 예정)';
+    if (status === 'conflict') return '연결 확인 필요';
+    return '추후 안내';
 }
 
 export interface BuildKakaoMessageOpts {
@@ -57,7 +67,7 @@ export function buildKakaoMessage({ data, guestPassUrl }: BuildKakaoMessageOpts)
     if (data.schedule.location) {
         lines.push(`📍 장소: ${data.schedule.location}`);
     }
-    lines.push(`게스트비: ${formatFeeKo(data.fee.amount)}`);
+    lines.push(`게스트비: ${formatGuestFeeKo(data.fee)}`);
     lines.push('');
 
     // 규칙 — defaults에 입력된 항목만 자연 문장으로 나열.

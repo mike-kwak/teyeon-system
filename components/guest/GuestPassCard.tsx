@@ -392,13 +392,40 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                 {/* ── 게스트비 + 계좌 ───────────────────────────────────────── */}
                 <SectionCard>
                     <SectionTitle>게스트비 안내</SectionTitle>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
-                        <Wallet size={15} strokeWidth={1.9} style={{ color: '#0F9F98', alignSelf: 'center' }} />
-                        <span style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>
-                            {data.fee.amount.toLocaleString()}
-                        </span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#64748B' }}>원</span>
-                    </div>
+                    {(() => {
+                        // 게스트비는 KDK 세션 단일 출처. confirmed(0 포함)만 실제 금액, 그 외에는 안내 문구.
+                        const status = data.fee.guestFeeStatus ?? 'unlinked';
+                        const fee = data.fee.guestFee;
+                        if (status === 'confirmed' && typeof fee === 'number') {
+                            return (
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
+                                    <Wallet size={15} strokeWidth={1.9} style={{ color: '#0F9F98', alignSelf: 'center' }} />
+                                    {fee === 0 ? (
+                                        <span style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>무료</span>
+                                    ) : (
+                                        <>
+                                            <span style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>
+                                                {fee.toLocaleString()}
+                                            </span>
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#64748B' }}>원</span>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        }
+                        const guideText =
+                            status === 'unset' ? '게스트비 · 미설정'
+                                : status === 'conflict' ? '게스트비 · 연결 확인 필요'
+                                    : '게스트비 · 추후 안내';
+                        return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                                <Wallet size={15} strokeWidth={1.9} style={{ color: '#0F9F98', alignSelf: 'center' }} />
+                                <span style={{ fontSize: 15, fontWeight: 800, color: '#64748B', letterSpacing: '-0.01em' }}>
+                                    {guideText}
+                                </span>
+                            </div>
+                        );
+                    })()}
                     {data.fee.note && (
                         <p style={{ margin: '0 0 12px', fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.5 }}>
                             {data.fee.note}

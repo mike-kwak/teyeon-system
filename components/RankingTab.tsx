@@ -14,7 +14,7 @@ interface RankingTabProps {
     isAdmin?: boolean;
     prizes?: { first: number, l1: number, l2: number };
     /** 게스트비(원) — KDK 세션 snapshot 값. 표시·정산 단일 출처. 미전달 시 10,000 fallback. */
-    guestFee?: number;
+    guestFee?: number | null; // null = 미설정(게스트비 아직 확정 안 됨). 0 은 유효값.
     onShareMatch?: () => void;
     onShareResult?: () => void;
     onFinalize?: () => void;
@@ -45,7 +45,7 @@ export default function RankingTab({
     isArchive = false, 
     isAdmin = false,
     prizes = { first: 10000, l1: 3000, l2: 5000 },
-    guestFee = 10000,
+    guestFee = null,
     onShareMatch,
     onShareResult,
     onFinalize,
@@ -77,8 +77,8 @@ export default function RankingTab({
         }
     }, [ceremonyMode]);
 
-    // guestFee 는 prop(세션 snapshot). 하드코딩 제거 — 표시/정산 모두 이 값 사용.
-    const guestFeeLabel = `게스트 ${guestFee.toLocaleString()}`;
+    // guestFee 는 prop(세션 snapshot, 단일 출처). null = 미설정(임의 금액 fabrication 금지). 0 은 유효값.
+    const guestFeeLabel = guestFee == null ? '게스트비 미설정' : `게스트 ${guestFee.toLocaleString()}`;
     const finalImageLabels = {
         personalDetail: '\uAC1C\uC778\uBCC4 \uC0C1\uC138\uD45C',
         finalOverallButton: '\uCD5C\uC885 \uC804\uCCB4',
@@ -157,7 +157,8 @@ export default function RankingTab({
             performancePenalty = -(prizes.l1 || 3000);
         }
 
-        amount = performancePenalty - (owesGuestFee ? guestFee : 0);
+        // 게스트비 미설정(null)이면 임의 금액을 만들지 않는다(0 처리). 0원은 유효한 확정값.
+        amount = performancePenalty - (owesGuestFee && guestFee != null ? guestFee : 0);
 
         return { amount, isPenaltyTier, isFineTier };
     };

@@ -22,8 +22,25 @@ export interface GuestPassSchedule {
     participation: GuestPassParticipation;
 }
 
+/**
+ * 게스트비 상태 — KDK 세션(kdk_session_meta.guest_fee) 단일 출처 기준.
+ *   unlinked  : 이 정모에 KDK 세션이 연결되지 않음        → "추후 안내"
+ *   unset     : 연결됐지만 아직 게스트비 미입력             → "미설정"
+ *   confirmed : 게스트비 확정(0원 포함)                     → 실제 금액
+ *   conflict  : 한 정모에 KDK 세션이 2개 이상 연결(비정상)  → "연결 확인 필요"
+ */
+export type GuestFeeStatus = 'unlinked' | 'unset' | 'confirmed' | 'conflict';
+
 export interface GuestPassFee {
-    amount: number;         // 원 단위 (10000)
+    /**
+     * 하위호환 필드(원). 게스트비 "표시"는 guestFee/guestFeeStatus 를 우선 사용한다.
+     * (구형 RPC/데이터에서 넘어온 3단 fallback 값이 그대로 표시되지 않도록 카드가 status 로 분기)
+     */
+    amount: number;
+    /** 게스트비 단일 출처 값(원). null = 미확정(unlinked/unset/conflict). 0 은 유효한 확정값. */
+    guestFee?: number | null;
+    /** 게스트비 상태. 'confirmed'(0 포함)만 실제 금액 표시, 그 외에는 안내 문구. */
+    guestFeeStatus?: GuestFeeStatus;
     note?: string;          // 예: '경기 시작 전 입금'
     bank: {
         bankName: string;
@@ -117,6 +134,8 @@ export const mockGuestPassData: GuestPassData = {
     },
     fee: {
         amount: 10000,
+        guestFee: 10000,
+        guestFeeStatus: 'confirmed',
         note: '경기 시작 전 입금 부탁드립니다.',
         bank: {
             bankName: '카카오뱅크',

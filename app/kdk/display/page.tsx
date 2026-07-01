@@ -273,11 +273,12 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
   });
 }
 
-function calculateDisplaySettlement(player: RankingEntry, rankIndex: number, total: number) {
+// guestFee: KDK 세션 단일 출처(kdk_session_meta.guest_fee). null = 미설정 → 게스트비 미차감(임의 10,000 fabrication 금지).
+// isRealPenalty/penaltyTier 는 순위 tier 기반이라 guestFee 와 무관 → 그 값만 쓰는 호출부는 기본값(null)로 호출해도 안전.
+function calculateDisplaySettlement(player: RankingEntry, rankIndex: number, total: number, guestFee: number | null = null) {
   const firstPrize = 10000;
   const l1Penalty = 3000;
   const l2Penalty = 5000;
-  const guestFee = 10000;
   const bottomHalfCount = Math.ceil(total / 2);
   const penaltyCount = Math.ceil(bottomHalfCount / 2);
   const isPenaltyTier = rankIndex >= total - penaltyCount;
@@ -292,7 +293,7 @@ function calculateDisplaySettlement(player: RankingEntry, rankIndex: number, tot
     amount = -l1Penalty;
   }
 
-  if (player.isGuest || owesAssociateGuestFee(player)) amount -= guestFee;
+  if ((player.isGuest || owesAssociateGuestFee(player)) && guestFee != null) amount -= guestFee;
 
   // isPenalty includes the guest fee (for finance/settlement parity, untouched).
   // isRealPenalty is the rank-tier signal the Ranking Tower uses for its zone / PEN badge,
@@ -590,6 +591,8 @@ function KdkDisplayBoard() {
   const [resolvedSessionId, setResolvedSessionId] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [tickerMessage, setTickerMessage] = useState('');
+  // 게스트비 단일 출처(kdk_session_meta.guest_fee). null = 미설정(미차감).
+  const [displayGuestFee, setDisplayGuestFee] = useState<number | null>(null);
   const [scale, setScale] = useState(1);
   const [zoom, setZoom] = useState({ userZoom: 1, panX: 0, panY: 0 });
 
@@ -628,10 +631,13 @@ function KdkDisplayBoard() {
     if (!sid) return;
     const { data } = await supabase
       .from('kdk_session_meta')
-      .select('ticker_message')
+      .select('ticker_message, guest_fee')
       .eq('session_id', sid)
       .maybeSingle();
     setTickerMessage(data?.ticker_message ?? '');
+    // 게스트비 단일 출처. 숫자(≥0)만 반영, 그 외(null/컬럼 미적용)는 미설정으로 둔다(미차감).
+    const gf = (data as { guest_fee?: unknown } | null)?.guest_fee;
+    setDisplayGuestFee(typeof gf === 'number' && gf >= 0 ? gf : null);
   };
 
   const fetchMembers = async () => {
@@ -1508,7 +1514,7 @@ function KdkDisplayBoard() {
                   >
                     {liveRanking.slice(3).map((player, index) => {
                       const rankIndex = index + 3;
-                      const settlement = calculateDisplaySettlement(player, rankIndex, liveRanking.length);
+                      const settlement = calculateDisplaySettlement(player, rankIndex, liveRanking.length, displayGuestFee);
                       const totalPlayed = Math.max(1, player.wins + player.losses);
                       const winRate = Math.round((player.wins / totalPlayed) * 100);
                       const movementAmount = Math.min(3, Math.max(1, Math.ceil(Math.abs(player.diff) / 5)));
