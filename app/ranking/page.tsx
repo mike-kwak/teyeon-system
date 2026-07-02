@@ -13,13 +13,20 @@ const fadeIn = keyframes({
 const Container = styled('main', {
   display: 'flex',
   flexDirection: 'column',
-  minHeight: '100dvh',
-  padding: '$8 $5',
+  // minHeight:100dvh 제거: GlobalMain(flex) 안에서 박스가 뷰포트 높이로 고정(shrink 하한)되면 콘텐츠가
+  //   박스를 넘쳐(visible overflow) 하단 clearance 가 반영되지 않아 장식 푸터가 BottomNav 뒤로 들어간다.
+  //   대신 flex:1 0 auto 로 콘텐츠가 짧을 때도 GlobalMain 남은 높이를 채워 다크 배경을 유지한다.
+  flex: '1 0 auto',
   maxWidth: '500px',
   margin: '0 auto',
   width: '100%',
   backgroundColor: '$black',
-  // 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이 단일 적용. 250px nav clearance 제거(이중 패딩 방지).
+  // 다크 full-bleed 패턴(notice/archive 와 동일): GlobalMain 공통 하단 padding 을 음수 margin 으로 상쇄해
+  //   라이트 스트립을 막고, 같은 크기의 자체 paddingBottom 으로 푸터가 nav 위 24px 을 확보한다(safe-area 1회 계산).
+  //   주의: padding/margin 단축 속성보다 뒤에 선언해야 개별 속성이 덮어써지지 않는다.
+  padding: '$8 $5',
+  paddingBottom: 'var(--page-bottom-safe)',
+  marginBottom: 'calc(-1 * var(--page-bottom-safe))',
 });
 
 const Subtitle = styled('p', {
