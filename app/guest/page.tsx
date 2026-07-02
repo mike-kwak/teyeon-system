@@ -226,7 +226,10 @@ export default function GuestPage() {
     <main
       style={{
         width: '100%',
-        minHeight: '100dvh',
+        // minHeight:100dvh 제거: GlobalMain(flex) 안에서 박스가 뷰포트 높이로 고정(shrink 하한)되면
+        //   콘텐츠(~2,270px)가 박스를 넘쳐(visible overflow) 공통 하단 clearance 가 반영되지 않아
+        //   마지막 "게스트 신청하기" 버튼이 BottomNav 뒤로 +53px 가려졌다(전 viewport 실측).
+        //   bg 가 GlobalMain(#F2F4F7)과 동일해 콘텐츠 높이로 둬도 이음새가 없다.
         backgroundColor: '#F2F4F7',
         display: 'flex',
         flexDirection: 'column',
