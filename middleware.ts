@@ -121,8 +121,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Matcher for middleware: run on all paths except static files and api
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  // Matcher: /admin/** 에서만 실행.
+  //   이 미들웨어의 유일한 책임은 Admin Console 서버 접근 제어(getUser + profiles.role 판정)다.
+  //   이전에는 전 라우트에서 실행되어 모든 문서 요청 TTFB 에 supabase.auth.getUser() 네트워크 왕복이
+  //   추가됐다(전 화면 로딩 지연·지터의 주원인). 일반 라우트의 세션 유지/토큰 갱신은
+  //   브라우저 클라이언트(lib/supabase.ts, autoRefreshToken)가 전담하며, 서버 컴포넌트/route handler/
+  //   server action 어디에서도 세션 쿠키를 읽지 않음을 전수 확인함(createServerClient 사용처 = 이 파일뿐).
+  //   ':path*' 는 0개 이상 세그먼트 → /admin 및 /admin/** 모두 매칭.
+  matcher: ['/admin/:path*'],
 };
