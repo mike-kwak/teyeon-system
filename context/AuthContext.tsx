@@ -119,8 +119,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (appConfig.permissions[role] as any)[feature] || 'HIDE';
   };
 
-  const syncMemberAvatarIfMissing = async (email?: string | null, candidateAvatarUrl?: string | null) => {
+  const syncMemberAvatarIfMissing = async (userId: string, email?: string | null, candidateAvatarUrl?: string | null) => {
     if (!email || !candidateAvatarUrl) return;
+
+    // 탭 세션 1회 게이트: 같은 사용자 + 같은 아바타 URL 조합이면 이번 탭에서는 재조회하지 않는다
+    //   (매 전체 로드마다 members SELECT 가 나가던 문제 제거). 아바타 URL 이 바뀌면 값이 달라져 자동 재실행.
+    //   sessionStorage 는 탭 수명이라 계정 전환(키에 userId 포함)/브라우저 재시작 시 자연 초기화.
+    //   저장은 SELECT + 필요한 UPDATE 가 모두 성공한 뒤에만 수행(실패 시 다음 로드에서 재시도).
+    const gateKey = `teyeon:member-avatar-sync:${userId}`;
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage.getItem(gateKey) === candidateAvatarUrl) {
+        return;
+      }
+    } catch {
+      // sessionStorage 접근 불가 환경 — 게이트 없이 기존 동작으로 fallback.
+    }
 
     try {
       const { data: linkedMembers, error: linkedMembersError } = await withAuthTimeout(
@@ -157,11 +170,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
 
+      let anyUpdateFailed = false;
       updateResults.forEach((result: any) => {
         if (result?.error) {
+          anyUpdateFailed = true;
           console.warn('[Auth/AvatarSync] Member avatar update failed:', result.error);
         }
       });
+
+      // SELECT + 필요한 UPDATE 전부 성공 → 이번 탭 세션 완료 기록(현재 아바타 URL 저장).
+      if (!anyUpdateFailed) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(gateKey, candidateAvatarUrl);
+          }
+        } catch {
+          // sessionStorage 접근 불가 — 저장 생략(다음 로드에서 기존 동작).
+        }
+      }
     } catch (err) {
       console.warn('[Auth/AvatarSync] Member avatar sync skipped:', err);
     }
@@ -223,7 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: idProfile, error: idProfileError } = await withAuthTimeout(
         supabase
           .from('profiles')
-          .select('id, email, role, avatar_url')
+          // nickname 포함: 아래 no-op UPDATE 방지 비교(shouldUpdateProfile)에 사용.
+          .select('id, email, role, avatar_url, nickname')
           .eq('id', currentUser.id)
           .maybeSingle(),
         'Profile lookup by id'
@@ -252,7 +279,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: emailProfiles, error: emailProfileError } = await withAuthTimeout(
           supabase
             .from('profiles')
-            .select('id, email, role, avatar_url')
+            // nickname 포함: id 조회와 동일하게 no-op UPDATE 방지 비교에 사용.
+            .select('id, email, role, avatar_url, nickname')
             .eq('email', currentUser.email)
             .limit(1),
           'Profile lookup by email'
@@ -291,6 +319,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         void (async () => {
           try {
+            // reconcile 이 실제로 성공하면 같은 payload 를 이미 썼으므로 아래 display update 는 생략.
+            let reconciledOk = false;
             if (profile.id !== currentUser.id) {
               const { error: profileIdUpdateError } = await withAuthTimeout(
                 supabase
@@ -313,27 +343,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   email: currentUser.email,
                   error: profileIdUpdateError
                 });
+              } else {
+                reconciledOk = true;
               }
             }
 
-            const { error: profileUpdateError } = await withAuthTimeout(
-              supabase
-                .from('profiles')
-                .update({
-                  email: currentUser.email,
-                  nickname,
-                  avatar_url: avatarUrl
-                })
-                .eq('id', currentUser.id),
-              'Profile display update',
-              5000
-            );
+            // no-op UPDATE 방지: 저장 payload 와 동일한 정규화(빈 문자열→null)로 DB 값과 비교해
+            //   실제로 달라졌을 때만 PATCH 한다(이전에는 값이 같아도 매 전체 로드마다 무조건 PATCH).
+            //   - nickname/avatarUrl 계산식은 이미 빈값→null 로 끝난다(|| null 체인).
+            //   - email 은 auth 값이 undefined 면 payload 직렬화에서 탈락(기존 동작 유지)하므로
+            //     값이 있을 때만 비교한다 — undefined 로 DB email 을 지우는 회귀 방지.
+            const dbEmail = (profile as any).email || null;
+            const dbNickname = (profile as any).nickname || null;
+            const dbAvatarUrl = (profile as any).avatar_url || null;
+            const emailChanged = currentUser.email != null && dbEmail !== currentUser.email;
+            const nicknameChanged = dbNickname !== nickname;
+            const avatarChanged = dbAvatarUrl !== avatarUrl;
+            const shouldUpdateProfile = emailChanged || nicknameChanged || avatarChanged;
 
-            if (profileUpdateError) {
-              console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
+            if (shouldUpdateProfile && !reconciledOk) {
+              const { error: profileUpdateError } = await withAuthTimeout(
+                supabase
+                  .from('profiles')
+                  .update({
+                    email: currentUser.email,
+                    nickname,
+                    avatar_url: avatarUrl
+                  })
+                  .eq('id', currentUser.id),
+                'Profile display update',
+                5000
+              );
+
+              if (profileUpdateError) {
+                console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
+              }
             }
 
             await syncMemberAvatarIfMissing(
+              currentUser.id,
               currentUser.email,
               avatarUrl || (profile as any)?.avatar_url || null
             );
@@ -359,7 +407,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (insertError) throw insertError;
         finalRole = normalizeRole(insertedProfile?.role);
-        void syncMemberAvatarIfMissing(currentUser.email, avatarUrl);
+        void syncMemberAvatarIfMissing(currentUser.id, currentUser.email, avatarUrl);
       }
 
       if (!roleApplied) {
