@@ -20,7 +20,14 @@
      bottom) again (--safe-bottom is already folded into --bottom-nav-area). */
   --bottom-nav-base-height: 72px;
   --bottom-nav-area: calc(var(--bottom-nav-base-height) + var(--safe-bottom));
-  --page-bottom-safe: calc(var(--bottom-nav-area) + 24px);
+  /* 페이지 마지막 콘텐츠와 BottomNav(또는 화면 하단) 사이 최소 간격. */
+  --page-end-gap: 24px;
+  /* 현재 화면이 실제로 예약해야 하는 하단 영역.
+       BottomNav 표시 화면 = 전체 nav 높이(72px + safe-area, 기본값).
+       BottomNav 숨김 화면 = safe-area 만 → RootShell 이 런타임에 var(--safe-bottom) 로 덮어써 72px 과잉 여백 제거.
+     safe-area 는 이 토큰 안에서 정확히 한 번만 계산된다(이중 계산 금지). */
+  --active-bottom-nav-area: var(--bottom-nav-area);
+  --page-bottom-safe: calc(var(--active-bottom-nav-area) + var(--page-end-gap));
 }
 
 @theme {
@@ -103,12 +110,13 @@ body {
   font-family: var(--font-rajdhani), sans-serif;
   margin: 0;
   padding: 0;
-  min-height: 100dvh;
+  height: 100%;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  /* 단일 스크롤러(GlobalMain) 아키텍처: body 는 스크롤하지 않는다(overflow-x 단독 → overflow-y:auto 코어싱 방지). */
+  overflow: hidden;
 }
 
 /* HomeFrame base — overridden per-page via inline styles */

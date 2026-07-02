@@ -67,11 +67,12 @@ export default function RootLayout({
       className={`${geist.variable} ${rajdhani.variable} ${orbitron.variable} h-full antialiased`}
       style={{ backgroundColor: '#0A0A0A', colorScheme: 'light' }}
     >
-      <body style={{ 
-        backgroundColor: '#000000', 
-        margin: 0, 
-        padding: 0, 
-        minHeight: '100dvh',
+      <body style={{
+        backgroundColor: '#000000',
+        margin: 0,
+        padding: 0,
+        height: '100dvh',
+        overflow: 'hidden',
         fontFamily: 'var(--font-geist), var(--font-rajdhani), sans-serif',
         display: 'flex',
         justifyContent: 'center',

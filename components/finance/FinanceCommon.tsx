@@ -9,7 +9,9 @@ import { ChevronLeft } from 'lucide-react';
  *  카드 하단 디자인 여백은 FINANCE_CONTAINER_STYLE.paddingBottom(16)이 담당. */
 export const FINANCE_PAGE_STYLE: React.CSSProperties = {
     width: '100%',
-    minHeight: '100dvh',
+    // minHeight:100dvh 제거: 이 컨테이너가 뷰포트 높이로 고정되면(flex 자식 shrink) 콘텐츠가 넘쳐
+    //   GlobalMain 공통 하단 clearance(var(--page-bottom-safe))가 반영되지 않아 마지막 액션이 nav 뒤로 가린다.
+    //   bg 가 GlobalMain(#F2F4F7)과 동일하므로 콘텐츠 높이로 둬도 짧은 화면에서 이음새가 보이지 않는다.
     backgroundColor: '#F2F4F7',
 };
 

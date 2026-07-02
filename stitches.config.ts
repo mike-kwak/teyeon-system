@@ -174,8 +174,11 @@ export const globalStyles = globalCss({
     backgroundColor: '$black',
     color: '$white',
     fontFamily: '$sporty', // High-fidelity sporty font by default
-    overflowX: 'hidden',
+    width: '100%',
     height: '100%',
+    // 단일 스크롤러(GlobalMain) 아키텍처: html/body 는 스크롤 컨테이너가 되면 안 된다.
+    //   overflowX 단독 지정은 spec 상 overflowY:auto 를 유발(우발적 중첩 스크롤러)하므로 overflow:hidden 명시.
+    overflow: 'hidden',
     '-webkit-font-smoothing': 'antialiased',
   },
   'a': {

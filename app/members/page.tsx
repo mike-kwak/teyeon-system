@@ -486,7 +486,8 @@ export default function MembersPage() {
             <main
                 style={{
                     width: '100%',
-                    minHeight: '100dvh',
+                    // minHeight:100dvh 제거: 뷰포트 높이 고정 시 콘텐츠가 넘쳐 GlobalMain 공통 하단 clearance 가
+                    //   반영되지 않아 마지막 멤버 카드 행이 nav 뒤로 가린다. bg 가 GlobalMain(#F2F4F7)과 동일해 이음새 없음.
                     backgroundColor: '#F2F4F7',
                     display: 'flex',
                     flexDirection: 'column',

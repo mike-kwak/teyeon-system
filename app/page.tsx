@@ -477,12 +477,15 @@ export default function Home() {
       style={{
         position: 'relative',
         width: '100%',
-        minHeight: '100dvh',
+        // minHeight:100dvh 제거: 이 <main> 이 뷰포트 높이(640)로 고정되면 콘텐츠(868)가 박스를 시각적으로
+        //   넘쳐(visible overflow) GlobalMain 하단 clearance 가 실제 콘텐츠 아래에 적용되지 않는다.
+        //   뷰포트 높이/스크롤은 GlobalMain 이 담당하고, 이 <main> 은 콘텐츠 높이만 갖는다.
         backgroundColor: '#F2F4F7',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        overflowX: 'hidden',
+        // overflowX 는 clip 사용: 'hidden' 은 overflow-y 를 auto 로 코어싱해 이 <main> 이 중첩 스크롤러가 된다.
+        overflowX: 'clip',
         // 하단 BottomNav 여백은 공통 GlobalMain(var(--page-bottom-safe))이 단 한 번만 적용.
         // 페이지에서 BottomNav 높이/safe-area를 다시 계산하지 않는다(이중 패딩 방지).
       }}

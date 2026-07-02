@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, Medal, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { shouldShowBottomNav } from '@/lib/navigation/bottomNavPolicy';
 
 const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) => (
   <svg
@@ -35,27 +36,9 @@ export default function BottomNav() {
   const router = useRouter();
   const { user, setSystemMessage } = useAuth();
 
-  // Guest Pass / TEYEON 공개 둘러보기(/club) 페이지에서는 앱 내부 chrome을 노출하지 않음.
-  if (pathname?.startsWith('/guest/pass')) return null;
-  if (pathname === '/club' || pathname?.startsWith('/club/')) return null;
-  if (pathname?.startsWith('/finance/public')) return null;
-  // TENNIS LOG 작성/수정 화면(신규·수정)만 하단 저장 바를 쓰므로 BottomNav 숨김.
-  //   홈/목록/상세(/tennis-log, /tennis-log/tournaments, /tennis-log/tournaments/[id])에서는 유지.
-  //   대상: /tennis-log/{tournaments|lessons}/new, /tennis-log/{tournaments|lessons}/[id]/edit
-  {
-    const p = pathname || '';
-    const isTennisLogFormRoute =
-      p === '/tennis-log/tournaments/new' ||
-      p === '/tennis-log/lessons/new' ||
-      /^\/tennis-log\/(tournaments|lessons)\/[^/]+\/edit$/.test(p);
-    if (isTennisLogFormRoute) return null;
-    // 공지 작성/수정 화면도 폼 화면 — 작성 중 탭 이동으로 인한 입력 유실/키보드 겹침 방지 위해 숨김.
-    //   목록(/notice)·상세(/notice/[id])는 유지. 정확 경로만 매칭(전체 /notice 숨김 금지).
-    const isNoticeFormRoute =
-      p === '/notice/create' ||
-      /^\/notice\/edit\/[^/]+$/.test(p);
-    if (isNoticeFormRoute) return null;
-  }
+  // 표시 여부는 RootShell 과 공유하는 단일 정책(lib/navigation/bottomNavPolicy)을 따른다.
+  //   숨김 대상: /guest/pass*, /club(+하위), /finance/public*, /kdk/display, TENNIS LOG·공지 작성/수정 폼.
+  if (!shouldShowBottomNav(pathname || '')) return null;
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {

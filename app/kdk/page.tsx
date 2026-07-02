@@ -35,7 +35,10 @@ import type { ClubSchedule } from '@/lib/clubScheduleData';
 //     하단 padding(var(--page-bottom-safe) = BottomNav 높이 + 24px)이 그대로 살아 nav 를 비운다.
 //   · 그 위에 이 값(64px + safe-area)을 콘텐츠 wrapper 에 더해 CTA 아래 실제 빈 공간을 확보한다.
 //   · 결과적으로 CTA 는 BottomNav 위로 약 88px(노치 시 더 큼) 떠서 절대 가려지지 않는다.
-const KDK_STEP_BOTTOM_PADDING = 'calc(64px + env(safe-area-inset-bottom))';
+// 단일 스크롤러 구조에서 각 KDK 문서형 단계의 하단 clearance.
+//   기존 64px 는 BottomNav 영역(72px+safe)보다 작아 마지막 CTA 가 nav 뒤로 ~8px 가림(실측).
+//   공통 토큰 var(--page-bottom-safe) = calc((72px+safe)+24px) 로 맞춰 nav 위 24px 여백을 보장(safe-area 는 한 번만 계산).
+const KDK_STEP_BOTTOM_PADDING = 'var(--page-bottom-safe)';
 
 // LIVE COURT 복원 — 마지막으로 보던 세션/탭을 사용자별 localStorage 에 저장(핵심 복원값).
 //   · sessionStorage 는 PWA/앱 프로세스 종료 시 사라져 복원에 부적합 → localStorage 사용.
@@ -4704,7 +4707,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 className="relative w-full font-sans"
                 data-kdk-rules-scroll-end
                 style={{
-                    minHeight: '100dvh',
+                    // minHeight:100dvh 제거: flex 자식이 640으로 shrink 되면 콘텐츠가 넘쳐(visible overflow)
+                    //   marginBottom 음수(-page-bottom-safe)를 상쇄할 GlobalMain 공통 padding 이 반영되지 않아
+                    //   마지막 CTA 가 nav 뒤로 들어간다(실측 +18). 콘텐츠 흐름 높이로 두면 공통 padding 이 정상 반영된다.
                     marginBottom: 'calc(-1 * var(--page-bottom-safe))',
                     backgroundColor: '#F4F8FC',
                     color: '#0F2747',
