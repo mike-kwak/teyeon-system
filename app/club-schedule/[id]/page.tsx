@@ -252,58 +252,76 @@ export default function ClubScheduleAttendancePage() {
     };
 
     // ── 보조 데이터 로드 (각각 try/catch — 하나가 실패해도 페이지 표시 유지) ──
+    //   네 조회는 전부 scheduleId(+user.id)만 필요한 독립 요청이라 병렬로 동시에 시작한다
+    //   (기존에는 순차 await 로 참석→댓글→회원→내응답이 계단식 대기 — 실측 직렬 구간 ~250ms+).
+    //   각 task 는 기존 try/catch 를 그대로 보존해 자기 오류 state 만 갱신하고 외부로 throw 하지
+    //   않으므로, Promise.all 이 reject 되지 않고 partial failure UX 가 기존과 동일하게 유지된다.
     const loadAuxiliary = useCallback(async () => {
         if (!scheduleId) return;
 
         // 참석 현황
-        try {
-            const attendances = await fetchAttendancesWithMembers(scheduleId);
-            setAllAttendances(attendances);
-            setAttendancesError('');
-        } catch (err: any) {
-            logSupabaseError('Attendances', err);
-            setAttendancesError(err?.message || 'failed');
-        }
+        const loadAttendancesTask = async () => {
+            try {
+                const attendances = await fetchAttendancesWithMembers(scheduleId);
+                setAllAttendances(attendances);
+                setAttendancesError('');
+            } catch (err: any) {
+                logSupabaseError('Attendances', err);
+                setAttendancesError(err?.message || 'failed');
+            }
+        };
 
         // 댓글
-        try {
-            const cmts = await fetchComments(scheduleId);
-            setComments(cmts);
-            setCommentsError('');
-        } catch (err: any) {
-            logSupabaseError('Comments', err);
-            setCommentsError(err?.message || 'failed');
-        }
+        const loadCommentsTask = async () => {
+            try {
+                const cmts = await fetchComments(scheduleId);
+                setComments(cmts);
+                setCommentsError('');
+            } catch (err: any) {
+                logSupabaseError('Comments', err);
+                setCommentsError(err?.message || 'failed');
+            }
+        };
 
         // 활성 회원 — 총원/미응답 명단 계산용. members 테이블 전체 조회.
         // ⚠️ is_guest / active / status 같은 분류 컬럼은 운영 DB에 없으므로 select 하지 않는다
         //    (있다고 가정해 select 하면 PostgREST 400 → 명단 전체 누락 + '미응답 0명' 잘못 표시).
-        setMembersLoadStatus('loading');
-        try {
-            const { data, error } = await supabase
-                .from('members')
-                .select('id, nickname, avatar_url, auth_user_id');
-            if (error) throw error;
-            setActiveMembers((data || []) as ActiveMember[]);
-            setMembersLoadStatus('ok');
-            setMemberCountError('');
-        } catch (err: any) {
-            // 실제 Supabase 오류를 그대로 노출 — 운영 DevTools에서 원인 파악 가능.
-            // (개인정보 누출 없음: code/message/details/hint 만 출력)
-            logSupabaseError('MemberCount (select id, nickname, avatar_url, auth_user_id)', err);
-            setMembersLoadStatus('failed');
-            setMemberCountError(err?.message || 'failed');
-        }
+        const loadMembersTask = async () => {
+            setMembersLoadStatus('loading');
+            try {
+                const { data, error } = await supabase
+                    .from('members')
+                    .select('id, nickname, avatar_url, auth_user_id');
+                if (error) throw error;
+                setActiveMembers((data || []) as ActiveMember[]);
+                setMembersLoadStatus('ok');
+                setMemberCountError('');
+            } catch (err: any) {
+                // 실제 Supabase 오류를 그대로 노출 — 운영 DevTools에서 원인 파악 가능.
+                // (개인정보 누출 없음: code/message/details/hint 만 출력)
+                logSupabaseError('MemberCount (select id, nickname, avatar_url, auth_user_id)', err);
+                setMembersLoadStatus('failed');
+                setMemberCountError(err?.message || 'failed');
+            }
+        };
 
         // 내 응답 — 로그인 사용자만
-        if (user?.id) {
+        const loadMyAttendanceTask = async () => {
+            if (!user?.id) return;
             try {
                 const mine = await fetchMyAttendance(scheduleId, user.id);
                 setMyAttendance(mine);
             } catch (err: any) {
                 logSupabaseError('MyAttendance', err);
             }
-        }
+        };
+
+        await Promise.all([
+            loadAttendancesTask(),
+            loadCommentsTask(),
+            loadMembersTask(),
+            loadMyAttendanceTask(),
+        ]);
     }, [scheduleId, user?.id]);
 
     useEffect(() => {
@@ -311,9 +329,11 @@ export default function ClubScheduleAttendancePage() {
         (async () => {
             if (!scheduleId) { setPageLoading(false); return; }
             setPageLoading(true);
-            await loadSchedule();
-            if (!active) return;
-            await loadAuxiliary();
+            // 병렬 실행: 두 함수 모두 scheduleId 만 사용하고 서로의 state 결과를 요구하지 않으며,
+            //   내부 try/catch 로 오류를 삼켜 외부로 throw 하지 않으므로 Promise.all 이 reject 되지 않는다
+            //   (한쪽 실패가 다른 쪽 결과를 버리지 않음 — 기존 partial failure 의미 유지).
+            //   pageLoading 은 두 작업이 모두 settle 된 뒤에만 해제(기존 게이트 의미 동일, 시점만 단축).
+            await Promise.all([loadSchedule(), loadAuxiliary()]);
             if (!active) return;
             setPageLoading(false);
         })();
