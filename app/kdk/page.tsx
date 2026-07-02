@@ -271,7 +271,9 @@ export default function KDKPage() {
     }, [totalCourts]);
 
     const [accountInfo, setAccountInfo] = useState("카카오뱅크 3333-01-5235337 (곽민섭)");
-    const [currentTime, setCurrentTime] = useState("");
+    // currentTime 시계 state 제거: 어떤 렌더에서도 읽히지 않는 미사용 상태였고,
+    //   1초 interval 이 매초 타이머 콜백 + 분당 1회 전체 컴포넌트 재렌더만 유발했다.
+    //   시계 표시는 /kdk/display(전광판)가 자체적으로 담당한다(해당 파일 무변경).
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     const [showRankingModal, setShowRankingModal] = useState(false);
@@ -1237,10 +1239,6 @@ export default function KDKPage() {
             });
         }
 
-        const timer = setInterval(() => {
-            setCurrentTime(new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' }));
-        }, 1000);
-
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (selectedIds.size > 0 || step > 1) {
                 e.preventDefault();
@@ -1278,7 +1276,6 @@ export default function KDKPage() {
             });
 
         return () => {
-            clearInterval(timer);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
             supabase.removeChannel(matchesChannel);
