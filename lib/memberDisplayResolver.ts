@@ -117,14 +117,24 @@ export async function resolveMemberDisplays(
     }
     if (identities.length === 0) return { byUserId, byMemberId };
 
-    // ── 1차: member_id batch — members 직접 조회 ────────────────────────────
+    // ── 배치 구조: 기존 4단계 직렬(1차→1.5차→2차→3차)을 의존 관계 그대로 2라운드 병렬로 재배열 ──
+    //   · ROUND 1 (독립): [1차 members by member_id] ∥ [2차 profiles by user_id]
+    //   · ROUND 2 (ROUND 1 결과 의존): [1.5차 members by auth_user_id(1차 미커버 userId)] ∥ [3차 members by email(profiles email)]
+    //   각 배치의 입력 집합·쿼리·빈 배열 생략·오류 격리(try/catch + logResolverWarn 후 계속)·
+    //   합성 우선순위(member_id 직접 > auth_user_id > profile/email fallback)는 기존과 동일하다.
+    //   한 배치 실패는 자기 결과만 비우고 다른 배치 결과를 버리지 않는다(각 함수가 오류를 삼켜 Promise.all 이 reject 되지 않음).
     const memberById: Map<string, MemberRow> = new Map();
     /** members.auth_user_id → member row. 1차/2차 batch에서 모은 항목을 통합 */
     const memberByAuthUserId: Map<string, MemberRow> = new Map();
-    const memberIds = Array.from(new Set(
-        identities.map((i) => i.memberId).filter((m): m is string => !!m),
-    ));
-    if (memberIds.length > 0) {
+    const profileByUserId: Map<string, ProfileRow> = new Map();
+    const memberByEmail: Map<string, MemberRow> = new Map();
+
+    // ── 1차: member_id batch — members 직접 조회 ────────────────────────────
+    const runMembersByIdBatch = async () => {
+        const memberIds = Array.from(new Set(
+            identities.map((i) => i.memberId).filter((m): m is string => !!m),
+        ));
+        if (memberIds.length === 0) return;
         try {
             const { data, error } = await supabase
                 .from('members')
@@ -151,17 +161,49 @@ export async function resolveMemberDisplays(
         } catch (e: any) {
             logResolverWarn('member_id batch threw', e);
         }
-    }
+    };
+
+    // ── 2차: 모든 user_id → profiles batch ──────────────────────────────────
+    // member_id 매칭 성공 row도 포함해 항상 profile 후보 수집. 핵심 변경:
+    // member 연결이 없어도 profiles.nickname / profiles.avatar_url 로 표시 가능해야 함.
+    const runProfilesBatch = async () => {
+        const allUserIds = Array.from(new Set(
+            identities.map((it) => it.userId).filter((u): u is string => !!u),
+        ));
+        if (allUserIds.length === 0) return;
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, nickname, email, avatar_url')
+                .in('id', allUserIds);
+            if (error) {
+                logResolverWarn('profiles batch', error);
+            } else {
+                for (const p of (data || []) as any[]) {
+                    profileByUserId.set(p.id, {
+                        id: p.id,
+                        nickname: normText(p.nickname),
+                        avatarUrl: normalizeAvatarUrl(p.avatar_url),
+                        email: normText(p.email),
+                    });
+                }
+            }
+        } catch (e: any) {
+            logResolverWarn('profiles batch threw', e);
+        }
+    };
 
     // ── 1.5차: user_id → members.auth_user_id 직접 매칭 ─────────────────────
     // members.auth_user_id가 운영진에 의해 사전 매핑된 경우 가장 강한 매칭.
     // profile.email batch 전에 먼저 시도 → email mismatch 회원도 정상 매칭됨.
-    const userIdsForAuthLookup = Array.from(new Set(
-        identities
-            .filter((it) => it.userId && !memberByAuthUserId.has(it.userId))
-            .map((it) => it.userId!)
-    ));
-    if (userIdsForAuthLookup.length > 0) {
+    // (입력 집합은 기존과 동일하게 "1차 결과로 커버되지 않은 userId" — ROUND 1 완료 후 계산)
+    const runMembersByAuthUserIdBatch = async () => {
+        const userIdsForAuthLookup = Array.from(new Set(
+            identities
+                .filter((it) => it.userId && !memberByAuthUserId.has(it.userId))
+                .map((it) => it.userId!)
+        ));
+        if (userIdsForAuthLookup.length === 0) return;
         try {
             const { data, error } = await supabase
                 .from('members')
@@ -188,47 +230,18 @@ export async function resolveMemberDisplays(
         } catch (e: any) {
             logResolverWarn('members-by-auth-user-id batch threw', e);
         }
-    }
-
-    // ── 2차: 모든 user_id → profiles batch ──────────────────────────────────
-    // member_id 매칭 성공 row도 포함해 항상 profile 후보 수집. 핵심 변경:
-    // member 연결이 없어도 profiles.nickname / profiles.avatar_url 로 표시 가능해야 함.
-    const profileByUserId: Map<string, ProfileRow> = new Map();
-    const allUserIds = Array.from(new Set(
-        identities.map((it) => it.userId).filter((u): u is string => !!u),
-    ));
-    if (allUserIds.length > 0) {
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id, nickname, email, avatar_url')
-                .in('id', allUserIds);
-            if (error) {
-                logResolverWarn('profiles batch', error);
-            } else {
-                for (const p of (data || []) as any[]) {
-                    profileByUserId.set(p.id, {
-                        id: p.id,
-                        nickname: normText(p.nickname),
-                        avatarUrl: normalizeAvatarUrl(p.avatar_url),
-                        email: normText(p.email),
-                    });
-                }
-            }
-        } catch (e: any) {
-            logResolverWarn('profiles batch threw', e);
-        }
-    }
+    };
 
     // ── 3차: profiles에서 얻은 email로 members 보강 ─────────────────────────
     // 일부 회원은 member_id가 댓글/참석 row에 없지만 email로는 매칭될 수 있음.
-    const orphanEmails = Array.from(new Set(
-        Array.from(profileByUserId.values())
-            .map((p) => p.email)
-            .filter((e): e is string => !!e),
-    ));
-    const memberByEmail: Map<string, MemberRow> = new Map();
-    if (orphanEmails.length > 0) {
+    // (입력 집합은 기존과 동일하게 2차 profiles 결과의 email — ROUND 1 완료 후 계산)
+    const runMembersByEmailBatch = async () => {
+        const orphanEmails = Array.from(new Set(
+            Array.from(profileByUserId.values())
+                .map((p) => p.email)
+                .filter((e): e is string => !!e),
+        ));
+        if (orphanEmails.length === 0) return;
         try {
             const { data, error } = await supabase
                 .from('members')
@@ -260,7 +273,13 @@ export async function resolveMemberDisplays(
         } catch (e: any) {
             logResolverWarn('members-by-email batch threw', e);
         }
-    }
+    };
+
+    // ROUND 1: 서로 독립인 두 조회를 동시에 시작.
+    await Promise.all([runMembersByIdBatch(), runProfilesBatch()]);
+    // ROUND 2: ROUND 1 결과에 의존하는 두 fallback 조회를 동시에 시작.
+    //   두 배치가 채우는 대상이 겹쳐도(memberById/memberByAuthUserId) 동일 members row 이므로 결과는 순서와 무관.
+    await Promise.all([runMembersByAuthUserIdBatch(), runMembersByEmailBatch()]);
 
     // ── 최종 합성 — identity마다 우선순위로 이름/사진 독립 선택 ─────────────
     for (const it of identities) {
