@@ -25,8 +25,12 @@ function humanizeError(err: { message?: string; code?: string } | null): string 
 
 async function getOwnerId(): Promise<string | null> {
   try {
-    const { data } = await supabase.auth.getUser();
-    return data.user?.id ?? null;
+    // getSession(로컬 저장 세션, 네트워크 0회) 사용 — 기존 getUser 는 호출마다 /auth/v1/user
+    //   왕복을 발생시켜 홈 진입 시 7회 직렬(~550ms) 낭비였다.
+    //   여기서 얻는 uid 는 명시 필터/insert 주입용 편의 값일 뿐이며, 실제 보호는 RLS 의
+    //   auth.uid()(요청 JWT 기준)가 담당한다 — uid 가 달라도 SELECT 0행/INSERT 거부(WITH CHECK).
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id ?? null;
   } catch {
     return null;
   }
