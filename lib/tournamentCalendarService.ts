@@ -90,6 +90,40 @@ function toEvent(
   };
 }
 
+// ── 메인(Hero '다음 일정') 전용 경량 요약 ────────────────────────────────────
+//   메인은 다음 일정 1건 선정에 id/title/date/status 4개 필드만 사용한다.
+//   기존 fetchTournamentEvents 를 메인이 재사용하면 캘린더 전용 데이터인
+//   tournament_pairs / tournament_partner_requests(전 이벤트 대진·파트너 신청)까지
+//   매 메인 진입마다 2요청이 불필요하게 발생하므로, tournament_events 만 조회하는
+//   명시적 요약 함수를 분리한다. (전체 TournamentEvent 로 위장하지 않는다 —
+//   pairs/requests 가 필요해지면 fetchTournamentEvents 를 사용할 것.)
+//   date/status 는 toEvent 와 동일하게 DB 값 무변환(event_date/status 그대로)이며,
+//   title fallback('대회')과 취소/종료 필터는 기존대로 호출부(메인)가 수행한다.
+export type TournamentEventSummary = {
+  id: string;
+  title: string;
+  /** tournament_events.event_date — toEvent 의 date 매핑과 동일(무변환) */
+  date: string;
+  status: TournamentStatus;
+};
+
+export async function fetchTournamentEventSummariesForHome(): Promise<TournamentEventSummary[]> {
+  const { data, error } = await supabase
+    .from('tournament_events')
+    .select('id, title, event_date, status')
+    .order('event_date', { ascending: true })
+    .order('title', { ascending: true });
+
+  if (error) throw error;
+
+  return ((data || []) as Pick<TournamentEventRow, 'id' | 'title' | 'event_date' | 'status'>[]).map((row) => ({
+    id: row.id,
+    title: row.title,
+    date: row.event_date,
+    status: row.status,
+  }));
+}
+
 export async function fetchTournamentEvents() {
   const { data: eventRows, error: eventError } = await supabase
     .from('tournament_events')

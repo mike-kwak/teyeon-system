@@ -21,7 +21,9 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
-import { fetchTournamentEvents } from '@/lib/tournamentCalendarService';
+// 메인은 다음 일정 계산에 id/title/date/status 만 쓰므로 경량 요약 조회를 사용
+//   (fetchTournamentEvents 는 캘린더 전용 대진/파트너 신청까지 2요청을 추가로 발생시킴).
+import { fetchTournamentEventSummariesForHome } from '@/lib/tournamentCalendarService';
 import {
   TENNIS_LOG_LOCKED_TITLE,
   TENNIS_LOG_LOCKED_BODY,
@@ -127,7 +129,7 @@ export default function Home() {
         const now = new Date();
         const [clubResult, tournamentResult] = await Promise.allSettled([
           fetchClubSchedules(),
-          fetchTournamentEvents(),
+          fetchTournamentEventSummariesForHome(),
         ]);
 
         const items: NextScheduleItem[] = [];
