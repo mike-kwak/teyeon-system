@@ -32,6 +32,10 @@ export type KdkArchiveStats = {
   totalDiff: number;
   averageDiff: number;
   firstPlaceCount: number;
+  /** 세션 전체 2위 횟수 — 클럽 랭킹 보너스 계산용(가산 필드, 기존 소비자 영향 없음). */
+  secondPlaceCount: number;
+  /** 세션 전체 3위 횟수 — 클럽 랭킹 보너스 계산용(가산 필드, 기존 소비자 영향 없음). */
+  thirdPlaceCount: number;
   top3Count: number;
   latestRank: number | null;
   recentSessions: KdkRecentSession[];
@@ -45,6 +49,8 @@ const emptyStats: KdkArchiveStats = {
   totalDiff: 0,
   averageDiff: 0,
   firstPlaceCount: 0,
+  secondPlaceCount: 0,
+  thirdPlaceCount: 0,
   top3Count: 0,
   latestRank: null,
   recentSessions: [],
@@ -66,7 +72,8 @@ const normalizeGroup = (value?: string | null) => {
   return '';
 };
 
-const getArchiveDate = (row: KdkArchiveRow) =>
+// 클럽 랭킹(시즌 필터)에서도 동일 날짜 기준을 쓰도록 export (로직 복사 방지).
+export const getArchiveDate = (row: KdkArchiveRow) =>
   row.raw_data?.date || row.created_at?.slice(0, 10) || '';
 
 const getMatchPlayerIds = (match: any): string[] =>
@@ -128,6 +135,8 @@ export function calculateKdkArchiveStats(
   let totalLosses = 0;
   let totalDiff = 0;
   let firstPlaceCount = 0;
+  let secondPlaceCount = 0;
+  let thirdPlaceCount = 0;
   let top3Count = 0;
   let rankedSessionCount = 0;
   let latestRank: number | null = null;
@@ -156,6 +165,8 @@ export function calculateKdkArchiveStats(
       totalLosses += losses || 0;
       totalDiff += diff || 0;
       if (rank === 1) firstPlaceCount += 1;
+      if (rank === 2) secondPlaceCount += 1;
+      if (rank === 3) thirdPlaceCount += 1;
       if (rank && rank <= 3) top3Count += 1;
       if (latestRank === null) latestRank = rank;
     }
@@ -181,6 +192,8 @@ export function calculateKdkArchiveStats(
     totalDiff,
     averageDiff: rankedSessionCount > 0 ? totalDiff / rankedSessionCount : 0,
     firstPlaceCount,
+    secondPlaceCount,
+    thirdPlaceCount,
     top3Count,
     latestRank,
     recentSessions: participatedSessions.slice(0, 5),
