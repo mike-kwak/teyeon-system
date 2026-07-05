@@ -111,8 +111,8 @@ function AwardCard({ label, unit, accent, note, winner }: {
   label: string; unit: string; accent: 'gold' | 'teal'; note?: string; winner: ClubRankingAwardWinner;
 }) {
   const valueColor = accent === 'gold' ? C.gold : C.teal;
-  return (
-    <div style={{ ...cardStyle, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+  const body = (
+    <>
       {/* 우선순위: ① 항목명 ② 이름 ③ 수치 ④ 기준 문구 — 장식(아바타)보다 정보가 먼저 읽히게 */}
       <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.05em' }}>{label}</span>
       <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: winner ? C.text : C.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -122,8 +122,23 @@ function AwardCard({ label, unit, accent, note, winner }: {
         {winner ? `${winner.value}${unit}` : '-'}
       </p>
       {note && <p style={{ margin: '2px 0 0', fontSize: 9, fontWeight: 600, color: C.faint, lineHeight: 1.4 }}>{note}</p>}
-    </div>
+    </>
   );
+  const boxStyle: React.CSSProperties = { ...cardStyle, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 };
+  // 수상자가 있으면 회원 상세 딥링크(실제 Link) — null/'집계 예정' 카드는 클릭 불가(정적 div, 시각 동일).
+  if (winner) {
+    return (
+      <Link
+        href={`/members?member=${encodeURIComponent(winner.memberId)}`}
+        aria-label={`${winner.name} 회원 프로필 보기`}
+        className="rank-row"
+        style={{ ...boxStyle, textDecoration: 'none', WebkitTapHighlightColor: 'transparent' }}
+      >
+        {body}
+      </Link>
+    );
+  }
+  return <div style={boxStyle}>{body}</div>;
 }
 
 // ── TOP3 포디움 ──────────────────────────────────────────────────────────────
@@ -164,16 +179,23 @@ function PodiumCard({ entry, place }: { entry: ClubRankingEntry | undefined; pla
   );
 }
 
-// ── 전체 목록 행 ─────────────────────────────────────────────────────────────
+// ── 전체 목록 행 — 회원 상세 딥링크(/members?member=<id>, 카드 모달 자동 오픈) ──
+//   행 전체가 실제 <Link>(anchor semantics — 키보드 Enter/포커스 표시 유지). stable members.id 만 사용.
 function RankingRow({ entry, displayRank }: { entry: ClubRankingEntry; displayRank: number }) {
   const dim = !entry.eligible;
   return (
-    <div style={{
+    <Link
+      href={`/members?member=${encodeURIComponent(entry.memberId)}`}
+      aria-label={`${entry.name} 회원 프로필 보기`}
+      className="rank-row"
+      style={{
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '11px 12px',
       backgroundColor: dim ? 'rgba(148,163,184,0.07)' : C.card,
       borderTop: `1px solid ${C.border}`,
       opacity: dim ? 0.85 : 1,
+      textDecoration: 'none',
+      WebkitTapHighlightColor: 'transparent',
     }}>
       <span style={{ width: 30, textAlign: 'center', fontSize: 15, fontWeight: 900, color: dim ? C.faint : displayRank <= 3 ? C.gold : C.text, flexShrink: 0 }}>
         {dim ? '—' : displayRank}
@@ -197,7 +219,8 @@ function RankingRow({ entry, displayRank }: { entry: ClubRankingEntry; displayRa
         <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: dim ? C.faint : C.teal, lineHeight: 1 }}>{entry.points}</p>
         <p style={{ margin: 0, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', color: C.faint }}>POINT</p>
       </div>
-    </div>
+      <ChevronRight size={14} color={C.faint} style={{ flexShrink: 0, marginLeft: -2 }} aria-hidden />
+    </Link>
   );
 }
 
@@ -493,6 +516,8 @@ export default function RankingPage() {
       }}
     >
       <div style={{ width: '100%', maxWidth: 430, padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* 딥링크 행/카드 hover·active — 인라인 배경과 충돌하지 않도록 filter/opacity 사용(페이지 로컬 클래스, 전역 CSS 아님) */}
+        <style>{`.rank-row{transition:filter .15s,opacity .1s}.rank-row:hover{filter:brightness(0.98)}.rank-row:active{opacity:.9}`}</style>
 
         {/* ── 헤더: 뒤로 + 타이틀 ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, paddingTop: 16 }}>

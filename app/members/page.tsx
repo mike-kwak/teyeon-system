@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -290,8 +291,24 @@ export default function MembersPage() {
     const [isStatsLoading, setIsStatsLoading] = useState(false);
     // 같은 멤버를 반복해서 열어도 한 번만 조회. PROFILE과 동일 helper(fetchMemberOfficialStats)를 재사용한다.
     const statsCacheRef = useRef<Map<string, MemberOfficialStatsResult>>(new Map());
+    const searchParams = useSearchParams();
+    const deepLinkOpenedRef = useRef(false);
 
     useEffect(() => { fetchMembers(); }, []);
+
+    // 딥링크: /members?member=<members.id> — Ranking 등 다른 화면에서 특정 회원 카드 모달을 바로 연다.
+    //   · stable members.id 만 사용(이름/닉네임 기반 식별 금지 — 동명이인 오매칭 방지).
+    //   · 목록 로드 후 1회만 자동 오픈(ref 가드) — 사용자가 모달을 닫은 뒤 재오픈되지 않는다.
+    //   · 잘못된/존재하지 않는 id 는 무시하고 목록을 정상 표시한다(오류 없음).
+    useEffect(() => {
+        if (deepLinkOpenedRef.current) return;
+        if (members.length === 0) return;
+        deepLinkOpenedRef.current = true;
+        const targetId = searchParams?.get('member');
+        if (!targetId) return;
+        const target = members.find((m) => m.id === targetId);
+        if (target) setSelectedMember(target);
+    }, [members, searchParams]);
 
     async function fetchMembers() {
         try {
