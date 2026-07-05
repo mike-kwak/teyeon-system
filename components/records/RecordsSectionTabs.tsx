@@ -11,7 +11,7 @@ import { usePathname } from 'next/navigation';
 
 const TABS = [
   { href: '/archive', label: '공식 기록' },
-  { href: '/ranking', label: 'TEYEON Ranking' },
+  { href: '/ranking', label: '랭킹' },
 ] as const;
 
 export default function RecordsSectionTabs() {

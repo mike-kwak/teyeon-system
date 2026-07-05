@@ -90,31 +90,38 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── 시상 카드 ────────────────────────────────────────────────────────────────
-const AWARD_DEFS: { key: keyof ClubRankingResult['awards']; label: string; unit: string; note?: string }[] = [
-  { key: 'mostChampionships', label: '최다 우승상', unit: '회 우승' },
-  { key: 'mostParticipation', label: '최다 참여상', unit: '회 참가' },
-  { key: 'bestWinRate', label: '최고 승률상', unit: '%', note: `공식 ${BEST_WINRATE_MIN_GAMES}경기 이상` },
-  { key: 'mostWins', label: '최다 승리상', unit: '승' },
-  { key: 'mostTop3', label: 'TOP3 최다', unit: '회 TOP3' },
+// ── 기록 리더 카드 (2×2 그리드) ──────────────────────────────────────────────
+//   표시 4종만 사용: 최다 우승 / 최다 참가 / 최고 승률 / TOP3 최다.
+//   '최다 승리'(mostWins)는 코어 계산·타입은 유지하되 이 화면 표시 대상에서만 제외한다.
+//   TOP3 최다는 코어의 기존 mostTop3(= 기간 내 1·2·3위 횟수 합 최다, 동률은 기존 comparator 상위)를 그대로 재사용.
+const AWARD_DEFS: {
+  key: keyof ClubRankingResult['awards'];
+  label: string;
+  unit: string;
+  accent: 'gold' | 'teal';
+  note?: string;
+}[] = [
+  { key: 'mostChampionships', label: '최다 우승', unit: '회', accent: 'gold' },
+  { key: 'mostParticipation', label: '최다 참가', unit: '회', accent: 'teal' },
+  { key: 'bestWinRate', label: '최고 승률', unit: '%', accent: 'teal', note: `공식 ${BEST_WINRATE_MIN_GAMES}경기 이상 기준` },
+  { key: 'mostTop3', label: 'TOP3 최다', unit: '회', accent: 'gold' },
 ];
 
-function AwardCard({ label, unit, note, winner }: { label: string; unit: string; note?: string; winner: ClubRankingAwardWinner }) {
+function AwardCard({ label, unit, accent, note, winner }: {
+  label: string; unit: string; accent: 'gold' | 'teal'; note?: string; winner: ClubRankingAwardWinner;
+}) {
+  const valueColor = accent === 'gold' ? C.gold : C.teal;
   return (
-    <div style={{ ...cardStyle, minWidth: 138, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 7, flexShrink: 0 }}>
-      <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.06em' }}>{label}</span>
-      {winner ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <Avatar name={winner.name} url={null} size={28} />
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{winner.name}</p>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.sub }}>{winner.value}{unit}</p>
-          </div>
-        </div>
-      ) : (
-        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.faint, lineHeight: 1.5 }}>집계 준비 중</p>
-      )}
-      {note && <p style={{ margin: 0, fontSize: 9.5, fontWeight: 600, color: C.faint }}>{note}</p>}
+    <div style={{ ...cardStyle, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+      {/* 우선순위: ① 항목명 ② 이름 ③ 수치 ④ 기준 문구 — 장식(아바타)보다 정보가 먼저 읽히게 */}
+      <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.05em' }}>{label}</span>
+      <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: winner ? C.text : C.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {winner ? winner.name : '집계 예정'}
+      </p>
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: winner ? valueColor : C.faint, lineHeight: 1 }}>
+        {winner ? `${winner.value}${unit}` : '-'}
+      </p>
+      {note && <p style={{ margin: '2px 0 0', fontSize: 9, fontWeight: 600, color: C.faint, lineHeight: 1.4 }}>{note}</p>}
     </div>
   );
 }
@@ -547,8 +554,8 @@ export default function RankingPage() {
             {/* ── 2. 기간 탭 (시즌/누적/월간) — 공통 진입 탭보다 한 단계 아래 계층(채움형 pill) ── */}
             <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 13, backgroundColor: 'rgba(15,23,42,0.05)' }}>
               {tabBtn('season', `${CURRENT_SEASON} 시즌`)}
-              {tabBtn('all', '누적')}
               {tabBtn('monthly', '월간')}
+              {tabBtn('all', '누적')}
             </div>
 
             {/* ── 2-1. 월 이동 내비게이터 (월간 탭 전용) — < 2026년 7월 > ── */}
@@ -583,15 +590,15 @@ export default function RankingPage() {
               <>
                 {eligible.length === 0 && <NoEligibleBanner />}
 
-                {/* ── 3. 자동 시상 ── */}
+                {/* ── 3. 기록 리더 (2×2 그리드 — 캐러셀/가로 스크롤 없이 한눈에) ── */}
                 {eligible.length > 0 && (
                   <section>
-                    <p style={{ margin: '2px 0 8px', fontSize: 11, fontWeight: 900, letterSpacing: '0.1em', color: C.faint }}>
-                      {tab === 'season' ? '시즌 시상' : tab === 'all' ? '누적 시상' : `${ym.month}월 시상`} <span style={{ fontWeight: 700 }}>AWARDS</span>
+                    <p style={{ margin: '2px 0 8px', fontSize: 12, fontWeight: 900, letterSpacing: '0.02em', color: C.text }}>
+                      {tab === 'season' ? `${CURRENT_SEASON} 시즌 기록 리더` : tab === 'all' ? '누적 기록 리더' : `${ym.month}월 기록 리더`}
                     </p>
-                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {AWARD_DEFS.map((d) => (
-                        <AwardCard key={d.key} label={d.label} unit={d.unit} note={d.note} winner={data.awards[d.key]} />
+                        <AwardCard key={d.key} label={d.label} unit={d.unit} accent={d.accent} note={d.note} winner={data.awards[d.key]} />
                       ))}
                     </div>
                   </section>
