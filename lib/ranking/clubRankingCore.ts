@@ -33,7 +33,16 @@ export const RANKING_MIN_SESSIONS = 2;
 /** 최고 승률상 자격: 공식 6경기 이상(미달자는 후보 제외 — 목록의 승률 표시는 무관). */
 export const BEST_WINRATE_MIN_GAMES = 6;
 
-export type ClubRankingSeason = number | 'all';
+/**
+ * 집계 기간.
+ *   number         → 연도(시즌) 필터 (예: 2026)
+ *   'all'          → 누적(전체 공식 기록)
+ *   { year, month }→ 월간 필터 — 해당 연·월의 공식 세션만.
+ * 날짜 기준은 기존과 동일하게 getArchiveDate(공식 세션 경기일 raw_data.date 우선, 폴백 created_at).
+ * YYYY-MM-DD 문자열 접두 비교라 타임존 변환이 없어 UTC 밀림 문제가 원천적으로 발생하지 않는다
+ * (= 선택 월 1일 00:00 이상 ~ 다음 달 1일 미만과 동치).
+ */
+export type ClubRankingSeason = number | 'all' | { year: number; month: number };
 
 export type ClubRankingMemberInput = {
   id: string;
@@ -140,7 +149,13 @@ export function computeClubRanking(
   const seasonRows =
     season === 'all'
       ? officialRows
-      : officialRows.filter((row) => getArchiveDate(row).slice(0, 4) === String(season));
+      : typeof season === 'number'
+        ? officialRows.filter((row) => getArchiveDate(row).slice(0, 4) === String(season))
+        : officialRows.filter(
+            (row) =>
+              getArchiveDate(row).slice(0, 7) ===
+              `${season.year}-${String(season.month).padStart(2, '0')}`,
+          );
 
   const latestSessionDate = seasonRows.reduce<string | null>((acc, row) => {
     const d = getArchiveDate(row);

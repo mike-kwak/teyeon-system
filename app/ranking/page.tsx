@@ -7,9 +7,10 @@
 //   · 디자인: Cool Premium Light + TOP3 Championship accent(골드/실버/브론즈 포인트만, 네온/글로우/blur 금지).
 //   · 레이아웃: GlobalMain 단일 스크롤 구조 준수 — 페이지 wrapper 에 minHeight/overflow 를 두지 않는다(b055a7a).
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays } from 'lucide-react';
 import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import {
   fetchClubRanking,
@@ -311,6 +312,40 @@ function EmptyOfficialCard() {
   );
 }
 
+function MonthlyEmptyCard({ ym }: { ym: { year: number; month: number } }) {
+  return (
+    <div style={{ ...cardStyle, padding: '26px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+      <div style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: C.tealBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CalendarDays size={20} color={C.teal} />
+      </div>
+      <p style={{ margin: 0, fontSize: 13.5, fontWeight: 900, color: C.text }}>
+        {ym.year}년 {ym.month}월의 공식 KDK 기록이 없습니다.
+      </p>
+      <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.sub, lineHeight: 1.6 }}>
+        공식 확정된 경기만 월간 Ranking에 반영됩니다.
+      </p>
+    </div>
+  );
+}
+
+function MonthlyErrorCard({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div style={{ ...cardStyle, padding: 20, borderColor: 'rgba(239,68,68,0.25)', backgroundColor: 'rgba(239,68,68,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+      <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: '#B91C1C' }}>월간 Ranking을 불러오지 못했습니다.</p>
+      <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.sub, lineHeight: 1.6 }}>
+        잠시 후 다시 시도해 주세요. Archive 원본 기록에는 영향이 없습니다.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, border: 'none', backgroundColor: C.teal, color: '#fff', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}
+      >
+        <RefreshCw size={13} /> 다시 시도
+      </button>
+    </div>
+  );
+}
+
 function NoEligibleBanner() {
   return (
     <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -340,20 +375,55 @@ function computeDisplayRanks(entries: ClubRankingEntry[]): Map<string, number> {
   return ranks;
 }
 
+// ── 기간 상태 (URL query 로 관리 — 새로고침/공유/뒤로가기 유지) ────────────────
+//   /ranking?period=season | all | monthly (&year=YYYY&month=M)
+//   잘못된 파라미터는 안전 기본값(season / 현재 연·월)으로 fallback.
+type PeriodTab = 'season' | 'all' | 'monthly';
+type YearMonth = { year: number; month: number };
+
+const nowYearMonth = (): YearMonth => {
+  const d = new Date(); // 로컬 날짜 기준(월 경계 UTC 밀림 없음 — 필터도 문자열 비교)
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+};
+
+function parsePeriodParams(sp: URLSearchParams | null): { tab: PeriodTab; ym: YearMonth } {
+  const period = sp?.get('period');
+  const tab: PeriodTab = period === 'all' || period === 'monthly' ? period : 'season';
+  let ym = nowYearMonth();
+  if (tab === 'monthly') {
+    const y = Number(sp?.get('year'));
+    const m = Number(sp?.get('month'));
+    if (Number.isInteger(y) && y >= 2000 && y <= 2100 && Number.isInteger(m) && m >= 1 && m <= 12) {
+      ym = { year: y, month: m };
+    }
+  }
+  return { tab, ym };
+}
+
+const cacheKeyOf = (tab: PeriodTab, ym: YearMonth) =>
+  tab === 'monthly' ? `monthly:${ym.year}-${ym.month}` : tab;
+
 // ── 메인 페이지 ──────────────────────────────────────────────────────────────
 export default function RankingPage() {
-  const [tab, setTab] = useState<'season' | 'all'>('season');
-  const [cache, setCache] = useState<Partial<Record<'season' | 'all', ClubRankingResult>>>({});
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initial = parsePeriodParams(searchParams);
+  const [tab, setTab] = useState<PeriodTab>(initial.tab);
+  const [ym, setYm] = useState<YearMonth>(initial.ym);
+  const [cache, setCache] = useState<Record<string, ClubRankingResult>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const mountedRef = useRef(false);
 
-  const load = useCallback(async (which: 'season' | 'all', force = false) => {
-    if (!force && cache[which]) { setLoading(false); setError(false); return; }
+  const load = useCallback(async (which: PeriodTab, whichYm: YearMonth, force = false) => {
+    const key = cacheKeyOf(which, whichYm);
+    if (!force && cache[key]) { setLoading(false); setError(false); return; }
     setLoading(true);
     setError(false);
     try {
-      const result = await fetchClubRanking(which === 'season' ? CURRENT_SEASON : 'all');
-      setCache((prev) => ({ ...prev, [which]: result }));
+      const season = which === 'season' ? CURRENT_SEASON : which === 'all' ? 'all' as const : whichYm;
+      const result = await fetchClubRanking(season);
+      setCache((prev) => ({ ...prev, [key]: result }));
     } catch (err) {
       console.warn('[Ranking] load failed:', err);
       setError(true);
@@ -362,15 +432,31 @@ export default function RankingPage() {
     }
   }, [cache]);
 
-  useEffect(() => { void load(tab); }, [tab, load]);
+  useEffect(() => { void load(tab, ym); }, [tab, ym, load]);
 
-  const data = cache[tab];
+  // URL 동기화 — replace(히스토리 미적재)로 새로고침/공유 상태 유지. 최초 마운트는 URL 이 원본이므로 생략.
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    const qs = tab === 'monthly'
+      ? `?period=monthly&year=${ym.year}&month=${ym.month}`
+      : tab === 'all' ? '?period=all' : '?period=season';
+    router.replace(`/ranking${qs}`, { scroll: false });
+  }, [tab, ym, router]);
+
+  const moveMonth = (delta: number) => {
+    setYm((prev) => {
+      const total = prev.year * 12 + (prev.month - 1) + delta;
+      return { year: Math.floor(total / 12), month: (total % 12) + 1 };
+    });
+  };
+
+  const data = cache[cacheKeyOf(tab, ym)];
   const eligible = data ? data.entries.filter((e) => e.eligible) : [];
   const pending = data ? data.entries.filter((e) => !e.eligible) : [];
   const displayRanks = data ? computeDisplayRanks(data.entries) : new Map<string, number>();
   const top3 = eligible.slice(0, 3);
 
-  const tabBtn = (which: 'season' | 'all', label: string) => (
+  const tabBtn = (which: PeriodTab, label: string) => (
     <button
       type="button"
       onClick={() => setTab(which)}
@@ -417,7 +503,11 @@ export default function RankingPage() {
         </div>
 
         {loading && <LoadingSkeleton />}
-        {!loading && error && <ErrorCard onRetry={() => void load(tab, true)} />}
+        {!loading && error && (
+          tab === 'monthly'
+            ? <MonthlyErrorCard onRetry={() => void load(tab, ym, true)} />
+            : <ErrorCard onRetry={() => void load(tab, ym, true)} />
+        )}
 
         {!loading && !error && data && (
           <>
@@ -430,7 +520,7 @@ export default function RankingPage() {
                 <div>
                   <p style={{ margin: 0, fontSize: 9.5, fontWeight: 900, letterSpacing: '0.16em', color: C.teal }}>TEYEON RANKING</p>
                   <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text, fontFamily: 'var(--font-rajdhani), sans-serif' }}>
-                    {tab === 'season' ? `${CURRENT_SEASON} SEASON` : 'ALL TIME'}
+                    {tab === 'season' ? `${CURRENT_SEASON} SEASON` : tab === 'all' ? 'ALL TIME' : `${ym.year}년 ${ym.month}월`}
                   </p>
                 </div>
               </div>
@@ -454,15 +544,41 @@ export default function RankingPage() {
                 아래 시즌/누적(채움형 pill)과 시각 계층 구분: 이 탭은 흰 카드+언더라인 방식. */}
             <RecordsSectionTabs />
 
-            {/* ── 2. 시즌/누적 탭 ── */}
+            {/* ── 2. 기간 탭 (시즌/누적/월간) — 공통 진입 탭보다 한 단계 아래 계층(채움형 pill) ── */}
             <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 13, backgroundColor: 'rgba(15,23,42,0.05)' }}>
               {tabBtn('season', `${CURRENT_SEASON} 시즌`)}
               {tabBtn('all', '누적')}
+              {tabBtn('monthly', '월간')}
             </div>
 
+            {/* ── 2-1. 월 이동 내비게이터 (월간 탭 전용) — < 2026년 7월 > ── */}
+            {tab === 'monthly' && (
+              <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px' }}>
+                <button
+                  type="button"
+                  onClick={() => moveMonth(-1)}
+                  aria-label="이전 달"
+                  style={{ width: 42, height: 42, borderRadius: 10, border: 'none', backgroundColor: 'transparent', color: C.sub, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 900, color: C.text, whiteSpace: 'nowrap' }}>
+                  <CalendarDays size={14} color={C.teal} /> {ym.year}년 {ym.month}월
+                </span>
+                <button
+                  type="button"
+                  onClick={() => moveMonth(1)}
+                  aria-label="다음 달"
+                  style={{ width: 42, height: 42, borderRadius: 10, border: 'none', backgroundColor: 'transparent', color: C.sub, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+
             {data.totalOfficialSessions === 0 ? (
-              /* ── 공식 기록 0건 ── */
-              <EmptyOfficialCard />
+              /* ── 공식 기록 0건 — 월간은 전용 문구 ── */
+              tab === 'monthly' ? <MonthlyEmptyCard ym={ym} /> : <EmptyOfficialCard />
             ) : (
               <>
                 {eligible.length === 0 && <NoEligibleBanner />}
@@ -471,7 +587,7 @@ export default function RankingPage() {
                 {eligible.length > 0 && (
                   <section>
                     <p style={{ margin: '2px 0 8px', fontSize: 11, fontWeight: 900, letterSpacing: '0.1em', color: C.faint }}>
-                      {tab === 'season' ? '시즌 시상' : '누적 시상'} <span style={{ fontWeight: 700 }}>AWARDS</span>
+                      {tab === 'season' ? '시즌 시상' : tab === 'all' ? '누적 시상' : `${ym.month}월 시상`} <span style={{ fontWeight: 700 }}>AWARDS</span>
                     </p>
                     <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
                       {AWARD_DEFS.map((d) => (
@@ -485,7 +601,7 @@ export default function RankingPage() {
                 {top3.length > 0 && (
                   <section>
                     <p style={{ margin: '2px 0 8px', fontSize: 11, fontWeight: 900, letterSpacing: '0.1em', color: C.faint }}>
-                      TOP 3 <span style={{ fontWeight: 700 }}>{tab === 'season' ? 'SEASON PODIUM' : 'ALL-TIME PODIUM'}</span>
+                      TOP 3 <span style={{ fontWeight: 700 }}>{tab === 'season' ? 'SEASON PODIUM' : tab === 'all' ? 'ALL-TIME PODIUM' : 'MONTHLY PODIUM'}</span>
                     </p>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                       <PodiumCard entry={top3[1]} place={2} />
