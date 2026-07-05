@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
+import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin } from 'lucide-react';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
@@ -617,6 +618,9 @@ export default function ArchivePage() {
                 정식 확정된 KDK 세션 기록을 보관합니다. 우승자·순위·결과가 공식 기록으로 남습니다.
               </p>
             </section>
+
+            {/* 기록 영역 공통 진입 탭 — 공식 기록 ↔ TEYEON Ranking (라우트 이동, /ranking 과 동일 컴포넌트) */}
+            <RecordsSectionTabs />
 
             {/* STATS GRID (2x2) */}
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

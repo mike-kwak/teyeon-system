@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight } from 'lucide-react';
+import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import {
   fetchClubRanking,
   RANKING_POINTS,
@@ -448,6 +449,10 @@ export default function RankingPage() {
                   : '아직 반영된 공식 세션이 없습니다'}
               </p>
             </section>
+
+            {/* 기록 영역 공통 진입 탭 — 공식 기록 ↔ TEYEON Ranking (/archive 와 동일 컴포넌트).
+                아래 시즌/누적(채움형 pill)과 시각 계층 구분: 이 탭은 흰 카드+언더라인 방식. */}
+            <RecordsSectionTabs />
 
             {/* ── 2. 시즌/누적 탭 ── */}
             <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 13, backgroundColor: 'rgba(15,23,42,0.05)' }}>
