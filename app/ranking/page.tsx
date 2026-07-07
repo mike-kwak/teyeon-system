@@ -12,6 +12,19 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays } from 'lucide-react';
 import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
+import {
+  PlayerCardModal,
+  type PlayerCardMember,
+  type PlayerCardStats,
+  type VisibilityLevel,
+} from '@/components/players/PlayerCardModal';
+import {
+  fetchMemberOfficialStats,
+  type MemberOfficialStatsResult,
+} from '@/lib/profile/getMemberOfficialStats';
 import {
   fetchClubRanking,
   RANKING_POINTS,
@@ -107,8 +120,9 @@ const AWARD_DEFS: {
   { key: 'mostTop3', label: 'TOP3 최다', unit: '회', accent: 'gold' },
 ];
 
-function AwardCard({ label, unit, accent, note, winner }: {
+function AwardCard({ label, unit, accent, note, winner, onOpen }: {
   label: string; unit: string; accent: 'gold' | 'teal'; note?: string; winner: ClubRankingAwardWinner;
+  onOpen: (memberId: string) => void;
 }) {
   const valueColor = accent === 'gold' ? C.gold : C.teal;
   const body = (
@@ -125,17 +139,18 @@ function AwardCard({ label, unit, accent, note, winner }: {
     </>
   );
   const boxStyle: React.CSSProperties = { ...cardStyle, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 };
-  // 수상자가 있으면 회원 상세 딥링크(실제 Link) — null/'집계 예정' 카드는 클릭 불가(정적 div, 시각 동일).
+  // 수상자가 있으면 회원 카드 모달을 현재 화면에서 오픈(실제 button) — null/'집계 예정' 카드는 클릭 불가(정적 div, 시각 동일).
   if (winner) {
     return (
-      <Link
-        href={`/members?member=${encodeURIComponent(winner.memberId)}`}
+      <button
+        type="button"
+        onClick={() => onOpen(winner.memberId)}
         aria-label={`${winner.name} 회원 프로필 보기`}
         className="rank-row"
-        style={{ ...boxStyle, textDecoration: 'none', WebkitTapHighlightColor: 'transparent' }}
+        style={{ ...boxStyle, textAlign: 'left', font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
       >
         {body}
-      </Link>
+      </button>
     );
   }
   return <div style={boxStyle}>{body}</div>;
@@ -179,22 +194,28 @@ function PodiumCard({ entry, place }: { entry: ClubRankingEntry | undefined; pla
   );
 }
 
-// ── 전체 목록 행 — 회원 상세 딥링크(/members?member=<id>, 카드 모달 자동 오픈) ──
-//   행 전체가 실제 <Link>(anchor semantics — 키보드 Enter/포커스 표시 유지). stable members.id 만 사용.
-function RankingRow({ entry, displayRank }: { entry: ClubRankingEntry; displayRank: number }) {
+// ── 전체 목록 행 — 회원 카드 모달을 Ranking 안에서 직접 오픈(라우트 이동 없음) ──
+//   실제 <button>(키보드 Enter/포커스 표시 유지). stable members.id 만 사용.
+//   닫으면 현재 화면·기간 탭·스크롤이 그대로 유지된다(/members?member= 외부 딥링크는 별도 유지).
+function RankingRow({ entry, displayRank, onOpen }: { entry: ClubRankingEntry; displayRank: number; onOpen: (memberId: string) => void }) {
   const dim = !entry.eligible;
   return (
-    <Link
-      href={`/members?member=${encodeURIComponent(entry.memberId)}`}
+    <button
+      type="button"
+      onClick={() => onOpen(entry.memberId)}
       aria-label={`${entry.name} 회원 프로필 보기`}
       className="rank-row"
       style={{
       display: 'flex', alignItems: 'center', gap: 10,
+      width: '100%',
       padding: '11px 12px',
       backgroundColor: dim ? 'rgba(148,163,184,0.07)' : C.card,
+      border: 'none',
       borderTop: `1px solid ${C.border}`,
       opacity: dim ? 0.85 : 1,
-      textDecoration: 'none',
+      textAlign: 'left',
+      font: 'inherit',
+      cursor: 'pointer',
       WebkitTapHighlightColor: 'transparent',
     }}>
       <span style={{ width: 30, textAlign: 'center', fontSize: 15, fontWeight: 900, color: dim ? C.faint : displayRank <= 3 ? C.gold : C.text, flexShrink: 0 }}>
@@ -220,7 +241,7 @@ function RankingRow({ entry, displayRank }: { entry: ClubRankingEntry; displayRa
         <p style={{ margin: 0, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', color: C.faint }}>POINT</p>
       </div>
       <ChevronRight size={14} color={C.faint} style={{ flexShrink: 0, marginLeft: -2 }} aria-hidden />
-    </Link>
+    </button>
   );
 }
 
@@ -481,6 +502,103 @@ export default function RankingPage() {
   };
 
   const data = cache[cacheKeyOf(tab, ym)];
+
+  // ── 회원 카드 모달 (Ranking 내부에서 직접 오픈 — 라우트 이동 없음) ─────────────
+  //   닫으면 현재 기간 탭/URL/스크롤이 그대로 유지된다. /members?member=<id> 딥링크 수신부는 별도 유지.
+  //   상세/통계는 /members 화면과 동일 소스: members 1건 + profiles exact 매칭, fetchMemberOfficialStats(공통 helper).
+  const { user } = useAuth();
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<PlayerCardMember | null>(null);
+  const [selectedStats, setSelectedStats] = useState<PlayerCardStats | undefined>(undefined);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const memberCacheRef = useRef<Map<string, PlayerCardMember>>(new Map());
+  const statsCacheRef = useRef<Map<string, MemberOfficialStatsResult>>(new Map());
+
+  const openMember = useCallback((memberId: string) => {
+    if (!memberId) return; // id 누락 시 무동작(이름 fallback 금지)
+    setSelectedMemberId(memberId);
+  }, []);
+  const closeMember = useCallback(() => { setSelectedMemberId(null); setSelectedMember(null); }, []);
+
+  // 회원 상세 1건 조회(+프로필 사진 exact 매칭: auth_user_id → email) — 클릭 시 1회, 멤버별 캐시.
+  useEffect(() => {
+    if (!selectedMemberId) return;
+    const cached = memberCacheRef.current.get(selectedMemberId);
+    if (cached) { setSelectedMember(cached); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: row, error } = await supabase
+          .from('members').select('*').eq('id', selectedMemberId).maybeSingle();
+        if (error || !row) { if (!cancelled) setSelectedMemberId(null); return; }
+        let profileAvatar: string | undefined;
+        let visibility: VisibilityLevel | undefined;
+        try {
+          const q = row.auth_user_id
+            ? supabase.from('profiles').select('avatar_url, profile_visibility_level').eq('id', row.auth_user_id).maybeSingle()
+            : row.email
+              ? supabase.from('profiles').select('avatar_url, profile_visibility_level').eq('email', row.email).limit(1).maybeSingle()
+              : null;
+          if (q) {
+            const { data: p } = await q;
+            profileAvatar = normalizeAvatarUrl(p?.avatar_url) || undefined;
+            visibility = (p?.profile_visibility_level as VisibilityLevel | undefined) || undefined;
+          }
+        } catch { /* 프로필 매칭 실패해도 카드 표시는 유지 */ }
+        const member: PlayerCardMember = { ...row, nickname: row.nickname || '', profile_avatar_url: profileAvatar, profile_visibility_level: visibility };
+        memberCacheRef.current.set(selectedMemberId, member);
+        if (!cancelled) setSelectedMember(member);
+      } catch (err) {
+        console.warn('[Ranking] member detail load failed:', err);
+        if (!cancelled) setSelectedMemberId(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedMemberId]);
+
+  // 공식 KDK 통계 — PROFILE/members 와 동일 helper 재사용(멤버별 1회 캐시).
+  useEffect(() => {
+    if (!selectedMember) { setSelectedStats(undefined); return; }
+    const cached = statsCacheRef.current.get(selectedMember.id);
+    if (cached) { setSelectedStats(cached.playerCardStats); setIsStatsLoading(false); return; }
+    let cancelled = false;
+    setSelectedStats(undefined);
+    setIsStatsLoading(true);
+    fetchMemberOfficialStats({ id: selectedMember.id, name: selectedMember.nickname })
+      .then((result) => {
+        statsCacheRef.current.set(selectedMember.id, result);
+        if (!cancelled) setSelectedStats(result.playerCardStats);
+      })
+      .catch(() => { /* 통계 실패 시 '--' placeholder — 모달 자체는 유지 */ })
+      .finally(() => { if (!cancelled) setIsStatsLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedMember]);
+
+  // 아바타/본인 판정 — /members 화면과 동일 기준(부분 일치 없음).
+  const isOwnCard = Boolean(
+    selectedMember &&
+    ((selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id) ||
+      (user?.email && selectedMember.email && user.email === selectedMember.email)),
+  );
+  const selectedAvatar = selectedMember
+    ? (normalizeAvatarUrl(selectedMember.avatar_url) ||
+       normalizeAvatarUrl(selectedMember.profile_avatar_url) ||
+       (isOwnCard
+         ? normalizeAvatarUrl(
+             (user?.user_metadata?.avatar_url as string | undefined) ||
+             (user?.user_metadata?.picture as string | undefined),
+           ) || undefined
+         : undefined))
+    : undefined;
+  const handleVisibilitySaved = useCallback((level: VisibilityLevel) => {
+    setSelectedMember((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, profile_visibility_level: level };
+      memberCacheRef.current.set(prev.id, next);
+      return next;
+    });
+  }, []);
+
   const eligible = data ? data.entries.filter((e) => e.eligible) : [];
   const pending = data ? data.entries.filter((e) => !e.eligible) : [];
   const displayRanks = data ? computeDisplayRanks(data.entries) : new Map<string, number>();
@@ -623,7 +741,7 @@ export default function RankingPage() {
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {AWARD_DEFS.map((d) => (
-                        <AwardCard key={d.key} label={d.label} unit={d.unit} accent={d.accent} note={d.note} winner={data.awards[d.key]} />
+                        <AwardCard key={d.key} label={d.label} unit={d.unit} accent={d.accent} note={d.note} winner={data.awards[d.key]} onOpen={openMember} />
                       ))}
                     </div>
                   </section>
@@ -660,10 +778,10 @@ export default function RankingPage() {
                       <span style={{ fontSize: 10.5, fontWeight: 700, color: C.faint }}>{eligible.length}명 정식 · {pending.length}명 집계 예정</span>
                     </div>
                     {eligible.map((e) => (
-                      <RankingRow key={e.memberId} entry={e} displayRank={displayRanks.get(e.memberId) ?? e.rank} />
+                      <RankingRow key={e.memberId} entry={e} displayRank={displayRanks.get(e.memberId) ?? e.rank} onOpen={openMember} />
                     ))}
                     {pending.map((e) => (
-                      <RankingRow key={e.memberId} entry={e} displayRank={0} />
+                      <RankingRow key={e.memberId} entry={e} displayRank={0} onOpen={openMember} />
                     ))}
                     <p style={{ margin: 0, padding: '10px 14px', fontSize: 9.5, fontWeight: 600, color: C.faint, lineHeight: 1.6, borderTop: `1px solid ${C.border}`, backgroundColor: '#F8FAFC' }}>
                       최소 참가 기준(공식 KDK {RANKING_MIN_SESSIONS}회) 미달 회원은 순위 없이 절제 표시됩니다. 게스트 기록은 Archive에만 남고 회원 랭킹에는 반영되지 않습니다.
@@ -681,6 +799,19 @@ export default function RankingPage() {
         {/* 하단 스크롤 여유 — 실제 흐름 요소(마지막 카드가 BottomNav 뒤로 깔리지 않도록 GlobalMain clearance 에 더해 소량 유지) */}
         <div aria-hidden style={{ height: 8, flexShrink: 0 }} />
       </div>
+
+      {/* ── 회원 카드 모달 — /members 와 동일 컴포넌트·동일 통계 helper. 닫으면 현재 랭킹 화면 그대로 유지 ── */}
+      {selectedMember && (
+        <PlayerCardModal
+          member={selectedMember}
+          finalAvatar={selectedAvatar}
+          isOwnCard={isOwnCard}
+          stats={selectedStats}
+          isStatsLoading={isStatsLoading}
+          onClose={closeMember}
+          onVisibilitySaved={handleVisibilitySaved}
+        />
+      )}
     </main>
   );
 }

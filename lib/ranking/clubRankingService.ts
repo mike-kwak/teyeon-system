@@ -2,10 +2,16 @@
 //   · Archive 조회는 Profile 공통 기준(getMemberOfficialStats.fetchMemberOfficialStats)과
 //     동일한 테이블/컬럼/필터를 사용한다: teyeon_archive_v1, archive_type='kdk', is_official=true.
 //     차이는 단 하나 — 회원별 반복 조회가 아니라 "1회 조회 → 전 회원 배치 계산".
+//   · 아바타는 /members 화면과 동일한 기존 해석 기준을 재사용한다(이름 부분 일치 없음, 배치 조회 — N+1 금지):
+//       1) members.avatar_url
+//       2) members.auth_user_id = profiles.id  (DB unique, 최우선 프로필 매칭 키)
+//       3) (auth_user_id 없는 회원 한정) members.email = profiles.email  exact match
+//       4) null → 화면에서 이니셜 fallback
 //   · 운영 DB 쓰기 없음(읽기 전용).
 
 import { supabase } from '../supabase';
 import type { KdkArchiveRow } from '../kdkArchiveStats';
+import { normalizeAvatarUrl } from '../memberDisplayResolver';
 import {
   computeClubRanking,
   type ClubRankingResult,
@@ -24,6 +30,16 @@ export type {
   ClubRankingAwardWinner,
 } from './clubRankingCore';
 
+type MemberRow = {
+  id: string;
+  nickname: string | null;
+  avatar_url: string | null;
+  auth_user_id: string | null;
+  email: string | null;
+};
+
+type ProfileRow = { id?: string | null; email?: string | null; avatar_url?: string | null };
+
 /**
  * 클럽 랭킹 집계 — 공식 KDK Archive 1회 조회 + members 명단 배치 계산.
  * @param season 연도(예: 2026) 또는 'all'(누적). 기본값은 현재 연도(현재 시즌).
@@ -40,17 +56,50 @@ export async function fetchClubRanking(
       .order('created_at', { ascending: false }),
     supabase
       .from('members')
-      .select('id, nickname, avatar_url'),
+      .select('id, nickname, avatar_url, auth_user_id, email'),
   ]);
 
   if (archiveRes.error) throw archiveRes.error;
   if (membersRes.error) throw membersRes.error;
 
-  const members = (membersRes.data || []).map((m: any) => ({
-    id: String(m.id),
-    name: String(m.nickname || ''),
-    avatarUrl: (m.avatar_url as string | null) || null,
-  }));
+  const memberRows = (membersRes.data || []) as MemberRow[];
+
+  // ── 프로필 사진 배치 매칭 (/members 화면과 동일 패턴 — 실패해도 랭킹 표시는 유지) ──
+  const profileByAuthId = new Map<string, ProfileRow>();
+  const profileByEmail = new Map<string, ProfileRow>();
+  try {
+    const authIds = Array.from(new Set(
+      memberRows.map((m) => m.auth_user_id).filter((v): v is string => !!v),
+    ));
+    const emailTargets = Array.from(new Set(
+      memberRows.filter((m) => !m.auth_user_id && m.email).map((m) => m.email as string),
+    ));
+    const [byId, byEmail] = await Promise.all([
+      authIds.length > 0
+        ? supabase.from('profiles').select('id, email, avatar_url').in('id', authIds)
+        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
+      emailTargets.length > 0
+        ? supabase.from('profiles').select('id, email, avatar_url').in('email', emailTargets)
+        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
+    ]);
+    if (!byId.error) for (const p of (byId.data || []) as ProfileRow[]) { if (p.id) profileByAuthId.set(p.id, p); }
+    if (!byEmail.error) for (const p of (byEmail.data || []) as ProfileRow[]) { if (p.email) profileByEmail.set(p.email, p); }
+  } catch (err) {
+    console.warn('[ClubRanking] profile avatar batch skipped:', err);
+  }
+
+  const members = memberRows.map((m) => {
+    const profile =
+      (m.auth_user_id ? profileByAuthId.get(m.auth_user_id) : undefined) ??
+      (m.email ? profileByEmail.get(m.email) : undefined);
+    const avatarUrl =
+      normalizeAvatarUrl(m.avatar_url) || normalizeAvatarUrl(profile?.avatar_url) || null;
+    return {
+      id: String(m.id),
+      name: String(m.nickname || ''),
+      avatarUrl,
+    };
+  });
 
   return computeClubRanking((archiveRes.data || []) as KdkArchiveRow[], members, season);
 }
