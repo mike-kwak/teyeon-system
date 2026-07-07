@@ -85,8 +85,10 @@ export default function Home() {
   //   조회 중(loading)에는 'allowed'가 아니므로 카드가 정상 접근으로 보이지 않음(안전한 잠금 기본값).
   const tennisLogStatus = useTennisLogAccess();
   const [isMounted, setIsMounted] = useState(false);
-  const [activeMemberCount, setActiveMemberCount] = useState<number>(24);
-  const [totalKdkCount, setTotalKdkCount] = useState<number>(0);
+  // null = 조회 전(— 표시). 과거에 24를 초기값으로 박아둬 실제 인원과 다른 숫자가
+  // 정적 HTML/첫 렌더에 잔상으로 노출됐다 — 숫자는 조회 완료 후에만 표시한다.
+  const [activeMemberCount, setActiveMemberCount] = useState<number | null>(null);
+  const [totalKdkCount, setTotalKdkCount] = useState<number | null>(null);
   const [nextSchedule, setNextSchedule] = useState<NextScheduleItem | null>(null);
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
@@ -116,10 +118,10 @@ export default function Home() {
       .eq('is_test', false)
       .then(({ count, error }) => {
         if (error) {
-          console.warn('[Home] KDK count 조회 실패 — fallback 0 유지:', error.message);
+          console.warn('[Home] KDK count 조회 실패 — placeholder(—) 유지:', error.message);
           return;
         }
-        if (count !== null) setTotalKdkCount(count);
+        if (count !== null) setTotalKdkCount(count); // 실제 0건 성공 조회면 0회로 표시
       });
 
     // 다음 일정 선정 — Club + Tournament 합쳐 가장 가까운 1건.
@@ -631,22 +633,22 @@ export default function Home() {
           >
             <StatCell
               icon={<Users size={14} strokeWidth={1.8} />}
-              value={`${activeMemberCount}`}
-              unit="명"
+              value={activeMemberCount === null ? '—' : `${activeMemberCount}`}
+              unit={activeMemberCount === null ? undefined : '명'}
               label="활동 회원"
               divider="right"
               href="/members"
-              ariaLabel={`TEYEON 멤버 ${activeMemberCount}명 보기`}
+              ariaLabel={activeMemberCount === null ? 'TEYEON 멤버 보기' : `TEYEON 멤버 ${activeMemberCount}명 보기`}
               hint
             />
             <StatCell
               icon={<Trophy size={14} strokeWidth={1.8} />}
-              value={`${totalKdkCount}`}
-              unit="회"
+              value={totalKdkCount === null ? '—' : `${totalKdkCount}`}
+              unit={totalKdkCount === null ? undefined : '회'}
               label="누적 KDK"
               divider="right"
               href="/archive"
-              ariaLabel={`TEYEON 누적 KDK ${totalKdkCount}회 공식 기록 보기`}
+              ariaLabel={totalKdkCount === null ? 'TEYEON 공식 기록 보기' : `TEYEON 누적 KDK ${totalKdkCount}회 공식 기록 보기`}
               hint
             />
             <StatCell
