@@ -42,6 +42,10 @@ export interface MemberCandidates {
 
 const MEMBER_COLS = 'id, nickname, role, email, auth_user_id, avatar_url';
 
+// 클럽 식별자 — 홈/멤버 목록 등이 .eq('club_id', …) 로 조회하므로 신규 회원도 반드시 설정한다.
+// (프로젝트 공통 관용구: app/page.tsx, app/members/page.tsx 등과 동일한 env+fallback 방식)
+const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
+
 /** 아직 members 에 연결되지 않은 앱 계정(profiles) 목록. */
 export async function fetchUnlinkedAccounts(): Promise<UnlinkedAccount[]> {
   const [profilesRes, membersRes] = await Promise.all([
@@ -169,7 +173,10 @@ export async function createMember(input: {
     }
   }
 
-  const payload: Record<string, unknown> = { nickname, role };
+  // club_id 누락 시 홈/멤버 목록 집계에서 빠지므로 null 저장 대신 명확히 실패시킨다.
+  if (!CLUB_ID) throw new Error('클럽 설정(club_id)을 찾을 수 없어 회원을 생성할 수 없습니다.');
+
+  const payload: Record<string, unknown> = { nickname, role, club_id: CLUB_ID };
   if (email) payload.email = email;
   if (authUserId) payload.auth_user_id = authUserId;
   if (input.avatarUrl) payload.avatar_url = input.avatarUrl;
