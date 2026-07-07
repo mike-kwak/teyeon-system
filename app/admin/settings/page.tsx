@@ -16,7 +16,16 @@ import { maskEmail } from '@/lib/guide/masking';
 import { supabase } from '@/lib/supabase';
 import { logAction } from '@/lib/logging';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { Users, UserCog, ShieldCheck, ListOrdered, ArrowUp, ArrowDown, Loader2, Link2, Link2Off } from 'lucide-react';
+import { Users, UserCog, ShieldCheck, ListOrdered, ArrowUp, ArrowDown, Loader2, Link2, Link2Off, UserPlus, X, AlertTriangle } from 'lucide-react';
+import {
+  fetchUnlinkedAccounts,
+  findMemberCandidates,
+  linkAccountToMember,
+  createMember,
+  unlinkAccountFromMember,
+  type UnlinkedAccount,
+  type MemberLite,
+} from '@/lib/admin/memberRegistrationService';
 
 interface AdminMember {
   id: string;
@@ -91,6 +100,10 @@ export default function AdminSettingsPage() {
   const [updatingProfileId, setUpdatingProfileId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  // 신규 회원 등록/계정 연결 (CEO·ADMIN 전용)
+  const [unlinkedAccounts, setUnlinkedAccounts] = useState<UnlinkedAccount[]>([]);
+  const [registerTarget, setRegisterTarget] = useState<'new' | AdminMember | null>(null); // 'new'=신규 추가, AdminMember=기존 회원 연결 모드
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
 
   // Gating — 조회 권한 없는 사용자 차단(서버 middleware 1차, 여기 2차).
   useEffect(() => {
@@ -144,9 +157,18 @@ export default function AdminSettingsPage() {
     }
   };
 
+  // 미연결 앱 계정(profiles 중 members.auth_user_id 미연결) — 신규 등록/연결 후보.
+  const refreshUnlinkedAccounts = async () => {
+    try {
+      setUnlinkedAccounts(await fetchUnlinkedAccounts());
+    } catch (err) {
+      console.warn('[Admin] Fetch unlinked accounts error:', err);
+    }
+  };
+
   useEffect(() => {
     if (canView) {
-      if (activeTab === 'members') fetchMembersData();
+      if (activeTab === 'members') { fetchMembersData(); if (canEdit) refreshUnlinkedAccounts(); }
       if (activeTab === 'accounts') fetchProfilesData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,6 +207,35 @@ export default function AdminSettingsPage() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  // 오연결 복구 — 회원의 앱 계정 연결 해제(확인 후). RLS/unique index 가 최종 방어.
+  const handleUnlink = async (member: AdminMember) => {
+    if (!canEdit) { showReadonlyNotice(); return; }
+    if (!guardWriteAction('회원 계정 연결 해제')) return;
+    const ok = window.confirm(
+      `'${member.nickname}' 회원의 앱 계정 연결을 해제할까요?\n\n해제하면 해당 계정은 미연결 상태가 되어 참석 체크·프로필 통계 연동이 끊깁니다.\n(다시 연결할 수 있습니다)`,
+    );
+    if (!ok) return;
+    setUnlinkingId(member.id);
+    try {
+      await unlinkAccountFromMember(member.id);
+      setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, auth_user_id: null } : m)));
+      await refreshUnlinkedAccounts();
+      logAction('/admin', 'member_account_unlinked', { target: member.nickname });
+      showToast(`${member.nickname} 계정 연결 해제됨`);
+    } catch (err: any) {
+      showToast('해제 실패: ' + getErrorMessage(err));
+    } finally {
+      setUnlinkingId(null);
+    }
+  };
+
+  // 등록/연결 완료 → 목록·후보 즉시 갱신.
+  const handleRegistered = async (msg: string) => {
+    setRegisterTarget(null);
+    showToast(msg);
+    await Promise.all([fetchMembersData(true), refreshUnlinkedAccounts()]);
   };
 
   const handleProfileRoleChange = async (profile: AdminProfile, newRole: AdminProfile['role']) => {
@@ -268,17 +319,44 @@ export default function AdminSettingsPage() {
         <section style={CARD}>
           <SectionHead title="멤버 관리" desc="클럽 내 직책/회원 구분입니다. (앱 접근 권한은 ‘앱 계정’ 탭)" count={members.length} loading={fetchingMembers} />
           {!canEdit && <ReadonlyNote>현재 멤버 직책을 확인할 수 있습니다. 직책 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
+          {canEdit && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+              <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: unlinkedAccounts.length > 0 ? '#B45309' : '#94A3B8' }}>
+                {unlinkedAccounts.length > 0
+                  ? `회원 미연결 앱 계정 ${unlinkedAccounts.length}개 — 신규 회원 추가 또는 기존 회원 연결이 필요합니다.`
+                  : '모든 앱 계정이 회원과 연결되어 있습니다.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setRegisterTarget('new')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 8, border: 'none', backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: 12, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}
+              >
+                <UserPlus size={14} /> 신규 회원 추가
+              </button>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {members.map((m, i) => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6' }}>
                 <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={38} className="rounded-full" fallbackIcon="👤" />
                 <div style={{ flex: 1, minWidth: 140 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nickname || '이름 없음'}</p>
-                  <div style={{ marginTop: 3, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <Badge tone="slate">{m.role || '미지정'}</Badge>
                     {m.auth_user_id
                       ? <Badge tone="teal"><Link2 size={10} /> 연결됨</Badge>
                       : <Badge tone="muted"><Link2Off size={10} /> 미연결</Badge>}
+                    {canEdit && (m.auth_user_id ? (
+                      <button type="button" onClick={() => handleUnlink(m)} disabled={unlinkingId === m.id}
+                        style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 10, fontWeight: 800, color: '#B91C1C', cursor: unlinkingId === m.id ? 'wait' : 'pointer', textDecoration: 'underline' }}>
+                        해제
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setRegisterTarget(m)}
+                        style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 10, fontWeight: 800, color: '#2563EB', cursor: 'pointer', textDecoration: 'underline' }}>
+                        계정 연결
+                      </button>
+                    ))}
                   </div>
                 </div>
                 {canEdit ? (
@@ -405,6 +483,17 @@ export default function AdminSettingsPage() {
         </section>
       )}
 
+      {/* 신규 회원 추가 / 기존 회원 계정 연결 모달 (CEO·ADMIN) */}
+      {canEdit && registerTarget && (
+        <MemberRegisterModal
+          mode={registerTarget === 'new' ? { kind: 'new' } : { kind: 'link', member: registerTarget }}
+          unlinkedAccounts={unlinkedAccounts}
+          guardWriteAction={guardWriteAction}
+          onClose={() => setRegisterTarget(null)}
+          onDone={handleRegistered}
+        />
+      )}
+
       {toast && (
         <div style={{ position: 'fixed', bottom: 'calc(20px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)', zIndex: 80, backgroundColor: '#0F1B33', color: '#FFFFFF', padding: '11px 20px', borderRadius: 999, fontSize: 12, fontWeight: 800, boxShadow: '0 12px 30px rgba(15,27,51,0.25)', whiteSpace: 'nowrap', maxWidth: '90vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {toast}
@@ -421,6 +510,226 @@ export default function AdminSettingsPage() {
 }
 
 const CARD: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: 14, border: '1px solid #E3E9F2', boxShadow: '0 1px 3px rgba(15,27,51,0.05)', padding: 16 };
+
+// ── 신규 회원 추가 / 기존 회원 계정 연결 모달 ────────────────────────────────
+//   흐름: 앱 계정 선택(미연결 후보) → 기존 회원 exact 후보 확인 → [기존 회원 연결] 또는 [신규 생성]
+//   안전장치: 이름/이메일 exact 중복 경고, auth 중복 연결 차단(service+DB unique), 저장 전 최종 확인.
+type RegisterMode = { kind: 'new' } | { kind: 'link'; member: AdminMember };
+
+function MemberRegisterModal({ mode, unlinkedAccounts, guardWriteAction, onClose, onDone }: {
+  mode: RegisterMode;
+  unlinkedAccounts: UnlinkedAccount[];
+  guardWriteAction: (label: string) => boolean;
+  onClose: () => void;
+  onDone: (msg: string) => void | Promise<void>;
+}) {
+  const linkMember = mode.kind === 'link' ? mode.member : null;
+  const [accountId, setAccountId] = useState<string>(''); // 선택한 앱 계정(profiles.id) — ''=나중에 연결
+  const [name, setName] = useState<string>(linkMember?.nickname || '');
+  const [email, setEmail] = useState<string>('');
+  const [memberRole, setMemberRole] = useState<string>('정회원');
+  const [candidates, setCandidates] = useState<{ byName: MemberLite[]; byEmail: MemberLite[] } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const account = unlinkedAccounts.find((a) => a.id === accountId) || null;
+
+  // 앱 계정 선택 시 이름/이메일 자동 보충(비어 있을 때만 — 관리자가 입력한 값 우선).
+  const handleAccountSelect = (id: string) => {
+    setAccountId(id);
+    setCandidates(null);
+    setErrorMsg(null);
+    const acc = unlinkedAccounts.find((a) => a.id === id);
+    if (acc) {
+      if (!linkMember && !name.trim() && acc.nickname) setName(acc.nickname);
+      if (acc.email) setEmail(acc.email);
+    }
+  };
+
+  // 저장 전 기존 회원 exact 후보 확인(신규 모드) — 부분 일치 자동 매칭 없음, 제안만.
+  const runCandidateCheck = async (): Promise<{ byName: MemberLite[]; byEmail: MemberLite[] }> => {
+    setChecking(true);
+    try {
+      const found = await findMemberCandidates({ name, email, authUserId: accountId || null });
+      if (found.byAuth.length > 0) {
+        throw new Error(`선택한 앱 계정은 이미 '${found.byAuth[0].nickname}' 회원에 연결되어 있습니다.`);
+      }
+      const result = { byName: found.byName, byEmail: found.byEmail.filter((m) => !found.byName.some((n) => n.id === m.id)) };
+      setCandidates(result);
+      return result;
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const finalConfirm = (action: string, targetName: string) =>
+    window.confirm(
+      `${action}\n\n회원 이름: ${targetName}\n이메일: ${email.trim() || '(없음)'}\n회원 구분: ${memberRole}\n앱 계정: ${account ? `${account.email || account.id}` : '(나중에 연결)'}\n\n진행할까요?`,
+    );
+
+  // 기존 회원에 연결(연결 모드 또는 후보 카드에서 선택).
+  const doLink = async (target: { id: string; nickname: string }) => {
+    setErrorMsg(null);
+    if (!accountId) { setErrorMsg('연결할 앱 계정을 선택해 주세요.'); return; }
+    if (!guardWriteAction('회원 계정 연결')) return;
+    if (!finalConfirm(`기존 회원 '${target.nickname}'에 앱 계정을 연결합니다.`, target.nickname)) return;
+    setSaving(true);
+    try {
+      await linkAccountToMember({ memberId: target.id, authUserId: accountId, email });
+      logAction('/admin', 'member_account_linked', { target: target.nickname });
+      await onDone(`${target.nickname} 계정 연결 완료`);
+    } catch (err: any) {
+      setErrorMsg(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 신규 회원 생성(+선택 시 즉시 연결). 동일 이름 후보가 있으면 먼저 경고 카드를 보여주고,
+  // 관리자가 '그래도 신규 생성'을 눌렀을 때만 allowDuplicateName 으로 진행한다.
+  const doCreate = async (allowDuplicateName: boolean) => {
+    setErrorMsg(null);
+    if (!name.trim()) { setErrorMsg('회원 이름을 입력해 주세요.'); return; }
+    if (!guardWriteAction('신규 회원 등록')) return;
+    try {
+      if (!allowDuplicateName) {
+        const found = await runCandidateCheck();
+        if (found.byName.length > 0 || found.byEmail.length > 0) return; // 후보 카드 표시 → 관리자가 선택
+      }
+      if (!finalConfirm('신규 회원을 생성합니다.', name.trim())) return;
+      setSaving(true);
+      const created = await createMember({
+        nickname: name,
+        role: memberRole,
+        email,
+        authUserId: accountId || null,
+        avatarUrl: account?.avatar_url || null,
+        allowDuplicateName,
+      });
+      logAction('/admin', 'member_created', { target: created.nickname, linked: !!accountId });
+      await onDone(`${created.nickname} 회원 생성${accountId ? ' + 계정 연결' : ''} 완료`);
+    } catch (err: any) {
+      setErrorMsg(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldLabel: React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 800, color: '#475569', marginBottom: 5 };
+  const inputStyle: React.CSSProperties = { width: '100%', height: 38, padding: '0 11px', borderRadius: 8, border: '1px solid #D9E1EC', backgroundColor: '#FFFFFF', color: '#0F1B33', fontSize: 13, fontWeight: 700, outline: 'none', boxSizing: 'border-box' };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, backgroundColor: 'rgba(15,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '85dvh', overflowY: 'auto', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, boxShadow: '0 20px 50px rgba(15,27,51,0.3)', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#0F1B33' }}>
+            {linkMember ? `'${linkMember.nickname}' 계정 연결` : '신규 회원 추가'}
+          </h3>
+          <button type="button" onClick={onClose} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><X size={15} /></button>
+        </div>
+
+        {/* 앱 계정 선택 — 미연결 계정 후보(이메일·표시명·현재 앱 역할) */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>연결할 앱 계정 {linkMember ? '(필수)' : '(선택 — 나중에 연결 가능)'}</label>
+          <select value={accountId} onChange={(e) => handleAccountSelect(e.target.value)} className="admin-select" style={{ ...inputStyle, cursor: 'pointer' }}>
+            <option value="">{linkMember ? '앱 계정을 선택하세요' : '나중에 연결'}</option>
+            {unlinkedAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.email || a.id}{a.nickname ? ` · ${a.nickname}` : ''} · {a.role}
+              </option>
+            ))}
+          </select>
+          {unlinkedAccounts.length === 0 && (
+            <p style={{ margin: '5px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>미연결 앱 계정이 없습니다.</p>
+          )}
+          {account && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 10, backgroundColor: '#F6FAFF', border: '1px solid #D8E6FB' }}>
+              <ProfileAvatar src={account.avatar_url} alt={account.nickname || account.email || ''} size={30} className="rounded-full" fallbackIcon="👤" />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#0F1B33', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.nickname || '(표시명 없음)'} <span style={{ fontWeight: 600, color: '#64748B' }}>· 앱 역할 {account.role}</span></p>
+                <p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 600, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.email || account.id}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!linkMember && (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <label style={fieldLabel}>회원 이름 (필수)</label>
+              <input value={name} onChange={(e) => { setName(e.target.value); setCandidates(null); }} placeholder="예: 박일원" style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={fieldLabel}>이메일</label>
+              <input value={email} onChange={(e) => { setEmail(e.target.value); setCandidates(null); }} placeholder="선택 입력" style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={fieldLabel}>회원 구분 (필수)</label>
+              <select value={memberRole} onChange={(e) => setMemberRole(e.target.value)} className="admin-select" style={{ ...inputStyle, cursor: 'pointer' }}>
+                {ROLE_OPTIONS.map((g) => (
+                  <optgroup key={g.group} label={g.group}>
+                    {g.roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* 기존 회원 exact 후보 — 신규 생성 전 우선 연결 제안 */}
+        {candidates && (candidates.byName.length > 0 || candidates.byEmail.length > 0) && (
+          <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}>
+            <p style={{ margin: '0 0 7px', fontSize: 11.5, fontWeight: 800, color: '#B45309', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <AlertTriangle size={13} /> 동일한 {candidates.byName.length > 0 ? '이름' : '이메일'}의 기존 회원이 있습니다 — 신규 생성 전에 확인하세요.
+            </p>
+            {[...candidates.byName, ...candidates.byEmail].map((c) => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                <ProfileAvatar src={c.avatar_url} alt={c.nickname} size={26} className="rounded-full" fallbackIcon="👤" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#0F1B33' }}>{c.nickname} <span style={{ fontWeight: 600, color: '#64748B' }}>· {c.role}</span></p>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: '#94A3B8' }}>{c.email || '(이메일 없음)'} · {c.auth_user_id ? '계정 연결됨' : '미연결'}</p>
+                </div>
+                {!c.auth_user_id && accountId && (
+                  <button type="button" disabled={saving} onClick={() => doLink(c)}
+                    style={{ height: 28, padding: '0 10px', borderRadius: 7, border: 'none', backgroundColor: '#0E7C76', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                    이 회원에 연결
+                  </button>
+                )}
+              </div>
+            ))}
+            <button type="button" disabled={saving} onClick={() => doCreate(true)}
+              style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 800, color: '#B45309', textDecoration: 'underline', cursor: 'pointer' }}>
+              중복을 확인했습니다 — 그래도 신규 생성
+            </button>
+          </div>
+        )}
+
+        {errorMsg && (
+          <p style={{ margin: '0 0 12px', padding: '8px 11px', borderRadius: 8, backgroundColor: '#FEF2F2', border: '1px solid #F3B4B4', fontSize: 11.5, fontWeight: 700, color: '#B91C1C', lineHeight: 1.5 }}>{errorMsg}</p>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <button type="button" onClick={onClose} disabled={saving}
+            style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+            취소
+          </button>
+          {linkMember ? (
+            <button type="button" disabled={saving || !accountId} onClick={() => doLink(linkMember)}
+              style={{ flex: 2, height: 42, borderRadius: 10, border: 'none', backgroundColor: !accountId ? '#B9CEFB' : '#2563EB', color: '#FFFFFF', fontSize: 13, fontWeight: 900, cursor: saving || !accountId ? 'not-allowed' : 'pointer' }}>
+              {saving ? '연결 중…' : '계정 연결'}
+            </button>
+          ) : (
+            <button type="button" disabled={saving || checking || !name.trim()} onClick={() => doCreate(false)}
+              style={{ flex: 2, height: 42, borderRadius: 10, border: 'none', backgroundColor: !name.trim() ? '#B9CEFB' : '#2563EB', color: '#FFFFFF', fontSize: 13, fontWeight: 900, cursor: saving || !name.trim() ? 'not-allowed' : 'pointer' }}>
+              {saving ? '저장 중…' : checking ? '중복 확인 중…' : '확인 후 저장'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SectionHead({ title, desc, count, loading }: { title: string; desc: string; count?: number; loading?: boolean }) {
   return (
