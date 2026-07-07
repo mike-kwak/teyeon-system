@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { Lock, X } from 'lucide-react';
 import type { PlayerCardStats } from '@/lib/profile/getMemberOfficialStats';
+import { fetchPublicAchievements, type MemberAchievement } from '@/lib/members/achievements';
 
 export type { PlayerCardStats } from '@/lib/profile/getMemberOfficialStats';
 
@@ -38,6 +39,9 @@ export interface PlayerCardMember {
     /** auth_user_id 또는 email fallback으로 매칭된 profiles.avatar_url (normalize 적용된 값). */
     profile_avatar_url?: string;
     profile_visibility_level?: VisibilityLevel;
+    /** 목록 카드용 입상 기록 요약(member_achievements batch) — 상세 전체 목록은 모달이 직접 조회. */
+    achievement_count?: number;
+    achievement_top_line?: string;
 }
 
 // ─── Shared badge helpers ─────────────────────────────────────────────────────
@@ -331,6 +335,18 @@ export function PlayerCardModal({
 
     const showBadges = effectiveVisibility !== 'private';
     const showPrivacyNote = effectiveVisibility !== 'public';
+
+    // 대회 입상 기록 — 열 때마다 회원 기준으로 전량 조회(§ 상세에서는 전체 표시, 숨김 없음).
+    // /members·/ranking 등 어떤 진입이든 모달이 직접 조회하므로 호출부 수정이 필요 없다.
+    const [achievementList, setAchievementList] = useState<MemberAchievement[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        setAchievementList([]);
+        fetchPublicAchievements(member.id).then((rows) => {
+            if (!cancelled) setAchievementList(rows);
+        });
+        return () => { cancelled = true; };
+    }, [member.id]);
 
     const handleVisibilitySave = async (level: VisibilityLevel) => {
         if (!guardWriteAction('프로필 공개 범위 저장')) return; // 촬영 보호 모드 차단
@@ -885,9 +901,10 @@ export function PlayerCardModal({
                                         </p>
                                     )}
 
-                                    {showBadges && (member.achievements || member.mbti) && (
+                                    {showBadges && ((member.achievements && achievementList.length === 0) || member.mbti) && (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 14 }}>
-                                            {member.achievements && (
+                                            {/* 레거시 요약 배지 — 상세 기록이 있으면 아래 전체 목록으로 대체(중복 방지) */}
+                                            {member.achievements && achievementList.length === 0 && (
                                                 <span
                                                     style={{
                                                         fontSize: 9.5,
@@ -922,6 +939,107 @@ export function PlayerCardModal({
                                                     {member.mbti}
                                                 </span>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {/* 대회 입상 기록 — 등록된 기록은 숨김 없이 전부 표시(카드 스크롤로 이어짐). */}
+                                    {showBadges && achievementList.length > 0 && (
+                                        <div style={{ marginBottom: 14 }}>
+                                            <p
+                                                style={{
+                                                    margin: '0 0 7px',
+                                                    fontSize: 9,
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.18em',
+                                                    textTransform: 'uppercase',
+                                                    color: 'rgba(201,168,76,0.85)',
+                                                }}
+                                            >
+                                                🏆 대회 입상 기록
+                                                <span
+                                                    style={{
+                                                        marginLeft: 6,
+                                                        padding: '1px 6px',
+                                                        borderRadius: 8,
+                                                        backgroundColor: 'rgba(201,168,76,0.14)',
+                                                        color: '#D9BC6E',
+                                                        fontSize: 8.5,
+                                                        letterSpacing: 0,
+                                                    }}
+                                                >
+                                                    {achievementList.length}
+                                                </span>
+                                            </p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                                {achievementList.map((a) => (
+                                                    <div
+                                                        key={a.id}
+                                                        style={{
+                                                            padding: '7px 10px',
+                                                            borderRadius: 8,
+                                                            backgroundColor: 'rgba(255,255,255,0.045)',
+                                                            border: '1px solid rgba(201,168,76,0.16)',
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                                                            <p
+                                                                style={{
+                                                                    margin: 0,
+                                                                    flex: 1,
+                                                                    minWidth: 0,
+                                                                    fontSize: 10.5,
+                                                                    fontWeight: 700,
+                                                                    color: 'rgba(255,255,255,0.92)',
+                                                                    lineHeight: 1.45,
+                                                                    // 긴 대회명은 자르지 않고 줄바꿈
+                                                                    whiteSpace: 'normal',
+                                                                    wordBreak: 'keep-all',
+                                                                    overflowWrap: 'anywhere',
+                                                                }}
+                                                            >
+                                                                {a.tournament_name}
+                                                                {a.is_featured && (
+                                                                    <span style={{ marginLeft: 4, fontSize: 8.5, color: '#D9BC6E' }}>★</span>
+                                                                )}
+                                                            </p>
+                                                            <span
+                                                                style={{
+                                                                    flexShrink: 0,
+                                                                    fontSize: 9,
+                                                                    fontWeight: 800,
+                                                                    padding: '2px 7px',
+                                                                    borderRadius: 5,
+                                                                    backgroundColor: 'rgba(201,168,76,0.13)',
+                                                                    color: '#D9BC6E',
+                                                                    border: '1px solid rgba(201,168,76,0.25)',
+                                                                    whiteSpace: 'nowrap',
+                                                                }}
+                                                            >
+                                                                {a.result}
+                                                            </span>
+                                                        </div>
+                                                        {(a.tournament_date || a.division || a.partner_name) && (
+                                                            <p
+                                                                style={{
+                                                                    margin: '3px 0 0',
+                                                                    fontSize: 9,
+                                                                    fontWeight: 500,
+                                                                    color: 'rgba(255,255,255,0.5)',
+                                                                    lineHeight: 1.4,
+                                                                    whiteSpace: 'normal',
+                                                                    overflowWrap: 'anywhere',
+                                                                }}
+                                                            >
+                                                                {[
+                                                                    a.tournament_date ? a.tournament_date.slice(0, 7).replace('-', '.') : null,
+                                                                    a.division,
+                                                                    a.partner_name ? `파트너 ${a.partner_name}` : null,
+                                                                ].filter(Boolean).join(' · ')}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 

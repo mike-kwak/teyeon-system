@@ -27,6 +27,7 @@ import {
     type MemberOfficialStatsResult,
 } from '@/lib/profile/getMemberOfficialStats';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
+import { fetchAchievementSummaries, formatAchievementLine } from '@/lib/members/achievements';
 
 // Local alias: members page uses the shared player card view model directly.
 type Member = PlayerCardMember;
@@ -225,7 +226,9 @@ const MemberCard = React.memo(function MemberCard({
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
                 <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    {member.achievements && (
+                    {/* 목록 카드는 대표 기록 1건(입상 테이블 우선, 없으면 레거시 요약)만 —
+                        여러 건이면 '외 N건'으로 알리고 전체는 PlayerCardModal에서 표시(카드 높이 고정). */}
+                    {(member.achievement_top_line || member.achievements) && (
                         <span
                             style={{
                                 fontSize: 8.5,
@@ -242,7 +245,8 @@ const MemberCard = React.memo(function MemberCard({
                                 whiteSpace: 'nowrap',
                             }}
                         >
-                            🏆 {member.achievements}
+                            🏆 {member.achievement_top_line || member.achievements}
+                            {(member.achievement_count ?? 0) > 1 && ` · 외 ${(member.achievement_count ?? 0) - 1}건`}
                         </span>
                     )}
                 </div>
@@ -372,15 +376,21 @@ export default function MembersPage() {
                     }
                 }
 
+                // 대회 입상 기록 요약 — 회원 전체 1회 batch(N+1 금지). 테이블 미생성 시 빈 Map.
+                const achSummaries = await fetchAchievementSummaries(data.map((m: Member) => m.id));
+
                 const enriched = data.map((m: Member) => {
                     const matched =
                         (m.auth_user_id ? profileById.get(m.auth_user_id) : undefined) ??
                         (m.email ? profileByEmail.get(m.email) : undefined);
+                    const ach = achSummaries.get(m.id);
                     return {
                         ...m,
                         // profile.avatar_url은 raw로 저장하고 카드에서 normalize.
                         profile_avatar_url: matched?.avatar_url || undefined,
                         profile_visibility_level: (matched?.profile_visibility_level as VisibilityLevel) ?? undefined,
+                        achievement_count: ach?.count ?? 0,
+                        achievement_top_line: ach ? formatAchievementLine(ach.top) : undefined,
                     };
                 });
 

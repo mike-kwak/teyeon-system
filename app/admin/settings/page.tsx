@@ -16,7 +16,7 @@ import { maskEmail } from '@/lib/guide/masking';
 import { supabase } from '@/lib/supabase';
 import { logAction } from '@/lib/logging';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { Users, UserCog, ShieldCheck, ListOrdered, ArrowUp, ArrowDown, Loader2, Link2, Link2Off, UserPlus, X, AlertTriangle } from 'lucide-react';
+import { Users, UserCog, ShieldCheck, ListOrdered, ArrowUp, ArrowDown, Loader2, Link2, Link2Off, UserPlus, X, AlertTriangle, Pencil, Trophy, Plus } from 'lucide-react';
 import {
   fetchUnlinkedAccounts,
   findMemberCandidates,
@@ -26,6 +26,18 @@ import {
   type UnlinkedAccount,
   type MemberLite,
 } from '@/lib/admin/memberRegistrationService';
+import {
+  fetchMemberProfile,
+  updateMemberProfile,
+  listAchievementsAdmin,
+  createAchievement,
+  updateAchievement,
+  deleteAchievement,
+  ACHIEVEMENT_RESULT_OPTIONS,
+  type MemberProfileForm,
+  type MemberAchievement,
+  type AchievementInput,
+} from '@/lib/admin/memberProfileService';
 
 interface AdminMember {
   id: string;
@@ -104,6 +116,7 @@ export default function AdminSettingsPage() {
   const [unlinkedAccounts, setUnlinkedAccounts] = useState<UnlinkedAccount[]>([]);
   const [registerTarget, setRegisterTarget] = useState<'new' | AdminMember | null>(null); // 'new'=신규 추가, AdminMember=기존 회원 연결 모드
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [profileTarget, setProfileTarget] = useState<AdminMember | null>(null); // 프로필 편집·입상 기록 관리 모달
 
   // Gating — 조회 권한 없는 사용자 차단(서버 middleware 1차, 여기 2차).
   useEffect(() => {
@@ -346,6 +359,12 @@ export default function AdminSettingsPage() {
                     {m.auth_user_id
                       ? <Badge tone="teal"><Link2 size={10} /> 연결됨</Badge>
                       : <Badge tone="muted"><Link2Off size={10} /> 미연결</Badge>}
+                    {canEdit && (
+                      <button type="button" onClick={() => setProfileTarget(m)}
+                        style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 10, fontWeight: 800, color: '#475569', cursor: 'pointer', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <Pencil size={9} /> 프로필
+                      </button>
+                    )}
                     {canEdit && (m.auth_user_id ? (
                       <button type="button" onClick={() => handleUnlink(m)} disabled={unlinkingId === m.id}
                         style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 10, fontWeight: 800, color: '#B91C1C', cursor: unlinkingId === m.id ? 'wait' : 'pointer', textDecoration: 'underline' }}>
@@ -491,6 +510,15 @@ export default function AdminSettingsPage() {
           guardWriteAction={guardWriteAction}
           onClose={() => setRegisterTarget(null)}
           onDone={handleRegistered}
+        />
+      )}
+
+      {canEdit && profileTarget && (
+        <MemberProfileModal
+          member={profileTarget}
+          guardWriteAction={guardWriteAction}
+          onClose={() => setProfileTarget(null)}
+          onDirty={() => { fetchMembersData(true); }}
         />
       )}
 
@@ -726,6 +754,372 @@ function MemberRegisterModal({ mode, unlinkedAccounts, guardWriteAction, onClose
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 회원 프로필 편집 · 대회 입상 기록 관리 모달 ──────────────────────────────
+//   프로필: members 기존 컬럼(affiliation/mbti/나이/achievements/avatar_url) + bio(신규 SQL).
+//   입상 기록: member_achievements 테이블 CRUD — 테이블 미생성 시 안내만 표시.
+//   계정 연결 정보(nickname/email/auth_user_id)는 여기서 편집하지 않는다(등록/연결 모달 담당).
+const EMPTY_ACH_FORM = {
+  tournamentName: '', tournamentDate: '', resultChoice: '우승', resultCustom: '',
+  division: '', partnerName: '', isFeatured: false, isPublic: true, displayOrder: '',
+};
+type AchFormState = typeof EMPTY_ACH_FORM;
+
+function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
+  member: AdminMember;
+  guardWriteAction: (label: string) => boolean;
+  onClose: () => void;
+  onDirty: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [form, setForm] = useState<MemberProfileForm>({ affiliation: '', mbti: '', birthYear: '', bio: '', achievementsSummary: '', avatarUrl: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+
+  const [achList, setAchList] = useState<MemberAchievement[]>([]);
+  const [achTableMissing, setAchTableMissing] = useState(false);
+  const [achEditing, setAchEditing] = useState<string | 'new' | null>(null); // 'new' 또는 기록 id
+  const [achForm, setAchForm] = useState<AchFormState>(EMPTY_ACH_FORM);
+  const [savingAch, setSavingAch] = useState(false);
+  const [deletingAchId, setDeletingAchId] = useState<string | null>(null);
+
+  const refreshAchievements = async () => {
+    try {
+      setAchList(await listAchievementsAdmin(member.id));
+      setAchTableMissing(false);
+    } catch (err: any) {
+      if (String(err?.message || '').includes('테이블이 아직 없습니다')) setAchTableMissing(true);
+      else setNotice({ tone: 'err', text: getErrorMessage(err) });
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await fetchMemberProfile(member.id);
+        if (cancelled) return;
+        setForm({
+          affiliation: profile.affiliation, mbti: profile.mbti, birthYear: profile.birthYear,
+          bio: profile.bio, achievementsSummary: profile.achievementsSummary, avatarUrl: profile.avatarUrl,
+        });
+        await refreshAchievements();
+      } catch (err: any) {
+        if (!cancelled) setLoadError(getErrorMessage(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member.id]);
+
+  const handleProfileSave = async () => {
+    setNotice(null);
+    if (!guardWriteAction('회원 프로필 저장')) return;
+    setSavingProfile(true);
+    try {
+      const { bioSkipped } = await updateMemberProfile(member.id, form);
+      logAction('/admin', 'member_profile_updated', { target: member.nickname });
+      setNotice({
+        tone: 'ok',
+        text: bioSkipped
+          ? '프로필 저장 완료 — 단, 한 줄 소개는 DB에 bio 컬럼이 아직 없어 저장되지 않았습니다(SQL 적용 필요).'
+          : '프로필 저장 완료',
+      });
+      onDirty();
+    } catch (err: any) {
+      setNotice({ tone: 'err', text: '저장 실패: ' + getErrorMessage(err) });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const openAchForm = (target: MemberAchievement | 'new') => {
+    setNotice(null);
+    if (target === 'new') {
+      setAchForm(EMPTY_ACH_FORM);
+      setAchEditing('new');
+      return;
+    }
+    const isEnum = ACHIEVEMENT_RESULT_OPTIONS.includes(target.result);
+    setAchForm({
+      tournamentName: target.tournament_name,
+      tournamentDate: target.tournament_date || '',
+      resultChoice: isEnum ? target.result : '직접 입력',
+      resultCustom: isEnum ? '' : target.result,
+      division: target.division || '',
+      partnerName: target.partner_name || '',
+      isFeatured: target.is_featured,
+      isPublic: target.is_public,
+      displayOrder: target.display_order === null || target.display_order === undefined ? '' : String(target.display_order),
+    });
+    setAchEditing(target.id);
+  };
+
+  const handleAchSave = async () => {
+    setNotice(null);
+    if (!guardWriteAction('입상 기록 저장')) return;
+    const input: AchievementInput = {
+      tournamentName: achForm.tournamentName,
+      tournamentDate: achForm.tournamentDate,
+      result: achForm.resultChoice === '직접 입력' ? achForm.resultCustom : achForm.resultChoice,
+      division: achForm.division,
+      partnerName: achForm.partnerName,
+      isFeatured: achForm.isFeatured,
+      isPublic: achForm.isPublic,
+      displayOrder: achForm.displayOrder,
+    };
+    setSavingAch(true);
+    try {
+      if (achEditing === 'new') {
+        await createAchievement(member.id, input);
+        logAction('/admin', 'member_achievement_created', { target: member.nickname, tournament: input.tournamentName });
+      } else if (achEditing) {
+        await updateAchievement(achEditing, input);
+        logAction('/admin', 'member_achievement_updated', { target: member.nickname, tournament: input.tournamentName });
+      }
+      await refreshAchievements();
+      setAchEditing(null);
+      setNotice({ tone: 'ok', text: '입상 기록 저장 완료' });
+      onDirty();
+    } catch (err: any) {
+      setNotice({ tone: 'err', text: '기록 저장 실패: ' + getErrorMessage(err) });
+    } finally {
+      setSavingAch(false);
+    }
+  };
+
+  const handleAchDelete = async (a: MemberAchievement) => {
+    setNotice(null);
+    if (!guardWriteAction('입상 기록 삭제')) return;
+    if (!window.confirm(`'${a.tournament_name} ${a.result}' 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.`)) return;
+    setDeletingAchId(a.id);
+    try {
+      await deleteAchievement(a.id);
+      logAction('/admin', 'member_achievement_deleted', { target: member.nickname, tournament: a.tournament_name });
+      await refreshAchievements();
+      setNotice({ tone: 'ok', text: '기록 삭제 완료' });
+      onDirty();
+    } catch (err: any) {
+      setNotice({ tone: 'err', text: '삭제 실패: ' + getErrorMessage(err) });
+    } finally {
+      setDeletingAchId(null);
+    }
+  };
+
+  const fieldLabel: React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 800, color: '#475569', marginBottom: 5 };
+  const inputStyle: React.CSSProperties = { width: '100%', height: 38, padding: '0 11px', borderRadius: 8, border: '1px solid #D9E1EC', backgroundColor: '#FFFFFF', color: '#0F1B33', fontSize: 13, fontWeight: 700, outline: 'none', boxSizing: 'border-box' };
+  const sectionTitle: React.CSSProperties = { margin: '0 0 10px', fontSize: 12, fontWeight: 900, color: '#0F1B33', display: 'flex', alignItems: 'center', gap: 6 };
+
+  const setField = (key: keyof MemberProfileForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  const setAchField = (key: keyof AchFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setAchForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, backgroundColor: 'rgba(15,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85dvh', overflowY: 'auto', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, boxShadow: '0 20px 50px rgba(15,27,51,0.3)', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#0F1B33', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {`'${member.nickname}' 프로필 편집`}
+          </h3>
+          <button type="button" onClick={onClose} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={15} /></button>
+        </div>
+
+        {loading && <p style={{ margin: '20px 0', fontSize: 12, fontWeight: 700, color: '#94A3B8', textAlign: 'center' }}>불러오는 중…</p>}
+        {loadError && <p style={{ margin: '20px 0', fontSize: 12, fontWeight: 700, color: '#B91C1C', textAlign: 'center' }}>{loadError}</p>}
+
+        {!loading && !loadError && (
+          <>
+            {/* ── 기본 프로필 ── */}
+            <p style={sectionTitle}><Pencil size={12} /> 기본 프로필</p>
+            <p style={{ margin: '0 0 12px', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5 }}>
+              이름·이메일·계정 연결은 회원 등록/연결 기능에서, 회원 구분은 목록의 드롭다운에서 관리합니다.
+            </p>
+            <div style={{ marginBottom: 11 }}>
+              <label style={fieldLabel}>소속 클럽 / 지역</label>
+              <input value={form.affiliation} onChange={setField('affiliation')} placeholder="예: 우체국/아산" style={inputStyle} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 11 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={fieldLabel}>MBTI</label>
+                <input value={form.mbti} onChange={setField('mbti')} placeholder="예: INTP" maxLength={4} style={inputStyle} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={fieldLabel}>출생년도</label>
+                <input value={form.birthYear} onChange={setField('birthYear')} placeholder="예: 1988" inputMode="numeric" style={inputStyle} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 11 }}>
+              <label style={fieldLabel}>한 줄 소개</label>
+              <input value={form.bio} onChange={setField('bio')} placeholder="멤버 카드에 표시되는 소개 문구" style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 11 }}>
+              <label style={fieldLabel}>목록 카드 요약 문구 (🏆)</label>
+              <input value={form.achievementsSummary} onChange={setField('achievementsSummary')} placeholder="예: 신인부 입상 | 25년 예산윤봉길배 공동3위" style={inputStyle} />
+              <p style={{ margin: '4px 0 0', fontSize: 10, fontWeight: 600, color: '#94A3B8', lineHeight: 1.45 }}>
+                아래에 입상 기록을 등록하면 목록 카드에는 대표 기록이 우선 표시되고, 이 문구는 대체용으로만 쓰입니다.
+              </p>
+            </div>
+            <div style={{ marginBottom: 13 }}>
+              <label style={fieldLabel}>프로필 사진 URL</label>
+              <input value={form.avatarUrl} onChange={setField('avatarUrl')} placeholder="비우면 앱 계정(카카오) 사진 사용" style={inputStyle} />
+            </div>
+            <button type="button" onClick={handleProfileSave} disabled={savingProfile}
+              style={{ width: '100%', height: 40, borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: 12.5, fontWeight: 900, cursor: savingProfile ? 'wait' : 'pointer', marginBottom: 16 }}>
+              {savingProfile ? '저장 중…' : '프로필 저장'}
+            </button>
+
+            <div style={{ height: 1, backgroundColor: '#EEF2F6', margin: '0 0 14px' }} />
+
+            {/* ── 대회 입상 기록 ── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <p style={{ ...sectionTitle, margin: 0 }}>
+                <Trophy size={12} /> 대회 입상 기록
+                <span style={{ fontSize: 10.5, fontWeight: 800, color: '#2563EB' }}>{achList.length}</span>
+              </p>
+              {!achTableMissing && (
+                <button type="button" onClick={() => openAchForm('new')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 30, padding: '0 11px', borderRadius: 8, border: 'none', backgroundColor: '#0E7C76', color: '#FFFFFF', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                  <Plus size={12} /> 기록 추가
+                </button>
+              )}
+            </div>
+            <p style={{ margin: '0 0 10px', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5 }}>
+              운영진이 확인한 공식 외부 대회 성과입니다. TENNIS LOG(개인 기록)와 연동되지 않습니다.
+            </p>
+
+            {achTableMissing && (
+              <p style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: 11, fontWeight: 700, color: '#B45309', lineHeight: 1.55 }}>
+                입상 기록 테이블이 아직 생성되지 않았습니다. supabase/add_member_achievements.sql 적용 후 사용할 수 있습니다.
+              </p>
+            )}
+
+            {!achTableMissing && achList.length === 0 && achEditing === null && (
+              <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>등록된 입상 기록이 없습니다.</p>
+            )}
+
+            {achList.map((a) => (
+              <div key={a.id} style={{ padding: '9px 11px', borderRadius: 10, border: '1px solid #E3E9F2', backgroundColor: '#FAFCFF', marginBottom: 7 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                  <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: '#0F1B33', lineHeight: 1.45, whiteSpace: 'normal', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                    {a.tournament_name}
+                    {a.is_featured && <span style={{ marginLeft: 4, fontSize: 10, color: '#B8891C' }}>★ 대표</span>}
+                    {!a.is_public && <span style={{ marginLeft: 4, fontSize: 10, color: '#94A3B8' }}>(비공개)</span>}
+                  </p>
+                  <Badge tone="teal">{a.result}</Badge>
+                </div>
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: '#64748B', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+                    {[
+                      a.tournament_date ? a.tournament_date.slice(0, 7).replace('-', '.') : null,
+                      a.division,
+                      a.partner_name ? `파트너 ${a.partner_name}` : null,
+                    ].filter(Boolean).join(' · ') || '상세 정보 없음'}
+                  </p>
+                  <span style={{ display: 'inline-flex', gap: 2, flexShrink: 0 }}>
+                    <button type="button" onClick={() => openAchForm(a)}
+                      style={{ background: 'none', border: 'none', padding: '2px 5px', fontSize: 10.5, fontWeight: 800, color: '#2563EB', cursor: 'pointer', textDecoration: 'underline' }}>
+                      수정
+                    </button>
+                    <button type="button" onClick={() => handleAchDelete(a)} disabled={deletingAchId === a.id}
+                      style={{ background: 'none', border: 'none', padding: '2px 5px', fontSize: 10.5, fontWeight: 800, color: '#B91C1C', cursor: deletingAchId === a.id ? 'wait' : 'pointer', textDecoration: 'underline' }}>
+                      삭제
+                    </button>
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {achEditing !== null && (
+              <div style={{ padding: '12px 12px 13px', borderRadius: 10, border: '1px solid #C7D8F5', backgroundColor: '#F6FAFF', marginTop: 4, marginBottom: 4 }}>
+                <p style={{ margin: '0 0 10px', fontSize: 11.5, fontWeight: 900, color: '#0F1B33' }}>
+                  {achEditing === 'new' ? '입상 기록 추가' : '입상 기록 수정'}
+                </p>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={fieldLabel}>대회명 (필수)</label>
+                  <input value={achForm.tournamentName} onChange={setAchField('tournamentName')} placeholder="예: 2026 아산시장배 동호인 테니스대회" style={inputStyle} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={fieldLabel}>대회 날짜</label>
+                    <input type="date" value={achForm.tournamentDate} onChange={setAchField('tournamentDate')} style={inputStyle} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={fieldLabel}>최종 성적 (필수)</label>
+                    <select value={achForm.resultChoice} onChange={setAchField('resultChoice')} className="admin-select" style={{ ...inputStyle, cursor: 'pointer' }}>
+                      {ACHIEVEMENT_RESULT_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      <option value="직접 입력">직접 입력</option>
+                    </select>
+                  </div>
+                </div>
+                {achForm.resultChoice === '직접 입력' && (
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={fieldLabel}>성적 직접 입력</label>
+                    <input value={achForm.resultCustom} onChange={setAchField('resultCustom')} placeholder="예: 챌린저부 준우승" style={inputStyle} />
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={fieldLabel}>참가 부서</label>
+                    <input value={achForm.division} onChange={setAchField('division')} placeholder="예: 신인부" style={inputStyle} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={fieldLabel}>파트너</label>
+                    <input value={achForm.partnerName} onChange={setAchField('partnerName')} placeholder="복식 파트너" style={inputStyle} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={fieldLabel}>표시 순서</label>
+                  <input value={achForm.displayOrder} onChange={setAchField('displayOrder')} placeholder="비우면 자동(대표 → 날짜 최신순), 낮을수록 위" inputMode="numeric" style={inputStyle} />
+                </div>
+                <div style={{ display: 'flex', gap: 14, marginBottom: 12 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={achForm.isFeatured} onChange={(e) => setAchForm((p) => ({ ...p, isFeatured: e.target.checked }))} />
+                    대표 기록 (목록 카드 우선 표시)
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={achForm.isPublic} onChange={(e) => setAchForm((p) => ({ ...p, isPublic: e.target.checked }))} />
+                    프로필 공개
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setAchEditing(null)} disabled={savingAch}
+                    style={{ flex: 1, height: 36, borderRadius: 9, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                    취소
+                  </button>
+                  <button type="button" onClick={handleAchSave}
+                    disabled={savingAch || !achForm.tournamentName.trim() || (achForm.resultChoice === '직접 입력' && !achForm.resultCustom.trim())}
+                    style={{ flex: 2, height: 36, borderRadius: 9, border: 'none', backgroundColor: '#0E7C76', color: '#FFFFFF', fontSize: 12, fontWeight: 900, cursor: savingAch ? 'wait' : 'pointer' }}>
+                    {savingAch ? '저장 중…' : achEditing === 'new' ? '기록 추가' : '기록 저장'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {notice && (
+              <p style={{
+                margin: '10px 0 0', padding: '8px 11px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, lineHeight: 1.5,
+                backgroundColor: notice.tone === 'ok' ? '#F0FDF4' : '#FEF2F2',
+                border: `1px solid ${notice.tone === 'ok' ? '#BBE7C8' : '#F3B4B4'}`,
+                color: notice.tone === 'ok' ? '#15803D' : '#B91C1C',
+              }}>{notice.text}</p>
+            )}
+
+            <div style={{ marginTop: 14, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+              <button type="button" onClick={onClose}
+                style={{ width: '100%', height: 42, borderRadius: 10, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+                닫기
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
