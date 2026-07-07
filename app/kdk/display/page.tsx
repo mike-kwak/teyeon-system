@@ -163,6 +163,19 @@ function getDisplayGroupMeta(value?: string) {
   };
 }
 
+// NOW PLAYING 선수명 폰트(1920 디자인 캔버스 px 기준 — transform scale 이 실크기로 변환).
+//   기존 clamp(…,2.4vw,…) 는 vw 가 실제 viewport 기준이라 캔버스 축소와 중복 적용돼
+//   4:3/5:4 모니터에서 실표시 ~20px 까지 떨어졌다(현장 가독 불가 원인).
+//   이름 길이에 따라 소폭 축소해 1줄 유지 — 팀 영역(≈218px) 침범/과도한 ellipsis 방지.
+function courtNameFontPx(name: string) {
+  const hasGuestTag = /\(G\)$/i.test(name);
+  const coreLen = name.replace(/\s*\(G\)$/i, '').length;
+  const effLen = coreLen + (hasGuestTag ? 1 : 0); // (G) ≈ 한 글자 폭
+  if (effLen <= 3) return 60;
+  if (effLen <= 4) return 50;
+  return 42;
+}
+
 function playerName(match: Match, index: number, playerLookup: PlayerLookup) {
   const playerId = match.playerIds?.[index] || '';
   const lookup = playerId ? playerLookup[playerId] : null;
@@ -428,11 +441,12 @@ function CourtCard({
       <div className="relative z-10 grid flex-1 min-h-0 grid-cols-[minmax(0,1fr)_64px_minmax(0,1fr)] items-stretch gap-2 px-3.5 pt-2 pb-3">
         {live ? (
           <>
-            <div className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
+            <div className="relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
               {teamA.map((name, i) => (
                 <p
                   key={i}
-                  className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center text-[clamp(30px,2.4vw,48px)] font-black leading-[1.04] tracking-[-0.014em] text-[#0A172F]"
+                  className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center font-black leading-[1.02] tracking-[-0.024em] text-[#0A172F]"
+                  style={{ fontSize: courtNameFontPx(name) }}
                 >
                   {name}
                 </p>
@@ -446,11 +460,12 @@ function CourtCard({
                 VS
               </span>
             </div>
-            <div className="relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
+            <div className="relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
               {teamB.map((name, i) => (
                 <p
                   key={i}
-                  className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center text-[clamp(30px,2.4vw,48px)] font-black leading-[1.04] tracking-[-0.014em] text-[#0A172F]"
+                  className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center font-black leading-[1.02] tracking-[-0.024em] text-[#0A172F]"
+                  style={{ fontSize: courtNameFontPx(name) }}
                 >
                   {name}
                 </p>
@@ -792,14 +807,24 @@ function KdkDisplayBoard() {
   }, []);
 
   useEffect(() => {
+    // contain 스케일: 어떤 화면비(4:3/5:4/16:9…)에서도 보드 전체가 잘리지 않게 min 기준.
+    //   1 상한 제거 — 1920 초과 화면(2560×1440 등)에서도 16:9 꽉 찬 표시 유지(벡터라 화질 무손실).
+    //   devicePixelRatio 는 innerWidth 에 이미 반영돼 있으므로 별도 계산하지 않는다(중복 금지).
     const calcScale = () => {
       const sw = window.innerWidth / DESIGN_WIDTH;
       const sh = window.innerHeight / DESIGN_HEIGHT;
-      setScale(Math.min(sw, sh, 1));
+      setScale(Math.min(sw, sh));
     };
     calcScale();
     window.addEventListener('resize', calcScale);
-    return () => window.removeEventListener('resize', calcScale);
+    // 일부 TV/구형 환경에서 전체화면 전환 시 resize 가 늦거나 누락되는 케이스 보강.
+    document.addEventListener('fullscreenchange', calcScale);
+    document.addEventListener('webkitfullscreenchange', calcScale);
+    return () => {
+      window.removeEventListener('resize', calcScale);
+      document.removeEventListener('fullscreenchange', calcScale);
+      document.removeEventListener('webkitfullscreenchange', calcScale);
+    };
   }, []);
 
   const router = useRouter();
