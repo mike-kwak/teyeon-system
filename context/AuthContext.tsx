@@ -136,57 +136,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const { data: linkedMembers, error: linkedMembersError } = await withAuthTimeout(
-        supabase
-          .from('members')
-          .select('id, avatar_url')
-          .eq('email', email)
-          .limit(5),
-        'Member avatar lookup',
+      // members direct UPDATE 제거 → 제한 RPC. 서버가 JWT email 매칭 + 아바타 빈 본인 회원만 채운다
+      //   (auth_user_id null/내 uid, 같은 email 이 정확히 1건일 때만 — 다건이면 서버가 안전 중단).
+      const { error: rpcError } = await withAuthTimeout(
+        supabase.rpc('fill_my_member_avatars', { p_avatar_url: candidateAvatarUrl }),
+        'Member avatar fill RPC',
         5000
       );
 
-      if (linkedMembersError) {
-        console.warn('[Auth/AvatarSync] Member avatar lookup failed:', linkedMembersError);
+      if (rpcError) {
+        console.warn('[Auth/AvatarSync] fill_my_member_avatars failed:', rpcError);
         return;
       }
 
-      const membersWithoutAvatar = (linkedMembers || []).filter((member: any) => {
-        return !String(member?.avatar_url || '').trim();
-      });
-
-      const updateResults = await Promise.all(
-        membersWithoutAvatar.map((member: any) => {
-          const query = supabase
-            .from('members')
-            .update({ avatar_url: candidateAvatarUrl })
-            .eq('id', member.id);
-
-          const guardedQuery = member.avatar_url === null || member.avatar_url === undefined
-            ? query.is('avatar_url', null)
-            : query.eq('avatar_url', member.avatar_url);
-
-          return withAuthTimeout(guardedQuery, 'Member avatar update', 5000);
-        })
-      );
-
-      let anyUpdateFailed = false;
-      updateResults.forEach((result: any) => {
-        if (result?.error) {
-          anyUpdateFailed = true;
-          console.warn('[Auth/AvatarSync] Member avatar update failed:', result.error);
+      // 성공 → 이번 탭 세션 완료 기록(현재 아바타 URL 저장).
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(gateKey, candidateAvatarUrl);
         }
-      });
-
-      // SELECT + 필요한 UPDATE 전부 성공 → 이번 탭 세션 완료 기록(현재 아바타 URL 저장).
-      if (!anyUpdateFailed) {
-        try {
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(gateKey, candidateAvatarUrl);
-          }
-        } catch {
-          // sessionStorage 접근 불가 — 저장 생략(다음 로드에서 기존 동작).
-        }
+      } catch {
+        // sessionStorage 접근 불가 — 저장 생략(다음 로드에서 기존 동작).
       }
     } catch (err) {
       console.warn('[Auth/AvatarSync] Member avatar sync skipped:', err);
@@ -319,64 +288,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         void (async () => {
           try {
-            // reconcile 이 실제로 성공하면 같은 payload 를 이미 썼으므로 아래 display update 는 생략.
-            let reconciledOk = false;
-            if (profile.id !== currentUser.id) {
-              const { error: profileIdUpdateError } = await withAuthTimeout(
-                supabase
-                  .from('profiles')
-                  .update({
-                    id: currentUser.id,
-                    email: currentUser.email,
-                    nickname,
-                    avatar_url: avatarUrl
-                  })
-                  .eq('id', profile.id),
-                'Profile id reconcile',
-                5000
-              );
-
-              if (profileIdUpdateError) {
-                console.warn('[Auth/DirectSync] Profile id reconcile failed:', {
-                  fromProfileId: profile.id,
-                  toUserId: currentUser.id,
-                  email: currentUser.email,
-                  error: profileIdUpdateError
-                });
-              } else {
-                reconciledOk = true;
-              }
-            }
-
-            // no-op UPDATE 방지: 저장 payload 와 동일한 정규화(빈 문자열→null)로 DB 값과 비교해
-            //   실제로 달라졌을 때만 PATCH 한다(이전에는 값이 같아도 매 전체 로드마다 무조건 PATCH).
-            //   - nickname/avatarUrl 계산식은 이미 빈값→null 로 끝난다(|| null 체인).
-            //   - email 은 auth 값이 undefined 면 payload 직렬화에서 탈락(기존 동작 유지)하므로
-            //     값이 있을 때만 비교한다 — undefined 로 DB email 을 지우는 회귀 방지.
+            // profiles direct insert/update/reconcile 제거 → 제한 RPC(sync_my_profile).
+            //   서버가 ① 본인 row 표시정보 갱신 ② email 매칭 row 를 uid 로 이전(role 보존)
+            //   ③ 신규 GUEST 생성 을 안전하게 처리(role 은 클라가 지정 불가). email 은 JWT.
+            //   no-op 방지: 값이 실제로 달라졌을 때만 호출(불필요한 RPC 왕복 억제).
             const dbEmail = (profile as any).email || null;
             const dbNickname = (profile as any).nickname || null;
             const dbAvatarUrl = (profile as any).avatar_url || null;
+            const needsReconcile = profile.id !== currentUser.id;
             const emailChanged = currentUser.email != null && dbEmail !== currentUser.email;
             const nicknameChanged = dbNickname !== nickname;
             const avatarChanged = dbAvatarUrl !== avatarUrl;
-            const shouldUpdateProfile = emailChanged || nicknameChanged || avatarChanged;
 
-            if (shouldUpdateProfile && !reconciledOk) {
-              const { error: profileUpdateError } = await withAuthTimeout(
-                supabase
-                  .from('profiles')
-                  .update({
-                    email: currentUser.email,
-                    nickname,
-                    avatar_url: avatarUrl
-                  })
-                  .eq('id', currentUser.id),
-                'Profile display update',
+            if (needsReconcile || emailChanged || nicknameChanged || avatarChanged) {
+              const { error: syncError } = await withAuthTimeout(
+                supabase.rpc('sync_my_profile', { p_nickname: nickname, p_avatar_url: avatarUrl }),
+                'Profile sync RPC',
                 5000
               );
-
-              if (profileUpdateError) {
-                console.warn('[Auth/DirectSync] Profile display update failed:', profileUpdateError);
+              if (syncError) {
+                console.warn('[Auth/DirectSync] sync_my_profile failed:', syncError?.message || syncError);
               }
             }
 
@@ -390,23 +321,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         })();
       } else {
-        const { data: insertedProfile, error: insertError } = await withAuthTimeout(
-          supabase
-            .from('profiles')
-            .insert({
-              id: currentUser.id,
-              email: currentUser.email,
-              role: 'GUEST',
-              nickname,
-              avatar_url: avatarUrl
-            })
-            .select('role')
-            .single(),
-          'Profile guest insert'
+        // profiles direct insert 제거 → sync_my_profile RPC(신규는 GUEST 로 생성, role 클라 지정 불가).
+        const { error: syncError } = await withAuthTimeout(
+          supabase.rpc('sync_my_profile', { p_nickname: nickname, p_avatar_url: avatarUrl }),
+          'Profile guest sync RPC'
         );
-
-        if (insertError) throw insertError;
-        finalRole = normalizeRole(insertedProfile?.role);
+        if (syncError) throw syncError;
+        // 생성 후 최종 role 재조회(RPC 는 void — reconcile 로 기존 role 이 보존됐을 수 있음).
+        const { data: createdProfile } = await withAuthTimeout(
+          supabase.from('profiles').select('role').eq('id', currentUser.id).maybeSingle(),
+          'Profile role reread'
+        );
+        finalRole = normalizeRole(createdProfile?.role ?? 'GUEST');
         void syncMemberAvatarIfMissing(currentUser.id, currentUser.email, avatarUrl);
       }
 
@@ -535,22 +461,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-      const { data: linkedMember, error: linkedMemberError } = await supabase
-        .from('members')
-        .select('avatar_url')
-        .eq('id', memberId)
-        .maybeSingle();
-
-      if (linkedMemberError) {
-        console.warn('[Auth] Member avatar precheck failed:', linkedMemberError);
+      // members direct UPDATE 제거 → 제한 RPC. 서버가 JWT email = members.email 일치를 검증하고
+      //   auth_user_id 를 내 uid 로 연결(타 계정 연결분 차단) + 비어있으면 avatar 보충. role/club_id 불변.
+      const { error: claimError } = await supabase.rpc('claim_my_member', {
+        p_member_id: memberId,
+        p_avatar_url: avatarUrl || null,
+      });
+      if (claimError) {
+        // 권한/이메일 불일치 등 — 로그인 자체는 막지 않되 연결만 스킵(내부 오류 문구 비노출).
+        console.warn('[Auth] claim_my_member failed:', claimError?.message || claimError);
       }
-
-      const updatePayload: Record<string, any> = { email: user.email };
-      if (avatarUrl && !String((linkedMember as any)?.avatar_url || '').trim()) {
-        updatePayload.avatar_url = avatarUrl;
-      }
-
-      await supabase.from('members').update(updatePayload).eq('id', memberId);
       await syncProfile(user);
       setIsPendingMatching(false);
     } catch (err) {

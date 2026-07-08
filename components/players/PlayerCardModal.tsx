@@ -361,10 +361,9 @@ export function PlayerCardModal({
         setIsSaving(true);
         setSaveError(null);
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({ profile_visibility_level: level })
-                .eq('email', user.email);
+            // profiles direct update 제거 → 제한 RPC. 서버가 auth.uid() 본인 row 만 갱신
+            //   (email 조건 불필요 — 본인 확인은 서버에서). role 등 다른 필드 변경 불가.
+            const { error } = await supabase.rpc('set_my_profile_visibility', { p_level: level });
             if (error) throw error;
             onVisibilitySaved?.(level);
             setIsVisibilityModalOpen(false);
