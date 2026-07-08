@@ -58,7 +58,8 @@ export default function RankingPage() {
           const { data: session } = await supabase.from('kdk_sessions').select('*').eq('id', sessionId).single();
           if (session) {
               setSessionTitle(session.title);
-              const { data: allMembers } = await supabase.from('members').select('*');
+              // P1 개인정보 최소화 — 이름/사진 매핑용 컬럼만(phone/email/auth_user_id/나이 제외).
+              const { data: allMembers } = await supabase.from('members').select('id, nickname, role, position, avatar_url, club_id');
               const memberMap: Record<string, Member> = {};
               
               const mList = (session.matches || []).filter((m: any) => m.status === 'complete' || m.status === 'done');
@@ -75,10 +76,10 @@ export default function RankingPage() {
                       if (!memberMap[pid]) {
                           const base = allMembers?.find(am => am.id === pid) || { nickname: pid.startsWith('g-') ? 'Guest' : pid };
                           const config = session.attendee_configs?.[pid];
-                          memberMap[pid] = { 
-                              id: pid, 
-                              nickname: base.nickname || pid, 
-                              birthdate: base.birthdate,
+                          memberMap[pid] = {
+                              id: pid,
+                              nickname: base.nickname || pid,
+                              // birthdate 는 members 컬럼이 아니라 항상 undefined 였음(P1 로 명시 제거).
                               matches_played: 0, wins: 0, losses: 0, score_diff: 0,
                               group: config?.group || 'A'
                           };
@@ -95,10 +96,12 @@ export default function RankingPage() {
           }
       }
 
-      // Default Global Rankings
-      const { data, error } = await supabase.from('members').select('*');
+      // Default Global Rankings — P1 개인정보 최소화. members 실존 컬럼 중 표시용만
+      //   (phone/email/auth_user_id/나이/member_number 제외). wins/birthdate 등 파생 필드는
+      //   members 컬럼이 아니라 select 대상 아님(기존 select('*') 에서도 undefined 였음).
+      const { data, error } = await supabase.from('members').select('id, nickname, role, position, avatar_url, club_id');
       if (error) throw error;
-      if (data) setMembers(data);
+      if (data) setMembers(data as any);
     } catch (err) {
       console.error(err);
     } finally {

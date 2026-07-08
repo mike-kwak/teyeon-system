@@ -20,6 +20,7 @@ import {
   type PlayerCardMember,
   type PlayerCardStats,
   type VisibilityLevel,
+  MEMBER_LIST_COLS,
 } from '@/components/players/PlayerCardModal';
 import {
   fetchMemberOfficialStats,
@@ -528,19 +529,16 @@ export default function RankingPage() {
     let cancelled = false;
     (async () => {
       try {
+        // P1 개인정보 최소화 — members 명시 컬럼(phone/email/나이/member_number 등 제외).
+        //   아바타 매칭은 auth_user_id → profiles 만(email fallback 제거).
         const { data: row, error } = await supabase
-          .from('members').select('*').eq('id', selectedMemberId).maybeSingle();
+          .from('members').select(MEMBER_LIST_COLS).eq('id', selectedMemberId).maybeSingle();
         if (error || !row) { if (!cancelled) setSelectedMemberId(null); return; }
         let profileAvatar: string | undefined;
         let visibility: VisibilityLevel | undefined;
         try {
-          const q = row.auth_user_id
-            ? supabase.from('profiles').select('avatar_url, profile_visibility_level').eq('id', row.auth_user_id).maybeSingle()
-            : row.email
-              ? supabase.from('profiles').select('avatar_url, profile_visibility_level').eq('email', row.email).limit(1).maybeSingle()
-              : null;
-          if (q) {
-            const { data: p } = await q;
+          if (row.auth_user_id) {
+            const { data: p } = await supabase.from('profiles').select('avatar_url, profile_visibility_level').eq('id', row.auth_user_id).maybeSingle();
             profileAvatar = normalizeAvatarUrl(p?.avatar_url) || undefined;
             visibility = (p?.profile_visibility_level as VisibilityLevel | undefined) || undefined;
           }
@@ -574,11 +572,10 @@ export default function RankingPage() {
     return () => { cancelled = true; };
   }, [selectedMember]);
 
-  // 아바타/본인 판정 — /members 화면과 동일 기준(부분 일치 없음).
+  // 아바타/본인 판정 — auth_user_id 로만(email 미조회, P1 개인정보 최소화). /members 와 동일 기준.
   const isOwnCard = Boolean(
     selectedMember &&
-    ((selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id) ||
-      (user?.email && selectedMember.email && user.email === selectedMember.email)),
+    selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id,
   );
   const selectedAvatar = selectedMember
     ? (normalizeAvatarUrl(selectedMember.avatar_url) ||

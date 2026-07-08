@@ -244,7 +244,8 @@ export default function SpecialMatchPage() {
     const fetchMembers = async () => {
         try {
             setIsMembersLoading(true);
-            const { data, error } = await supabase.from('members').select('*').order('nickname');
+            // P1 개인정보 최소화 — 표시/그룹판정에 쓰는 컬럼만(phone/email/나이/auth_user_id 제외).
+            const { data, error } = await supabase.from('members').select('id, nickname, role, position, avatar_url, club_id').order('nickname');
             if (error) throw error;
             setAllMembers(data || []);
         } catch (err) {

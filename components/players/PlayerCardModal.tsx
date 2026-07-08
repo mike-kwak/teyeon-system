@@ -44,6 +44,11 @@ export interface PlayerCardMember {
     achievement_top_line?: string;
 }
 
+// P1 개인정보 최소화 — 일반 회원 화면이 조회하는 members 컬럼(표시/매칭에 실제 쓰는 것만).
+//   제외: phone · email · 나이(출생연도) · member_number · 비고 · 입상 내역 · 등록일.
+//   auth_user_id 는 아바타 매칭·본인 판정용 내부 키로만 유지(화면 미표시).
+export const MEMBER_LIST_COLS = 'id, nickname, role, position, club_id, avatar_url, affiliation, mbti, achievements, bio, auth_user_id';
+
 // ─── Shared badge helpers ─────────────────────────────────────────────────────
 
 export const EXE_PRIORITY: Record<string, number> = {
@@ -350,12 +355,10 @@ export function PlayerCardModal({
 
     const handleVisibilitySave = async (level: VisibilityLevel) => {
         if (!guardWriteAction('프로필 공개 범위 저장')) return; // 촬영 보호 모드 차단
-        if (!user?.email) {
+        // 본인 판정: 저장 버튼은 isOwnCard(본인 카드)일 때만 노출되고, 최종 확인은
+        //   set_my_profile_visibility RPC 가 서버에서 auth.uid() 로 수행한다(member.email 미조회).
+        if (!user?.id) {
             setSaveError('로그인 정보를 확인할 수 없어요.');
-            return;
-        }
-        if (user.email !== member.email) {
-            setSaveError('본인 프로필만 변경할 수 있어요.');
             return;
         }
         setIsSaving(true);

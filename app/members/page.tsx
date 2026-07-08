@@ -20,6 +20,7 @@ import {
     getBadgeVariant,
     BADGE_STYLES,
     ACCENT,
+    MEMBER_LIST_COLS,
 } from '@/components/players/PlayerCardModal';
 import {
     fetchMemberOfficialStats,
@@ -66,10 +67,8 @@ const MemberCard = React.memo(function MemberCard({
         if (direct) return direct;
         const profile = normalizeAvatarUrl(member.profile_avatar_url);
         if (profile) return profile;
-        // 본인 한정 self fallback
-        const isSelf =
-            (member.auth_user_id && user?.id && member.auth_user_id === user.id) ||
-            (!!user?.email && !!member.email && user.email === member.email);
+        // 본인 한정 self fallback — auth_user_id 로만 판정(email 미조회, P1 개인정보 최소화).
+        const isSelf = !!(member.auth_user_id && user?.id && member.auth_user_id === user.id);
         if (isSelf) {
             const meta = user?.user_metadata || {};
             return normalizeAvatarUrl(
@@ -320,20 +319,18 @@ export default function MembersPage() {
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
             const { data, error } = await supabase
                 .from('members')
-                .select('*')
+                .select(MEMBER_LIST_COLS)
                 .eq('club_id', clubId)
                 .order('nickname', { ascending: true });
 
             if (error) throw error;
 
             if (data && data.length > 0) {
-                // 회원-프로필 연결 우선순위:
-                //   1) members.auth_user_id → profiles.id  (DB unique key, 운영진이 사전 매핑한 회원)
-                //   2) members.email = profiles.email      (호환용 fallback)
-                // N+1 회피를 위해 두 batch만 사용.
-                type ProfileRow = { id?: string; email?: string; avatar_url?: string; profile_visibility_level?: string };
+                // 회원-프로필 사진 연결: members.auth_user_id → profiles.id (DB unique key).
+                //   P1 개인정보 최소화: members.email 을 조회하지 않으므로 email→profiles fallback 제거.
+                //   (미연결 회원은 members.avatar_url 또는 이니셜로 표시 — 아바타만 영향, 기능 무관.)
+                type ProfileRow = { id?: string; avatar_url?: string; profile_visibility_level?: string };
                 const profileById = new Map<string, ProfileRow>();
-                const profileByEmail = new Map<string, ProfileRow>();
 
                 const authUserIds = Array.from(new Set(
                     data
@@ -344,7 +341,7 @@ export default function MembersPage() {
                 if (authUserIds.length > 0) {
                     const { data: rows, error } = await supabase
                         .from('profiles')
-                        .select('id, email, avatar_url, profile_visibility_level')
+                        .select('id, avatar_url, profile_visibility_level')
                         .in('id', authUserIds);
                     if (error) {
                         console.warn('[Members] Profile fetch by id skipped:', error);
@@ -355,34 +352,11 @@ export default function MembersPage() {
                     }
                 }
 
-                // email fallback — auth_user_id가 없는 회원에 한정해 batch.
-                const emailFallbackTargets = Array.from(new Set(
-                    data
-                        .filter((m: Member) => !m.auth_user_id && m.email)
-                        .map((m: Member) => m.email as string)
-                ));
-
-                if (emailFallbackTargets.length > 0) {
-                    const { data: rows, error } = await supabase
-                        .from('profiles')
-                        .select('id, email, avatar_url, profile_visibility_level')
-                        .in('email', emailFallbackTargets);
-                    if (error) {
-                        console.warn('[Members] Profile fetch by email skipped:', error);
-                    } else {
-                        for (const p of (rows || []) as ProfileRow[]) {
-                            if (p.email) profileByEmail.set(p.email, p);
-                        }
-                    }
-                }
-
                 // 대회 입상 기록 요약 — 회원 전체 1회 batch(N+1 금지). 테이블 미생성 시 빈 Map.
                 const achSummaries = await fetchAchievementSummaries(data.map((m: Member) => m.id));
 
                 const enriched = data.map((m: Member) => {
-                    const matched =
-                        (m.auth_user_id ? profileById.get(m.auth_user_id) : undefined) ??
-                        (m.email ? profileByEmail.get(m.email) : undefined);
+                    const matched = m.auth_user_id ? profileById.get(m.auth_user_id) : undefined;
                     const ach = achSummaries.get(m.id);
                     return {
                         ...m,
@@ -475,9 +449,7 @@ export default function MembersPage() {
         if (direct) return direct;
         const profile = normalizeAvatarUrl(selectedMember.profile_avatar_url);
         if (profile) return profile;
-        const isSelf =
-            (selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id) ||
-            (!!user?.email && !!selectedMember.email && user.email === selectedMember.email);
+        const isSelf = !!(selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id);
         if (isSelf) {
             const meta = user?.user_metadata || {};
             return normalizeAvatarUrl(
@@ -493,10 +465,9 @@ export default function MembersPage() {
         () =>
             Boolean(
                 selectedMember &&
-                ((selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id) ||
-                    (user?.email && selectedMember.email && user.email === selectedMember.email))
+                selectedMember.auth_user_id && user?.id && selectedMember.auth_user_id === user.id
             ),
-        [selectedMember, user?.id, user?.email]
+        [selectedMember, user?.id]
     );
 
     return (
