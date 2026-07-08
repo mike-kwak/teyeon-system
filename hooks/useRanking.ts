@@ -41,7 +41,10 @@ export function useRanking(
             }
 
             if (m?.status !== 'complete') return;
-            
+            // 동점 경기는 집계 제외 — 공식 규칙(전광판 RPC·Archive 재계산과 동일).
+            // 과거에는 동점을 양 팀 패로 집계해 화면별 losses 가 갈릴 수 있었다.
+            if (Number(m?.score1 || 0) === Number(m?.score2 || 0)) return;
+
             m?.playerIds?.forEach((pid, idx) => {
                 if (!res[pid]) res[pid] = { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 };
                 const isTeam1 = idx < 2;
@@ -75,9 +78,11 @@ export function useRanking(
             const resolvedName = m?.nickname || nameLookup[id] || id;
 
             const conf = attendeeConfigs?.[id] || { name: resolvedName, group: 'A', is_guest: m?.is_guest, age: m?.age || 99 };
-            // 출생연도 — 실데이터 소스는 members."나이"(4자리 연도 텍스트). attendeeConfigs.age /
-            // member.age 는 연도 형식일 때만 인정(만 나이 숫자는 null 처리 — 역방향 정렬 방지).
+            // 출생연도 우선순위: ① attendeeConfigs.birthYear(신규 명시 필드 — 게스트 입력/세션 snapshot)
+            // ② conf.age / member.age (레거시 — 4자리 연도 형식일 때만 인정, 만 나이 숫자는 무시)
+            // ③ members."나이"(4자리 연도 텍스트 — 회원 실데이터 소스)
             const birthYear =
+                normalizeBirthYear((conf as any)?.birthYear) ??
                 normalizeBirthYear(conf?.age) ??
                 normalizeBirthYear(m?.age) ??
                 normalizeBirthYear((m as any)?.['나이']);

@@ -4,14 +4,15 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Match, Member } from '@/lib/tournament_types';
-import { normalizeBirthYear, sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
+import { fetchLiveOfficialRanking } from '@/lib/kdk/liveRankingService';
 
 const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
 
 type RealtimeStatus = 'IDLE' | 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED' | string;
+// Ranking Tower 표시용 행 — 공식 라이브 순위 RPC(get_kdk_live_official_ranking) 결과.
+// 전광판은 순위를 직접 계산하지 않는다(anon 은 게스트 birthYear 가 없어 폰과 갈릴 수 있음).
 type RankingEntry = {
   id: string;
-  playerId: string;
   name: string;
   isGuest?: boolean;
   wins: number;
@@ -19,9 +20,8 @@ type RankingEntry = {
   pointsFor: number;
   pointsAgainst: number;
   diff: number;
-  birthYear?: number | null;
 };
-type PlayerLookup = Record<string, { name: string; isGuest: boolean; birthYear?: number | null }>;
+type PlayerLookup = Record<string, { name: string; isGuest: boolean }>;
 
 const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 1080;
@@ -223,70 +223,9 @@ function formatElapsed(startedAt: string | null | undefined, nowMs: number): str
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLookup): RankingEntry[] {
-  const rankingMap = new Map<string, RankingEntry>();
-
-  const ensurePlayer = (id: string, name: string) => {
-    const isGuest = playerLookup[id]?.isGuest === true
-      || /^manual-guest-/i.test(String(id || ''))
-      || /^g-/i.test(String(id || ''))
-      || /\s*\(G\)$/i.test(String(name || ''));
-    if (!rankingMap.has(id)) {
-      rankingMap.set(id, {
-        id,
-        playerId: id,
-        name,
-        isGuest,
-        wins: 0,
-        losses: 0,
-        pointsFor: 0,
-        pointsAgainst: 0,
-        diff: 0,
-        birthYear: playerLookup[id]?.birthYear ?? null,
-      });
-    }
-    const player = rankingMap.get(id)!;
-    player.name = name;
-    player.isGuest = player.isGuest || isGuest;
-    return player;
-  };
-
-  completedMatches.forEach((match) => {
-    const score1 = Number(match.score1 ?? 0);
-    const score2 = Number(match.score2 ?? 0);
-    if (score1 === score2) return;
-
-    const team1 = [0, 1]
-      .map((index) => ({ id: match.playerIds?.[index] || `${match.id}-${index}`, name: playerName(match, index, playerLookup) }))
-      .filter((player) => player.name && player.name !== '-');
-    const team2 = [2, 3]
-      .map((index) => ({ id: match.playerIds?.[index] || `${match.id}-${index}`, name: playerName(match, index, playerLookup) }))
-      .filter((player) => player.name && player.name !== '-');
-    const team1Won = score1 > score2;
-
-    team1.forEach(({ id, name }) => {
-      const player = ensurePlayer(id, name);
-      player.wins += team1Won ? 1 : 0;
-      player.losses += team1Won ? 0 : 1;
-      player.pointsFor += score1;
-      player.pointsAgainst += score2;
-      player.diff = player.pointsFor - player.pointsAgainst;
-    });
-
-    team2.forEach(({ id, name }) => {
-      const player = ensurePlayer(id, name);
-      player.wins += team1Won ? 0 : 1;
-      player.losses += team1Won ? 1 : 0;
-      player.pointsFor += score2;
-      player.pointsAgainst += score1;
-      player.diff = player.pointsFor - player.pointsAgainst;
-    });
-  });
-
-  // 공식 comparator 단일 사용 — 전광판 자체 정렬(득점 pf tie-break 포함) 제거.
-  // 승수 → 득실 → 연소자(출생연도 큰 값 우선, 미제공 후순위) → 이름 → id.
-  return sortOfficialKdkRanking(Array.from(rankingMap.values()));
-}
+// 순위 계산은 서버 RPC(get_kdk_live_official_ranking)가 단일 source —
+// 전광판 클라이언트 재계산(calculateLiveRanking)은 제거됨. RPC 실패 시에도
+// 클라 재계산으로 대체하지 않는다(anon 은 게스트 birthYear 가 없어 폰과 순위가 갈림).
 
 // guestFee: KDK 세션 단일 출처(kdk_session_meta.guest_fee). null = 미설정 → 게스트비 미차감(임의 10,000 fabrication 금지).
 // isRealPenalty/penaltyTier 는 순위 tier 기반이라 guestFee 와 무관 → 그 값만 쓰는 호출부는 기본값(null)로 호출해도 안전.
@@ -930,6 +869,53 @@ function KdkDisplayBoard() {
     fetchMembers();
   }, []);
 
+  // 공식 라이브 순위 — 서버 RPC 단일 source. 개인정보 테이블 직접 조회 없음.
+  //   실패 시: 마지막 성공 결과 유지 + '순위 동기화 중' 상태. 클라 재계산 fallback 금지.
+  //   matches 재조회(fetchMatches)와 같은 트리거에서 갱신 → 점수 변경이 순위에 반영된다.
+  const [officialRanking, setOfficialRanking] = useState<RankingEntry[]>([]);
+  const [rankingSync, setRankingSync] = useState<'loading' | 'ok' | 'stale'>('loading');
+  const rankingSeqRef = useRef(0);
+  const hasRankingEverLoadedRef = useRef(false);
+
+  const refreshOfficialRanking = async (sid: string) => {
+    if (!sid) return;
+    const seq = ++rankingSeqRef.current;
+    const rows = await fetchLiveOfficialRanking(sid);
+    if (seq !== rankingSeqRef.current) return; // stale 응답 폐기
+    if (rows === null) {
+      // 실패 — 마지막 성공 순위 유지, 상태만 표시(다음 Realtime refresh 에서 자동 재시도)
+      setRankingSync(hasRankingEverLoadedRef.current ? 'stale' : 'loading');
+      return;
+    }
+    hasRankingEverLoadedRef.current = true;
+    setOfficialRanking(rows.map((row) => ({
+      id: `rank-${row.rank}-${row.name}`,
+      name: row.name,
+      isGuest: row.isGuest,
+      wins: row.wins,
+      losses: row.losses,
+      pointsFor: row.pf,
+      pointsAgainst: row.pa,
+      diff: row.diff,
+    })));
+    setRankingSync('ok');
+  };
+
+  const rankingSidRef = useRef<string>('');
+  useEffect(() => {
+    const sid = resolvedSessionId || sessionId;
+    if (!sid) return;
+    if (rankingSidRef.current && rankingSidRef.current !== sid) {
+      // 세션 전환 — 이전 세션 순위가 새 세션 화면에 잔존하지 않도록 즉시 비움
+      setOfficialRanking([]);
+      setRankingSync('loading');
+      hasRankingEverLoadedRef.current = false;
+    }
+    rankingSidRef.current = sid;
+    refreshOfficialRanking(sid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedSessionId, sessionId, lastSync]); // lastSync = fetchMatches 성공 시각 → 점수 변경마다 재조회
+
   const toggleFullscreen = async () => {
     try {
       const fullscreenDocument = document as Document & {
@@ -1090,8 +1076,6 @@ function KdkDisplayBoard() {
         acc[String(member.id)] = {
           name: cleanPlayerName(name),
           isGuest: member.is_guest === true || member.isGuest === true || String(member.id).startsWith('g-') || String(member.id).startsWith('manual-guest-'),
-          // 연소자 tie-break용 출생연도 — 실데이터 소스는 members."나이"(4자리 연도 텍스트).
-          birthYear: normalizeBirthYear(member['나이'] ?? member.age),
         };
       }
       return acc;
@@ -1104,7 +1088,8 @@ function KdkDisplayBoard() {
     return map;
   }, [matches]);
 
-  const liveRanking = useMemo(() => calculateLiveRanking(completedMatches, playerLookup), [completedMatches, playerLookup]);
+  // Ranking Tower 공식 순위 = 서버 RPC 결과만 사용(클라 재계산 없음).
+  const liveRanking = officialRanking;
   const playingCount = matches.filter((match) => match.status === 'playing').length;
   const totalMatches = matches.length;
   const progressPercent = totalMatches > 0 ? Math.round((completedMatches.length / totalMatches) * 100) : 0;
@@ -1418,12 +1403,20 @@ function KdkDisplayBoard() {
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span className="inline-block h-5 w-[3px] shrink-0 rounded-[2px] bg-[#F2C765]" />
                   <h2 className="truncate text-[18px] font-black uppercase tracking-[0.22em] text-[#F2C765]">★ RANKING TOWER</h2>
+                  {/* 공식 순위 RPC 실패/재시도 중 — 마지막 성공 순위를 유지하며 상태만 알린다(잘못된 임시 순위 표시 금지) */}
+                  {rankingSync === 'stale' && rankingTotal > 0 && (
+                    <span className="shrink-0 rounded-[6px] bg-white/10 px-2 py-0.5 text-[10px] font-black tracking-[0.12em] text-[#D9BC6E]">
+                      순위 동기화 중
+                    </span>
+                  )}
                 </div>
               </div>
 
               {rankingTotal === 0 ? (
                 <div className="flex flex-1 items-center justify-center px-4 text-center text-[14px] font-black uppercase tracking-[0.2em] text-[#9C7E3A]">
-                  랭킹 데이터가 없습니다
+                  {completedMatches.length > 0 && rankingSync !== 'ok'
+                    ? '순위 확인 중'
+                    : '랭킹 데이터가 없습니다'}
                 </div>
               ) : (
                 <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2">

@@ -60,11 +60,17 @@ export function compareOfficialKdkRanking(
     if (by === null) return -1;  // b 미제공 → 후순위
     if (ay !== by) return by - ay; // 큰 연도(어린 쪽) 우선
   }
-  // ④ 이름 가나다 ↑
-  const byName = String(a.name || '').localeCompare(String(b.name || ''), 'ko');
-  if (byName !== 0) return byName;
-  // ⑤ stable id ↑ — 동명이인까지 결정적으로
-  return String(a.playerId || '').localeCompare(String(b.playerId || ''));
+  // ④ 이름 ↑ — 유니코드 코드포인트 비교(한글 음절 블록은 코드포인트 순서 = 가나다순).
+  //    localeCompare('ko') 대신 코드포인트를 쓰는 이유: 서버 RPC(COLLATE "C")와
+  //    환경(ICU 유무)에 관계없이 byte-단위로 동일한 순서를 보장하기 위해서다.
+  const aName = String(a.name || '');
+  const bName = String(b.name || '');
+  if (aName !== bName) return aName < bName ? -1 : 1;
+  // ⑤ stable id ↑ — 동명이인까지 결정적으로 (정렬 전용, 화면/응답에 노출하지 않음)
+  const aId = String(a.playerId || '');
+  const bId = String(b.playerId || '');
+  if (aId !== bId) return aId < bId ? -1 : 1;
+  return 0;
 }
 
 /** 공식 정렬 + rank(1부터) 부여. 입력 배열은 변경하지 않는다. */

@@ -19,7 +19,10 @@ export type AttendeeConfig = {
     startTime: string;
     endTime: string;
     isLate?: boolean;
+    /** 레거시 — 과거 세션 호환용. 4자리 연도 값일 때만 순위 계산에 인정(만 나이 숫자는 무시). */
     age?: number;
+    /** 4자리 출생연도 — 공식 동률(연소자 우위) 계산 전용. 공개 화면 비노출. 신규 저장은 이 필드 사용. */
+    birthYear?: number | null;
     isWinner?: boolean;
 };
 

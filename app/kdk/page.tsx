@@ -20,6 +20,7 @@ const RankingTab = nextDynamic(() => import('@/components/RankingTab'), { ssr: f
 import { useRanking } from '@/hooks/useRanking';
 import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer } from '@/lib/kdk/settlement';
 import { normalizeBirthYear, sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
+import { getGuestProfilesByKeys, upsertGuestProfiles, saveSessionBirthYearSnapshot, getSessionBirthYearSnapshot } from '@/lib/kdk/guestProfileService';
 import { loadKdkSession } from '@/lib/finance/kdkSettlementService';
 import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
@@ -311,7 +312,12 @@ export default function KDKPage() {
     const [finalizeSummary, setFinalizeSummary] = useState<{
         title: string; dateLabel: string; participants: number; matchCount: number;
         winner: string | null; guestFee: number | null; penaltyCount: number; penaltyTotal: number;
+        /** 완전 동률 그룹에 출생연도 미입력자가 있을 때의 경고(확정 차단은 하지 않음). */
+        tieBirthYearWarning?: string | null;
     } | null>(null);
+    // 수동 이름 매칭 — 게스트 출생연도 입력(guestKey → 입력 문자열). 확정 시 attendeeConfigs.birthYear
+    // 와 kdk_guest_profiles 로 반영. 공개 화면 비노출, 순위(연소자 우위) 계산 전용.
+    const [manualGuestBirthYears, setManualGuestBirthYears] = useState<Record<string, string>>({});
     const [isMembersLoading, setIsMembersLoading] = useState(true);
     const [isMembersError, setIsMembersError] = useState(false);
     // isMembersLoading → LoadingOverlay 연동 (fetchMembers 로직 무변경)
@@ -905,6 +911,30 @@ export default function KDKPage() {
         });
         const now = new Date();
         const dateLabel = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+
+        // 완전 동률(승수+득실 동일) 그룹 안에 출생연도 미입력자가 있으면 확정 전에 1회 경고.
+        // 차단하지 않음 — 그대로 확정하면 공식 규칙대로 해당 참가자는 동률에서 후순위.
+        const tieGroups = new Map<string, { name: string; birthYear: unknown }[]>();
+        resolvedRanking.forEach((p: any) => {
+            const key = `${p.wins || 0}|${p.diff || 0}`;
+            if (!tieGroups.has(key)) tieGroups.set(key, []);
+            tieGroups.get(key)!.push({ name: p.name, birthYear: p.birthYear });
+        });
+        const tieMissingNames: string[] = [];
+        tieGroups.forEach(group => {
+            if (group.length < 2) return;
+            group.forEach(p => {
+                if (normalizeBirthYear(p.birthYear) === null && !tieMissingNames.includes(p.name)) {
+                    tieMissingNames.push(p.name);
+                }
+            });
+        });
+        // 정책(2026-07-08 확정): 완전 동률 그룹에 출생연도 미확인자가 있으면 공식 확정을 차단한다.
+        // 출생연도를 입력·저장(snapshot 성공)한 뒤 다시 확정해야 한다. 동률이 없으면 진행 가능.
+        const tieBirthYearWarning = tieMissingNames.length > 0
+            ? `완전 동률 참가자 중 출생연도가 확인되지 않은 참가자가 있어 공식 확정이 차단되었습니다 (${tieMissingNames.join(', ')}). 이름 매칭에서 출생연도를 입력·저장한 뒤 다시 확정해주세요.`
+            : null;
+
         setFinalizeSummary({
             title: sessionTitle || 'KDK 세션',
             dateLabel,
@@ -914,12 +944,18 @@ export default function KDKPage() {
             guestFee,
             penaltyCount,
             penaltyTotal,
+            tieBirthYearWarning,
         });
         setShowFinalizeConfirm(true);
     };
 
     const handleFinalArchive = async () => {
         if (!guardWriteAction('공식 기록 확정/아카이브')) return; // 촬영 보호 모드 차단
+        // 이중 가드 — 완전 동률 그룹에 출생연도 미확인자가 있으면 확정 금지(모달 버튼도 disabled).
+        if (finalizeSummary?.tieBirthYearWarning) {
+            alert(finalizeSummary.tieBirthYearWarning);
+            return;
+        }
         // 게스트비 미설정(null)이면 공식 확정 차단 — settlement_data 에 임의 금액(10,000)을 박제하지 않는다.
         //   0원은 유효한 확정값이므로 차단하지 않는다(== null 로만 판단). (확인 모달 이전에도 이미 차단됨)
         if (guestFee == null) {
@@ -1173,6 +1209,7 @@ export default function KDKPage() {
             if (data.manualStep) setManualStep(data.manualStep);
             if (data.manualPasteText) setManualPasteText(data.manualPasteText);
             if (data.manualNameOverrides) setManualNameOverrides(data.manualNameOverrides || {});
+            if (data.manualGuestBirthYears) setManualGuestBirthYears(data.manualGuestBirthYears || {});
             if (data.sessionTitle) setSessionTitle(data.sessionTitle);
             if (data.sessionId) setSessionId(data.sessionId);
 
@@ -1312,13 +1349,14 @@ export default function KDKPage() {
                 manualStep,
                 manualPasteText,
                 manualNameOverrides,
+                manualGuestBirthYears,
                 sessionTitle,
                 sessionId,
                 selectedSessionId
             };
             localStorage.setItem('kdk_live_session', JSON.stringify(data));
         }
-    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, manualStep, manualPasteText, manualNameOverrides, sessionTitle, sessionId, selectedSessionId]);
+    }, [matches, attendeeConfigs, selectedIds, tempGuests, step, generationMode, manualInputMode, manualStep, manualPasteText, manualNameOverrides, manualGuestBirthYears, sessionTitle, sessionId, selectedSessionId]);
 
     // uid 최신값 동기화(비동기 syncActiveSession 복원 로직에서 참조).
     useEffect(() => { uidRef.current = uid; }, [uid]);
@@ -2319,6 +2357,16 @@ export default function KDKPage() {
             return;
         }
 
+        // 게스트 출생연도 사전 검증 — 잘못된 값(만 나이·범위 밖 등)은 진행 차단. 빈 값(미제공)은 허용.
+        const invalidBirthRow = manualNameMatches.find(m =>
+            m.status !== 'MEMBER'
+            && (manualGuestBirthYears[m.guestKey] ?? '').trim() !== ''
+            && normalizeBirthYear(manualGuestBirthYears[m.guestKey]) === null);
+        if (invalidBirthRow) {
+            alert(`게스트 '${invalidBirthRow.originalName}' 의 출생연도가 유효하지 않습니다.\n1900~${new Date().getFullYear()} 사이의 4자리 연도를 입력하거나 비워주세요.`);
+            return;
+        }
+
         setIsGenerating(true);
         const summarizeSupabaseError = (error: any) => ({
             message: error?.message || String(error || 'Unknown error'),
@@ -2376,6 +2424,8 @@ export default function KDKPage() {
                         group: group === 'B' ? 'B' : 'A',
                         startTime: row.time || nextAttendeeConfigs[playerId]?.startTime || '19:00',
                         endTime: nextAttendeeConfigs[playerId]?.endTime || '22:00',
+                        // birthYear 는 여기서 넣지 않는다 — DB snapshot 저장이 '성공한 뒤에만'
+                        // 반영한다(아래). 폰 로컬에만 적용돼 다른 기기/전광판과 갈리는 상태 금지.
                     };
 
                     if (isGuest) {
@@ -2462,6 +2512,36 @@ export default function KDKPage() {
             setSelectedSessionId(manualSessionId);
             setSessionTitle(title);
             setShowGateway(false);
+            // 게스트 출생연도 영속화 — ① 영구 프로필(재참여 자동 불러오기, 비운 값은 null 로 되돌림)
+            // ② 세션 snapshot(kdk_session_attendee_meta) — 폰·전광판·타 기기의 유일한 계산 입력.
+            //    snapshot 저장이 '성공한 경우에만' attendeeConfigs 에 birthYear 를 반영한다 —
+            //    실패 시 모든 화면이 동일하게 미제공 fallback(폰만 로컬값 적용 금지).
+            //    세션 생성 자체는 막지 않는다(명확한 오류 + 재확정으로 재시도 가능).
+            try {
+                const manualGuestRows = manualNameMatches.filter(m => m.status !== 'MEMBER');
+                await upsertGuestProfiles(clubId, manualGuestRows.map(m => ({
+                    guestKey: m.guestKey,
+                    displayName: m.originalName,
+                    normalizedName: normalizeManualName(m.originalName) || m.originalName,
+                    birthYear: normalizeBirthYear(manualGuestBirthYears[m.guestKey]),
+                })));
+                const snapshotYears: Record<string, number> = {};
+                manualGuestRows.forEach(m => {
+                    const year = normalizeBirthYear(manualGuestBirthYears[m.guestKey]);
+                    if (year !== null) snapshotYears[m.guestKey] = year;
+                });
+                await saveSessionBirthYearSnapshot(manualSessionId, clubId, snapshotYears);
+                // 저장 성공 → 이제서야 이 기기의 참가자 메타에 반영(공유 상태와 동일 보장)
+                Object.entries(snapshotYears).forEach(([playerId, year]) => {
+                    if (nextAttendeeConfigs[playerId]) {
+                        nextAttendeeConfigs[playerId] = { ...nextAttendeeConfigs[playerId], birthYear: year };
+                    }
+                });
+            } catch (guestProfileErr) {
+                console.error('[guestProfiles] 저장 실패:', guestProfileErr);
+                alert('게스트 출생연도 저장에 실패했습니다.\n입력값은 어떤 화면의 순위에도 적용되지 않습니다(모든 화면 동일 기준 유지).\n네트워크 확인 후 이름 매칭에서 다시 확정하면 재시도됩니다.');
+            }
+
             setTempGuests(prev => {
                 const next = new Map(prev.map(guest => [guest.id, guest]));
                 manualGuests.forEach((guest, id) => next.set(id, guest));
@@ -3355,6 +3435,68 @@ export default function KDKPage() {
         manualNameMatches.forEach(match => map.set(normalizeManualName(match.originalName), match));
         return map;
     }, [manualNameMatches]);
+
+    // 재참여 게스트 출생연도 자동 불러오기 — 매칭된 guest_key 들로 batch 1회 조회(N+1 금지).
+    // 운영자가 이미 입력한 값은 덮어쓰지 않는다. 테이블 미생성/무권한이면 빈 결과(미제공 취급).
+    const manualGuestKeysSig = useMemo(
+        () => manualNameMatches
+            .filter(m => m.status !== 'MEMBER')
+            .map(m => m.guestKey)
+            .sort()
+            .join('|'),
+        [manualNameMatches],
+    );
+    useEffect(() => {
+        if (!manualGuestKeysSig) return;
+        const keys = manualGuestKeysSig.split('|').filter(Boolean);
+        let cancelled = false;
+        (async () => {
+            const clubIdEnv = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
+            const profiles = await getGuestProfilesByKeys(clubIdEnv, keys);
+            if (cancelled || profiles.size === 0) return;
+            setManualGuestBirthYears(prev => {
+                const next = { ...prev };
+                profiles.forEach((profile, key) => {
+                    if (next[key] === undefined && profile.birthYear !== null) {
+                        next[key] = String(profile.birthYear);
+                    }
+                });
+                return next;
+            });
+        })();
+        return () => { cancelled = true; };
+    }, [manualGuestKeysSig]);
+
+    // 세션 snapshot 복원 — 다른 운영자 기기/새로고침으로 라이브 세션에 진입하면
+    // localStorage 가 아닌 DB snapshot(kdk_session_attendee_meta)에서 게스트 birthYear 를 받아
+    // attendeeConfigs 에 병합한다(로컬에 이미 값이 있으면 유지). 폰·전광판 동일 source 보장.
+    useEffect(() => {
+        if (!sessionId) return;
+        let cancelled = false;
+        getSessionBirthYearSnapshot(sessionId).then(snapshot => {
+            if (cancelled || snapshot.size === 0) return;
+            setAttendeeConfigs(prev => {
+                const next = { ...prev };
+                snapshot.forEach((year, playerId) => {
+                    const existing = next[playerId];
+                    if (existing?.birthYear != null) return; // 이 기기에서 입력한 값 우선
+                    next[playerId] = {
+                        ...(existing || {
+                            id: playerId,
+                            name: '',
+                            group: 'A' as const,
+                            startTime: '19:00',
+                            endTime: '22:00',
+                            is_guest: playerId.startsWith('manual-guest-') || playerId.startsWith('g-'),
+                        }),
+                        birthYear: year,
+                    };
+                });
+                return next;
+            });
+        });
+        return () => { cancelled = true; };
+    }, [sessionId]);
 
     const getManualResolvedName = (name: string) => {
         const trimmed = name.trim();
@@ -4476,8 +4618,51 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     {match.originalName}(G) / 게스트로 사용
                                                 </option>
                                             </select>
+                                            {/* 게스트 행에만 출생연도 입력 — 완전 동률(연소자 우위) 계산 전용, 공개 비노출.
+                                                회원은 members."나이" 를 자동 사용하므로 입력칸을 표시하지 않는다. */}
+                                            {match.status !== 'MEMBER' && (() => {
+                                                const birthValue = manualGuestBirthYears[match.guestKey] ?? '';
+                                                const birthInvalid = birthValue.trim() !== '' && normalizeBirthYear(birthValue) === null;
+                                                return (
+                                                    <div style={{ marginTop: 8 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                            <label style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: '#3F5B82' }}>출생연도</label>
+                                                            <input
+                                                                value={birthValue}
+                                                                onChange={(e) => {
+                                                                    const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                                                                    setManualGuestBirthYears(prev => ({ ...prev, [match.guestKey]: digits }));
+                                                                }}
+                                                                inputMode="numeric"
+                                                                maxLength={4}
+                                                                placeholder="예: 1988"
+                                                                style={{
+                                                                    width: 92, flexShrink: 0, borderRadius: 10,
+                                                                    border: `1px solid ${birthInvalid ? '#F0A3A3' : '#DCE8F5'}`,
+                                                                    background: '#FFFFFF', padding: '8px 10px',
+                                                                    fontSize: 12.5, fontWeight: 700, color: '#0F2747',
+                                                                    outline: 'none', boxSizing: 'border-box',
+                                                                }}
+                                                            />
+                                                            <span style={{ minWidth: 0, fontSize: 10, fontWeight: 700, color: '#8AA0BC', lineHeight: 1.4, wordBreak: 'keep-all' }}>
+                                                                순위 확인용 · 외부 비공개
+                                                            </span>
+                                                        </div>
+                                                        {birthInvalid && (
+                                                            <p style={{ margin: '5px 0 0', fontSize: 10.5, fontWeight: 700, color: '#C0392B' }}>
+                                                                1900~{new Date().getFullYear()} 사이의 4자리 출생연도를 입력해 주세요.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     ))}
+                                    {manualNameMatches.some(m => m.status !== 'MEMBER') && (
+                                        <p style={{ margin: '10px 2px 0', fontSize: 10.5, fontWeight: 700, color: '#8AA0BC', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                                            출생연도 미제공 시 완전 동률에서 후순위가 될 수 있습니다.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -6495,10 +6680,25 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </p>
                             </div>
 
+                            {fs.tieBirthYearWarning && (
+                                <div style={{ marginTop: 12, padding: '11px 13px', borderRadius: 12, background: '#FEF2F2', border: '1px solid #F3B4B4' }}>
+                                    <p style={{ margin: 0, fontSize: 11.5, fontWeight: 800, color: '#B91C1C', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+                                        {fs.tieBirthYearWarning}
+                                    </p>
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                                <button type="button" onClick={() => setShowFinalizeConfirm(false)} disabled={isGenerating} style={FINALIZE_BTN_SECONDARY}>취소</button>
-                                <button type="button" onClick={handleFinalArchive} disabled={isGenerating} style={{ ...FINALIZE_BTN_PRIMARY, opacity: isGenerating ? 0.6 : 1 }}>
-                                    {isGenerating ? '확정 중…' : '공식 기록 확정'}
+                                <button type="button" onClick={() => setShowFinalizeConfirm(false)} disabled={isGenerating} style={FINALIZE_BTN_SECONDARY}>
+                                    {fs.tieBirthYearWarning ? '정보 확인' : '취소'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleFinalArchive}
+                                    disabled={isGenerating || !!fs.tieBirthYearWarning}
+                                    style={{ ...FINALIZE_BTN_PRIMARY, opacity: (isGenerating || fs.tieBirthYearWarning) ? 0.45 : 1, cursor: fs.tieBirthYearWarning ? 'not-allowed' : undefined }}
+                                >
+                                    {isGenerating ? '확정 중…' : fs.tieBirthYearWarning ? '확정 차단됨' : '공식 기록 확정'}
                                 </button>
                             </div>
                         </div>
