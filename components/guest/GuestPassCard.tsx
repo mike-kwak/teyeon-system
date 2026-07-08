@@ -16,6 +16,8 @@ import {
     Timer,
     Wallet,
     RefreshCw,
+    ListOrdered,
+    Lock,
 } from 'lucide-react';
 import type {
     GuestPassData,
@@ -375,8 +377,9 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                     `}</style>
                 </SectionCard>
 
-                {/* ── 꼭 확인해주세요 — 대진표/정산 재확인 강조 (게스트가 놓치지 않도록) ──
-                    Cool Premium Light 톤 유지 + teal/blue accent 로 시각 강조. 상태 로직 변경 없음(정적 안내). */}
+                {/* ── 이 페이지에서 확인하세요 — 경기 전(대진표) / 경기 후(순위·정산) 안내 ──
+                    실제 콘텐츠는 하단 'KDK 경기 안내' 영역에 표시됨을 명시(위치 모호 표현 제거).
+                    우측 버튼은 실제로 해당 영역으로 스크롤 이동. */}
                 <section
                     style={{
                         position: 'relative',
@@ -390,45 +393,49 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                 >
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #0E7E76, #1EA89B 55%, #1F5FB5)' }} />
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2, marginBottom: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                             <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,159,152,0.12)' }}>
                                 <Info size={15} strokeWidth={2.4} style={{ color: '#0E8079' }} />
                             </span>
-                            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em' }}>꼭 확인해주세요</h3>
+                            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em', wordBreak: 'keep-all' }}>이 페이지에서 확인하세요</h3>
                         </div>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 22, padding: '0 9px', borderRadius: 999, background: 'rgba(31,95,181,0.10)', color: '#1F5FB5', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap' }}>
-                            <RefreshCw size={11} strokeWidth={2.6} /> 다시 확인
-                        </span>
+                        <button
+                            type="button"
+                            onClick={() => document.getElementById('gp-kdk-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', borderRadius: 999, background: 'rgba(31,95,181,0.10)', border: '1px solid rgba(31,95,181,0.22)', color: '#1F5FB5', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <RefreshCw size={11} strokeWidth={2.6} /> 경기 안내로 이동
+                        </button>
                     </div>
 
-                    {/* 대진표 */}
+                    {/* 경기 전 — 대진표 확인 */}
                     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 12px', borderRadius: 12, background: '#FFFFFF', border: '1px solid rgba(15,159,152,0.18)' }}>
                         <span style={{ width: 28, height: 28, borderRadius: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,159,152,0.12)' }}>
                             <CalendarDays size={15} strokeWidth={2.2} style={{ color: '#0E8079' }} />
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>대진표는 이 화면에서 확인해요</p>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>경기 전 — 대진표 확인</p>
                             <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.6, wordBreak: 'keep-all' }}>
-                                운영진이 대진을 확정하면 이 화면에서 바로 볼 수 있어요. <b style={{ color: '#0E8079' }}>경기 시작 전 이 링크를 다시 열어</b> 확인해주세요.
+                                운영진이 대진을 확정하면 <b style={{ color: '#0E8079' }}>아래 ‘KDK 경기 안내’ 영역</b>에 대진표가 표시됩니다. 경기 시작 전 이 링크를 다시 열어 확인해주세요.
                             </p>
                         </div>
                     </div>
 
-                    {/* 경기 후 정산 */}
+                    {/* 경기 후 — 순위와 정산 확인 */}
                     <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 12px', borderRadius: 12, background: '#FFFFFF', border: '1px solid rgba(31,95,181,0.18)' }}>
                         <span style={{ width: 28, height: 28, borderRadius: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(31,95,181,0.10)' }}>
                             <Trophy size={15} strokeWidth={2.2} style={{ color: '#1F5FB5' }} />
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>경기 후 순위·게스트비·벌금 정산도 여기서</p>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A', wordBreak: 'keep-all' }}>경기 후 — 순위와 정산 확인</p>
                             <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.6, wordBreak: 'keep-all' }}>
-                                경기가 끝나면 최종 순위와 게스트비·벌금 정산을 운영진이 확정한 뒤 <b style={{ color: '#1F5FB5' }}>이 화면에서</b> 확인할 수 있어요.
+                                경기 종료 후 결과가 확정되면 <b style={{ color: '#1F5FB5' }}>같은 영역</b>에서 최종 순위와 게스트비·벌금 정산 내용을 확인할 수 있습니다.
                             </p>
                         </div>
                     </div>
 
                     <p style={{ margin: '12px 4px 0', fontSize: 11, fontWeight: 800, color: '#0E8079', lineHeight: 1.55, textAlign: 'center', wordBreak: 'keep-all' }}>
-                        이 링크를 저장해두고 <b>경기 전 · 경기 후 다시</b> 확인해주세요.
+                        이 링크 하나로 <b>경기 전에는 대진표</b>, <b>경기 후에는 최종 순위와 정산 내용</b>을 확인할 수 있습니다.
                     </p>
                 </section>
 
@@ -446,6 +453,73 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                         </div>
                     </SectionCard>
                 )}
+
+                {/* ── 순위 결정 안내 — TEYEON KDK 공식 기준(승수 → 득실 → 연소자 우위) ──
+                    문구는 공식 comparator 규칙과 반드시 일치해야 함(임의 기준 생성 금지).
+                    생년 정보: 출생연도만 · 순위 확인 목적 한정 · 공개 화면 비노출 · 미제공 시 동률 후순위 가능. */}
+                <SectionCard>
+                    <SectionTitle>순위 결정 안내</SectionTitle>
+                    <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#334155', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                        최종 순위는 TEYEON KDK 공식 기준을 아래 순서대로 적용해 결정합니다.
+                    </p>
+                    <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {[
+                            ['1', '승수', '많이 이긴 순서'],
+                            ['2', '득실', '득점에서 실점을 뺀 값이 큰 순서'],
+                            ['3', '동률 시 연소자 우위', '위 기준이 모두 같으면 나이가 어린 참가자가 우선'],
+                        ].map(([n, title, desc]) => (
+                            <li key={n} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                                <span style={{
+                                    width: 22, height: 22, borderRadius: 7, flexShrink: 0, marginTop: 1,
+                                    backgroundColor: 'rgba(15,159,152,0.10)', color: '#0E8079',
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 11.5, fontWeight: 900,
+                                }}>
+                                    {n}
+                                </span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                                    <b style={{ color: '#0F172A' }}>{title}</b> — {desc}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                    <div style={{
+                        marginTop: 12, padding: '9px 11px', borderRadius: 10,
+                        background: 'rgba(15,159,152,0.07)', border: '1px solid rgba(15,159,152,0.20)',
+                        display: 'flex', alignItems: 'flex-start', gap: 8,
+                    }}>
+                        <ListOrdered size={13} strokeWidth={2.2} style={{ color: '#0E8079', flexShrink: 0, marginTop: 2 }} />
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 800, color: '#0E7C76', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                            동률 시 연소자 우위가 적용됩니다.
+                        </p>
+                    </div>
+
+                    {/* 생년 정보 · 개인정보 안내 */}
+                    <div style={{
+                        marginTop: 10, paddingTop: 12,
+                        borderTop: '1px solid rgba(15,23,42,0.06)',
+                        display: 'flex', flexDirection: 'column', gap: 8,
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                height: 22, padding: '0 9px', borderRadius: 999,
+                                background: 'rgba(100,116,139,0.10)', border: '1px solid rgba(100,116,139,0.22)',
+                                color: '#475569', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap',
+                            }}>
+                                <Lock size={11} strokeWidth={2.4} /> 순위 확인용 · 외부 비공개
+                            </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+                            동률 순위 확인을 위해 게스트의 <b style={{ color: '#0F172A' }}>출생연도</b> 정보를 요청드릴 수 있습니다.
+                            입력한 정보는 <b style={{ color: '#0F172A' }}>동률 시 순위 확인 목적으로만 사용</b>하며,
+                            Guest Pass·대진표·전광판·결과표 등 공개 화면에는 표시하지 않고 다른 목적으로 사용하지 않습니다.
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#64748B', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+                            출생연도를 제공하지 않아도 경기 참여는 가능하지만, 완전 동률 상황에서는 후순위로 반영될 수 있습니다.
+                        </p>
+                    </div>
+                </SectionCard>
 
                 {/* ── 게스트비 + 계좌 ───────────────────────────────────────── */}
                 <SectionCard>
@@ -606,7 +680,8 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                     1차 MVP: 정적 안내만. COMING SOON 라벨 제거 — 미완성 인상 회피.
                     향후: data.match.actions[] 가 채워지면 같은 영역이 버튼 모드로 전환되도록
                     구조만 예약 (KDK 자동 연동/공개 토글은 이번 구현 X). */}
-                <SectionCard>
+                <SectionCard style={{ scrollMarginTop: 12 } as React.CSSProperties}>
+                    <div id="gp-kdk-section" style={{ scrollMarginTop: 16 }} />
                     <SectionTitle>{data.match.title}</SectionTitle>
                     <div
                         style={{

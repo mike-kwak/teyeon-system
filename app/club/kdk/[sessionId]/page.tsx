@@ -47,6 +47,21 @@ export default function ClubKdkSessionPublicPage() {
     const [data, setData] = React.useState<PublicKdkSessionDetail | null>(null);
     const [status, setStatus] = React.useState<'loading' | 'ok' | 'not_found'>('loading');
 
+    // Guest Pass 복귀 — ?gp=<token> 이 있으면 같은 일정의 Guest Pass 로 돌아가는 버튼 제공.
+    //   내부 경로(/guest/pass/<token>)만 복원하며 임의 URL returnTo 는 허용하지 않는다(오픈 리다이렉트 방지).
+    //   token 형식이 아니면 무시(기본 /club/kdk 뒤로가기 유지). 잘못된/만료 token 은
+    //   Guest Pass 페이지 자체가 안전 안내 화면을 보여준다. URL query 라 새로고침·새 탭에서도 유지.
+    const [guestPassToken, setGuestPassToken] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        try {
+            const gp = new URLSearchParams(window.location.search).get('gp') || '';
+            setGuestPassToken(/^[A-Za-z0-9_-]{4,128}$/.test(gp) ? gp : null);
+        } catch {
+            setGuestPassToken(null);
+        }
+    }, []);
+    const guestPassHref = guestPassToken ? `/guest/pass/${encodeURIComponent(guestPassToken)}` : null;
+
     React.useEffect(() => {
         if (!sessionId) {
             setStatus('not_found');
@@ -65,8 +80,27 @@ export default function ClubKdkSessionPublicPage() {
 
     return (
         <main style={pageStyle}>
-            <PublicHeader backHref="/club/kdk" />
+            {/* 게스트패스 경유 진입이면 헤더 ← 도 Guest Pass 로 복귀(기존: /club/kdk 목록으로 이탈) */}
+            <PublicHeader backHref={guestPassHref || '/club/kdk'} />
             <div style={containerStyle}>
+                {/* ── Guest Pass 복귀(상단) — history 와 무관하게 항상 노출되는 명시적 버튼 ── */}
+                {guestPassHref && (
+                    <a
+                        href={guestPassHref}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            minHeight: 44, borderRadius: 12,
+                            backgroundColor: 'rgba(15,159,152,0.10)',
+                            border: '1px solid rgba(15,159,152,0.30)',
+                            color: '#0E7C76', fontSize: 13, fontWeight: 800,
+                            textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
+                            wordBreak: 'keep-all',
+                        }}
+                    >
+                        ← 게스트패스로 돌아가기
+                    </a>
+                )}
+
                 {status === 'loading' && <Empty>불러오는 중...</Empty>}
                 {status === 'not_found' && (
                     <Empty>
@@ -103,6 +137,24 @@ export default function ClubKdkSessionPublicPage() {
                         {data.state === 'settling'    && <SettlingView />}
                         {data.state === 'preparing'   && <PreparingView />}
                     </>
+                )}
+
+                {/* ── Guest Pass 복귀(하단 보조) — 긴 화면을 끝까지 본 뒤 바로 복귀 ── */}
+                {guestPassHref && status !== 'loading' && (
+                    <a
+                        href={guestPassHref}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            minHeight: 46, borderRadius: 12,
+                            backgroundColor: '#0F9F98',
+                            color: '#FFFFFF', fontSize: 13, fontWeight: 800,
+                            textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
+                            boxShadow: '0 3px 10px rgba(15,159,152,0.25)',
+                            wordBreak: 'keep-all',
+                        }}
+                    >
+                        경기 안내·정산 정보 확인하기
+                    </a>
                 )}
             </div>
         </main>

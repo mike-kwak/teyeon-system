@@ -29,50 +29,60 @@ const SS_KEY_PREFIX = 'teyeon_guest_pass_intro_token_';
 /**
  * KDK 세션 상태에 따라 Guest Pass 카드의 'KDK 경기 안내' match 블록을 자동 전환.
  *
- * - preparing / 알 수 없음 → 원본 (운영진이 입력한 기본 안내) 그대로.
- * - ready    → '대진표가 준비되었습니다' + '대진표 보기' 액션.
- * - in_progress → '현재 KDK 경기가 진행 중입니다' + '현재 경기 보기' 액션.
- * - settling → '경기 결과 정리 중입니다' (액션 없음).
- * - finished → '공식 경기 결과가 등록되었습니다' + '경기 결과 보기' 액션.
+ * - preparing → '대진표 준비 중' (KDK 세션이 연결된 경우 상태 문구 통일).
+ * - ready / in_progress → '대진표·현재 경기 보기' 액션.
+ * - settling → '경기 결과 확인' 액션 (확정 전 — 순위/정산은 확정 후 표시 안내).
+ * - finished → '최종 순위·정산 결과 보기' 액션.
  *
  * 공개 KDK 상세 라우트(/club/kdk/[sessionId]) 로 연결 — 점수 입력 / 관리 버튼 없음.
+ * href 에 gp=<token> 을 실어 공개 화면에서 같은 일정의 Guest Pass 로 복귀할 수 있게 한다
+ * (내부 경로 복원 전용 — 임의 URL returnTo 미허용).
  */
 function mergeMatchWithKdkState(
     base: GuestPassMatchStatus,
     kdk: PublicKdkSessionDetail,
+    token: string,
 ): GuestPassMatchStatus {
-    const href = `/club/kdk/${encodeURIComponent(kdk.sessionId)}`;
+    const href = `/club/kdk/${encodeURIComponent(kdk.sessionId)}?gp=${encodeURIComponent(token)}`;
     switch (kdk.state) {
+        case 'preparing':
+            return {
+                ...base,
+                state: 'preparing',
+                headline: '대진표 준비 중',
+                body: '대진표는 경기 당일 운영진이 편성한 뒤 이 영역에 등록됩니다. 경기 시작 전 이 링크를 다시 열어 확인해주세요.',
+            };
         case 'ready':
             return {
                 ...base,
                 state: 'bracket_ready',
                 headline: '대진표가 준비되었습니다',
-                body: '운영진이 등록한 대진표를 확인할 수 있습니다.',
-                actions: [{ label: '대진표 보기', href }],
+                body: '대진표와 실시간 경기 진행 상황을 확인할 수 있습니다.',
+                actions: [{ label: '대진표·현재 경기 보기', href }],
             };
         case 'in_progress':
             return {
                 ...base,
                 state: 'in_progress',
                 headline: '현재 KDK 경기가 진행 중입니다',
-                body: '클럽 공개 페이지에서 현재 경기 현황을 확인할 수 있습니다.',
-                actions: [{ label: '현재 경기 보기', href }],
+                body: '대진표와 실시간 경기 진행 상황을 확인할 수 있습니다.',
+                actions: [{ label: '대진표·현재 경기 보기', href }],
             };
         case 'settling':
             return {
                 ...base,
                 state: 'in_progress',
                 headline: '경기 결과 정리 중입니다',
-                body: '운영진이 공식 결과를 등록하면 이 페이지에서 확인할 수 있습니다.',
+                body: '최종 순위와 정산 내용은 운영진 확정 후 표시됩니다.',
+                actions: [{ label: '경기 결과 확인', href }],
             };
         case 'finished':
             return {
                 ...base,
                 state: 'finished',
                 headline: '공식 경기 결과가 등록되었습니다',
-                body: '최종 순위와 경기 기록을 확인할 수 있습니다.',
-                actions: [{ label: '경기 결과 보기', href }],
+                body: '최종 순위, 게스트비, 벌금 정산 내용을 확인할 수 있습니다.',
+                actions: [{ label: '최종 순위·정산 결과 보기', href }],
             };
         default:
             return base;
@@ -126,7 +136,7 @@ export default function GuestPassTokenPage() {
                 }
                 if (cancelled) return;
                 if (kdk) {
-                    built.match = mergeMatchWithKdkState(built.match, kdk);
+                    built.match = mergeMatchWithKdkState(built.match, kdk, token);
                 }
                 setData(built);
                 setLoadStatus('ok');
