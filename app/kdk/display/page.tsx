@@ -4,12 +4,14 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Match, Member } from '@/lib/tournament_types';
+import { normalizeBirthYear, sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
 
 const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
 
 type RealtimeStatus = 'IDLE' | 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED' | string;
 type RankingEntry = {
   id: string;
+  playerId: string;
   name: string;
   isGuest?: boolean;
   wins: number;
@@ -17,8 +19,9 @@ type RankingEntry = {
   pointsFor: number;
   pointsAgainst: number;
   diff: number;
+  birthYear?: number | null;
 };
-type PlayerLookup = Record<string, { name: string; isGuest: boolean }>;
+type PlayerLookup = Record<string, { name: string; isGuest: boolean; birthYear?: number | null }>;
 
 const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 1080;
@@ -231,6 +234,7 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
     if (!rankingMap.has(id)) {
       rankingMap.set(id, {
         id,
+        playerId: id,
         name,
         isGuest,
         wins: 0,
@@ -238,6 +242,7 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
         pointsFor: 0,
         pointsAgainst: 0,
         diff: 0,
+        birthYear: playerLookup[id]?.birthYear ?? null,
       });
     }
     const player = rankingMap.get(id)!;
@@ -278,12 +283,9 @@ function calculateLiveRanking(completedMatches: Match[], playerLookup: PlayerLoo
     });
   });
 
-  return Array.from(rankingMap.values()).sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    if (b.diff !== a.diff) return b.diff - a.diff;
-    if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
-    return a.name.localeCompare(b.name);
-  });
+  // 공식 comparator 단일 사용 — 전광판 자체 정렬(득점 pf tie-break 포함) 제거.
+  // 승수 → 득실 → 연소자(출생연도 큰 값 우선, 미제공 후순위) → 이름 → id.
+  return sortOfficialKdkRanking(Array.from(rankingMap.values()));
 }
 
 // guestFee: KDK 세션 단일 출처(kdk_session_meta.guest_fee). null = 미설정 → 게스트비 미차감(임의 10,000 fabrication 금지).
@@ -1088,6 +1090,8 @@ function KdkDisplayBoard() {
         acc[String(member.id)] = {
           name: cleanPlayerName(name),
           isGuest: member.is_guest === true || member.isGuest === true || String(member.id).startsWith('g-') || String(member.id).startsWith('manual-guest-'),
+          // 연소자 tie-break용 출생연도 — 실데이터 소스는 members."나이"(4자리 연도 텍스트).
+          birthYear: normalizeBirthYear(member['나이'] ?? member.age),
         };
       }
       return acc;

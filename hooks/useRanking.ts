@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Match, Member, AttendeeConfig, RankedPlayer, RankTrend } from '@/lib/tournament_types';
+import { normalizeBirthYear, sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
 
 interface RankStats {
     wins: number;
@@ -69,25 +70,31 @@ export function useRanking(
             ? Array.from(selectedIds)
             : Array.from(new Set((matches || []).flatMap(m => m?.playerIds || [])));
 
-        return participantIds.map(id => {
+        const mapped = participantIds.map(id => {
             const m = (allMembers || []).find(x => x?.id === id) || (tempGuests || []).find(x => x?.id === id);
             const resolvedName = m?.nickname || nameLookup[id] || id;
 
             const conf = attendeeConfigs?.[id] || { name: resolvedName, group: 'A', is_guest: m?.is_guest, age: m?.age || 99 };
+            // 출생연도 — 실데이터 소스는 members."나이"(4자리 연도 텍스트). attendeeConfigs.age /
+            // member.age 는 연도 형식일 때만 인정(만 나이 숫자는 null 처리 — 역방향 정렬 방지).
+            const birthYear =
+                normalizeBirthYear(conf?.age) ??
+                normalizeBirthYear(m?.age) ??
+                normalizeBirthYear((m as any)?.['나이']);
             return {
                 id,
+                playerId: id,
                 name: resolvedName,
                 is_guest: m?.is_guest || conf?.is_guest,
                 avatar: m?.avatar_url || '',
                 group: conf?.group || 'A',
                 age: conf.age || m?.age || 99,
+                birthYear,
                 ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
             };
-        }).sort((a, b) => 
-            (b?.wins || 0) - (a?.wins || 0) || 
-            (b?.diff || 0) - (a?.diff || 0) || 
-            (a?.age || 999) - (b?.age || 999)
-        );
+        });
+        // 공식 comparator 단일 사용 — 승수 → 득실 → 연소자(출생연도 큰 값 우선, 미제공 후순위) → 이름 → id.
+        return sortOfficialKdkRanking(mapped);
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 
     // 3. Track Rank Changes (Trend)

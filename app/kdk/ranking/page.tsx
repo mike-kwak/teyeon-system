@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 import { useSearchParams, useRouter } from 'next/navigation';
+import { normalizeBirthYear } from '@/lib/kdk/officialRanking';
 
 interface Member {
   id: string;
@@ -128,10 +129,18 @@ export default function RankingPage() {
           if ((b.score_diff || 0) !== (a.score_diff || 0)) return (b.score_diff || 0) - (a.score_diff || 0);
         }
         if (criteria === 'age') {
-          if (a.birthdate !== b.birthdate) return (b.birthdate || '').localeCompare(a.birthdate || '');
+          // 공식 연소자 의미론: 출생연도 큰 값(어린 쪽) 우선, 미제공은 완전 동률 시 후순위.
+          const ay = normalizeBirthYear((a as any).birthdate ?? (a as any)['나이'] ?? (a as any).age);
+          const by = normalizeBirthYear((b as any).birthdate ?? (b as any)['나이'] ?? (b as any).age);
+          if (ay !== null || by !== null) {
+            if (ay === null) return 1;
+            if (by === null) return -1;
+            if (ay !== by) return by - ay;
+          }
         }
       }
-      return a.nickname.localeCompare(b.nickname, 'ko');
+      // 최종 fallback: 이름 가나다 → stable id (공식 comparator 와 동일).
+      return a.nickname.localeCompare(b.nickname, 'ko') || String(a.id).localeCompare(String(b.id));
     });
   }, [members, sortOrder]);
 

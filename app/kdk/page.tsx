@@ -19,6 +19,7 @@ import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
 const RankingTab = nextDynamic(() => import('@/components/RankingTab'), { ssr: false });
 import { useRanking } from '@/hooks/useRanking';
 import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer } from '@/lib/kdk/settlement';
+import { normalizeBirthYear, sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
 import { loadKdkSession } from '@/lib/finance/kdkSettlementService';
 import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
@@ -2995,10 +2996,21 @@ export default function KDKPage() {
         });
 
         const rankedIds = new Set(rankedRows.map(row => row.id));
-        const extraRows = Array.from(detailsById.values())
-            .filter(row => !rankedIds.has(row.id))
-            .sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pointsForTotal - a.pointsForTotal || a.name.localeCompare(b.name))
-            .map((row, index) => ({ ...row, rank: rankedRows.length + index + 1 }));
+        // 비순위 참가자 보조 정렬도 공식 comparator 로 통일(득점 tie-break 제거).
+        const extraRows = sortOfficialKdkRanking(
+            Array.from(detailsById.values())
+                .filter(row => !rankedIds.has(row.id))
+                .map(row => {
+                    const m: any = (allMembers || []).find((x: any) => x?.id === row.id)
+                        || (tempGuests || []).find((x: any) => x?.id === row.id);
+                    return {
+                        ...row,
+                        playerId: row.id,
+                        birthYear: normalizeBirthYear(attendeeConfigs?.[row.id]?.age)
+                            ?? normalizeBirthYear(m?.age ?? m?.['나이']),
+                    };
+                }),
+        ).map((row, index) => ({ ...row, rank: rankedRows.length + index + 1 }));
 
         return [...rankedRows, ...extraRows];
     }, [matches, allPlayersInRanking, allMembers, tempGuests, attendeeConfigs]);

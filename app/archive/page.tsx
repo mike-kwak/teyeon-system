@@ -11,6 +11,7 @@ import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin } from 'lucide-react';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
+import { sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
 // 성능: 결과 공유 렌더러(canvas 이미지 생성)는 아카이브 상세 화면에서만 로드.
 const ArchiveResultShare = nextDynamic(() => import('@/components/archive/ArchiveResultShare'), { ssr: false });
 import KdkFinancePenaltyModal from '@/components/archive/KdkFinancePenaltyModal';
@@ -448,7 +449,11 @@ export default function ArchivePage() {
         });
     });
 
-    return Object.values(stats).sort((a,b) => (b.wins - a.wins) || (b.diff - a.diff));
+    // 재계산 fallback 도 공식 comparator 사용 (저장된 ranking_data 가 있으면 위에서 그대로 반환 —
+    // 과거 공식 기록은 절대 재정렬하지 않음). id 미보존 경로라 playerId 는 표시명으로 대체.
+    return sortOfficialKdkRanking(
+        Object.values(stats).map((s) => ({ ...s, playerId: s.name })),
+    );
   };
 
   // Aggregate stats for the list-view hero card.
