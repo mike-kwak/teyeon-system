@@ -200,13 +200,22 @@ function AwardWinnersSheet({ label, unit, winners, onSelect, onClose }: {
   label: string; unit: string; winners: ClubRankingAwardWinner[];
   onSelect: (memberId: string) => void; onClose: () => void;
 }) {
+  // 배경 스크롤 잠금 — 시트 열려 있는 동안 body 스크롤 방지(닫히면 복원).
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   return (
     <div
       onClick={onClose}
       role="dialog" aria-modal="true" aria-label={`${label} 공동 수상자`}
-      style={{ position: 'fixed', inset: 0, zIndex: 70, backgroundColor: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 490, backgroundColor: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
     >
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, backgroundColor: C.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '72dvh', overflowY: 'auto', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+      {/* BottomNav(zIndex 500)는 그대로 위에 두고, 목록 하단 padding 에 BottomNav 높이
+          (--bottom-nav-area = 72px + safe-area)를 포함해 마지막 공동 수상자 카드가
+          고정 BottomNav 에 가려지지 않고 완전히 노출·클릭되도록 한다(빈 여백 없이 nav 뒤로 자연스럽게). */}
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, backgroundColor: C.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '82dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(var(--bottom-nav-area, 88px) + 20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 18px 8px', position: 'sticky', top: 0, backgroundColor: C.card }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: C.text }}>{label} <span style={{ color: C.teal }}>공동 {winners.length}명</span></p>
