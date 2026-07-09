@@ -382,7 +382,7 @@ export async function fetchAttendancesWithMembers(
 
     // 3) 이름 + identity 합성.
     //    identity (resolvedMemberId) — 집계/중복 방지 키. snapshot 은 절대 identity 로 사용하지 않음.
-    //      우선순위: attendance.member_id  →  resolver hit (auth_user_id / email exact)  →  null
+    //      우선순위: attendance.member_id  →  resolver hit (member id / auth_user_id exact)  →  null
     //    name — 화면 표시용. snapshot 은 매핑 실패 시에만 fallback.
     //      우선순위: resolver hit (members.nickname)  →  attendance.display_name_snapshot  →  '회원 정보 없음'
     //    카카오 닉네임 / 이메일 / UUID 는 어떤 경로로도 사용되지 않음.
@@ -429,36 +429,31 @@ export async function fetchAttendancesWithMembers(
 
 /**
  * 로그인 사용자의 member.id를 안정적으로 찾는다.
- * 1순위: profiles.id == user.id → profiles.email → members.email
- * 2순위: 직접 user.email로 members.email
+ * 1순위: members.auth_user_id == user.id (운영진 사전 매핑 — 가장 강한 신호, 대부분 커버)
+ * 2순위: 본인 session email 로 members.email exact (미연결 회원 보조)
  * 둘 다 실패하면 null. attendance 저장은 그대로 진행 (member_id nullable).
+ *
+ * P1-2 개인정보 최소화: profiles.email 조회를 제거(email payload 방지). 2순위의 입력 email 은
+ * Supabase Auth 세션 값(opts.userEmail)이며, members 조회는 select('id') 라 응답에 email 이 없다.
  */
 export async function resolveMemberIdForUser(opts: {
     userId: string;
     userEmail?: string | null;
 }): Promise<string | null> {
-    // 1순위: profiles 우회. profiles.id가 곧 auth.users.id이므로 exact match.
+    // 1순위: auth_user_id exact — DB unique 사전 매핑.
     try {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', opts.userId)
+        const { data: m } = await supabase
+            .from('members')
+            .select('id')
+            .eq('auth_user_id', opts.userId)
+            .limit(1)
             .maybeSingle();
-        const email = profile?.email || opts.userEmail || null;
-        if (email) {
-            const { data: m } = await supabase
-                .from('members')
-                .select('id')
-                .eq('email', email)
-                .limit(1)
-                .maybeSingle();
-            if (m?.id) return m.id as string;
-        }
+        if (m?.id) return m.id as string;
     } catch {
         /* swallow — 2순위 시도 */
     }
 
-    // 2순위: 직접 email
+    // 2순위: 본인 세션 email 로 members.email (응답은 id 만 — email 미노출).
     if (opts.userEmail) {
         try {
             const { data: m } = await supabase

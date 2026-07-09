@@ -35,10 +35,9 @@ type MemberRow = {
   nickname: string | null;
   avatar_url: string | null;
   auth_user_id: string | null;
-  email: string | null;
 };
 
-type ProfileRow = { id?: string | null; email?: string | null; avatar_url?: string | null };
+type ProfileRow = { id?: string | null; avatar_url?: string | null };
 
 /**
  * 클럽 랭킹 집계 — 공식 KDK Archive 1회 조회 + members 명단 배치 계산.
@@ -56,7 +55,8 @@ export async function fetchClubRanking(
       .order('created_at', { ascending: false }),
     supabase
       .from('members')
-      .select('id, nickname, avatar_url, auth_user_id, email'),
+      // P1-2 개인정보 최소화 — email 미조회. 아바타 매칭은 auth_user_id → profiles 만.
+      .select('id, nickname, avatar_url, auth_user_id'),
   ]);
 
   if (archiveRes.error) throw archiveRes.error;
@@ -64,34 +64,22 @@ export async function fetchClubRanking(
 
   const memberRows = (membersRes.data || []) as MemberRow[];
 
-  // ── 프로필 사진 배치 매칭 (/members 화면과 동일 패턴 — 실패해도 랭킹 표시는 유지) ──
+  // ── 프로필 사진 배치 매칭 (auth_user_id → profiles 만 — email fallback 제거) ──
   const profileByAuthId = new Map<string, ProfileRow>();
-  const profileByEmail = new Map<string, ProfileRow>();
   try {
     const authIds = Array.from(new Set(
       memberRows.map((m) => m.auth_user_id).filter((v): v is string => !!v),
     ));
-    const emailTargets = Array.from(new Set(
-      memberRows.filter((m) => !m.auth_user_id && m.email).map((m) => m.email as string),
-    ));
-    const [byId, byEmail] = await Promise.all([
-      authIds.length > 0
-        ? supabase.from('profiles').select('id, email, avatar_url').in('id', authIds)
-        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
-      emailTargets.length > 0
-        ? supabase.from('profiles').select('id, email, avatar_url').in('email', emailTargets)
-        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
-    ]);
-    if (!byId.error) for (const p of (byId.data || []) as ProfileRow[]) { if (p.id) profileByAuthId.set(p.id, p); }
-    if (!byEmail.error) for (const p of (byEmail.data || []) as ProfileRow[]) { if (p.email) profileByEmail.set(p.email, p); }
+    if (authIds.length > 0) {
+      const byId = await supabase.from('profiles').select('id, avatar_url').in('id', authIds);
+      if (!byId.error) for (const p of (byId.data || []) as ProfileRow[]) { if (p.id) profileByAuthId.set(p.id, p); }
+    }
   } catch (err) {
     console.warn('[ClubRanking] profile avatar batch skipped:', err);
   }
 
   const members = memberRows.map((m) => {
-    const profile =
-      (m.auth_user_id ? profileByAuthId.get(m.auth_user_id) : undefined) ??
-      (m.email ? profileByEmail.get(m.email) : undefined);
+    const profile = m.auth_user_id ? profileByAuthId.get(m.auth_user_id) : undefined;
     const avatarUrl =
       normalizeAvatarUrl(m.avatar_url) || normalizeAvatarUrl(profile?.avatar_url) || null;
     return {

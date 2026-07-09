@@ -218,8 +218,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: idProfile, error: idProfileError } = await withAuthTimeout(
         supabase
           .from('profiles')
-          // nickname 포함: 아래 no-op UPDATE 방지 비교(shouldUpdateProfile)에 사용.
-          .select('id, email, role, avatar_url, nickname')
+          // P1-2: email 미조회. nickname 은 no-op UPDATE 방지 비교(shouldUpdateProfile)에 사용.
+          .select('id, role, avatar_url, nickname')
           .eq('id', currentUser.id)
           .maybeSingle(),
         'Profile lookup by id'
@@ -236,43 +236,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('[Auth/DirectSync] Profile lookup by id result:', {
         userId: currentUser.id,
-        email: currentUser.email,
         profileId: idProfile?.id ?? null,
-        profileEmail: idProfile?.email ?? null,
         profileRole: idProfile?.role ?? null
       });
 
-      let profile = idProfile;
-
-      if (!profile && currentUser.email) {
-        const { data: emailProfiles, error: emailProfileError } = await withAuthTimeout(
-          supabase
-            .from('profiles')
-            // nickname 포함: id 조회와 동일하게 no-op UPDATE 방지 비교에 사용.
-            .select('id, email, role, avatar_url, nickname')
-            .eq('email', currentUser.email)
-            .limit(1),
-          'Profile lookup by email'
-        );
-
-        if (emailProfileError) {
-          console.error('[Auth/DirectSync] Profile lookup by email failed:', {
-            userId: currentUser.id,
-            email: currentUser.email,
-            error: emailProfileError
-          });
-          throw emailProfileError;
-        }
-
-        profile = emailProfiles?.[0] ?? null;
-        console.log('[Auth/DirectSync] Profile lookup by email result:', {
-          userId: currentUser.id,
-          email: currentUser.email,
-          profileId: profile?.id ?? null,
-          profileEmail: profile?.email ?? null,
-          profileRole: profile?.role ?? null
-        });
-      }
+      // P1-2 개인정보 최소화 — profiles.email 로 profile 을 찾던 클라이언트 fallback 제거.
+      //   id(auth.uid()) 로 본인 profile 이 없으면 아래 else 분기의 sync_my_profile RPC 가
+      //   서버에서 JWT email 로 reconcile(기존 role 보존)/신규 생성하고 role 을 재조회한다.
+      const profile = idProfile;
 
       let finalRole = normalizeRole(profile?.role);
       let roleApplied = false;

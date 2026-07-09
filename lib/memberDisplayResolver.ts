@@ -88,7 +88,6 @@ type MemberRow = {
     isGuest: boolean | null;
     avatarUrl: string | null;
     role: string | null;
-    email: string | null;
     /** 운영진이 사전 매핑한 auth.users.id (DB unique). profile 직접 매칭에 사용. */
     authUserId: string | null;
 };
@@ -96,7 +95,6 @@ type ProfileRow = {
     id: string;
     nickname: string | null;
     avatarUrl: string | null;
-    email: string | null;
 };
 
 /**
@@ -117,17 +115,17 @@ export async function resolveMemberDisplays(
     }
     if (identities.length === 0) return { byUserId, byMemberId };
 
-    // ── 배치 구조: 기존 4단계 직렬(1차→1.5차→2차→3차)을 의존 관계 그대로 2라운드 병렬로 재배열 ──
+    // ── 배치 구조 (P1-2 개인정보 최소화: email 매칭 제거) ──
     //   · ROUND 1 (독립): [1차 members by member_id] ∥ [2차 profiles by user_id]
-    //   · ROUND 2 (ROUND 1 결과 의존): [1.5차 members by auth_user_id(1차 미커버 userId)] ∥ [3차 members by email(profiles email)]
-    //   각 배치의 입력 집합·쿼리·빈 배열 생략·오류 격리(try/catch + logResolverWarn 후 계속)·
-    //   합성 우선순위(member_id 직접 > auth_user_id > profile/email fallback)는 기존과 동일하다.
-    //   한 배치 실패는 자기 결과만 비우고 다른 배치 결과를 버리지 않는다(각 함수가 오류를 삼켜 Promise.all 이 reject 되지 않음).
+    //   · ROUND 2 (ROUND 1 결과 의존): [1.5차 members by auth_user_id]
+    //   합성 우선순위: member_id 직접 > auth_user_id. email fallback(3차)은 제거 —
+    //   미연결 회원은 email 도 없어 실효 0건이었고, members/profiles select 에서 email 을
+    //   조회하지 않아 네트워크 payload 에도 email 이 포함되지 않는다.
+    //   한 배치 실패는 자기 결과만 비우고 다른 배치 결과를 버리지 않는다(오류 삼킴).
     const memberById: Map<string, MemberRow> = new Map();
-    /** members.auth_user_id → member row. 1차/2차 batch에서 모은 항목을 통합 */
+    /** members.auth_user_id → member row. 1차/1.5차 batch에서 모은 항목을 통합 */
     const memberByAuthUserId: Map<string, MemberRow> = new Map();
     const profileByUserId: Map<string, ProfileRow> = new Map();
-    const memberByEmail: Map<string, MemberRow> = new Map();
 
     // ── 1차: member_id batch — members 직접 조회 ────────────────────────────
     const runMembersByIdBatch = async () => {
@@ -138,7 +136,7 @@ export async function resolveMemberDisplays(
         try {
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, email, avatar_url, role, auth_user_id')
+                .select('id, nickname, avatar_url, role, auth_user_id')
                 .in('id', memberIds);
             if (error) {
                 logResolverWarn('member_id batch', error);
@@ -151,7 +149,6 @@ export async function resolveMemberDisplays(
                         isGuest: null,
                         avatarUrl: normalizeAvatarUrl(m.avatar_url),
                         role: normText(m.role),
-                        email: normText(m.email),
                         authUserId: normText(m.auth_user_id),
                     };
                     memberById.set(m.id, row);
@@ -174,7 +171,7 @@ export async function resolveMemberDisplays(
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, nickname, email, avatar_url')
+                .select('id, nickname, avatar_url')
                 .in('id', allUserIds);
             if (error) {
                 logResolverWarn('profiles batch', error);
@@ -184,7 +181,6 @@ export async function resolveMemberDisplays(
                         id: p.id,
                         nickname: normText(p.nickname),
                         avatarUrl: normalizeAvatarUrl(p.avatar_url),
-                        email: normText(p.email),
                     });
                 }
             }
@@ -207,7 +203,7 @@ export async function resolveMemberDisplays(
         try {
             const { data, error } = await supabase
                 .from('members')
-                .select('id, nickname, email, avatar_url, role, auth_user_id')
+                .select('id, nickname, avatar_url, role, auth_user_id')
                 .in('auth_user_id', userIdsForAuthLookup);
             if (error) {
                 logResolverWarn('members-by-auth-user-id batch', error);
@@ -220,7 +216,6 @@ export async function resolveMemberDisplays(
                         isGuest: null,
                         avatarUrl: normalizeAvatarUrl(m.avatar_url),
                         role: normText(m.role),
-                        email: normText(m.email),
                         authUserId: normText(m.auth_user_id),
                     };
                     if (!memberById.has(row.id)) memberById.set(row.id, row);
@@ -232,54 +227,14 @@ export async function resolveMemberDisplays(
         }
     };
 
-    // ── 3차: profiles에서 얻은 email로 members 보강 ─────────────────────────
-    // 일부 회원은 member_id가 댓글/참석 row에 없지만 email로는 매칭될 수 있음.
-    // (입력 집합은 기존과 동일하게 2차 profiles 결과의 email — ROUND 1 완료 후 계산)
-    const runMembersByEmailBatch = async () => {
-        const orphanEmails = Array.from(new Set(
-            Array.from(profileByUserId.values())
-                .map((p) => p.email)
-                .filter((e): e is string => !!e),
-        ));
-        if (orphanEmails.length === 0) return;
-        try {
-            const { data, error } = await supabase
-                .from('members')
-                .select('id, nickname, email, avatar_url, role, auth_user_id')
-                .in('email', orphanEmails);
-            if (error) {
-                logResolverWarn('members-by-email batch', error);
-            } else {
-                for (const m of (data || []) as any[]) {
-                    if (m.email) {
-                        const row: MemberRow = {
-                            id: m.id,
-                            nickname: normText(m.nickname),
-                            // members.is_guest 컬럼은 운영 DB에 존재하지 않음 — 항상 null.
-                        isGuest: null,
-                            avatarUrl: normalizeAvatarUrl(m.avatar_url),
-                            role: normText(m.role),
-                            email: normText(m.email),
-                            authUserId: normText(m.auth_user_id),
-                        };
-                        memberByEmail.set(row.email!, row);
-                        if (!memberById.has(row.id)) memberById.set(row.id, row);
-                        if (row.authUserId && !memberByAuthUserId.has(row.authUserId)) {
-                            memberByAuthUserId.set(row.authUserId, row);
-                        }
-                    }
-                }
-            }
-        } catch (e: any) {
-            logResolverWarn('members-by-email batch threw', e);
-        }
-    };
+    // (P1-2) 3차 email batch 제거 — email 매칭은 실효 0건이었고 개인정보 payload 를 유발했다.
+    //   auth_user_id 미연결 회원은 members.auth_user_id 매칭이 안 되므로 nickname 이 null 이 되며,
+    //   이는 email 제거 이전에도 email 이 없으면 동일했다(현 운영 데이터: 미연결 회원 email 없음).
 
     // ROUND 1: 서로 독립인 두 조회를 동시에 시작.
     await Promise.all([runMembersByIdBatch(), runProfilesBatch()]);
-    // ROUND 2: ROUND 1 결과에 의존하는 두 fallback 조회를 동시에 시작.
-    //   두 배치가 채우는 대상이 겹쳐도(memberById/memberByAuthUserId) 동일 members row 이므로 결과는 순서와 무관.
-    await Promise.all([runMembersByAuthUserIdBatch(), runMembersByEmailBatch()]);
+    // ROUND 2: ROUND 1 결과(userId 커버 여부)에 의존하는 auth_user_id 매칭.
+    await runMembersByAuthUserIdBatch();
 
     // ── 최종 합성 — identity마다 우선순위로 이름/사진 독립 선택 ─────────────
     for (const it of identities) {
@@ -290,11 +245,9 @@ export async function resolveMemberDisplays(
         // 운영진 사전 매핑이 가장 강한 신호 — direct member_id 다음 우선.
         const memberHitByAuth = memberByAuthUserId.get(it.userId) ?? null;
         const profileHit = profileByUserId.get(it.userId) ?? null;
-        const memberHitByEmail = profileHit?.email ? memberByEmail.get(profileHit.email) ?? null : null;
 
-        // 가장 권위 있는 member row 선택.
-        // direct memberId > auth_user_id 매핑 > email 매핑.
-        const memberHit: MemberRow | null = memberHitDirect ?? memberHitByAuth ?? memberHitByEmail ?? null;
+        // 가장 권위 있는 member row 선택 — direct memberId > auth_user_id 매핑 (email 매핑 제거).
+        const memberHit: MemberRow | null = memberHitDirect ?? memberHitByAuth ?? null;
 
         // 이름 우선순위: members.nickname 만 사용 — 매칭 실패 시 null.
         // profiles.nickname (카카오 닉네임)은 화면 표시용으로 사용하지 않는다 (운영 규칙).
