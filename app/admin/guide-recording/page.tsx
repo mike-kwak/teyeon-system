@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { maskPhone, maskEmail, maskAccountNumber } from '@/lib/guide/masking';
 import TennisLogRecordingGuide from '@/components/guide/TennisLogRecordingGuide';
+import HeadToHeadRecordingGuide from '@/components/guide/HeadToHeadRecordingGuide';
 import {
     Clapperboard, Play, UserCircle, Users, Globe, Crown, Square,
     Eye, EyeOff, Lock, ShieldCheck, MousePointer2, Phone, Mail, CreditCard,
@@ -153,6 +154,9 @@ export default function GuideRecordingPage() {
 
                 {/* TENNIS LOG 회원용 가이드 촬영 대상 */}
                 <TennisLogRecordingGuide />
+
+                {/* 회원 상대전적 확인(회원용) 촬영 대상 */}
+                <HeadToHeadRecordingGuide />
 
                 {/* 촬영 보호 적용 현황 */}
                 <section style={{ ...CARD, marginBottom: 14 }}>
