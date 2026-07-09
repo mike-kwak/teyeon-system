@@ -24,6 +24,16 @@ import {
   type RankingConfigValues,
   type RankingConfigRow,
 } from '@/lib/ranking/rankingConfig';
+import {
+  buildSnapshotData,
+  archiveFingerprint,
+  getFinalizedSnapshot,
+  listSnapshots,
+  finalizeSeason,
+  reopenSeason,
+  type RankingSnapshotRow,
+} from '@/lib/ranking/rankingSnapshot';
+import { getArchiveDate } from '@/lib/kdkArchiveStats';
 
 type FormState = Record<keyof RankingConfigValues, string>;
 
@@ -72,19 +82,32 @@ export default function AdminRankingPage() {
   const [form, setForm] = useState<FormState>(toForm(DEFAULT_RANKING_CONFIG));
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<'' | 'draft' | 'publish'>('');
+  const [busy, setBusy] = useState<'' | 'draft' | 'publish' | 'finalize' | 'reopen'>('');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
+  // ── 시즌 종료(finalize) 상태 ──
+  const [finalizedRow, setFinalizedRow] = useState<RankingSnapshotRow | null>(null);
+  const [snapshotHistory, setSnapshotHistory] = useState<RankingSnapshotRow[]>([]);
+  const [seasonSectionOpen, setSeasonSectionOpen] = useState(false);
+  const [finalizeReason, setFinalizeReason] = useState('');
+  const [finalizeConfirm, setFinalizeConfirm] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+
   const seasonKey = seasonKeyOf(season);
+  const isYearSeason = typeof season === 'number'; // 연도 시즌만 finalize 가능(누적/월간 제외)
+  const isCeo = String(role || '').trim().toUpperCase() === 'CEO';
 
   const reload = async (nextSeason: ClubRankingSeason) => {
     setLoading(true);
     setMsg(null);
     try {
-      const [inp, active, hist] = await Promise.all([
+      const nextKey = seasonKeyOf(nextSeason);
+      const [inp, active, hist, snap, snapHist] = await Promise.all([
         loadRankingInputs(),
         getActiveRankingConfig(nextSeason),
-        listRankingConfigHistory(seasonKeyOf(nextSeason)),
+        listRankingConfigHistory(nextKey),
+        typeof nextSeason === 'number' ? getFinalizedSnapshot(nextKey) : Promise.resolve(null),
+        typeof nextSeason === 'number' ? listSnapshots(nextKey) : Promise.resolve([] as RankingSnapshotRow[]),
       ]);
       setInputs(inp);
       setPublished(active.values);
@@ -92,6 +115,11 @@ export default function AdminRankingPage() {
       setUsingDefault(active.fromDefault);
       setForm(toForm(active.values));
       setHistory(hist);
+      setFinalizedRow(snap?.row ?? null);
+      setSnapshotHistory(snapHist);
+      setFinalizeReason('');
+      setFinalizeConfirm(false);
+      setReopenReason('');
     } catch (e: any) {
       setMsg({ kind: 'err', text: e?.message || '불러오지 못했습니다.' });
     } finally {
@@ -128,6 +156,76 @@ export default function AdminRankingPage() {
   const setField = (k: keyof RankingConfigValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
     setForm((prev) => ({ ...prev, [k]: digits }));
+  };
+
+  // 현재 published 산식으로 계산한 최종 결과(finalize 대상 = 지금 화면과 동일 산식).
+  const publishedResult = useMemo(
+    () => (inputs ? computeClubRanking(inputs.archiveRows, inputs.members, season, published) : null),
+    [inputs, season, published],
+  );
+
+  // 시즌 종료 버튼 활성 조건.
+  const finalizeChecks = useMemo(() => {
+    const officialCount = publishedResult?.totalOfficialSessions ?? 0;
+    const entryCount = publishedResult?.entries.length ?? 0;
+    return {
+      isYearSeason,
+      hasPublished: !usingDefault && !!publishedRow,
+      hasSessions: officialCount >= 1,
+      hasEntries: entryCount >= 1,
+      notFinalized: !finalizedRow,
+      reasonOk: finalizeReason.trim().length >= 4,
+      confirmed: finalizeConfirm,
+      officialCount, entryCount,
+    };
+  }, [publishedResult, usingDefault, publishedRow, finalizedRow, finalizeReason, finalizeConfirm, isYearSeason]);
+  const canFinalize = finalizeChecks.isYearSeason && finalizeChecks.hasPublished && finalizeChecks.hasSessions
+    && finalizeChecks.hasEntries && finalizeChecks.notFinalized && finalizeChecks.reasonOk && finalizeChecks.confirmed;
+
+  const doFinalize = async () => {
+    if (busy || !canFinalize || !inputs || !publishedResult || !publishedRow) return;
+    if (!window.confirm(`${seasonKey} 시즌을 종료(동결)하시겠습니까? 종료 후에는 이 시즌 순위가 변경되지 않습니다.`)) return;
+    setBusy('finalize'); setMsg(null);
+    try {
+      const seasonYearRows = inputs.archiveRows.filter(
+        (r) => r?.archive_type === 'kdk' && r?.is_official === true && getArchiveDate(r).slice(0, 4) === seasonKey,
+      );
+      const snapshotData = buildSnapshotData(
+        publishedResult,
+        { id: publishedRow.id, version: publishedRow.version, values: published },
+        new Date().toISOString(),
+      );
+      const row = await finalizeSeason({
+        seasonKey,
+        seasonName: `${seasonKey} 시즌`,
+        configId: publishedRow.id,
+        configVersion: publishedRow.version,
+        snapshotData,
+        memberCount: publishedResult.aggregatedMembers,
+        officialSessionCount: publishedResult.totalOfficialSessions,
+        latestArchiveDate: publishedResult.latestSessionDate,
+        archiveFingerprint: archiveFingerprint(seasonYearRows.map((r) => ({ id: r.id, created_at: r.created_at }))),
+        finalizeReason,
+      });
+      setMsg({ kind: 'ok', text: `${seasonKey} 시즌 종료 완료 — snapshot ${row.id.slice(0, 8)} 생성(${new Date(row.finalizedAt).toLocaleString('ko-KR')}).` });
+      await reload(season);
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: e?.message || '시즌 종료 실패.' });
+    } finally { setBusy(''); }
+  };
+
+  const doReopen = async () => {
+    if (busy || !isCeo || !finalizedRow) return;
+    if (reopenReason.trim().length < 4) { setMsg({ kind: 'err', text: '재오픈 사유를 4자 이상 입력해주세요.' }); return; }
+    if (!window.confirm(`${seasonKey} 시즌을 재오픈하시겠습니까? 현재 동결(finalized) snapshot 이 superseded 로 바뀌고 다시 live 계산됩니다.`)) return;
+    setBusy('reopen'); setMsg(null);
+    try {
+      await reopenSeason(seasonKey, reopenReason);
+      setMsg({ kind: 'ok', text: `${seasonKey} 시즌 재오픈 완료 — live 계산으로 복귀. 재동결하려면 다시 시즌 종료하세요.` });
+      await reload(season);
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: e?.message || '재오픈 실패.' });
+    } finally { setBusy(''); }
   };
 
   const doSaveDraft = async () => {
@@ -274,6 +372,91 @@ export default function AdminRankingPage() {
                 <span style={{ color: '#94A3B8', fontWeight: 600 }}>{new Date(h.createdAt).toLocaleDateString('ko-KR')}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── 시즌 종료(동결) — 접이식. 연도 시즌에서만. ── */}
+      <div style={card}>
+        <button type="button" onClick={() => setSeasonSectionOpen((v) => !v)}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>
+          <span style={{ fontSize: 13, fontWeight: 900, color: '#0F172A' }}>시즌 종료 · 동결</span>
+          {finalizedRow && <span style={{ fontSize: 10, fontWeight: 800, color: '#047857', background: '#DCFCE7', borderRadius: 999, padding: '2px 8px' }}>FINALIZED</span>}
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 12, color: '#64748B' }}>{seasonSectionOpen ? '접기 ▲' : '펼치기 ▼'}</span>
+        </button>
+
+        {seasonSectionOpen && (
+          <div style={{ marginTop: 12 }}>
+            {!isYearSeason ? (
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#B45309' }}>시즌 종료는 연도 시즌에서만 가능합니다(누적 제외).</div>
+            ) : finalizedRow ? (
+              // 이미 종료됨 — 동결 정보 + CEO 재오픈
+              <div>
+                <div style={{ padding: '10px 12px', borderRadius: 10, background: '#ECFDF5', border: '1px solid #A7F3D0', fontSize: 12, fontWeight: 700, color: '#065F46', lineHeight: 1.7 }}>
+                  ✓ {seasonKey} 시즌 동결됨(snapshot {finalizedRow.id.slice(0, 8)}) · v{finalizedRow.configVersion} · 회원 {finalizedRow.memberCount} · 세션 {finalizedRow.officialSessionCount}
+                  <br />종료 {new Date(finalizedRow.finalizedAt).toLocaleString('ko-KR')} · 사유: {finalizedRow.finalizeReason || '—'}
+                  <br /><span style={{ color: '#047857' }}>이 시즌은 이제 snapshot 기준으로 표시되며 가중치·Archive 변경에 영향받지 않습니다.</span>
+                </div>
+                {isCeo && (
+                  <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, border: '1px solid #FCA5A5', background: '#FEF2F2' }}>
+                    <div style={{ fontSize: 12, fontWeight: 900, color: '#B91C1C', marginBottom: 4 }}>⚠ 시즌 재오픈 (CEO 전용)</div>
+                    <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, color: '#7F1D1D', lineHeight: 1.6 }}>
+                      재오픈하면 현재 동결 snapshot 이 superseded 로 바뀌고 다시 live 계산됩니다. 기존 snapshot 은 삭제되지 않고 이력에 보존됩니다.
+                    </p>
+                    <textarea value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} rows={2} placeholder="재오픈 사유 (4자 이상)"
+                      style={{ ...input, resize: 'vertical', fontWeight: 600 } as React.CSSProperties} />
+                    <button type="button" onClick={doReopen} disabled={!!busy || reopenReason.trim().length < 4}
+                      style={{ marginTop: 8, padding: '9px 14px', borderRadius: 10, fontSize: 12.5, fontWeight: 800, cursor: busy ? 'default' : 'pointer', border: 'none', background: '#DC2626', color: '#fff', opacity: busy || reopenReason.trim().length < 4 ? 0.6 : 1 }}>
+                      {busy === 'reopen' ? '재오픈 중…' : '시즌 재오픈'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // 종료 전 — 체크리스트 + 사유 + 확인 + 종료 버튼
+              <div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#334155', lineHeight: 1.9, marginBottom: 8 }}>
+                  <div style={{ color: finalizeChecks.hasPublished ? '#047857' : '#DC2626' }}>{finalizeChecks.hasPublished ? '✓' : '✗'} published 산식 존재 {publishedRow ? `(v${publishedRow.version})` : '(없음 — 먼저 Publish)'}</div>
+                  <div style={{ color: finalizeChecks.hasSessions ? '#047857' : '#DC2626' }}>{finalizeChecks.hasSessions ? '✓' : '✗'} 공식 세션 {finalizeChecks.officialCount}개</div>
+                  <div style={{ color: finalizeChecks.hasEntries ? '#047857' : '#DC2626' }}>{finalizeChecks.hasEntries ? '✓' : '✗'} 집계 회원 {finalizeChecks.entryCount}명</div>
+                </div>
+                {publishedResult && (
+                  <div style={{ fontSize: 11, color: '#64748B', marginBottom: 8 }}>
+                    TOP3: {publishedResult.entries.slice(0, 3).map((e, i) => `${i + 1}.${e.name}(${e.points}p)`).join(' · ') || '—'}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>종료 후에는 이 시즌 순위·수상이 변경되지 않습니다(재오픈은 CEO만).</div>
+                <textarea value={finalizeReason} onChange={(e) => setFinalizeReason(e.target.value)} rows={2} placeholder="종료 사유 (4자 이상)"
+                  style={{ ...input, resize: 'vertical', fontWeight: 600 } as React.CSSProperties} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, fontWeight: 700, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={finalizeConfirm} onChange={(e) => setFinalizeConfirm(e.target.checked)} />
+                  최종 Ranking·Awards를 확인했으며 이 시즌을 동결하는 데 동의합니다.
+                </label>
+                <button type="button" onClick={doFinalize} disabled={!!busy || loading || !canFinalize}
+                  style={{ marginTop: 12, width: '100%', padding: '12px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: busy || !canFinalize ? 'default' : 'pointer', border: 'none', background: '#0F766E', color: '#fff', opacity: busy || !canFinalize ? 0.55 : 1 }}>
+                  {busy === 'finalize' ? '종료 처리 중…' : `${seasonKey} 시즌 종료(동결)`}
+                </button>
+              </div>
+            )}
+
+            {/* snapshot 이력 */}
+            {snapshotHistory.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 900, color: '#0F172A', marginBottom: 6 }}>snapshot 이력</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {snapshotHistory.map((s) => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: '#F8FAFC', fontSize: 11 }}>
+                      <span style={{ padding: '2px 7px', borderRadius: 999, fontWeight: 800, fontSize: 10, color: s.status === 'finalized' ? '#047857' : '#64748B', background: s.status === 'finalized' ? '#DCFCE7' : '#E2E8F0' }}>{s.status}</span>
+                      <span style={{ flex: 1, color: '#475569', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        v{s.configVersion} · 회원{s.memberCount} · {s.finalizeReason || '—'}{s.reopenReason ? ` · 재오픈: ${s.reopenReason}` : ''}
+                      </span>
+                      <span style={{ color: '#94A3B8', fontWeight: 600 }}>{new Date(s.finalizedAt).toLocaleDateString('ko-KR')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

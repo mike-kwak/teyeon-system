@@ -19,6 +19,7 @@ import {
   type ClubRankingMemberInput,
 } from './clubRankingCore';
 import { getActiveRankingConfig } from './rankingConfig';
+import { getFinalizedSnapshot, snapshotToResult } from './rankingSnapshot';
 
 export type { ClubRankingResult, ClubRankingSeason };
 export {
@@ -106,6 +107,15 @@ export async function loadRankingInputs(): Promise<RankingInputs> {
 export async function fetchClubRanking(
   season: ClubRankingSeason = new Date().getFullYear(),
 ): Promise<ClubRankingResult> {
+  // 종료 시즌(연도) 우선 — finalized snapshot 이 있으면 그 동결 결과를 반환한다.
+  //   · 누적('all')·월간({year,month})은 항상 live 계산(finalized snapshot 이중 반영 금지).
+  //   · snapshot 미존재/테이블 미생성 → null → live 계산(무회귀).
+  //   · snapshot 조회 실제 오류 → throw(잘못된 live 로 대체하지 않음 — finalized 상태 미확정).
+  if (typeof season === 'number') {
+    const finalized = await getFinalizedSnapshot(String(season));
+    if (finalized) return snapshotToResult(finalized.data, season);
+  }
+
   const [inputs, configRes] = await Promise.all([
     loadRankingInputs(),
     getActiveRankingConfig(season),
