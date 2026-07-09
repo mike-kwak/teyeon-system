@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
+import { useVisibilityResync, realtimeBackoffMs, isRealtimeErrorStatus } from '@/hooks/useRealtimeSync';
 import { useLoading } from '@/context/LoadingContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
 import { RotateCw, CheckCircle2, Settings } from 'lucide-react';
@@ -357,6 +358,12 @@ export default function KDKPage() {
         if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
         realtimeRefreshTimerRef.current = setTimeout(fn, 220);
     };
+    // [Realtime 재연결] 채널 오류/타임아웃/종료 시 backoff 재구독 + 재구독 성공 시 full refresh.
+    const [channelEpoch, setChannelEpoch] = useState(0);          // bump → 채널 effect 재실행(=재구독)
+    const resubAttemptRef = useRef(0);                            // backoff 단계(성공 시 0 reset)
+    const resubTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const intentionalCloseRef = useRef(false);                   // cleanup 로 인한 CLOSED 오인 방지
+    const wasDisconnectedRef = useRef(false);                    // 직전에 오류로 끊겼는지(재연결 복구 fetch 판단)
 
     // 전광판 티커 수동 메시지
     const [tickerMsg, setTickerMsg] = useState('');
@@ -1291,15 +1298,22 @@ export default function KDKPage() {
         const currentSid = (showGateway || kdkEntryMode === 'CHOOSE' || kdkEntryMode === 'CHECKING') ? null : activeSessionId;
         const realtimeFilter = `club_id=eq.${clubId}`;
 
+        // 이 effect 실행 = 새 채널 생성. 이전 cleanup 의 의도적 CLOSED 플래그 초기화.
+        intentionalCloseRef.current = false;
+        const fullResync = () => {
+            if (currentSid) fetchMatches(currentSid);
+            else syncActiveSession();
+        };
+
         const matchesChannel = supabase.channel(`sync-kdk-club-${clubId}`)
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'matches', 
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'matches',
                 filter: realtimeFilter
             }, (payload: any) => {
                 const updatedSessionId = payload.new?.session_id || payload.old?.session_id;
-                
+
                 // [v35.2] STRICT SESSION FILTER: Only trigger refresh for the active session or if in gateway
                 // [동시 조작 안정화] 이벤트마다 즉시 재조회하지 않고 220ms debounce 후 1회만 재조회.
                 if (currentSid && updatedSessionId === currentSid) {
@@ -1311,14 +1325,41 @@ export default function KDKPage() {
             })
             .subscribe((status) => {
                 console.log('[KDK Realtime] status:', status);
+                if (status === 'SUBSCRIBED') {
+                    resubAttemptRef.current = 0; // 연결 정상화 → backoff reset
+                    if (resubTimerRef.current) { clearTimeout(resubTimerRef.current); resubTimerRef.current = null; } // 대기 중 재구독 취소(transient CLOSED→SUBSCRIBED)
+                    // 오류로 끊겼다 재연결된 경우에만 full refresh — 구독 공백 동안 누락된 변경 복구.
+                    //   최초 구독/세션 전환은 restoreSession·기존 로드가 처리하므로 중복 조회하지 않는다.
+                    if (wasDisconnectedRef.current) {
+                        wasDisconnectedRef.current = false;
+                        fullResync();
+                    }
+                } else if (isRealtimeErrorStatus(status)) {
+                    if (intentionalCloseRef.current) return; // cleanup 로 인한 CLOSED → 재구독 안 함
+                    wasDisconnectedRef.current = true;
+                    const delay = realtimeBackoffMs(resubAttemptRef.current);
+                    resubAttemptRef.current += 1;
+                    if (resubTimerRef.current) clearTimeout(resubTimerRef.current);
+                    resubTimerRef.current = setTimeout(() => setChannelEpoch((e) => e + 1), delay);
+                }
             });
 
         return () => {
+            intentionalCloseRef.current = true;
             window.removeEventListener('beforeunload', handleBeforeUnload);
             if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
+            if (resubTimerRef.current) clearTimeout(resubTimerRef.current);
             supabase.removeChannel(matchesChannel);
         };
-    }, [activeSessionId, showGateway, kdkEntryMode]);
+    }, [activeSessionId, showGateway, kdkEntryMode, channelEpoch]);
+
+    // [화면 복귀 복구] 운영자가 백그라운드/화면 잠금/네트워크 끊김 후 복귀하면(visible·focus·online)
+    //   현재 세션 기준 full refresh 로 최신 상태(점수·코트·경기 상태)를 자동 복구한다.
+    useVisibilityResync(() => {
+        const sid = (showGateway || kdkEntryMode === 'CHOOSE' || kdkEntryMode === 'CHECKING') ? null : activeSessionId;
+        if (sid) fetchMatches(sid);
+        else syncActiveSession();
+    });
 
     // 전광판 ticker 메시지: 세션 진입 시 로드
     useEffect(() => {

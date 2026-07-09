@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Match, Member } from '@/lib/tournament_types';
 import { fetchLiveOfficialRanking } from '@/lib/kdk/liveRankingService';
+import { useVisibilityResync, realtimeBackoffMs, isRealtimeErrorStatus } from '@/hooks/useRealtimeSync';
 
 const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
 
@@ -557,6 +558,12 @@ function KdkDisplayBoard() {
   // [동시 조작 안정화] Realtime refresh debounce + stale 응답 폐기 (표시 로직/디자인 무변경).
   const realtimeRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchMatchesSeqRef = useRef(0);
+  // [Realtime 재연결] 채널 오류/타임아웃/종료 시 backoff 재구독 + 재구독 성공 시 full refresh.
+  const [channelEpoch, setChannelEpoch] = useState(0);          // bump → 채널 effect 재실행(=재구독)
+  const resubAttemptRef = useRef(0);                            // backoff 단계(성공 시 0 reset)
+  const resubTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentionalCloseRef = useRef(false);                   // cleanup 로 인한 CLOSED 를 오류로 오인 방지
+  const wasDisconnectedRef = useRef(false);                    // 직전에 오류로 끊겼는지(재연결 복구 fetch 판단)
   const tickerGroupRef = useRef<HTMLDivElement>(null);
   const [tickerDuration, setTickerDuration] = useState(18);
   const edgeSwipeRef = useRef({ isEdge: false, startX: 0, startY: 0 });
@@ -959,6 +966,8 @@ function KdkDisplayBoard() {
   useEffect(() => {
     if (!sessionId) return;
 
+    // 이 effect 실행 = 새 채널 생성. 이전 cleanup 의 의도적 CLOSED 플래그를 초기화.
+    intentionalCloseRef.current = false;
     const realtimeFilter = `club_id=eq.${CLUB_ID}`;
     const activeRealtimeSessionId = resolvedSessionId || sessionId;
     const channel = supabase.channel(`kdk-display-${CLUB_ID}-${sessionId}`)
@@ -989,13 +998,40 @@ function KdkDisplayBoard() {
       .subscribe((status) => {
         setRealtimeStatus(status);
         console.log('[KDK Display] Realtime status:', status);
+        if (status === 'SUBSCRIBED') {
+          resubAttemptRef.current = 0; // 연결 정상화 → backoff reset
+          if (resubTimerRef.current) { clearTimeout(resubTimerRef.current); resubTimerRef.current = null; } // 대기 중 재구독 취소(transient CLOSED→SUBSCRIBED)
+          // 오류로 끊겼다 재연결된 경우에만 full refresh — 구독 공백 동안 누락된 변경 복구.
+          //   최초 구독/세션 전환은 각자의 초기 fetchMatches 가 처리하므로 중복 조회하지 않는다.
+          if (wasDisconnectedRef.current) {
+            wasDisconnectedRef.current = false;
+            fetchMatches(activeRealtimeSessionId);
+          }
+        } else if (isRealtimeErrorStatus(status)) {
+          if (intentionalCloseRef.current) return; // cleanup 로 인한 CLOSED → 재구독하지 않음
+          wasDisconnectedRef.current = true;
+          // 즉시 무한 재시도 금지 — backoff 후 채널 재생성(1회 예약).
+          const delay = realtimeBackoffMs(resubAttemptRef.current);
+          resubAttemptRef.current += 1;
+          if (resubTimerRef.current) clearTimeout(resubTimerRef.current);
+          resubTimerRef.current = setTimeout(() => setChannelEpoch((e) => e + 1), delay);
+        }
       });
 
     return () => {
+      intentionalCloseRef.current = true;
       if (realtimeRefreshTimerRef.current) clearTimeout(realtimeRefreshTimerRef.current);
+      if (resubTimerRef.current) clearTimeout(resubTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [sessionId, resolvedSessionId]);
+  }, [sessionId, resolvedSessionId, channelEpoch]);
+
+  // [화면 복귀 복구] 백그라운드/화면 잠금/네트워크 끊김 후 visible·focus·online 시 최신 상태 재조회.
+  //   Realtime 이벤트가 누락됐어도 전광판이 과거 경기/순위로 남지 않도록 안전망.
+  useVisibilityResync(() => {
+    const sid = resolvedSessionId || sessionId;
+    if (sid) fetchMatches(sid); // fetchMatches 성공 → lastSync 갱신 → 공식 순위도 자동 재조회
+  }, { enabled: !!sessionId });
 
   const playingByCourt = useMemo(() => {
     const map = new Map<number, Match>();
