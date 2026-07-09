@@ -19,7 +19,36 @@ import {
   type ClubRankingMemberInput,
 } from './clubRankingCore';
 import { getActiveRankingConfig } from './rankingConfig';
-import { getFinalizedSnapshot, snapshotToResult } from './rankingSnapshot';
+import { getFinalizedSnapshot, snapshotToResult, RANKING_SNAPSHOT_SCHEMA_VERSION } from './rankingSnapshot';
+
+/** FINAL 시즌 snapshot 의 schemaVersion 이 현재 코드가 지원하지 않는 값일 때. 화면은 전용 안내 표시. */
+export const SNAPSHOT_SCHEMA_UNSUPPORTED = 'SNAPSHOT_SCHEMA_UNSUPPORTED';
+const AWARD_KEYS = ['mostParticipation', 'bestWinRate', 'mostWins', 'mostChampionships', 'mostTop3'] as const;
+
+/**
+ * memberId → 현재 아바타 URL 맵(members.avatar_url → profiles.avatar_url exact, 이니셜은 화면 fallback).
+ *   FINAL 시즌 렌더 시 snapshot(avatarUrl 미저장)에 현재 아바타만 주입하기 위한 경량 조회(archive 미조회).
+ *   이름 부분 일치·email fallback·N+1 없음(members 1회 + profiles 1회).
+ */
+export async function loadMemberAvatarMap(): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  const membersRes = await supabase.from('members').select('id, avatar_url, auth_user_id');
+  if (membersRes.error) return map;
+  const rows = (membersRes.data || []) as MemberRow[];
+  const byAuth = new Map<string, ProfileRow>();
+  try {
+    const authIds = Array.from(new Set(rows.map((m) => m.auth_user_id).filter((v): v is string => !!v)));
+    if (authIds.length > 0) {
+      const p = await supabase.from('profiles').select('id, avatar_url').in('id', authIds);
+      if (!p.error) for (const row of (p.data || []) as ProfileRow[]) { if (row.id) byAuth.set(row.id, row); }
+    }
+  } catch { /* 프로필 조회 실패 — members.avatar_url 만 사용 */ }
+  for (const m of rows) {
+    const profile = m.auth_user_id ? byAuth.get(m.auth_user_id) : undefined;
+    map.set(String(m.id), normalizeAvatarUrl(m.avatar_url) || normalizeAvatarUrl(profile?.avatar_url) || null);
+  }
+  return map;
+}
 
 export type { ClubRankingResult, ClubRankingSeason };
 export {
@@ -113,7 +142,20 @@ export async function fetchClubRanking(
   //   · snapshot 조회 실제 오류 → throw(잘못된 live 로 대체하지 않음 — finalized 상태 미확정).
   if (typeof season === 'number') {
     const finalized = await getFinalizedSnapshot(String(season));
-    if (finalized) return snapshotToResult(finalized.data, season);
+    if (finalized) {
+      // 지원하지 않는 schemaVersion 이면 화면에 잘못된 데이터를 그리지 않고 전용 안내(throw).
+      if (finalized.data?.schemaVersion !== RANKING_SNAPSHOT_SCHEMA_VERSION) {
+        throw new Error(SNAPSHOT_SCHEMA_UNSUPPORTED);
+      }
+      const result = snapshotToResult(finalized.data, season);
+      // 표시 이름은 snapshot 보존값, 아바타만 현재 프로필로 주입(memberId exact — 부분 일치·덮어쓰기 없음).
+      const avatarMap = await loadMemberAvatarMap();
+      result.entries = result.entries.map((e) => ({ ...e, avatarUrl: avatarMap.get(e.memberId) ?? null }));
+      for (const k of AWARD_KEYS) {
+        result.awards[k] = result.awards[k].map((w) => ({ ...w, avatarUrl: avatarMap.get(w.memberId) ?? null }));
+      }
+      return result;
+    }
   }
 
   const [inputs, configRes] = await Promise.all([

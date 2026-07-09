@@ -28,6 +28,7 @@ import {
 } from '@/lib/profile/getMemberOfficialStats';
 import {
   fetchClubRanking,
+  SNAPSHOT_SCHEMA_UNSUPPORTED,
   RANKING_POINTS,
   RANKING_MIN_SESSIONS,
   BEST_WINRATE_MIN_GAMES,
@@ -35,6 +36,11 @@ import {
   type ClubRankingEntry,
   type ClubRankingAwardWinner,
 } from '@/lib/ranking/clubRankingService';
+import {
+  listFinalizedRankingSeasons,
+  buildAvailableSeasons,
+  type SeasonOption,
+} from '@/lib/ranking/rankingSnapshot';
 
 const CURRENT_SEASON = new Date().getFullYear();
 
@@ -396,10 +402,10 @@ function LoadingSkeleton() {
   );
 }
 
-function ErrorCard({ onRetry }: { onRetry: () => void }) {
+function ErrorCard({ onRetry, message }: { onRetry: () => void; message?: string }) {
   return (
     <div style={{ ...cardStyle, padding: 20, borderColor: 'rgba(239,68,68,0.25)', backgroundColor: 'rgba(239,68,68,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-      <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: '#B91C1C' }}>랭킹 정보를 불러오지 못했습니다</p>
+      <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: '#B91C1C' }}>{message || '랭킹 정보를 불러오지 못했습니다'}</p>
       <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.sub, lineHeight: 1.6 }}>
         잠시 후 다시 시도해 주세요. Archive 원본 기록에는 영향이 없습니다.
       </p>
@@ -508,7 +514,7 @@ const nowYearMonth = (): YearMonth => {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 };
 
-function parsePeriodParams(sp: URLSearchParams | null): { tab: PeriodTab; ym: YearMonth } {
+function parsePeriodParams(sp: URLSearchParams | null): { tab: PeriodTab; ym: YearMonth; seasonYear: number } {
   const period = sp?.get('period');
   const tab: PeriodTab = period === 'all' || period === 'monthly' ? period : 'season';
   let ym = nowYearMonth();
@@ -519,11 +525,69 @@ function parsePeriodParams(sp: URLSearchParams | null): { tab: PeriodTab; ym: Ye
       ym = { year: y, month: m };
     }
   }
-  return { tab, ym };
+  // 시즌 탭 연도 — 미래/비정상은 현재 연도. 목록에 없는 과거 연도 정규화는 목록 로드 후 별도 처리.
+  const cy = new Date().getFullYear();
+  const sy = Number(sp?.get('year'));
+  const seasonYear = tab === 'season' && Number.isInteger(sy) && sy >= 2000 && sy <= cy ? sy : cy;
+  return { tab, ym, seasonYear };
 }
 
-const cacheKeyOf = (tab: PeriodTab, ym: YearMonth) =>
-  tab === 'monthly' ? `monthly:${ym.year}-${ym.month}` : tab;
+const cacheKeyOf = (tab: PeriodTab, ym: YearMonth, seasonYear: number) =>
+  tab === 'monthly' ? `monthly:${ym.year}-${ym.month}` : tab === 'season' ? `season:${seasonYear}` : 'all';
+
+// ── 시즌 상태 배지 (색상 외 텍스트로도 구분 — 접근성) ─────────────────────────
+function SeasonBadge({ isFinal }: { isFinal: boolean }) {
+  const s: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', fontSize: 9.5, fontWeight: 900, letterSpacing: '0.08em', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0 };
+  return isFinal
+    ? <span style={{ ...s, color: C.gold, backgroundColor: C.goldBg, border: `1px solid ${C.goldBorder}` }}>FINAL</span>
+    : <span style={{ ...s, color: C.teal, backgroundColor: C.tealBg, border: '1px solid rgba(13,148,136,0.25)' }}>LIVE</span>;
+}
+
+// ── 시즌 연도 selector (custom listbox — 키보드/ESC/바깥클릭 지원) ──────────────
+function SeasonSelector({ seasons, value, open, setOpen, onChange }: {
+  seasons: SeasonOption[]; value: number; open: boolean;
+  setOpen: (v: boolean) => void; onChange: (year: number) => void;
+}) {
+  const cur = seasons.find((s) => s.year === value);
+  const single = seasons.length <= 1;
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button" aria-haspopup="listbox" aria-expanded={open} disabled={single}
+        onClick={() => setOpen(!open)}
+        aria-label={`시즌 선택 — 현재 ${value}년 ${cur?.isFinal ? '종료' : '진행 중'}`}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 10, border: `1px solid ${C.border}`, backgroundColor: C.card, cursor: single ? 'default' : 'pointer', font: 'inherit' }}
+      >
+        <span style={{ fontSize: 13.5, fontWeight: 900, color: C.text }}>{value}</span>
+        <SeasonBadge isFinal={!!cur?.isFinal} />
+        {!single && <span aria-hidden style={{ fontSize: 10, color: C.faint }}>{open ? '▲' : '▼'}</span>}
+      </button>
+      {open && !single && (
+        <>
+          {/* 바깥 클릭 닫기 */}
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <ul role="listbox" aria-label="시즌 목록" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 6, minWidth: 180, listStyle: 'none', padding: 4, zIndex: 41, backgroundColor: C.card, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 8px 24px rgba(15,23,42,0.14)' }}>
+            {seasons.map((s) => (
+              <li key={s.year} role="option" aria-selected={s.year === value}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(s.year); setOpen(false); }}
+                  aria-current={s.year === value ? 'true' : undefined}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 8, border: 'none', background: s.year === value ? C.tealBg : 'transparent', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{s.year}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: s.isFinal ? C.gold : C.teal }}>{s.isFinal ? 'FINAL' : '진행 중'}</span>
+                  <span style={{ flex: 1 }} />
+                  {s.year === value && <span aria-hidden style={{ color: C.teal, fontWeight: 900 }}>✓</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
 
 // ── 메인 페이지 ──────────────────────────────────────────────────────────────
 export default function RankingPage() {
@@ -532,38 +596,71 @@ export default function RankingPage() {
   const initial = parsePeriodParams(searchParams);
   const [tab, setTab] = useState<PeriodTab>(initial.tab);
   const [ym, setYm] = useState<YearMonth>(initial.ym);
+  const [seasonYear, setSeasonYear] = useState<number>(initial.seasonYear);
   const [cache, setCache] = useState<Record<string, ClubRankingResult>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // error 종류 — 종료 시즌/스키마별 전용 안내를 위해 문자열로 관리.
+  const [error, setError] = useState<null | 'generic' | 'final' | 'schema'>(null);
+  const [seasons, setSeasons] = useState<SeasonOption[]>([{ year: CURRENT_SEASON, isFinal: false, meta: null }]);
+  const [seasonSelectOpen, setSeasonSelectOpen] = useState(false);
   const mountedRef = useRef(false);
+  const seasonsRef = useRef(seasons);
+  seasonsRef.current = seasons;
 
-  const load = useCallback(async (which: PeriodTab, whichYm: YearMonth, force = false) => {
-    const key = cacheKeyOf(which, whichYm);
-    if (!force && cache[key]) { setLoading(false); setError(false); return; }
+  const selectedSeasonOption = seasons.find((s) => s.year === seasonYear) ?? null;
+  const isFinalSeason = tab === 'season' && !!selectedSeasonOption?.isFinal;
+
+  // 선택 가능한 시즌 목록(현재 연도 + finalized, 미래 제외) — 1회 로드.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const finalized = await listFinalizedRankingSeasons();
+      if (cancelled) return;
+      const opts = buildAvailableSeasons(CURRENT_SEASON, finalized);
+      setSeasons(opts);
+      // URL 의 seasonYear 가 목록에 없으면 현재 연도로 정규화(무한 redirect 없이 state 만 보정).
+      setSeasonYear((y) => (opts.some((o) => o.year === y) ? y : CURRENT_SEASON));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const load = useCallback(async (which: PeriodTab, whichYm: YearMonth, whichYear: number, force = false) => {
+    const key = cacheKeyOf(which, whichYm, whichYear);
+    if (!force && cache[key]) { setLoading(false); setError(null); return; }
     setLoading(true);
-    setError(false);
+    setError(null);
     try {
-      const season = which === 'season' ? CURRENT_SEASON : which === 'all' ? 'all' as const : whichYm;
+      const season = which === 'season' ? whichYear : which === 'all' ? 'all' as const : whichYm;
       const result = await fetchClubRanking(season);
       setCache((prev) => ({ ...prev, [key]: result }));
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[Ranking] load failed:', err);
-      setError(true);
+      if (String(err?.message) === SNAPSHOT_SCHEMA_UNSUPPORTED) setError('schema');
+      else if (which === 'season' && seasonsRef.current.find((s) => s.year === whichYear)?.isFinal) setError('final');
+      else setError('generic');
     } finally {
       setLoading(false);
     }
   }, [cache]);
 
-  useEffect(() => { void load(tab, ym); }, [tab, ym, load]);
+  useEffect(() => { void load(tab, ym, seasonYear); }, [tab, ym, seasonYear, load]);
 
   // URL 동기화 — replace(히스토리 미적재)로 새로고침/공유 상태 유지. 최초 마운트는 URL 이 원본이므로 생략.
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
     const qs = tab === 'monthly'
       ? `?period=monthly&year=${ym.year}&month=${ym.month}`
-      : tab === 'all' ? '?period=all' : '?period=season';
+      : tab === 'all' ? '?period=all' : `?period=season&year=${seasonYear}`;
     router.replace(`/ranking${qs}`, { scroll: false });
-  }, [tab, ym, router]);
+  }, [tab, ym, seasonYear, router]);
+
+  // 시즌 selector — ESC 로 닫기(바깥 클릭은 selector 내부 backdrop 이 처리).
+  useEffect(() => {
+    if (!seasonSelectOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSeasonSelectOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [seasonSelectOpen]);
 
   const moveMonth = (delta: number) => {
     setYm((prev) => {
@@ -572,7 +669,7 @@ export default function RankingPage() {
     });
   };
 
-  const data = cache[cacheKeyOf(tab, ym)];
+  const data = cache[cacheKeyOf(tab, ym, seasonYear)];
 
   // ── 회원 카드 모달 (Ranking 내부에서 직접 오픈 — 라우트 이동 없음) ─────────────
   //   닫으면 현재 기간 탭/URL/스크롤이 그대로 유지된다. /members?member=<id> 딥링크 수신부는 별도 유지.
@@ -724,8 +821,15 @@ export default function RankingPage() {
         {loading && <LoadingSkeleton />}
         {!loading && error && (
           tab === 'monthly'
-            ? <MonthlyErrorCard onRetry={() => void load(tab, ym, true)} />
-            : <ErrorCard onRetry={() => void load(tab, ym, true)} />
+            ? <MonthlyErrorCard onRetry={() => void load(tab, ym, seasonYear, true)} />
+            : <ErrorCard
+                onRetry={() => void load(tab, ym, seasonYear, true)}
+                message={error === 'schema'
+                  ? '이 시즌 기록은 현재 버전에서 표시할 수 없습니다.'
+                  : error === 'final'
+                    ? '확정된 시즌 기록을 불러오지 못했습니다.'
+                    : undefined}
+              />
         )}
 
         {!loading && !error && data && (
@@ -736,16 +840,28 @@ export default function RankingPage() {
                 <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: C.tealBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <BarChart3 size={19} color={C.teal} />
                 </div>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 9.5, fontWeight: 900, letterSpacing: '0.16em', color: C.teal }}>TEYEON RANKING</p>
-                  <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text, fontFamily: 'var(--font-rajdhani), sans-serif' }}>
-                    {tab === 'season' ? `${CURRENT_SEASON} SEASON` : tab === 'all' ? 'ALL TIME' : `${ym.year}년 ${ym.month}월`}
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text, fontFamily: 'var(--font-rajdhani), sans-serif' }}>
+                      {tab === 'season' ? `${seasonYear} SEASON` : tab === 'all' ? 'ALL TIME' : `${ym.year}년 ${ym.month}월`}
+                    </p>
+                    {tab === 'season' && <SeasonBadge isFinal={isFinalSeason} />}
+                  </div>
                 </div>
               </div>
               <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.sub, lineHeight: 1.6 }}>
-                공식 KDK 기록으로 집계된 클럽 랭킹입니다. Archive에서 공식 확정된 기록만 반영됩니다.
+                {tab === 'season'
+                  ? (isFinalSeason
+                      ? '시즌 종료 시점에 확정된 공식 기록입니다.'
+                      : '공식 KDK 기록을 기준으로 집계 중입니다.')
+                  : '공식 KDK 기록으로 집계된 클럽 랭킹입니다. Archive에서 공식 확정된 기록만 반영됩니다.'}
               </p>
+              {tab === 'season' && isFinalSeason && selectedSeasonOption?.meta && (
+                <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: C.gold }}>
+                  {new Date(selectedSeasonOption.meta.finalizedAt).toLocaleDateString('ko-KR')} 확정 · 산식 v{selectedSeasonOption.meta.configVersion} · 공식 {selectedSeasonOption.meta.officialSessionCount}회
+                </p>
+              )}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <Chip>공식 기록 기준</Chip>
                 <Chip>테스트 제외</Chip>
@@ -765,10 +881,18 @@ export default function RankingPage() {
 
             {/* ── 2. 기간 탭 (시즌/누적/월간) — 공통 진입 탭보다 한 단계 아래 계층(채움형 pill) ── */}
             <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 13, backgroundColor: 'rgba(15,23,42,0.05)' }}>
-              {tabBtn('season', `${CURRENT_SEASON} 시즌`)}
+              {tabBtn('season', '시즌')}
               {tabBtn('monthly', '월간')}
               {tabBtn('all', '누적')}
             </div>
+
+            {/* ── 2-0. 시즌 연도 selector (시즌 탭 전용) — 진행/종료 시즌 선택 ── */}
+            {tab === 'season' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <SeasonSelector seasons={seasons} value={seasonYear} open={seasonSelectOpen} setOpen={setSeasonSelectOpen} onChange={setSeasonYear} />
+                {seasons.length <= 1 && <span style={{ fontSize: 10.5, fontWeight: 600, color: C.faint }}>종료된 시즌이 아직 없습니다</span>}
+              </div>
+            )}
 
             {/* ── 2-1. 월 이동 내비게이터 (월간 탭 전용) — < 2026년 7월 > ── */}
             {tab === 'monthly' && (
@@ -806,7 +930,7 @@ export default function RankingPage() {
                 {eligible.length > 0 && (
                   <section>
                     <p style={{ margin: '2px 0 8px', fontSize: 12, fontWeight: 900, letterSpacing: '0.02em', color: C.text }}>
-                      {tab === 'season' ? `${CURRENT_SEASON} 시즌 기록 리더` : tab === 'all' ? '누적 기록 리더' : `${ym.month}월 기록 리더`}
+                      {tab === 'season' ? `${seasonYear} 시즌 기록 리더` : tab === 'all' ? '누적 기록 리더' : `${ym.month}월 기록 리더`}
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {AWARD_DEFS.map((d) => (

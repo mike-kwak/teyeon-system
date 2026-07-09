@@ -165,6 +165,76 @@ export async function getFinalizedSnapshot(
   }
 }
 
+/** 공개 시즌 key 판정 — 4자리 연도 AND 현재 연도 이하(미래 시즌 = 테스트 2099 등 제외). */
+export function isPublicSeasonKey(seasonKey: string, currentYear: number): boolean {
+  if (!/^\d{4}$/.test(seasonKey)) return false;
+  return Number(seasonKey) <= currentYear;
+}
+
+/** 일반 회원 selector 용 finalized 시즌 메타(공개 안전 필드만 — 내부 id/finalized_by/사유 미포함). */
+export interface FinalizedSeasonMeta {
+  seasonKey: string;
+  year: number;
+  seasonName: string;
+  finalizedAt: string;
+  configVersion: number;
+  memberCount: number;
+  officialSessionCount: number;
+}
+
+/** 일반 회원 시즌 selector 옵션. isFinal=true 면 finalized snapshot, false 면 진행 중(live). */
+export interface SeasonOption {
+  year: number;
+  isFinal: boolean;
+  meta: FinalizedSeasonMeta | null;
+}
+
+/**
+ * finalized 시즌 목록 — RLS 로 authenticated 는 finalized 만 읽는다(superseded 미노출).
+ *   공개 안전 필드만 select(내부 id/finalized_by/finalize_reason/reopen_reason/fingerprint 제외).
+ *   미생성/조회 실패 시 빈 배열(진행 시즌만 노출되도록 안전 폴백).
+ */
+export async function listFinalizedRankingSeasons(): Promise<FinalizedSeasonMeta[]> {
+  try {
+    const { data, error } = await supabase
+      .from('ranking_snapshots')
+      .select('season_key, season_name, finalized_at, config_version, member_count, official_session_count')
+      .eq('status', 'finalized')
+      .order('season_key', { ascending: false });
+    if (error) throw error;
+    return (data || [])
+      .map((r: any) => ({
+        seasonKey: String(r.season_key),
+        year: Number(r.season_key),
+        seasonName: String(r.season_name || ''),
+        finalizedAt: String(r.finalized_at),
+        configVersion: Number(r.config_version),
+        memberCount: Number(r.member_count),
+        officialSessionCount: Number(r.official_session_count),
+      }))
+      .filter((m) => /^\d{4}$/.test(m.seasonKey));
+  } catch (err) {
+    if (!isMissingRelation(err)) console.warn('[rankingSnapshot] finalized 시즌 목록 조회 실패:', err);
+    return [];
+  }
+}
+
+/**
+ * 일반 회원 시즌 selector 옵션 구성.
+ *   · 현재 연도는 항상 포함(finalized 없으면 LIVE, 있으면 FINAL).
+ *   · finalized 시즌은 포함하되 **미래 연도(현재 연도 초과)는 제외**(테스트 2099 등).
+ *   · superseded 는 애초에 목록에 없음(RLS + finalized-only 조회).
+ */
+export function buildAvailableSeasons(currentYear: number, finalized: FinalizedSeasonMeta[]): SeasonOption[] {
+  const map = new Map<number, SeasonOption>();
+  map.set(currentYear, { year: currentYear, isFinal: false, meta: null });
+  for (const f of finalized) {
+    if (!Number.isFinite(f.year) || f.year > currentYear) continue; // 미래 시즌 제외
+    map.set(f.year, { year: f.year, isFinal: true, meta: f });
+  }
+  return [...map.values()].sort((a, b) => b.year - a.year);
+}
+
 /** 시즌 snapshot 이력(finalized + superseded) — 매니저 화면용. 미생성/무권한 시 빈 배열. */
 export async function listSnapshots(seasonKey: string): Promise<RankingSnapshotRow[]> {
   try {
