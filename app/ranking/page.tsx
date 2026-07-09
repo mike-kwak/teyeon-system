@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays, X } from 'lucide-react';
+import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays, X, Swords } from 'lucide-react';
 import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -825,6 +825,12 @@ export default function RankingPage() {
             <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: C.teal, fontFamily: 'var(--font-rajdhani), sans-serif' }}>CLUB RANKING</p>
             <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.text, letterSpacing: '0.02em', fontFamily: 'var(--font-rajdhani), sans-serif' }}>RANKING</h1>
           </div>
+          <div style={{ flex: 1 }} />
+          {/* 상대전적 진입 — 기존 탭 구조는 변경하지 않고 상단 버튼만 추가. */}
+          <Link href="/ranking/head-to-head" aria-label="상대전적"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 999, backgroundColor: C.tealBg, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 11.5, fontWeight: 800, textDecoration: 'none', flexShrink: 0 }}>
+            <Swords size={14} /> 상대전적
+          </Link>
         </div>
 
         {loading && <LoadingSkeleton />}
