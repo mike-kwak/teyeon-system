@@ -118,8 +118,10 @@ export default function AdminRankingPage() {
       rankDelta: (curRankById.get(e.memberId) ?? e.rank) - e.rank, // +면 상승
       pointDelta: e.points - (curPointsById.get(e.memberId) ?? e.points),
     }));
+    // 공동 수상 배열 → 수상자 memberId 집합을 정렬·결합해 비교(공동 수상자 변화까지 감지).
+    const awardKey = (arr: { memberId: string }[] | undefined) => (arr || []).map((w) => w.memberId).sort().join(',');
     const awardsChanged = (['mostParticipation', 'bestWinRate', 'mostWins', 'mostChampionships', 'mostTop3'] as const)
-      .filter((k) => (cur.awards[k]?.memberId || null) !== (cand.awards[k]?.memberId || null));
+      .filter((k) => awardKey(cur.awards[k]) !== awardKey(cand.awards[k]));
     return { top, awardsChanged, curTop: cur.entries.slice(0, 10) };
   }, [inputs, season, published, candidate]);
 

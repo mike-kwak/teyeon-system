@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays, X } from 'lucide-react';
 import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -121,40 +121,110 @@ const AWARD_DEFS: {
   { key: 'mostTop3', label: 'TOP3 최다', unit: '회', accent: 'gold' },
 ];
 
-function AwardCard({ label, unit, accent, note, winner, onOpen }: {
-  label: string; unit: string; accent: 'gold' | 'teal'; note?: string; winner: ClubRankingAwardWinner;
-  onOpen: (memberId: string) => void;
+/** 공동 수상 표시명 — 1명: 이름 / 2명: A · B / 3명 이상: A 외 N명. */
+function awardNames(winners: ClubRankingAwardWinner[]): string {
+  if (winners.length === 0) return '집계 예정';
+  if (winners.length === 1) return winners[0].name;
+  if (winners.length === 2) return `${winners[0].name} · ${winners[1].name}`;
+  return `${winners[0].name} 외 ${winners.length - 1}명`;
+}
+
+function AwardCard({ label, unit, accent, note, winners, onOpenSingle, onOpenGroup }: {
+  label: string; unit: string; accent: 'gold' | 'teal'; note?: string;
+  winners: ClubRankingAwardWinner[];
+  onOpenSingle: (memberId: string) => void;
+  onOpenGroup: () => void;
 }) {
   const valueColor = accent === 'gold' ? C.gold : C.teal;
+  const has = winners.length > 0;
+  const co = winners.length >= 2;
+  const nameText = awardNames(winners);
   const body = (
     <>
       {/* 우선순위: ① 항목명 ② 이름 ③ 수치 ④ 기준 문구 — 장식(아바타)보다 정보가 먼저 읽히게 */}
-      <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.05em' }}>{label}</span>
-      <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: winner ? C.text : C.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {winner ? winner.name : '집계 예정'}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.05em' }}>{label}</span>
+        {co && (
+          <span style={{ fontSize: 8.5, fontWeight: 800, color: C.teal, backgroundColor: C.tealBg, borderRadius: 999, padding: '1px 6px', whiteSpace: 'nowrap' }}>
+            공동 {winners.length}명
+          </span>
+        )}
+      </div>
+      {co && (
+        // 공동 수상 대표 아바타(최대 3) — winners 가 이미 해석된 avatarUrl 을 가지므로 추가 조회 없음.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }} aria-hidden>
+          {winners.slice(0, 3).map((w) => <Avatar key={w.memberId} name={w.name} url={w.avatarUrl} size={18} />)}
+          {winners.length > 3 && <span style={{ fontSize: 9, fontWeight: 800, color: C.faint }}>+{winners.length - 3}</span>}
+        </div>
+      )}
+      <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: has ? C.text : C.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {nameText}
       </p>
-      <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: winner ? valueColor : C.faint, lineHeight: 1 }}>
-        {winner ? `${winner.value}${unit}` : '-'}
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: has ? valueColor : C.faint, lineHeight: 1 }}>
+        {has ? `${winners[0].value}${unit}` : '-'}
       </p>
       {note && <p style={{ margin: '2px 0 0', fontSize: 9, fontWeight: 600, color: C.faint, lineHeight: 1.4 }}>{note}</p>}
     </>
   );
   const boxStyle: React.CSSProperties = { ...cardStyle, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 };
-  // 수상자가 있으면 회원 카드 모달을 현재 화면에서 오픈(실제 button) — null/'집계 예정' 카드는 클릭 불가(정적 div, 시각 동일).
-  if (winner) {
+  // 단독 수상 → 회원 카드 직접 오픈. 공동 수상 → 수상자 선택 시트. 수상자 없음 → 클릭 불가(정적 div).
+  if (winners.length === 1) {
     return (
-      <button
-        type="button"
-        onClick={() => onOpen(winner.memberId)}
-        aria-label={`${winner.name} 회원 프로필 보기`}
-        className="rank-row"
-        style={{ ...boxStyle, textAlign: 'left', font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
-      >
+      <button type="button" onClick={() => onOpenSingle(winners[0].memberId)}
+        aria-label={`${winners[0].name} 회원 프로필 보기`} className="rank-row"
+        style={{ ...boxStyle, textAlign: 'left', font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+        {body}
+      </button>
+    );
+  }
+  if (co) {
+    return (
+      <button type="button" onClick={onOpenGroup}
+        aria-label={`${label} 공동 수상자 ${winners.length}명 목록 보기`} className="rank-row"
+        style={{ ...boxStyle, textAlign: 'left', font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
         {body}
       </button>
     );
   }
   return <div style={boxStyle}>{body}</div>;
+}
+
+/** 공동 수상자 목록 bottom sheet — 각 회원 선택 시 PlayerCardModal 오픈. */
+function AwardWinnersSheet({ label, unit, winners, onSelect, onClose }: {
+  label: string; unit: string; winners: ClubRankingAwardWinner[];
+  onSelect: (memberId: string) => void; onClose: () => void;
+}) {
+  return (
+    <div
+      onClick={onClose}
+      role="dialog" aria-modal="true" aria-label={`${label} 공동 수상자`}
+      style={{ position: 'fixed', inset: 0, zIndex: 70, backgroundColor: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, backgroundColor: C.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '72dvh', overflowY: 'auto', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 18px 8px', position: 'sticky', top: 0, backgroundColor: C.card }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: C.text }}>{label} <span style={{ color: C.teal }}>공동 {winners.length}명</span></p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: C.sub }}>공동 수상 수치 {winners[0]?.value}{unit}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.border}`, background: 'transparent', color: C.sub, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div style={{ padding: '4px 10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {winners.map((w) => (
+            <button key={w.memberId} type="button" onClick={() => onSelect(w.memberId)}
+              aria-label={`${w.name} 회원 프로필 보기`} className="rank-row"
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 12px', borderRadius: 12, background: C.card, border: `1px solid ${C.border}`, textAlign: 'left', font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+              <Avatar name={w.name} url={w.avatarUrl} size={34} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 800, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{w.value}{unit}</span>
+              <ChevronRight size={14} color={C.faint} style={{ flexShrink: 0 }} aria-hidden />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── TOP3 포디움 ──────────────────────────────────────────────────────────────
@@ -509,6 +579,8 @@ export default function RankingPage() {
   //   상세/통계는 /members 화면과 동일 소스: members 1건 + profiles exact 매칭, fetchMemberOfficialStats(공통 helper).
   const { user } = useAuth();
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  // 공동 수상자 선택 시트 — 2명 이상 award 카드 클릭 시 표시.
+  const [awardSheet, setAwardSheet] = useState<{ label: string; unit: string; winners: ClubRankingAwardWinner[] } | null>(null);
   const [selectedMember, setSelectedMember] = useState<PlayerCardMember | null>(null);
   const [selectedStats, setSelectedStats] = useState<PlayerCardStats | undefined>(undefined);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
@@ -738,7 +810,7 @@ export default function RankingPage() {
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {AWARD_DEFS.map((d) => (
-                        <AwardCard key={d.key} label={d.label} unit={d.unit} accent={d.accent} note={d.note} winner={data.awards[d.key]} onOpen={openMember} />
+                        <AwardCard key={d.key} label={d.label} unit={d.unit} accent={d.accent} note={d.note} winners={data.awards[d.key]} onOpenSingle={openMember} onOpenGroup={() => setAwardSheet({ label: d.label, unit: d.unit, winners: data.awards[d.key] })} />
                       ))}
                     </div>
                   </section>
@@ -796,6 +868,17 @@ export default function RankingPage() {
         {/* 하단 스크롤 여유 — 실제 흐름 요소(마지막 카드가 BottomNav 뒤로 깔리지 않도록 GlobalMain clearance 에 더해 소량 유지) */}
         <div aria-hidden style={{ height: 8, flexShrink: 0 }} />
       </div>
+
+      {/* ── 공동 수상자 선택 시트 — 회원 선택 시 시트 닫고 회원 카드 오픈 ── */}
+      {awardSheet && (
+        <AwardWinnersSheet
+          label={awardSheet.label}
+          unit={awardSheet.unit}
+          winners={awardSheet.winners}
+          onSelect={(memberId) => { setAwardSheet(null); openMember(memberId); }}
+          onClose={() => setAwardSheet(null)}
+        />
+      )}
 
       {/* ── 회원 카드 모달 — /members 와 동일 컴포넌트·동일 통계 helper. 닫으면 현재 랭킹 화면 그대로 유지 ── */}
       {selectedMember && (

@@ -104,14 +104,20 @@ export type ClubRankingAwardWinner = {
   memberId: string;
   name: string;
   value: number;
-} | null;
+  /** Ranking 에서 이미 해석된 아바타(members.avatar_url → profiles exact → null). 추가 조회 없음. */
+  avatarUrl: string | null;
+};
 
+/**
+ * 자동 시상 — 항목별 '공동 수상자 배열'. 동일 최고값이면 전원 포함(누락 없음).
+ * 수상 대상이 없거나 최고값이 0 이하이면 빈 배열. (기존 단일 winner|null 구조에서 배열로 확장.)
+ */
 export type ClubRankingAwards = {
-  mostParticipation: ClubRankingAwardWinner;
-  bestWinRate: ClubRankingAwardWinner;
-  mostWins: ClubRankingAwardWinner;
-  mostChampionships: ClubRankingAwardWinner;
-  mostTop3: ClubRankingAwardWinner;
+  mostParticipation: ClubRankingAwardWinner[];
+  bestWinRate: ClubRankingAwardWinner[];
+  mostWins: ClubRankingAwardWinner[];
+  mostChampionships: ClubRankingAwardWinner[];
+  mostTop3: ClubRankingAwardWinner[];
 };
 
 export type ClubRankingResult = {
@@ -127,11 +133,11 @@ export type ClubRankingResult = {
 };
 
 const emptyAwards: ClubRankingAwards = {
-  mostParticipation: null,
-  bestWinRate: null,
-  mostWins: null,
-  mostChampionships: null,
-  mostTop3: null,
+  mostParticipation: [],
+  bestWinRate: [],
+  mostWins: [],
+  mostChampionships: [],
+  mostTop3: [],
 };
 
 /** 확정 동률 규칙: 포인트 → 우승 → TOP3 → 승률 → 득실 → 최근 공식 순위(작을수록 우선, 없으면 최하) → 참가 횟수. */
@@ -147,19 +153,25 @@ function compareEntries(a: ClubRankingEntry, b: ClubRankingEntry): number {
   return b.sessions - a.sessions;
 }
 
-/** 자격자 중 최댓값 보유자 1명 선정(공동이면 compareEntries 상위). 최댓값 0이면 시상 없음(null). */
-function pickAward(
+/**
+ * 자격자 중 최댓값을 기록한 회원 '전원'을 공동 수상자로 반환.
+ *   · 최댓값이 0 이하이거나 대상자가 없으면 빈 배열.
+ *   · 공동 수상 판정 기준 = 해당 지표 값의 동일 여부(전체 Ranking 동률 comparator 미사용).
+ *   · 반환 순서는 pool(= 랭킹 정렬) 순서를 따른다(대표 표시는 첫 번째부터).
+ */
+function pickAwards(
   pool: ClubRankingEntry[],
   value: (e: ClubRankingEntry) => number,
-): ClubRankingAwardWinner {
-  let best: ClubRankingEntry | null = null;
+): ClubRankingAwardWinner[] {
+  let max = 0;
   for (const e of pool) {
-    if (value(e) <= 0) continue;
-    if (!best || value(e) > value(best) || (value(e) === value(best) && compareEntries(e, best) < 0)) {
-      best = e;
-    }
+    const v = value(e);
+    if (v > max) max = v;
   }
-  return best ? { memberId: best.memberId, name: best.name, value: value(best) } : null;
+  if (max <= 0) return [];
+  return pool
+    .filter((e) => value(e) === max)
+    .map((e) => ({ memberId: e.memberId, name: e.name, value: max, avatarUrl: e.avatarUrl ?? null }));
 }
 
 export function computeClubRanking(
@@ -232,11 +244,11 @@ export function computeClubRanking(
   // 자동 시상 — 정식 자격자만 대상. 최고 승률상은 추가로 공식 6경기 이상.
   const eligiblePool = entries.filter((e) => e.eligible);
   const awards: ClubRankingAwards = entries.length === 0 ? emptyAwards : {
-    mostParticipation: pickAward(eligiblePool, (e) => e.sessions),
-    bestWinRate: pickAward(eligiblePool.filter((e) => e.games >= config.bestWinrateMinGames), (e) => e.winRate),
-    mostWins: pickAward(eligiblePool, (e) => e.wins),
-    mostChampionships: pickAward(eligiblePool, (e) => e.championCount),
-    mostTop3: pickAward(eligiblePool, (e) => e.top3Count),
+    mostParticipation: pickAwards(eligiblePool, (e) => e.sessions),
+    bestWinRate: pickAwards(eligiblePool.filter((e) => e.games >= config.bestWinrateMinGames), (e) => e.winRate),
+    mostWins: pickAwards(eligiblePool, (e) => e.wins),
+    mostChampionships: pickAwards(eligiblePool, (e) => e.championCount),
+    mostTop3: pickAwards(eligiblePool, (e) => e.top3Count),
   };
 
   return {
