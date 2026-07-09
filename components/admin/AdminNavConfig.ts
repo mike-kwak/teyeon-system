@@ -3,7 +3,7 @@
 //   external=true 인 항목은 /admin shell 을 벗어나 기존 일반 앱 화면으로 이동(런치패드 역할).
 
 import type { LucideIcon } from 'lucide-react';
-import { isFullAdminRole, canViewAdminSettings } from '@/lib/admin/adminAccess';
+import { isFullAdminRole, canViewAdminSettings, canAccessRankingAdmin } from '@/lib/admin/adminAccess';
 import {
     LayoutDashboard,
     CalendarDays,
@@ -69,6 +69,14 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     },
 ];
 
+/** 랭킹 관리 섹션 — CEO OR ranking_managers 에게만 노출(ADMIN 자동 노출 안 함). */
+export const RANKING_NAV_SECTION: AdminNavSection = {
+    title: '랭킹',
+    items: [
+        { id: 'ranking', label: '랭킹 관리', href: '/admin/ranking', icon: Trophy },
+    ],
+};
+
 /** 모바일 BottomNav — 4개 고정. '관리'는 전체 메뉴 시트를 연다(별도 빈 페이지 만들지 않음). */
 export interface AdminBottomNavItem {
     id: string;
@@ -98,10 +106,23 @@ export function allAdminNavItems(): AdminNavItem[] {
  *   Sidebar 에서만 숨기고 URL 을 여는 구조 금지 — 서버 middleware/layout 가드와 함께 적용.
  */
 const OPERATOR_VISIBLE_ITEM_IDS = new Set(['settings', 'guide-recording']);
-export function getVisibleAdminNavSections(role?: string | null): AdminNavSection[] {
-    if (isFullAdminRole(role)) return ADMIN_NAV_SECTIONS;
-    if (!canViewAdminSettings(role)) return [];
-    return ADMIN_NAV_SECTIONS
-        .map((s) => ({ ...s, items: s.items.filter((it) => OPERATOR_VISIBLE_ITEM_IDS.has(it.id)) }))
-        .filter((s) => s.items.length > 0);
+export function getVisibleAdminNavSections(
+    role?: string | null,
+    opts?: { canManageRanking?: boolean },
+): AdminNavSection[] {
+    // 랭킹 관리 메뉴는 CEO OR ranking_managers 에게만(ADMIN 자동 노출 없음).
+    const showRanking = canAccessRankingAdmin(role, opts?.canManageRanking);
+    const withRanking = (sections: AdminNavSection[]): AdminNavSection[] =>
+        showRanking ? [...sections, RANKING_NAV_SECTION] : sections;
+
+    if (isFullAdminRole(role)) return withRanking(ADMIN_NAV_SECTIONS);
+    if (!canViewAdminSettings(role)) {
+        // 일반/제한 역할이지만 랭킹 매니저면 랭킹 섹션만 노출.
+        return showRanking ? [RANKING_NAV_SECTION] : [];
+    }
+    return withRanking(
+        ADMIN_NAV_SECTIONS
+            .map((s) => ({ ...s, items: s.items.filter((it) => OPERATOR_VISIBLE_ITEM_IDS.has(it.id)) }))
+            .filter((s) => s.items.length > 0),
+    );
 }

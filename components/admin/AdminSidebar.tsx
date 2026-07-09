@@ -25,7 +25,7 @@ function isActive(pathname: string | null, href: string): boolean {
 export default function AdminSidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    const { user, role, signOut } = useAuth();
+    const { user, role, signOut, canManageRanking } = useAuth();
     const adminName = (user?.user_metadata?.nickname as string) || user?.email?.split('@')[0] || '관리자';
     const initial = adminName.trim().charAt(0) || 'A';
     const handleLogout = async () => {
@@ -55,7 +55,7 @@ export default function AdminSidebar() {
 
             {/* 메뉴 */}
             <nav style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
-                {getVisibleAdminNavSections(role).map((section) => (
+                {getVisibleAdminNavSections(role, { canManageRanking }).map((section) => (
                     <div key={section.title} style={{ marginBottom: 18 }}>
                         <p style={{ margin: '0 0 8px 10px', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: TEXT_DIM }}>
                             {section.title}

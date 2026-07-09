@@ -109,8 +109,20 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
+    // /admin/ranking 은 CEO OR ranking_managers 만 — role 로 결정되지 않으므로 서버에서 helper 로 판정.
+    //   (다른 /admin 경로에서는 불필요한 RPC 호출을 피하기 위해 이 경로에서만 조회)
+    let isRankingManager = false;
+    if (request.nextUrl.pathname.startsWith('/admin/ranking')) {
+      try {
+        const { data: canManage } = await supabase.rpc('can_manage_ranking');
+        isRankingManager = canManage === true;
+      } catch {
+        isRankingManager = false; // RPC 미생성/실패 → CEO 만 role 로 통과(안전)
+      }
+    }
+
     // route 별 접근 판정(단일 출처). 운영진/FINANCE_MANAGER 는 settings·guide 만 허용.
-    if (!canAccessAdminRoute(request.nextUrl.pathname, role)) {
+    if (!canAccessAdminRoute(request.nextUrl.pathname, role, { isRankingManager })) {
       // 이메일/토큰은 로그에 남기지 않는다. 진단용 사유만.
       console.warn('[admin-guard] redirect: route not allowed for role', { hasUser: true, lookup, role: role || 'none' });
       return NextResponse.redirect(new URL('/', request.url));

@@ -6,6 +6,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { withRetry } from '@/utils/withRetry';
+import { fetchCanManageRanking } from '@/lib/ranking/rankingConfig';
 
 export type UserRole = 'CEO' | 'ADMIN' | 'OPERATOR' | 'FINANCE_MANAGER' | 'MEMBER' | 'GUEST';
 export type AccessLevel = 'WRITE' | 'READ' | 'HIDE';
@@ -46,6 +47,10 @@ interface AuthContextType {
   confirmIdentity: (memberId: string) => Promise<void>;
   systemMessage: string | null;
   setSystemMessage: (msg: string | null) => void;
+  /** Ranking Manager(/admin/ranking) 접근 가능 여부 — CEO OR ranking_managers. 미로그인/미생성 시 false. */
+  canManageRanking: boolean;
+  /** canManageRanking 조회 완료 여부(false=조회 중). /admin/ranking 클라 가드가 오차단을 피하려 대기. */
+  canManageRankingResolved: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,6 +88,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isPendingMatching, setIsPendingMatching] = useState(false);
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
+  const [canManageRanking, setCanManageRanking] = useState(false);
+  const [canManageRankingResolved, setCanManageRankingResolved] = useState(false);
   const authResolvedRef = useRef(false);
   const authUserSeenRef = useRef(false);
   const profileLookupStartedRef = useRef(false);
@@ -428,6 +435,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Ranking Manager 여부 — 로그인 사용자 변경 시 1회 조회(can_manage_ranking RPC).
+  //   미로그인/RPC 미생성/실패 시 false(안전). syncProfile 과 독립 — 인증 흐름에 영향 없음.
+  useEffect(() => {
+    if (!user?.id) { setCanManageRanking(false); setCanManageRankingResolved(true); return; }
+    let cancelled = false;
+    setCanManageRankingResolved(false);
+    fetchCanManageRanking().then((ok) => {
+      if (!cancelled) { setCanManageRanking(ok); setCanManageRankingResolved(true); }
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   const confirmIdentity = async (memberId: string) => {
     if (!user?.email) return;
     try {
@@ -471,7 +490,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user, session, role, appConfig, isLoading, 
       signInWithKakao, signOut, hasPermission, getRestrictionMessage,
       refreshConfig: fetchConfig, isPendingMatching, setPendingMatching: setIsPendingMatching, confirmIdentity,
-      systemMessage, setSystemMessage
+      systemMessage, setSystemMessage, canManageRanking, canManageRankingResolved
     }}>
       <NavigationGuard>
         {children}

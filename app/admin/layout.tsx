@@ -16,25 +16,29 @@ import AdminBottomNav from '@/components/admin/AdminBottomNav';
 import { getVisibleAdminNavSections } from '@/components/admin/AdminNavConfig';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { user, role, isLoading, signOut } = useAuth();
+    const { user, role, isLoading, signOut, canManageRanking, canManageRankingResolved } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const [menuOpen, setMenuOpen] = React.useState(false);
 
     // route 별 접근 판정(서버 middleware 와 동일 기준 — lib/admin/adminAccess). 클라이언트는 2차(플래시 방지).
-    const allowed = !!user && canAccessAdminRoute(pathname || '', role);
+    //   /admin/ranking 은 CEO OR ranking_managers → canManageRanking 주입(비CEO 매니저 오차단 방지).
+    const allowed = !!user && canAccessAdminRoute(pathname || '', role, { isRankingManager: canManageRanking });
+    // /admin/ranking 은 canManageRanking 조회가 끝나기 전까지 판정 보류(비CEO 매니저 오차단 방지).
+    const rankingRoute = (pathname || '').startsWith('/admin/ranking');
+    const waitingRankingCheck = rankingRoute && !!user && !canManageRankingResolved;
 
     React.useEffect(() => {
         // auth 로딩/role 미확정 중에는 redirect 하지 않는다(새로고침 직후 CEO 가 튕기는 문제 방지).
-        if (isLoading) return;
+        if (isLoading || waitingRankingCheck) return;
         // 로딩 완료 + (미로그인 또는 현재 route 미허용)일 때만 차단. 실제 차단은 서버(middleware)가 1차.
         if (!allowed) router.replace('/');
-    }, [isLoading, allowed, router]);
+    }, [isLoading, waitingRankingCheck, allowed, router]);
 
     // 라우트 이동 시 시트 닫기.
     React.useEffect(() => { setMenuOpen(false); }, [pathname]);
 
-    if (isLoading) {
+    if (isLoading || waitingRankingCheck) {
         return (
             <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2F7' }}>
                 <div style={{ width: 36, height: 36, border: '3px solid #2563EB', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -89,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </button>
                         </div>
                         <div style={{ padding: '6px 12px 12px' }}>
-                            {getVisibleAdminNavSections(role).map((section) => (
+                            {getVisibleAdminNavSections(role, { canManageRanking }).map((section) => (
                                 <div key={section.title} style={{ marginBottom: 14 }}>
                                     <p style={{ margin: '0 0 6px 10px', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: '#7C8AA5' }}>{section.title}</p>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
