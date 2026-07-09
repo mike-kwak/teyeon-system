@@ -13,6 +13,7 @@ import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { LogOut, Settings, ChevronRight, ShieldCheck, Trophy, Sparkles, Lock } from 'lucide-react';
 import {
     PlayerCardModal,
+    MEMBER_LIST_COLS,
     type PlayerCardMember,
     type VisibilityLevel,
 } from '@/components/players/PlayerCardModal';
@@ -29,7 +30,6 @@ type ProfileVisibility = VisibilityLevel;
 type LinkedMember = {
     id: string;
     nickname: string;
-    email?: string | null;
     profile_visibility_level?: ProfileVisibility | null;
     intro?: string | null;
     role?: string | null;
@@ -74,44 +74,19 @@ export default function ProfilePage() {
         if (!user?.id) return;
 
         let cancelled = false;
-        const authEmailNorm = (user.email || '').trim().toLowerCase();
 
-        // 안전한 회원 연결 우선순위:
-        //   1순위: members.auth_user_id === auth.uid() 정확 일치
-        //   2순위: 검증된 auth 이메일과 members.email 정확 일치(소문자·trim, 정확히 1명, 안전 조건 충족)
-        // 이름/닉네임 부분 일치·첫 결과 자동 선택·임의 덮어쓰기는 절대 사용하지 않는다.
+        // 본인 회원 연결 판정 — members.auth_user_id === auth.uid() 정확 일치만 사용한다.
+        //   P2 개인정보 최소화: email/이름/닉네임 매칭·부분 일치·임의 덮어쓰기를 재도입하지 않는다.
+        //   미연결(auth_user_id 매핑 없음)이면 'no-link' → 화면은 claim RPC 흐름으로 안내하고
+        //   Profile 화면에서 임의 연결하지 않는다. select 는 화면 표시에 쓰는 최소 컬럼만(email 미조회).
         const resolveLinkedMember = async (): Promise<{ member: LinkedMember | null; issue: 'none' | 'no-link' | 'conflict' }> => {
-            // 1순위: auth_user_id 정확 일치
             const { data: byAuth, error: authErr } = await supabase
                 .from('members')
-                .select('*')
+                .select(MEMBER_LIST_COLS)
                 .eq('auth_user_id', user.id);
             if (authErr) throw authErr;
             if (byAuth && byAuth.length > 1) return { member: null, issue: 'conflict' }; // 동일 auth_user_id 중복 연결
-            if (byAuth && byAuth.length === 1) return { member: byAuth[0] as LinkedMember, issue: 'none' };
-
-            // 2순위: 검증된 이메일 exact match(안전 조건 모두 충족 시에만 표시)
-            if (authEmailNorm) {
-                const { data: byEmailRaw, error: emailErr } = await supabase
-                    .from('members')
-                    .select('*')
-                    .ilike('email', user.email!.trim()); // 대소문자 무시 coarse 필터
-                if (emailErr) throw emailErr;
-                // ilike coarse 결과를 JS에서 소문자·trim 정확 일치로 최종 검증(부분 일치 방지).
-                const exact = (byEmailRaw || []).filter(
-                    (m: any) => (m.email || '').trim().toLowerCase() === authEmailNorm,
-                );
-                if (exact.length > 1) return { member: null, issue: 'conflict' }; // 동일 이메일 회원 2명+
-                if (exact.length === 1) {
-                    const m = exact[0] as any;
-                    const mAuth = (m.auth_user_id || '').trim();
-                    // member.auth_user_id 가 비어있거나 현재 uid 와 동일할 때만 안전.
-                    // (1순위에서 이 uid 로 연결된 member 가 없음을 확인했으므로, 다른 uid 연결이면 충돌)
-                    if (!mAuth || mAuth === user.id) return { member: m as LinkedMember, issue: 'none' };
-                    return { member: null, issue: 'conflict' };
-                }
-            }
-
+            if (byAuth && byAuth.length === 1) return { member: byAuth[0] as unknown as LinkedMember, issue: 'none' };
             return { member: null, issue: 'no-link' };
         };
 
@@ -193,7 +168,7 @@ export default function ProfilePage() {
         return () => {
             cancelled = true;
         };
-    }, [user?.id, user?.email]);
+    }, [user?.id]);
 
     const handleVisibilitySaved = useCallback((level: VisibilityLevel) => {
         setLinkedMember((prev) => prev ? { ...prev, profile_visibility_level: level } : prev);
@@ -201,13 +176,11 @@ export default function ProfilePage() {
 
     const playerCardMember = useMemo<PlayerCardMember | null>(() => {
         if (!linkedMember) return null;
-        // PlayerCardModal.handleVisibilitySave는 user.email === member.email 일치를 본인 확인 조건으로
-        // 사용하므로, members 행에 email이 비어있을 경우 로그인 이메일로 폴백한다.
-        const memberEmail = linkedMember.email || user?.email || undefined;
+        // 본인 확인은 서버(set_my_profile_visibility RPC)가 auth.uid() 로 수행 — email 불필요.
+        //   P2: members.email 을 조회/전달하지 않는다(개인정보 최소화).
         return {
             id: linkedMember.id,
             nickname: linkedMember.nickname,
-            email: memberEmail,
             role: linkedMember.role || undefined,
             is_admin: linkedMember.is_admin ?? undefined,
             is_guest: linkedMember.is_guest ?? undefined,
@@ -220,7 +193,7 @@ export default function ProfilePage() {
             profile_avatar_url: linkedMember.profile_avatar_url || undefined,
             profile_visibility_level: (linkedMember.profile_visibility_level as VisibilityLevel) || 'public',
         };
-    }, [linkedMember, user?.email]);
+    }, [linkedMember]);
 
     const playerCardAvatar = useMemo<string | undefined>(() => {
         if (!linkedMember) return undefined;

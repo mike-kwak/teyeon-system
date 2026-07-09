@@ -263,15 +263,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             //   서버가 ① 본인 row 표시정보 갱신 ② email 매칭 row 를 uid 로 이전(role 보존)
             //   ③ 신규 GUEST 생성 을 안전하게 처리(role 은 클라가 지정 불가). email 은 JWT.
             //   no-op 방지: 값이 실제로 달라졌을 때만 호출(불필요한 RPC 왕복 억제).
-            const dbEmail = (profile as any).email || null;
             const dbNickname = (profile as any).nickname || null;
             const dbAvatarUrl = (profile as any).avatar_url || null;
+            // P2: profiles.email 을 조회하지 않으므로(email 미select) email 변경 비교를 제거한다.
+            //   과거엔 dbEmail 이 항상 null 이 되어 emailChanged 가 매 로드 true → 불필요한 RPC 왕복 유발.
+            //   email reconcile(신규/이전)은 profile 미존재 시 else 분기의 sync_my_profile 이 JWT 로 처리.
             const needsReconcile = profile.id !== currentUser.id;
-            const emailChanged = currentUser.email != null && dbEmail !== currentUser.email;
             const nicknameChanged = dbNickname !== nickname;
             const avatarChanged = dbAvatarUrl !== avatarUrl;
 
-            if (needsReconcile || emailChanged || nicknameChanged || avatarChanged) {
+            if (needsReconcile || nicknameChanged || avatarChanged) {
               const { error: syncError } = await withAuthTimeout(
                 supabase.rpc('sync_my_profile', { p_nickname: nickname, p_avatar_url: avatarUrl }),
                 'Profile sync RPC',
@@ -480,14 +481,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, isLoading, isPendingMatching, confirmIdentity, signOut, setPendingMatching } = useAuth();
+    // 회원 매칭(claim) 흐름은 별도 화면(app/kdk)에서 confirmIdentity RPC 로 수행한다.
+    //   NavigationGuard 는 로그인 로딩 게이트 + 미로그인 리다이렉트만 담당(회원 조회 없음).
+    const { user, isLoading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
-    const [inputValue, setInputValue] = useState('');
-    const [matchingStatus, setMatchingStatus] = useState<'idle' | 'searching' | 'error'>('idle');
-    const [matchedMember, setMatchedMember] = useState<any>(null);
-    const [searchResult, setSearchResult] = useState<any[]>([]);
-    
+
     // Load state debugging & timeout (v3.9 Stability)
     const [isLoadTimeout, setIsLoadTimeout] = useState(false);
 
@@ -498,63 +497,6 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
       pathname?.startsWith('/club/') ||
       // 재무 공개 공지(월회비·KDK 벌금/상금) — 로그인 없이 읽기 전용 접근 허용.
       pathname?.startsWith('/finance/public/');
-
-    const handleSearch = async () => {
-        if (!inputValue || inputValue.length < 2) return;
-        setMatchingStatus('searching');
-        setMatchedMember(null);
-        setSearchResult([]);
-        
-        try {
-            const isDigits = /^\d+$/.test(inputValue);
-            
-            // 1. Fetch all eligible members (those not yet linked to an email and NOT guests)
-            const { data: candidates, error } = await supabase
-                .from('members')
-                .select('id, nickname, role, phone, email, is_guest')
-                .is('email', null)
-                .neq('role', 'GUEST');
-
-            if (error) throw error;
-
-            if (isDigits) {
-                // Phone matching (ends with input or exact match)
-                const inputDigits = inputValue.replace(/[^0-9]/g, '');
-                const matches = candidates?.filter(m => {
-                    if (!m.phone) return false;
-                    const dbDigits = m.phone.replace(/[^0-9]/g, '');
-                    return dbDigits.endsWith(inputDigits) || dbDigits === inputDigits;
-                }) || [];
-
-                if (matches.length === 1) {
-                    setMatchedMember(matches[0]);
-                } else if (matches.length > 1) {
-                    setSearchResult(matches);
-                } else {
-                    setMatchingStatus('error');
-                }
-            } else {
-                // Name matching (nickname)
-                const matches = candidates?.filter(m => 
-                    m.nickname && (m.nickname.includes(inputValue) || inputValue.includes(m.nickname))
-                ) || [];
-
-                if (matches.length === 1) {
-                    setMatchedMember(matches[0]);
-                } else if (matches.length > 1) {
-                    setSearchResult(matches);
-                } else {
-                    setMatchingStatus('error');
-                }
-            }
-            
-            if (matchedMember || (searchResult && searchResult.length > 0)) {
-                setMatchingStatus('idle');
-            }
-        } catch (err) {
-            setMatchingStatus('error');
-        }
-    };
 
     useEffect(() => {
         // Timeout for loading (Stability v3.9)
