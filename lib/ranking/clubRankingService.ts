@@ -16,7 +16,9 @@ import {
   computeClubRanking,
   type ClubRankingResult,
   type ClubRankingSeason,
+  type ClubRankingMemberInput,
 } from './clubRankingCore';
+import { getActiveRankingConfig } from './rankingConfig';
 
 export type { ClubRankingResult, ClubRankingSeason };
 export {
@@ -39,13 +41,17 @@ type MemberRow = {
 
 type ProfileRow = { id?: string | null; avatar_url?: string | null };
 
+export type RankingInputs = {
+  archiveRows: KdkArchiveRow[];
+  members: ClubRankingMemberInput[];
+};
+
 /**
- * 클럽 랭킹 집계 — 공식 KDK Archive 1회 조회 + members 명단 배치 계산.
- * @param season 연도(예: 2026) 또는 'all'(누적). 기본값은 현재 연도(현재 시즌).
+ * 랭킹 계산 입력(공식 KDK Archive + members 명단 + 아바타)을 1회 조회한다.
+ *   산식(config)에 무관한 순수 입력 — Ranking Manager 미리보기가 현재/후보 config 로
+ *   같은 입력을 2회 계산할 수 있도록 fetch 를 분리했다(중복 조회 방지).
  */
-export async function fetchClubRanking(
-  season: ClubRankingSeason = new Date().getFullYear(),
-): Promise<ClubRankingResult> {
+export async function loadRankingInputs(): Promise<RankingInputs> {
   const [archiveRes, membersRes] = await Promise.all([
     supabase
       .from('teyeon_archive_v1')
@@ -89,5 +95,20 @@ export async function fetchClubRanking(
     };
   });
 
-  return computeClubRanking((archiveRes.data || []) as KdkArchiveRow[], members, season);
+  return { archiveRows: (archiveRes.data || []) as KdkArchiveRow[], members };
+}
+
+/**
+ * 클럽 랭킹 집계 — 공식 KDK Archive 1회 조회 + members 명단 배치 계산.
+ *   유효(published) 산식을 조회해 주입한다. 미존재/조회 실패 시 DEFAULT_RANKING_CONFIG 폴백(무장애).
+ * @param season 연도(예: 2026) 또는 'all'(누적). 기본값은 현재 연도(현재 시즌).
+ */
+export async function fetchClubRanking(
+  season: ClubRankingSeason = new Date().getFullYear(),
+): Promise<ClubRankingResult> {
+  const [inputs, configRes] = await Promise.all([
+    loadRankingInputs(),
+    getActiveRankingConfig(season),
+  ]);
+  return computeClubRanking(inputs.archiveRows, inputs.members, season, configRes.values);
 }

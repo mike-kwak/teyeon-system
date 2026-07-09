@@ -34,6 +34,32 @@ export const RANKING_MIN_SESSIONS = 2;
 export const BEST_WINRATE_MIN_GAMES = 6;
 
 /**
+ * 랭킹 산식 값(가중치 + 최소 조건). Ranking Manager 가 버전으로 관리한다(ranking_config).
+ * core 는 이 값만 받아 계산하며, 미전달 시 DEFAULT_RANKING_CONFIG(= 위 상수)로 동작한다
+ * → config 미존재/조회 실패 시에도 현재 확정 산식과 100% 동일한 결과를 낸다(backward compatible).
+ */
+export interface RankingConfigValues {
+  participation: number;
+  win: number;
+  bonusFirst: number;
+  bonusSecond: number;
+  bonusThird: number;
+  minSessions: number;
+  bestWinrateMinGames: number;
+}
+
+/** 현재 확정 산식(위 상수에서 파생 — 단일 출처). config 조회 실패 시 폴백 기본값. */
+export const DEFAULT_RANKING_CONFIG: RankingConfigValues = {
+  participation: RANKING_POINTS.participation,
+  win: RANKING_POINTS.win,
+  bonusFirst: RANKING_POINTS.bonusFirst,
+  bonusSecond: RANKING_POINTS.bonusSecond,
+  bonusThird: RANKING_POINTS.bonusThird,
+  minSessions: RANKING_MIN_SESSIONS,
+  bestWinrateMinGames: BEST_WINRATE_MIN_GAMES,
+};
+
+/**
  * 집계 기간.
  *   number         → 연도(시즌) 필터 (예: 2026)
  *   'all'          → 누적(전체 공식 기록)
@@ -140,6 +166,7 @@ export function computeClubRanking(
   archiveRows: KdkArchiveRow[],
   members: ClubRankingMemberInput[],
   season: ClubRankingSeason = 'all',
+  config: RankingConfigValues = DEFAULT_RANKING_CONFIG,
 ): ClubRankingResult {
   // 시즌 필터 — 공식/kdk 필터는 calculateKdkArchiveStats 가 내부에서 재적용하므로(공통 기준)
   //   여기서는 날짜(연도)만 자른다. 날짜 기준은 동일 helper(getArchiveDate)를 재사용.
@@ -170,12 +197,12 @@ export function computeClubRanking(
 
     const games = stats.totalWins + stats.totalLosses;
     const winRate = games > 0 ? Math.round((stats.totalWins / games) * 1000) / 10 : 0;
-    const participationPoints = stats.totalSessions * RANKING_POINTS.participation;
-    const winPoints = stats.totalWins * RANKING_POINTS.win;
+    const participationPoints = stats.totalSessions * config.participation;
+    const winPoints = stats.totalWins * config.win;
     const bonusPoints =
-      stats.firstPlaceCount * RANKING_POINTS.bonusFirst +
-      stats.secondPlaceCount * RANKING_POINTS.bonusSecond +
-      stats.thirdPlaceCount * RANKING_POINTS.bonusThird;
+      stats.firstPlaceCount * config.bonusFirst +
+      stats.secondPlaceCount * config.bonusSecond +
+      stats.thirdPlaceCount * config.bonusThird;
 
     entries.push({
       rank: 0, // 정렬 후 부여
@@ -195,7 +222,7 @@ export function computeClubRanking(
       championCount: stats.firstPlaceCount,
       top3Count: stats.top3Count,
       latestRank: stats.latestRank,
-      eligible: stats.totalSessions >= RANKING_MIN_SESSIONS,
+      eligible: stats.totalSessions >= config.minSessions,
     });
   }
 
@@ -206,7 +233,7 @@ export function computeClubRanking(
   const eligiblePool = entries.filter((e) => e.eligible);
   const awards: ClubRankingAwards = entries.length === 0 ? emptyAwards : {
     mostParticipation: pickAward(eligiblePool, (e) => e.sessions),
-    bestWinRate: pickAward(eligiblePool.filter((e) => e.games >= BEST_WINRATE_MIN_GAMES), (e) => e.winRate),
+    bestWinRate: pickAward(eligiblePool.filter((e) => e.games >= config.bestWinrateMinGames), (e) => e.winRate),
     mostWins: pickAward(eligiblePool, (e) => e.wins),
     mostChampionships: pickAward(eligiblePool, (e) => e.championCount),
     mostTop3: pickAward(eligiblePool, (e) => e.top3Count),
