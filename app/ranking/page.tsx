@@ -811,8 +811,8 @@ export default function RankingPage() {
         {/* 딥링크 행/카드 hover·active — 인라인 배경과 충돌하지 않도록 filter/opacity 사용(페이지 로컬 클래스, 전역 CSS 아님) */}
         <style>{`.rank-row{transition:filter .15s,opacity .1s}.rank-row:hover{filter:brightness(0.98)}.rank-row:active{opacity:.9}`}</style>
 
-        {/* ── 헤더: 뒤로 + 타이틀 ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, paddingTop: 16 }}>
+        {/* ── 헤더: 뒤로 + 타이틀 + 상대전적 바로가기 ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11, rowGap: 8, flexWrap: 'wrap', paddingTop: 16 }}>
           <Link
             href="/"
             aria-label="메인으로"
@@ -820,10 +820,16 @@ export default function RankingPage() {
           >
             <ChevronLeft size={19} />
           </Link>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: C.teal, fontFamily: 'var(--font-rajdhani), sans-serif' }}>CLUB RANKING</p>
             <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.text, letterSpacing: '0.02em', fontFamily: 'var(--font-rajdhani), sans-serif' }}>RANKING</h1>
           </div>
+          <div style={{ flex: 1, minWidth: 8 }} />
+          {/* 상대전적 진입 — 헤더 우측 작은 pill(터치 44px). 화면 내부에 상대/파트너 탭 존재 → 문구는 '상대전적'로 유지. */}
+          <Link href="/ranking/head-to-head" aria-label="상대전적"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, backgroundColor: C.tealBg, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 12, fontWeight: 800, textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            <Swords size={15} /> 상대전적
+          </Link>
         </div>
 
         {loading && <LoadingSkeleton />}
@@ -992,23 +998,6 @@ export default function RankingPage() {
             <RankingRules />
           </>
         )}
-
-        {/* ── 회원 간 기록 — 기간(시즌/월간/누적) 탭과 성격이 다른 별도 섹션(상대·파트너 전적 진입) ── */}
-        <Link
-          href="/ranking/head-to-head"
-          aria-label="상대 전적과 파트너 전적 보기"
-          className="rank-row"
-          style={{ ...cardStyle, padding: 16, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}
-        >
-          <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: C.tealBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Swords size={19} color={C.teal} />
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 900, color: C.text }}>회원 간 기록</p>
-            <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub, lineHeight: 1.5 }}>두 회원의 상대 전적과 함께한 파트너 기록을 확인합니다.</p>
-            <p style={{ margin: '6px 0 0', fontSize: 11, fontWeight: 800, color: C.teal, display: 'inline-flex', alignItems: 'center', gap: 3 }}>상대 · 파트너 전적 보기 <ChevronRight size={12} /></p>
-          </div>
-        </Link>
 
         {/* 하단 스크롤 여유 — 실제 흐름 요소(마지막 카드가 BottomNav 뒤로 깔리지 않도록 GlobalMain clearance 에 더해 소량 유지) */}
         <div aria-hidden style={{ height: 8, flexShrink: 0 }} />

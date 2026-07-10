@@ -53,20 +53,21 @@ interface ShootItem {
 const ITEMS: ShootItem[] = [
     {
         id: 'enter',
-        title: '메인 RANKING → 회원 간 기록 진입',
-        desc: '메인 RANKING 카드 → Ranking 하단 “회원 간 기록” → 상대전적 화면',
+        title: '메인 RANKING → 상단 상대전적 진입',
+        desc: '메인 RANKING 카드 → Ranking 상단 “상대전적” → 상대 전적 / 파트너 전적',
         path: '/ranking',
         length: '10~15초',
         flow: [
             '메인 화면에서 RANKING 카드 확인',
             'RANKING 카드 선택 → Ranking 화면 진입',
-            'Ranking 하단 “회원 간 기록” 섹션 확인',
-            '“상대 · 파트너 전적 보기” 선택',
-            '상대전적 화면 진입',
+            'Ranking 헤더 우측 “상대전적” 버튼 확인',
+            '“상대전적” 버튼 선택',
+            '상대전적 화면 진입(상대 전적 / 파트너 전적 탭)',
             '공식 KDK 경기만 반영된다는 안내 문구 확인',
         ],
         narration: [
             'Ranking 은 메인의 독립 메뉴로 진입합니다.',
+            'Ranking 상단의 “상대전적” 버튼으로 진입합니다.',
             '두 회원의 공식 맞대결 기록을 확인하는 화면입니다.',
             'TEYEON 공식 KDK 경기 기록만 반영됩니다.',
             '테스트·비공식 경기와 무승부는 집계에서 제외됩니다.',
