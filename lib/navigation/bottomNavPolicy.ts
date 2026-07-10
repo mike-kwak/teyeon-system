@@ -8,8 +8,8 @@
 export function shouldShowBottomNav(pathname: string): boolean {
   const p = pathname || '';
 
-  // Guest Pass / 공개 둘러보기(/club) / 공개 재무 — 앱 내부 chrome 미노출.
-  if (p.startsWith('/guest/pass')) return false;
+  // 게스트 공개 영역(/guest 신청 · /guest/pass Guest Pass) / 공개 둘러보기(/club) / 공개 재무 — 앱 내부 chrome 미노출.
+  if (p === '/guest' || p.startsWith('/guest/')) return false;
   if (p === '/club' || p.startsWith('/club/')) return false;
   if (p.startsWith('/finance/public')) return false;
 

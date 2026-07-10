@@ -23,8 +23,8 @@ export default function GlobalHeader() {
     }
   }, []);
 
-  // Guest Pass / TEYEON 공개 둘러보기(/club) 페이지에서는 앱 내부 chrome을 노출하지 않음.
-  if (pathname?.startsWith('/guest/pass')) return null;
+  // 게스트 공개 영역(/guest 신청 · /guest/pass Guest Pass) / TEYEON 공개 둘러보기(/club) 에서는 앱 내부 chrome 미노출.
+  if (pathname === '/guest' || pathname?.startsWith('/guest/')) return null;
   if (pathname === '/club' || pathname?.startsWith('/club/')) return null;
 
   return (

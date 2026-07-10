@@ -511,7 +511,9 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     const isWhiteTheme = pathname === '/sample-white';
     const isPublicPath =
-      pathname?.startsWith('/guest/pass/') ||
+      // 게스트 공개 영역 — 신청(/guest)과 Guest Pass(/guest/pass) 모두 비로그인 접근 허용.
+      pathname === '/guest' ||
+      pathname?.startsWith('/guest/') ||
       pathname === '/club' ||
       pathname?.startsWith('/club/') ||
       // 재무 공개 공지(월회비·KDK 벌금/상금) — 로그인 없이 읽기 전용 접근 허용.
