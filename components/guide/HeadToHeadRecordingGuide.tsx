@@ -17,15 +17,18 @@ import {
 
 const COMPLETION_KEY = 'teyeon:guide:head-to-head:completion';
 
-// 촬영 예시로 사용할 실제 회원(공식 KDK 상대전적이 존재하는 조합).
+// 촬영 예시로 사용할 실제 회원(공식 KDK 기록이 존재하는 조합).
 //   · 김병식 vs 김영호 = 3:3 동률(승패 반전 없는 균형 예시)
 //   · 김병식 vs 구봉준 = 6:1(우세·A/B 교체 시 승률 반전 예시)
+//   · 김병식 × 김재형 = 같은 팀 파트너 전적 예시(view=partner)
 const H2H = '/ranking/head-to-head';
 const EX_A = '38f05c6c-0410-4abe-bbf4-0cd18a89f5d6'; // 김병식
 const EX_B = '21b0f073-551a-4d66-bbf6-a9620d930348'; // 김영호
 const EX_C = 'b15208b7-8898-4135-a975-5844ef3811ba'; // 구봉준
+const EX_D = 'f0967987-c117-4acb-90ae-2291b1165569'; // 김재형
 const EX_PAIR = `${H2H}?memberA=${EX_A}&memberB=${EX_B}`;
 const EX_SWAP = `${H2H}?memberA=${EX_A}&memberB=${EX_C}`;
+const EX_PARTNER = `${H2H}?memberA=${EX_A}&memberB=${EX_D}&view=partner`;
 
 // 공통 촬영 주의사항(개인정보·조회 전용·범위).
 const COMMON_CAUTIONS = [
@@ -168,6 +171,31 @@ const ITEMS: ShootItem[] = [
         ],
         cautions: COMMON_CAUTIONS,
     },
+    {
+        id: 'partner',
+        title: '파트너 전적 탭 (같은 팀 공동 성적)',
+        desc: '상대 전적 ↔ 파트너 전적 탭 전환 · 공동 승·패·파트너 승률',
+        path: EX_PARTNER,
+        length: '20~28초',
+        flow: [
+            '같은 두 회원 선택 상태에서 “파트너 전적” 탭 선택',
+            '회원 선택을 다시 하지 않고 탭만 전환되는 것 확인',
+            '함께 출전한 경기 수 확인',
+            '공동 승리 · 공동 패배 확인',
+            '파트너 승률 확인',
+            '최근 함께한 경기 확인(같은 팀 · 상대 팀 · 점수)',
+            '“전체 경기 보기”로 전체 파트너 경기 펼치기',
+            '“상대 전적” 탭으로 되돌아가 결과가 유지되는 것 확인',
+            '(선택) 함께 뛴 적 없는 조합으로 “아직 함께 출전한 공식 경기 기록이 없습니다” 확인',
+        ],
+        narration: [
+            '두 회원이 같은 팀으로 함께 뛴 공식 경기의 공동 성적입니다.',
+            '함께한 경기, 공동 승리·패배, 파트너 승률을 보여줍니다.',
+            '기준·상대 순서를 바꿔도 파트너 전적 결과는 동일합니다.',
+            '같은 팀 경기만 집계하며, 서로 상대 팀이던 경기는 상대 전적에서 확인합니다.',
+        ],
+        cautions: COMMON_CAUTIONS,
+    },
 ];
 
 // ── 촬영 완료 상태(로컬 전용 체크리스트) ──────────────────────────────────────
@@ -252,7 +280,7 @@ export default function HeadToHeadRecordingGuide() {
             {/* 요약 / 상태 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
                 <p style={{ margin: 0, flex: 1, minWidth: 240, fontSize: 12.5, fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
-                    두 회원의 공식 KDK 맞대결(총·승·패·승률·우세)과 최근 경기를 확인하는 흐름을 촬영합니다. 대상 표기: <b>회원용</b> · 진입 경로{' '}
+                    두 회원의 공식 KDK <b>상대 전적</b>(총·승·패·승률·우세)과 <b>파트너 전적</b>(같은 팀 공동 성적)을 탭으로 전환하며 확인하는 흐름을 촬영합니다. 대상 표기: <b>회원용</b> · 진입 경로{' '}
                     <code style={codeStyle}>/ranking</code> → <code style={codeStyle}>/ranking/head-to-head</code>
                 </p>
                 <div style={{ display: 'flex', gap: 8 }}>

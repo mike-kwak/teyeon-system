@@ -85,7 +85,7 @@ export async function loadRankingInputs(): Promise<RankingInputs> {
   const [archiveRes, membersRes] = await Promise.all([
     supabase
       .from('teyeon_archive_v1')
-      .select('id, created_at, raw_data, is_official, archive_type')
+      .select('id, created_at, raw_data, is_official, archive_type, is_test')
       .eq('archive_type', 'kdk')
       .eq('is_official', true)
       .order('created_at', { ascending: false }),

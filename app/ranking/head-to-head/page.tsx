@@ -10,11 +10,11 @@ export const dynamic = 'force-dynamic';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Search, X, ArrowLeftRight, ChevronRight, Swords } from 'lucide-react';
+import { ChevronLeft, Search, X, ArrowLeftRight, ChevronRight, Swords, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { loadRankingInputs } from '@/lib/ranking/clubRankingService';
-import { computeHeadToHead, type HeadToHeadResult, type HeadToHeadMemberRef } from '@/lib/ranking/headToHead';
+import { computeHeadToHead, computePartnerRecord, type HeadToHeadResult, type PartnerRecordSummary, type HeadToHeadMemberRef } from '@/lib/ranking/headToHead';
 import type { KdkArchiveRow } from '@/lib/kdkArchiveStats';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
 import { fetchMemberOfficialStats, type PlayerCardStats } from '@/lib/profile/getMemberOfficialStats';
@@ -117,6 +117,7 @@ function HeadToHeadInner() {
   const [loadError, setLoadError] = useState(false);
   const [aId, setAId] = useState<string | null>(sp.get('memberA'));
   const [bId, setBId] = useState<string | null>(sp.get('memberB'));
+  const [view, setView] = useState<'opponent' | 'partner'>(sp.get('view') === 'partner' ? 'partner' : 'opponent');
   const [picker, setPicker] = useState<null | 'a' | 'b'>(null);
   const [showAll, setShowAll] = useState(false);
   const mountedRef = useRef(false);
@@ -157,12 +158,12 @@ function HeadToHeadInner() {
     return () => { cancelled = true; };
   }, [gateOk, inputs, memberIds, aId, sp, user]);
 
-  // URL 동기화.
+  // URL 동기화(회원 선택 + 탭 view).
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
-    const qs = [aId ? `memberA=${aId}` : '', bId ? `memberB=${bId}` : ''].filter(Boolean).join('&');
+    const qs = [aId ? `memberA=${aId}` : '', bId ? `memberB=${bId}` : '', `view=${view}`].filter(Boolean).join('&');
     router.replace(`/ranking/head-to-head${qs ? `?${qs}` : ''}`, { scroll: false });
-  }, [aId, bId, router]);
+  }, [aId, bId, view, router]);
 
   const memberById = useCallback((id: string | null): Member | null => (id && inputs ? inputs.members.find((m) => m.id === id) ?? null : null), [inputs]);
   const aMember = memberById(aId);
@@ -173,9 +174,16 @@ function HeadToHeadInner() {
     if (!inputs || !aId || !bId || aId === bId) return null;
     return computeHeadToHead(inputs.archiveRows, aId, bId, memberRefs);
   }, [inputs, aId, bId, memberRefs]);
+  // 파트너 전적(같은 팀) — 동일 fetch 로 함께 계산(A/B 순서 무관하게 동일).
+  const partnerResult: PartnerRecordSummary | null = useMemo(() => {
+    if (!inputs || !aId || !bId || aId === bId) return null;
+    return computePartnerRecord(inputs.archiveRows, aId, bId, memberRefs);
+  }, [inputs, aId, bId, memberRefs]);
   useEffect(() => {
     if (result && result.excludedUnresolvedMatches > 0) console.info('[HeadToHead] 식별 불가 경기 제외 수:', result.excludedUnresolvedMatches);
   }, [result]);
+  // 탭 전환 시 "전체 보기" 초기화.
+  useEffect(() => { setShowAll(false); }, [view]);
 
   const swap = () => { setAId(bId); setBId(aId); setShowAll(false); };
   const pick = (id: string) => { if (picker === 'a') { if (id === bId) setBId(null); setAId(id); } else if (picker === 'b') { if (id === aId) setAId(null); setBId(id); } setPicker(null); setShowAll(false); };
@@ -232,6 +240,7 @@ function HeadToHeadInner() {
 
   const recent = result ? (showAll ? result.matches : result.matches.slice(0, 5)) : [];
   const leaderName = result?.leader === 'a' ? aMember?.name : result?.leader === 'b' ? bMember?.name : null;
+  const partnerRecent = partnerResult ? (showAll ? partnerResult.matches : partnerResult.matches.slice(0, 5)) : [];
 
   return (
     <main style={{ width: '100%', backgroundColor: '#F2F4F7', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowX: 'clip' }}>
@@ -258,6 +267,24 @@ function HeadToHeadInner() {
           <MemberSlot label="상대 회원 B" member={bMember} accent={C.gold} onOpen={() => setPicker('b')} onCard={openMember} />
         </div>
 
+        {/* 탭: 상대 전적 / 파트너 전적 — 같은 A/B 조합을 유지한 채 전환 */}
+        <div role="tablist" aria-label="전적 종류" style={{ display: 'flex', gap: 6, padding: 4, borderRadius: 12, backgroundColor: '#EAEEF3' }}>
+          {([['opponent', '상대 전적', Swords], ['partner', '파트너 전적', Users]] as const).map(([key, label, Icon]) => {
+            const on = view === key;
+            return (
+              <button key={key} type="button" role="tab" aria-selected={on} onClick={() => setView(key)}
+                style={{
+                  flex: 1, minWidth: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '9px 6px', borderRadius: 9, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                  backgroundColor: on ? C.card : 'transparent', color: on ? C.teal : C.sub, fontSize: 12.5, fontWeight: on ? 900 : 700,
+                  boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none', transition: 'background-color .15s,color .15s',
+                }}>
+                <Icon size={14} aria-hidden style={{ flexShrink: 0 }} /> {label}
+              </button>
+            );
+          })}
+        </div>
+
         {loadError ? (
           <div style={{ ...cardStyle, padding: 20, borderColor: 'rgba(239,68,68,0.25)', backgroundColor: C.redBg, textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.red }}>기록을 불러오지 못했습니다.</p>
@@ -272,72 +299,144 @@ function HeadToHeadInner() {
           <div style={{ ...cardStyle, padding: 22, textAlign: 'center' }}>
             <Swords size={22} color={C.faint} style={{ margin: '0 auto 8px' }} />
             <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>두 회원을 선택하세요</p>
-            <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub }}>공식 KDK 경기 기준 맞대결 전적을 보여드립니다.</p>
+            <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub }}>공식 KDK 경기 기준 상대 전적과 파트너 전적을 보여드립니다.</p>
           </div>
-        ) : result && result.totalGames === 0 ? (
-          <div style={{ ...cardStyle, padding: 22, textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>아직 공식 맞대결 기록이 없습니다.</p>
-            <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub }}>두 회원이 서로 상대 팀으로 출전한 공식 경기가 없습니다(같은 팀 경기는 제외).</p>
-          </div>
-        ) : result ? (
-          <>
-            {/* 요약 */}
-            <section style={{ ...cardStyle, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.teal }}>{result.aWins}</p>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.sub }}>{aMember?.name} 승</p>
-                </div>
-                <div style={{ textAlign: 'center', minWidth: 64 }}>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: C.faint }}>총 {result.totalGames}경기</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 700, color: C.sub }}>A 승률 {result.aWinRate}%</p>
-                </div>
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.gold }}>{result.bWins}</p>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.sub }}>{bMember?.name} 승</p>
-                </div>
-              </div>
-              <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: result.leader === 'tie' ? C.sub : C.text }}>
-                {result.leader === 'tie' ? '현재 동률입니다' : `현재 우세: ${leaderName}`}
-              </div>
-            </section>
-
-            {result.hasUnresolvableRecords && (
-              <p style={{ margin: '0 2px', fontSize: 10.5, fontWeight: 600, color: C.faint, lineHeight: 1.5 }}>
-                일부 과거 기록은 회원 식별이 어려워 집계에서 제외되었습니다.
-              </p>
-            )}
-
-            {/* 최근 경기 */}
-            <section>
-              <p style={{ margin: '2px 0 8px', fontSize: 12, fontWeight: 900, color: C.text }}>최근 맞대결</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {recent.map((m, i) => (
-                  <div key={`${m.archiveId}-${i}`} style={{ ...cardStyle, padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: C.faint }}>{m.date}</span>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: C.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sessionTitle}</span>
-                      <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: m.aWon ? C.teal : C.red, backgroundColor: m.aWon ? C.tealBg : C.redBg }}>
-                        {m.aWon ? `${aMember?.name} 승` : `${bMember?.name} 승`}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.aTeamNames.join(' · ')}</span>
-                      <span style={{ fontSize: 14, fontWeight: 900, color: C.text, flexShrink: 0 }}>{m.scoreA} : {m.scoreB}</span>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.bTeamNames.join(' · ')}</span>
-                    </div>
+        ) : view === 'opponent' ? (
+          result && result.totalGames === 0 ? (
+            <div style={{ ...cardStyle, padding: 22, textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>아직 공식 맞대결 기록이 없습니다.</p>
+              <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub }}>두 회원이 서로 상대 팀으로 출전한 공식 경기가 없습니다(같은 팀 경기는 제외).</p>
+            </div>
+          ) : result ? (
+            <>
+              {/* 상대 전적 요약 */}
+              <section style={{ ...cardStyle, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.teal }}>{result.aWins}</p>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.sub }}>{aMember?.name} 승</p>
                   </div>
-                ))}
-              </div>
-              {result.matches.length > 5 && (
-                <button type="button" onClick={() => setShowAll((v) => !v)}
-                  style={{ marginTop: 10, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.card, color: C.teal, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}>
-                  {showAll ? '최근 5경기만 보기' : `전체 ${result.matches.length}경기 보기`}
-                </button>
+                  <div style={{ textAlign: 'center', minWidth: 64 }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: C.faint }}>총 {result.totalGames}경기</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 700, color: C.sub }}>A 승률 {result.aWinRate}%</p>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.gold }}>{result.bWins}</p>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.sub }}>{bMember?.name} 승</p>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: result.leader === 'tie' ? C.sub : C.text }}>
+                  {result.leader === 'tie' ? '현재 동률입니다' : `현재 우세: ${leaderName}`}
+                </div>
+              </section>
+
+              {result.hasUnresolvableRecords && (
+                <p style={{ margin: '0 2px', fontSize: 10.5, fontWeight: 600, color: C.faint, lineHeight: 1.5 }}>
+                  일부 과거 기록은 회원 식별이 어려워 집계에서 제외되었습니다.
+                </p>
               )}
-            </section>
-          </>
-        ) : null}
+
+              {/* 최근 맞대결 */}
+              <section>
+                <p style={{ margin: '2px 0 8px', fontSize: 12, fontWeight: 900, color: C.text }}>최근 맞대결</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {recent.map((m, i) => (
+                    <div key={`${m.archiveId}-${i}`} style={{ ...cardStyle, padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.faint }}>{m.date}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: C.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sessionTitle}</span>
+                        <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: m.aWon ? C.teal : C.red, backgroundColor: m.aWon ? C.tealBg : C.redBg }}>
+                          {m.aWon ? `${aMember?.name} 승` : `${bMember?.name} 승`}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.aTeamNames.join(' · ')}</span>
+                        <span style={{ fontSize: 14, fontWeight: 900, color: C.text, flexShrink: 0 }}>{m.scoreA} : {m.scoreB}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.bTeamNames.join(' · ')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {result.matches.length > 5 && (
+                  <button type="button" onClick={() => setShowAll((v) => !v)}
+                    style={{ marginTop: 10, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.card, color: C.teal, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}>
+                    {showAll ? '최근 5경기만 보기' : `전체 ${result.matches.length}경기 보기`}
+                  </button>
+                )}
+              </section>
+            </>
+          ) : null
+        ) : (
+          partnerResult && partnerResult.totalGames === 0 ? (
+            <div style={{ ...cardStyle, padding: 22, textAlign: 'center' }}>
+              <Users size={22} color={C.faint} style={{ margin: '0 auto 8px' }} />
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text }}>아직 함께 출전한 공식 경기 기록이 없습니다.</p>
+              <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub }}>두 회원이 같은 팀으로 출전한 공식 경기가 없습니다(상대 팀 경기는 제외).</p>
+            </div>
+          ) : partnerResult ? (
+            <>
+              {/* 파트너 전적 요약 — 협업 구도(양쪽 동일 팀) */}
+              <section style={{ ...cardStyle, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: C.faint }}>파트너 승률</p>
+                  <p style={{ margin: '1px 0 0', fontSize: 26, fontWeight: 900, color: C.teal }}>{partnerResult.winRate}%</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10, backgroundColor: '#F1F5F9' }}>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text }}>{partnerResult.totalGames}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 700, color: C.sub }}>함께한 경기</p>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10, backgroundColor: C.tealBg }}>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.teal }}>{partnerResult.wins}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 700, color: C.sub }}>공동 승리</p>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10, backgroundColor: C.redBg }}>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.red }}>{partnerResult.losses}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 700, color: C.sub }}>공동 패배</p>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: C.sub }}>
+                  {aMember?.name} · {bMember?.name} 함께 {partnerResult.totalGames}경기 · {partnerResult.wins}승 {partnerResult.losses}패
+                </div>
+              </section>
+
+              {partnerResult.hasUnresolvableRecords && (
+                <p style={{ margin: '0 2px', fontSize: 10.5, fontWeight: 600, color: C.faint, lineHeight: 1.5 }}>
+                  일부 과거 기록은 회원 식별이 어려워 집계에서 제외되었습니다.
+                </p>
+              )}
+
+              {/* 최근 함께한 경기 */}
+              <section>
+                <p style={{ margin: '2px 0 8px', fontSize: 12, fontWeight: 900, color: C.text }}>최근 함께한 경기</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {partnerRecent.map((m, i) => (
+                    <div key={`${m.archiveId}-${i}`} style={{ ...cardStyle, padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.faint }}>{m.date}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: C.sub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sessionTitle}</span>
+                        <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: m.won ? C.teal : C.red, backgroundColor: m.won ? C.tealBg : C.redBg }}>
+                          {m.won ? '승' : '패'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: C.teal, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.pairTeamNames.join(' · ')}</span>
+                        <span style={{ fontSize: 14, fontWeight: 900, color: C.text, flexShrink: 0 }}>{m.pairScore} : {m.oppScore}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.oppTeamNames.join(' · ')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {partnerResult.matches.length > 5 && (
+                  <button type="button" onClick={() => setShowAll((v) => !v)}
+                    style={{ marginTop: 10, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.card, color: C.teal, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}>
+                    {showAll ? '최근 5경기만 보기' : `전체 ${partnerResult.matches.length}경기 보기`}
+                  </button>
+                )}
+              </section>
+            </>
+          ) : null
+        )}
 
         <div style={{ height: 'var(--page-bottom-safe, 88px)' }} aria-hidden />
       </div>
