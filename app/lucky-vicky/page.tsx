@@ -14,14 +14,13 @@ import {
 } from 'lucide-react';
 import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
 import {
-  getActiveLuckyVickyRound,
-  getPastLuckyVickyRounds,
   roundTeamCount,
   type LuckyVickyRound,
   type LuckyVickyTeam,
   type LuckyVickyTeamStatus,
   type LuckyVickySupportStatus,
 } from '@/lib/luckyVickyData';
+import { fetchLuckyVickyView } from '@/lib/luckyVickyService';
 
 // ── 디자인 토큰 (Cool Premium Light + soft gold / ivory) ──────────────────────
 const C = {
@@ -76,7 +75,6 @@ function TeamCard({ team, muted }: { team: LuckyVickyTeam; muted?: boolean }) {
         <Badge {...ts} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {row('선정 방식', team.selectionMethod)}
         {row('출전 대회', team.tournamentName)}
         {row('출전 날짜', team.tournamentDate)}
         {row('목표 성적', team.targetResult)}
@@ -112,8 +110,18 @@ const STEPS: { icon: React.ReactNode; title: string; desc: string }[] = [
 
 function LuckyVickyInner() {
   const router = useRouter();
-  const active = getActiveLuckyVickyRound();
-  const past = getPastLuckyVickyRounds();
+  // DB 조회(회원 전용 RLS). 실패/미적용 → 빈 결과 폴백(service) → empty state. 화면 전체 깨짐 방지.
+  const [loaded, setLoaded] = useState(false);
+  const [active, setActive] = useState<LuckyVickyRound | null>(null);
+  const [past, setPast] = useState<LuckyVickyRound[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchLuckyVickyView()
+      .then(({ active, past }) => { if (!cancelled) { setActive(active); setPast(past); } })
+      .catch(() => { if (!cancelled) { setActive(null); setPast([]); } })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, []);
   const pastWithData = past.filter((r) => r.teams.length > 0);
 
   return (
@@ -174,40 +182,46 @@ function LuckyVickyInner() {
           </div>
         </section>
 
-        {/* 현재 회차 */}
-        {active && (
-          <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '0 2px' }}>
-              <span style={{ fontSize: 20, fontWeight: 900, color: C.goldText }}>{active.round}회차</span>
-              <Badge label="진행 중" color="#0E7C76" bg={C.tealBg} />
-              <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: C.sub }}>선정 {roundTeamCount(active)}팀</span>
-            </div>
-            {active.teams.length > 0 ? (
-              active.teams.map((t) => <TeamCard key={t.id} team={t} />)
-            ) : (
-              <EmptyCard title="선정 팀 정보 입력 대기" body={active.note || '각 파트너가 출전할 대회를 협의 중입니다.'} />
-            )}
-          </section>
-        )}
-
-        {/* 지난 회차 History */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p style={{ margin: '4px 2px 0', fontSize: 12, fontWeight: 900, color: C.text }}>지난 회차</p>
-          {pastWithData.length > 0 ? (
-            pastWithData.map((r) => (
-              <div key={r.round} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 2px' }}>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: C.sub }}>{r.title}</span>
-                  <Badge label="종료" color="#475569" bg={C.slateBg} />
+        {!loaded ? (
+          <div style={{ ...cardStyle, padding: 20, textAlign: 'center', color: C.faint, fontSize: 12.5, fontWeight: 700 }}>불러오는 중…</div>
+        ) : (
+          <>
+            {/* 현재 회차 */}
+            {active && (
+              <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '0 2px' }}>
+                  <span style={{ fontSize: 20, fontWeight: 900, color: C.goldText }}>{active.round}회차</span>
+                  <Badge label="진행 중" color="#0E7C76" bg={C.tealBg} />
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: C.sub }}>선정 {roundTeamCount(active)}팀</span>
                 </div>
-                {r.teams.map((t) => <TeamCard key={t.id} team={t} muted />)}
-              </div>
-            ))
-          ) : (
-            <EmptyCard title="지난 회차 기록을 정리 중입니다." body="1·2회차 기록이 입력되면 회차별로 표시됩니다." muted />
-          )}
-        </section>
+                {active.teams.length > 0 ? (
+                  active.teams.map((t) => <TeamCard key={t.id} team={t} />)
+                ) : (
+                  <EmptyCard title="선정 팀 정보 입력 대기" body={active.note || '각 파트너가 출전할 대회를 협의 중입니다.'} />
+                )}
+              </section>
+            )}
+
+            {/* 지난 회차 History */}
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ margin: '4px 2px 0', fontSize: 12, fontWeight: 900, color: C.text }}>지난 회차</p>
+              {pastWithData.length > 0 ? (
+                pastWithData.map((r) => (
+                  <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 2px' }}>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: C.sub }}>{r.title}</span>
+                      <Badge label="종료" color="#475569" bg={C.slateBg} />
+                    </div>
+                    {r.teams.map((t) => <TeamCard key={t.id} team={t} muted />)}
+                  </div>
+                ))
+              ) : (
+                <EmptyCard title="지난 회차 기록을 정리 중입니다." body="1·2회차 기록이 입력되면 회차별로 표시됩니다." muted />
+              )}
+            </section>
+          </>
+        )}
 
         <div style={{ height: 'var(--page-bottom-safe, 88px)' }} aria-hidden />
       </div>

@@ -19,6 +19,7 @@ import {
     Home,
     ListChecks,
     Menu,
+    Sparkles,
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -58,6 +59,13 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
             { id: 'archive', label: '아카이브', href: '/archive', icon: Archive, external: true },
             { id: 'tournament', label: '대회 캘린더', href: '/tournament-calendar', icon: Trophy, external: true },
             { id: 'finance', label: '재무', href: '/finance', icon: Wallet, external: true },
+        ],
+    },
+    {
+        title: '클럽 문화',
+        items: [
+            // CEO/ADMIN(FULL_ADMIN) 에게만 노출 — OPERATOR_VISIBLE_ITEM_IDS 미포함이라 운영진 시트에는 안 뜬다.
+            { id: 'lucky-vicky', label: 'LUCKY VICKY 관리', href: '/admin/lucky-vicky', icon: Sparkles },
         ],
     },
     {

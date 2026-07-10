@@ -5,14 +5,24 @@
 //   · 접근 권한(회원 전용)은 부모(app/page.tsx)가 tennisLogStatus==='allowed' 로 게이트한다.
 //   · Hero 하단과 자연스럽게 연결되는 compact row(약 40px). 과한 pill/금색/애니메이션 금지.
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Clover, ChevronRight } from 'lucide-react';
-import { getActiveLuckyVickyRound, roundTeamCount } from '@/lib/luckyVickyData';
+import { roundTeamCount, type LuckyVickyRound } from '@/lib/luckyVickyData';
+import { fetchSpotlightRound } from '@/lib/luckyVickyService';
 
 export default function LuckyVickySpotlight() {
-  const active = getActiveLuckyVickyRound();
-  if (!active) return null; // active 회차 없음 → 노출 안 함(빈 여백/divider 제거)
+  // DB(active + spotlight_enabled) 조회. 로딩/미존재/조회 실패 → null(여백/divider 없음).
+  const [active, setActive] = useState<LuckyVickyRound | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchSpotlightRound()
+      .then((r) => { if (!cancelled) setActive(r); })
+      .catch(() => { if (!cancelled) setActive(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!active) return null; // active+spotlight 회차 없음/로딩 → 노출 안 함(빈 여백/divider 제거)
 
   const summary = `${active.round}회차 진행 중 · ${roundTeamCount(active)}팀 출전 준비`;
   return (
