@@ -29,6 +29,7 @@ import {
   TENNIS_LOG_LOCKED_BODY,
 } from '@/lib/tennisLogAccess';
 import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
+import LuckyVickySpotlight from '@/components/home/LuckyVickySpotlight';
 
 // ─── 다음 일정 선정 ───────────────────────────────────────────────────────
 // Club Schedule + Tournament Schedule을 단일 비교 구조로 변환해 가장 가까운 1건 선정.
@@ -659,6 +660,9 @@ export default function Home() {
               href={nextSchedule?.href}
             />
           </div>
+
+          {/* Culture Spotlight — 러키비키. 회원(allowed) + active 회차일 때만 노출(없으면 divider/여백 없음). */}
+          {tennisLogStatus === 'allowed' && <LuckyVickySpotlight />}
         </section>
 
         {/* Loading skeleton */}
