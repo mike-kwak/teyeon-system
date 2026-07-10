@@ -14,9 +14,11 @@ import type { KdkArchiveRow } from '../kdkArchiveStats';
 import { normalizeAvatarUrl } from '../memberDisplayResolver';
 import {
   computeClubRanking,
+  DEFAULT_RANKING_CONFIG,
   type ClubRankingResult,
   type ClubRankingSeason,
   type ClubRankingMemberInput,
+  type RankingConfigValues,
 } from './clubRankingCore';
 import { getActiveRankingConfig } from './rankingConfig';
 import { getFinalizedSnapshot, snapshotToResult, RANKING_SNAPSHOT_SCHEMA_VERSION } from './rankingSnapshot';
@@ -60,6 +62,7 @@ export type {
   ClubRankingEntry,
   ClubRankingAwards,
   ClubRankingAwardWinner,
+  RankingConfigValues,
 } from './clubRankingCore';
 
 type MemberRow = {
@@ -128,14 +131,32 @@ export async function loadRankingInputs(): Promise<RankingInputs> {
   return { archiveRows: (archiveRes.data || []) as KdkArchiveRow[], members };
 }
 
+/** 랭킹 결과 + 적용된 산식 값(회원용 Rule 을 v1/v2 에 맞춰 표시하기 위함). */
+export type FetchClubRankingResult = { result: ClubRankingResult; config: RankingConfigValues };
+
+/** snapshot 에 저장된 config(JSON) → RankingConfigValues. 레거시(formulaVersion 미저장) 는 v1. */
+function snapshotConfigValues(cfg: any): RankingConfigValues {
+  return {
+    participation: Number(cfg?.participation ?? DEFAULT_RANKING_CONFIG.participation),
+    win: Number(cfg?.win ?? DEFAULT_RANKING_CONFIG.win),
+    bonusFirst: Number(cfg?.bonusFirst ?? DEFAULT_RANKING_CONFIG.bonusFirst),
+    bonusSecond: Number(cfg?.bonusSecond ?? DEFAULT_RANKING_CONFIG.bonusSecond),
+    bonusThird: Number(cfg?.bonusThird ?? DEFAULT_RANKING_CONFIG.bonusThird),
+    minSessions: Number(cfg?.minSessions ?? DEFAULT_RANKING_CONFIG.minSessions),
+    bestWinrateMinGames: Number(cfg?.bestWinrateMinGames ?? DEFAULT_RANKING_CONFIG.bestWinrateMinGames),
+    formulaVersion: cfg?.formulaVersion === 2 ? 2 : 1,
+  };
+}
+
 /**
  * 클럽 랭킹 집계 — 공식 KDK Archive 1회 조회 + members 명단 배치 계산.
  *   유효(published) 산식을 조회해 주입한다. 미존재/조회 실패 시 DEFAULT_RANKING_CONFIG 폴백(무장애).
+ *   결과와 함께 적용된 config(formulaVersion 포함)를 반환 — 화면 Ranking Rule 동적 표시용.
  * @param season 연도(예: 2026) 또는 'all'(누적). 기본값은 현재 연도(현재 시즌).
  */
 export async function fetchClubRanking(
   season: ClubRankingSeason = new Date().getFullYear(),
-): Promise<ClubRankingResult> {
+): Promise<FetchClubRankingResult> {
   // 종료 시즌(연도) 우선 — finalized snapshot 이 있으면 그 동결 결과를 반환한다.
   //   · 누적('all')·월간({year,month})은 항상 live 계산(finalized snapshot 이중 반영 금지).
   //   · snapshot 미존재/테이블 미생성 → null → live 계산(무회귀).
@@ -154,7 +175,8 @@ export async function fetchClubRanking(
       for (const k of AWARD_KEYS) {
         result.awards[k] = result.awards[k].map((w) => ({ ...w, avatarUrl: avatarMap.get(w.memberId) ?? null }));
       }
-      return result;
+      // 종료 시즌 Rule 은 당시 산식(snapshot.config) 기준으로 표시(현재 config 로 재계산하지 않음).
+      return { result, config: snapshotConfigValues(finalized.data.config) };
     }
   }
 
@@ -162,5 +184,6 @@ export async function fetchClubRanking(
     loadRankingInputs(),
     getActiveRankingConfig(season),
   ]);
-  return computeClubRanking(inputs.archiveRows, inputs.members, season, configRes.values);
+  const result = computeClubRanking(inputs.archiveRows, inputs.members, season, configRes.values);
+  return { result, config: configRes.values };
 }

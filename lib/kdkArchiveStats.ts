@@ -38,6 +38,12 @@ export type KdkArchiveStats = {
   thirdPlaceCount: number;
   top3Count: number;
   latestRank: number | null;
+  /**
+   * 참가 인원 역산형 순위포인트 합(산식 v2 전용, 가산 필드). 세션마다 (세션 참가 인원 N − 최종 순위 R + 1)을
+   * 유효한 ranked 세션에 한해 합산. N 은 해당 세션 최종 순위표(ranking_data)의 stable-id 중복 제거 참가자 수.
+   * R < 1 또는 R > N 인 이상치 세션은 0 처리(잘못된 포인트 생성 방지). v1 산식은 이 값을 사용하지 않는다.
+   */
+  rankPointsSum: number;
   recentSessions: KdkRecentSession[];
   rankedSessionCount: number;
 };
@@ -53,6 +59,7 @@ const emptyStats: KdkArchiveStats = {
   thirdPlaceCount: 0,
   top3Count: 0,
   latestRank: null,
+  rankPointsSum: 0,
   recentSessions: [],
   rankedSessionCount: 0,
 };
@@ -81,6 +88,30 @@ const getMatchPlayerIds = (match: any): string[] =>
 
 const getMatchPlayerNames = (match: any): string[] =>
   match?.player_names || match?.playerNames || [];
+
+/** ranking_data 한 행의 stable 참가자 키(id 우선 → 이름). 식별 불가면 빈 문자열. */
+const participantKey = (player: any): string => {
+  const id = String(player?.id ?? '').trim();
+  if (id) return `id:${id}`;
+  const nm = normalizeName(player?.name);
+  return nm ? `nm:${nm}` : '';
+};
+
+/**
+ * 세션 최종 순위표(ranking_data)의 실제 참가 인원 N — stable id(없으면 이름) 기준 중복 제거.
+ * 이름 목록 길이를 그대로 쓰지 않고, 식별 가능한 참가자는 중복 제거, 식별 불가 행만 개별 계수.
+ * 정상 데이터에서는 ranking_data.length 와 동일(최종 순위표 = 참가자당 1행).
+ */
+const countSessionParticipants = (rankingData: any[]): number => {
+  const seen = new Set<string>();
+  let unidentified = 0;
+  for (const player of rankingData) {
+    const key = participantKey(player);
+    if (key) seen.add(key);
+    else unidentified += 1;
+  }
+  return seen.size + unidentified;
+};
 
 const findRankingEntry = (rankingData: any[], memberId: string, memberName?: string | null) => {
   const byIdIndex = rankingData.findIndex(player => String(player?.id || '') === memberId);
@@ -139,6 +170,7 @@ export function calculateKdkArchiveStats(
   let thirdPlaceCount = 0;
   let top3Count = 0;
   let rankedSessionCount = 0;
+  let rankPointsSum = 0;
   let latestRank: number | null = null;
 
   const participatedSessions: KdkRecentSession[] = [];
@@ -169,6 +201,12 @@ export function calculateKdkArchiveStats(
       if (rank === 3) thirdPlaceCount += 1;
       if (rank && rank <= 3) top3Count += 1;
       if (latestRank === null) latestRank = rank;
+      // 산식 v2 순위포인트: N − R + 1. N=세션 참가 인원(중복 제거), R=최종 순위.
+      //   R<1 또는 R>N 이상치는 0 처리(임의 보정 없이 잘못된 포인트 방지).
+      const n = countSessionParticipants(rankingData);
+      if (rank !== null && rank >= 1 && n > 0 && rank <= n) {
+        rankPointsSum += n - rank + 1;
+      }
     }
 
     participatedSessions.push({
@@ -196,6 +234,7 @@ export function calculateKdkArchiveStats(
     thirdPlaceCount,
     top3Count,
     latestRank,
+    rankPointsSum,
     recentSessions: participatedSessions.slice(0, 5),
     rankedSessionCount,
   };

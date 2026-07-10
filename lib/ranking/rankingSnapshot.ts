@@ -115,7 +115,8 @@ export function snapshotToResult(data: RankingSnapshotData, season: ClubRankingR
     totalOfficialSessions: data.summary.officialSessionCount,
     aggregatedMembers: data.summary.memberCount,
     latestSessionDate: data.summary.latestArchiveDate,
-    entries: (data.entries || []).map((e) => ({ ...e, avatarUrl: null })),
+    // 레거시(v1) snapshot entry 는 rankPoints 가 없다 → 0 보정(저장된 points/bonusPoints 는 그대로 표시).
+    entries: (data.entries || []).map((e) => ({ ...e, avatarUrl: null, rankPoints: (e as { rankPoints?: number }).rankPoints ?? 0 })),
     awards,
   };
 }

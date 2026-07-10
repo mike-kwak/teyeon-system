@@ -46,6 +46,7 @@ export function normalizeRankingConfig(input: Partial<RankingConfigValues>): Ran
     bonusThird: clampInt(input.bonusThird, w.min, w.max, DEFAULT_RANKING_CONFIG.bonusThird),
     minSessions: clampInt(input.minSessions, RANKING_CONFIG_LIMITS.minSessions.min, RANKING_CONFIG_LIMITS.minSessions.max, DEFAULT_RANKING_CONFIG.minSessions),
     bestWinrateMinGames: clampInt(input.bestWinrateMinGames, RANKING_CONFIG_LIMITS.bestWinrateMinGames.min, RANKING_CONFIG_LIMITS.bestWinrateMinGames.max, DEFAULT_RANKING_CONFIG.bestWinrateMinGames),
+    formulaVersion: input.formulaVersion === 2 ? 2 : 1,
   };
 }
 
@@ -63,6 +64,7 @@ export function validateRankingConfig(input: RankingConfigValues): string[] {
   chk('3위 점수', input.bonusThird, w.min, w.max);
   chk('최소 참가 횟수', input.minSessions, RANKING_CONFIG_LIMITS.minSessions.min, RANKING_CONFIG_LIMITS.minSessions.max);
   chk('최고 승률상 최소 경기 수', input.bestWinrateMinGames, RANKING_CONFIG_LIMITS.bestWinrateMinGames.min, RANKING_CONFIG_LIMITS.bestWinrateMinGames.max);
+  if (input.formulaVersion !== 1 && input.formulaVersion !== 2) errs.push('산식 버전은 1 또는 2 여야 합니다.');
   return errs;
 }
 
@@ -90,12 +92,15 @@ const mapRow = (r: any): RankingConfigRow => ({
   bonusThird: Number(r.bonus_third),
   minSessions: Number(r.min_sessions),
   bestWinrateMinGames: Number(r.best_winrate_min_games),
+  // formula_version 컬럼 미배포(마이그레이션 전) 또는 레거시 row → 1(현행 산식) 로 안전 폴백.
+  formulaVersion: Number(r.formula_version) === 2 ? 2 : 1,
 });
 
 const pickValues = (r: RankingConfigRow): RankingConfigValues => ({
   participation: r.participation, win: r.win,
   bonusFirst: r.bonusFirst, bonusSecond: r.bonusSecond, bonusThird: r.bonusThird,
   minSessions: r.minSessions, bestWinrateMinGames: r.bestWinrateMinGames,
+  formulaVersion: r.formulaVersion,
 });
 
 /** season_key 를 config 조회용 문자열로. number → 'YYYY', 'all' → 'all', {year,month} → season 은 config 미분리라 'YYYY'. */
@@ -177,6 +182,7 @@ export async function saveRankingDraft(
       participation: v.participation, win: v.win,
       bonus_first: v.bonusFirst, bonus_second: v.bonusSecond, bonus_third: v.bonusThird,
       min_sessions: v.minSessions, best_winrate_min_games: v.bestWinrateMinGames,
+      formula_version: v.formulaVersion,
       status: 'draft', reason: reason.trim() || null,
     })
     .select('*')
@@ -205,6 +211,8 @@ export async function publishRankingConfig(
     p_min_sessions: v.minSessions,
     p_best_winrate_min_games: v.bestWinrateMinGames,
     p_reason: reason.trim(),
+    // 신규 인자(RPC 는 default 1 로 배포 순서 안전) — v1 publish 는 1, v2 publish 는 2.
+    p_formula_version: v.formulaVersion,
   });
   if (error) throw error;
   return mapRow(data);

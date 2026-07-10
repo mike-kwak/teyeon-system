@@ -28,13 +28,15 @@ import {
 import {
   fetchClubRanking,
   SNAPSHOT_SCHEMA_UNSUPPORTED,
-  RANKING_POINTS,
   RANKING_MIN_SESSIONS,
   BEST_WINRATE_MIN_GAMES,
   type ClubRankingResult,
   type ClubRankingEntry,
   type ClubRankingAwardWinner,
+  type FetchClubRankingResult,
+  type RankingConfigValues,
 } from '@/lib/ranking/clubRankingService';
+import { DEFAULT_RANKING_CONFIG } from '@/lib/ranking/clubRankingCore';
 import {
   listFinalizedRankingSeasons,
   buildAvailableSeasons,
@@ -337,7 +339,9 @@ function RuleLine({ children }: { children: React.ReactNode }) {
   );
 }
 
-function RankingRules() {
+function RankingRules({ config }: { config: RankingConfigValues }) {
+  // 현재 적용(published/기본 또는 종료 시즌 snapshot) 산식 값 기준으로 회원용 안내를 동적으로 표시.
+  const isV2 = config.formulaVersion === 2;
   return (
     <section id="ranking-rules" style={{ ...cardStyle, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -366,20 +370,34 @@ function RankingRules() {
       <div>
         <p style={{ margin: '0 0 4px', fontSize: 10.5, fontWeight: 900, color: C.faint, letterSpacing: '0.08em' }}>랭킹 포인트</p>
         <ul style={{ margin: 0, paddingLeft: 16 }}>
-          <RuleLine>공식 KDK 참가 1회 <b style={{ color: C.text }}>+{RANKING_POINTS.participation}점</b></RuleLine>
-          <RuleLine>공식 경기 승리 1회 <b style={{ color: C.text }}>+{RANKING_POINTS.win}점</b></RuleLine>
-          <RuleLine>
-            세션 순위 점수 — 1위 <b style={{ color: C.gold }}>+{RANKING_POINTS.bonusFirst}점</b> · 2위 <b style={{ color: C.text }}>+{RANKING_POINTS.bonusSecond}점</b> · 3위 <b style={{ color: C.text }}>+{RANKING_POINTS.bonusThird}점</b>
-          </RuleLine>
-          <RuleLine>승률·득실은 포인트에 넣지 않고 동률 처리에만 사용</RuleLine>
+          {isV2 ? (
+            <>
+              <RuleLine>참가자는 설정된 기본 참가점수 <b style={{ color: C.text }}>+{config.participation}점</b>을 받습니다</RuleLine>
+              <RuleLine>경기당 승리점수 <b style={{ color: C.text }}>+{config.win}점</b></RuleLine>
+              <RuleLine>
+                순위포인트는 해당 공식 KDK의 <b style={{ color: C.text }}>참가 인원과 최종 순위</b>에 따라 자동 계산됩니다
+                <span style={{ display: 'block', marginTop: 2, fontSize: 10.5, fontWeight: 700, color: C.gold }}>예: 9명 참가 시 1위 9점 · 9위 1점</span>
+              </RuleLine>
+              <RuleLine>승률·득실은 포인트에 넣지 않고 동률 처리에만 사용</RuleLine>
+            </>
+          ) : (
+            <>
+              <RuleLine>공식 KDK 참가 1회 <b style={{ color: C.text }}>+{config.participation}점</b></RuleLine>
+              <RuleLine>공식 경기 승리 1회 <b style={{ color: C.text }}>+{config.win}점</b></RuleLine>
+              <RuleLine>
+                세션 순위 점수 — 1위 <b style={{ color: C.gold }}>+{config.bonusFirst}점</b> · 2위 <b style={{ color: C.text }}>+{config.bonusSecond}점</b> · 3위 <b style={{ color: C.text }}>+{config.bonusThird}점</b>
+              </RuleLine>
+              <RuleLine>승률·득실은 포인트에 넣지 않고 동률 처리에만 사용</RuleLine>
+            </>
+          )}
         </ul>
       </div>
 
       <div>
         <p style={{ margin: '0 0 4px', fontSize: 10.5, fontWeight: 900, color: C.faint, letterSpacing: '0.08em' }}>자격</p>
         <ul style={{ margin: 0, paddingLeft: 16 }}>
-          <RuleLine>정식 랭킹 자격: 공식 KDK <b style={{ color: C.text }}>{RANKING_MIN_SESSIONS}회 이상</b> (1회 참가자는 &lsquo;집계 예정&rsquo;으로 표시)</RuleLine>
-          <RuleLine>최고 승률상: 공식 <b style={{ color: C.text }}>{BEST_WINRATE_MIN_GAMES}경기 이상</b>인 회원만 대상</RuleLine>
+          <RuleLine>정식 랭킹 자격: 공식 KDK <b style={{ color: C.text }}>{config.minSessions}회 이상</b> (1회 참가자는 &lsquo;집계 예정&rsquo;으로 표시)</RuleLine>
+          <RuleLine>최고 승률상: 공식 <b style={{ color: C.text }}>{config.bestWinrateMinGames}경기 이상</b>인 회원만 대상</RuleLine>
         </ul>
       </div>
 
@@ -605,7 +623,7 @@ export default function RankingPage() {
   const [tab, setTab] = useState<PeriodTab>(initial.tab);
   const [ym, setYm] = useState<YearMonth>(initial.ym);
   const [seasonYear, setSeasonYear] = useState<number>(initial.seasonYear);
-  const [cache, setCache] = useState<Record<string, ClubRankingResult>>({});
+  const [cache, setCache] = useState<Record<string, FetchClubRankingResult>>({});
   const [loading, setLoading] = useState(true);
   // error 종류 — 종료 시즌/스키마별 전용 안내를 위해 문자열로 관리.
   const [error, setError] = useState<null | 'generic' | 'final' | 'schema'>(null);
@@ -639,8 +657,8 @@ export default function RankingPage() {
     setError(null);
     try {
       const season = which === 'season' ? whichYear : which === 'all' ? 'all' as const : whichYm;
-      const result = await fetchClubRanking(season);
-      setCache((prev) => ({ ...prev, [key]: result }));
+      const fetched = await fetchClubRanking(season);
+      setCache((prev) => ({ ...prev, [key]: fetched }));
     } catch (err: any) {
       console.warn('[Ranking] load failed:', err);
       if (String(err?.message) === SNAPSHOT_SCHEMA_UNSUPPORTED) setError('schema');
@@ -677,7 +695,9 @@ export default function RankingPage() {
     });
   };
 
-  const data = cache[cacheKeyOf(tab, ym, seasonYear)];
+  const cached = cache[cacheKeyOf(tab, ym, seasonYear)];
+  const data = cached?.result;
+  const appliedConfig: RankingConfigValues = cached?.config ?? DEFAULT_RANKING_CONFIG;
 
   // ── 회원 카드 모달 (Ranking 내부에서 직접 오픈 — 라우트 이동 없음) ─────────────
   //   닫으면 현재 기간 탭/URL/스크롤이 그대로 유지된다. /members?member=<id> 딥링크 수신부는 별도 유지.
@@ -994,8 +1014,8 @@ export default function RankingPage() {
               </>
             )}
 
-            {/* ── 6. Ranking Rule ── */}
-            <RankingRules />
+            {/* ── 6. Ranking Rule (적용 산식 v1/v2 동적) ── */}
+            <RankingRules config={appliedConfig} />
           </>
         )}
 

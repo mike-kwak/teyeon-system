@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessRankingAdmin } from '@/lib/admin/adminAccess';
-import { computeClubRanking, type ClubRankingSeason } from '@/lib/ranking/clubRankingCore';
+import { computeClubRanking, countRankingDataAnomalies, type ClubRankingSeason } from '@/lib/ranking/clubRankingCore';
 import { loadRankingInputs, type RankingInputs } from '@/lib/ranking/clubRankingService';
 import {
   getActiveRankingConfig,
@@ -36,21 +36,28 @@ import {
 import { getArchiveDate } from '@/lib/kdkArchiveStats';
 
 type FormState = Record<keyof RankingConfigValues, string>;
+type NumField = Exclude<keyof RankingConfigValues, 'formulaVersion'>;
 
-const FIELDS: { key: keyof RankingConfigValues; label: string; hint: string }[] = [
-  { key: 'participation', label: '참가 점수', hint: '공식 KDK 참가 1회' },
-  { key: 'win', label: '승리 점수', hint: '공식 경기 승리 1회' },
-  { key: 'bonusFirst', label: '1위 점수', hint: '세션 전체 1위' },
-  { key: 'bonusSecond', label: '2위 점수', hint: '세션 전체 2위' },
-  { key: 'bonusThird', label: '3위 점수', hint: '세션 전체 3위' },
+/** 항상 표시되는 공통 가중치. */
+const BASE_FIELDS: { key: NumField; label: string; hint: string }[] = [
+  { key: 'participation', label: '참가 기본점수', hint: '참가 인원과 무관한 고정값' },
+  { key: 'win', label: '경기당 승리점수', hint: '공식 경기 승리 1회' },
   { key: 'minSessions', label: '정식 자격 최소 참가', hint: '공식 KDK n회 이상' },
   { key: 'bestWinrateMinGames', label: '최고 승률상 최소 경기', hint: '공식 n경기 이상' },
 ];
+/** v1(기존 산식) 전용 — 고정 TOP3 보너스. v2 에서는 숨김/미사용. */
+const BONUS_FIELDS: { key: NumField; label: string; hint: string }[] = [
+  { key: 'bonusFirst', label: '1위 보너스', hint: '세션 전체 1위(v1 전용)' },
+  { key: 'bonusSecond', label: '2위 보너스', hint: '세션 전체 2위(v1 전용)' },
+  { key: 'bonusThird', label: '3위 보너스', hint: '세션 전체 3위(v1 전용)' },
+];
+const ALL_NUM_FIELDS: NumField[] = [...BASE_FIELDS, ...BONUS_FIELDS].map((f) => f.key);
 
 const toForm = (v: RankingConfigValues): FormState => ({
   participation: String(v.participation), win: String(v.win),
   bonusFirst: String(v.bonusFirst), bonusSecond: String(v.bonusSecond), bonusThird: String(v.bonusThird),
   minSessions: String(v.minSessions), bestWinrateMinGames: String(v.bestWinrateMinGames),
+  formulaVersion: String(v.formulaVersion),
 });
 
 const fromForm = (f: FormState): RankingConfigValues => normalizeRankingConfig({
@@ -61,10 +68,11 @@ const fromForm = (f: FormState): RankingConfigValues => normalizeRankingConfig({
   bonusThird: parseInt(f.bonusThird, 10),
   minSessions: parseInt(f.minSessions, 10),
   bestWinrateMinGames: parseInt(f.bestWinrateMinGames, 10),
+  formulaVersion: parseInt(f.formulaVersion, 10) === 2 ? 2 : 1,
 });
 
 const valuesEqual = (a: RankingConfigValues, b: RankingConfigValues): boolean =>
-  FIELDS.every((f) => a[f.key] === b[f.key]);
+  a.formulaVersion === b.formulaVersion && ALL_NUM_FIELDS.every((k) => a[k] === b[k]);
 
 const card: React.CSSProperties = { background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14, padding: 16, marginBottom: 14 };
 const label: React.CSSProperties = { fontSize: 11, fontWeight: 800, color: '#475569', letterSpacing: '0.02em' };
@@ -150,13 +158,16 @@ export default function AdminRankingPage() {
     const awardKey = (arr: { memberId: string }[] | undefined) => (arr || []).map((w) => w.memberId).sort().join(',');
     const awardsChanged = (['mostParticipation', 'bestWinRate', 'mostWins', 'mostChampionships', 'mostTop3'] as const)
       .filter((k) => awardKey(cur.awards[k]) !== awardKey(cand.awards[k]));
-    return { top, awardsChanged, curTop: cur.entries.slice(0, 10) };
+    // v2 후보일 때만 순위포인트 산정에 영향을 줄 수 있는 세션 이상치 수(정보 표시).
+    const anomalies = candidate.formulaVersion === 2 ? countRankingDataAnomalies(inputs.archiveRows, season) : 0;
+    return { top, awardsChanged, curTop: cur.entries.slice(0, 10), candV2: candidate.formulaVersion === 2, anomalies };
   }, [inputs, season, published, candidate]);
 
-  const setField = (k: keyof RankingConfigValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const setField = (k: NumField) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
     setForm((prev) => ({ ...prev, [k]: digits }));
   };
+  const setFormulaVersion = (v: 1 | 2) => setForm((prev) => ({ ...prev, formulaVersion: String(v) }));
 
   // 현재 published 산식으로 계산한 최종 결과(finalize 대상 = 지금 화면과 동일 산식).
   const publishedResult = useMemo(
@@ -281,7 +292,7 @@ export default function AdminRankingPage() {
           ))}
         </div>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', lineHeight: 1.7 }}>
-          <div>적용 산식: {usingDefault ? <b style={{ color: '#B45309' }}>기본값(미Publish)</b> : <b style={{ color: '#047857' }}>v{publishedRow?.version} (published)</b>}</div>
+          <div>적용 산식: {usingDefault ? <b style={{ color: '#B45309' }}>기본값(미Publish)</b> : <b style={{ color: '#047857' }}>v{publishedRow?.version} (published)</b>} · <b style={{ color: '#0F766E' }}>{published.formulaVersion === 2 ? '참가 인원 역산형' : '기존 산식'}</b></div>
           {publishedRow && <div style={{ color: '#64748B' }}>마지막 변경: {new Date(publishedRow.createdAt).toLocaleString('ko-KR')} · 사유: {publishedRow.reason || '—'}</div>}
         </div>
       </div>
@@ -289,8 +300,26 @@ export default function AdminRankingPage() {
       {/* 가중치 폼 */}
       <div style={card}>
         <div style={{ fontSize: 13, fontWeight: 900, color: '#0F172A', marginBottom: 10 }}>가중치 설정</div>
+
+        {/* 산식 버전 선택 */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={label}>산식 버전</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            {([{ v: 1 as const, t: '기존 산식', d: '고정 TOP3 보너스' }, { v: 2 as const, t: '참가 인원 역산형', d: '세션 인원 기반 순위포인트' }]).map((o) => {
+              const on = candidate.formulaVersion === o.v;
+              return (
+                <button key={o.v} type="button" onClick={() => setFormulaVersion(o.v)}
+                  style={{ flex: '1 1 200px', minWidth: 0, textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: '1px solid', borderColor: on ? '#2563EB' : '#CBD5E1', background: on ? '#EFF6FF' : '#fff' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 900, color: on ? '#1D4ED8' : '#334155' }}>{on ? '● ' : '○ '}{o.t} <span style={{ fontSize: 10, fontWeight: 800, color: '#94A3B8' }}>v{o.v}</span></div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: '#94A3B8', marginTop: 2 }}>{o.d}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-          {FIELDS.map((f) => (
+          {[...BASE_FIELDS, ...(candidate.formulaVersion === 1 ? BONUS_FIELDS : [])].map((f) => (
             <div key={f.key}>
               <div style={label}>{f.label}</div>
               <input value={form[f.key]} onChange={setField(f.key)} inputMode="numeric" style={input} />
@@ -298,6 +327,22 @@ export default function AdminRankingPage() {
             </div>
           ))}
         </div>
+
+        {candidate.formulaVersion === 2 && (
+          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: '#0F766E', lineHeight: 1.6 }}>
+              순위포인트는 해당 세션 참가 인원에서 최종 순위를 역산해 자동 계산합니다.
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0D9488', marginTop: 4, lineHeight: 1.7 }}>
+              9명 참가: 1위 9점 · 5위 5점 · 9위 1점<br />
+              11명 참가: 1위 11점 · 6위 6점 · 11위 1점
+            </div>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#5EEAD4', marginTop: 4 }}>
+              참가 기본점수는 인원과 무관한 고정값이며, 순위포인트만 참가 인원에 따라 달라집니다. (기존 TOP3 고정 보너스는 미적용)
+            </div>
+          </div>
+        )}
+
         {errors.length > 0 && <div style={{ marginTop: 10, fontSize: 11.5, fontWeight: 700, color: '#DC2626' }}>{errors[0]}</div>}
         <div style={{ marginTop: 10 }}>
           <button type="button" onClick={() => setForm(toForm(published))} style={{ fontSize: 11.5, fontWeight: 700, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
@@ -317,18 +362,29 @@ export default function AdminRankingPage() {
             {preview.awardsChanged.length > 0 && (
               <div style={{ fontSize: 11.5, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>⚠ 시상 변경: {preview.awardsChanged.join(', ')}</div>
             )}
+            {preview.candV2 && preview.anomalies > 0 && (
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
+                ⚠ 순위 데이터 이상 세션 {preview.anomalies}개(순위표 없음/중복) — 해당 세션은 순위포인트에서 안전 제외됩니다.
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {preview.top.map((r) => (
-                <div key={r.entry.memberId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: '#F8FAFC' }}>
-                  <span style={{ width: 26, textAlign: 'center', fontSize: 13, fontWeight: 900, color: '#0F172A' }}>{r.entry.rank}</span>
-                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.entry.name}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: r.rankDelta > 0 ? '#059669' : r.rankDelta < 0 ? '#DC2626' : '#94A3B8', width: 42, textAlign: 'right' }}>
-                    {r.prevRank === null ? 'NEW' : r.rankDelta === 0 ? '—' : r.rankDelta > 0 ? `▲${r.rankDelta}` : `▼${-r.rankDelta}`}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A', width: 54, textAlign: 'right' }}>{r.entry.points}p</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: r.pointDelta > 0 ? '#059669' : r.pointDelta < 0 ? '#DC2626' : '#94A3B8', width: 40, textAlign: 'right' }}>
-                    {r.pointDelta === 0 ? '' : r.pointDelta > 0 ? `+${r.pointDelta}` : r.pointDelta}
-                  </span>
+                <div key={r.entry.memberId} style={{ padding: '6px 8px', borderRadius: 8, background: '#F8FAFC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 26, textAlign: 'center', fontSize: 13, fontWeight: 900, color: '#0F172A' }}>{r.entry.rank}</span>
+                    <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.entry.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: r.rankDelta > 0 ? '#059669' : r.rankDelta < 0 ? '#DC2626' : '#94A3B8', width: 42, textAlign: 'right' }}>
+                      {r.prevRank === null ? 'NEW' : r.rankDelta === 0 ? '—' : r.rankDelta > 0 ? `▲${r.rankDelta}` : `▼${-r.rankDelta}`}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A', width: 54, textAlign: 'right' }}>{r.entry.points}p</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: r.pointDelta > 0 ? '#059669' : r.pointDelta < 0 ? '#DC2626' : '#94A3B8', width: 40, textAlign: 'right' }}>
+                      {r.pointDelta === 0 ? '' : r.pointDelta > 0 ? `+${r.pointDelta}` : r.pointDelta}
+                    </span>
+                  </div>
+                  {/* 구성요소 분해: 참가 · 승리 · (v2 순위 / v1 보너스) = 총점 */}
+                  <div style={{ marginLeft: 34, marginTop: 2, fontSize: 10, fontWeight: 700, color: '#94A3B8' }}>
+                    참가 {r.entry.participationPoints} · 승리 {r.entry.winPoints} · {preview.candV2 ? `순위 ${r.entry.rankPoints}` : `보너스 ${r.entry.bonusPoints}`} = {r.entry.points}
+                  </div>
                 </div>
               ))}
               {preview.top.length === 0 && <div style={{ fontSize: 12, color: '#94A3B8' }}>집계 대상 회원이 없습니다.</div>}
@@ -367,7 +423,8 @@ export default function AdminRankingPage() {
                 <span style={{ fontWeight: 900, color: '#0F172A' }}>v{h.version}</span>
                 <span style={{ padding: '2px 7px', borderRadius: 999, fontWeight: 800, fontSize: 10, color: h.status === 'published' ? '#047857' : h.status === 'draft' ? '#B45309' : '#64748B', background: h.status === 'published' ? '#DCFCE7' : h.status === 'draft' ? '#FEF3C7' : '#E2E8F0' }}>{h.status}</span>
                 <span style={{ flex: 1, color: '#475569', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  참{h.participation}·승{h.win}·1위{h.bonusFirst}·2위{h.bonusSecond}·3위{h.bonusThird} · {h.reason || '—'}
+                  <b style={{ color: '#0F766E' }}>{h.formulaVersion === 2 ? '역산형' : '기존'}</b> · 참{h.participation}·승{h.win}
+                  {h.formulaVersion === 2 ? '·순위포인트' : `·1위${h.bonusFirst}·2위${h.bonusSecond}·3위${h.bonusThird}`} · {h.reason || '—'}
                 </span>
                 <span style={{ color: '#94A3B8', fontWeight: 600 }}>{new Date(h.createdAt).toLocaleDateString('ko-KR')}</span>
               </div>

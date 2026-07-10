@@ -46,9 +46,14 @@ export interface RankingConfigValues {
   bonusThird: number;
   minSessions: number;
   bestWinrateMinGames: number;
+  /**
+   * 산식 버전. 1 = 기존(고정 TOP3 보너스), 2 = 참가 인원 역산형 순위포인트(bonus* 무시).
+   * 미지정/1 이면 기존 산식과 100% 동일. config 미존재·레거시 snapshot 은 1 로 취급.
+   */
+  formulaVersion: 1 | 2;
 }
 
-/** 현재 확정 산식(위 상수에서 파생 — 단일 출처). config 조회 실패 시 폴백 기본값. */
+/** 현재 확정 산식(위 상수에서 파생 — 단일 출처). config 조회 실패 시 폴백 기본값. formulaVersion=1(현행). */
 export const DEFAULT_RANKING_CONFIG: RankingConfigValues = {
   participation: RANKING_POINTS.participation,
   win: RANKING_POINTS.win,
@@ -57,6 +62,7 @@ export const DEFAULT_RANKING_CONFIG: RankingConfigValues = {
   bonusThird: RANKING_POINTS.bonusThird,
   minSessions: RANKING_MIN_SESSIONS,
   bestWinrateMinGames: BEST_WINRATE_MIN_GAMES,
+  formulaVersion: 1,
 };
 
 /**
@@ -81,11 +87,14 @@ export type ClubRankingEntry = {
   memberId: string;
   name: string;
   avatarUrl: string | null;
-  /** 총 랭킹 포인트 = participationPoints + winPoints + bonusPoints */
+  /** 총 랭킹 포인트 = participationPoints + winPoints + bonusPoints + rankPoints. (버전별로 bonusPoints 또는 rankPoints 중 하나만 > 0) */
   points: number;
   participationPoints: number;
   winPoints: number;
+  /** v1 고정 TOP3 보너스 점수(1·2·3위). v2 에서는 0. */
   bonusPoints: number;
+  /** v2 참가 인원 역산형 순위포인트 합(세션별 N−R+1). v1 에서는 0. */
+  rankPoints: number;
   sessions: number;
   wins: number;
   losses: number;
@@ -174,6 +183,50 @@ function pickAwards(
     .map((e) => ({ memberId: e.memberId, name: e.name, value: max, avatarUrl: e.avatarUrl ?? null }));
 }
 
+/**
+ * v2 순위포인트 산정 시 잘못된 포인트를 만들 수 있는 세션 이상치 수(관리자 Preview 표시용).
+ *   · 공식 세션인데 최종 순위표(ranking_data)가 비어 있음(경기는 있으나 순위 미확정)
+ *   · ranking_data 에 stable-id/이름 중복 참가자 존재
+ * 이 세션들은 rankPointsSum 계산에서 방어적으로 제외되므로 점수를 왜곡하지 않는다(정보 표시용).
+ */
+export function countRankingDataAnomalies(
+  archiveRows: KdkArchiveRow[],
+  season: ClubRankingSeason = 'all',
+): number {
+  const officialRows = (archiveRows || []).filter(
+    (row) => row?.archive_type === 'kdk' && row?.is_official === true,
+  );
+  const seasonRows =
+    season === 'all'
+      ? officialRows
+      : typeof season === 'number'
+        ? officialRows.filter((row) => getArchiveDate(row).slice(0, 4) === String(season))
+        : officialRows.filter(
+            (row) =>
+              getArchiveDate(row).slice(0, 7) ===
+              `${season.year}-${String(season.month).padStart(2, '0')}`,
+          );
+  let anomalies = 0;
+  for (const row of seasonRows) {
+    const raw = row.raw_data || {};
+    const rd = Array.isArray(raw.ranking_data) ? raw.ranking_data : [];
+    const snap = Array.isArray(raw.snapshot_data) ? raw.snapshot_data : [];
+    const hasPlayers = rd.length > 0 || snap.length > 0;
+    if (hasPlayers && rd.length === 0) { anomalies += 1; continue; } // 순위표 없음
+    const keys = new Set<string>();
+    let dup = false;
+    for (const p of rd) {
+      const id = String(p?.id ?? '').trim();
+      const key = id ? `id:${id}` : String(p?.name ?? '').trim().toLowerCase();
+      if (!key) continue;
+      if (keys.has(key)) { dup = true; break; }
+      keys.add(key);
+    }
+    if (dup) anomalies += 1;
+  }
+  return anomalies;
+}
+
 export function computeClubRanking(
   archiveRows: KdkArchiveRow[],
   members: ClubRankingMemberInput[],
@@ -211,20 +264,26 @@ export function computeClubRanking(
     const winRate = games > 0 ? Math.round((stats.totalWins / games) * 1000) / 10 : 0;
     const participationPoints = stats.totalSessions * config.participation;
     const winPoints = stats.totalWins * config.win;
-    const bonusPoints =
-      stats.firstPlaceCount * config.bonusFirst +
-      stats.secondPlaceCount * config.bonusSecond +
-      stats.thirdPlaceCount * config.bonusThird;
+    // v2(참가 인원 역산형): 순위포인트만 사용, 고정 TOP3 보너스 미적용.
+    // v1(기존): 고정 TOP3 보너스만 사용, 순위포인트 미적용.
+    const isV2 = config.formulaVersion === 2;
+    const bonusPoints = isV2
+      ? 0
+      : stats.firstPlaceCount * config.bonusFirst +
+        stats.secondPlaceCount * config.bonusSecond +
+        stats.thirdPlaceCount * config.bonusThird;
+    const rankPoints = isV2 ? stats.rankPointsSum : 0;
 
     entries.push({
       rank: 0, // 정렬 후 부여
       memberId: member.id,
       name: member.name || '',
       avatarUrl: member.avatarUrl ?? null,
-      points: participationPoints + winPoints + bonusPoints,
+      points: participationPoints + winPoints + bonusPoints + rankPoints,
       participationPoints,
       winPoints,
       bonusPoints,
+      rankPoints,
       sessions: stats.totalSessions,
       wins: stats.totalWins,
       losses: stats.totalLosses,
