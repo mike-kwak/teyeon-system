@@ -11,7 +11,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays, X, Swords } from 'lucide-react';
-import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
@@ -825,12 +824,6 @@ export default function RankingPage() {
             <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: C.teal, fontFamily: 'var(--font-rajdhani), sans-serif' }}>CLUB RANKING</p>
             <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.text, letterSpacing: '0.02em', fontFamily: 'var(--font-rajdhani), sans-serif' }}>RANKING</h1>
           </div>
-          <div style={{ flex: 1 }} />
-          {/* 상대전적 진입 — 기존 탭 구조는 변경하지 않고 상단 버튼만 추가. */}
-          <Link href="/ranking/head-to-head" aria-label="상대전적"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 999, backgroundColor: C.tealBg, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 11.5, fontWeight: 800, textDecoration: 'none', flexShrink: 0 }}>
-            <Swords size={14} /> 상대전적
-          </Link>
         </div>
 
         {loading && <LoadingSkeleton />}
@@ -890,11 +883,7 @@ export default function RankingPage() {
               </p>
             </section>
 
-            {/* 기록 영역 공통 진입 탭 — 공식 기록 ↔ TEYEON Ranking (/archive 와 동일 컴포넌트).
-                아래 시즌/누적(채움형 pill)과 시각 계층 구분: 이 탭은 흰 카드+언더라인 방식. */}
-            <RecordsSectionTabs />
-
-            {/* ── 2. 기간 탭 (시즌/누적/월간) — 공통 진입 탭보다 한 단계 아래 계층(채움형 pill) ── */}
+            {/* ── 2. 기간 탭 (시즌/누적/월간) — 채움형 pill ── */}
             <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 13, backgroundColor: 'rgba(15,23,42,0.05)' }}>
               {tabBtn('season', '시즌')}
               {tabBtn('monthly', '월간')}
@@ -1003,6 +992,23 @@ export default function RankingPage() {
             <RankingRules />
           </>
         )}
+
+        {/* ── 회원 간 기록 — 기간(시즌/월간/누적) 탭과 성격이 다른 별도 섹션(상대·파트너 전적 진입) ── */}
+        <Link
+          href="/ranking/head-to-head"
+          aria-label="상대 전적과 파트너 전적 보기"
+          className="rank-row"
+          style={{ ...cardStyle, padding: 16, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: C.tealBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Swords size={19} color={C.teal} />
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 900, color: C.text }}>회원 간 기록</p>
+            <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: C.sub, lineHeight: 1.5 }}>두 회원의 상대 전적과 함께한 파트너 기록을 확인합니다.</p>
+            <p style={{ margin: '6px 0 0', fontSize: 11, fontWeight: 800, color: C.teal, display: 'inline-flex', alignItems: 'center', gap: 3 }}>상대 · 파트너 전적 보기 <ChevronRight size={12} /></p>
+          </div>
+        </Link>
 
         {/* 하단 스크롤 여유 — 실제 흐름 요소(마지막 카드가 BottomNav 뒤로 깔리지 않도록 GlobalMain clearance 에 더해 소량 유지) */}
         <div aria-hidden style={{ height: 8, flexShrink: 0 }} />

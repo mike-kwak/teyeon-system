@@ -7,7 +7,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
-import RecordsSectionTabs from '@/components/records/RecordsSectionTabs';
 import { Trash2, ArrowRight, ArrowLeft, Users, Trophy, CheckCircle2, Calendar, MapPin } from 'lucide-react';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { type ArchiveMatchEntry } from '@/components/archive/ArchiveResultShare';
@@ -624,8 +623,10 @@ export default function ArchivePage() {
               </p>
             </section>
 
-            {/* 기록 영역 공통 진입 탭 — 공식 기록 ↔ TEYEON Ranking (라우트 이동, /ranking 과 동일 컴포넌트) */}
-            <RecordsSectionTabs />
+            {/* Ranking 은 독립 메뉴로 분리 — Archive 는 공식 기록에 집중. 과한 CTA 없이 작은 보조 링크 1개만 유지. */}
+            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#56729A', lineHeight: 1.5 }}>
+              클럽 순위와 회원 전적은 <Link href="/ranking" style={{ color: '#2563EB', fontWeight: 800, textDecoration: 'none' }}>랭킹 보기 →</Link> 에서 확인할 수 있습니다.
+            </p>
 
             {/* STATS GRID (2x2) */}
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

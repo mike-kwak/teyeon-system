@@ -785,6 +785,14 @@ export default function Home() {
                 path="/members"
                 accent="aqua"
               />
+              {/* RANKING — 시즌·월간·누적·FINAL·Awards·상대/파트너 전적 독립 영역 (aqua) */}
+              <MenuCard
+                label="RANKING"
+                description="랭킹 · 어워즈 · 상대전적"
+                icon={<Trophy size={21} strokeWidth={1.7} />}
+                path="/ranking"
+                accent="aqua"
+              />
               {/* 그룹 3 — 관리/재무 (gold) */}
               <MenuCard
                 label="TEYEON 재무"

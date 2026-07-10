@@ -22,6 +22,7 @@ const SHORTCUTS: { label: string; href: string; external?: boolean }[] = [
     { label: 'TEYEON Calendar', href: '/calendar' },
     { label: 'KDK', href: '/kdk' },
     { label: 'Archive', href: '/archive' },
+    { label: 'Ranking', href: '/ranking' },
     { label: '개인 프로필', href: '/profile' },
     { label: '멤버 프로필', href: '/members' },
     { label: '내 재무 현황', href: '/finance' },
