@@ -123,7 +123,10 @@ Deno.serve(async (req: Request) => {
   };
 
   // ── 3. 발송 사전 조건(필수 secret) — 누락 시 failed 기록 후 200(신청엔 영향 없음). ──
-  const resendKey = (Deno.env.get('RESEND_API_KEY') || '').trim();
+  //   Resend API key 는 ASCII 토큰(re_...). 복사/붙여넣기로 섞인 비ASCII·공백·제로폭 문자가
+  //   Authorization 헤더에 들어가면 fetch 가 "not a valid ByteString" TypeError 를 던지므로
+  //   출력 가능한 ASCII 외 문자를 제거한다(실운영에서 발생 확인된 케이스).
+  const resendKey = (Deno.env.get('RESEND_API_KEY') || '').replace(/[^\x21-\x7E]/g, '');
   const from = (Deno.env.get('GUEST_NOTIFICATION_FROM') || '').trim();
   const recipients = parseRecipients(Deno.env.get('GUEST_APPLICATION_NOTIFICATION_EMAILS'));
   if (!resendKey) { await recordResult(false, 'missing_provider_key'); return json(200, { ok: true, sent: false }); }
@@ -182,8 +185,16 @@ Deno.serve(async (req: Request) => {
     } else {
       errCode = `resend_${res.status}`; // 응답 본문·키·수신자 미저장
     }
-  } catch {
-    errCode = 'network_error';
+  } catch (e) {
+    errCode = 'network_error'; // DB last_error 는 짧은 코드 유지(변경 금지)
+    // 진단용 안전 로그 — Error.name + message 최대 200자만. API key·수신자·발신자는 방어적으로
+    // redact(네트워크 예외 메시지에 원래 포함되지 않지만 이중 안전). 신청자 정보·secret 미출력.
+    const errName = e instanceof Error ? e.name : 'UnknownError';
+    let errMsg = e instanceof Error ? String(e.message || '') : String(e);
+    for (const s of [resendKey, from, ...recipients]) {
+      if (s) errMsg = errMsg.split(s).join('[redacted]');
+    }
+    console.warn(`[guest-notify] resend fetch threw name=${errName} msg=${errMsg.slice(0, 200)}`);
   }
   await recordResult(ok, errCode);
 

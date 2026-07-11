@@ -34,3 +34,6 @@ next-env.d.ts
 
 # logs
 *.log
+
+# supabase CLI link artifacts
+supabase/.temp/
