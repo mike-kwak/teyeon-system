@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserPlus, Copy, ExternalLink, Phone, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useGuestPending } from '@/context/GuestPendingContext';
 import { canManageGuestApplications } from '@/lib/admin/adminAccess';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
@@ -146,6 +147,7 @@ export default function AdminGuestApplicationsPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const allowed = canManageGuestApplications(role);
+  const { refresh: refreshPending } = useGuestPending();
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -157,7 +159,13 @@ export default function AdminGuestApplicationsPage() {
 
   const onStatus = async (id: string, s: GuestApplicationStatus, note: string) => {
     if (busy) return; setBusy(true);
-    try { await setGuestApplicationStatus(id, s, note); setToast(`상태를 '${statusMeta(s).t}'(으)로 변경했습니다.`); await reload(); }
+    try {
+      await setGuestApplicationStatus(id, s, note);
+      setToast(`상태를 '${statusMeta(s).t}'(으)로 변경했습니다.`);
+      // 목록 재조회 + 상단/사이드바 배지 갱신을 한 번에.
+      await reload();
+      await refreshPending();
+    }
     catch (e: any) { setToast(guestOperatorMessage(e)); }
     finally { setBusy(false); }
   };
@@ -178,6 +186,16 @@ export default function AdminGuestApplicationsPage() {
         공개 게스트 신청을 검토하고 승인·보류·거절합니다. 전화번호는 목록에서 마스킹, 상세에서만 표시됩니다.
       </p>
       {toast && <div style={{ marginBottom: 10, fontSize: 12.5, fontWeight: 700, color: '#0F766E' }}>{toast}</div>}
+
+      {/* 검토 대기 요약 배너 — pending>0 일 때만(과한 빈 배지 금지) */}
+      {ready && pendingCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#FEF3C7', border: '1px solid #FDE68A' }}>
+          <span style={{ minWidth: 22, height: 22, padding: '0 7px', borderRadius: 999, background: '#EF4444', color: '#fff', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {pendingCount > 99 ? '99+' : pendingCount}
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: '#92400E' }}>검토가 필요한 게스트 신청이 {pendingCount}건 있습니다.</span>
+        </div>
+      )}
 
       {/* 모집 현황 요약 (정모별 상태·정원·신청/승인 + Club Schedule 링크) */}
       {summaries.length > 0 && (

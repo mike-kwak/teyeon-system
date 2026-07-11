@@ -14,6 +14,7 @@ import AdminSidebar, { ADMIN_SIDEBAR_WIDTH } from '@/components/admin/AdminSideb
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminBottomNav from '@/components/admin/AdminBottomNav';
 import { getVisibleAdminNavSections } from '@/components/admin/AdminNavConfig';
+import { GuestPendingProvider, GuestNavBadge } from '@/context/GuestPendingContext';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { user, role, isLoading, signOut, canManageRanking, canManageRankingResolved } = useAuth();
@@ -59,6 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     return (
+        <GuestPendingProvider>
         <div style={{ minHeight: '100dvh', backgroundColor: '#EEF2F7' }}>
             <AdminSidebar />
 
@@ -103,7 +105,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                 <Link key={item.id} href={item.href} onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 12px', borderRadius: 12, textDecoration: 'none', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: '#C7D2E3', fontSize: 12.5, fontWeight: 700 }}>
                                                     <Icon size={16} style={{ flexShrink: 0 }} />
                                                     <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
-                                                    {item.external && <ExternalLink size={11} style={{ opacity: 0.4 }} />}
+                                                    <GuestNavBadge itemId={item.id} />
+                                                {item.external && <ExternalLink size={11} style={{ opacity: 0.4 }} />}
                                                 </Link>
                                             );
                                         })}
@@ -131,5 +134,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }
             `}</style>
         </div>
+        </GuestPendingProvider>
     );
 }

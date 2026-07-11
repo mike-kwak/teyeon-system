@@ -8,6 +8,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useGuestPending } from '@/context/GuestPendingContext';
 import { supabase } from '@/lib/supabase';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import { fetchAttendancesWithMembers } from '@/lib/clubScheduleAttendanceService';
@@ -37,6 +38,7 @@ const todayStr = () => {
 
 export default function AdminDashboardPage() {
     const { role } = useAuth();
+    const { count: pendingGuestCount } = useGuestPending();
     const [loading, setLoading] = React.useState(true);
     const [next, setNext] = React.useState<NextMeetingData | null>(null);
     const [thisMonthCount, setThisMonthCount] = React.useState<number | null>(null);
@@ -106,6 +108,10 @@ export default function AdminDashboardPage() {
 
     // 처리 필요 — 현재 안전하게 판단 가능한 항목만.
     const tasks: { label: string; meta: string; href: string }[] = [];
+    // 검토 대기 PUBLIC_GUEST 신청(배지 count 재사용 — 개인정보 미조회, 숫자만).
+    if (pendingGuestCount && pendingGuestCount > 0) {
+        tasks.push({ label: '게스트 신청 검토', meta: `검토 대기 ${pendingGuestCount}건`, href: '/admin/guest-applications' });
+    }
     if (next && next.guests > 0) {
         tasks.push({ label: '게스트 확인 필요', meta: `${next.schedule.title} · 게스트 ${next.guests}명`, href: `/club-schedule/${next.schedule.id}` });
     }

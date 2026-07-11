@@ -26,9 +26,27 @@ const isMissingRelation = (err: unknown): boolean => {
   const code = String(e?.code || '');
   const msg = String(e?.message || '');
   return code === '42P01' || code === 'PGRST202' || code === 'PGRST205' ||
-    (/guest_recruitments|guest_applications|get_open_guest_recruitments|submit_guest_application|set_guest_application_status/.test(msg)
+    (/guest_recruitments|guest_applications|get_open_guest_recruitments|submit_guest_application|set_guest_application_status|get_pending_guest_application_count/.test(msg)
       && /does not exist|schema cache|Could not find/.test(msg));
 };
+
+/**
+ * 검토 대기(pending) 신청 건수 — Admin 배지용.
+ *   · 원본 테이블을 클라이언트가 훑지 않도록 count 전용 RPC 사용(개인정보 미반환, 숫자만).
+ *   · RPC 가 can_manage_guest_applications() 서버 재검증 → 권한 없으면 0/에러.
+ *   · 미적용·오류·권한없음은 모두 null 로(배지 숨김) — 관리자 화면이 깨지지 않도록.
+ */
+export async function fetchPendingGuestApplicationCount(): Promise<number | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_pending_guest_application_count');
+    if (error) throw error;
+    const n = typeof data === 'number' ? data : Number(data);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  } catch (err) {
+    if (!isMissingRelation(err)) console.warn('[guest] pending count 조회 실패:', err);
+    return null; // 배지 숨김(안전)
+  }
+}
 
 /** 공개 모집 목록. ready=false → 아직 준비 중(RPC 미적용). */
 export async function fetchOpenRecruitments(): Promise<{ ready: boolean; recruitments: OpenRecruitment[] }> {

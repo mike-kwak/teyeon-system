@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleAdminNavSections } from './AdminNavConfig';
+import { GuestNavBadge } from '@/context/GuestPendingContext';
 
 const NAVY = '#0F1B33';
 const NAVY_SOFT = '#16264A';
@@ -81,6 +82,7 @@ export default function AdminSidebar() {
                                         <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {item.label}
                                         </span>
+                                        <GuestNavBadge itemId={item.id} />
                                         {item.external && <ExternalLink size={12} style={{ opacity: 0.4, flexShrink: 0 }} />}
                                     </Link>
                                 );
