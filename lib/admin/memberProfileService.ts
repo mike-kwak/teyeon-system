@@ -39,7 +39,9 @@ export interface MemberProfileForm {
 //   입상의 단일 출처는 member_achievements — 표시 문구는 formatMemberAchievement 로 자동 생성.
 //   기존 컬럼 값은 비파괴로 남겨 두되(삭제/변경 없음) UI/표시 경로에서 제외(추후 정리 별도 검토).
 
-export async function fetchMemberProfile(memberId: string): Promise<MemberProfileForm & { nickname: string }> {
+export async function fetchMemberProfile(
+  memberId: string,
+): Promise<MemberProfileForm & { nickname: string; legacyAchievementsText: string }> {
   const { data, error } = await supabase.from('members').select('*').eq('id', memberId).single();
   if (error) throw error;
   const row = data as Record<string, unknown>;
@@ -51,6 +53,8 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberProfil
     birthYear: str(row['나이']),
     bio: str(row.bio),
     avatarUrl: str(row.avatar_url),
+    // 레거시 자유입력 원문 — '기존 입상 기록 가져오기' 도구 전용(읽기 전용, 저장 payload 미포함).
+    legacyAchievementsText: str(row.achievements),
   };
 }
 

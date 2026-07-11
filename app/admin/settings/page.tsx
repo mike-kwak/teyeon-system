@@ -41,6 +41,7 @@ import {
   type AchievementInput,
 } from '@/lib/admin/memberProfileService';
 import { formatMemberAchievement, formatAchievementListLine, achievementYear } from '@/lib/members/achievements';
+import { parseLegacyAchievements, isCandidateAlreadyImported, type LegacyAchievementCandidate } from '@/lib/members/legacyAchievements';
 
 interface AdminMember {
   id: string;
@@ -775,6 +776,21 @@ type AchFormState = ReturnType<typeof makeEmptyAchForm>;
 // 등록 세션 동안 마지막 선택 체계/부서 유지(§3 반복 입력 편의).
 const YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => CURRENT_YEAR - i);
 
+// 레거시(자유입력) 이관 후보 — 파싱 결과 + 관리자 편집값 + 세션 UI 상태(건너뛰기/가져오기).
+//   DB 에 skip 상태를 저장하지 않는다(모달 재오픈 시 다시 표시). 원문은 절대 수정하지 않는다.
+interface LegacyCandidateState {
+  parsed: LegacyAchievementCandidate;
+  organization: string;   // '' = 미선택(자동 추정 금지)
+  year: string;           // '' = 미확정
+  tournamentName: string;
+  division: string;       // '' = 미선택
+  result: string;         // '' = 미선택
+  skipped: boolean;
+  importedNow: boolean;   // 이 세션에서 가져오기 완료
+  saving: boolean;
+  error: string | null;
+}
+
 function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
   member: AdminMember;
   guardWriteAction: (label: string) => boolean;
@@ -801,6 +817,8 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
   // 등록 세션 동안 마지막 선택 체계/부서 유지(§3)
   const lastOrgRef = React.useRef('KATO');
   const lastDivRef = React.useRef('신인부');
+  // 레거시 이관 후보(원문 존재 시에만) — 세션 UI 상태 전용, DB 미기록.
+  const [legacyCands, setLegacyCands] = useState<LegacyCandidateState[]>([]);
 
   const refreshAchievements = async () => {
     try {
@@ -822,6 +840,18 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
           affiliation: profile.affiliation, mbti: profile.mbti, birthYear: profile.birthYear,
           bio: profile.bio, avatarUrl: profile.avatarUrl,
         });
+        // 레거시 원문이 있으면 이관 후보 파싱(읽기 전용 — 원문 미수정).
+        setLegacyCands(
+          parseLegacyAchievements(profile.legacyAchievementsText).map((parsed) => ({
+            parsed,
+            organization: parsed.organization ?? '',
+            year: parsed.year != null ? String(parsed.year) : '',
+            tournamentName: parsed.tournamentName,
+            division: parsed.division ?? '',
+            result: parsed.result ?? '',
+            skipped: false, importedNow: false, saving: false, error: null,
+          })),
+        );
         await refreshAchievements();
       } catch (err: any) {
         if (!cancelled) setLoadError(getErrorMessage(err));
@@ -926,6 +956,46 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
       setNotice({ tone: 'err', text: '삭제 실패: ' + getErrorMessage(err) });
     } finally {
       setDeletingAchId(null);
+    }
+  };
+
+  // ── 레거시 이관: 후보 편집/가져오기/건너뛰기 ─────────────────────────────────
+  const setLegacyField = (idx: number, patch: Partial<LegacyCandidateState>) =>
+    setLegacyCands((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch, error: patch.error !== undefined ? patch.error : null } : c)));
+
+  // 완료 판정: 이 세션에서 가져옴 OR 이미 동일 구조화 기록 존재(정규화 키 비교).
+  const legacyDone = (c: LegacyCandidateState) =>
+    c.importedNow || isCandidateAlreadyImported(
+      { year: c.year ? parseInt(c.year, 10) : null, organization: c.organization || null, tournamentName: c.tournamentName, division: c.division || null, result: c.result || null },
+      achList,
+    );
+  const legacyReady = (c: LegacyCandidateState) => {
+    const y = parseInt(c.year, 10);
+    return (ACHIEVEMENT_ORGANIZATIONS as readonly string[]).includes(c.organization)
+      && Number.isInteger(y) && y >= 1990 && y <= 2100
+      && !!c.tournamentName.trim()
+      && (ACHIEVEMENT_DIVISIONS as readonly string[]).includes(c.division)
+      && (ACHIEVEMENT_RESULTS as readonly string[]).includes(c.result);
+  };
+
+  const handleLegacyImport = async (idx: number) => {
+    const c = legacyCands[idx];
+    if (!c || c.saving || !legacyReady(c) || legacyDone(c)) return;
+    if (!guardWriteAction('기존 입상 기록 가져오기')) return;
+    setLegacyField(idx, { saving: true });
+    try {
+      // 기존 CRUD 경로 재사용 — 신규 SQL/RPC 없음. 원문(members.achievements)은 건드리지 않는다.
+      await createAchievement(member.id, {
+        organization: c.organization, year: c.year, tournamentName: c.tournamentName,
+        division: c.division, result: c.result,
+      });
+      logAction('/admin', 'member_achievement_imported_from_legacy', { target: member.nickname, tournament: c.tournamentName });
+      await refreshAchievements();
+      setLegacyField(idx, { saving: false, importedNow: true });
+      setNotice({ tone: 'ok', text: '기존 기록을 가져왔습니다.' });
+      onDirty();
+    } catch (err: any) {
+      setLegacyField(idx, { saving: false, error: getErrorMessage(err) });
     }
   };
 
@@ -1044,6 +1114,121 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
               <p style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: 11, fontWeight: 700, color: '#B45309', lineHeight: 1.55 }}>
                 입상 기록 컬럼(대회 체계·연도)이 아직 없습니다. supabase/add_member_achievement_fields.sql 적용 후 사용할 수 있습니다.
               </p>
+            )}
+
+            {/* ── 기존 입상 기록 가져오기(일회성 이관 도구) — 레거시 원문 보유 멤버에게만 표시 ── */}
+            {!achTableMissing && legacyCands.length > 0 && (
+              <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 12, border: '1px solid #FDE68A', backgroundColor: '#FFFDF5' }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 900, color: '#92400E' }}>
+                  기존 입상 기록 {legacyCands.length}건 발견
+                  <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 800, color: '#B45309' }}>
+                    완료 {legacyCands.filter(legacyDone).length}/{legacyCands.length}
+                  </span>
+                </p>
+                <p style={{ margin: '3px 0 10px', fontSize: 10.5, fontWeight: 600, color: '#A16207', lineHeight: 1.5 }}>
+                  예전 자유입력 기록입니다. 대회 체계 등 확인 후 개별로 가져오세요. 원문은 삭제되지 않습니다.
+                </p>
+
+                {legacyCands.every(legacyDone) ? (
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#047857' }}>✅ 기존 입상 기록을 모두 가져왔습니다.</p>
+                ) : null}
+
+                {legacyCands.map((c, idx) => {
+                  const done = legacyDone(c);
+                  const preview = legacyReady(c)
+                    ? formatMemberAchievement({ organization: c.organization, tournament_name: c.tournamentName.trim(), division: c.division, result: c.result })
+                    : null;
+                  return (
+                    <div key={idx} style={{ marginTop: idx === 0 ? 0 : 8, padding: '9px 11px', borderRadius: 10, border: '1px solid #F1E4B8', backgroundColor: '#FFFFFF' }}>
+                      <p style={{ margin: 0, fontSize: 10.5, fontWeight: 600, color: '#64748B', lineHeight: 1.5, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                        원문 <span style={{ fontWeight: 700, color: '#475569' }}>{c.parsed.raw}</span>
+                        {legacyCands.length > 1 && <span style={{ marginLeft: 4, color: '#94A3B8' }}>· 이 기록: {c.parsed.detail}</span>}
+                      </p>
+
+                      {done ? (
+                        <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 800, color: '#047857' }}>
+                          ✅ 가져오기 완료{preview ? ` — ${preview}` : c.importedNow ? '' : ' (이미 가져온 기록)'}
+                        </p>
+                      ) : c.skipped ? (
+                        <button type="button" onClick={() => setLegacyField(idx, { skipped: false })}
+                          style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 800, color: '#2563EB', cursor: 'pointer', textDecoration: 'underline' }}>
+                          건너뜀 — 다시 보기
+                        </button>
+                      ) : (
+                        <>
+                          {c.parsed.warnings.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                              {c.parsed.warnings.map((w, i) => (
+                                <span key={i} style={{ fontSize: 9.5, fontWeight: 800, color: '#B45309', backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 999, padding: '2px 8px' }}>⚠ {w}</span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div style={{ marginTop: 8 }}>
+                            <div style={fieldLabel}>대회 체계</div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {ACHIEVEMENT_ORGANIZATIONS.map((o) => (
+                                <button key={o} type="button" onClick={() => setLegacyField(idx, { organization: o })} style={chipStyle(c.organization === o)}>{o}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, marginTop: 8 }}>
+                            <div>
+                              <div style={fieldLabel}>연도</div>
+                              <select value={c.year} onChange={(e) => setLegacyField(idx, { year: e.target.value })} className="admin-select" style={{ ...inputStyle, cursor: 'pointer' }}>
+                                <option value="">선택</option>
+                                {YEAR_OPTIONS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <div style={fieldLabel}>대회명</div>
+                              <input value={c.tournamentName} onChange={(e) => setLegacyField(idx, { tournamentName: e.target.value })} placeholder="예: 공주 무령왕배" style={inputStyle} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={fieldLabel}>부서</div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                {ACHIEVEMENT_DIVISIONS.map((d) => (
+                                  <button key={d} type="button" onClick={() => setLegacyField(idx, { division: d })} style={chipStyle(c.division === d)}>{d}</button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={fieldLabel}>성적</div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                {ACHIEVEMENT_RESULTS.map((r) => (
+                                  <button key={r} type="button" onClick={() => setLegacyField(idx, { result: r })} style={chipStyle(c.result === r, r === '우승')}>{r}</button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: 8, backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1' }}>
+                            <span style={{ fontSize: 9, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.08em' }}>미리보기</span>
+                            <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 800, color: preview ? '#0F1B33' : '#B0BAC9', lineHeight: 1.45, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                              {preview ?? '대회 체계·연도·대회명·부서·성적을 모두 확인하면 미리보기가 표시됩니다.'}
+                            </p>
+                          </div>
+
+                          {c.error && <p style={{ margin: '7px 0 0', fontSize: 10.5, fontWeight: 700, color: '#B91C1C' }}>{c.error}</p>}
+
+                          <div style={{ display: 'flex', gap: 8, marginTop: 9 }}>
+                            <button type="button" onClick={() => handleLegacyImport(idx)} disabled={c.saving || !legacyReady(c)}
+                              style={{ flex: 2, height: 34, borderRadius: 9, border: 'none', backgroundColor: legacyReady(c) ? '#0E7C76' : '#9CC7C3', color: '#FFFFFF', fontSize: 11.5, fontWeight: 900, cursor: c.saving ? 'wait' : legacyReady(c) ? 'pointer' : 'not-allowed' }}>
+                              {c.saving ? '가져오는 중…' : '이 기록 가져오기'}
+                            </button>
+                            <button type="button" onClick={() => setLegacyField(idx, { skipped: true })} disabled={c.saving}
+                              style={{ flex: 1, height: 34, borderRadius: 9, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 11.5, fontWeight: 800, cursor: 'pointer' }}>
+                              건너뛰기
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
             {/* 등록/수정 폼 */}
