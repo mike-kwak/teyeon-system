@@ -24,6 +24,13 @@ import {
     type RecentOfficialRecord,
     type PlayerCardStats,
 } from '@/lib/profile/getMemberOfficialStats';
+import {
+    fetchPublicAchievements,
+    formatMemberAchievement,
+    normalizeAchievementResult,
+    groupAchievementsByYear,
+    type MemberAchievement,
+} from '@/lib/members/achievements';
 
 type ProfileVisibility = VisibilityLevel;
 
@@ -548,6 +555,9 @@ export default function ProfilePage() {
                                     )}
                                 </section>
 
+                                {/* 대회 입상 기록 — 최근 3건 + 전체 보기(연도별 그룹) */}
+                                <ProfileAchievements memberId={linkedMember.id} />
+
                                 {/* 승패 / 득실 카드 */}
                                 {summary.totalMatches > 0 && (
                                     <section
@@ -878,6 +888,102 @@ export default function ProfilePage() {
             />
         )}
         </>
+    );
+}
+
+// 멤버 프로필 대회 입상 기록 — 최근 3건 + 전체 건수 + 전체 보기(연도별 그룹).
+//   데이터는 공개(is_public) 기록만. 사진/파트너/메모 없이 표준 문자열만 표시.
+function ProfileAchievements({ memberId }: { memberId: string }) {
+    const [list, setList] = useState<MemberAchievement[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [expanded, setExpanded] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        fetchPublicAchievements(memberId)
+            .then((rows) => { if (!cancelled) setList(rows); })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, [memberId]);
+
+    // 기록이 없으면 섹션 자체를 숨긴다(불필요한 빈 카드 방지).
+    if (loading || list.length === 0) return null;
+
+    const recent = list.slice(0, 3);
+    const groups = groupAchievementsByYear(list);
+
+    const line = (a: MemberAchievement) => {
+        const gold = normalizeAchievementResult(a.result) === '우승';
+        return (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 0' }}>
+                <span style={{ marginTop: 6, width: 5, height: 5, borderRadius: 999, flexShrink: 0, background: gold ? '#C9A84C' : '#2563EB' }} />
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F2747', lineHeight: 1.45, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                    {formatMemberAchievement(a)}
+                </p>
+            </div>
+        );
+    };
+
+    return (
+        <section
+            style={{
+                borderRadius: 22, background: '#FFFFFF', border: '1px solid #DCE8F5', padding: 18,
+                boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #C9A84C, #B08D2E)', borderRadius: 2 }} />
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>입상 기록</h3>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#8A6D1F', backgroundColor: '#FBF6E7', border: '1px solid #EBDCA6', padding: '3px 10px', borderRadius: 999 }}>
+                    {list.length}건
+                </span>
+            </div>
+
+            {!expanded ? (
+                <>
+                    <div>{recent.map(line)}</div>
+                    {list.length > 3 && (
+                        <button
+                            type="button"
+                            onClick={() => setExpanded(true)}
+                            style={{
+                                marginTop: 10, width: '100%', height: 38, borderRadius: 11,
+                                border: '1px solid #DCE8F5', background: '#F8FBFE', color: '#1F5FB5',
+                                fontSize: 12, fontWeight: 900, cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            }}
+                        >
+                            전체 입상 보기 <ChevronRight size={13} />
+                        </button>
+                    )}
+                </>
+            ) : (
+                <>
+                    {groups.map((g) => (
+                        <div key={String(g.year)} style={{ marginBottom: 12 }}>
+                            <p style={{ margin: '0 0 2px', fontSize: 11.5, fontWeight: 900, color: '#1F5FB5', letterSpacing: '0.02em' }}>
+                                {g.year ?? '연도 미상'}
+                            </p>
+                            <div>{g.items.map(line)}</div>
+                        </div>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={() => setExpanded(false)}
+                        style={{
+                            marginTop: 2, width: '100%', height: 36, borderRadius: 11,
+                            border: '1px solid #DCE8F5', background: '#FFFFFF', color: '#56729A',
+                            fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                        }}
+                    >
+                        접기
+                    </button>
+                </>
+            )}
+        </section>
     );
 }
 

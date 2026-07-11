@@ -33,11 +33,14 @@ import {
   createAchievement,
   updateAchievement,
   deleteAchievement,
-  ACHIEVEMENT_RESULT_OPTIONS,
+  ACHIEVEMENT_ORGANIZATIONS,
+  ACHIEVEMENT_DIVISIONS,
+  ACHIEVEMENT_RESULTS,
   type MemberProfileForm,
   type MemberAchievement,
   type AchievementInput,
 } from '@/lib/admin/memberProfileService';
+import { formatMemberAchievement, formatAchievementListLine, achievementYear } from '@/lib/members/achievements';
 
 interface AdminMember {
   id: string;
@@ -763,11 +766,14 @@ function MemberRegisterModal({ mode, unlinkedAccounts, guardWriteAction, onClose
 //   프로필: members 기존 컬럼(affiliation/mbti/나이/achievements/avatar_url) + bio(신규 SQL).
 //   입상 기록: member_achievements 테이블 CRUD — 테이블 미생성 시 안내만 표시.
 //   계정 연결 정보(nickname/email/auth_user_id)는 여기서 편집하지 않는다(등록/연결 모달 담당).
-const EMPTY_ACH_FORM = {
-  tournamentName: '', tournamentDate: '', resultChoice: '우승', resultCustom: '',
-  division: '', partnerName: '', isFeatured: false, isPublic: true, displayOrder: '',
-};
-type AchFormState = typeof EMPTY_ACH_FORM;
+// 신규 입상 폼 — 필수 6요소만(체계/연도/대회명/부서/성적). 파트너·날짜·메모 없음.
+const CURRENT_YEAR = new Date().getFullYear();
+const makeEmptyAchForm = (org: string, division: string) => ({
+  organization: org, year: String(CURRENT_YEAR), tournamentName: '', division, result: '우승',
+});
+type AchFormState = ReturnType<typeof makeEmptyAchForm>;
+// 등록 세션 동안 마지막 선택 체계/부서 유지(§3 반복 입력 편의).
+const YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => CURRENT_YEAR - i);
 
 function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
   member: AdminMember;
@@ -784,9 +790,17 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
   const [achList, setAchList] = useState<MemberAchievement[]>([]);
   const [achTableMissing, setAchTableMissing] = useState(false);
   const [achEditing, setAchEditing] = useState<string | 'new' | null>(null); // 'new' 또는 기록 id
-  const [achForm, setAchForm] = useState<AchFormState>(EMPTY_ACH_FORM);
+  const [achForm, setAchForm] = useState<AchFormState>(() => makeEmptyAchForm('KATO', '신인부'));
   const [savingAch, setSavingAch] = useState(false);
+  const [confirmDelId, setConfirmDelId] = useState<string | null>(null); // 인라인 삭제 확인 대상
   const [deletingAchId, setDeletingAchId] = useState<string | null>(null);
+  // 목록 필터(§4)
+  const [filterOrg, setFilterOrg] = useState<string>('all');
+  const [filterDivision, setFilterDivision] = useState<string>('all');
+  const [filterResult, setFilterResult] = useState<string>('all');
+  // 등록 세션 동안 마지막 선택 체계/부서 유지(§3)
+  const lastOrgRef = React.useRef('KATO');
+  const lastDivRef = React.useRef('신인부');
 
   const refreshAchievements = async () => {
     try {
@@ -842,22 +856,18 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
 
   const openAchForm = (target: MemberAchievement | 'new') => {
     setNotice(null);
+    setConfirmDelId(null);
     if (target === 'new') {
-      setAchForm(EMPTY_ACH_FORM);
+      setAchForm(makeEmptyAchForm(lastOrgRef.current, lastDivRef.current));
       setAchEditing('new');
       return;
     }
-    const isEnum = ACHIEVEMENT_RESULT_OPTIONS.includes(target.result);
     setAchForm({
+      organization: target.organization && (ACHIEVEMENT_ORGANIZATIONS as readonly string[]).includes(target.organization) ? target.organization : 'KATO',
+      year: String(achievementYear(target) ?? CURRENT_YEAR),
       tournamentName: target.tournament_name,
-      tournamentDate: target.tournament_date || '',
-      resultChoice: isEnum ? target.result : '직접 입력',
-      resultCustom: isEnum ? '' : target.result,
-      division: target.division || '',
-      partnerName: target.partner_name || '',
-      isFeatured: target.is_featured,
-      isPublic: target.is_public,
-      displayOrder: target.display_order === null || target.display_order === undefined ? '' : String(target.display_order),
+      division: target.division && (ACHIEVEMENT_DIVISIONS as readonly string[]).includes(target.division) ? target.division : '신인부',
+      result: (ACHIEVEMENT_RESULTS as readonly string[]).includes(target.result) ? target.result : '입상',
     });
     setAchEditing(target.id);
   };
@@ -866,18 +876,16 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
     setNotice(null);
     if (!guardWriteAction('입상 기록 저장')) return;
     const input: AchievementInput = {
+      organization: achForm.organization,
+      year: achForm.year,
       tournamentName: achForm.tournamentName,
-      tournamentDate: achForm.tournamentDate,
-      result: achForm.resultChoice === '직접 입력' ? achForm.resultCustom : achForm.resultChoice,
       division: achForm.division,
-      partnerName: achForm.partnerName,
-      isFeatured: achForm.isFeatured,
-      isPublic: achForm.isPublic,
-      displayOrder: achForm.displayOrder,
+      result: achForm.result,
     };
     setSavingAch(true);
     try {
-      if (achEditing === 'new') {
+      const isNew = achEditing === 'new';
+      if (isNew) {
         await createAchievement(member.id, input);
         logAction('/admin', 'member_achievement_created', { target: member.nickname, tournament: input.tournamentName });
       } else if (achEditing) {
@@ -885,7 +893,15 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
         logAction('/admin', 'member_achievement_updated', { target: member.nickname, tournament: input.tournamentName });
       }
       await refreshAchievements();
-      setAchEditing(null);
+      // 반복 입력 편의: 마지막 체계/부서 유지, 신규 등록이면 폼을 초기화한 채로 열어 둔다.
+      lastOrgRef.current = achForm.organization;
+      lastDivRef.current = achForm.division;
+      if (isNew) {
+        setAchForm(makeEmptyAchForm(achForm.organization, achForm.division));
+        setAchEditing('new');
+      } else {
+        setAchEditing(null);
+      }
       setNotice({ tone: 'ok', text: '입상 기록 저장 완료' });
       onDirty();
     } catch (err: any) {
@@ -898,11 +914,11 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
   const handleAchDelete = async (a: MemberAchievement) => {
     setNotice(null);
     if (!guardWriteAction('입상 기록 삭제')) return;
-    if (!window.confirm(`'${a.tournament_name} ${a.result}' 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.`)) return;
     setDeletingAchId(a.id);
     try {
       await deleteAchievement(a.id);
       logAction('/admin', 'member_achievement_deleted', { target: member.nickname, tournament: a.tournament_name });
+      setConfirmDelId(null);
       await refreshAchievements();
       setNotice({ tone: 'ok', text: '기록 삭제 완료' });
       onDirty();
@@ -913,9 +929,30 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
     }
   };
 
+  // 필터 적용 목록(§4). achList 는 이미 연도 최신순.
+  const filteredAch = achList.filter((a) =>
+    (filterOrg === 'all' || a.organization === filterOrg) &&
+    (filterDivision === 'all' || a.division === filterDivision) &&
+    (filterResult === 'all' || a.result === filterResult),
+  );
+  const achPreview = formatMemberAchievement({
+    organization: achForm.organization, tournament_name: achForm.tournamentName, division: achForm.division, result: achForm.result,
+  });
+
   const fieldLabel: React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 800, color: '#475569', marginBottom: 5 };
   const inputStyle: React.CSSProperties = { width: '100%', height: 38, padding: '0 11px', borderRadius: 8, border: '1px solid #D9E1EC', backgroundColor: '#FFFFFF', color: '#0F1B33', fontSize: 13, fontWeight: 700, outline: 'none', boxSizing: 'border-box' };
   const sectionTitle: React.CSSProperties = { margin: '0 0 10px', fontSize: 12, fontWeight: 900, color: '#0F1B33', display: 'flex', alignItems: 'center', gap: 6 };
+  // 선택 chip — 기본 teal/blue. 우승 선택 시에만 soft gold 를 제한적으로(§10).
+  const chipStyle = (on: boolean, gold = false): React.CSSProperties => ({
+    padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', border: '1px solid',
+    borderColor: on ? (gold ? '#C9A84C' : '#2563EB') : '#CBD5E1',
+    backgroundColor: on ? (gold ? '#FBF6E7' : '#EFF6FF') : '#FFFFFF',
+    color: on ? (gold ? '#8A6D1F' : '#1D4ED8') : '#475569',
+  });
+  const filterChip = (on: boolean): React.CSSProperties => ({
+    padding: '4px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, cursor: 'pointer', border: '1px solid',
+    borderColor: on ? '#0E7C76' : '#E3E9F2', backgroundColor: on ? '#E6FAF7' : '#FFFFFF', color: on ? '#0B6660' : '#64748B',
+  });
 
   const setField = (key: keyof MemberProfileForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -978,130 +1015,163 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
 
             <div style={{ height: 1, backgroundColor: '#EEF2F6', margin: '0 0 14px' }} />
 
-            {/* ── 대회 입상 기록 ── */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            {/* ── 입상 기록 관리 (대회 체계 + 대회명 + 부서 + 성적) ── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <p style={{ ...sectionTitle, margin: 0 }}>
-                <Trophy size={12} /> 대회 입상 기록
+                <Trophy size={12} /> 입상 기록 관리
                 <span style={{ fontSize: 10.5, fontWeight: 800, color: '#2563EB' }}>{achList.length}</span>
               </p>
-              {!achTableMissing && (
+              {!achTableMissing && achEditing !== 'new' && (
                 <button type="button" onClick={() => openAchForm('new')}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 30, padding: '0 11px', borderRadius: 8, border: 'none', backgroundColor: '#0E7C76', color: '#FFFFFF', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-                  <Plus size={12} /> 기록 추가
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 30, padding: '0 12px', borderRadius: 999, border: 'none', backgroundColor: '#0E7C76', color: '#FFFFFF', fontSize: 11.5, fontWeight: 800, cursor: 'pointer' }}>
+                  <Plus size={12} /> 입상 등록
                 </button>
               )}
             </div>
             <p style={{ margin: '0 0 10px', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5 }}>
-              운영진이 확인한 공식 외부 대회 성과입니다. TENNIS LOG(개인 기록)와 연동되지 않습니다.
+              표시 형식: <b style={{ color: '#64748B' }}>대회 체계 + 대회명 + 부서 + 성적</b>. 운영진이 확인한 공식 외부 대회 성과이며 TENNIS LOG(개인 기록)와 무관합니다.
             </p>
 
             {achTableMissing && (
               <p style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', fontSize: 11, fontWeight: 700, color: '#B45309', lineHeight: 1.55 }}>
-                입상 기록 테이블이 아직 생성되지 않았습니다. supabase/add_member_achievements.sql 적용 후 사용할 수 있습니다.
+                입상 기록 컬럼(대회 체계·연도)이 아직 없습니다. supabase/add_member_achievement_fields.sql 적용 후 사용할 수 있습니다.
               </p>
             )}
 
+            {/* 등록/수정 폼 */}
+            {achEditing !== null && (
+              <div style={{ padding: '13px 13px 14px', borderRadius: 12, border: '1px solid #C7D8F5', backgroundColor: '#F6FAFF', marginBottom: 12 }}>
+                <p style={{ margin: '0 0 10px', fontSize: 11.5, fontWeight: 900, color: '#0F1B33' }}>
+                  {achEditing === 'new' ? '입상 등록' : '입상 수정'}
+                  <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: '#64748B' }}>· {member.nickname}</span>
+                </p>
+
+                {/* 연도 */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={fieldLabel}>연도</label>
+                  <select value={achForm.year} onChange={setAchField('year')} className="admin-select" style={{ ...inputStyle, cursor: 'pointer' }}>
+                    {YEAR_OPTIONS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+                  </select>
+                </div>
+
+                {/* 대회 체계 */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={fieldLabel}>대회 체계</label>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {ACHIEVEMENT_ORGANIZATIONS.map((o) => (
+                      <button key={o} type="button" onClick={() => setAchForm((p) => ({ ...p, organization: o }))} style={chipStyle(achForm.organization === o)}>{o}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 대회명 */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={fieldLabel}>대회명</label>
+                  <input value={achForm.tournamentName} onChange={setAchField('tournamentName')} placeholder="예: 천안시장배" style={inputStyle} />
+                </div>
+
+                {/* 부서 */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={fieldLabel}>부서</label>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {ACHIEVEMENT_DIVISIONS.map((d) => (
+                      <button key={d} type="button" onClick={() => setAchForm((p) => ({ ...p, division: d }))} style={chipStyle(achForm.division === d)}>{d}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 성적 */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={fieldLabel}>성적</label>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {ACHIEVEMENT_RESULTS.map((r) => (
+                      <button key={r} type="button" onClick={() => setAchForm((p) => ({ ...p, result: r }))} style={chipStyle(achForm.result === r, r === '우승')}>{r}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 저장 전 미리보기 */}
+                <div style={{ marginBottom: 12, padding: '9px 11px', borderRadius: 9, backgroundColor: '#FFFFFF', border: '1px dashed #C7D8F5' }}>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.08em' }}>미리보기</span>
+                  <p style={{ margin: '3px 0 0', fontSize: 12.5, fontWeight: 800, color: achForm.tournamentName.trim() ? '#0F1B33' : '#B0BAC9', lineHeight: 1.45, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                    {achForm.tournamentName.trim() ? achPreview : `${achForm.organization} (대회명) ${achForm.division} ${achForm.result}`}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => { setAchEditing(null); setNotice(null); }} disabled={savingAch}
+                    style={{ flex: 1, height: 38, borderRadius: 9, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                    {achEditing === 'new' ? '닫기' : '취소'}
+                  </button>
+                  <button type="button" onClick={handleAchSave}
+                    disabled={savingAch || !achForm.tournamentName.trim()}
+                    style={{ flex: 2, height: 38, borderRadius: 9, border: 'none', backgroundColor: achForm.tournamentName.trim() ? '#0E7C76' : '#9CC7C3', color: '#FFFFFF', fontSize: 12, fontWeight: 900, cursor: savingAch ? 'wait' : achForm.tournamentName.trim() ? 'pointer' : 'not-allowed' }}>
+                    {savingAch ? '저장 중…' : '저장'}
+                  </button>
+                </div>
+                {!achForm.tournamentName.trim() && (
+                  <p style={{ margin: '7px 0 0', fontSize: 10.5, fontWeight: 700, color: '#B45309' }}>대회명을 입력하면 저장할 수 있습니다.</p>
+                )}
+              </div>
+            )}
+
+            {/* 필터 */}
+            {!achTableMissing && achList.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => setFilterOrg('all')} style={filterChip(filterOrg === 'all')}>체계 전체</button>
+                  {ACHIEVEMENT_ORGANIZATIONS.map((o) => <button key={o} type="button" onClick={() => setFilterOrg(o)} style={filterChip(filterOrg === o)}>{o}</button>)}
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => setFilterDivision('all')} style={filterChip(filterDivision === 'all')}>부서 전체</button>
+                  {ACHIEVEMENT_DIVISIONS.map((d) => <button key={d} type="button" onClick={() => setFilterDivision(d)} style={filterChip(filterDivision === d)}>{d}</button>)}
+                  <span style={{ width: 1 }} />
+                  <button type="button" onClick={() => setFilterResult('all')} style={filterChip(filterResult === 'all')}>성적 전체</button>
+                  {ACHIEVEMENT_RESULTS.map((r) => <button key={r} type="button" onClick={() => setFilterResult(r)} style={filterChip(filterResult === r)}>{r}</button>)}
+                </div>
+              </div>
+            )}
+
+            {/* 목록 (compact row · 연도 최신순) */}
             {!achTableMissing && achList.length === 0 && achEditing === null && (
               <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>등록된 입상 기록이 없습니다.</p>
             )}
-
-            {achList.map((a) => (
+            {!achTableMissing && achList.length > 0 && filteredAch.length === 0 && (
+              <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>필터에 맞는 기록이 없습니다.</p>
+            )}
+            {filteredAch.map((a) => (
               <div key={a.id} style={{ padding: '9px 11px', borderRadius: 10, border: '1px solid #E3E9F2', backgroundColor: '#FAFCFF', marginBottom: 7 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                  <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: '#0F1B33', lineHeight: 1.45, whiteSpace: 'normal', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
-                    {a.tournament_name}
-                    {a.is_featured && <span style={{ marginLeft: 4, fontSize: 10, color: '#B8891C' }}>★ 대표</span>}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                  <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 12, fontWeight: 800, color: '#0F1B33', lineHeight: 1.45, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                    {formatAchievementListLine(a)}
                     {!a.is_public && <span style={{ marginLeft: 4, fontSize: 10, color: '#94A3B8' }}>(비공개)</span>}
-                  </p>
-                  <Badge tone="teal">{a.result}</Badge>
-                </div>
-                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: '#64748B', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
-                    {[
-                      a.tournament_date ? a.tournament_date.slice(0, 7).replace('-', '.') : null,
-                      a.division,
-                      a.partner_name ? `파트너 ${a.partner_name}` : null,
-                    ].filter(Boolean).join(' · ') || '상세 정보 없음'}
                   </p>
                   <span style={{ display: 'inline-flex', gap: 2, flexShrink: 0 }}>
                     <button type="button" onClick={() => openAchForm(a)}
                       style={{ background: 'none', border: 'none', padding: '2px 5px', fontSize: 10.5, fontWeight: 800, color: '#2563EB', cursor: 'pointer', textDecoration: 'underline' }}>
                       수정
                     </button>
-                    <button type="button" onClick={() => handleAchDelete(a)} disabled={deletingAchId === a.id}
-                      style={{ background: 'none', border: 'none', padding: '2px 5px', fontSize: 10.5, fontWeight: 800, color: '#B91C1C', cursor: deletingAchId === a.id ? 'wait' : 'pointer', textDecoration: 'underline' }}>
+                    <button type="button" onClick={() => setConfirmDelId(confirmDelId === a.id ? null : a.id)} disabled={deletingAchId === a.id}
+                      style={{ background: 'none', border: 'none', padding: '2px 5px', fontSize: 10.5, fontWeight: 800, color: '#B91C1C', cursor: 'pointer', textDecoration: 'underline' }}>
                       삭제
                     </button>
                   </span>
                 </div>
-              </div>
-            ))}
-
-            {achEditing !== null && (
-              <div style={{ padding: '12px 12px 13px', borderRadius: 10, border: '1px solid #C7D8F5', backgroundColor: '#F6FAFF', marginTop: 4, marginBottom: 4 }}>
-                <p style={{ margin: '0 0 10px', fontSize: 11.5, fontWeight: 900, color: '#0F1B33' }}>
-                  {achEditing === 'new' ? '입상 기록 추가' : '입상 기록 수정'}
-                </p>
-                <div style={{ marginBottom: 10 }}>
-                  <label style={fieldLabel}>대회명 (필수)</label>
-                  <input value={achForm.tournamentName} onChange={setAchField('tournamentName')} placeholder="예: 2026 아산시장배 동호인 테니스대회" style={inputStyle} />
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <label style={fieldLabel}>대회 날짜</label>
-                    <input type="date" value={achForm.tournamentDate} onChange={setAchField('tournamentDate')} style={inputStyle} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <label style={fieldLabel}>최종 성적 (필수)</label>
-                    <select value={achForm.resultChoice} onChange={setAchField('resultChoice')} className="admin-select" style={{ ...inputStyle, cursor: 'pointer' }}>
-                      {ACHIEVEMENT_RESULT_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                      <option value="직접 입력">직접 입력</option>
-                    </select>
-                  </div>
-                </div>
-                {achForm.resultChoice === '직접 입력' && (
-                  <div style={{ marginBottom: 10 }}>
-                    <label style={fieldLabel}>성적 직접 입력</label>
-                    <input value={achForm.resultCustom} onChange={setAchField('resultCustom')} placeholder="예: 챌린저부 준우승" style={inputStyle} />
+                {confirmDelId === a.id && (
+                  <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                    <span style={{ marginRight: 'auto', fontSize: 10.5, fontWeight: 700, color: '#B91C1C' }}>삭제하면 되돌릴 수 없습니다.</span>
+                    <button type="button" onClick={() => setConfirmDelId(null)} disabled={deletingAchId === a.id}
+                      style={{ height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+                      취소
+                    </button>
+                    <button type="button" onClick={() => handleAchDelete(a)} disabled={deletingAchId === a.id}
+                      style={{ height: 28, padding: '0 12px', borderRadius: 8, border: 'none', backgroundColor: '#B91C1C', color: '#FFFFFF', fontSize: 10.5, fontWeight: 800, cursor: deletingAchId === a.id ? 'wait' : 'pointer' }}>
+                      {deletingAchId === a.id ? '삭제 중…' : '삭제 확인'}
+                    </button>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <label style={fieldLabel}>참가 부서</label>
-                    <input value={achForm.division} onChange={setAchField('division')} placeholder="예: 신인부" style={inputStyle} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <label style={fieldLabel}>파트너</label>
-                    <input value={achForm.partnerName} onChange={setAchField('partnerName')} placeholder="복식 파트너" style={inputStyle} />
-                  </div>
-                </div>
-                <div style={{ marginBottom: 10 }}>
-                  <label style={fieldLabel}>표시 순서</label>
-                  <input value={achForm.displayOrder} onChange={setAchField('displayOrder')} placeholder="비우면 자동(대표 → 날짜 최신순), 낮을수록 위" inputMode="numeric" style={inputStyle} />
-                </div>
-                <div style={{ display: 'flex', gap: 14, marginBottom: 12 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={achForm.isFeatured} onChange={(e) => setAchForm((p) => ({ ...p, isFeatured: e.target.checked }))} />
-                    대표 기록 (목록 카드 우선 표시)
-                  </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={achForm.isPublic} onChange={(e) => setAchForm((p) => ({ ...p, isPublic: e.target.checked }))} />
-                    프로필 공개
-                  </label>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" onClick={() => setAchEditing(null)} disabled={savingAch}
-                    style={{ flex: 1, height: 36, borderRadius: 9, border: '1px solid #E3E9F2', backgroundColor: '#FFFFFF', color: '#64748B', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-                    취소
-                  </button>
-                  <button type="button" onClick={handleAchSave}
-                    disabled={savingAch || !achForm.tournamentName.trim() || (achForm.resultChoice === '직접 입력' && !achForm.resultCustom.trim())}
-                    style={{ flex: 2, height: 36, borderRadius: 9, border: 'none', backgroundColor: '#0E7C76', color: '#FFFFFF', fontSize: 12, fontWeight: 900, cursor: savingAch ? 'wait' : 'pointer' }}>
-                    {savingAch ? '저장 중…' : achEditing === 'new' ? '기록 추가' : '기록 저장'}
-                  </button>
-                </div>
               </div>
-            )}
+            ))}
 
             {notice && (
               <p style={{

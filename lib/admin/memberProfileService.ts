@@ -7,15 +7,20 @@
 import { supabase } from '../supabase';
 import {
   ACHIEVEMENT_COLS,
+  ACHIEVEMENT_ORGANIZATIONS,
+  ACHIEVEMENT_DIVISIONS,
+  ACHIEVEMENT_RESULTS,
   applyAchievementOrder,
   isMissingAchievementsTable,
   type MemberAchievement,
 } from '../members/achievements';
 
 export type { MemberAchievement } from '../members/achievements';
-
-/** 성적 선택지 — UI 에서 '직접 입력' 선택 시 자유 텍스트로 전환한다. */
-export const ACHIEVEMENT_RESULT_OPTIONS = ['우승', '준우승', '공동 3위', '4강', '8강', '16강', '본선 진출'];
+export {
+  ACHIEVEMENT_ORGANIZATIONS,
+  ACHIEVEMENT_DIVISIONS,
+  ACHIEVEMENT_RESULTS,
+} from '../members/achievements';
 
 const ACHIEVEMENTS_TABLE_HINT =
   '입상 기록 테이블이 아직 없습니다. supabase/add_member_achievements.sql 적용 후 사용할 수 있습니다.';
@@ -89,42 +94,45 @@ export async function updateMemberProfile(
 
 // ── 대회 입상 기록 CRUD ──────────────────────────────────────────────────────
 
+/** 신규 입상 입력 — 필수 6요소만(멤버는 memberId 로 별도 전달). §1 필드 구조. */
 export interface AchievementInput {
+  /** KATO/KATA/KTA */
+  organization: string;
+  /** 연도(YYYY) — 문자열/숫자 허용 */
+  year: string | number;
   tournamentName: string;
-  /** YYYY-MM-DD 또는 빈 값 */
-  tournamentDate: string;
-  result: string;
+  /** 신인부/오픈부 */
   division: string;
-  partnerName: string;
-  isFeatured: boolean;
-  isPublic: boolean;
-  /** 표시 순서(낮을수록 위) — 빈 값이면 자동(날짜순) */
-  displayOrder: string;
+  /** 우승/준우승/입상 */
+  result: string;
 }
 
 function toRow(input: AchievementInput): Record<string, unknown> {
+  const organization = String(input.organization || '').trim();
   const tournamentName = (input.tournamentName || '').trim();
-  const result = (input.result || '').trim();
+  const division = String(input.division || '').trim();
+  const result = String(input.result || '').trim();
+  const year = typeof input.year === 'number' ? input.year : parseInt(String(input.year || '').trim(), 10);
+
+  if (!organization || !(ACHIEVEMENT_ORGANIZATIONS as readonly string[]).includes(organization)) {
+    throw new Error('대회 체계를 선택해 주세요 (KATO/KATA/KTA).');
+  }
+  if (!Number.isInteger(year) || year < 1990 || year > 2100) {
+    throw new Error('연도를 올바르게 선택해 주세요.');
+  }
   if (!tournamentName) throw new Error('대회명을 입력해 주세요.');
-  if (!result) throw new Error('최종 성적을 선택하거나 입력해 주세요.');
-  const norm = (v: string) => {
-    const t = (v ?? '').trim();
-    return t === '' ? null : t;
-  };
-  const orderText = (input.displayOrder ?? '').trim();
-  const displayOrder = orderText === '' ? null : Number(orderText);
-  if (displayOrder !== null && (!Number.isInteger(displayOrder) || displayOrder < 0)) {
-    throw new Error('표시 순서는 0 이상의 정수로 입력해 주세요.');
+  if (!division || !(ACHIEVEMENT_DIVISIONS as readonly string[]).includes(division)) {
+    throw new Error('부서를 선택해 주세요 (신인부/오픈부).');
+  }
+  if (!result || !(ACHIEVEMENT_RESULTS as readonly string[]).includes(result)) {
+    throw new Error('성적을 선택해 주세요 (우승/준우승/입상).');
   }
   return {
+    organization,
+    year,
     tournament_name: tournamentName,
-    tournament_date: norm(input.tournamentDate),
+    division,
     result,
-    division: norm(input.division),
-    partner_name: norm(input.partnerName),
-    is_featured: !!input.isFeatured,
-    is_public: !!input.isPublic,
-    display_order: displayOrder,
   };
 }
 

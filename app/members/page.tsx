@@ -28,7 +28,7 @@ import {
     type MemberOfficialStatsResult,
 } from '@/lib/profile/getMemberOfficialStats';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
-import { fetchAchievementSummaries, formatAchievementLine } from '@/lib/members/achievements';
+import { fetchAchievementSummaries, formatMemberAchievement } from '@/lib/members/achievements';
 
 // Local alias: members page uses the shared player card view model directly.
 type Member = PlayerCardMember;
@@ -364,7 +364,7 @@ export default function MembersPage() {
                         profile_avatar_url: matched?.avatar_url || undefined,
                         profile_visibility_level: (matched?.profile_visibility_level as VisibilityLevel) ?? undefined,
                         achievement_count: ach?.count ?? 0,
-                        achievement_top_line: ach ? formatAchievementLine(ach.top) : undefined,
+                        achievement_top_line: ach ? formatMemberAchievement(ach.top) : undefined,
                     };
                 });
 
