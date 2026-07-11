@@ -2,6 +2,12 @@
 -- 검증 SQL — add_guest_application_notifications.sql 적용 후 확인.
 --   A 부: 읽기 전용 구조 점검(그대로 실행).
 --   B 부: claim 상태 머신 실검증 — BEGIN … ROLLBACK 으로 운영 데이터를 남기지 않는다.
+--
+--   운영 스키마 확인 사항(추정 금지):
+--     · club_schedules 에는 club_id 컬럼이 없다 → 참조하지 않는다.
+--     · guest_recruitments 에는 created_at 이 존재한다(정렬에 사용).
+--     · B 부는 기존 guest_recruitments row 를 "읽기만" 재사용한다(모집 신규 생성/수정 금지).
+--       모집이 하나도 없으면 명확한 예외로 중단한다(가짜 PASS/SKIP 금지).
 -- =============================================================================
 
 -- ── A-1. 테이블/유니크/CHECK ──────────────────────────────────────────────────
@@ -58,87 +64,140 @@ select p.proname, r.rolname, has_function_privilege(r.oid, p.oid, 'EXECUTE') as 
 
 -- =============================================================================
 -- B. claim 상태 머신 실검증 — 전체가 ROLLBACK 되어 운영 데이터가 남지 않는다.
---    아래 블록을 통째로 실행(BEGIN~ROLLBACK). NOTICE 로 PASS/FAIL 출력.
+--    기존 모집 1건을 "읽기만" 재사용한다(모집 생성/수정 없음). 테스트로 생성되는 것은
+--    guest_applications 1행 + notification 1행뿐이며 모두 ROLLBACK 된다.
+--    아래 블록(BEGIN~ROLLBACK)과 마지막 SELECT 를 통째로 실행.
 -- =============================================================================
 begin;
 
 do $verify$
 declare
-    v_schedule uuid;
-    v_rec      uuid;
-    v_app      uuid;
-    r          jsonb;
-    fail_cnt   int := 0;
+    v_schedule          uuid;
+    v_recruitment       uuid;
+    v_application       uuid;
+
+    v_phone_normalized  text;
+    v_phone_display     text;
+
+    v_result            jsonb;
+    v_fail_count        integer := 0;
 begin
-    -- 테스트용 신청 체인(기존 정모 1건 재사용, 전부 rollback 됨)
-    select id into v_schedule from public.club_schedules limit 1;
-    if v_schedule is null then
-        raise notice 'SKIP: club_schedules 가 비어 있어 상태 머신 테스트를 건너뜁니다.';
-        return;
+    -- 기존 모집 재사용(읽기 전용) — club_schedules.club_id 는 존재하지 않으므로 참조하지 않는다.
+    select
+        gr.id,
+        gr.schedule_id
+    into
+        v_recruitment,
+        v_schedule
+    from public.guest_recruitments gr
+    join public.club_schedules cs
+      on cs.id = gr.schedule_id
+    order by gr.created_at desc nulls last
+    limit 1;
+
+    if v_recruitment is null or v_schedule is null then
+        raise exception
+            'VERIFY 중단: guest_recruitments에 연결 가능한 모집이 없습니다. 앱에서 QA용 모집 1건을 생성한 뒤 다시 실행하세요.';
     end if;
-    select id into v_rec from public.guest_recruitments where schedule_id = v_schedule;
-    if v_rec is null then
-        insert into public.guest_recruitments (public_token, schedule_id, status)
-        values ('VERIFY_TEST_TOKEN_' || substr(md5(random()::text), 1, 8), v_schedule, 'open')
-        returning id into v_rec;
-    end if;
-    insert into public.guest_applications
-        (recruitment_id, schedule_id, name, phone, phone_normalized, region,
-         affiliation_type, club_name, tennis_experience, privacy_consent, status, source_type)
-    values (v_rec, v_schedule, 'VERIFY테스트', '010-0000-0000', '0100000' || substr(md5(random()::text), 1, 4),
-            '검증', 'independent', '무소속', '검증', true, 'pending', 'public_application')
-    returning id into v_app;
+
+    -- 테스트 신청 1건 생성(활성 중복 인덱스 회피용 랜덤 정규화 번호 — ROLLBACK 대상).
+    --   허용값은 운영 CHECK 그대로: affiliation_type in ('club','independent'),
+    --   status in ('pending','approved','on_hold','rejected'),
+    --   source_type in ('public_application','member_invitation').
+    v_phone_display    := '010-0000-0000';
+    v_phone_normalized := '0100000' || substr(md5(random()::text), 1, 4);
+
+    insert into public.guest_applications (
+        recruitment_id,
+        schedule_id,
+        name,
+        phone,
+        phone_normalized,
+        region,
+        affiliation_type,
+        club_name,
+        tennis_experience,
+        privacy_consent,
+        status,
+        source_type
+    )
+    values (
+        v_recruitment,
+        v_schedule,
+        'VERIFY테스트',
+        v_phone_display,
+        v_phone_normalized,
+        '검증',
+        'independent',
+        '무소속',
+        '검증',
+        true,
+        'pending',
+        'public_application'
+    )
+    returning id
+    into v_application;
 
     -- 1) 최초 claim → claimed=true, attempts=1
-    r := public.claim_guest_application_notification(v_app);
-    if (r->>'claimed')::boolean and (r->>'attempts')::int = 1 then
+    v_result := public.claim_guest_application_notification(v_application);
+    if (v_result->>'claimed')::boolean and (v_result->>'attempts')::int = 1 then
         raise notice 'PASS 1: 최초 claim 성공(attempts=1)';
-    else fail_cnt := fail_cnt + 1; raise notice 'FAIL 1: %', r; end if;
+    else v_fail_count := v_fail_count + 1; raise notice 'FAIL 1: %', v_result; end if;
 
     -- 2) 최근 pending 재claim → 실패(recently_claimed)
-    r := public.claim_guest_application_notification(v_app);
-    if not (r->>'claimed')::boolean and r->>'reason' = 'recently_claimed' then
+    v_result := public.claim_guest_application_notification(v_application);
+    if not (v_result->>'claimed')::boolean and v_result->>'reason' = 'recently_claimed' then
         raise notice 'PASS 2: 최근 pending 재claim 차단';
-    else fail_cnt := fail_cnt + 1; raise notice 'FAIL 2: %', r; end if;
+    else v_fail_count := v_fail_count + 1; raise notice 'FAIL 2: %', v_result; end if;
 
     -- 3) 오래된 pending(>5분) → 재claim 가능, attempts=2
     update public.guest_application_notifications
-       set updated_at = now() - interval '10 minutes' where application_id = v_app;
-    r := public.claim_guest_application_notification(v_app);
-    if (r->>'claimed')::boolean and (r->>'attempts')::int = 2 then
+       set updated_at = now() - interval '10 minutes' where application_id = v_application;
+    v_result := public.claim_guest_application_notification(v_application);
+    if (v_result->>'claimed')::boolean and (v_result->>'attempts')::int = 2 then
         raise notice 'PASS 3: 오래된 pending 재claim(attempts=2)';
-    else fail_cnt := fail_cnt + 1; raise notice 'FAIL 3: %', r; end if;
+    else v_fail_count := v_fail_count + 1; raise notice 'FAIL 3: %', v_result; end if;
 
     -- 4) failed(attempts<3) → 재claim 가능, attempts=3
     update public.guest_application_notifications
        set status = 'failed', last_error = 'resend_500', updated_at = now() - interval '1 minute'
-     where application_id = v_app;
-    r := public.claim_guest_application_notification(v_app);
-    if (r->>'claimed')::boolean and (r->>'attempts')::int = 3 then
+     where application_id = v_application;
+    v_result := public.claim_guest_application_notification(v_application);
+    if (v_result->>'claimed')::boolean and (v_result->>'attempts')::int = 3 then
         raise notice 'PASS 4: failed(attempts<3) 재claim(attempts=3)';
-    else fail_cnt := fail_cnt + 1; raise notice 'FAIL 4: %', r; end if;
+    else v_fail_count := v_fail_count + 1; raise notice 'FAIL 4: %', v_result; end if;
 
     -- 5) attempts>=3 → 재claim 실패(max_attempts) — stale 상태로 만들어도 차단되어야 함
     update public.guest_application_notifications
-       set status = 'failed', updated_at = now() - interval '10 minutes' where application_id = v_app;
-    r := public.claim_guest_application_notification(v_app);
-    if not (r->>'claimed')::boolean and r->>'reason' = 'max_attempts' then
+       set status = 'failed', updated_at = now() - interval '10 minutes' where application_id = v_application;
+    v_result := public.claim_guest_application_notification(v_application);
+    if not (v_result->>'claimed')::boolean and v_result->>'reason' = 'max_attempts' then
         raise notice 'PASS 5: attempts>=3 재claim 차단(max_attempts)';
-    else fail_cnt := fail_cnt + 1; raise notice 'FAIL 5: %', r; end if;
+    else v_fail_count := v_fail_count + 1; raise notice 'FAIL 5: %', v_result; end if;
 
     -- 6) sent → 재claim 실패(already_sent)
     update public.guest_application_notifications
        set status = 'sent', attempts = 1, sent_at = now(), last_error = null,
            updated_at = now() - interval '10 minutes'
-     where application_id = v_app;
-    r := public.claim_guest_application_notification(v_app);
-    if not (r->>'claimed')::boolean and r->>'reason' = 'already_sent' then
+     where application_id = v_application;
+    v_result := public.claim_guest_application_notification(v_application);
+    if not (v_result->>'claimed')::boolean and v_result->>'reason' = 'already_sent' then
         raise notice 'PASS 6: sent 재claim 차단(재발송 금지)';
-    else fail_cnt := fail_cnt + 1; raise notice 'FAIL 6: %', r; end if;
+    else v_fail_count := v_fail_count + 1; raise notice 'FAIL 6: %', v_result; end if;
 
-    if fail_cnt = 0 then raise notice '=== 상태 머신 6/6 PASS (전부 rollback 예정) ===';
-    else raise notice '=== FAIL % 건 — 운영 적용 중단 후 보고 ===', fail_cnt; end if;
+    if v_fail_count > 0 then
+        raise exception
+            'Notification claim 상태 머신 검증 실패: %건',
+            v_fail_count;
+    end if;
+    raise notice '=== 상태 머신 6/6 PASS (전부 rollback 예정) ===';
 end;
 $verify$;
 
-rollback;  -- 테스트 데이터(정모 재사용분 포함 신청/알림) 전부 취소 — 운영 데이터 무변경
+rollback;  -- 테스트 신청/알림 전부 취소 — 기존 모집·정모·운영 데이터 무변경
+
+-- 위 DO 블록이 실패하면 예외로 여기까지 오지 않는다 → 이 행이 보이면 A 실행 + B 6/6 통과.
+select
+    'PASS: A 구조 및 권한 + B 상태 머신 6/6' as verify_result,
+    '6/6 PASS'                               as state_machine_result,
+    true                                     as test_data_rolled_back;
