@@ -39,13 +39,41 @@ export interface MemberProfileForm {
 //   입상의 단일 출처는 member_achievements — 표시 문구는 formatMemberAchievement 로 자동 생성.
 //   기존 컬럼 값은 비파괴로 남겨 두되(삭제/변경 없음) UI/표시 경로에서 제외(추후 정리 별도 검토).
 
+// RPC 미존재(마이그레이션 전) 판정 — PGRST202: PostgREST 함수 캐시 미발견 / 42883: undefined_function
+const isMissingFunction = (err: unknown): boolean => {
+  const code = String((err as { code?: unknown } | null)?.code || '');
+  return code === 'PGRST202' || code === '42883';
+};
+
 export async function fetchMemberProfile(
   memberId: string,
 ): Promise<MemberProfileForm & { nickname: string; legacyAchievementsText: string }> {
-  const { data, error } = await supabase.from('members').select('*').eq('id', memberId).single();
-  if (error) throw error;
-  const row = data as Record<string, unknown>;
   const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+  // P0 개인정보 최소화: 출생연도('나이') 등 민감 컬럼은 관리자 전용 RPC 로 조회.
+  //   RPC 미적용(컬럼 privilege 적용 전) 환경에서는 기존 직접 조회로 폴백해 무중단 배포를 보장한다.
+  const { data: rpcRow, error: rpcErr } = await supabase.rpc('admin_get_member_private', { p_member_id: memberId });
+  if (!rpcErr && rpcRow) {
+    const row = rpcRow as Record<string, unknown>;
+    return {
+      nickname: str(row.nickname),
+      affiliation: str(row.affiliation),
+      mbti: str(row.mbti),
+      birthYear: str(row.birth_text),
+      bio: str(row.bio),
+      avatarUrl: str(row.avatar_url),
+      legacyAchievementsText: str(row.achievements_legacy),
+    };
+  }
+  if (rpcErr && !isMissingFunction(rpcErr)) throw rpcErr;
+  // 폴백(마이그레이션 전): select('*') 는 폐기 — 실제 사용 컬럼만 명시 조회.
+  const { data, error } = await supabase
+    .from('members')
+    .select('nickname, affiliation, mbti, 나이, bio, avatar_url, achievements')
+    .eq('id', memberId)
+    .single();
+  if (error) throw error;
+  // 한글 컬럼('나이')은 supabase-js 타입 파서가 해석하지 못해 unknown 경유 캐스팅(런타임 정상).
+  const row = data as unknown as Record<string, unknown>;
   return {
     nickname: str(row.nickname),
     affiliation: str(row.affiliation),

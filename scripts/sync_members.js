@@ -1,3 +1,7 @@
+// ⚠ 로컬 운영 스크립트 — members.phone 등 민감 컬럼을 INSERT/UPDATE 한다.
+//   P0 column privilege 적용 후 anon/일반 authenticated 권한으로는 실행되지 않는다(의도된 차단).
+//   실행이 필요하면 SUPABASE_SERVICE_ROLE_KEY 를 환경변수로 주입해 service role 로만 실행할 것.
+//   (아래 하드코딩 anon key 경로는 privilege 적용 후 phone 관련 동작이 거부된다.)
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(

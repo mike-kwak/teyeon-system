@@ -36,9 +36,10 @@ export default function ManualMatchLab() {
     const fetchMembers = async () => {
         try {
             setIsMembersLoading(true);
+            // P0 개인정보 최소화: select('*') 금지 — 수동 매치가 실제 쓰는 컬럼만 명시.
             const { data, error } = await supabase
                 .from('members')
-                .select('*')
+                .select('id, nickname, role, position, club_id, avatar_url')
                 .order('nickname');
             if (error) throw error;
             setAllMembers(data || []);

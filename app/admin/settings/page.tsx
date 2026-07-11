@@ -155,16 +155,25 @@ export default function AdminSettingsPage() {
     setFetchingProfiles(true);
     setFetchError(null);
     try {
-      const runQuery = (orderBy: 'updated_at' | 'email') => supabase
-        .from('profiles')
-        .select('id, email, nickname, role, avatar_url, updated_at')
-        .order(orderBy, { ascending: orderBy === 'email' });
-      let { data, error } = await withTimeout<ProfilesQueryResult>(runQuery('updated_at'));
-      if (error && getErrorMessage(error).includes('updated_at')) {
-        const fallback = await withTimeout<ProfilesQueryResult>(runQuery('email'));
-        data = fallback.data; error = fallback.error;
+      // P0 개인정보 최소화: profiles.email 은 관리자 전용 RPC(admin_list_profiles)로 조회.
+      //   RPC 미적용(컬럼 privilege 적용 전) 환경에서는 기존 직접 조회로 폴백(무중단 배포).
+      const rpcRes = await withTimeout<ProfilesQueryResult>(supabase.rpc('admin_list_profiles') as any);
+      let data = rpcRes.data as any[] | null;
+      let error = rpcRes.error as any;
+      const missingFn = error && (String(error.code) === 'PGRST202' || String(error.code) === '42883');
+      if (missingFn) {
+        const runQuery = (orderBy: 'updated_at' | 'email') => supabase
+          .from('profiles')
+          .select('id, email, nickname, role, avatar_url, updated_at')
+          .order(orderBy, { ascending: orderBy === 'email' });
+        ({ data, error } = await withTimeout<ProfilesQueryResult>(runQuery('updated_at')));
+        if (error && getErrorMessage(error).includes('updated_at')) {
+          const fallback = await withTimeout<ProfilesQueryResult>(runQuery('email'));
+          data = fallback.data; error = fallback.error;
+        }
       }
       if (error) throw error;
+      // RPC 는 updated_at desc 로 반환 — 기존 정렬과 동일. role 정규화는 기존 로직 유지.
       setProfiles((data || []).map((p: any) => ({ ...p, role: APP_ROLE_OPTIONS.includes(p.role) ? p.role : 'GUEST' })));
     } catch (err: any) {
       console.warn('[Admin] Fetch Profiles Error:', err);

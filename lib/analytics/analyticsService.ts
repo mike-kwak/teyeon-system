@@ -444,26 +444,18 @@ export async function fetchVisitorAnalytics(range: AnalyticsRange): Promise<Visi
 
 export async function fetchAgeDistribution(): Promise<AgeResult> {
     try {
-        const { data, error } = await supabase.from('members').select('age').limit(5000);
-        if (error || !data) return { ok: false, buckets: [], total: 0, filled: 0 };
-        const buckets = [
-            { label: '20대 이하', count: 0 },
-            { label: '30대', count: 0 },
-            { label: '40대', count: 0 },
-            { label: '50대 이상', count: 0 },
-            { label: '미입력', count: 0 },
-        ];
-        for (const m of data as { age: number | null }[]) {
-            const age = typeof m.age === 'number' && Number.isFinite(m.age) ? m.age : null;
-            if (age === null || age <= 0) buckets[4].count++;
-            else if (age < 30) buckets[0].count++;
-            else if (age < 40) buckets[1].count++;
-            else if (age < 50) buckets[2].count++;
-            else buckets[3].count++;
+        // P0 개인정보 최소화: 연령(출생연도 '나이')은 관리자 전용 RPC 로 서버에서 버킷 집계만 받는다.
+        //   (참고: 기존 select('age')는 존재하지 않는 컬럼이라 항상 실패해 ok:false 를 반환하고 있었음 —
+        //    RPC 전환으로 '나이' 기반 집계가 정상 동작한다.)
+        const { data, error } = await supabase.rpc('admin_age_distribution');
+        if (!error && data && typeof data === 'object') {
+            const d = data as { buckets?: { label: string; count: number }[]; total?: number; filled?: number };
+            if (Array.isArray(d.buckets)) {
+                return { ok: true, buckets: d.buckets, total: Number(d.total) || 0, filled: Number(d.filled) || 0 };
+            }
         }
-        const total = data.length;
-        const filled = total - buckets[4].count;
-        return { ok: true, buckets, total, filled };
+        // RPC 미적용/권한 없음 → 기존 동작과 동일하게 비표시(ok:false).
+        return { ok: false, buckets: [], total: 0, filled: 0 };
     } catch {
         return { ok: false, buckets: [], total: 0, filled: 0 };
     }

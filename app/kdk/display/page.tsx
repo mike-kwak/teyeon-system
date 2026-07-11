@@ -605,7 +605,9 @@ function KdkDisplayBoard() {
 
   const fetchMembers = async () => {
     try {
-      let query = supabase.from('members').select('*');
+      // P0 개인정보 최소화: select('*') 금지 — 전광판이 실제 쓰는 컬럼만.
+      //   민감 컬럼(email/phone/나이/member_number/비고)이 공개 화면 payload 에 실리지 않게 한다.
+      let query = supabase.from('members').select('id, nickname, role, club_id');
       if (CLUB_ID) query = query.eq('club_id', CLUB_ID);
 
       const { data, error: membersError } = await query;

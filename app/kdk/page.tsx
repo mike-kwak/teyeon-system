@@ -1456,7 +1456,9 @@ export default function KDKPage() {
 
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
-            let query = supabase.from('members').select('*');
+            // P0 개인정보 최소화: select('*') 금지 — KDK 가 실제 쓰는 컬럼만 명시.
+            //   (email/phone/member_number/비고는 KDK 에서 사용하지 않음)
+            let query = supabase.from('members').select('id, nickname, role, position, club_id, avatar_url, achievements, auth_user_id');
             if (clubId) {
                 query = query.eq('club_id', clubId);
             }
@@ -1464,7 +1466,38 @@ export default function KDKPage() {
             const { data, error } = await query.order('nickname');
 
             if (error) throw error;
-            setAllMembers(data || []);
+            const memberRows: any[] = data || [];
+
+            // 출생연도('나이' — 대진 설정·비순위 comparator 폴백용, 민감 컬럼):
+            //   운영진 전용 RPC(admin_get_member_birth_years)로 취득하고, RPC 미적용(마이그레이션 전)
+            //   환경에서는 기존 직접 조회로 폴백. 둘 다 실패(일반 회원 + 컬럼 차단)하면 생략 —
+            //   순위 정확도는 세션 생성 시 저장되는 생년 snapshot 과 서버 공식 랭킹 RPC 가 담보한다.
+            try {
+                const ids = memberRows.map((m) => m.id).filter(Boolean);
+                if (ids.length > 0) {
+                    const birthByMember = new Map<string, string>();
+                    const { data: birthRows, error: birthErr } = await supabase
+                        .rpc('admin_get_member_birth_years', { p_member_ids: ids });
+                    if (!birthErr && Array.isArray(birthRows)) {
+                        for (const b of birthRows as { member_id: string; birth_text: string | null }[]) {
+                            if (b?.member_id && b.birth_text) birthByMember.set(b.member_id, b.birth_text);
+                        }
+                    } else if (birthErr && (String((birthErr as any).code) === 'PGRST202' || String((birthErr as any).code) === '42883')) {
+                        // RPC 미존재(적용 전) — 기존 직접 조회 폴백(컬럼 privilege 적용 전까지 동작)
+                        const { data: legacyRows } = await supabase
+                            .from('members').select('id, 나이').eq('club_id', clubId);
+                        for (const b of (legacyRows || []) as any[]) {
+                            if (b?.id && b['나이']) birthByMember.set(b.id, String(b['나이']));
+                        }
+                    }
+                    for (const m of memberRows) {
+                        const birth = birthByMember.get(m.id);
+                        if (birth) m['나이'] = birth; // 기존 소비 코드(m['나이']) 무변경 유지
+                    }
+                }
+            } catch { /* 생년 취득 실패는 무해 — snapshot/공식 RPC 가 순위 담보 */ }
+
+            setAllMembers(memberRows);
             
             // After fetching members, check for active session in DB
             await syncActiveSession();
