@@ -225,9 +225,9 @@ const MemberCard = React.memo(function MemberCard({
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
                 <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    {/* 목록 카드는 대표 기록 1건(입상 테이블 우선, 없으면 레거시 요약)만 —
+                    {/* 목록 카드는 member_achievements 최신 1건만(단일 출처 — 레거시 수동 요약 fallback 제거).
                         여러 건이면 '외 N건'으로 알리고 전체는 PlayerCardModal에서 표시(카드 높이 고정). */}
-                    {(member.achievement_top_line || member.achievements) && (
+                    {member.achievement_top_line && (
                         <span
                             style={{
                                 fontSize: 8.5,
@@ -244,7 +244,7 @@ const MemberCard = React.memo(function MemberCard({
                                 whiteSpace: 'nowrap',
                             }}
                         >
-                            🏆 {member.achievement_top_line || member.achievements}
+                            🏆 {member.achievement_top_line}
                             {(member.achievement_count ?? 0) > 1 && ` · 외 ${(member.achievement_count ?? 0) - 1}건`}
                         </span>
                     )}

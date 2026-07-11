@@ -33,10 +33,11 @@ export interface MemberProfileForm {
   /** members."나이" — 실데이터는 출생년도 텍스트(예: "1988") */
   birthYear: string;
   bio: string;
-  /** members.achievements — 목록 카드의 🏆 요약 문구(레거시 단일 텍스트) */
-  achievementsSummary: string;
   avatarUrl: string;
 }
+// 참고: 레거시 members.achievements(수동 요약 문구)는 더 이상 읽지도 저장하지도 않는다.
+//   입상의 단일 출처는 member_achievements — 표시 문구는 formatMemberAchievement 로 자동 생성.
+//   기존 컬럼 값은 비파괴로 남겨 두되(삭제/변경 없음) UI/표시 경로에서 제외(추후 정리 별도 검토).
 
 export async function fetchMemberProfile(memberId: string): Promise<MemberProfileForm & { nickname: string }> {
   const { data, error } = await supabase.from('members').select('*').eq('id', memberId).single();
@@ -49,7 +50,6 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberProfil
     mbti: str(row.mbti),
     birthYear: str(row['나이']),
     bio: str(row.bio),
-    achievementsSummary: str(row.achievements),
     avatarUrl: str(row.avatar_url),
   };
 }
@@ -73,11 +73,11 @@ export async function updateMemberProfile(
     const t = (v ?? '').trim();
     return t === '' ? null : t;
   };
+  // achievements(레거시 수동 요약)는 payload 에서 제외 — 저장 중단, 기존 DB 값은 건드리지 않음.
   const payload: Record<string, unknown> = {
     affiliation: norm(input.affiliation),
     mbti: norm(input.mbti)?.toString().toUpperCase() ?? null,
     나이: norm(input.birthYear),
-    achievements: norm(input.achievementsSummary),
     avatar_url: norm(input.avatarUrl),
     bio: norm(input.bio),
   };

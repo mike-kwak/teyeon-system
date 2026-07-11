@@ -45,7 +45,6 @@ type LinkedMember = {
     mbti?: string | null;
     affiliation?: string | null;
     position?: string | null;
-    achievements?: string | null;
     bio?: string | null;
     avatar_url?: string | null;
     profile_avatar_url?: string | null;
@@ -194,7 +193,6 @@ export default function ProfilePage() {
             mbti: linkedMember.mbti || undefined,
             affiliation: linkedMember.affiliation || undefined,
             position: linkedMember.position || undefined,
-            achievements: linkedMember.achievements || undefined,
             bio: linkedMember.bio || undefined,
             avatar_url: linkedMember.avatar_url || undefined,
             profile_avatar_url: linkedMember.profile_avatar_url || undefined,

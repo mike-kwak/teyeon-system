@@ -783,7 +783,7 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
 }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [form, setForm] = useState<MemberProfileForm>({ affiliation: '', mbti: '', birthYear: '', bio: '', achievementsSummary: '', avatarUrl: '' });
+  const [form, setForm] = useState<MemberProfileForm>({ affiliation: '', mbti: '', birthYear: '', bio: '', avatarUrl: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
@@ -820,7 +820,7 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
         if (cancelled) return;
         setForm({
           affiliation: profile.affiliation, mbti: profile.mbti, birthYear: profile.birthYear,
-          bio: profile.bio, achievementsSummary: profile.achievementsSummary, avatarUrl: profile.avatarUrl,
+          bio: profile.bio, avatarUrl: profile.avatarUrl,
         });
         await refreshAchievements();
       } catch (err: any) {
@@ -998,22 +998,30 @@ function MemberProfileModal({ member, guardWriteAction, onClose, onDirty }: {
               <input value={form.bio} onChange={setField('bio')} placeholder="멤버 카드에 표시되는 소개 문구" style={inputStyle} />
             </div>
             <div style={{ marginBottom: 11 }}>
-              <label style={fieldLabel}>목록 카드 요약 문구 (🏆)</label>
-              <input value={form.achievementsSummary} onChange={setField('achievementsSummary')} placeholder="예: 신인부 입상 | 25년 예산윤봉길배 공동3위" style={inputStyle} />
-              <p style={{ margin: '4px 0 0', fontSize: 10, fontWeight: 600, color: '#94A3B8', lineHeight: 1.45 }}>
-                아래에 입상 기록을 등록하면 목록 카드에는 대표 기록이 우선 표시되고, 이 문구는 대체용으로만 쓰입니다.
-              </p>
-            </div>
-            <div style={{ marginBottom: 13 }}>
               <label style={fieldLabel}>프로필 사진 URL</label>
               <input value={form.avatarUrl} onChange={setField('avatarUrl')} placeholder="비우면 앱 계정(카카오) 사진 사용" style={inputStyle} />
             </div>
+
+            {/* 대표 입상 미리보기 — member_achievements 최신 1건 자동 사용(읽기 전용, 수동 요약 입력 제거).
+                입상 0건이면 영역 전체 숨김. 등록/수정은 아래 '입상 기록 관리'에서만. */}
+            {!achTableMissing && achList.length > 0 && (
+              <div style={{ marginBottom: 12, padding: '9px 12px', borderRadius: 10, backgroundColor: '#FBF8EF', border: '1px solid #EBDCA6' }}>
+                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.08em', color: '#8A6D1F' }}>대표 입상 미리보기</span>
+                <p style={{ margin: '4px 0 0', fontSize: 12.5, fontWeight: 800, color: '#334155', lineHeight: 1.5, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                  🏆 {formatMemberAchievement(achList[0])}
+                </p>
+                <p style={{ margin: '4px 0 0', fontSize: 10, fontWeight: 600, color: '#94A3B8', lineHeight: 1.45 }}>
+                  대표 입상은 아래 입상 기록 중 최신 기록이 자동으로 사용됩니다.
+                </p>
+              </div>
+            )}
+
             <button type="button" onClick={handleProfileSave} disabled={savingProfile}
-              style={{ width: '100%', height: 40, borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: 12.5, fontWeight: 900, cursor: savingProfile ? 'wait' : 'pointer', marginBottom: 16 }}>
+              style={{ width: '100%', height: 40, borderRadius: 10, border: 'none', backgroundColor: '#2563EB', color: '#FFFFFF', fontSize: 12.5, fontWeight: 900, cursor: savingProfile ? 'wait' : 'pointer', marginBottom: 12 }}>
               {savingProfile ? '저장 중…' : '프로필 저장'}
             </button>
 
-            <div style={{ height: 1, backgroundColor: '#EEF2F6', margin: '0 0 14px' }} />
+            <div style={{ height: 1, backgroundColor: '#EEF2F6', margin: '0 0 12px' }} />
 
             {/* ── 입상 기록 관리 (대회 체계 + 대회명 + 부서 + 성적) ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
