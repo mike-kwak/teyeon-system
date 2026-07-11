@@ -58,6 +58,24 @@ export function formatMemberAchievement(a: Pick<MemberAchievement, 'organization
     .join(' ');
 }
 
+/**
+ * Player Card 전용 compact 포맷: "신인부 입상 | 26년 아산 이충무공배 준우승".
+ *   · 앞부분(카테고리) = 부서 + (우승이면 '우승', 그 외 '입상') — 레거시 수동 문구 관례 유지.
+ *   · 뒷부분(상세)    = YY년 + 대회명 + 표준 성적.  🏆 이모지는 배지 렌더링 쪽에서 붙인다.
+ *   프로필/목록 표준 문자열은 formatMemberAchievement — 이 포맷은 Player Card 배지에서만 사용.
+ */
+export function formatPlayerCardAchievement(
+  a: Pick<MemberAchievement, 'division' | 'tournament_name' | 'result' | 'year' | 'tournament_date'>,
+): string {
+  const res = normalizeAchievementResult(a.result);
+  const category = [a.division?.trim(), res === '우승' ? '우승' : '입상'].filter(Boolean).join(' ');
+  const y = achievementYear(a);
+  const detail = [y ? `${String(y).slice(2)}년` : '', (a.tournament_name || '').trim(), res]
+    .filter(Boolean)
+    .join(' ');
+  return category ? `${category} | ${detail}` : detail;
+}
+
 /** 연도 — year 우선, 없으면 tournament_date(YYYY-…)에서 보정. 둘 다 없으면 null. */
 export function achievementYear(a: Pick<MemberAchievement, 'year' | 'tournament_date'>): number | null {
   if (typeof a.year === 'number' && Number.isFinite(a.year)) return a.year;
