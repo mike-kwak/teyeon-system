@@ -20,6 +20,7 @@ import {
     ListChecks,
     Menu,
     Sparkles,
+    UserPlus,
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -44,6 +45,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
             { id: 'schedule', label: '정모 일정', href: '/club/schedule', icon: CalendarDays, external: true },
             { id: 'kdk', label: 'KDK 운영', href: '/kdk', icon: Swords, external: true },
             { id: 'guests', label: '게스트 패스', href: '/admin/guest-pass-defaults', icon: Ticket },
+            { id: 'guest-applications', label: '게스트 신청', href: '/admin/guest-applications', icon: UserPlus },
         ],
     },
     {
@@ -113,7 +115,7 @@ export function allAdminNavItems(): AdminNavItem[] {
  *   - 그 외                            → 없음(Admin 진입 자체가 차단됨).
  *   Sidebar 에서만 숨기고 URL 을 여는 구조 금지 — 서버 middleware/layout 가드와 함께 적용.
  */
-const OPERATOR_VISIBLE_ITEM_IDS = new Set(['settings', 'guide-recording']);
+const OPERATOR_VISIBLE_ITEM_IDS = new Set(['settings', 'guide-recording', 'guest-applications']);
 export function getVisibleAdminNavSections(
     role?: string | null,
     opts?: { canManageRanking?: boolean },

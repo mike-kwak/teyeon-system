@@ -37,6 +37,9 @@ export const canAccessRankingAdmin = (
 ): boolean => norm(role) === 'CEO' || isRankingManager === true;
 /** 설정 변경 가능: CEO / ADMIN 만. */
 export const canEditAdminSettings = (role?: string | null): boolean => inList(role, FULL_ADMIN_ROLES);
+/** 게스트 신청 관리(/admin/guest-applications): CEO / ADMIN / OPERATOR (Admin 전체 권한 확대 아님 — 이 화면만). */
+export const canManageGuestApplications = (role?: string | null): boolean =>
+    inList(role, ['CEO', 'ADMIN', 'OPERATOR'] as UserRole[]);
 /** /admin/guide-recording 사용 가능: CEO / ADMIN / OPERATOR / FINANCE_MANAGER. */
 export const canUseGuideRecording = (role?: string | null): boolean => inList(role, SETTINGS_VIEW_ROLES);
 
@@ -61,6 +64,8 @@ export function canAccessAdminRoute(
     const p = pathname || '';
     if (p === '/admin/settings' || p.startsWith('/admin/settings/')) return canViewAdminSettings(role);
     if (p === '/admin/guide-recording' || p.startsWith('/admin/guide-recording/')) return canUseGuideRecording(role);
+    // 게스트 신청 관리 — CEO/ADMIN/OPERATOR(그 밖 /admin/** 는 FULL_ADMIN 만인 기본 정책 유지).
+    if (p === '/admin/guest-applications' || p.startsWith('/admin/guest-applications/')) return canManageGuestApplications(role);
     // Ranking Manager 전용 — CEO OR ranking_managers. FULL_ADMIN(ADMIN) 자동 통과 없음.
     if (p === '/admin/ranking' || p.startsWith('/admin/ranking/')) return canAccessRankingAdmin(role, opts?.isRankingManager);
     return isFullAdminRole(role);

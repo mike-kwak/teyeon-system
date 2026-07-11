@@ -50,6 +50,8 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
 import GuestPassSettingsCard from '@/components/club-schedule/GuestPassSettingsCard';
+import GuestRecruitmentCard from '@/components/club-schedule/GuestRecruitmentCard';
+import { canManageGuestApplications } from '@/lib/admin/adminAccess';
 import GuestPassMemberLink from '@/components/club-schedule/GuestPassMemberLink';
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────
@@ -1728,6 +1730,13 @@ export default function ClubScheduleAttendancePage() {
                         {isAdmin
                             ? <GuestPassSettingsCard schedule={schedule} userId={user?.id} />
                             : <GuestPassMemberLink schedule={schedule} />}
+                    </div>
+                )}
+
+                {/* PUBLIC_GUEST 공개 모집 설정 — Guest Pass 와 별개 기능. CEO/ADMIN/OPERATOR. */}
+                {canManageGuestApplications(role) && !shouldHideAdminControls && (
+                    <div style={{ paddingBottom: 24 }}>
+                        <GuestRecruitmentCard scheduleId={scheduleId} />
                     </div>
                 )}
             </div>
