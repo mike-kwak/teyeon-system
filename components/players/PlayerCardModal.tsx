@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { Lock, X } from 'lucide-react';
 import type { PlayerCardStats } from '@/lib/profile/getMemberOfficialStats';
-import { fetchPublicAchievements, formatMemberAchievement, type MemberAchievement } from '@/lib/members/achievements';
+import { fetchPublicAchievements, formatMemberAchievement, normalizeAchievementResult, type MemberAchievement } from '@/lib/members/achievements';
 
 export type { PlayerCardStats } from '@/lib/profile/getMemberOfficialStats';
 
@@ -944,7 +944,9 @@ export function PlayerCardModal({
                                         </div>
                                     )}
 
-                                    {/* 대회 입상 기록 — Player Card 에는 최신 1건만(전체는 멤버 프로필 '전체 입상 보기'). */}
+                                    {/* 대회 입상 기록 — Player Card 에는 최신 1건만(전체는 멤버 프로필 '전체 입상 보기').
+                                        밝은 카드 배경 기준 가독성: 본문은 진한 slate(#334155) 고정(흰색/opacity 상속 금지),
+                                        배경은 옅은 ivory + amber 테두리, 우승일 때만 작은 soft gold 트로피 accent. */}
                                     {showBadges && achievementList.length > 0 && (
                                         <div style={{ marginBottom: 14 }}>
                                             <p
@@ -954,7 +956,8 @@ export function PlayerCardModal({
                                                     fontWeight: 800,
                                                     letterSpacing: '0.18em',
                                                     textTransform: 'uppercase',
-                                                    color: 'rgba(201,168,76,0.85)',
+                                                    color: '#8A6D1F',
+                                                    opacity: 1,
                                                 }}
                                             >
                                                 🏆 최신 입상
@@ -962,11 +965,13 @@ export function PlayerCardModal({
                                                     <span
                                                         style={{
                                                             marginLeft: 6,
-                                                            padding: '1px 6px',
+                                                            padding: '1px 7px',
                                                             borderRadius: 8,
-                                                            backgroundColor: 'rgba(201,168,76,0.14)',
-                                                            color: '#D9BC6E',
+                                                            backgroundColor: '#FBF6E7',
+                                                            border: '1px solid #EBDCA6',
+                                                            color: '#8A6D1F',
                                                             fontSize: 8.5,
+                                                            fontWeight: 800,
                                                             letterSpacing: 0,
                                                         }}
                                                     >
@@ -976,27 +981,35 @@ export function PlayerCardModal({
                                             </p>
                                             <div
                                                 style={{
-                                                    padding: '8px 11px',
-                                                    borderRadius: 8,
-                                                    backgroundColor: 'rgba(255,255,255,0.045)',
-                                                    border: '1px solid rgba(201,168,76,0.16)',
+                                                    padding: '10px 14px',
+                                                    borderRadius: 12,
+                                                    backgroundColor: 'rgba(255,255,255,0.75)',
+                                                    border: '1px solid rgba(253,230,138,0.7)',
                                                 }}
                                             >
                                                 <p
                                                     style={{
                                                         margin: 0,
-                                                        fontSize: 11,
+                                                        fontSize: 12.5,
                                                         fontWeight: 700,
-                                                        color: 'rgba(255,255,255,0.92)',
-                                                        lineHeight: 1.45,
+                                                        color: '#334155',
+                                                        opacity: 1,
+                                                        lineHeight: 1.5,
                                                         wordBreak: 'keep-all',
                                                         overflowWrap: 'anywhere',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrient: 'vertical',
+                                                        overflow: 'hidden',
                                                     }}
                                                 >
+                                                    {normalizeAchievementResult(achievementList[0].result) === '우승' && (
+                                                        <span aria-hidden style={{ marginRight: 5, color: '#C9A84C' }}>🏆</span>
+                                                    )}
                                                     {formatMemberAchievement(achievementList[0])}
                                                 </p>
                                                 {achievementList.length > 1 && (
-                                                    <p style={{ margin: '4px 0 0', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
+                                                    <p style={{ margin: '5px 0 0', fontSize: 10, fontWeight: 600, color: '#64748B', opacity: 1 }}>
                                                         외 {achievementList.length - 1}건 · 프로필에서 전체 보기
                                                     </p>
                                                 )}
