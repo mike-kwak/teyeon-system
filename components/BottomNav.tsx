@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Home, Medal, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { shouldShowBottomNav } from '@/lib/navigation/bottomNavPolicy';
+import { isWideShellPath, WIDE_SHELL_MAX } from '@/lib/navigation/shellPolicy';
 
 const TennisRacket = ({ size = 24, color = 'currentColor', strokeWidth = 1.5 }) => (
   <svg
@@ -39,6 +40,10 @@ export default function BottomNav() {
   // 표시 여부는 RootShell 과 공유하는 단일 정책(lib/navigation/bottomNavPolicy)을 따른다.
   //   숨김 대상: /guest/pass*, /club(+하위), /finance/public*, /kdk/display, TENNIS LOG·공지 작성/수정 폼.
   if (!shouldShowBottomNav(pathname || '')) return null;
+
+  // Handbook wide shell — 바(배경/보더)만 셸 폭과 동기 확장. 아이콘 행은 아래 내부 430px
+  //   컨테이너가 중앙 유지하므로 1280px 에 과도하게 벌어지지 않는다. 표시/숨김 정책 무변경.
+  const wide = isWideShellPath(pathname || '');
 
   const handleLiveCourtClick = (e: React.MouseEvent) => {
     if (!user) {
@@ -80,7 +85,7 @@ export default function BottomNav() {
         height: 'var(--bottom-nav-area)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         width: '100%',
-        maxWidth: 450,
+        maxWidth: wide ? WIDE_SHELL_MAX : 450,
         backgroundColor: 'rgba(255,255,255,0.97)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',

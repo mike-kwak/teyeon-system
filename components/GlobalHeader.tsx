@@ -6,10 +6,14 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import ProfileAvatar from './ProfileAvatar';
+import { isWideShellPath, WIDE_SHELL_MAX } from '@/lib/navigation/shellPolicy';
 
 export default function GlobalHeader() {
   const pathname = usePathname();
   const { user, role, isLoading } = useAuth();
+  // Handbook wide shell — 헤더 바(배경/블러)는 width:100% 로 자동 확장되므로,
+  // 내부 콘텐츠 행 폭만 셸 정책과 동기화한다(일반 화면은 기존 430px 유지).
+  const wide = isWideShellPath(pathname || '');
 
   // [ROOT PURGE] Kill any lingering ghost code (v1.7+, Service Workers)
   React.useEffect(() => {
@@ -46,15 +50,25 @@ export default function GlobalHeader() {
         flexShrink: 0,
       }}
     >
+      {wide && (
+        // 좌우 패딩을 Handbook 페이지 정렬선(16/24/32 — 컨테이너=뷰포트, 셸 상한 1280)과 동기.
+        //   인라인 padding 대신 클래스 기준으로 선언해 미디어쿼리 오버라이드가 !important 없이 동작.
+        <style>{`
+          .gh-row-wide { padding: 0 16px; }
+          @media (min-width: 768px) { .gh-row-wide { padding: 0 24px; } }
+          @media (min-width: 1024px) { .gh-row-wide { padding: 0 32px; } }
+        `}</style>
+      )}
       <div
+        className={wide ? 'gh-row-wide' : undefined}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
-          maxWidth: 430,
+          maxWidth: wide ? WIDE_SHELL_MAX : 430,
           margin: '0 auto',
-          padding: '0 16px',
+          ...(wide ? {} : { padding: '0 16px' }),
         }}
       >
         {/* Left: Logo box + Brand */}

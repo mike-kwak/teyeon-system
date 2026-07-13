@@ -13,6 +13,7 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 import GlobalHeader from '@/components/GlobalHeader';
 import BottomNav from '@/components/BottomNav';
 import { shouldShowBottomNav } from '@/lib/navigation/bottomNavPolicy';
+import { isWideShellPath, WIDE_SHELL_MAX } from '@/lib/navigation/shellPolicy';
 
 const GlobalMain = styled('main', {
   // 앱 전역 유일한 세로 스크롤러.
@@ -59,10 +60,13 @@ export default function RootShell({ children }: { children: React.ReactNode }) {
 
   // BottomNav 표시 여부(RootShell·BottomNav 공통 정책). 숨김 화면은 하단 예약 영역을 safe-area 만으로 축소.
   const showNav = shouldShowBottomNav(pathname || '');
+  // Handbook 전용 desktop wide shell — 폭 상한만 조건부(구조·스크롤·safe-area 토큰은 동일).
+  //   모바일(뷰포트 ≤450)에서는 maxWidth 상향이 무효과라 기존 동작과 픽셀 동일.
+  const wide = isWideShellPath(pathname || '');
 
   const shellStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: '450px',
+    maxWidth: wide ? `${WIDE_SHELL_MAX}px` : '450px',
     height: '100dvh', // 뷰포트 높이에 고정(min-height 아님) — RootShell 자체는 스크롤하지 않는다.
     backgroundColor: '#F2F4F7',
     position: 'relative',
