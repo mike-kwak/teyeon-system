@@ -95,7 +95,7 @@ export default function ClubScheduleAttendancePage() {
     const scheduleId = params?.id || '';
     const { user, role } = useAuth();
     const { track } = useAnalytics();
-    const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
+    const { guardWriteAction, shouldHideAdminControls, isWriteBlocked } = useGuideRecording();
     const isAdmin = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
 
     // 활성 회원 — 미응답 명단 계산 + 총원 표시용. members 테이블에서 직접 fetch.
@@ -143,6 +143,14 @@ export default function ClubScheduleAttendancePage() {
     const [memberCountError, setMemberCountError] = useState<string>('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [saveError, setSaveError] = useState<string>('');
+    // 촬영 모드 local mock 안내 — 공통 write-block 토스트(빨간 ⛔)보다 완화된 화면 전용 안내.
+    //   참석 선택이 '화면에만' 반영됐음을 알린다. 2.2s 자동 소멸 + 재클릭 시 타이머 연장.
+    const [mockNotice, setMockNotice] = useState<{ id: number } | null>(null);
+    const showMockNotice = useCallback(() => {
+        const id = Date.now();
+        setMockNotice({ id });
+        window.setTimeout(() => setMockNotice((n) => (n && n.id === id ? null : n)), 2200);
+    }, []);
     const [cancelOpen, setCancelOpen] = useState(false);      // 응답 취소 확인 모달
     const [cancelling, setCancelling] = useState(false);      // 취소 처리 중
     const [commentBody, setCommentBody] = useState('');
@@ -571,7 +579,31 @@ export default function ClubScheduleAttendancePage() {
     }) => {
         if (!user?.id || !schedule) return;
         if (isReadOnly) return;
-        if (!guardWriteAction('참석 저장')) return; // 촬영 모드: 실제 저장 차단
+        if (isWriteBlocked) {
+            // 촬영 모드: 실제 DB 저장 없이 '내 선택'만 화면에 반영(local mock).
+            //   - Supabase insert/update 미호출. allAttendances(서버 현황/명단)는 건드리지 않는다.
+            //   - 어디에도 persist 하지 않으므로 새로고침하면 사라진다.
+            //   - 매뉴얼 영상에서 참석/조퇴/불참 선택 흐름을 촬영할 수 있게 한다.
+            const nowIso = new Date().toISOString();
+            setMyAttendance((prev) => ({
+                id: prev?.id ?? 'recording-mode-mock',
+                schedule_id: schedule.id,
+                user_id: user.id,
+                member_id: prev?.member_id ?? linkedMember?.id ?? null,
+                attendance_status: opts.status,
+                arrival_time: opts.status === 'attending' ? (opts.arrival ?? null) : null,
+                leave_time:   opts.status === 'attending' ? (opts.leave   ?? null) : null,
+                note: prev?.note ?? null,
+                display_name_snapshot: prev?.display_name_snapshot ?? linkedMember?.nickname ?? null,
+                created_at: prev?.created_at ?? nowIso,
+                updated_at: nowIso,
+            }));
+            setSaveStatus('saved');
+            setSaveError('');
+            showMockNotice();
+            return;
+        }
+        if (!guardWriteAction('참석 저장')) return; // 안전망 — 위 mock 분기와 동일 조건이라 평시 도달 없음
         // ── 권한 게이트 (UI 1차) ────────────────────────────────────────────
         // strict 매핑이 안 됐으면 service 호출 자체를 막는다. service 도 같은 검사를 하므로 이중 방어.
         if (linkedMemberStatus !== 'linked' || !linkedMember) {
@@ -632,13 +664,22 @@ export default function ClubScheduleAttendancePage() {
             setSaveStatus('error');
             setSaveError('참석 상태 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         }
-    }, [user?.id, schedule, linkedMember, linkedMemberStatus, myAttendance?.note, isReadOnly, activeMembers, guardWriteAction]);
+    }, [user?.id, schedule, linkedMember, linkedMemberStatus, myAttendance?.note, isReadOnly, activeMembers, guardWriteAction, isWriteBlocked, showMockNotice]);
 
     // ── 응답 취소 (본인 attendance row 삭제 → 미응답 복구) ──────────────────────
     const handleCancelResponse = useCallback(async () => {
         if (!user?.id || !schedule) return;
         if (isReadOnly) return;
-        if (!guardWriteAction('응답 취소')) return; // 촬영 모드: 실제 삭제 차단
+        if (isWriteBlocked) {
+            // 촬영 모드: 실제 삭제 없이 화면상 미응답 상태로만 복귀(local mock).
+            setMyAttendance(null);
+            setSaveStatus('idle');
+            setSaveError('');
+            setCancelOpen(false);
+            showMockNotice();
+            return;
+        }
+        if (!guardWriteAction('응답 취소')) return; // 안전망 — 위 mock 분기와 동일 조건이라 평시 도달 없음
         if (linkedMemberStatus !== 'linked' || !linkedMember) {
             setCancelOpen(false);
             setSaveStatus('error');
@@ -678,7 +719,7 @@ export default function ClubScheduleAttendancePage() {
         } finally {
             setCancelling(false);
         }
-    }, [user?.id, schedule, isReadOnly, linkedMember, linkedMemberStatus, guardWriteAction]);
+    }, [user?.id, schedule, isReadOnly, linkedMember, linkedMemberStatus, guardWriteAction, isWriteBlocked, showMockNotice]);
 
     const handlePickArrival = (t: ArrivalTimeOption) => {
         if (isReadOnly) return;
@@ -1751,6 +1792,28 @@ export default function ClubScheduleAttendancePage() {
                     onSave={handleSaveSchedule}
                     onDelete={handleDeleteSchedule}
                 />
+            )}
+
+            {/* 촬영 모드 local mock 안내 — 공통 ⛔ 토스트(데스크톱 전용·경고 톤)와 달리
+                모바일 촬영 화면에서도 보이는 완화 톤. BottomNav 위에 정착, 360px에서도 한 화면 폭 유지. */}
+            {mockNotice && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                        position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+                        bottom: 'calc(var(--active-bottom-nav-area, 72px) + 14px)',
+                        zIndex: 1100, maxWidth: 'min(92vw, 400px)',
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '10px 14px', borderRadius: 11,
+                        backgroundColor: '#14263C', color: '#DBEAFE',
+                        border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 8px 22px rgba(0,0,0,0.28)',
+                        fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', pointerEvents: 'none',
+                    }}
+                >
+                    <span aria-hidden style={{ fontSize: 13 }}>🎬</span>
+                    촬영 모드: 화면에만 반영되었습니다 · 실제 저장 없음
+                </div>
             )}
         </main>
     );
