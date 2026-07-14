@@ -16,6 +16,12 @@ export function shouldShowBottomNav(pathname: string): boolean {
   // KDK 전광판(display) — 프로젝터/거치 화면. 하단 nav 숨김.
   if (p === '/kdk/display' || p.startsWith('/kdk/display/')) return false;
 
+  // Digital Handbook — 문서형 가이드 화면. breadcrumb·이전다음·관련 가이드·기능 CTA 등
+  //   자체 탐색 구조가 있어 앱 BottomNav 와 중복이며, PC wide shell 문서 레이아웃과도 어울리지 않는다.
+  //   숨김 시 RootShell 이 --page-bottom-safe 를 safe-area 만으로 축소하므로
+  //   모바일 sticky CTA(bottom: 0)는 safe-area 바로 위에 정착한다.
+  if (p === '/handbook' || p.startsWith('/handbook/')) return false;
+
   // TENNIS LOG 작성/수정 폼(신규·수정) — 자체 하단 저장 바 사용.
   //   홈/목록/상세(/tennis-log, /tennis-log/tournaments, /tennis-log/tournaments/[id])에서는 유지.
   if (
