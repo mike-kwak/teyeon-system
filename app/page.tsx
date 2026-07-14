@@ -101,14 +101,20 @@ export default function Home() {
 
   useEffect(() => {
     // 활동 회원 = 정회원 + 준회원 (role 기준); role = '게스트' 제외
+    //   select('*') 금지 — members 는 column-level GRANT(안전 컬럼만)라 '*' 는 permission denied.
+    //   count 전용(head:true)이라 GRANT 된 최소 컬럼 id 만 지정한다.
     const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
     supabase
       .from('members')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('club_id', CLUB_ID)
       .neq('role', '게스트')
       .then(({ count, error }) => {
-        if (!error && count !== null) setActiveMemberCount(count);
+        if (error) {
+          console.warn('[Home] 활동 회원 count 조회 실패 — placeholder(—) 유지:', error.message);
+          return;
+        }
+        if (count !== null) setActiveMemberCount(count); // 실제 0명 성공 조회면 0명으로 표시
       });
 
     // 공식 KDK 세션 수
