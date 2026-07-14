@@ -74,8 +74,13 @@ export const MODULES: GuideModule[] = [
     warnings: ['공식 KDK 기록만 반영됩니다.', 'LIVE와 FINAL 시즌을 구분해서 표시합니다.'],
     write_mode: 'READ_ONLY',
     privacy_level: 'LOW',
-    poster_file: undefined, // 향후: /handbook/posters/member-ranking.png
-    recording_status: 'NOT_STARTED', // 실제 영상 연결 전 — 준비 중 상태로 표시
+    // 실제 영상 v01(2026-07-14 연결): 444×1308 세로, 44.4s, 9.0MB.
+    //   장면: 메인→Ranking 진입→시즌→월간→누적→산정 기준→PlayerCard.
+    //   ⚠ 이전 시즌 FINAL·Awards 장면 없음(종료 시즌 데이터 부재) — 시즌 종료 후 v02 재촬영.
+    video_file: '/handbook/videos/member-ranking-overview-v01.mp4',
+    poster_file: '/handbook/posters/member-ranking-overview-v01.webp', // t=9.0s 시즌 랭킹 프레임
+    duration: 44.4,
+    recording_status: 'RECORDED',
     handbook_status: 'READY',
     related_modules: ['member-head-to-head', 'member-archive', 'member-playercard'],
     updated_at: T,
