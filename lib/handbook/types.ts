@@ -32,6 +32,8 @@ export interface AudienceMeta {
   accentInk: string;
   /** 홈 preview 캡션(대표 화면) */
   previewLabel: string;
+  /** 목차 상단 요약(없으면 미표시) — 홈 카드 tagline 보다 긴 문장 허용 */
+  description?: string;
 }
 
 export type GuideRecordingStatus = 'NOT_STARTED' | 'VIDEO_IN_PROGRESS' | 'RECORDED' | 'REVIEWED';
@@ -44,8 +46,14 @@ export interface GuideModule {
   title: string;
   audience: HandbookAudience[];
   chapter: string;
-  /** 실제 앱 기능 경로(CTA 바로가기) */
+  /** 실제 앱 기능 경로(CTA 바로가기). cta_disabled 모듈은 '' 허용 */
   route: string;
+  /** CTA 라벨 오버라이드(기본 '실제 기능으로 이동') */
+  cta_label?: string;
+  /** true 면 CTA 를 링크 대신 안내형(비활성)으로 표시 — 확정된 대상 경로가 없는 모듈용(가짜 URL 하드코딩 금지) */
+  cta_disabled?: boolean;
+  /** 대상별 핵심 메시지 칩(예: '앱 설치 불필요') — 파생 배지(모드/개인정보/제작 상태)와 별개의 안내용 */
+  highlight_badges?: string[];
   role_requirement?: string[];
   summary: string;
   prerequisites: string[];

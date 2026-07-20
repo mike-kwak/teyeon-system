@@ -83,6 +83,13 @@ export default function HandbookAudiencePage() {
           </button>
         </div>
 
+        {/* 대상 요약(있는 대상만) — 게스트 대상은 첫 방문자용 안내 문장 */}
+        {meta.description && (
+          <p style={{ margin: '-4px 0 16px', fontSize: 13.5, fontWeight: 600, color: HB.textSecondary, lineHeight: 1.65 }}>
+            {meta.description}
+          </p>
+        )}
+
         {/* 모바일: 진행률 상단 카드 */}
         <div className="hb-rail-inline" style={{ marginBottom: 14 }}>{railProgress}</div>
 

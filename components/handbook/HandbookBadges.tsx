@@ -35,6 +35,11 @@ export function PrivacyBadge({ level }: { level: GuidePrivacyLevel }) {
   return <span style={pill(HB.warningBg, HB.warningInk, HB.warningBorder)}>{level === 'HIGH' ? '개인정보 높음' : '개인정보 표시'}</span>;
 }
 
+/** 핵심 메시지 칩(모듈 highlight_badges) — '앱 설치 불필요' 같은 안내용. 상태 배지와 톤 분리(teal tint). */
+export function HighlightBadge({ label }: { label: string }) {
+  return <span style={pill('rgba(14,143,132,0.08)', HB.teal, 'rgba(14,143,132,0.25)')}>{label}</span>;
+}
+
 /** 운영진 역할 배지 — 전 운영진 공통처럼 표현 금지(해당 역할만 표시) */
 export function PermissionBadge({ role }: { role: string }) {
   const isCeo = /CEO|ADMIN/i.test(role);

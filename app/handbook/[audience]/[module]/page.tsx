@@ -14,7 +14,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, TriangleAlert, Info, Shield, C
 import { HB, HB_SHADOW, HB_SERIF } from '@/components/handbook/handbookTokens';
 import { AUDIENCE_SLUGS } from '@/lib/handbook/types';
 import { audienceMeta, chaptersOf, getModule, moduleHref, prevNextOf } from '@/lib/handbook/modules';
-import { BadgeRow, GuideStatusBadge, ModeBadge, PermissionBadge, PrivacyBadge } from '@/components/handbook/HandbookBadges';
+import { BadgeRow, GuideStatusBadge, HighlightBadge, ModeBadge, PermissionBadge, PrivacyBadge } from '@/components/handbook/HandbookBadges';
 import GuideVideoPlayer from '@/components/handbook/GuideVideoPlayer';
 import { useHandbookProgress } from '@/lib/handbook/useHandbookProgress';
 
@@ -97,6 +97,8 @@ export default function HandbookModulePage() {
 
   const badges = (
     <BadgeRow>
+      {/* 핵심 메시지 칩('앱 설치 불필요' 등) — 파생 배지보다 앞에 배치 */}
+      {(mod.highlight_badges || []).map((b) => <HighlightBadge key={b} label={b} />)}
       <ModeBadge mode={mod.write_mode} />
       <PrivacyBadge level={mod.privacy_level} />
       <GuideStatusBadge status={mod.recording_status} />
@@ -164,7 +166,21 @@ export default function HandbookModulePage() {
     </section>
   );
 
-  const cta = (full: boolean) => (
+  // CTA — 기본은 실제 기능 링크. cta_disabled 모듈(확정 경로 없음 — 예: 토큰형 Guest Pass)은
+  // 링크 대신 안내형(비활성)으로 표시한다. 가짜 URL 을 만들어 연결하지 않는다.
+  const ctaDisabled = !!mod.cta_disabled || !mod.route;
+  const ctaLabel = mod.cta_label || '실제 기능으로 이동';
+  const cta = (full: boolean) => ctaDisabled ? (
+    <span aria-disabled="true"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        height: full ? 52 : 48, width: full ? '100%' : undefined, padding: full ? undefined : '0 22px',
+        borderRadius: 14, backgroundColor: HB.surfaceSub, border: `1px solid ${HB.border}`,
+        color: HB.textTertiary, fontSize: 15, fontWeight: 800, whiteSpace: 'nowrap', cursor: 'default',
+      }}>
+      {ctaLabel}
+    </span>
+  ) : (
     <Link href={mod.route}
       style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -172,7 +188,7 @@ export default function HandbookModulePage() {
         borderRadius: 14, background: HB.tealGrad, color: '#fff', fontSize: 15, fontWeight: 800,
         textDecoration: 'none', whiteSpace: 'nowrap', boxShadow: HB_SHADOW.ctaTeal,
       }}>
-      실제 기능으로 이동 <ExternalLink size={15} />
+      {ctaLabel} <ExternalLink size={15} />
     </Link>
   );
 
@@ -266,7 +282,8 @@ export default function HandbookModulePage() {
               {prerequisites}
               {stepsBlock}
               {cautions}
-              <div className="hb-cta-desktop">{cta(false)}</div>
+              {/* 안내형(비활성) CTA 는 sticky 모바일 CTA 를 쓰지 않으므로 전 폭에서 본문에 표시 */}
+              <div className={ctaDisabled ? undefined : 'hb-cta-desktop'}>{cta(false)}</div>
               {relatedBlock}
               {prevNext}
             </article>
@@ -285,7 +302,7 @@ export default function HandbookModulePage() {
           GlobalMain 의 paddingBottom(--page-bottom-safe = BottomNav+24px)이 이미 nav 영역을 예약하고
           sticky 앵커도 그 패딩 위에서 잡히므로 bottom: 0 이면 BottomNav 위에 정착한다
           (여기에 nav 토큰을 다시 더하면 이중 보정 → nav 위 ~100px 부유). safe-area 도 토큰에 포함 완료. */}
-      {!isDraft && (
+      {!isDraft && !ctaDisabled && (
         <div className="hb-cta-mobile" aria-hidden={!ctaShown}
           style={{
             position: 'sticky', bottom: 0, zIndex: 25, padding: '10px 16px 12px',

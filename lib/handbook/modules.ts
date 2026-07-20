@@ -14,8 +14,16 @@ import {
 export const AUDIENCES: AudienceMeta[] = [
   { id: 'MEMBER', slug: 'member', label: '회원', tagline: '정모 참여부터 기록·랭킹·회비까지', accent: '#0E8F84', accentInk: '#FFFFFF', previewLabel: 'Ranking 화면' },
   { id: 'OPERATOR', slug: 'operator', label: '운영진', tagline: '일정·KDK 운영·공식 기록·게스트 관리', accent: '#14263C', accentInk: '#FFFFFF', previewLabel: 'Admin 화면' },
-  { id: 'INVITED_GUEST', slug: 'invited-guest', label: '초대받은 게스트', tagline: 'Guest Pass 하나로 정모 참여 준비 끝', accent: '#C9A24B', accentInk: '#3D2E08', previewLabel: 'Guest Pass 화면' },
-  { id: 'PUBLIC_GUEST', slug: 'public-guest', label: '처음 방문한 게스트', tagline: 'TEYEON 둘러보기와 게스트 신청', accent: '#6FC7BC', accentInk: '#0B3C36', previewLabel: '공개 홈 화면' },
+  {
+    id: 'INVITED_GUEST', slug: 'invited-guest', label: '초대받은 게스트', tagline: 'Guest Pass 하나로 정모 참여 준비 끝',
+    accent: '#C9A24B', accentInk: '#3D2E08', previewLabel: 'Guest Pass 화면',
+    description: 'TEYEON Guest Pass를 받은 게스트가 참가 전 확인해야 할 일정, 장소, 준비물, 경기 흐름을 안내합니다.',
+  },
+  {
+    id: 'PUBLIC_GUEST', slug: 'public-guest', label: '처음 방문한 게스트', tagline: 'TEYEON 둘러보기와 게스트 신청',
+    accent: '#6FC7BC', accentInk: '#0B3C36', previewLabel: '공개 홈 화면',
+    description: 'TEYEON을 처음 알게 된 분이 클럽을 둘러보고 게스트 참가 신청 흐름을 이해할 수 있도록 안내합니다.',
+  },
 ];
 export const audienceMeta = (id: HandbookAudience): AudienceMeta => AUDIENCES.find((a) => a.id === id)!;
 
@@ -34,11 +42,13 @@ export const CHAPTERS: HandbookChapter[] = [
   { audience: 'OPERATOR', order: 2, title: 'KDK 운영' },
   { audience: 'OPERATOR', order: 3, title: '게스트 관리' },
   { audience: 'INVITED_GUEST', order: 1, title: 'Guest Pass 사용하기' },
+  { audience: 'INVITED_GUEST', order: 2, title: '정모 당일과 결과' },
   { audience: 'PUBLIC_GUEST', order: 1, title: 'TEYEON 둘러보기' },
   { audience: 'PUBLIC_GUEST', order: 2, title: '게스트 신청' },
 ];
 
 const T = '2026-07-13T00:00:00+09:00';
+const T_GUEST = '2026-07-21T00:00:00+09:00'; // 게스트 MVP(2차) 작성일
 
 // placeholder 모듈 생성 헬퍼 — 목차 구조 확인용(DRAFT, 상세는 "준비 중" 표시).
 const draft = (
@@ -106,9 +116,85 @@ export const MODULES: GuideModule[] = [
   draft('operator-schedule', '정모 일정 관리', 'OPERATOR', '일정 운영', '/club/schedule', '정모 등록·수정과 참석 현황을 관리합니다.', { write_mode: 'WRITES_DATA', role_requirement: ['일정 담당'] }),
   draft('operator-kdk', 'KDK 대진 생성과 운영', 'OPERATOR', 'KDK 운영', '/kdk', '참가자 구성부터 점수 입력·공식 확정까지.', { write_mode: 'WRITES_DATA', role_requirement: ['KDK 운영'] }),
   draft('operator-guest', '게스트 신청 검토', 'OPERATOR', '게스트 관리', '/admin/guest-applications', '공개 신청을 검토하고 Guest Pass를 안내합니다.', { write_mode: 'WRITES_DATA', privacy_level: 'HIGH', role_requirement: ['게스트 담당'] }),
-  draft('invited-guest-pass', 'Guest Pass 사용하기', 'INVITED_GUEST', 'Guest Pass 사용하기', '/guest/pass/preview', '일정·비용·대진·결과를 링크 하나로 확인합니다.'),
-  draft('public-guest-tour', 'TEYEON 둘러보기', 'PUBLIC_GUEST', 'TEYEON 둘러보기', '/club', '공개 일정과 KDK 기록으로 클럽을 미리 봅니다.'),
-  draft('public-guest-join', '게스트 참여 신청', 'PUBLIC_GUEST', '게스트 신청', '/guest', '모집 중인 정모에 게스트 참여를 신청합니다.', { write_mode: 'WRITES_DATA', privacy_level: 'MEDIUM' }),
+  // ── 게스트 MVP(2차) — 영상 없이 텍스트/단계 중심. 쉬운 문장, 전문 용어 최소화. ──
+  //   ⚠ 개인 Guest Pass 링크는 토큰형이라 확정 샘플이 없다 — CTA 는 안내형(cta_disabled),
+  //     가짜 URL/schedule id 하드코딩 금지. /guest/pass/preview 는 개발 QA 전용이라 연결하지 않는다.
+  {
+    id: 'guest-pass',
+    title: 'Guest Pass 확인하기',
+    audience: ['INVITED_GUEST'],
+    chapter: 'Guest Pass 사용하기',
+    route: '',
+    cta_disabled: true,
+    cta_label: 'Guest Pass 링크에서 확인',
+    summary: '운영진 또는 회원에게 받은 Guest Pass 링크에서 정모 참가에 필요한 정보를 확인합니다.',
+    highlight_badges: ['앱 설치 불필요', '링크 조회', '게스트 전용'],
+    prerequisites: ['운영진 또는 회원에게 받은 Guest Pass 링크', '참가 확정 또는 운영진 안내 확인'],
+    steps: [
+      '전달받은 Guest Pass 링크를 엽니다.',
+      '정모 날짜와 시간을 확인합니다.',
+      '장소와 코트 정보를 확인합니다.',
+      '게스트비와 준비물을 확인합니다.',
+      '경기 방식과 현장 안내를 확인합니다.',
+      '대진표 또는 현재 경기 정보가 공개되면 같은 페이지에서 확인합니다.',
+      '문의가 있으면 초대한 회원 또는 운영진에게 확인합니다.',
+    ],
+    warnings: [
+      'Guest Pass는 참가 안내용 페이지입니다.',
+      '참가 가능 여부는 운영진 확인을 기준으로 합니다.',
+      '당일 대진은 현장에서 편성된 뒤 공개될 수 있습니다.',
+      '개인정보나 결제 정보는 이 페이지에 입력하지 않습니다.',
+    ],
+    write_mode: 'READ_ONLY',
+    privacy_level: 'LOW',
+    recording_status: 'NOT_STARTED', // 영상 준비 중 — 실제 게스트 영상 연결은 후속 작업
+    handbook_status: 'READY',
+    related_modules: ['invited-guest-live-court', 'invited-guest-results'],
+    updated_at: T_GUEST,
+    keywords: ['게스트', '초대', 'Guest Pass', '게스트비', '준비물'],
+  },
+  draft('invited-guest-live-court', '경기 당일 LIVE COURT 확인하기', 'INVITED_GUEST', '정모 당일과 결과', '', '정모 당일 코트 현황과 내 경기 순서를 확인합니다.', { cta_disabled: true, cta_label: 'Guest Pass 링크에서 확인' }),
+  draft('invited-guest-results', '경기 후 결과 확인하기', 'INVITED_GUEST', '정모 당일과 결과', '', '정모가 끝난 뒤 내 경기 결과를 확인합니다.', { cta_disabled: true, cta_label: 'Guest Pass 링크에서 확인' }),
+
+  {
+    id: 'guest-application',
+    title: '게스트 신청하기',
+    audience: ['PUBLIC_GUEST'],
+    chapter: '게스트 신청',
+    route: '/guest', // 실제 공개 게스트 신청 페이지(비로그인 접근 가능 — AuthGuard public path)
+    summary: 'TEYEON 게스트 모집이 열려 있을 때 공개 신청 페이지에서 참가 신청을 남기는 방법을 안내합니다.',
+    highlight_badges: ['공개 신청', '운영진 검토', '앱 설치 불필요'],
+    prerequisites: [
+      '게스트 모집이 열려 있는 정모',
+      '이름, 연락처, 지역/소속, 테니스 구력 등 신청 정보',
+      '개인정보 수집 동의',
+    ],
+    steps: [
+      'TEYEON 공개 게스트 신청 페이지를 엽니다.',
+      '모집 중인 정모와 안내사항을 확인합니다.',
+      '이름과 연락처를 입력합니다.',
+      '지역, 소속 구분, 클럽명 또는 무소속 여부를 입력합니다.',
+      '테니스 구력과 참고 성적이 있으면 입력합니다.',
+      '개인정보 동의 후 신청을 제출합니다.',
+      '운영진 검토와 연락을 기다립니다.',
+      '승인되면 Guest Pass 안내를 받아 참가 정보를 확인합니다.',
+    ],
+    warnings: [
+      '신청 즉시 참가 확정이 아닙니다.',
+      '운영진 검토 후 참가 가능 여부가 안내됩니다.',
+      '연락처와 개인정보가 포함되므로 촬영 시 실제 개인정보를 입력하지 않습니다.',
+      '테스트 촬영 시에는 반드시 촬영용 데이터만 사용합니다.',
+    ],
+    write_mode: 'WRITES_DATA',
+    privacy_level: 'MEDIUM',
+    recording_status: 'NOT_STARTED', // 영상 준비 중 — 실제 게스트 영상 연결은 후속 작업
+    handbook_status: 'READY',
+    related_modules: ['public-guest-tour', 'public-guest-pass-after'],
+    updated_at: T_GUEST,
+    keywords: ['게스트', '신청', '모집', '공개', '참가'],
+  },
+  draft('public-guest-tour', 'TEYEON 공개 홈 둘러보기', 'PUBLIC_GUEST', 'TEYEON 둘러보기', '/club', '공개 일정과 클럽 소개로 TEYEON을 미리 봅니다.'),
+  draft('public-guest-pass-after', '승인 후 Guest Pass 확인하기', 'PUBLIC_GUEST', '게스트 신청', '', '신청이 승인되면 받은 Guest Pass에서 참가 정보를 확인합니다.', { cta_disabled: true, cta_label: 'Guest Pass 링크에서 확인' }),
 ];
 
 // ── 조회 helper ───────────────────────────────────────────────────────────────

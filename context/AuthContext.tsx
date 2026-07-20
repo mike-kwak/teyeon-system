@@ -517,7 +517,13 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
       pathname === '/club' ||
       pathname?.startsWith('/club/') ||
       // 재무 공개 공지(월회비·KDK 벌금/상금) — 로그인 없이 읽기 전용 접근 허용.
-      pathname?.startsWith('/finance/public/');
+      pathname?.startsWith('/finance/public/') ||
+      // 게스트용 핸드북(초대받은/처음 방문한 게스트) — 링크만 받은 비로그인 게스트 대상이라 공개.
+      //   ⚠ /handbook 홈·/handbook/member·/handbook/operator 는 기존대로 로그인 필요(포함 금지).
+      pathname === '/handbook/invited-guest' ||
+      pathname?.startsWith('/handbook/invited-guest/') ||
+      pathname === '/handbook/public-guest' ||
+      pathname?.startsWith('/handbook/public-guest/');
 
     useEffect(() => {
         // Timeout for loading (Stability v3.9)
