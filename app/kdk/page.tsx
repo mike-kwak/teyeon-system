@@ -1637,7 +1637,9 @@ export default function KDKPage() {
         mode: m.mode || 'KDK',
         round: m.round,
         teams: m.teams,
-        groupName: resolveDbMatchGroupName(m)
+        groupName: resolveDbMatchGroupName(m),
+        // 경기 타이머 시작 시각(DB now()). 컬럼 미적용 환경에서는 undefined → null(시작 대기).
+        startedAt: m.started_at || null,
     });
 
     const fetchMatches = async (targetSessionId: string) => {
@@ -2786,6 +2788,77 @@ export default function KDKPage() {
         }
     };
 
+    // [경기 타이머] NOW PLAYING 카드 "시작" — DB now() 기준 started_at 1회 저장.
+    //   원자성(동시 클릭/다중 운영자)은 RPC(start_kdk_match_timer)가 담당: started_at 이 이미
+    //   있으면 덮어쓰지 않고 기존 값을 반환한다. 코트 투입 RPC(start_kdk_match)와는 별개.
+    const startMatchTimer = async (matchId: string) => {
+        if (!isAdmin || !adminModeManual) return triggerAccessDenied('경기 시작은 관리자 모드에서만 가능합니다.');
+        if (!guardWriteAction('경기 타이머 시작')) return; // 촬영 보호 모드 차단
+        const lockKey = `timer:${matchId}`;
+        if (!beginAction(lockKey)) return; // 같은 경기 더블탭 동기 차단
+
+        try {
+            const { data, error: rpcError } = await supabase.rpc('start_kdk_match_timer', {
+                p_match_id: String(matchId),
+                p_club_id: clubId,
+            });
+
+            if (rpcError) {
+                const code = (rpcError as any).code || '';
+                const detail = `${rpcError.message || ''} ${(rpcError as any).details || ''}`;
+                console.error('[KDK] start_kdk_match_timer RPC error:', { code, message: rpcError.message });
+                if (code === '42501' || /not authorized|permission denied/i.test(detail)) {
+                    alert('경기 시작 권한이 없습니다.');
+                } else if (code === 'PGRST202' || /could not find the function|schema cache/i.test(detail)) {
+                    alert('경기 타이머 함수가 준비되지 않았습니다. 관리자에게 문의해주세요.');
+                } else {
+                    alert('경기 시작에 실패했습니다. 최신 상태로 갱신합니다.');
+                    await syncActiveSession();
+                }
+                return;
+            }
+
+            const result = (data || {}) as { ok?: boolean; reason?: string; started_at?: string | null };
+            if (!result.ok || !result.started_at) {
+                // not_playing / not_found — 다른 운영자가 완료/복귀시킴. 최신 상태로 갱신.
+                alert('경기 상태가 변경되어 시작할 수 없습니다. 최신 상태로 갱신합니다.');
+                await syncActiveSession();
+                return;
+            }
+
+            // 서버가 확정한 started_at 즉시 반영(optimistic 아님 — 서버 반환값 그대로).
+            //   다른 화면들은 Realtime matches UPDATE 이벤트 → debounce full refresh 로 동기화.
+            const startedAt = result.started_at;
+            setMatches(prev => prev.map(m => m.id === matchId ? { ...m, startedAt } : m));
+        } catch (err) {
+            console.error('[KDK] startMatchTimer failed:', err);
+            alert('경기 시작에 실패했습니다. 최신 상태로 갱신합니다.');
+            await syncActiveSession();
+        } finally {
+            endAction(lockKey);
+        }
+    };
+
+    // 복귀/되돌리기 공통 waiting 리셋 — started_at 초기화(정책 A: 재투입 시 타이머가 이어지지 않게).
+    //   started_at 컬럼 미적용(SQL 미실행) 환경에서는 unknown column 으로 실패하므로,
+    //   그 경우에만 기존 payload(컬럼 제외)로 1회 재시도해 복귀 기능 자체는 보호한다.
+    const resetMatchToWaiting = async (matchId: string, expectedStatus: 'playing' | 'complete', selectCols: string) => {
+        const base = { status: 'waiting', court: null, score1: 1, score2: 1 };
+        let res = await supabase.from('matches')
+            .update({ ...base, started_at: null })
+            .eq('id', String(matchId))
+            .eq('status', expectedStatus)
+            .select(selectCols);
+        if (res.error && /started_at/i.test(`${res.error.message || ''} ${(res.error as any).details || ''}`)) {
+            res = await supabase.from('matches')
+                .update(base)
+                .eq('id', String(matchId))
+                .eq('status', expectedStatus)
+                .select(selectCols);
+        }
+        return res;
+    };
+
     const cancelMatch = async (matchId: string) => {
         if (!guardWriteAction('경기 취소(대기 이동)')) return; // 촬영 보호 모드 차단
         const lockKey = `cancel:${matchId}`;
@@ -2794,13 +2867,8 @@ export default function KDKPage() {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
 
-            // DB 먼저 — 현재 'playing' 일 때만 복귀 + 실제 변경 행 검증.
-            const { data: rows, error: syncError } = await supabase
-                .from('matches')
-                .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
-                .eq('id', String(matchId))
-                .eq('status', 'playing')
-                .select('id');
+            // DB 먼저 — 현재 'playing' 일 때만 복귀 + 실제 변경 행 검증. started_at 도 초기화(정책 A).
+            const { data: rows, error: syncError } = await resetMatchToWaiting(matchId, 'playing', 'id');
 
             if (syncError) throw syncError;
 
@@ -2834,11 +2902,8 @@ export default function KDKPage() {
         const lockKey = `edit:${matchId}`;
         if (!beginAction(lockKey)) return; // 같은 경기 재수정 더블탭/중복 차단
         try {
-            const { data, error } = await supabase.from('matches')
-                .update({ status: 'waiting', court: null, score1: 1, score2: 1 })
-                .eq('id', String(matchId))
-                .eq('status', 'complete') // 완료 상태일 때만 되돌림
-                .select('id, status, court, score1, score2');
+            // 완료 상태일 때만 되돌림 + started_at 초기화(정책 A — 재투입 시 새로 시작).
+            const { data, error } = await resetMatchToWaiting(matchId, 'complete', 'id, status, court, score1, score2');
             if (error) {
                 console.error('[KDK] reopen match error:', error);
                 alert('경기 상태 변경에 실패했습니다. 최신 상태로 갱신합니다.');
@@ -6108,6 +6173,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     onCancel={(id) => cancelMatch(id)}
                                                     spinningMatchId={spinningMatchId}
                                                     matchNo={matchNo}
+                                                    onStartTimer={(id) => startMatchTimer(id)}
+                                                    timerPending={isActionPending(`timer:${m.id}`)}
                                                     onInputScore={(id, s1, s2) => {
                                                         setTempScores({ s1, s2 });
                                                         setShowScoreModal(id);

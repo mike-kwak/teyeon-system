@@ -40,6 +40,53 @@ const PlayerNameRow = ({ name, fontSize = 16 }: { name: string; fontSize?: numbe
     <PlayerNameTag name={name} baseSize={fontSize} weight={800} live />
 );
 
+// 경기 경과 시간 포맷 — 60분 미만 MM:SS, 60분 이상 H:MM:SS. 미래/파싱 실패는 표시하지 않음.
+const formatMatchElapsed = (startedAt: string, nowMs: number): string | null => {
+    const start = new Date(startedAt).getTime();
+    if (!Number.isFinite(start)) return null;
+    const totalSec = Math.max(0, Math.floor((nowMs - start) / 1000));
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+// NOW PLAYING 경기 타이머 — source of truth 는 DB matches.started_at(서버 now() 저장).
+//   1초 interval 재렌더를 이 작은 컴포넌트 안에 가둬 운영 페이지 전체 재렌더를 유발하지 않는다.
+//   경과는 매 tick 절대 시각(Date.now - started_at)으로 재계산하므로 백그라운드/화면 잠금 복귀
+//   직후에도 누적 오차 없이 정확하다(visibilitychange 시 즉시 1회 보정).
+const MatchTimer = ({ startedAt, color }: { startedAt: string; color: string }) => {
+    const [nowMs, setNowMs] = React.useState(() => Date.now());
+    React.useEffect(() => {
+        const tick = () => setNowMs(Date.now());
+        tick();
+        const timer = setInterval(tick, 1000);
+        const onVisible = () => { if (document.visibilityState === 'visible') tick(); };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, [startedAt]);
+
+    const label = formatMatchElapsed(startedAt, nowMs);
+    if (label == null) return null;
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '1px 9px', borderRadius: 999,
+            background: '#FFFFFF', border: '1px solid #DCE8F5',
+            color,
+            fontSize: 12, fontWeight: 900, letterSpacing: '0.06em',
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+        }}>
+            ⏱ {label}
+        </span>
+    );
+};
+
 // 1. 진행 중인 경기 카드 (NOW PLAYING)
 export const PlayingMatchCard = ({
     match,
@@ -51,6 +98,8 @@ export const PlayingMatchCard = ({
     matchNo,
     showToast,
     toastMsg,
+    onStartTimer,
+    timerPending = false,
 }: CardProps & {
     onInputScore: (id: string, s1: number, s2: number) => void;
     isAdmin?: boolean;
@@ -59,6 +108,9 @@ export const PlayingMatchCard = ({
     matchNo?: number;
     showToast?: boolean;
     toastMsg?: string;
+    /** 경기 타이머 "시작" 핸들러 — 전달된 화면(KDK)에서만 타이머 UI 노출. /special 미전달 → 무변화. */
+    onStartTimer?: (id: string) => void;
+    timerPending?: boolean;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
     const { normalizedGroup, accentColor, softBg, softBorder, headerBg } = groupMeta;
@@ -117,6 +169,57 @@ export const PlayingMatchCard = ({
                     </button>
                 )}
             </div>
+
+            {/* 경기 타이머 상태 줄 — 헤더 바로 아래 붙는 "얇은 상태 줄"(하단 hairline 으로 상단 블록에 앵커).
+                시작 전 "시작 대기"(+운영자 시작 버튼) / 시작 후 ⏱ 경과 시간. 두 상태 모두 고정 높이(28px)
+                같은 기준선에서 전환돼 카드 높이가 흔들리지 않는다.
+                onStartTimer 미전달 + started_at 없음(/special 등)이면 줄 자체를 렌더하지 않는다. */}
+            {(match.startedAt || onStartTimer) && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    height: 24, padding: '0 10px', minWidth: 0,
+                    borderBottom: `1px solid ${softBorder}`,
+                }}>
+                    {match.startedAt ? (
+                        <MatchTimer startedAt={match.startedAt} color="#0F2747" />
+                    ) : (
+                        <>
+                            <span style={{
+                                fontSize: 10, fontWeight: 900, letterSpacing: '0.14em',
+                                textTransform: 'uppercase', color: '#7A93B3',
+                                whiteSpace: 'nowrap',
+                            }}>
+                                시작 대기
+                            </span>
+                            {isAdmin && onStartTimer && (
+                                <button
+                                    type="button"
+                                    disabled={timerPending}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.navigator?.vibrate) window.navigator.vibrate(50);
+                                        onStartTimer(match.id);
+                                    }}
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                        height: 20, padding: '0 10px',
+                                        borderRadius: 999,
+                                        background: timerPending ? '#E7F5F0' : '#EAFBF4',
+                                        border: '1px solid #9BDFC6',
+                                        color: timerPending ? '#7FAF9F' : '#0E8A63',
+                                        fontSize: 10.5, fontWeight: 900, letterSpacing: '0.08em',
+                                        whiteSpace: 'nowrap',
+                                        cursor: timerPending ? 'not-allowed' : 'pointer',
+                                        boxShadow: timerPending ? 'none' : '0 2px 6px rgba(14,138,99,0.14)',
+                                    }}
+                                >
+                                    ▶ {timerPending ? '...' : '시작'}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, padding: '14px 3px' }}>
                 <div style={{

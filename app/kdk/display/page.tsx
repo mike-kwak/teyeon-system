@@ -85,7 +85,9 @@ function mapMatch(row: any): Match {
     round: row.round,
     teams: row.teams,
     groupName: resolveDisplayRowGroup(row),
-    startedAt: row.started_at || row.startedAt || row.updated_at || row.updatedAt || null,
+    // 경기 타이머는 DB matches.started_at(운영 화면 "시작" 버튼, server now())만 신뢰한다.
+    //   updated_at 류 fallback 금지 — 점수 수정 시각 등이 경기 시간으로 잘못 표시될 수 있음.
+    startedAt: row.started_at || null,
   };
   return m;
 }
@@ -217,10 +219,12 @@ function formatElapsed(startedAt: string | null | undefined, nowMs: number): str
   if (!startedAt) return '';
   const start = new Date(startedAt).getTime();
   if (isNaN(start)) return '';
-  const diff = Math.max(0, nowMs - start);
-  const total = Math.min(diff, 99 * 60000 + 59000);
-  const m = Math.floor(total / 60000);
-  const s = Math.floor((total % 60000) / 1000);
+  const totalSec = Math.max(0, Math.floor((nowMs - start) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  // 60분 미만 MM:SS, 60분 이상 H:MM:SS — 운영 화면(MatchTimer)과 동일 규칙.
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
@@ -276,7 +280,7 @@ function CourtCard({
   const teamA = match ? teamPlayers(match, 0, playerLookup) : [];
   const teamB = match ? teamPlayers(match, 2, playerLookup) : [];
   const live = !!match;
-  const elapsed = live ? formatElapsed((match as any).startedAt, nowMs) : '';
+  const elapsed = live ? formatElapsed(match.startedAt, nowMs) : '';
 
   // 전광판 Court 팔레트 — TV·원거리용으로 strip/border 는 채도 높은 vivid accent 그대로 사용
   //   (모바일보다 강하게). 좌측 plate 는 솔리드 조 색(흰 텍스트), 본문 backdrop 만 밝게 유지.
@@ -349,14 +353,17 @@ function CourtCard({
             </span>
           )}
         </div>
-        <div className="flex items-center justify-self-end gap-1.5">
+        <div className="flex items-center justify-self-end gap-3">
           {live ? (
             <>
               {elapsed && (
+                // 경기 타이머 — LIVE 옆 스코어보드 리드아웃. TV 원거리 가독을 위해 숫자를 크게(22px)
+                //   키우고 흰 pill + accent 테두리로 존재감을 준다(선수명보다 작게 유지). 표시 전용.
                 <span
-                  className="rounded-[8px] bg-white/85 px-2.5 py-1 text-[16px] font-black tabular-nums tracking-[0.04em] shadow-[0_2px_5px_rgba(20,62,146,0.10)]"
-                  style={{ color: accentDeep }}
+                  className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] bg-white px-3.5 py-1.5 text-[22px] font-black leading-none tabular-nums tracking-[0.04em] shadow-[0_2px_8px_rgba(20,62,146,0.16)]"
+                  style={{ color: accentDeep, border: `1.5px solid ${accentDeep}4D` }}
                 >
+                  <span className="text-[14px] leading-none opacity-60">⏱</span>
                   {elapsed}
                 </span>
               )}

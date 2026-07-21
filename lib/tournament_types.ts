@@ -40,6 +40,8 @@ export interface Match {
     teams?: [string[], string[]];
     groupName?: string;
     group?: string; // Legacy/Special Match group
+    /** KDK 경기 타이머 시작 시각(DB matches.started_at, server now()). null/미설정 = 시작 대기. */
+    startedAt?: string | null;
 }
 
 export type RankTrend = 'up' | 'down' | 'same';
