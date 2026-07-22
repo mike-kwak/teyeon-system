@@ -14,10 +14,11 @@ import OperatorRecordingGuide from '@/components/guide/OperatorRecordingGuide';
 import TennisLogRecordingGuide from '@/components/guide/TennisLogRecordingGuide';
 import HeadToHeadRecordingGuide from '@/components/guide/HeadToHeadRecordingGuide';
 import GuestRecordingGuide from '@/components/guide/GuestRecordingGuide';
+import { copyTextSafe } from '@/lib/clubScheduleShare';
 import {
     Clapperboard, Play, UserCircle, Users, Globe, Crown, Square,
     Eye, EyeOff, Lock, ShieldCheck, MousePointer2, Phone, Mail, CreditCard,
-    Monitor, Info, ExternalLink,
+    Monitor, Info, ExternalLink, Link2, Check, Copy,
 } from 'lucide-react';
 
 const SHORTCUTS: { label: string; href: string; external?: boolean }[] = [
@@ -66,6 +67,10 @@ export default function GuideRecordingPage() {
                     <button type="button" onClick={g.endAllRecordingModes} style={{ ...dangerBtn, width: '100%' }}>현재 미리보기/녹화 종료</button>
                 )}
             </div>
+
+            {/* 공유용 핸드북 링크 — 게스트 핸드북(비로그인 공개)을 게스트에게 전달하는 보조 도구.
+                촬영 제어와 달리 모바일에서도 쓰는 기능이라 PC 전용 블록 밖에 배치. */}
+            <HandbookShareLinks />
 
             {/* 데스크톱 전용 */}
             <div className="hidden lg:block">
@@ -221,6 +226,62 @@ export default function GuideRecordingPage() {
                 </section>
             </div>
         </div>
+    );
+}
+
+// ── 공유용 핸드북 링크 ────────────────────────────────────────────────────────
+//   게스트 핸드북 목차(비로그인 공개 경로)를 클립보드로 복사한다.
+//   URL 은 배포 도메인에 따라 달라지므로 하드코딩하지 않고 클릭 시점의 origin 을 사용.
+const SHARE_LINKS: { key: string; path: string; button: string; title: string; desc: string }[] = [
+    { key: 'invited', path: '/handbook/invited-guest', button: '초대받은 게스트 가이드 복사', title: '초대받은 게스트', desc: 'Guest Pass를 받은 게스트에게 전달하는 안내입니다.' },
+    { key: 'public', path: '/handbook/public-guest', button: '처음 방문한 게스트 가이드 복사', title: '처음 방문한 게스트', desc: 'TEYEON을 처음 알게 된 외부 게스트에게 전달하는 안내입니다.' },
+];
+
+function HandbookShareLinks() {
+    const [copied, setCopied] = React.useState<{ key: string; ok: boolean } | null>(null);
+    const timerRef = React.useRef<number | null>(null);
+    React.useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+    const copy = async (key: string, path: string) => {
+        const ok = await copyTextSafe(`${window.location.origin}${path}`);
+        setCopied({ key, ok });
+        if (timerRef.current) window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(() => setCopied(null), 2200);
+    };
+
+    return (
+        <section style={{ ...CARD, marginBottom: 14 }}>
+            <SectionTitle icon={<Link2 size={16} />}>공유용 핸드북 링크</SectionTitle>
+            <p style={{ margin: '-6px 0 10px', fontSize: 11.5, fontWeight: 600, color: '#64748B' }}>
+                게스트에게 보낼 공식 안내 링크를 복사할 수 있습니다. 로그인 없이 열리는 안내 페이지입니다.
+            </p>
+            {SHARE_LINKS.map((l, i) => {
+                const isCopied = copied?.key === l.key;
+                return (
+                    <div key={l.key}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '11px 0', borderTop: i === 0 ? 'none' : '1px solid #F1F5FA' }}>
+                        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F1B33' }}>{l.title}</p>
+                            <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5, wordBreak: 'keep-all' }}>{l.desc}</p>
+                            <p style={{ margin: '3px 0 0', fontSize: 10.5, fontWeight: 700, color: '#64748B', fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all' }}>{l.path}</p>
+                        </div>
+                        <button type="button" onClick={() => copy(l.key, l.path)}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                height: 38, padding: '0 14px', borderRadius: 10, flexShrink: 0, maxWidth: '100%',
+                                border: `1px solid ${isCopied && copied?.ok ? '#99E0DA' : '#E3E9F2'}`,
+                                backgroundColor: isCopied && copied?.ok ? 'rgba(15,124,118,0.07)' : '#F6F8FC',
+                                color: isCopied && copied?.ok ? '#0E7C76' : '#334155',
+                                fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+                            }}>
+                            {isCopied
+                                ? (copied?.ok ? <><Check size={13} /> 복사되었습니다</> : '복사 실패 — 주소를 직접 복사해 주세요')
+                                : <><Copy size={13} /> {l.button}</>}
+                        </button>
+                    </div>
+                );
+            })}
+        </section>
     );
 }
 
