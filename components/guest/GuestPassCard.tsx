@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
     CalendarDays,
     Clock,
@@ -18,6 +19,8 @@ import {
     RefreshCw,
     ListOrdered,
     Lock,
+    HelpCircle,
+    ChevronRight,
 } from 'lucide-react';
 import type {
     GuestPassData,
@@ -438,6 +441,39 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                         이 링크 하나로 <b>경기 전에는 대진표</b>, <b>경기 후에는 최종 순위와 정산 내용</b>을 확인할 수 있습니다.
                     </p>
                 </section>
+
+                {/* ── Guest Pass 도움말 — 게스트 핸드북(비로그인 공개) 가이드로 이동하는 보조 CTA.
+                    핵심 정보(일정/게스트비)보다 위계를 낮게: 점선 테두리의 작은 help card. */}
+                <Link
+                    href="/handbook/invited-guest/guest-pass"
+                    style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10,
+                        padding: '12px 14px', borderRadius: 14,
+                        backgroundColor: '#FFFFFF',
+                        border: '1px dashed rgba(15,159,152,0.35)',
+                        textDecoration: 'none',
+                        WebkitTapHighlightColor: 'transparent',
+                    }}
+                >
+                    <span style={{
+                        width: 26, height: 26, borderRadius: 8, flexShrink: 0, marginTop: 1,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: 'rgba(15,159,152,0.10)', color: '#0E8079',
+                    }}>
+                        <HelpCircle size={14} strokeWidth={2.2} />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 12.5, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.01em', wordBreak: 'keep-all' }}>
+                            Guest Pass가 처음인가요?
+                        </span>
+                        <span style={{ display: 'block', marginTop: 3, fontSize: 11.5, fontWeight: 600, color: '#64748B', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                            일정, 준비물, 경기 안내를 보는 방법을 짧게 확인할 수 있습니다.
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 7, fontSize: 11.5, fontWeight: 800, color: '#0E8079' }}>
+                            Guest Pass 가이드 보기 <ChevronRight size={12} strokeWidth={2.6} />
+                        </span>
+                    </span>
+                </Link>
 
                 {/* ── 이번 정모 추가 공지 (운영진이 입력한 경우만) ─────────── */}
                 {data.extraNotice && (
