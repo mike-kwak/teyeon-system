@@ -108,7 +108,10 @@ export default function PaymentEditModal({ payment, onClose, onSaved, userId }: 
             aria-modal="true"
             onClick={onClose}
             style={{
-                position: 'fixed', inset: 0, zIndex: 9000,
+                // iOS Safari: fixed+inset:0 는 '레이아웃 뷰포트'(주소창 숨김 기준의 큰 높이)를 채운다.
+                // 그 바닥에 flex-end 로 시트를 붙이면 실제 가시 영역(dvh)보다 아래(브라우저 툴바 뒤)로
+                // 밀려 하단 저장/취소 버튼이 화면 밖으로 나간다. height:100dvh 로 가시 뷰포트에 맞춘다. (z-index 불변)
+                position: 'fixed', top: 0, left: 0, right: 0, height: '100dvh', zIndex: 9000,
                 backgroundColor: 'rgba(15,23,42,0.40)',
                 display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                 paddingBottom: 'env(safe-area-inset-bottom)',
@@ -120,12 +123,13 @@ export default function PaymentEditModal({ payment, onClose, onSaved, userId }: 
                     width: '100%', maxWidth: 430,
                     backgroundColor: '#FFFFFF',
                     borderTopLeftRadius: 18, borderTopRightRadius: 18,
-                    paddingTop: 14, paddingBottom: 18, paddingLeft: 16, paddingRight: 16,
                     boxShadow: '0 -8px 28px rgba(15,23,42,0.20)',
-                    maxHeight: '92dvh', overflowY: 'auto',
+                    // 단일 스크롤러 → header(고정) + body(스크롤) 구조로 분리. sheet 는 flex 컬럼 + overflow hidden.
+                    maxHeight: '92dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                {/* HEADER — flexShrink:0 로 고정 */}
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 12px' }}>
                     <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F172A' }}>
                         납부 기록 {isVoided ? '복원' : '수정'}
                     </h3>
@@ -146,6 +150,8 @@ export default function PaymentEditModal({ payment, onClose, onSaved, userId }: 
                     </button>
                 </div>
 
+                {/* BODY — 이 영역만 스크롤 */}
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 18px' }}>
                 {isVoided && (
                     <div style={{
                         marginBottom: 10, padding: 10, borderRadius: 8,
@@ -238,6 +244,7 @@ export default function PaymentEditModal({ payment, onClose, onSaved, userId }: 
                     <p style={{ margin: '4px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', textAlign: 'center' }}>
                         취소된 기록은 삭제되지 않고 보존됩니다.
                     </p>
+                </div>
                 </div>
             </div>
         </div>

@@ -145,7 +145,10 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
             aria-modal="true"
             onClick={onClose}
             style={{
-                position: 'fixed', inset: 0, zIndex: 1000,
+                // iOS Safari: fixed+inset:0 는 '레이아웃 뷰포트'(주소창 숨김 기준의 큰 높이)를 채운다.
+                // 그 바닥에 flex-end 로 시트를 붙이면 실제 가시 영역(dvh)보다 아래(브라우저 툴바 뒤)로
+                // 밀려 하단 등록 버튼이 화면 밖으로 나간다. height:100dvh 로 가시 뷰포트에 맞춘다. (z-index 불변)
+                position: 'fixed', top: 0, left: 0, right: 0, height: '100dvh', zIndex: 1000,
                 background: 'rgba(15,23,42,0.55)',
                 display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                 padding: 0,
@@ -161,9 +164,9 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
                     boxShadow: '0 -10px 40px rgba(15,45,85,0.25)',
                 }}
             >
-                {/* HEADER */}
+                {/* HEADER — flexShrink:0 로 고정, 스크롤은 아래 body 만 담당 */}
                 <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10,
                     padding: '16px 16px 12px', background: '#FFFFFF', borderBottom: '1px solid #E3ECF6',
                 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -303,8 +306,8 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
                     )}
                 </div>
 
-                {/* FOOTER */}
-                <div style={{ padding: 14, background: '#FFFFFF', borderTop: '1px solid #E3ECF6' }}>
+                {/* FOOTER — flexShrink:0 로 고정(항상 시트 하단에 노출, 스크롤 밖) */}
+                <div style={{ flexShrink: 0, padding: 14, background: '#FFFFFF', borderTop: '1px solid #E3ECF6' }}>
                     <button
                         type="button"
                         onClick={handleRegister}

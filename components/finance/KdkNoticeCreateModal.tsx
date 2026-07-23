@@ -194,9 +194,15 @@ function localToISO(v: string): string | null {
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden', overscrollBehavior: 'none', touchAction: 'none' };
+// iOS Safari: position:fixed + inset:0 는 '레이아웃 뷰포트'(주소창 숨김 기준의 큰 높이)를 채운다.
+// 그 바닥에 alignItems:flex-end 로 시트를 붙이면, 실제로 보이는 영역(주소창/툴바 표시 시)보다
+// 아래(브라우저 툴바 뒤)에 시트 하단이 위치해 마지막 '공지 생성' 버튼이 화면 밖으로 밀린다.
+// height:100dvh(+top:0, bottom 제거)로 컨테이너를 '동적(가시) 뷰포트'에 맞춰, 시트 하단이 항상
+// 보이는 바닥에 붙도록 한다. z-index 는 변경하지 않는다.
+const overlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, right: 0, height: '100dvh', zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden', overscrollBehavior: 'none', touchAction: 'none' };
 const sheet: React.CSSProperties = { width: '100%', maxWidth: 480, maxHeight: '92dvh', background: '#F4F7FB', borderTopLeftRadius: 22, borderTopRightRadius: 22, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 -10px 40px rgba(15,45,85,0.25)' };
-const header: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', background: '#FFFFFF', borderBottom: '1px solid #E3ECF6' };
+// flexShrink:0 — 세로 flex 컬럼에서 헤더는 절대 줄지 않게 고정하고, 스크롤은 body 만 담당한다.
+const header: React.CSSProperties = { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', background: '#FFFFFF', borderBottom: '1px solid #E3ECF6' };
 // 하단 패딩에 safe-area 포함: 바텀시트가 뷰포트 바닥에 붙어 있어, 마지막 요소(공지 생성 버튼)가
 // 홈 인디케이터(safe-area-inset-bottom)에 가려지지 않도록 스크롤 영역 자체에 여백을 확보한다.
 const body: React.CSSProperties = { flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '16px 16px calc(24px + env(safe-area-inset-bottom)) 16px', display: 'flex', flexDirection: 'column', gap: 12 };
