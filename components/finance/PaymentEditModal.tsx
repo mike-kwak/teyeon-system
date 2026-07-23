@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { updatePayment, voidPayment, unvoidPayment } from '@/lib/finance/duesService';
 import { formatWon, isValidPaymentAmount } from '@/lib/finance/formatFinanceAmount';
 import {
@@ -42,6 +43,10 @@ export default function PaymentEditModal({ payment, onClose, onSaved, userId }: 
         setAdminMemo(payment.admin_memo ?? '');
         setError(null);
     }, [payment]);
+
+    // 모달 open(=payment 존재) 동안 실제 스크롤러(#main-container) 잠금.
+    //   early return 전에 호출해 React Hook 호출 순서를 항상 일정하게 유지한다(조건부 호출 아님).
+    useBodyScrollLock(!!payment);
 
     if (!payment) return null;
     const isVoided = !!payment.is_voided;

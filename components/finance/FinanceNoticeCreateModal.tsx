@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { X, Link2, MessageSquare, Check, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
 import {
     buildNoticeSnapshot,
@@ -46,6 +47,10 @@ export default function FinanceNoticeCreateModal({
     onClose: () => void;
     onCreated?: (notice: FinancePublicNotice) => void;
 }) {
+    // 모달은 부모에서 조건부 mount({show && <Modal/>}) → 열려 있는 동안만 이 컴포넌트가 존재.
+    //   실제 스크롤러(#main-container) 잠금으로 배경 스크롤 방지.
+    useBodyScrollLock(true);
+
     const [title, setTitle] = React.useState('TEYEON 회비 납부 현황');
     const [referenceDate, setReferenceDate] = React.useState(todayISO());
     const [publicNote, setPublicNote] = React.useState('');

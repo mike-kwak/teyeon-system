@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, RotateCcw, AlertTriangle } from 'lucide-react';
 import { formatWon } from '@/lib/finance/formatFinanceAmount';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import {
     computeMonthlyResetPreview,
     resetMonthlyPayments,
@@ -29,6 +30,10 @@ export default function MonthlyResetModal({
     onClose: () => void;
     onDone: () => void;
 }) {
+    // 모달은 부모에서 조건부 mount({show && <Modal/>}) → 열려 있는 동안만 존재.
+    //   짧은 모달이어도 backdrop 스와이프 시 배경이 밀리지 않도록 실제 스크롤러(#main-container) 잠금.
+    useBodyScrollLock(true);
+
     const preview = React.useMemo(
         () => computeMonthlyResetPreview(year, month, receivables, payments),
         [year, month, receivables, payments],
