@@ -201,7 +201,9 @@ export default function FinanceNoticeCreateModal({
         <div
             onClick={onClose}
             style={{
-                position: 'fixed', inset: 0, zIndex: 400,
+                // zIndex 는 BottomNav(500)보다 높아야 한다. 400이면 nav 가 모달 위에 그려져
+                // 작은 폰(≤375px 높이 667 이하)에서 하단 '공지 링크 생성' 버튼이 nav 에 가려 클릭 불가.
+                position: 'fixed', inset: 0, zIndex: 1000,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(5px)',
                 padding: 14,

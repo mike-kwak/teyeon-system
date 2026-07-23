@@ -59,7 +59,9 @@ export default function MonthlyResetModal({
         <div
             onClick={onClose}
             style={{
-                position: 'fixed', inset: 0, zIndex: 500,
+                // zIndex 500 은 BottomNav(500)와 동률 — DOM 후순위인 nav 가 위에 그려져
+                // 작은 폰에서 하단 확인/취소 버튼이 가려진다. 다른 Finance/KDK 모달과 같은 1000 사용.
+                position: 'fixed', inset: 0, zIndex: 1000,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(5px)',
                 padding: 14,
