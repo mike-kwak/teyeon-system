@@ -1300,10 +1300,6 @@ export default function KDKPage() {
 
         // 이 effect 실행 = 새 채널 생성. 이전 cleanup 의 의도적 CLOSED 플래그 초기화.
         intentionalCloseRef.current = false;
-        const fullResync = () => {
-            if (currentSid) fetchMatches(currentSid);
-            else syncActiveSession();
-        };
 
         const matchesChannel = supabase.channel(`sync-kdk-club-${clubId}`)
             .on('postgres_changes', {
@@ -1328,11 +1324,20 @@ export default function KDKPage() {
                 if (status === 'SUBSCRIBED') {
                     resubAttemptRef.current = 0; // 연결 정상화 → backoff reset
                     if (resubTimerRef.current) { clearTimeout(resubTimerRef.current); resubTimerRef.current = null; } // 대기 중 재구독 취소(transient CLOSED→SUBSCRIBED)
-                    // 오류로 끊겼다 재연결된 경우에만 full refresh — 구독 공백 동안 누락된 변경 복구.
-                    //   최초 구독/세션 전환은 restoreSession·기존 로드가 처리하므로 중복 조회하지 않는다.
-                    if (wasDisconnectedRef.current) {
-                        wasDisconnectedRef.current = false;
-                        fullResync();
+                    const wasReconnect = wasDisconnectedRef.current;
+                    wasDisconnectedRef.current = false;
+                    // [구독 공백 보정] 최초 구독·재연결 모두: 초기 snapshot~구독 준비 사이에 놓친 변경을
+                    //   복구하기 위해 SUBSCRIBED 직후 '현재 세션'을 1회 재조회한다(focus/visibility 조작 없이 자동 보정).
+                    //   - currentSid 는 이 채널 effect 생성 시점(=현재 활성 세션)에 고정 캡처된 값이므로,
+                    //     이 콜백은 '이 채널이 구독한 바로 그 세션'만 재조회한다(이전/잘못된 세션 fetch 없음).
+                    //   - activeSessionId 확정 후 재구독되면 그 세션의 SUBSCRIBED 에서 즉시 fetch 된다.
+                    //   - debounce(scheduleRealtimeRefresh 220ms) + seq guard(fetchMatchesSeqRef) 로 중복/역전 방지.
+                    if (currentSid) {
+                        scheduleRealtimeRefresh(() => fetchMatches(currentSid));
+                    } else if (wasReconnect) {
+                        // 세션 미선택(게이트웨이) 상태에서 재연결된 경우에만 활성 세션 재동기화.
+                        //   최초 진입(미선택)은 기존 로드(fetchMembers→syncActiveSession)가 처리하므로 중복 조회하지 않는다.
+                        scheduleRealtimeRefresh(() => syncActiveSession());
                     }
                 } else if (isRealtimeErrorStatus(status)) {
                     if (intentionalCloseRef.current) return; // cleanup 로 인한 CLOSED → 재구독 안 함
@@ -1811,17 +1816,22 @@ export default function KDKPage() {
                     }
                 }
             } else if (latestEntryMode === 'LIVE') {
-                // LIVE COURT 복원 우선순위:
-                //   (1) 마지막으로 보던 세션이 아직 활성 → 바로 복귀(+마지막 탭)
-                //   (2) 없거나 stale → 가장 최근 활성 세션 자동 진입(섹션 선택 화면 생략)
-                // sessionList 는 lastActivity desc 정렬이며, 이 분기는 rows.length>0(활성 세션 존재)에서만 도달.
+                // [entry=live 최신 세션 우선] 일반 회원의 LIVE COURT 진입(selectedSessionId 미설정)에서는
+                //   활성 세션이 여러 개여도 '항상 현재 가장 최근 활동 세션'을 기본 선택한다.
+                //   sessionList 는 lastActivity(=updated_at/match_date/created_at 중 최신) desc 정렬이며,
+                //   이 분기는 rows.length>0(활성 세션 존재)에서만 도달하므로 sessionList[0] 이 항상 존재한다.
+                //   → 사용자별 localStorage(readLastLiveSession) 때문에 회원마다 세션이 갈리지 않는다.
+                //
+                //   수동 선택 보호: 사용자가 화면 안에서 세션을 명시적으로 고르면 selectedSessionId 가 설정되어
+                //     위 `else if (selectedSessionId)` 분기로 처리되므로, 이 '최초 진입' 분기만 최신 우선으로 둔다.
+                //   lastLiveSession 은 '최신 세션과 동일할 때만' 마지막 탭 복원 용도로 제한 사용한다.
+                const newest = sessionList[0];
                 const stored = readLastLiveSession(uidRef.current);
-                if (stored?.sessionId && sessionsMap[stored.sessionId]) {
-                    applySession(stored.sessionId);
-                    setActiveTab(stored.tab);
-                } else {
-                    if (stored?.sessionId) clearLastLiveSession(uidRef.current); // 완료/삭제/접근불가 세션 → 저장값 폐기
-                    applySession(sessionList[0].id);
+                applySession(newest.id);
+                if (stored?.sessionId === newest.id) {
+                    setActiveTab(stored.tab); // 최신 세션을 계속 보던 경우 → 마지막 탭만 복원
+                } else if (stored?.sessionId && stored.sessionId !== newest.id) {
+                    clearLastLiveSession(uidRef.current); // 더 최근 활성 세션 존재 → 구세션 저장값 폐기
                 }
             } else if (latestEntryMode === 'CHECKING') {
                 setCreateBackTarget(null);
