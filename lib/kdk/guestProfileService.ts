@@ -1,4 +1,4 @@
-// KDK 게스트 프로필 — 게스트 출생연도 저장/조회 (공식 동률 '연소자 우위' 계산 전용).
+// KDK 게스트 프로필 — 게스트 출생연도 저장/조회 (공식 동률 '연장자 우위' 계산 전용).
 //   테이블: kdk_guest_profiles (supabase/add_kdk_guest_profiles.sql — RLS: CEO/ADMIN/OPERATOR).
 //   호출 위치: /kdk 운영 화면(이름 매칭)·/kdk/display 전광판(읽기)만. 공개/일반 회원 화면 호출 금지.
 //   개인정보 원칙: birth_year 는 순위 결정 목적 한정 — 어떤 공개 화면/DTO 에도 노출하지 않는다.

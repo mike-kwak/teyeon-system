@@ -490,19 +490,19 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                     </SectionCard>
                 )}
 
-                {/* ── 순위 결정 안내 — TEYEON KDK 공식 기준(승수 → 득실 → 연소자 우위) ──
+                {/* ── 순위 결정 안내 — TEYEON KDK 공식 기준(승수 → 득실 → 연장자 우위) ──
                     문구는 공식 comparator 규칙과 반드시 일치해야 함(임의 기준 생성 금지).
                     생년 정보: 출생연도만 · 순위 확인 목적 한정 · 공개 화면 비노출 · 미제공 시 동률 후순위 가능. */}
                 <SectionCard>
                     <SectionTitle>순위 결정 안내</SectionTitle>
                     <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#334155', lineHeight: 1.6, wordBreak: 'keep-all' }}>
-                        최종 순위는 TEYEON KDK 공식 기준을 아래 순서대로 적용해 결정합니다.
+                        최종 순위는 승수, 공식 2차 성적 기준, 연장자 순으로 결정됩니다.
                     </p>
                     <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 7 }}>
                         {[
                             ['1', '승수', '많이 이긴 순서'],
                             ['2', '득실', '득점에서 실점을 뺀 값이 큰 순서'],
-                            ['3', '동률 시 연소자 우위', '위 기준이 모두 같으면 나이가 어린 참가자가 우선'],
+                            ['3', '동률 시 연장자 우위', '위 기준이 모두 같으면 나이가 많은 참가자가 우선'],
                         ].map(([n, title, desc]) => (
                             <li key={n} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
                                 <span style={{
@@ -526,7 +526,7 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                     }}>
                         <ListOrdered size={13} strokeWidth={2.2} style={{ color: '#0E8079', flexShrink: 0, marginTop: 2 }} />
                         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 800, color: '#0E7C76', lineHeight: 1.6, wordBreak: 'keep-all' }}>
-                            동률 시 연소자 우위가 적용됩니다.
+                            완전 동률 시 출생연도가 빠른 참가자, 즉 나이가 많은 참가자가 우선합니다.
                         </p>
                     </div>
 
@@ -548,11 +548,11 @@ export default function GuestPassCard({ data, previewBadge, footerCta }: GuestPa
                         </div>
                         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.65, wordBreak: 'keep-all' }}>
                             동률 순위 확인을 위해 게스트의 <b style={{ color: '#0F172A' }}>출생연도</b> 정보를 요청드릴 수 있습니다.
-                            입력한 정보는 <b style={{ color: '#0F172A' }}>동률 시 순위 확인 목적으로만 사용</b>하며,
-                            Guest Pass·대진표·전광판·결과표 등 공개 화면에는 표시하지 않고 다른 목적으로 사용하지 않습니다.
+                            출생연도는 <b style={{ color: '#0F172A' }}>순위 확인 목적으로만 사용</b>되며,
+                            전광판·대진표·결과표 등 공개 화면에는 표시되지 않고 다른 목적으로 사용하지 않습니다.
                         </p>
                         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#64748B', lineHeight: 1.65, wordBreak: 'keep-all' }}>
-                            출생연도를 제공하지 않아도 경기 참여는 가능하지만, 완전 동률 상황에서는 후순위로 반영될 수 있습니다.
+                            출생연도를 제공하지 않아도 경기 참여는 가능하지만, 제공하지 않은 경우 완전 동률 상황에서 후순위로 반영될 수 있습니다.
                         </p>
                     </div>
                 </SectionCard>

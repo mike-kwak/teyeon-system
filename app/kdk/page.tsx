@@ -317,7 +317,7 @@ export default function KDKPage() {
         tieBirthYearWarning?: string | null;
     } | null>(null);
     // 수동 이름 매칭 — 게스트 출생연도 입력(guestKey → 입력 문자열). 확정 시 attendeeConfigs.birthYear
-    // 와 kdk_guest_profiles 로 반영. 공개 화면 비노출, 순위(연소자 우위) 계산 전용.
+    // 와 kdk_guest_profiles 로 반영. 공개 화면 비노출, 순위(연장자 우위) 계산 전용.
     const [manualGuestBirthYears, setManualGuestBirthYears] = useState<Record<string, string>>({});
     const [isMembersLoading, setIsMembersLoading] = useState(true);
     const [isMembersError, setIsMembersError] = useState(false);
@@ -4767,7 +4767,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     {match.originalName}(G) / 게스트로 사용
                                                 </option>
                                             </select>
-                                            {/* 게스트 행에만 출생연도 입력 — 완전 동률(연소자 우위) 계산 전용, 공개 비노출.
+                                            {/* 게스트 행에만 출생연도 입력 — 완전 동률(연장자 우위) 계산 전용, 공개 비노출.
                                                 회원은 members."나이" 를 자동 사용하므로 입력칸을 표시하지 않는다. */}
                                             {match.status !== 'MEMBER' && (() => {
                                                 const birthValue = manualGuestBirthYears[match.guestKey] ?? '';

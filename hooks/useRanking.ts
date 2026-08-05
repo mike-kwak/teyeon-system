@@ -98,7 +98,7 @@ export function useRanking(
                 ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
             };
         });
-        // 공식 comparator 단일 사용 — 승수 → 득실 → 연소자(출생연도 큰 값 우선, 미제공 후순위) → 이름 → id.
+        // 공식 comparator 단일 사용 — 승수 → 득실 → 연장자(출생연도 작은 값 우선, 미제공 후순위) → 이름 → id.
         return sortOfficialKdkRanking(mapped);
     }, [playerStats, attendeeConfigs, selectedIds, matches, allMembers, tempGuests]);
 

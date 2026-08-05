@@ -5,7 +5,13 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { normalizeBirthYear } from '@/lib/kdk/officialRanking';
+import {
+  compareOfficialBirthYear,
+  compareOfficialNameThenId,
+  compareOfficialSecondary,
+  compareOfficialWins,
+  type OfficialRankingEntry,
+} from '@/lib/kdk/officialRanking';
 
 interface Member {
   id: string;
@@ -22,6 +28,25 @@ interface Member {
 }
 
 type SortCriteria = 'wins' | 'score_diff' | 'age';
+
+// 공식 기준 단위 비교자 매핑 — 인라인 비교 로직을 두지 않고 lib/kdk/officialRanking 의
+// 단위 비교자만 조합한다(공식 규칙의 Source of Truth 는 그 파일 하나).
+// 이 화면만 우선순위를 사용자가 재배열할 수 있으므로 '조합 순서'만 다르고, 각 기준의
+// 의미(연장자 방향·미제공 후순위 포함)와 최종 결정자(이름 → stable id)는 완전히 동일하다.
+const OFFICIAL_CRITERIA: Record<SortCriteria, (a: OfficialRankingEntry, b: OfficialRankingEntry) => number> = {
+  wins: compareOfficialWins,
+  score_diff: compareOfficialSecondary,
+  age: compareOfficialBirthYear,
+};
+
+/** members 행 → 공식 comparator 입력. 출생연도 원본은 그대로 넘기고 정규화는 comparator 가 한다. */
+const toOfficialEntry = (m: Member): OfficialRankingEntry => ({
+  playerId: String(m.id ?? ''),
+  name: String(m.nickname ?? ''),
+  wins: m.wins || 0,
+  diff: m.score_diff || 0,
+  birthYear: ((m as any).birthdate ?? (m as any)['나이'] ?? (m as any).age) as number | null | undefined,
+});
 
 export default function RankingPage() {
   const router = useRouter();
@@ -124,26 +149,16 @@ export default function RankingPage() {
   const integratedSortedMembers = useMemo(() => {
     let active = [...members].filter(m => (m.matches_played || 0) > 0);
     return active.sort((a, b) => {
+      const ea = toOfficialEntry(a);
+      const eb = toOfficialEntry(b);
+      // 사용자가 지정한 우선순위대로 공식 단위 비교자를 적용.
+      // 기본 순서(wins → score_diff → age)면 compareOfficialKdkRanking 과 완전히 동일하다.
       for (const criteria of sortOrder) {
-        if (criteria === 'wins') {
-          if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
-        }
-        if (criteria === 'score_diff') {
-          if ((b.score_diff || 0) !== (a.score_diff || 0)) return (b.score_diff || 0) - (a.score_diff || 0);
-        }
-        if (criteria === 'age') {
-          // 공식 연소자 의미론: 출생연도 큰 값(어린 쪽) 우선, 미제공은 완전 동률 시 후순위.
-          const ay = normalizeBirthYear((a as any).birthdate ?? (a as any)['나이'] ?? (a as any).age);
-          const by = normalizeBirthYear((b as any).birthdate ?? (b as any)['나이'] ?? (b as any).age);
-          if (ay !== null || by !== null) {
-            if (ay === null) return 1;
-            if (by === null) return -1;
-            if (ay !== by) return by - ay;
-          }
-        }
+        const result = OFFICIAL_CRITERIA[criteria](ea, eb);
+        if (result !== 0) return result;
       }
-      // 최종 fallback: 이름 가나다 → stable id (공식 comparator 와 동일).
-      return a.nickname.localeCompare(b.nickname, 'ko') || String(a.id).localeCompare(String(b.id));
+      // 최종 결정자: 이름 가나다 → stable id (공식 comparator 와 동일 — 코드포인트 비교).
+      return compareOfficialNameThenId(ea, eb);
     });
   }, [members, sortOrder]);
 
@@ -304,7 +319,7 @@ export default function RankingPage() {
                             onClick={() => toggleSortPriority(s)}
                             className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${i === 0 ? 'bg-[#D4AF37] border-[#D4AF37] text-black font-black' : 'bg-white/5 border-white/10 text-white/40'}`}
                           >
-                              <span className="text-xs font-black uppercase tracking-widest">{i + 1}. {s === 'wins' ? '승수' : s === 'score_diff' ? '득실차' : '연소자 (Age)'}</span>
+                              <span className="text-xs font-black uppercase tracking-widest">{i + 1}. {s === 'wins' ? '승수' : s === 'score_diff' ? '득실차' : '연장자 (Age)'}</span>
                               {i === 0 && <span className="text-[10px] font-black">TOP</span>}
                           </button>
                       ))}
