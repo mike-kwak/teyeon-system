@@ -27,7 +27,12 @@ const {
   compareOfficialSecondary,
   compareOfficialBirthYear,
   compareOfficialNameThenId,
+  findUnresolvedTieBirthYears,
 } = await import(officialRankingPath);
+
+// attendee_meta 병합 규칙(순수 함수 — DB 접근 없음). 저장은 guestProfileService 가 이 helper 를 그대로 쓴다.
+const attendeeMetaPath = '../lib/kdk/attendeeMeta.ts';
+const { mergeAttendeeMeta, applyAttendeeBirthYearDecision } = await import(attendeeMetaPath);
 
 type Entry = {
   playerId: string;
@@ -35,6 +40,8 @@ type Entry = {
   wins: number;
   diff: number;
   birthYear?: number | string | null;
+  /** 'declined' = 운영자가 공식 확정 화면에서 '생년 미입력으로 진행'을 승인. */
+  birthYearStatus?: 'provided' | 'declined';
 };
 
 let passed = 0;
@@ -308,6 +315,299 @@ expectOrder(
     '19 /kdk/ranking 인라인 비교 로직 없음 · 공통 단위 비교자만 사용(정적 코드 보증)',
     noInlineCompare,
     'app/kdk/ranking/page.tsx 에 인라인 순위 비교 로직이 되살아났다',
+  );
+}
+
+// ── 20~29. '생년 미입력으로 진행'(declined) 운영 UX — 확정 차단/해제 판정 ─────────
+//   핵심: declined 는 순위 규칙을 바꾸지 않는다(여전히 birthYear 미제공 = 완전 동률 후순위).
+//   바뀌는 것은 '공식 확정을 차단할지'뿐이다.
+{
+  const D = (name: string, wins = 2, diff = 6): Entry =>
+    ({ playerId: `manual-guest-${name}`, name: `${name}(G)`, wins, diff, birthYear: null, birthYearStatus: 'declined' });
+  const names = (rows: Entry[]) => findUnresolvedTieBirthYears(rows as any).map((r: any) => r.name).join(', ');
+
+  // 시나리오 1 — 게스트 A(1980) vs 게스트 B(1990) 완전 동률 → A 상위
+  expectOrder(
+    '20 게스트 1980 vs 게스트 1990 완전 동률 → 1980 상위',
+    [G('비게스트', 1990), G('에이게스트', 1980)],
+    '에이게스트(G) > 비게스트(G)',
+  );
+
+  // 시나리오 2 — 회원 A(1980) vs 게스트 B(미제공 승인) 완전 동률 → 회원 A 상위
+  expectOrder(
+    '21 회원(1980) vs 게스트(미제공 승인) 완전 동률 → 회원 상위',
+    [D('가미제공'), M('하회원', 1980)],
+    '하회원 > 가미제공(G)',
+  );
+
+  // 시나리오 3 — 게스트 A(미제공 승인) vs 게스트 B(1990) → B 상위
+  expectOrder(
+    '22 게스트(미제공 승인) vs 게스트(1990) → 1990 상위',
+    [D('가미제공'), G('하연도', 1990)],
+    '하연도(G) > 가미제공(G)',
+  );
+
+  // 시나리오 4 — 둘 다 미제공 승인 → 이름 → stable id
+  expectOrder(
+    '23 미제공 승인 2명 → 이름 가나다순',
+    [D('최민수'), D('강호동')],
+    '강호동(G) > 최민수(G)',
+  );
+  {
+    const a: Entry = { playerId: 'a-001', name: '동명이인(G)', wins: 2, diff: 6, birthYear: null, birthYearStatus: 'declined' };
+    const b: Entry = { playerId: 'b-002', name: '동명이인(G)', wins: 2, diff: 6, birthYear: null, birthYearStatus: 'declined' };
+    const sorted = sortOfficialKdkRanking([b, a] as any);
+    check(
+      '23b 미제공 승인 + 같은 이름 → stable id 오름차순',
+      sorted[0].playerId === 'a-001' && sorted[1].playerId === 'b-002',
+      `got ${sorted.map((s: any) => s.playerId).join(' > ')}`,
+    );
+  }
+
+  // 시나리오 5 — 미입력 + 미제공 선택도 없음 → 미해결(확정 차단 유지)
+  check(
+    '24 미입력 + 선택 없음 → 미해결로 검출(확정 차단)',
+    names([G('최순규', null), M('박연도', 1985)]) === '최순규(G)',
+    `got "${names([G('최순규', null), M('박연도', 1985)])}"`,
+  );
+
+  // 시나리오 6 — 출생연도 입력 완료 → 미해결 없음(차단 해제)
+  check(
+    '25 출생연도 입력 완료 → 미해결 0명(차단 해제)',
+    findUnresolvedTieBirthYears([G('최순규', 1985), M('박연도', 1985)] as any).length === 0,
+    'birthYear 를 넣었는데도 미해결로 남았다',
+  );
+
+  // 시나리오 7 — 미입력 진행 승인 → 미해결 없음 + 후순위
+  check(
+    '26 미입력 진행 승인 → 미해결 0명(차단 해제)',
+    findUnresolvedTieBirthYears([D('최순규'), M('박연도', 1985)] as any).length === 0,
+    'declined 인데도 미해결로 남았다',
+  );
+  expectOrder(
+    '26b 미입력 진행 승인자는 제공자보다 후순위 유지',
+    [D('가미제공'), M('하박연도', 1985)],
+    '하박연도 > 가미제공(G)',
+  );
+
+  // 시나리오 8·9 — 미등록 2명 중 1명만 처리 → 나머지 때문에 계속 차단, 2명 모두 처리 → 해제
+  {
+    const half = [G('최순규', null), D('홍길동'), M('박연도', 1985)];
+    check(
+      '27 미등록 2명 중 1명만 처리 → 나머지 1명 때문에 계속 차단',
+      names(half) === '최순규(G)',
+      `got "${names(half)}"`,
+    );
+    const done = [G('최순규', 1985), D('홍길동'), M('박연도', 1985)];
+    check(
+      '28 2명 모두 처리 → 미해결 0명(확정 버튼 활성화)',
+      findUnresolvedTieBirthYears(done as any).length === 0,
+      `got "${names(done)}"`,
+    );
+  }
+
+  // 시나리오 10 — 승수/득실이 다르면 완전 동률이 아니므로 출생연도와 무관하게 차단하지 않는다
+  {
+    const notTied = [
+      { playerId: 'g-1', name: '최순규(G)', wins: 3, diff: 9, birthYear: null },
+      { playerId: 'mem-1', name: '박연도', wins: 2, diff: 4, birthYear: 1985 },
+    ] as Entry[];
+    check(
+      '29 승수/득실이 다름 → 미해결 없음(기존 순위 유지, 차단 없음)',
+      findUnresolvedTieBirthYears(notTied as any).length === 0,
+      `got "${names(notTied)}"`,
+    );
+    expectOrder(
+      '29b 승수/득실 우선 — 미제공자가 상위여도 그대로 유지',
+      notTied,
+      '최순규(G) > 박연도',
+    );
+    // 득실만 다른 경우도 동률 그룹이 아니다.
+    check(
+      '29c 승수 같고 득실만 달라도 동률 그룹 아님 → 차단 없음',
+      findUnresolvedTieBirthYears([
+        { playerId: 'g-2', name: '가미입력(G)', wins: 2, diff: 7, birthYear: null },
+        { playerId: 'mem-2', name: '하연도', wins: 2, diff: 3, birthYear: 1985 },
+      ] as any).length === 0,
+      '득실이 다른데 미해결로 잡혔다',
+    );
+  }
+
+  // declined 는 comparator 에 어떤 영향도 주지 않는다(= 미입력과 동일한 순위 결과).
+  {
+    const withStatus = order([D('가미제공'), M('나연도', 1990), G('다연도', 1985)]);
+    const withoutStatus = order([G('가미제공', null), M('나연도', 1990), G('다연도', 1985)]);
+    check(
+      '30 declined 유무가 순위 결과를 바꾸지 않음(규칙 불변 보증)',
+      withStatus === withoutStatus,
+      `${withStatus} vs ${withoutStatus}`,
+    );
+  }
+}
+
+// ── 31~37. attendee_meta 병합 저장 규칙 (A/B/C) ──────────────────────────────
+//   attendee_meta 는 컬럼 전체가 upsert 되는 jsonb 다. 저장 경로가 둘(이름 매칭 snapshot /
+//   공식 확정 화면의 개별 결정)이므로, 병합하지 않으면 상대가 저장한 항목이 통째로 사라진다.
+{
+  const json = (v: unknown) => JSON.stringify(v);
+
+  // A. 게스트 declined 저장 → 이름 매칭 재저장(다른 게스트의 birthYear) → declined 유지
+  {
+    const afterDecline = mergeAttendeeMeta({}, { 'manual-guest-최순규': { declined: true } });
+    // 이름 매칭 재저장: 값이 입력된 게스트만 decision 으로 들어온다(빈칸은 아예 오지 않음).
+    const afterRematch = mergeAttendeeMeta(afterDecline, { 'manual-guest-홍길동': { birthYear: 1990 } });
+    check(
+      'A(31) declined 저장 후 이름 매칭 재저장 → declined 유지',
+      afterRematch['manual-guest-최순규']?.birthYearStatus === 'declined'
+      && afterRematch['manual-guest-최순규']?.birthYear === undefined,
+      `got ${json(afterRematch['manual-guest-최순규'])}`,
+    );
+    check(
+      'A(31b) 재저장으로 추가된 게스트도 정상 기록',
+      afterRematch['manual-guest-홍길동']?.birthYear === 1990
+      && afterRematch['manual-guest-홍길동']?.birthYearStatus === 'provided',
+      `got ${json(afterRematch['manual-guest-홍길동'])}`,
+    );
+  }
+
+  // B. 게스트 declined → 이후 birthYear 1985 입력 → provided + 1985 로 전환
+  {
+    const declined = mergeAttendeeMeta({}, { 'manual-guest-최순규': { declined: true } });
+    const provided = mergeAttendeeMeta(declined, { 'manual-guest-최순규': { birthYear: 1985 } });
+    check(
+      'B(32) declined → birthYear 1985 입력 → provided 1985 로 전환',
+      provided['manual-guest-최순규']?.birthYear === 1985
+      && provided['manual-guest-최순규']?.birthYearStatus === 'provided',
+      `got ${json(provided['manual-guest-최순규'])}`,
+    );
+  }
+
+  // C. 게스트 provided → 다른 게스트 처리 → 기존 provided 유지
+  {
+    const base = mergeAttendeeMeta({}, { 'manual-guest-가': { birthYear: 1980 } });
+    const afterOther = mergeAttendeeMeta(base, { 'manual-guest-나': { declined: true } });
+    check(
+      'C(33) 다른 게스트 처리 후에도 기존 provided 유지',
+      afterOther['manual-guest-가']?.birthYear === 1980
+      && afterOther['manual-guest-가']?.birthYearStatus === 'provided'
+      && afterOther['manual-guest-나']?.birthYearStatus === 'declined',
+      `got ${json(afterOther)}`,
+    );
+    check(
+      'C(33b) decision 에 없는 참가자 항목은 절대 제거되지 않음',
+      Object.keys(mergeAttendeeMeta(afterOther, {})).length === 2,
+      `got ${json(mergeAttendeeMeta(afterOther, {}))}`,
+    );
+    // 입력 map 비변경(순수 함수) 보증
+    check(
+      'C(33c) 입력 map 을 변경하지 않음',
+      json(base) === json({ 'manual-guest-가': { birthYear: 1980, birthYearStatus: 'provided' } }),
+      `got ${json(base)}`,
+    );
+  }
+
+  // provided → declined 전환 시 birthYear 키가 실제로 제거되는지(서버 RPC 가 birthYear 만 읽으므로 중요)
+  {
+    const flipped = applyAttendeeBirthYearDecision({ birthYear: 1980, birthYearStatus: 'provided' }, { declined: true });
+    check(
+      '34 provided → declined 전환 시 birthYear 키 제거',
+      flipped.birthYear === undefined && flipped.birthYearStatus === 'declined' && !('birthYear' in flipped),
+      `got ${json(flipped)}`,
+    );
+  }
+
+  // 알 수 없는 키는 보존(미래 확장 안전 — 다른 경로가 넣은 값을 지우지 않는다)
+  {
+    const kept = applyAttendeeBirthYearDecision({ someFutureKey: 'x' } as any, { birthYear: 1975 });
+    check(
+      '35 결정과 무관한 기존 키는 보존',
+      kept.someFutureKey === 'x' && kept.birthYear === 1975,
+      `got ${json(kept)}`,
+    );
+  }
+
+  // 잘못된 연도는 저장 단계에서 거부(만 나이/미래연도가 snapshot 에 들어가지 않도록)
+  {
+    let threw = false;
+    try { applyAttendeeBirthYearDecision(undefined, { birthYear: 43 }); } catch { threw = true; }
+    check('36 만 나이 숫자(43)는 병합 단계에서 거부', threw, '예외가 발생하지 않았다');
+  }
+
+  // 공식 규칙(1900~현재 연도) 정규화는 저장 경계(guestProfileService)에서 강제한다 — 정적 코드 보증.
+  {
+    const serviceSource = readFileSync(join(here, '..', 'lib', 'kdk', 'guestProfileService.ts'), 'utf8');
+    const snapshotFn = serviceSource.slice(
+      serviceSource.indexOf('export async function saveSessionBirthYearSnapshot'),
+      serviceSource.indexOf('export async function getSessionAttendeeMeta'),
+    );
+    const decisionFn = serviceSource.slice(
+      serviceSource.indexOf('export async function saveSessionAttendeeBirthYearDecision'),
+      serviceSource.indexOf('export async function upsertGuestProfiles'),
+    );
+    check(
+      '36b 두 저장 경로 모두 normalizeBirthYear 통과 + 공통 merge helper 사용(정적 코드 보증)',
+      snapshotFn.includes('normalizeBirthYear(') && snapshotFn.includes('saveMergedAttendeeMeta(')
+      && decisionFn.includes('normalizeBirthYear(') && decisionFn.includes('saveMergedAttendeeMeta(')
+      && serviceSource.includes('mergeAttendeeMeta(current, decisions)'),
+      '저장 경로가 정규화 또는 공통 병합 helper 를 우회한다',
+    );
+  }
+}
+
+// ── 37~40. 회원/게스트 해결 UI 정책 (D/E/F) — 정적 코드 보증 + 판정 로직 ────────
+{
+  const kdkSource = readFileSync(join(here, '..', 'app', 'kdk', 'page.tsx'), 'utf8');
+  const branchStart = kdkSource.indexOf('{target.isGuest ? (');
+  const elseStart = kdkSource.indexOf(') : (', branchStart);
+  const branchEnd = kdkSource.indexOf(')}', elseStart);
+  const guestBranch = branchStart >= 0 && elseStart > branchStart ? kdkSource.slice(branchStart, elseStart) : '';
+  const memberBranch = elseStart >= 0 && branchEnd > elseStart ? kdkSource.slice(elseStart, branchEnd) : '';
+
+  // F. 게스트 미등록 → 입력 / 미입력 진행 두 CTA 노출
+  check(
+    'F(37) 게스트 분기에 [출생연도 입력] [생년 미입력으로 진행] 두 CTA 존재',
+    guestBranch.includes('출생연도 입력') && guestBranch.includes('생년 미입력으로 진행')
+    && guestBranch.includes('setBirthYearPrompt(target)') && guestBranch.includes('setDeclinePrompt(target)'),
+    '확정 모달의 게스트 CTA 가 사라졌거나 분기 구조가 바뀌었다',
+  );
+
+  // D. 회원 미등록 → 미입력 진행 버튼 없음 + 안내만
+  check(
+    'D(38) 회원 분기에 버튼 없음 · 안내 문구만',
+    memberBranch.length > 0
+    && !memberBranch.includes('<button')
+    && !memberBranch.includes('생년 미입력으로 진행')
+    && !memberBranch.includes('setDeclinePrompt')
+    && memberBranch.includes('회원 정보에서 출생연도를 확인해주세요'),
+    '회원 분기에 버튼이 되살아났거나 안내 문구가 사라졌다',
+  );
+
+  // D. UI 를 우회해도 회원은 declined 될 수 없다(핸들러 가드).
+  check(
+    'D(38b) confirmFinalizeDecline 이 회원을 거부하는 가드 보유',
+    /const confirmFinalizeDecline[\s\S]{0,400}?if \(!declinePrompt\.isGuest\)/.test(kdkSource)
+    && /const submitFinalizeBirthYear[\s\S]{0,400}?if \(!birthYearPrompt\.isGuest\)/.test(kdkSource),
+    '회원 declined/입력 차단 가드가 사라졌다',
+  );
+
+  // D. 회원 출생연도 누락 → 완전 동률에서 미해결로 남아 확정 차단 유지
+  {
+    const rows = [
+      { playerId: 'mem-uuid-1', name: '회원누락', wins: 2, diff: 6, birthYear: null },
+      { playerId: 'manual-guest-박연도', name: '박연도(G)', wins: 2, diff: 6, birthYear: 1985 },
+    ] as Entry[];
+    check(
+      'D(39) 회원 출생연도 누락 → 미해결 유지(확정 차단)',
+      findUnresolvedTieBirthYears(rows as any).map((r: any) => r.name).join(',') === '회원누락',
+      `got "${findUnresolvedTieBirthYears(rows as any).map((r: any) => r.name).join(',')}"`,
+    );
+  }
+
+  // E. 회원 출생연도 정상 → 해결 UI 자체가 뜨지 않음(미해결 0명)
+  check(
+    'E(40) 회원 출생연도 정상 → 미해결 0명(해결 UI 없음)',
+    findUnresolvedTieBirthYears([M('회원정상', 1980), G('박연도', 1985)] as any).length === 0,
+    '정상 회원이 미해결로 잡혔다',
   );
 }
 

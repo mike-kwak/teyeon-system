@@ -19,6 +19,16 @@
 //   따라서 이 개정은 배포 이후 새로 진행/확정되는 KDK 와 ranking_data 가 없는 Archive
 //   fallback 재계산에만 적용된다.
 
+/**
+ * 출생연도 확보 상태 — 순위 규칙이 아니라 '운영자가 처리했는가'를 구분하는 값이다.
+ *   · 'provided' : 출생연도를 입력받아 저장함(= birthYear 가 유효).
+ *   · 'declined' : 운영자가 '생년 미입력으로 진행'을 명시 승인함(= 미제공으로 확정, 후순위 감수).
+ *   · undefined  : 아직 아무 처리도 하지 않음(= 미해결 → 공식 확정 차단 대상).
+ * 순위 계산에는 전혀 쓰이지 않는다 — 'declined' 도 birthYear 가 없으므로 기존 '미제공 후순위' 경로 그대로다.
+ * 개인정보가 아니므로 세션 메타(jsonb)에 그대로 둘 수 있다.
+ */
+export type BirthYearStatus = 'provided' | 'declined';
+
 export type OfficialRankingEntry = {
   /** stable id — members.id / manual-guest-<key>. Archive 재계산처럼 id 가 없으면 name 을 그대로 사용. */
   playerId: string;
@@ -30,6 +40,8 @@ export type OfficialRankingEntry = {
   diff: number;
   /** 4자리 출생연도. 미상이면 null/undefined. */
   birthYear?: number | null;
+  /** 운영자 처리 상태. 순위 비교에는 쓰지 않는다(미해결 판별 전용). */
+  birthYearStatus?: BirthYearStatus | null;
 };
 
 /**
@@ -100,6 +112,43 @@ export function compareOfficialKdkRanking(
     || compareOfficialSecondary(a, b)
     || compareOfficialBirthYear(a, b)
     || compareOfficialNameThenId(a, b);
+}
+
+/**
+ * 완전 동률 그룹(① 승수 + ② 득실이 모두 같은 2명 이상) 안에서 '아직 운영자가 처리하지 않은'
+ * 출생연도 미확인 참가자만 골라낸다 — 공식 확정 차단의 유일한 판단 근거.
+ *
+ *   · birthYear 유효           → 해결(정상 비교)
+ *   · birthYearStatus 'declined' → 해결(운영자가 미입력 진행을 승인 — 완전 동률에서 후순위)
+ *   · 그 외                     → 미해결(확정 차단)
+ *
+ * 이 함수는 순위 규칙을 바꾸지 않는다. 승수·득실이 다르면 애초에 같은 그룹이 아니므로
+ * 출생연도/미제공 여부와 무관하게 기존 순위가 그대로 유지된다.
+ * 반환 순서는 입력 순서(= 공식 정렬 순서)를 따른다.
+ */
+export function findUnresolvedTieBirthYears<T extends OfficialRankingEntry>(
+  entries: readonly T[],
+): T[] {
+  const groups = new Map<string, T[]>();
+  for (const entry of entries) {
+    const key = `${entry.wins || 0}|${entry.diff || 0}`;
+    const group = groups.get(key);
+    if (group) group.push(entry);
+    else groups.set(key, [entry]);
+  }
+
+  const unresolved = new Set<T>();
+  groups.forEach(group => {
+    if (group.length < 2) return; // 동률 상대가 없으면 출생연도가 순위에 영향을 주지 않는다.
+    for (const entry of group) {
+      if (normalizeBirthYear(entry.birthYear) !== null) continue;
+      if (entry.birthYearStatus === 'declined') continue;
+      unresolved.add(entry);
+    }
+  });
+
+  // 그룹 순회 결과가 아니라 입력 순서로 돌려준다(화면 목록이 순위 순서와 같도록).
+  return entries.filter(entry => unresolved.has(entry));
 }
 
 /** 공식 정렬 + rank(1부터) 부여. 입력 배열은 변경하지 않는다. */

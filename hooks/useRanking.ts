@@ -86,6 +86,12 @@ export function useRanking(
                 normalizeBirthYear(conf?.age) ??
                 normalizeBirthYear(m?.age) ??
                 normalizeBirthYear((m as any)?.['나이']);
+            // 출생연도 확보 상태 — 순위 비교에는 쓰지 않고, 공식 확정 화면의 '미해결 참가자' 판별에만 쓴다.
+            // 값이 확인되면 상태 기록 여부와 무관하게 provided(정상 비교).
+            const birthYearStatus: 'provided' | 'declined' | undefined =
+                birthYear !== null ? 'provided'
+                    : (conf as any)?.birthYearStatus === 'declined' ? 'declined'
+                        : undefined;
             return {
                 id,
                 playerId: id,
@@ -95,6 +101,7 @@ export function useRanking(
                 group: conf?.group || 'A',
                 age: conf.age || m?.age || 99,
                 birthYear,
+                birthYearStatus,
                 ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
             };
         });
