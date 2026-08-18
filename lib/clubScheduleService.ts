@@ -255,10 +255,14 @@ export function clubScheduleDeleteBlockAlert(safety: ClubScheduleDeleteSafety): 
   switch (safety.reason) {
     case 'safe':
       return null;
+    // 안내 대상 화면: 정모 상세의 'KDK 연결' 카드.
+    //   과거에는 'KDK 설정에서 해제' 라고 안내했지만, KDK 설정의 연결 select 는 진행 중 세션에서만
+    //   열려 있어 확정·정리된 세션은 해제할 방법이 없었다(운영 막힘). 이제 상세에서 바로 해제한다.
+    //   해제는 연결만 끊을 뿐 경기·순위·공식 기록·정산을 삭제하지 않는다.
     case 'official_kdk':
-      return '공식 확정된 KDK 기록이 연결되어 삭제할 수 없습니다.';
+      return '공식 확정된 KDK 기록이 연결되어 삭제할 수 없습니다. 정모 상세의 KDK 연결에서 연결을 해제한 후 다시 시도해주세요. (경기 기록·공식 기록은 삭제되지 않습니다)';
     case 'kdk_linked':
-      return 'KDK 세션이 연결되어 있어 삭제할 수 없습니다. KDK 설정에서 정모 연결을 해제한 후 다시 시도해주세요.';
+      return 'KDK 세션이 연결되어 있어 삭제할 수 없습니다. 정모 상세의 KDK 연결에서 연결을 해제한 후 다시 시도해주세요.';
     case 'check_failed':
       return 'KDK 연결 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.';
   }

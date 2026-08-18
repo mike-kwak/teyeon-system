@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2, Check, MessageSquare } from 'lucide-react';
+import { ChevronLeft, MapPin, Calendar, Clock, Users, Lock, Send, Trash2, Share2, Check, MessageSquare, X } from 'lucide-react';
 import { shareOrCopyClubSchedule, shareClubScheduleStatus } from '@/lib/clubScheduleShare';
 import { useAuth } from '@/context/AuthContext';
 import { useAnalytics } from '@/components/analytics/AnalyticsProvider';
@@ -53,6 +53,15 @@ import GuestPassSettingsCard from '@/components/club-schedule/GuestPassSettingsC
 import GuestRecruitmentCard from '@/components/club-schedule/GuestRecruitmentCard';
 import { canManageGuestApplications } from '@/lib/admin/adminAccess';
 import GuestPassMemberLink from '@/components/club-schedule/GuestPassMemberLink';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
+import {
+    fetchLinkedKdkSessions,
+    fetchUnlinkedKdkSessions,
+    unlinkKdkSessionFromSchedule,
+    linkKdkSessionToSchedule,
+    type KdkSessionLinkInfo,
+} from '@/lib/kdk/sessionScheduleLinkService';
+import { kdkSessionStatusLabel } from '@/lib/kdk/sessionScheduleLinkCore';
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +83,52 @@ const formatDeadlineKo = (deadline: Date | null) => {
     const h12 = h % 12 || 12;
     const miStr = String(mi).padStart(2, '0');
     return `${m}월 ${d}일 ${ampm} ${h12}:${miStr}`;
+};
+
+// ── KDK 연결 관리 모달 공용 스타일 ──────────────────────────────────────────
+//   Finance 바텀시트에서 안정화된 패턴을 그대로 옮긴 것이다(components/finance/*Modal.tsx).
+//   · height:100dvh + top:0 (bottom 미지정) → 주소창이 접히거나 펴져도 시트 하단이 '보이는'
+//     뷰포트 바닥에 붙는다. 버튼이 화면 아래로 사라지는 문제를 막는다.
+//   · zIndex 1000 > BottomNav(500) → 하단 내비가 확인/취소 버튼을 덮지 않는다.
+//   · overlay 는 overflow:hidden + overscrollBehavior:none + touchAction:none → 배경 스크롤 차단.
+//     실제 스크롤은 body 영역만 담당하고, 하단 패딩에 safe-area 를 포함해 마지막 버튼이 잘리지 않는다.
+//   · 배경(#main-container) 잠금은 useBodyScrollLock 이 담당한다.
+const KDK_LINK_OVERLAY: React.CSSProperties = {
+    position: 'fixed', top: 0, left: 0, right: 0, height: '100dvh', zIndex: 1000,
+    background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    overflow: 'hidden', overscrollBehavior: 'none', touchAction: 'none',
+};
+const KDK_LINK_SHEET: React.CSSProperties = {
+    width: '100%', maxWidth: 480, maxHeight: '92dvh', background: '#F4F7FB',
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    boxShadow: '0 -10px 40px rgba(15,45,85,0.25)',
+};
+// flexShrink:0 — 헤더는 줄어들지 않고, 스크롤은 body 만 담당한다.
+const KDK_LINK_HEADER: React.CSSProperties = {
+    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    padding: '16px 16px 12px', background: '#FFFFFF', borderBottom: '1px solid #E3ECF6',
+};
+const KDK_LINK_BODY: React.CSSProperties = {
+    flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain',
+    WebkitOverflowScrolling: 'touch', touchAction: 'pan-y',
+    padding: '16px 16px calc(24px + env(safe-area-inset-bottom)) 16px',
+    display: 'flex', flexDirection: 'column', gap: 12,
+};
+const KDK_LINK_CLOSE: React.CSSProperties = {
+    width: 32, height: 32, borderRadius: 10, border: '1px solid #DCE8F5', background: '#FFFFFF',
+    color: '#56729A', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+};
+const KDK_LINK_BTN_CANCEL: React.CSSProperties = {
+    flex: 1, height: 46, borderRadius: 12, border: '1px solid #DCE8F5', background: '#FFFFFF',
+    color: '#475569', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+};
+const KDK_LINK_BTN_DANGER: React.CSSProperties = {
+    flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#DC2626',
+    color: '#FFFFFF', fontSize: 13, fontWeight: 800,
+    boxShadow: '0 8px 18px rgba(220,38,38,0.22)', WebkitTapHighlightColor: 'transparent',
 };
 
 const ARRIVAL_DOT_COLOR: Record<ArrivalTimeOption, string> = {
@@ -164,6 +219,24 @@ export default function ClubScheduleAttendancePage() {
     const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied' | 'shared' | 'failed'>('idle');
     /** 현재 참석 현황 공유 버튼 상태 — 안내문 복사와 분리. */
     const [statusShareState, setStatusShareState] = useState<'idle' | 'busy' | 'copied' | 'shared' | 'failed'>('idle');
+
+    // ── KDK 연결 관리 (운영진 전용) ───────────────────────────────────────────
+    //   연결의 단일 진실 소스는 kdk_session_meta.club_schedule_id 한 컬럼이다.
+    //   해제는 그 컬럼을 NULL 로 만드는 것뿐 — 경기·점수·순위·공식 기록·정산은 삭제되지 않는다.
+    //   기존 KDK 설정 화면의 연결 select 는 '진행 중 세션'에서만 열려, 확정·정리된 세션은
+    //   해제할 방법이 없었다. 그 운영 막힘을 여기서 푼다.
+    const [linkedKdkSessions, setLinkedKdkSessions] = useState<KdkSessionLinkInfo[]>([]);
+    const [kdkLinkStatus, setKdkLinkStatus] = useState<'loading' | 'ok' | 'failed'>('loading');
+    const [unlinkTarget, setUnlinkTarget] = useState<KdkSessionLinkInfo | null>(null);
+    const [kdkLinkBusy, setKdkLinkBusy] = useState(false);
+    const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+    const [linkCandidates, setLinkCandidates] = useState<KdkSessionLinkInfo[]>([]);
+    const [linkCandidatesStatus, setLinkCandidatesStatus] = useState<'loading' | 'ok' | 'failed'>('loading');
+    const [linkCandidatesError, setLinkCandidatesError] = useState('');
+
+    // 배경(정모 상세) 스크롤 잠금 — Finance 바텀시트에서 검증된 공통 훅을 그대로 재사용.
+    //   모달이 하나만 떠 있을 때만 잠그면 되므로 두 상태를 OR 로 묶는다(중첩 없음).
+    useBodyScrollLock(!!unlinkTarget || linkPickerOpen);
 
     const logSupabaseError = (label: string, err: any) => {
         // Supabase error는 message/details/hint/code 가 자주 분리되어 있고
@@ -258,6 +331,83 @@ export default function ClubScheduleAttendancePage() {
             alert('일정 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
         } finally {
             setIsDeletingSchedule(false);
+        }
+    };
+
+    // ── KDK 연결 조회/해제/재연결 (운영진 전용) ───────────────────────────────
+    //   모든 성공 경로는 서버 재조회로 끝난다 — 실패했는데 화면만 '해제됨'이 되는 optimistic
+    //   업데이트를 두지 않는다(연결 상태는 삭제 차단 판정의 근거라 화면과 서버가 어긋나면 안 됨).
+    const loadKdkLink = useCallback(async () => {
+        if (!scheduleId) return;
+        setKdkLinkStatus('loading');
+        try {
+            setLinkedKdkSessions(await fetchLinkedKdkSessions(scheduleId));
+            setKdkLinkStatus('ok');
+        } catch (err: any) {
+            logSupabaseError('KdkLink/load', err);
+            setLinkedKdkSessions([]);
+            setKdkLinkStatus('failed');
+        }
+    }, [scheduleId]);
+
+    useEffect(() => {
+        if (!isAdmin) return; // 일반 회원에게는 연결 관리 자체를 노출하지 않는다.
+        loadKdkLink();
+    }, [isAdmin, loadKdkLink]);
+
+    const confirmUnlinkKdk = async () => {
+        if (!unlinkTarget || kdkLinkBusy) return;
+        if (!guardWriteAction('KDK 연결 해제')) return; // 촬영 보호 모드 차단
+        if (!isAdmin || !schedule) return;
+        setKdkLinkBusy(true);
+        try {
+            const outcome = await unlinkKdkSessionFromSchedule(unlinkTarget.sessionId, schedule.id);
+            setUnlinkTarget(null);
+            await loadKdkLink();   // 서버 기준 재확인 — 성공/이미변경 모두 여기서 실제 상태를 다시 읽는다.
+            await loadSchedule();  // 일정 상세도 최신값으로(연결 해제는 일정 컬럼을 바꾸지 않지만 표시 일관성 유지).
+            alert(outcome === 'unlinked'
+                ? 'KDK 연결을 해제했습니다.\n경기 기록·순위·공식 기록·정산 데이터는 그대로 유지됩니다.'
+                : '이미 다른 곳에서 연결이 변경되어 있었습니다. 최신 상태로 새로고침했습니다.');
+        } catch (err: any) {
+            logSupabaseError('KdkLink/unlink', err);
+            alert(err?.message || 'KDK 연결 해제에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        } finally {
+            setKdkLinkBusy(false);
+        }
+    };
+
+    const openLinkPicker = async () => {
+        if (!isAdmin || kdkLinkBusy) return;
+        setLinkPickerOpen(true);
+        setLinkCandidatesStatus('loading');
+        setLinkCandidatesError('');
+        try {
+            const clubId = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
+            setLinkCandidates(await fetchUnlinkedKdkSessions(clubId));
+            setLinkCandidatesStatus('ok');
+        } catch (err: any) {
+            logSupabaseError('KdkLink/candidates', err);
+            setLinkCandidates([]);
+            setLinkCandidatesError(err?.message || '');
+            setLinkCandidatesStatus('failed');
+        }
+    };
+
+    const handleLinkKdk = async (sessionId: string) => {
+        if (kdkLinkBusy) return;
+        if (!guardWriteAction('KDK 연결')) return; // 촬영 보호 모드 차단
+        if (!isAdmin || !schedule) return;
+        setKdkLinkBusy(true);
+        try {
+            await linkKdkSessionToSchedule(sessionId, schedule.id);
+            setLinkPickerOpen(false);
+            await loadKdkLink();   // 서버 재조회로만 '연결됨' 표시.
+            alert('KDK 세션을 이 정모에 연결했습니다.');
+        } catch (err: any) {
+            logSupabaseError('KdkLink/link', err);
+            alert(err?.message || 'KDK 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        } finally {
+            setKdkLinkBusy(false);
         }
     };
 
@@ -1267,6 +1417,82 @@ export default function ClubScheduleAttendancePage() {
                         <p style={{ fontSize: 10.5, fontWeight: 600, color: '#94A3B8', margin: '8px 0 0', lineHeight: 1.5, wordBreak: 'keep-all' }}>
                             게스트비는 KDK 설정에서 관리합니다. KDK 세션이 연결된 일정은 삭제할 수 없습니다.
                         </p>
+
+                        {/* KDK 연결 — 연결/해제만 다룬다. 경기·순위·공식 기록·정산은 이 화면에서 절대 변경되지 않는다. */}
+                        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px dashed #E2E8F0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                <span style={{ fontSize: 12, fontWeight: 900, color: '#334155' }}>KDK 연결</span>
+                                <span style={{ fontSize: 10, fontWeight: 800, color: '#94A3B8' }}>
+                                    {kdkLinkStatus === 'loading' ? '확인 중'
+                                        : kdkLinkStatus === 'failed' ? '확인 실패'
+                                            : linkedKdkSessions.length > 0 ? '연결됨' : '미연결'}
+                                </span>
+                            </div>
+
+                            {kdkLinkStatus === 'failed' && (
+                                <p style={{ margin: '8px 0 0', fontSize: 11, fontWeight: 700, color: '#B45309', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                                    KDK 연결 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.
+                                </p>
+                            )}
+
+                            {kdkLinkStatus === 'ok' && linkedKdkSessions.length === 0 && (
+                                <>
+                                    <p style={{ margin: '8px 0 0', fontSize: 11, fontWeight: 600, color: '#94A3B8', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+                                        연결된 KDK가 없습니다. 이미 진행한 KDK를 이 정모에 연결할 수 있습니다.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={openLinkPicker}
+                                        disabled={kdkLinkBusy || isSavingSchedule || isDeletingSchedule}
+                                        style={{
+                                            marginTop: 10, width: '100%', height: 42, borderRadius: 12,
+                                            border: '1px solid rgba(59,130,246,0.30)', backgroundColor: 'rgba(59,130,246,0.08)',
+                                            color: '#1D4ED8', fontSize: 12.5, fontWeight: 800,
+                                            cursor: kdkLinkBusy ? 'wait' : 'pointer',
+                                            opacity: kdkLinkBusy ? 0.5 : 1, WebkitTapHighlightColor: 'transparent',
+                                        }}
+                                    >
+                                        KDK 연결
+                                    </button>
+                                </>
+                            )}
+
+                            {kdkLinkStatus === 'ok' && linkedKdkSessions.map(info => (
+                                <div
+                                    key={info.sessionId}
+                                    style={{
+                                        marginTop: 10, padding: '11px 12px', borderRadius: 12,
+                                        background: '#F8FAFC', border: '1px solid #E2E8F0',
+                                    }}
+                                >
+                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#0F172A', wordBreak: 'break-all', lineHeight: 1.35 }}>
+                                        {info.sessionId}
+                                    </p>
+                                    <p style={{ margin: '3px 0 0', fontSize: 10.5, fontWeight: 700, color: '#64748B' }}>
+                                        연결됨 · {kdkSessionStatusLabel(info)}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setUnlinkTarget(info)}
+                                        disabled={kdkLinkBusy || isSavingSchedule || isDeletingSchedule}
+                                        style={{
+                                            marginTop: 10, width: '100%', height: 42, borderRadius: 12,
+                                            border: '1px solid rgba(239,68,68,0.28)', backgroundColor: '#FFFFFF',
+                                            color: '#DC2626', fontSize: 12.5, fontWeight: 800,
+                                            cursor: kdkLinkBusy ? 'wait' : 'pointer',
+                                            opacity: (kdkLinkBusy || isSavingSchedule || isDeletingSchedule) ? 0.5 : 1,
+                                            WebkitTapHighlightColor: 'transparent',
+                                        }}
+                                    >
+                                        KDK 연결 해제
+                                    </button>
+                                </div>
+                            ))}
+
+                            <p style={{ fontSize: 10.5, fontWeight: 600, color: '#94A3B8', margin: '10px 0 0', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                                연결 해제는 이 정모와 KDK의 관계만 끊습니다. 경기 기록·점수·순위·공식 기록·정산 데이터는 삭제되지 않습니다.
+                            </p>
+                        </div>
                     </section>
                 )}
 
@@ -1792,6 +2018,118 @@ export default function ClubScheduleAttendancePage() {
                     onSave={handleSaveSchedule}
                     onDelete={handleDeleteSchedule}
                 />
+            )}
+
+            {/* KDK 연결 해제 확인 — 실수 방지용 1회 확인. 해제해도 경기/순위/공식기록/정산은 남는다.
+                레이아웃은 Finance 바텀시트에서 안정화된 패턴 그대로:
+                  · overlay height:100dvh + top:0 → 시트 하단이 항상 '보이는' 뷰포트 바닥에 붙는다.
+                  · z-index 1000 > BottomNav(500) → 버튼이 하단 내비에 덮이지 않는다.
+                  · 스크롤은 body 영역만, 하단 패딩에 safe-area 포함 → 확인 버튼이 잘리지 않는다.
+                  · useBodyScrollLock 으로 배경(#main-container) 스크롤 잠금. */}
+            {isAdmin && unlinkTarget && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => { if (!kdkLinkBusy) setUnlinkTarget(null); }}
+                    style={KDK_LINK_OVERLAY}
+                >
+                    <div onClick={(e) => e.stopPropagation()} style={KDK_LINK_SHEET}>
+                        <div style={KDK_LINK_HEADER}>
+                            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#0F172A' }}>KDK 연결을 해제할까요?</h3>
+                        </div>
+                        <div style={KDK_LINK_BODY}>
+                            <div style={{ padding: '11px 12px', borderRadius: 12, background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                                <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#0F172A', wordBreak: 'break-all' }}>{unlinkTarget.sessionId}</p>
+                                <p style={{ margin: '3px 0 0', fontSize: 10.5, fontWeight: 700, color: '#64748B' }}>{kdkSessionStatusLabel(unlinkTarget)}</p>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#475569', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+                                이 정모와 KDK의 연결만 해제됩니다.
+                            </p>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#475569', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+                                경기 기록, 점수, 순위, 공식 기록 및 정산 데이터는 삭제되지 않습니다.
+                            </p>
+                            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#475569', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+                                연결을 해제하면 이 정모를 수정하거나 삭제할 수 있습니다.
+                            </p>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setUnlinkTarget(null)}
+                                    disabled={kdkLinkBusy}
+                                    style={KDK_LINK_BTN_CANCEL}
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={confirmUnlinkKdk}
+                                    disabled={kdkLinkBusy}
+                                    style={{ ...KDK_LINK_BTN_DANGER, opacity: kdkLinkBusy ? 0.5 : 1, cursor: kdkLinkBusy ? 'wait' : 'pointer' }}
+                                >
+                                    {kdkLinkBusy ? '해제 중…' : 'KDK 연결 해제'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 기존 KDK 세션 연결 — 새 KDK를 만들지 않고, 아직 어떤 정모에도 연결되지 않은 세션만 후보로 보여준다. */}
+            {isAdmin && linkPickerOpen && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => { if (!kdkLinkBusy) setLinkPickerOpen(false); }}
+                    style={KDK_LINK_OVERLAY}
+                >
+                    <div onClick={(e) => e.stopPropagation()} style={KDK_LINK_SHEET}>
+                        <div style={KDK_LINK_HEADER}>
+                            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#0F172A' }}>KDK 세션 연결</h3>
+                            <button type="button" onClick={() => setLinkPickerOpen(false)} aria-label="닫기" disabled={kdkLinkBusy} style={KDK_LINK_CLOSE}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div style={KDK_LINK_BODY}>
+                            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#64748B', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+                                아직 어떤 정모에도 연결되지 않은 KDK 세션입니다. 기존 세션을 그대로 연결하며 새 KDK를 만들지 않습니다.
+                            </p>
+                            {linkCandidatesStatus === 'loading' && (
+                                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>불러오는 중…</p>
+                            )}
+                            {linkCandidatesStatus === 'failed' && (
+                                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#B45309', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                                    목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.{linkCandidatesError ? ` (${linkCandidatesError})` : ''}
+                                </p>
+                            )}
+                            {linkCandidatesStatus === 'ok' && linkCandidates.length === 0 && (
+                                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#94A3B8', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                                    연결 가능한 KDK 세션이 없습니다. 진행 중인 세션은 KDK 설정의 정모 연결에서 지정할 수 있습니다.
+                                </p>
+                            )}
+                            {linkCandidatesStatus === 'ok' && linkCandidates.map(info => (
+                                <button
+                                    key={info.sessionId}
+                                    type="button"
+                                    onClick={() => handleLinkKdk(info.sessionId)}
+                                    disabled={kdkLinkBusy}
+                                    style={{
+                                        width: '100%', textAlign: 'left', padding: '11px 12px', borderRadius: 12,
+                                        background: '#FFFFFF', border: '1px solid #E2E8F0',
+                                        cursor: kdkLinkBusy ? 'wait' : 'pointer', opacity: kdkLinkBusy ? 0.5 : 1,
+                                        WebkitTapHighlightColor: 'transparent',
+                                    }}
+                                >
+                                    <span style={{ display: 'block', fontSize: 13, fontWeight: 900, color: '#0F172A', wordBreak: 'break-all', lineHeight: 1.35 }}>
+                                        {info.sessionId}
+                                    </span>
+                                    <span style={{ display: 'block', marginTop: 3, fontSize: 10.5, fontWeight: 700, color: '#64748B' }}>
+                                        {kdkSessionStatusLabel(info)}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* 촬영 모드 local mock 안내 — 공통 ⛔ 토스트(데스크톱 전용·경고 톤)와 달리
