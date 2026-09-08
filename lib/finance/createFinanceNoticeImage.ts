@@ -149,7 +149,14 @@ export async function renderFinanceNoticeImageBlob(input: FinanceNoticeImageInpu
     const logo = await loadImage('/logos/teyeon-logo-current.png');
     const logoSize = 96;
     if (logo) {
-        ctx.drawImage(logo, PAD, y, logoSize, logoSize);
+        // 96x96 슬롯 안에 종횡비 유지로 배치(정사각 강제 시 로고가 가로로 눌린다).
+        // 레이아웃 슬롯 크기(logoSize)와 brandX 는 그대로 — 위치만 슬롯 중앙 정렬.
+        const nw = logo.naturalWidth  || logoSize;
+        const nh = logo.naturalHeight || logoSize;
+        const fit = Math.min(logoSize / nw, logoSize / nh);
+        const dw = nw * fit;
+        const dh = nh * fit;
+        ctx.drawImage(logo, PAD + (logoSize - dw) / 2, y + (logoSize - dh) / 2, dw, dh);
     }
     const brandX = PAD + (logo ? logoSize + 22 : 0);
     text('TEYEON', brandX, y + 38, { size: 44, weight: 900, color: C.text });
