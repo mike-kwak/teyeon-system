@@ -29,6 +29,7 @@ import {
 } from '@/lib/profile/getMemberOfficialStats';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
 import { fetchAchievementSummaries, formatMemberAchievement } from '@/lib/members/achievements';
+import { filterActiveMembers } from '@/lib/members/membershipStatus';
 
 // Local alias: members page uses the shared player card view model directly.
 type Member = PlayerCardMember;
@@ -325,7 +326,11 @@ export default function MembersPage() {
 
             if (error) throw error;
 
-            if (data && data.length > 0) {
+            // 현재 회원 명단 — 탈회 회원 제외(단일 판정: lib/members/membershipStatus).
+            //   과거 기록(Archive·상대전적·snapshot·참석·입상)은 stable members.id 로 조회되므로 영향 없음.
+            const activeRows = filterActiveMembers((data || []) as Member[]);
+
+            if (activeRows.length > 0) {
                 // 회원-프로필 사진 연결: members.auth_user_id → profiles.id (DB unique key).
                 //   P1 개인정보 최소화: members.email 을 조회하지 않으므로 email→profiles fallback 제거.
                 //   (미연결 회원은 members.avatar_url 또는 이니셜로 표시 — 아바타만 영향, 기능 무관.)
@@ -333,7 +338,7 @@ export default function MembersPage() {
                 const profileById = new Map<string, ProfileRow>();
 
                 const authUserIds = Array.from(new Set(
-                    data
+                    activeRows
                         .map((m: Member) => m.auth_user_id)
                         .filter((id): id is string => Boolean(id))
                 ));
@@ -353,9 +358,9 @@ export default function MembersPage() {
                 }
 
                 // 대회 입상 기록 요약 — 회원 전체 1회 batch(N+1 금지). 테이블 미생성 시 빈 Map.
-                const achSummaries = await fetchAchievementSummaries(data.map((m: Member) => m.id));
+                const achSummaries = await fetchAchievementSummaries(activeRows.map((m: Member) => m.id));
 
-                const enriched = data.map((m: Member) => {
+                const enriched = activeRows.map((m: Member) => {
                     const matched = m.auth_user_id ? profileById.get(m.auth_user_id) : undefined;
                     const ach = achSummaries.get(m.id);
                     return {

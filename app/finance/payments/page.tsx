@@ -18,6 +18,7 @@ import {
     type FinanceMember,
 } from '@/lib/finance/duesService';
 import { fetchAllLeaves, isMemberOnLeaveAtMonth } from '@/lib/finance/leavesService';
+import { isWithdrawnMember } from '@/lib/members/membershipStatus';
 import { fetchFeeRule } from '@/lib/finance/feeRulesService';
 import { summarizeReceivable } from '@/lib/finance/calculatePaymentStatus';
 import { supabase } from '@/lib/supabase';
@@ -196,12 +197,15 @@ export default function FinancePaymentsPage() {
         const buckets = {
             existing:  [] as FinanceMember[],
             onLeave:   [] as FinanceMember[],
+            withdrawn: [] as FinanceMember[],
             associate: [] as FinanceMember[],
             target:    [] as FinanceMember[],
         };
         for (const m of members) {
             if (existingSet.has(m.id)) { buckets.existing.push(m); continue; }
             if (isMemberOnLeaveAtMonth(leaves, m.id, year, month)) { buckets.onLeave.push(m); continue; }
+            // 탈회는 준회원과 분리해 집계한다 — 운영진 확인 다이얼로그에서 사유가 뒤섞이지 않도록.
+            if (isWithdrawnMember(m.role)) { buckets.withdrawn.push(m); continue; }
             if (!isMonthlyFeeTargetMember(m.role)) { buckets.associate.push(m); continue; }
             buckets.target.push(m);
         }
@@ -210,6 +214,7 @@ export default function FinancePaymentsPage() {
             const exclusionLines = [
                 buckets.existing.length  > 0 && `기존 청구 ${buckets.existing.length}명`,
                 buckets.onLeave.length   > 0 && `휴회 ${buckets.onLeave.length}명`,
+                buckets.withdrawn.length > 0 && `탈회 ${buckets.withdrawn.length}명`,
                 buckets.associate.length > 0 && `준회원·게스트 ${buckets.associate.length}명`,
             ].filter(Boolean).join(' · ');
             alert(
@@ -225,6 +230,7 @@ export default function FinancePaymentsPage() {
             `· 월회비 대상 ${buckets.target.length}명`,
             buckets.existing.length  > 0 ? `· 기존 청구 존재 ${buckets.existing.length}명` : '',
             buckets.onLeave.length   > 0 ? `· 휴회 제외 ${buckets.onLeave.length}명` : '',
+            buckets.withdrawn.length > 0 ? `· 탈회 제외 ${buckets.withdrawn.length}명` : '',
             buckets.associate.length > 0 ? `· 준회원 제외 ${buckets.associate.length}명` : '',
             ``,
             `진행하시겠습니까?`,

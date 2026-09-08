@@ -49,6 +49,7 @@ import { CLUB_TYPE_STYLE, formatTimeRangeAmPm, type ClubSchedule } from '@/lib/c
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
+import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import GuestPassSettingsCard from '@/components/club-schedule/GuestPassSettingsCard';
 import GuestRecruitmentCard from '@/components/club-schedule/GuestRecruitmentCard';
 import { canManageGuestApplications } from '@/lib/admin/adminAccess';
@@ -161,6 +162,8 @@ export default function ClubScheduleAttendancePage() {
         nickname: string | null;
         avatar_url: string | null;
         auth_user_id: string | null;
+        /** 클럽 직책 — 탈회 판정에만 사용(표시 안 함). */
+        role: string | null;
     }
 
     const [schedule, setSchedule] = useState<ClubSchedule | null>(null);
@@ -446,14 +449,16 @@ export default function ClubScheduleAttendancePage() {
         // 활성 회원 — 총원/미응답 명단 계산용. members 테이블 전체 조회.
         // ⚠️ is_guest / active / status 같은 분류 컬럼은 운영 DB에 없으므로 select 하지 않는다
         //    (있다고 가정해 select 하면 PostgREST 400 → 명단 전체 누락 + '미응답 0명' 잘못 표시).
+        //    탈회 여부는 기존 컬럼 members.role 로 판정한다(lib/members/membershipStatus) —
+        //    role 은 column-level GRANT 대상이라 조회 가능. 과거 참석 기록은 member_id 로 보존된다.
         const loadMembersTask = async () => {
             setMembersLoadStatus('loading');
             try {
                 const { data, error } = await supabase
                     .from('members')
-                    .select('id, nickname, avatar_url, auth_user_id');
+                    .select('id, nickname, avatar_url, auth_user_id, role');
                 if (error) throw error;
-                setActiveMembers((data || []) as ActiveMember[]);
+                setActiveMembers(filterActiveMembers((data || []) as ActiveMember[]));
                 setMembersLoadStatus('ok');
                 setMemberCountError('');
             } catch (err: any) {

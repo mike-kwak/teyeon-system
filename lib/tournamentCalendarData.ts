@@ -63,7 +63,7 @@ export const tournamentEvents: TournamentEvent[] = [
     status: '접수중',
     memo: '수도권 접근성이 좋아 후보 페어가 많음.',
     pairs: [
-      { player1: '강정호', player2: '김민준' },
+      { player1: '박광현', player2: '김민준' },
       { player1: '김상준', player2: '맹동석', result: '8' },
       { player1: '성찬(G)', player2: '전용원', result: '32' },
     ],

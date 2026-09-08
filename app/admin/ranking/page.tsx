@@ -144,8 +144,9 @@ export default function AdminRankingPage() {
   // 미리보기 — 같은 입력으로 현재(published) vs 후보(candidate) 계산.
   const preview = useMemo(() => {
     if (!inputs) return null;
-    const cur = computeClubRanking(inputs.archiveRows, inputs.members, season, published);
-    const cand = computeClubRanking(inputs.archiveRows, inputs.members, season, candidate);
+    // 미리보기는 회원 화면 랭킹과 동일 입력이어야 한다 → activeMembers(탈회 제외).
+    const cur = computeClubRanking(inputs.archiveRows, inputs.activeMembers, season, published);
+    const cand = computeClubRanking(inputs.archiveRows, inputs.activeMembers, season, candidate);
     const curRankById = new Map(cur.entries.map((e) => [e.memberId, e.rank]));
     const curPointsById = new Map(cur.entries.map((e) => [e.memberId, e.points]));
     const top = cand.entries.slice(0, 10).map((e) => ({
@@ -171,7 +172,9 @@ export default function AdminRankingPage() {
 
   // 현재 published 산식으로 계산한 최종 결과(finalize 대상 = 지금 화면과 동일 산식).
   const publishedResult = useMemo(
-    () => (inputs ? computeClubRanking(inputs.archiveRows, inputs.members, season, published) : null),
+    // FINAL 확정(snapshot) 도 이 결과를 쓴다 — 현재 시즌 확정은 현재 회원 기준.
+    //   이미 확정된 과거 snapshot 은 재계산하지 않으므로 영향 없음.
+    () => (inputs ? computeClubRanking(inputs.archiveRows, inputs.activeMembers, season, published) : null),
     [inputs, season, published],
   );
 

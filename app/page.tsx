@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { excludedRolesPostgrestList } from '@/lib/members/membershipStatus';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 // 메인은 다음 일정 계산에 id/title/date/status 만 쓰므로 경량 요약 조회를 사용
 //   (fetchTournamentEvents 는 캘린더 전용 대진/파트너 신청까지 2요청을 추가로 발생시킴).
@@ -100,15 +101,17 @@ export default function Home() {
   const noticeMessage: string | null = null;
 
   useEffect(() => {
-    // 활동 회원 = 정회원 + 준회원 (role 기준); role = '게스트' 제외
+    // 활동 회원 = 정회원 + 준회원 (role 기준); role = '게스트' / '탈회' 제외
     //   select('*') 금지 — members 는 column-level GRANT(안전 컬럼만)라 '*' 는 permission denied.
     //   count 전용(head:true)이라 GRANT 된 최소 컬럼 id 만 지정한다.
+    //   row 를 받지 않는 count 쿼리라 클라이언트 필터가 불가 → 서버 필터로 탈회를 제외한다
+    //   (제외 목록 단일 출처: lib/members/membershipStatus). NULL role 제외 동작은 기존 neq 와 동일.
     const CLUB_ID = process.env.NEXT_PUBLIC_CLUB_ID || '512d047d-a076-4080-97e5-6bb5a2c07819';
     supabase
       .from('members')
       .select('id', { count: 'exact', head: true })
       .eq('club_id', CLUB_ID)
-      .neq('role', '게스트')
+      .not('role', 'in', excludedRolesPostgrestList(['게스트']))
       .then(({ count, error }) => {
         if (error) {
           console.warn('[Home] 활동 회원 count 조회 실패 — placeholder(—) 유지:', error.message);

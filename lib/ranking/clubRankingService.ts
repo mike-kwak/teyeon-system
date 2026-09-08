@@ -21,6 +21,7 @@ import {
   type RankingConfigValues,
 } from './clubRankingCore';
 import { getActiveRankingConfig } from './rankingConfig';
+import { filterActiveMembers } from '../members/membershipStatus';
 import { getFinalizedSnapshot, snapshotToResult, RANKING_SNAPSHOT_SCHEMA_VERSION } from './rankingSnapshot';
 
 /** FINAL 시즌 snapshot 의 schemaVersion 이 현재 코드가 지원하지 않는 값일 때. 화면은 전용 안내 표시. */
@@ -70,13 +71,27 @@ type MemberRow = {
   nickname: string | null;
   avatar_url: string | null;
   auth_user_id: string | null;
+  /** 탈회 판정 전용. loadMemberAvatarMap 은 이 컬럼을 조회하지 않으므로 optional. */
+  role?: string | null;
 };
 
 type ProfileRow = { id?: string | null; avatar_url?: string | null };
 
 export type RankingInputs = {
   archiveRows: KdkArchiveRow[];
+  /**
+   * 전체 회원 명단(탈회 포함) — **과거 기록 해석 전용**.
+   *   상대전적/파트너전적의 id·이름 resolver(headToHead.buildMemberResolver)와
+   *   회원 카드 조회가 이 목록을 쓴다. 여기서 탈회 회원을 빼면 그가 뛴 과거 경기가
+   *   'ORPHAN'(식별 불가)으로 떨어져 다른 회원 화면에도 경고가 뜨고,
+   *   그와의 과거 상대전적은 아예 조회되지 않는다. 절대 줄이지 말 것.
+   */
   members: ClubRankingMemberInput[];
+  /**
+   * 현재 회원 명단(탈회 제외) — **현재 시점 집계·선택 목록 전용**.
+   *   현재 랭킹 산출, 회원 선택 picker 등 "지금 회원" 기준 화면이 이 목록을 쓴다.
+   */
+  activeMembers: ClubRankingMemberInput[];
 };
 
 /**
@@ -95,7 +110,8 @@ export async function loadRankingInputs(): Promise<RankingInputs> {
     supabase
       .from('members')
       // P1-2 개인정보 최소화 — email 미조회. 아바타 매칭은 auth_user_id → profiles 만.
-      .select('id, nickname, avatar_url, auth_user_id'),
+      //   role 은 현재 회원/탈회 판정에만 사용(표시 안 함).
+      .select('id, nickname, avatar_url, auth_user_id, role'),
   ]);
 
   if (archiveRes.error) throw archiveRes.error;
@@ -117,7 +133,7 @@ export async function loadRankingInputs(): Promise<RankingInputs> {
     console.warn('[ClubRanking] profile avatar batch skipped:', err);
   }
 
-  const members = memberRows.map((m) => {
+  const toInput = (m: MemberRow) => {
     const profile = m.auth_user_id ? profileByAuthId.get(m.auth_user_id) : undefined;
     const avatarUrl =
       normalizeAvatarUrl(m.avatar_url) || normalizeAvatarUrl(profile?.avatar_url) || null;
@@ -126,9 +142,13 @@ export async function loadRankingInputs(): Promise<RankingInputs> {
       name: String(m.nickname || ''),
       avatarUrl,
     };
-  });
+  };
 
-  return { archiveRows: (archiveRes.data || []) as KdkArchiveRow[], members };
+  // 두 목록을 같은 1회 조회에서 만든다(추가 왕복 없음). 용도 구분은 RankingInputs 주석 참조.
+  const members = memberRows.map(toInput);
+  const activeMembers = filterActiveMembers(memberRows).map(toInput);
+
+  return { archiveRows: (archiveRes.data || []) as KdkArchiveRow[], members, activeMembers };
 }
 
 /** 랭킹 결과 + 적용된 산식 값(회원용 Rule 을 v1/v2 에 맞춰 표시하기 위함). */
@@ -184,6 +204,8 @@ export async function fetchClubRanking(
     loadRankingInputs(),
     getActiveRankingConfig(season),
   ]);
-  const result = computeClubRanking(inputs.archiveRows, inputs.members, season, configRes.values);
+  // 현재 랭킹은 현재 회원만 집계한다(탈회 제외). 과거 시즌은 위 finalized snapshot 분기가
+  // 당시 결과를 그대로 반환하므로 이 필터의 영향을 받지 않는다.
+  const result = computeClubRanking(inputs.archiveRows, inputs.activeMembers, season, configRes.values);
   return { result, config: configRes.values };
 }

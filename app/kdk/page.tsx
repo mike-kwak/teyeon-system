@@ -29,6 +29,7 @@ import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals
 import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
 import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
+import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
 
 
@@ -1470,7 +1471,9 @@ export default function KDKPage() {
             const { data, error } = await query.order('nickname');
 
             if (error) throw error;
-            const memberRows: any[] = data || [];
+            // KDK 참가 후보는 현재 회원만 — 탈회 회원 제외(단일 판정: lib/members/membershipStatus).
+            //   과거 세션 기록은 raw_data 의 player_ids/player_names 로 보존되며 여기 영향 없음.
+            const memberRows: any[] = filterActiveMembers(data || []);
 
             // 출생연도('나이' — 대진 설정·비순위 comparator 폴백용, 민감 컬럼):
             //   운영진 전용 RPC(admin_get_member_birth_years)로 취득하고, RPC 미적용(마이그레이션 전)
@@ -4740,7 +4743,7 @@ export default function KDKPage() {
 {`A조
 1 봉준/상윤 vs 영호/광현 19:00
 B조
-1 민준/상준 vs 강정호/구봉준 20:00
+1 민준/상준 vs 영우/구봉준 20:00
 A    1    봉준    상윤    영호    광현    19:00`}
                                     </pre>
                                     <p style={{ margin: '6px 0 0', fontSize: 10, fontWeight: 700, color: '#7A93B3' }}>조 표기가 없으면 A조로 인식됩니다.</p>

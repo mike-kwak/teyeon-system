@@ -3,6 +3,7 @@
 import { supabase } from '../supabase';
 import { fetchFeeRulesForYear } from './feeRulesService';
 import { fetchLeavesByMember, isMemberOnLeaveAtMonth } from './leavesService';
+import { isWithdrawnMember } from '../members/membershipStatus';
 import type {
     FinanceDuesPayment,
     FinanceDuesReceivable,
@@ -447,13 +448,20 @@ export async function fetchAllMembers(): Promise<FinanceMember[]> {
 /**
  * 월회비 청구 대상 회원인지 판정.
  *   - `'준회원'` / `'게스트'` 는 월회비 청구 자동 제외 (개별 게스트비/벌금은 별도 등록 가능).
+ *   - `'탈회'` 도 제외 — 탈회 이후 **신규** 월회비를 만들지 않기 위함.
  *   - 그 외 (`정회원`, 임원진, null) 는 모두 청구 대상.
  *   - 휴회 여부는 별도 leavesService 로 평가 — 여기는 회원 구분만.
+ *
+ * ⚠️ 이 함수는 "앞으로 청구를 만들 대상인가"만 판정한다. 과거 기록에는 영향이 없다:
+ *    이미 생성된 receivable / payment / 감사 이력은 그대로 조회·표시되며
+ *    (computeAnnualFeeStatus 도 기존 receivable 은 status 그대로 읽는다),
+ *    미납 잔액을 0 으로 만들거나 면제·삭제 처리하는 경로는 어디에도 없다.
  */
 export function isMonthlyFeeTargetMember(role: string | null | undefined): boolean {
     const r = (role ?? '').trim();
     if (r === '준회원') return false;
     if (r === '게스트') return false;
+    if (isWithdrawnMember(role)) return false;
     return true;
 }
 

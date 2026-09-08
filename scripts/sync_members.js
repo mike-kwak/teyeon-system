@@ -2,6 +2,30 @@
 //   P0 column privilege 적용 후 anon/일반 authenticated 권한으로는 실행되지 않는다(의도된 차단).
 //   실행이 필요하면 SUPABASE_SERVICE_ROLE_KEY 를 환경변수로 주입해 service role 로만 실행할 것.
 //   (아래 하드코딩 anon key 경로는 privilege 적용 후 phone 관련 동작이 거부된다.)
+//
+// ══════════════════════════════════════════════════════════════════════════
+// ⛔ 현재 이 스크립트를 그대로 실행하지 말 것 — 탈회 회원 처리와 정면 충돌한다.
+// ══════════════════════════════════════════════════════════════════════════
+//
+// 1) 탈회 회원을 OFFICIAL_MEMBERS 에서 지우면 → members row 가 **하드 삭제**된다.
+//    (아래 "Deleting unlisted" 경로). members.id 는 과거 기록의 stable id 다 —
+//    teyeon_archive_v1.raw_data.player_ids / ranking_snapshots / club_schedule_attendances /
+//    member_achievements / finance_dues_* 가 전부 이 id 를 참조한다.
+//    삭제하면 과거 KDK·상대전적·파트너전적·FINAL snapshot·참석·입상·재무 이력이 끊긴다.
+//    → 탈회는 삭제가 아니라 members.role='탈회'(lib/members/membershipStatus) 로 표현한다.
+//
+// 2) 탈회 회원을 OFFICIAL_MEMBERS 에 남겨두면 → 아래 update 가 role 을 옛 직책으로
+//    **되돌려서 탈회를 조용히 무효화**한다(예: role='탈회' → '부회장' 재활성화).
+//    아래 목록의 r 값은 탈회 처리 이전 시점의 직책 스냅샷이며, 현재 운영 상태가 아니다.
+//
+// 즉 이 스크립트는 "명단 = 현재 회원 전체"라는 전제로 쓰여 있고, 탈회 개념이 없다.
+// 재사용하려면 먼저 (a) 삭제 경로 제거 또는 화이트리스트화, (b) role 덮어쓰기에서
+// 탈회 회원 제외를 반영해야 한다. 그 전까지는 실행 금지.
+//
+// 3) PII 주의 — OFFICIAL_MEMBERS 에 실명 + 휴대폰 번호가 평문으로 들어 있다.
+//    이 파일을 외부에 공유하거나 로그를 붙여넣지 말 것.
+//    is_guest 는 운영 members 에 존재하지 않는 컬럼이므로(2026-07-11 probe) 아래
+//    update/insert 의 is_guest 는 현재 스키마에서 실패한다 — 스크립트는 이미 stale 하다.
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(

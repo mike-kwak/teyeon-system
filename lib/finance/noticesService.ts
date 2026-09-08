@@ -7,6 +7,7 @@ import { formatWon } from './formatFinanceAmount';
 import { summarizeReceivable } from './calculatePaymentStatus';
 import { isMonthlyFeeTargetMember, type FinanceMember } from './duesService';
 import { isMemberOnLeaveAtMonth } from './leavesService';
+import { isWithdrawnMember } from '../members/membershipStatus';
 import { FINANCE_PAYMENT_ACCOUNT, type FinancePaymentAccountSnapshot } from './paymentAccount';
 import type { FinanceDuesPayment, FinanceDuesReceivable, FinanceMemberLeave } from '@/types/finance';
 
@@ -238,7 +239,11 @@ export function buildNoticeSnapshot(opts: {
         onLeave: boolean,
         recv?: { status: string; exemptionReason: string | null },
     ): string | null => {
-        if (!isMonthlyFeeTargetMember(role)) return role === '게스트' ? '비대상(게스트)' : '비대상(준회원)';
+        if (!isMonthlyFeeTargetMember(role)) {
+            // 탈회를 준회원으로 잘못 표기하지 않도록 사유를 분리한다(표시 문구만 — 집계 기준 동일).
+            if (isWithdrawnMember(role)) return '비대상(탈회)';
+            return role === '게스트' ? '비대상(게스트)' : '비대상(준회원)';
+        }
         if (onLeave) return '면제(휴회)';
         if (recv?.exemptionReason && recv.exemptionReason.includes('휴회')) return '면제(휴회)';
         if (recv?.status === 'exempt') return '면제';

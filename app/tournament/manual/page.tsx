@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import MemberSelector from '@/components/tournament/MemberSelector';
+import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import { Member, AttendeeConfig } from '@/lib/tournament_types';
 
 export default function ManualMatchLab() {
@@ -42,7 +43,8 @@ export default function ManualMatchLab() {
                 .select('id, nickname, role, position, club_id, avatar_url')
                 .order('nickname');
             if (error) throw error;
-            setAllMembers(data || []);
+            // 수동 매치 참가 후보 — 현재 회원만(탈회 제외). 과거 세션 기록에는 영향 없음.
+            setAllMembers(filterActiveMembers(data || []));
         } catch (err) {
             console.error(err);
         } finally {

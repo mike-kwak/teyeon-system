@@ -113,7 +113,13 @@ function HeadToHeadInner() {
   const sp = useSearchParams();
   const { user, role, isLoading } = useAuth();
 
-  const [inputs, setInputs] = useState<{ archiveRows: KdkArchiveRow[]; members: Member[] } | null>(null);
+  // members      : 전체(탈회 포함) — 과거 상대전적/파트너전적 resolver 와 회원 카드 조회용.
+  //                여기서 탈회 회원을 빼면 그가 뛴 과거 경기가 '식별 불가'로 떨어져
+  //                다른 회원 화면에도 경고가 뜬다(lib/ranking/headToHead.buildMemberResolver).
+  // activeMembers: 현재 회원 — 회원 선택 picker 전용.
+  const [inputs, setInputs] = useState<
+    { archiveRows: KdkArchiveRow[]; members: Member[]; activeMembers: Member[] } | null
+  >(null);
   const [loadError, setLoadError] = useState(false);
   const [aId, setAId] = useState<string | null>(sp.get('memberA'));
   const [bId, setBId] = useState<string | null>(sp.get('memberB'));
@@ -129,8 +135,13 @@ function HeadToHeadInner() {
     setLoadError(false);
     try {
       const inp = await loadRankingInputs();
-      const members = inp.members.map((m) => ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl ?? null }));
-      setInputs({ archiveRows: inp.archiveRows, members });
+      const toMember = (m: { id: string; name: string; avatarUrl?: string | null }): Member =>
+        ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl ?? null });
+      setInputs({
+        archiveRows: inp.archiveRows,
+        members: inp.members.map(toMember),
+        activeMembers: inp.activeMembers.map(toMember),
+      });
     } catch { setLoadError(true); }
   }, []);
   useEffect(() => { if (gateOk) void reload(); }, [gateOk, reload]);
@@ -444,7 +455,7 @@ function HeadToHeadInner() {
       {picker && inputs && (
         <MemberPickerSheet
           title={picker === 'a' ? '기준 회원 A 선택' : '상대 회원 B 선택'}
-          members={inputs.members}
+          members={inputs.activeMembers}
           excludeId={picker === 'a' ? bId : aId}
           onPick={pick}
           onClose={() => setPicker(null)}

@@ -7,7 +7,7 @@
 //   방문 통계 탭은 별도 /admin/stats 로 분리되어 여기서는 제거(기능 보존, 중복만 제거).
 //   다크 헤더/뒤로가기/검정 Select/형광 텍스트/바로가기 카드 제거(Admin shell 이 chrome 제공).
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
@@ -41,6 +41,7 @@ import {
   type AchievementInput,
 } from '@/lib/admin/memberProfileService';
 import { formatMemberAchievement, formatAchievementListLine, achievementYear } from '@/lib/members/achievements';
+import { WITHDRAWN_ROLE, isWithdrawnMember } from '@/lib/members/membershipStatus';
 import { parseLegacyAchievements, isCandidateAlreadyImported, type LegacyAchievementCandidate } from '@/lib/members/legacyAchievements';
 
 interface AdminMember {
@@ -63,6 +64,10 @@ interface AdminProfile {
 const ROLE_OPTIONS = [
   { group: '운영진 (Staff)', roles: ['회장', '부회장', '총무', '재무', '경기', '섭외'] },
   { group: '회원 (Member)', roles: ['정회원', '준회원', '게스트'] },
+  // 탈회 — 현재 명단/참가 후보/공개 디렉토리에서 제외되지만 row 는 삭제하지 않는다.
+  //   과거 기록(Archive·상대전적·snapshot·참석·입상·재무)은 stable members.id 로 계속 조회된다.
+  //   판정 단일 출처: lib/members/membershipStatus.WITHDRAWN_ROLE
+  { group: '탈회 (Withdrawn)', roles: [WITHDRAWN_ROLE] },
 ];
 const APP_ROLE_OPTIONS: AdminProfile['role'][] = ['GUEST', 'MEMBER', 'ADMIN', 'CEO'];
 
@@ -182,6 +187,18 @@ export default function AdminSettingsPage() {
       setFetchingProfiles(false);
     }
   };
+
+  // 탈회 회원은 목록에서 숨기지 않고 맨 아래로 내린다 — 관리 이력 확인은 가능해야 하고,
+  //   현재 운영 중인 회원과는 시각적으로 구분돼야 한다(배지 + 흐리게).
+  const sortedMembers = useMemo(
+    () => [...members].sort((a, b) => {
+      const wa = isWithdrawnMember(a.role) ? 1 : 0;
+      const wb = isWithdrawnMember(b.role) ? 1 : 0;
+      if (wa !== wb) return wa - wb;
+      return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
+    }),
+    [members],
+  );
 
   // 미연결 앱 계정(profiles 중 members.auth_user_id 미연결) — 신규 등록/연결 후보.
   const refreshUnlinkedAccounts = async () => {
@@ -362,13 +379,15 @@ export default function AdminSettingsPage() {
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {members.map((m, i) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6' }}>
+            {sortedMembers.map((m, i) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 0', borderTop: i === 0 ? 'none' : '1px solid #EEF2F6', opacity: isWithdrawnMember(m.role) ? 0.55 : 1 }}>
                 <ProfileAvatar src={m.avatar_url} alt={m.nickname} size={38} className="rounded-full" fallbackIcon="👤" />
                 <div style={{ flex: 1, minWidth: 140 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nickname || '이름 없음'}</p>
                   <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                    <Badge tone="slate">{m.role || '미지정'}</Badge>
+                    {isWithdrawnMember(m.role)
+                      ? <Badge tone="muted">{WITHDRAWN_ROLE}</Badge>
+                      : <Badge tone="slate">{m.role || '미지정'}</Badge>}
                     {m.auth_user_id
                       ? <Badge tone="teal"><Link2 size={10} /> 연결됨</Badge>
                       : <Badge tone="muted"><Link2Off size={10} /> 미연결</Badge>}

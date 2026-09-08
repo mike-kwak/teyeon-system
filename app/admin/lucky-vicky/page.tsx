@@ -227,7 +227,8 @@ export default function AdminLuckyVickyPage() {
     try {
       const [rs, inp] = await Promise.all([fetchAllRoundsAdmin(), loadRankingInputs()]);
       setRounds(rs);
-      setMembers(inp.members.map((m) => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name, 'ko')));
+      // 팀 편성 대상은 현재 회원만(탈회 제외). 기존 회차의 저장된 팀은 member id 로 보존된다.
+      setMembers(inp.activeMembers.map((m) => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name, 'ko')));
     } catch (e: any) {
       setMsg({ kind: 'err', text: luckyVickyErrorMessage(e) });
     } finally { setLoading(false); }

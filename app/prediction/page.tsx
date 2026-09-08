@@ -107,7 +107,7 @@ export default function PredictionPage() {
   const predictions = [
     { name: '곽민섭', probability: 96, status: 'Elite Confirmed', reason: 'Recent 5 Match Win Streak' },
     { name: '가내현', probability: 82, status: 'High Probability', reason: 'Top-tier Point Differential' },
-    { name: '강정호', probability: 68, status: 'Contender', reason: 'Stable Upper Bracket Performance' },
+    { name: '정상윤', probability: 68, status: 'Contender', reason: 'Stable Upper Bracket Performance' },
     { name: '김병식', probability: 45, status: 'Rising Star', reason: 'Recent Conditioning Recovery' },
   ];
 

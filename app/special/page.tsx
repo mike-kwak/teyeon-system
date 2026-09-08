@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Match, Member, AttendeeConfig, RankedPlayer } from '@/lib/tournament_types';
 import { useRanking } from '@/hooks/useRanking';
 import MemberSelector from '@/components/tournament/MemberSelector';
+import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import RankingTab from '@/components/RankingTab';
 
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
@@ -245,9 +246,10 @@ export default function SpecialMatchPage() {
         try {
             setIsMembersLoading(true);
             // P1 개인정보 최소화 — 표시/그룹판정에 쓰는 컬럼만(phone/email/나이/auth_user_id 제외).
+            // 스페셜 매치 참가 후보 — 현재 회원만(탈회 제외). 과거 세션 기록에는 영향 없음.
             const { data, error } = await supabase.from('members').select('id, nickname, role, position, avatar_url, club_id').order('nickname');
             if (error) throw error;
-            setAllMembers(data || []);
+            setAllMembers(filterActiveMembers(data || []));
         } catch (err) {
             setIsMembersError(true);
         } finally {
