@@ -24,18 +24,23 @@ export default function TournamentNavigation({ items, defaultNote }: Props) {
   const opened = openedKey ? items.find((i) => i.key === openedKey) ?? null : null;
   const note = opened?.releaseNote ? `${opened.label} · ${opened.releaseNote}` : defaultNote;
 
+  // 탭 존재감 소폭 강화(2026-09-11): Hub 핵심 네비게이션이라는 인상을 주되 Hero 와 경쟁하지 않는 선까지만.
+  //   글자 13→14 / 두께 current 800→900·open 700→800 / 세로 여백 24→29 / underline 2→3.
+  //   pending(DRAW·LIVE·RESULTS)은 색·두께 모두 그대로 둬 disabled 의미를 유지한다.
+  //   ⚠ 320px 에서 5개 항목이 한 줄에 들어가야 하므로 letterSpacing 은 0.08 → 0.05em 으로 줄여
+  //      글자 확대분을 상쇄한다(자간을 줄여도 라벨 폰트 특성상 판독성 손실은 없다).
   const labelStyle = (state: TournamentNavItem['state']): React.CSSProperties => ({
     fontFamily: FONT_LABEL,
-    fontSize: 13,
-    fontWeight: state === 'current' ? 800 : 700,
-    letterSpacing: '0.08em',
+    fontSize: 14,
+    fontWeight: state === 'current' ? 900 : state === 'open' ? 800 : 700,
+    letterSpacing: '0.05em',
     color: state === 'current' ? TT.ink : state === 'open' ? TT.inkSoft : TT.faint,
     lineHeight: 1,
-    padding: '13px 1px 11px',
+    padding: '16px 1px 13px',
     margin: 0,
     background: 'none',
     border: 'none',
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomStyle: 'solid',
     borderBottomColor: state === 'current' ? TT.teal : 'transparent',
     textDecoration: 'none',
