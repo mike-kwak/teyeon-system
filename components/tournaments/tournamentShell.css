@@ -42,20 +42,25 @@
 .tt-hero-year {
   font-size: clamp(30px, 9.5vw, 38px);
 }
+/* 워드마크('TEYEON OPEN') — 모든 폭에서 '정확히 한 줄'로 유지한다.
+     좁은 화면에서 줄을 나누는 대신 font-size 를 뷰포트에 맞춰 줄여 좌우 여백을 지킨다.
+     ⚠ 12vw 계수는 실측값이다. 이 글꼴·자간(-0.035em)에서 텍스트 폭 ≈ font-size × 6.84 이고,
+        .tt-container 가용폭은 (100vw − 36px) 이므로 12vw 면 가용폭의 약 90% 를 차지한다.
+     ⚠ 상한 52px 는 컨테이너가 430px 로 고정되는 431~767px 구간에서 넘치지 않게 하는 값이다
+        (394px 가용폭 × 90%). 상한을 올리면 이 구간에서 잘린다. */
 .tt-hero-word {
-  font-size: clamp(40px, 13vw, 54px);
+  font-size: clamp(30px, 12vw, 52px);
+  white-space: nowrap;
 }
-/* 워드마크 조각('TEYEON' / 'OPEN')
-     모바일 : 각각 한 줄씩 — 좁은 폭에서 글자를 줄이지 않고 세로로 흘린다(기존 동작 유지).
-     ≥768px: 한 줄로 합친다. nowrap 은 여기서만 켜므로 모바일 overflow 위험이 없다. */
 .tt-hero-word-part {
-  display: block;
+  display: inline;
+}
+.tt-hero-word-part + .tt-hero-word-part {
+  margin-left: 0.26em;
 }
 @media (min-width: 768px) {
   .tt-hero-year { font-size: 46px; }
-  .tt-hero-word { font-size: 72px; white-space: nowrap; }
-  .tt-hero-word-part { display: inline; }
-  .tt-hero-word-part + .tt-hero-word-part { margin-left: 0.26em; }
+  .tt-hero-word { font-size: 72px; }
 }
 @media (min-width: 1100px) {
   .tt-hero-year { font-size: 52px; }

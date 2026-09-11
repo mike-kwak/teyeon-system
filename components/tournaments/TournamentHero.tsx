@@ -118,7 +118,7 @@ export default function TournamentHero({ event, registerHref, regulationsHref, c
           lineHeight: 0.94,
         }}
       >
-        {/* 모바일은 두 줄(가독성 우선), 태블릿 이상은 한 줄 — tournamentShell.css 가 전환한다. */}
+        {/* 전 폭에서 한 줄로 유지한다 — 좁은 화면에서는 tournamentShell.css 가 font-size 를 줄여 맞춘다. */}
         {event.wordmark.map((line) => (
           <span key={line} className="tt-hero-word-part">
             {line}
