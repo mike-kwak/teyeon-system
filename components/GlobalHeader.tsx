@@ -30,6 +30,8 @@ export default function GlobalHeader() {
   // 게스트 공개 영역(/guest 신청 · /guest/pass Guest Pass) / TEYEON 공개 둘러보기(/club) 에서는 앱 내부 chrome 미노출.
   if (pathname === '/guest' || pathname?.startsWith('/guest/')) return null;
   if (pathname === '/club' || pathname?.startsWith('/club/')) return null;
+  // 공개 Tournament Hub(/tournaments/**) — 자체 브랜드 헤더 사용. 복수형만 매칭(내부 /tournament* 영향 없음).
+  if (pathname === '/tournaments' || pathname?.startsWith('/tournaments/')) return null;
 
   return (
     <header

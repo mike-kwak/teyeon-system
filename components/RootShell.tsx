@@ -13,7 +13,7 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 import GlobalHeader from '@/components/GlobalHeader';
 import BottomNav from '@/components/BottomNav';
 import { shouldShowBottomNav } from '@/lib/navigation/bottomNavPolicy';
-import { isWideShellPath, WIDE_SHELL_MAX } from '@/lib/navigation/shellPolicy';
+import { isWideShellPath, isFullWidthShellPath, WIDE_SHELL_MAX } from '@/lib/navigation/shellPolicy';
 
 const GlobalMain = styled('main', {
   // 앱 전역 유일한 세로 스크롤러.
@@ -63,14 +63,18 @@ export default function RootShell({ children }: { children: React.ReactNode }) {
   // Handbook 전용 desktop wide shell — 폭 상한만 조건부(구조·스크롤·safe-area 토큰은 동일).
   //   모바일(뷰포트 ≤450)에서는 maxWidth 상향이 무효과라 기존 동작과 픽셀 동일.
   const wide = isWideShellPath(pathname || '');
+  // 공개 Tournament(/tournaments/**) 전용 full-width 셸.
+  //   PC 에서 450px 컬럼 + 좌우 검정 배경이 보이지 않도록 셸을 화면 폭까지 펼치고 그림자를 없앤다.
+  //   모바일에서는 어차피 뷰포트 폭 = 셸 폭이라 기존과 픽셀 동일하다.
+  const fullWidth = isFullWidthShellPath(pathname || '');
 
   const shellStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: wide ? `${WIDE_SHELL_MAX}px` : '450px',
+    maxWidth: fullWidth ? '100%' : wide ? `${WIDE_SHELL_MAX}px` : '450px',
     height: '100dvh', // 뷰포트 높이에 고정(min-height 아님) — RootShell 자체는 스크롤하지 않는다.
     backgroundColor: '#F2F4F7',
     position: 'relative',
-    boxShadow: '0 0 60px rgba(0,0,0,0.30), 0 0 20px rgba(0,0,0,0.15)',
+    boxShadow: fullWidth ? 'none' : '0 0 60px rgba(0,0,0,0.30), 0 0 20px rgba(0,0,0,0.15)',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden', // overflow-x 단독(→ overflow-y:auto 코어싱) 방지: 명시적 hidden.

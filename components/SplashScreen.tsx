@@ -25,6 +25,8 @@ export default function SplashScreen() {
         if (pathname?.startsWith('/guest/pass')) return;
         // TEYEON 공개 둘러보기(/club)는 외부 방문자 대상이라 회원용 Splash 미노출.
         if (pathname === '/club' || pathname?.startsWith('/club/')) return;
+        // 공개 Tournament Hub(/tournaments)는 QR 로 들어온 외부 참가자 대상 — 회원용 Splash 미노출.
+        if (pathname === '/tournaments' || pathname?.startsWith('/tournaments/')) return;
 
         try {
             // 6시간 이내 재진입(LIVE COURT 복귀 등)은 Splash 생략. PWA/앱 종료로 sessionStorage 가

@@ -13,6 +13,11 @@ export function shouldShowBottomNav(pathname: string): boolean {
   if (p === '/club' || p.startsWith('/club/')) return false;
   if (p.startsWith('/finance/public')) return false;
 
+  // 공개 Tournament Hub(/tournaments/**) — 외부 참가자용 공식 대회 사이트. 앱 내부 chrome 미노출.
+  //   ⚠️ 반드시 복수형 '/tournaments' 만 매칭한다. '/tournament' 로 매칭하면 내부 KDK 화면(/tournament,
+  //      /tournament/manual)과 회원 대회 캘린더(/tournament-calendar)에서도 BottomNav 가 사라진다.
+  if (p === '/tournaments' || p.startsWith('/tournaments/')) return false;
+
   // KDK 전광판(display) — 프로젝터/거치 화면. 하단 nav 숨김.
   if (p === '/kdk/display' || p.startsWith('/kdk/display/')) return false;
 

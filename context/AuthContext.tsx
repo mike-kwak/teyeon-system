@@ -518,6 +518,10 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
       pathname?.startsWith('/club/') ||
       // 재무 공개 공지(월회비·KDK 벌금/상금) — 로그인 없이 읽기 전용 접근 허용.
       pathname?.startsWith('/finance/public/') ||
+      // 공개 Tournament Hub — QR 로 진입한 외부 참가자는 로그인하지 않는다.
+      //   ⚠ 복수형 '/tournaments' 만 공개다. 단수형 /tournament(내부 KDK)·/tournament-calendar 는 기존대로 로그인 필요.
+      pathname === '/tournaments' ||
+      pathname?.startsWith('/tournaments/') ||
       // 게스트용 핸드북(초대받은/처음 방문한 게스트) — 링크만 받은 비로그인 게스트 대상이라 공개.
       //   ⚠ /handbook 홈·/handbook/member·/handbook/operator 는 기존대로 로그인 필요(포함 금지).
       pathname === '/handbook/invited-guest' ||

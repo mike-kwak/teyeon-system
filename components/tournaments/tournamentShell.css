@@ -1,0 +1,94 @@
+/* =============================================================================
+   공개 Tournament 영역 전용 레이아웃 (/tournaments/**).
+
+   목적: 모바일 QR 사용성은 그대로 두고, PC 에서 열었을 때만 공식 대회 사이트처럼 보이게 한다.
+     · 바깥 page shell 은 RootShell 이 full-width 로 처리(검정 배경 제거).
+     · 안쪽 콘텐츠 폭은 여기서 제한한다 — 넓은 화면에서도 글이 퍼지지 않도록.
+
+   ⚠ 클래스 접두어 tt- 는 components/tournaments/** 에서만 사용한다.
+      이 파일은 TournamentPublicHeader 에서 한 번만 import 되며(4개 공개 화면이 모두 사용),
+      다른 도메인 화면에는 어떤 규칙도 적용되지 않는다.
+   ⚠ 모바일(≤767px)에서는 기존 값(430px / 좌우 18px)과 픽셀 단위로 동일하다.
+      breakpoint 위에서만 값이 바뀐다.
+   ============================================================================= */
+
+.tt-container {
+  width: 100%;
+  max-width: 430px;      /* 모바일: 기존 TT_MAX_WIDTH 와 동일 */
+  margin: 0 auto;
+  padding-left: 18px;    /* 모바일: 기존 TT_GUTTER 와 동일 */
+  padding-right: 18px;
+  box-sizing: border-box;
+}
+
+/* 태블릿 이상 — 읽기 좋은 폭까지만 넓힌다. */
+@media (min-width: 768px) {
+  .tt-container {
+    max-width: 680px;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+/* 데스크톱 — 그 이상 늘리지 않는다(콘텐츠가 퍼져 보이지 않게). */
+@media (min-width: 1100px) {
+  .tt-container {
+    max-width: 820px;
+  }
+}
+
+/* ── 히어로 타이포 ──────────────────────────────────────────────────────────
+   모바일 값은 기존 clamp 과 동일. 데스크톱에서만 공식 대회 사이트답게 키운다. */
+.tt-hero-year {
+  font-size: clamp(30px, 9.5vw, 38px);
+}
+.tt-hero-word {
+  font-size: clamp(40px, 13vw, 54px);
+}
+/* 워드마크 조각('TEYEON' / 'OPEN')
+     모바일 : 각각 한 줄씩 — 좁은 폭에서 글자를 줄이지 않고 세로로 흘린다(기존 동작 유지).
+     ≥768px: 한 줄로 합친다. nowrap 은 여기서만 켜므로 모바일 overflow 위험이 없다. */
+.tt-hero-word-part {
+  display: block;
+}
+@media (min-width: 768px) {
+  .tt-hero-year { font-size: 46px; }
+  .tt-hero-word { font-size: 72px; white-space: nowrap; }
+  .tt-hero-word-part { display: inline; }
+  .tt-hero-word-part + .tt-hero-word-part { margin-left: 0.26em; }
+}
+@media (min-width: 1100px) {
+  .tt-hero-year { font-size: 52px; }
+  .tt-hero-word { font-size: 84px; }
+}
+
+/* ── CTA ────────────────────────────────────────────────────────────────────
+   넓은 화면에서 버튼이 820px 로 늘어나면 폼처럼 보인다. 폭만 묶는다. */
+.tt-cta-group {
+  width: 100%;
+}
+@media (min-width: 768px) {
+  .tt-cta-group {
+    max-width: 400px;
+  }
+}
+
+/* ── 하단 고정 바 ───────────────────────────────────────────────────────────
+   데스크톱에서는 화면을 가로지르는 모바일 바가 어울리지 않는다.
+   콘텐츠 폭 안에서만 보이도록 정렬은 .tt-container 가 맡고, 여기서는 여백만 키운다. */
+@media (min-width: 768px) {
+  .tt-sticky-bar {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+}
+
+/* ── 단계 네비게이션 ────────────────────────────────────────────────────────
+   모바일은 좁은 폭을 꽉 채우도록 space-between 유지.
+   데스크톱에서 그대로 두면 5개 항목이 800px 에 흩어져 서로 무관해 보인다. */
+@media (min-width: 768px) {
+  .tt-nav-row {
+    justify-content: flex-start !important;
+    gap: 38px !important;
+  }
+}

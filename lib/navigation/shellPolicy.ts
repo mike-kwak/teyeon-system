@@ -12,3 +12,18 @@ export function isWideShellPath(pathname: string): boolean {
   const p = pathname || '';
   return p === '/handbook' || p.startsWith('/handbook/');
 }
+
+/**
+ * 셸 전체 폭(모바일 컨테이너 해제) 경로 — 공개 Tournament 영역 전용.
+ *   /tournaments 는 QR 로 들어오는 외부 참가자용 공식 대회 사이트다. PC 로 열었을 때
+ *   450px 컬럼 + 좌우 검정 배경으로 보이지 않도록 셸을 화면 폭까지 펼친다.
+ *   내부 콘텐츠 폭 제한은 components/tournaments/tournamentShell.css(.tt-container)가 담당한다.
+ *
+ *   ⚠ 반드시 복수형 '/tournaments' 만 매칭한다. '/tournament' 로 매칭하면
+ *      내부 KDK 화면(/tournament, /tournament/manual)과 회원 대회 캘린더(/tournament-calendar)의
+ *      기존 모바일 셸까지 함께 풀려버린다.
+ */
+export function isFullWidthShellPath(pathname: string): boolean {
+  const p = pathname || '';
+  return p === '/tournaments' || p.startsWith('/tournaments/');
+}

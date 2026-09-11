@@ -46,6 +46,9 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
             { id: 'kdk', label: 'KDK 운영', href: '/kdk', icon: Swords, external: true },
             { id: 'guests', label: '게스트 패스', href: '/admin/guest-pass-defaults', icon: Ticket },
             { id: 'guest-applications', label: '게스트 신청', href: '/admin/guest-applications', icon: UserPlus },
+            // 주최 대회 접수 운영(/tournaments 공개 Hub 의 관리 화면).
+            //   ⚠ '대회 캘린더'(회원 출전 대회)와 다른 기능이다. OPERATOR 에게는 노출하지 않는다.
+            { id: 'hosted-tournaments', label: '대회 접수', href: '/admin/tournaments', icon: Trophy },
         ],
     },
     {
