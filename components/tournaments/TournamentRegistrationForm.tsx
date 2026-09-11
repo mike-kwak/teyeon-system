@@ -57,6 +57,18 @@ interface Props {
 /** 접수 흐름 — 요강 02 의 절차를 단계로만 표시한다(새 규정 아님). */
 const FLOW_STEPS = ['참가신청서 제출', '운영진 접수 확인', '입금 확인', '최종 참가 확정'];
 
+/**
+ * 비활성 사유 안내를 '입력' / '확인·동의' 로 나누기 위한 키 분류.
+ *   ⚠ 규칙(체크되어 있어야 함)은 validateRegistration 이 단독으로 갖는다.
+ *      여기 있는 건 어떤 오류 키가 확인·동의 항목인지의 분류일 뿐이며, 검증을 다시 구현하지 않는다.
+ */
+const CONSENT_KEYS: RegistrationFieldKey[] = [
+  'eligibilityConfirmed',
+  'regulationsConfirmed',
+  'privacyAgreed',
+  'mediaNoticeConfirmed',
+];
+
 export default function TournamentRegistrationForm({ event, hubHref, onSubmitted }: Props) {
   const [values, setValues] = React.useState<RegistrationFormValues>(EMPTY_REGISTRATION_FORM);
   const [errors, setErrors] = React.useState<RegistrationErrors>({});
@@ -100,6 +112,25 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
     // 스크롤 도중 포커스하면 위치가 튀므로 약간 늦춘다.
     window.setTimeout(() => el.focus({ preventScroll: true }), 250);
   };
+
+  // 제출 버튼 활성 조건.
+  //   ⚠ 규칙을 여기서 새로 쓰지 않는다. validateRegistration 이 필수 입력 + 확인/동의 4개의
+  //      단일 출처이므로 그 결과를 그대로 쓴다(규칙이 두 곳으로 갈라지는 것을 막는다).
+  //   ⚠ 서버의 CONSENT_REQUIRED 방어는 그대로 유지된다 — 이건 UX 1차 차단일 뿐이다.
+  const formErrors = React.useMemo(() => validateRegistration(values), [values]);
+  const formReady = !Object.values(formErrors).some(Boolean);
+  const canSubmit = formReady && !!turnstileToken && !submitting;
+
+  // 버튼이 왜 비활성인지 한 줄로만 알려준다(우선순위: 입력 → 확인·동의 → 보안 확인).
+  //   formErrors 를 그대로 재사용하므로 조건이 버튼 상태와 절대 어긋나지 않는다.
+  const blockReason = React.useMemo(() => {
+    if (submitting) return '';
+    const failed = (Object.keys(formErrors) as RegistrationFieldKey[]).filter((k) => !!formErrors[k]);
+    if (failed.some((k) => !CONSENT_KEYS.includes(k))) return '필수 정보를 모두 입력해 주세요.';
+    if (failed.length > 0) return '필수 확인 및 동의를 완료해 주세요.';
+    if (!turnstileToken) return '보안 확인을 완료해 주세요.';
+    return '';
+  }, [formErrors, turnstileToken, submitting]);
 
   const handleSubmit = async () => {
     if (submittingRef.current) return;
@@ -532,7 +563,7 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || !turnstileToken}
+          disabled={!canSubmit}
           style={{
             width: '100%',
             minHeight: 56,
@@ -544,14 +575,31 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             fontFamily: 'inherit',
             fontSize: 15.5,
             fontWeight: 800,
-            cursor: submitting || !turnstileToken ? 'default' : 'pointer',
-            opacity: submitting || !turnstileToken ? 0.62 : 1,
+            cursor: canSubmit ? 'pointer' : 'default',
+            opacity: canSubmit ? 1 : 0.62,
             boxSizing: 'border-box',
             WebkitTapHighlightColor: 'transparent',
           }}
         >
           {submitting ? '신청 접수 중…' : '참가 신청하기'}
         </button>
+
+        {blockReason && (
+          <p
+            role="status"
+            style={{
+              margin: '9px 0 0',
+              textAlign: 'center',
+              fontSize: 12,
+              fontWeight: 700,
+              color: TT.muted,
+              lineHeight: 1.6,
+              wordBreak: 'keep-all',
+            }}
+          >
+            {blockReason}
+          </p>
+        )}
 
         <p
           style={{
