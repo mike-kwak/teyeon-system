@@ -14,6 +14,7 @@ import React from 'react';
 import Link from 'next/link';
 import { AlertCircle, ArrowRight, Info } from 'lucide-react';
 import { TT, FONT_LABEL } from './tournamentTheme';
+import TurnstileWidget, { type TurnstileHandle } from './TurnstileWidget';
 import {
   TournamentFormStyles,
   FormCard,
@@ -62,6 +63,10 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
   const submittingRef = React.useRef(false); // 더블클릭/연타 1차 차단(최종 차단은 서버).
+  // 봇 방어 — 판정은 전부 서버가 한다. 여기 값은 서버에 넘길 재료일 뿐이다.
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const turnstileRef = React.useRef<TurnstileHandle | null>(null);
+  const honeypotRef = React.useRef<HTMLInputElement | null>(null);
 
   const refs = {
     player1Name: React.useRef<HTMLInputElement | null>(null),
@@ -108,6 +113,11 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
       return;
     }
 
+    if (!turnstileToken) {
+      setSubmitError('보안 확인이 완료될 때까지 잠시 기다려 주세요.');
+      return;
+    }
+
     setErrors({});
     setSubmitError('');
     submittingRef.current = true;
@@ -126,6 +136,8 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
         regulationsConfirmed: values.regulationsConfirmed,
         privacyAgreed: values.privacyAgreed,
         mediaNoticeConfirmed: values.mediaNoticeConfirmed,
+        turnstileToken,
+        company: honeypotRef.current?.value ?? '',
       });
       onSubmitted?.(receipt);
     } catch (err) {
@@ -138,6 +150,9 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
       } else {
         setSubmitError(registrationSubmitMessage(err));
       }
+      // Turnstile 토큰은 1회용이다. 실패했으면 새 토큰을 받아야 재시도할 수 있다.
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -487,10 +502,37 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
           </div>
         )}
 
+        {/* honeypot — 사람에게 보이지 않는 필드. 봇이 채우면 서버가 즉시 거절한다.
+            display:none 이 아니라 화면 밖으로 밀어내되, 스크린리더·탭 순서·자동완성에서
+            완전히 제외한다(aria-hidden + tabIndex -1 + autoComplete off). */}
+        <input
+          ref={honeypotRef}
+          type="text"
+          name="company"
+          defaultValue=""
+          tabIndex={-1}
+          aria-hidden="true"
+          autoComplete="off"
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            padding: 0,
+            border: 0,
+            overflow: 'hidden',
+            clip: 'rect(0 0 0 0)',
+            clipPath: 'inset(50%)',
+            whiteSpace: 'nowrap',
+            left: '-9999px',
+          }}
+        />
+
+        <TurnstileWidget ref={turnstileRef} onToken={setTurnstileToken} />
+
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || !turnstileToken}
           style={{
             width: '100%',
             minHeight: 56,
@@ -502,8 +544,8 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             fontFamily: 'inherit',
             fontSize: 15.5,
             fontWeight: 800,
-            cursor: submitting ? 'default' : 'pointer',
-            opacity: submitting ? 0.62 : 1,
+            cursor: submitting || !turnstileToken ? 'default' : 'pointer',
+            opacity: submitting || !turnstileToken ? 0.62 : 1,
             boxSizing: 'border-box',
             WebkitTapHighlightColor: 'transparent',
           }}

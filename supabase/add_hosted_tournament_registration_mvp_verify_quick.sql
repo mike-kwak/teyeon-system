@@ -119,17 +119,21 @@ union all select 14, 'G. authenticated SELECT 3개', '3',
        (select count(*)::text from t3 where has_table_privilege('authenticated', tbl, 'SELECT'))
 
 -- ── H. RPC EXECUTE ───────────────────────────────────────────────────────────
-union all select 15, 'H. anon 실행 가능 함수 = 공개 3종',
-       'get_public_tournament,get_public_tournament_teams,submit_tournament_registration',
+-- ⚠ add_hosted_tournament_submit_lockdown.sql 적용 후 기대값이 2종으로 바뀐다.
+--   submit 은 anon 직접 호출을 막고, 서버 route 가 service_role 로만 호출한다.
+--   lockdown 미적용 상태라면 이 항목이 FAIL 로 나온다(적용 후 재실행할 것).
+union all select 15, 'H. anon 실행 가능 함수 = 공개 조회 2종',
+       'get_public_tournament,get_public_tournament_teams',
        coalesce((select string_agg(p.proname, ',' order by p.proname)
                    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                   where n.nspname='public' and p.proname in (select nm from rpc_names)
                     and has_function_privilege('anon', p.oid, 'EXECUTE')), '(none)')
 
-union all select 16, 'H. authenticated 실행 가능 함수 = 9종(helper 제외)',
+-- ⚠ lockdown 적용 후 submit 이 빠져 8종이 된다(서버 route 가 service_role 로만 호출).
+union all select 16, 'H. authenticated 실행 가능 함수 = 8종(helper·submit 제외)',
        'can_manage_tournaments,get_admin_hosted_tournaments,get_admin_tournament_registrations,'
        || 'get_public_tournament,get_public_tournament_teams,get_tournament_registration_history,'
-       || 'set_tournament_registration_players,set_tournament_registration_status,submit_tournament_registration',
+       || 'set_tournament_registration_players,set_tournament_registration_status',
        coalesce((select string_agg(p.proname, ',' order by p.proname)
                    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                   where n.nspname='public' and p.proname in (select nm from rpc_names)

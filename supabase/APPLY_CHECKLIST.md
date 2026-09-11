@@ -468,6 +468,68 @@ update public.hosted_tournaments
 
 ⚠ 대회는 여전히 `draft` 다. 접수 오픈은 6번의 '접수를 열 때' 절차를 별도로 진행한다.
 
+## 9. 주최 대회 — anon 직접 제출 차단 (봇 방어 게이트) [P1]
+
+### 적용 파일
+
+- [ ] `supabase/add_hosted_tournament_submit_lockdown.sql`
+
+롤백: `supabase/add_hosted_tournament_submit_lockdown_rollback.sql`
+검증: `supabase/add_hosted_tournament_submit_lockdown_verify.sql` (13항목)
+
+### 왜 필요한가
+
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` 는 **클라이언트 번들에 그대로 들어 있다**(공개값).
+그래서 `anon` 에게 submit RPC EXECUTE 가 남아 있으면 폼·CAPTCHA·서버 route 를 전부 건너뛰고
+PostgREST 를 직접 호출할 수 있다. 정원이 60팀뿐이라 스크립트 한 번으로 접수가 고갈된다.
+**권한 회수 없이는 어떤 CAPTCHA 를 붙여도 방어가 성립하지 않는다.**
+
+### 변경 대상
+
+- [ ] `submit_tournament_registration` EXECUTE 를 `anon` 에서 회수
+- [ ] 같은 권한을 `authenticated` 에서도 회수 (원본은 `to anon, authenticated` 였다)
+- [ ] 이후 호출자는 `service_role` 뿐 — 서버 route 가 Turnstile 검증 후에만 호출
+
+### ⚠ 하지 않는 것
+
+- [ ] 함수 본문 변경 없음 (정원 48/60 · 대기 · 중복 · advisory lock · 동의 검증 그대로)
+- [ ] 테이블/컬럼/RLS/정책 변경 없음
+- [ ] 공개 조회 RPC 2종(`get_public_tournament`, `get_public_tournament_teams`)의 anon 권한 유지
+
+### ⚠⚠ 적용 순서 (역순 금지)
+
+1. [ ] **Vercel 환경변수 3종 등록 + 재배포** — 서버 route 가 먼저 살아 있어야 한다
+   - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (공개)
+   - `TURNSTILE_SECRET_KEY` (**서버 전용 — NEXT_PUBLIC_ 금지**)
+   - `SUPABASE_SERVICE_ROLE_KEY` (**서버 전용 — NEXT_PUBLIC_ 금지**)
+2. [ ] 이 SQL 적용
+3. [ ] `..._submit_lockdown_verify.sql` → **13/13 PASS**
+4. [ ] `..._registration_mvp_verify_quick.sql` 재실행 → **28/28 PASS**
+       (이 lockdown 으로 기대값이 바뀌었다: seq 15 = anon 조회 2종, seq 16 = authenticated 8종)
+
+SQL 을 먼저 적용하면 route/키가 없는 동안 접수 경로가 통째로 막힌다.
+단, 대회가 `draft` 인 동안에는 어차피 접수가 닫혀 있어 사용자 영향은 없다.
+
+### 적용 후 확인
+
+- [ ] 브라우저 콘솔에서 anon key 로 submit RPC 직접 호출 → **42501 권한 오류**
+      (SQL Editor 는 관리자 권한이라 여기서는 재현되지 않는다)
+- [ ] `/tournaments/2026-teyeon-open/register` 에서 Turnstile 위젯이 뜨는지
+- [ ] 토큰을 받기 전에는 제출 버튼이 비활성인지
+- [ ] 접수 오픈 후 실제 1건 제출이 정상 처리되는지
+
+### 서버 검증 항목 (route 에서 수행)
+
+| 순서 | 검사 |
+|---|---|
+| 1 | honeypot(`company`) 이 비어 있는가 |
+| 2 | Turnstile 토큰이 있는가 (2048자 이하) |
+| 3 | Cloudflare siteverify 응답 `success === true` |
+| 4 | `action === "tournament_register"` |
+| 5 | `hostname` 이 허용 목록에 있는가 |
+
+전부 fail-closed. 하나라도 실패하면 RPC 를 호출하지 않고 `SECURITY_CHECK_FAILED` 만 돌려준다.
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음
