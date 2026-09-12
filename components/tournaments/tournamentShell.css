@@ -97,3 +97,20 @@
     gap: 38px !important;
   }
 }
+
+/* ── 제출 CTA 비활성 상태 ───────────────────────────────────────────────────
+   1차는 인라인 스타일(TournamentRegistrationForm)이다. 이 규칙은 그 위에 얹는 안전망으로,
+   disabled 속성이 붙어 있으면 어떤 경우에도 활성처럼 보이지 않게 !important 로 고정한다.
+     · 인라인 조건이 어긋나는 회귀
+     · iOS Safari / Android Chrome 의 버튼 기본 스타일이 색을 덮는 경우
+       (특히 -webkit-text-fill-color 는 색상만으로는 덮이지 않을 때가 있어 함께 지정)
+   ⚠ 활성 상태는 건드리지 않는다 — 기존 TEYEON CTA 디자인 그대로다. */
+.tt-submit-cta:disabled {
+  background-color: #E3E9ED !important;   /* TT.line */
+  color: #64748B !important;              /* TT.muted */
+  -webkit-text-fill-color: #64748B !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}

@@ -560,8 +560,15 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
 
         <TurnstileWidget ref={turnstileRef} onToken={setTurnstileToken} />
 
+        {/* 제출 CTA.
+            ⚠ disabled 를 opacity 만으로 표현하면 실기기(밝은 화면·야외)에서 여전히
+               채도 높은 teal 로 보여 "눌리는 버튼"처럼 읽힌다. 색 자체를 중립 회색으로 바꾼다.
+            ⚠ tt-submit-cta:disabled 규칙(tournamentShell.css)이 !important 로 같은 값을
+               한 번 더 못 박는다 — 인라인이 어긋나거나 모바일 브라우저 기본 스타일이
+               끼어들어도 disabled 속성만 있으면 반드시 비활성으로 보이게 하기 위함이다. */}
         <button
           type="button"
+          className="tt-submit-cta"
           onClick={handleSubmit}
           disabled={!canSubmit}
           style={{
@@ -570,13 +577,16 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             padding: '15px 18px',
             borderRadius: 9,
             border: 'none',
-            backgroundColor: TT.teal,
-            color: '#FFFFFF',
+            backgroundColor: canSubmit ? TT.teal : TT.line,
+            color: canSubmit ? '#FFFFFF' : TT.muted,
+            WebkitTextFillColor: canSubmit ? '#FFFFFF' : TT.muted,
+            boxShadow: 'none',
             fontFamily: 'inherit',
             fontSize: 15.5,
             fontWeight: 800,
-            cursor: canSubmit ? 'pointer' : 'default',
-            opacity: canSubmit ? 1 : 0.62,
+            cursor: canSubmit ? 'pointer' : 'not-allowed',
+            opacity: 1,
+            transform: 'none',
             boxSizing: 'border-box',
             WebkitTapHighlightColor: 'transparent',
           }}
