@@ -8,14 +8,29 @@
 //   ⚠ 클럽명은 선택 입력이라 비어 있을 수 있다. '무소속' 같은 값을 화면에서 지어내지 않는다.
 
 import React from 'react';
+import { Check } from 'lucide-react';
 import { TT, FONT_LABEL } from './tournamentTheme';
 import type { PublicTournamentTeam } from '@/lib/tournaments/publicService';
 
-const STATUS: Record<PublicTournamentTeam['publicStatus'], { t: string; c: string; bg: string }> = {
-  applied: { t: '접수', c: TT.tealDeep, bg: TT.tealSoft },
-  waitlisted: { t: '대기', c: '#B45309', bg: '#FEF3C7' },
-  confirmed: { t: '참가확정', c: '#047857', bg: '#DCFCE7' },
+// 상태 색 — '진행 중(접수)'과 '최종 확정(참가확정)'이 멀리서도 갈리게 계열을 완전히 분리한다.
+//   ⚠ 둘 다 mint/teal pastel 로 두지 않는다(현장에서 구분이 안 됐다).
+//   ⚠ DB 의 registration_status 값·의미는 건드리지 않는다. 표현만이다.
+const STATUS: Record<
+  PublicTournamentTeam['publicStatus'],
+  { t: string; c: string; bg: string; b: string; solid?: boolean }
+> = {
+  applied:    { t: '접수',     c: '#1D4ED8', bg: '#EFF6FF', b: '#BFDBFE' },              // blue  — 진행 중
+  waitlisted: { t: '대기',     c: '#B45309', bg: '#FEF3C7', b: '#FCD34D' },              // amber — 대기
+  confirmed:  { t: '참가확정', c: '#FFFFFF', bg: '#047857', b: '#047857', solid: true }, // green solid — 확정
 };
+
+/** 요약 숫자에 쓰는 색. 아래 배지와 같은 계열로 묶어 한눈에 연결되게 한다. */
+const COUNT_TONE = {
+  total: TT.ink,
+  applied: '#1D4ED8',
+  waitlisted: '#B45309',
+  confirmed: '#047857',
+} as const;
 
 interface Props {
   teams: PublicTournamentTeam[];
@@ -34,14 +49,15 @@ const playerName: React.CSSProperties = {
   wordBreak: 'keep-all',
 };
 
-/** 클럽 — 이름 바로 아래 한 단계 약한 보조 정보. */
+/** 클럽 — 이름 바로 아래 한 단계 약한 보조 정보.
+ *   이름과 붙여(marginTop 2) 한 묶음으로 읽히게 하고, 묶음 사이 간격은 선수2 블록에서 벌린다. */
 const playerClub: React.CSSProperties = {
   display: 'block',
-  marginTop: 1,
+  marginTop: 2,
   fontSize: 12.5,
   fontWeight: 600,
-  color: TT.muted,
-  lineHeight: 1.5,
+  color: TT.inkSoft,
+  lineHeight: 1.55,
   wordBreak: 'keep-all',
   overflowWrap: 'anywhere',
 };
@@ -65,6 +81,14 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
       waitlisted: teams.filter((t) => t.publicStatus === 'waitlisted').length,
       confirmed: teams.filter((t) => t.publicStatus === 'confirmed').length,
     }),
+    [teams],
+  );
+
+  // 최신 신청이 맨 위. 공개 RPC 는 sequence_no ASC 로 주므로 화면에서만 뒤집는다.
+  //   ⚠ 원본 배열을 mutate 하지 않는다(복사 후 정렬). 위 counts 는 teams 로 계산하므로 영향 없다.
+  //   ⚠ DB·RPC 는 건드리지 않는다.
+  const ordered = React.useMemo(
+    () => [...teams].sort((a, b) => b.sequenceNo - a.sequenceNo),
     [teams],
   );
 
@@ -114,10 +138,10 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
         }}
       >
         {[
-          ['전체', counts.total, TT.ink],
-          ['접수', counts.applied, TT.tealDeep],
-          ['대기', counts.waitlisted, counts.waitlisted ? '#B45309' : TT.ink],
-          ['참가확정', counts.confirmed, '#047857'],
+          ['전체', counts.total, COUNT_TONE.total],
+          ['접수', counts.applied, COUNT_TONE.applied],
+          ['대기', counts.waitlisted, counts.waitlisted ? COUNT_TONE.waitlisted : TT.subtle],
+          ['참가확정', counts.confirmed, COUNT_TONE.confirmed],
         ].map(([label, value, tone]) => (
           <div key={label as string} style={{ flex: 1, minWidth: 0 }}>
             <p
@@ -148,7 +172,7 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
           padding: '4px 16px',
         }}
       >
-        {teams.map((t, i) => {
+        {ordered.map((t, i) => {
           const s = STATUS[t.publicStatus] ?? STATUS.applied;
           // 둘 다 채워졌을 때만 선수별 매칭으로 전환한다(한쪽만 있으면 오해 소지).
           const perPlayer =
@@ -190,7 +214,7 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
                   <>
                     <span style={playerName}>{t.player1Name}</span>
                     <span style={playerClub}>{t.player1ClubName}</span>
-                    <span style={{ ...playerName, marginTop: 9 }}>{t.player2Name}</span>
+                    <span style={{ ...playerName, marginTop: 12 }}>{t.player2Name}</span>
                     <span style={playerClub}>{t.player2ClubName}</span>
                   </>
                 ) : (
@@ -213,15 +237,20 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
                 style={{
                   flexShrink: 0,
                   marginTop: 11,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
                   fontSize: 11,
                   fontWeight: 800,
                   padding: '4px 9px',
                   borderRadius: 999,
                   color: s.c,
                   backgroundColor: s.bg,
+                  border: `1px solid ${s.b}`,
                   whiteSpace: 'nowrap',
                 }}
               >
+                {s.solid && <Check size={11} strokeWidth={3} />}
                 {s.t}
               </span>
             </div>
