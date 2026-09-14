@@ -99,8 +99,10 @@ function PlayerEdit({ row, busy, onSubmit }: {
   const [target, setTarget] = React.useState<'p1' | 'p2' | 'both'>('p1');
   const [p1Name, setP1Name] = React.useState(row.player1Name);
   const [p1Phone, setP1Phone] = React.useState(formatPhone(row.player1Phone));
+  const [p1Club, setP1Club] = React.useState(row.player1ClubName ?? '');
   const [p2Name, setP2Name] = React.useState(row.player2Name);
   const [p2Phone, setP2Phone] = React.useState(formatPhone(row.player2Phone));
+  const [p2Club, setP2Club] = React.useState(row.player2ClubName ?? '');
   const [editClub, setEditClub] = React.useState(false);
   const [clubName, setClubName] = React.useState(row.clubName ?? '');
   const [editDepositor, setEditDepositor] = React.useState(false);
@@ -114,8 +116,10 @@ function PlayerEdit({ row, busy, onSubmit }: {
     setTarget('p1');
     setP1Name(row.player1Name);
     setP1Phone(formatPhone(row.player1Phone));
+    setP1Club(row.player1ClubName ?? '');
     setP2Name(row.player2Name);
     setP2Phone(formatPhone(row.player2Phone));
+    setP2Club(row.player2ClubName ?? '');
     setEditClub(false);
     setClubName(row.clubName ?? '');
     setEditDepositor(false);
@@ -123,7 +127,8 @@ function PlayerEdit({ row, busy, onSubmit }: {
     setReason('');
     setRechecked(false);
     setConfirming(false);
-  }, [row.player1Name, row.player1Phone, row.player2Name, row.player2Phone, row.clubName, row.depositorName]);
+  }, [row.player1Name, row.player1Phone, row.player2Name, row.player2Phone,
+      row.player1ClubName, row.player2ClubName, row.clubName, row.depositorName]);
 
   React.useEffect(() => { setOpen(false); reset(); }, [row.id, reset]);
 
@@ -136,9 +141,15 @@ function PlayerEdit({ row, busy, onSubmit }: {
   if (touchP1 && normalizePhone(p1Phone) !== normalizePhone(row.player1Phone)) {
     diffs.push({ label: '선수1 연락처', from: maskPhone(row.player1Phone), to: maskPhone(normalizePhone(p1Phone)) });
   }
+  if (touchP1 && p1Club.trim() !== (row.player1ClubName ?? '')) {
+    diffs.push({ label: '선수1 클럽', from: row.player1ClubName || '(없음)', to: p1Club.trim() || '(없음)' });
+  }
   if (touchP2 && p2Name.trim() !== row.player2Name) diffs.push({ label: '선수2 이름', from: row.player2Name, to: p2Name.trim() });
   if (touchP2 && normalizePhone(p2Phone) !== normalizePhone(row.player2Phone)) {
     diffs.push({ label: '선수2 연락처', from: maskPhone(row.player2Phone), to: maskPhone(normalizePhone(p2Phone)) });
+  }
+  if (touchP2 && p2Club.trim() !== (row.player2ClubName ?? '')) {
+    diffs.push({ label: '선수2 클럽', from: row.player2ClubName || '(없음)', to: p2Club.trim() || '(없음)' });
   }
   if (editClub && clubName.trim() !== (row.clubName ?? '')) {
     diffs.push({ label: '클럽명', from: row.clubName || '(없음)', to: clubName.trim() || '(없음)' });
@@ -163,8 +174,10 @@ function PlayerEdit({ row, busy, onSubmit }: {
   const build = (): Omit<SetRegistrationPlayersInput, 'registrationId'> => ({
     player1Name: touchP1 ? p1Name.trim() : null,
     player1Phone: touchP1 ? normalizePhone(p1Phone) : null,
+    player1ClubName: touchP1 ? p1Club.trim() : null,
     player2Name: touchP2 ? p2Name.trim() : null,
     player2Phone: touchP2 ? normalizePhone(p2Phone) : null,
+    player2ClubName: touchP2 ? p2Club.trim() : null,
     clubName: editClub ? clubName.trim() : null,
     depositorName: editDepositor ? depositorName.trim() : null,
     reason: reason.trim(),
@@ -209,9 +222,9 @@ function PlayerEdit({ row, busy, onSubmit }: {
           <div style={{ marginBottom: 10 }}>
             <p style={{ margin: '0 0 5px', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', color: '#94A3B8' }}>현재</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {cur(`선수1  ${row.player1Name} · ${formatPhone(row.player1Phone)}`)}
-              {cur(`선수2  ${row.player2Name} · ${formatPhone(row.player2Phone)}`)}
-              {cur(`클럽    ${row.clubName || '-'}`)}
+              {cur(`선수1  ${row.player1Name} · ${formatPhone(row.player1Phone)} · ${row.player1ClubName || '클럽 미보정'}`)}
+              {cur(`선수2  ${row.player2Name} · ${formatPhone(row.player2Phone)} · ${row.player2ClubName || '클럽 미보정'}`)}
+              {cur(`클럽(legacy)  ${row.clubName || '-'}`)}
               {cur(`입금자  ${row.depositorName}`)}
             </div>
           </div>
@@ -247,6 +260,11 @@ function PlayerEdit({ row, busy, onSubmit }: {
                 <input value={p1Phone} inputMode="numeric" maxLength={MAX_PHONE_INPUT_LENGTH}
                   onChange={(e) => setP1Phone(formatPhoneInput(e.target.value))} style={input} />
               </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={label}>선수1 클럽</label>
+                <input value={p1Club} maxLength={MAX_CLUB_LENGTH} placeholder="없으면 무소속"
+                  onChange={(e) => setP1Club(e.target.value)} style={input} />
+              </div>
             </div>
           )}
 
@@ -260,6 +278,11 @@ function PlayerEdit({ row, busy, onSubmit }: {
                 <label style={label}>선수2 연락처</label>
                 <input value={p2Phone} inputMode="numeric" maxLength={MAX_PHONE_INPUT_LENGTH}
                   onChange={(e) => setP2Phone(formatPhoneInput(e.target.value))} style={input} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={label}>선수2 클럽</label>
+                <input value={p2Club} maxLength={MAX_CLUB_LENGTH} placeholder="없으면 무소속"
+                  onChange={(e) => setP2Club(e.target.value)} style={input} />
               </div>
             </div>
           )}
@@ -628,7 +651,7 @@ export default function AdminTournamentRegistrationsPage() {
       if (filter === 'confirmed' && r.registrationStatus !== 'confirmed') return false;
       if (filter === 'closed' && r.registrationStatus !== 'cancelled' && r.registrationStatus !== 'rejected') return false;
       if (!kw) return true;
-      return [r.registrationNo, r.player1Name, r.player2Name, r.clubName ?? '', r.depositorName]
+      return [r.registrationNo, r.player1Name, r.player2Name, r.clubName ?? '', r.player1ClubName ?? '', r.player2ClubName ?? '', r.depositorName]
         .join(' ').toLowerCase().includes(kw);
     });
   }, [rows, filter, q]);

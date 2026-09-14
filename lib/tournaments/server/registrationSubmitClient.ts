@@ -20,6 +20,8 @@ export interface SubmitRpcArgs {
   p_player2_name: string;
   p_player2_phone: string;
   p_club_name: string | null;
+  p_player1_club_name: string;
+  p_player2_club_name: string;
   p_depositor_name: string;
   p_note: string | null;
   p_eligibility_confirmed: boolean;

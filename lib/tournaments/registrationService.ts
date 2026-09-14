@@ -20,9 +20,13 @@ export interface SubmitTournamentRegistrationInput {
   player1Name: string;
   /** 숫자만. */
   player1Phone: string;
+  /** 선수1 소속 클럽. 필수(없으면 '무소속'). */
+  player1ClubName: string;
   player2Name: string;
   player2Phone: string;
-  /** 선택 입력 — 비어 있으면 null. 서버도 빈 문자열을 null 로 저장한다. */
+  /** 선수2 소속 클럽. 필수(없으면 '무소속'). */
+  player2ClubName: string;
+  /** legacy 팀 단위 클럽 — 신규 신청에서는 항상 null. 기존 데이터 보존용 필드다. */
   clubName: string | null;
   depositorName: string;
   note: string | null;
@@ -85,6 +89,8 @@ export async function submitTournamentRegistration(
         player1Phone: v.player1Phone,
         player2Name: v.player2Name,
         player2Phone: v.player2Phone,
+        player1ClubName: v.player1ClubName,
+        player2ClubName: v.player2ClubName,
         clubName: v.clubName,
         depositorName: v.depositorName,
         note: v.note,

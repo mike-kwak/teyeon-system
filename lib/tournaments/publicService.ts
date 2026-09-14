@@ -150,7 +150,10 @@ export interface PublicTournamentTeam {
   sequenceNo: number;
   player1Name: string;
   player2Name: string;
-  /** 선택 입력이라 비어 있을 수 있다. */
+  /** 선수별 클럽. 신규 신청부터 채워진다. 미보정 기존 건은 null. */
+  player1ClubName: string | null;
+  player2ClubName: string | null;
+  /** legacy 팀 단위 클럽(참가자가 한 칸에 입력한 원본). 선수별 값이 없을 때만 fallback 으로 쓴다. */
   clubName: string | null;
   /** 'applied' | 'waitlisted' | 'confirmed' */
   publicStatus: 'applied' | 'waitlisted' | 'confirmed';
@@ -175,6 +178,8 @@ export async function fetchPublicTournamentTeams(
         sequenceNo: toCount(r.sequenceNo),
         player1Name: String(r.player1Name || ''),
         player2Name: String(r.player2Name || ''),
+        player1ClubName: (r.player1ClubName as string) ?? null,
+        player2ClubName: (r.player2ClubName as string) ?? null,
         clubName: (r.clubName as string) ?? null,
         publicStatus: (r.publicStatus as PublicTournamentTeam['publicStatus']) || 'applied',
       })),

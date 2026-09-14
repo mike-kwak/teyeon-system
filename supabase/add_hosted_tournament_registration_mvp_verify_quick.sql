@@ -188,7 +188,7 @@ union all select 26, 'L. hosted_* FK 부모에 legacy 없음', '0',
 
 -- ── M. 선수 교체(P1) ─────────────────────────────────────────────────────────
 --   add_hosted_tournament_player_change.sql 적용 후에만 PASS 한다.
-union all select 27, 'M. history action CHECK = 10종(선수 교체 포함)', 'true',
+union all select 27, 'M. history action CHECK = 12종(선수 교체 + 선수별 클럽)', 'true',
        coalesce((select (pg_get_constraintdef(con.oid) like '%submit%'
                          and pg_get_constraintdef(con.oid) like '%registration_status%'
                          and pg_get_constraintdef(con.oid) like '%payment_status%'
@@ -198,7 +198,9 @@ union all select 27, 'M. history action CHECK = 10종(선수 교체 포함)', 't
                          and pg_get_constraintdef(con.oid) like '%player2_name%'
                          and pg_get_constraintdef(con.oid) like '%player2_phone%'
                          and pg_get_constraintdef(con.oid) like '%club_name%'
-                         and pg_get_constraintdef(con.oid) like '%depositor_name%')::text
+                         and pg_get_constraintdef(con.oid) like '%depositor_name%'
+                         and pg_get_constraintdef(con.oid) like '%player1_club_name%'
+                         and pg_get_constraintdef(con.oid) like '%player2_club_name%')::text
                    from pg_constraint con join pg_class c on c.oid=con.conrelid
                   where c.relname='hosted_tournament_registration_history' and con.contype='c'
                     and con.conkey = array[(select a.attnum from pg_attribute a

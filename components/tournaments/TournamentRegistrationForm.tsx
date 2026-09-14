@@ -83,8 +83,10 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
   const refs = {
     player1Name: React.useRef<HTMLInputElement | null>(null),
     player1Phone: React.useRef<HTMLInputElement | null>(null),
+    player1ClubName: React.useRef<HTMLInputElement | null>(null),
     player2Name: React.useRef<HTMLInputElement | null>(null),
     player2Phone: React.useRef<HTMLInputElement | null>(null),
+    player2ClubName: React.useRef<HTMLInputElement | null>(null),
     clubName: React.useRef<HTMLInputElement | null>(null),
     depositorName: React.useRef<HTMLInputElement | null>(null),
     note: React.useRef<HTMLTextAreaElement | null>(null),
@@ -160,6 +162,9 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
         player1Phone: normalizePhone(values.player1Phone),
         player2Name: values.player2Name.trim(),
         player2Phone: normalizePhone(values.player2Phone),
+        player1ClubName: values.player1ClubName.trim(),
+        player2ClubName: values.player2ClubName.trim(),
+        // legacy 팀 단위 클럽 — 신규 신청에서는 입력받지 않으므로 항상 null 이다.
         clubName: values.clubName.trim() ? values.clubName.trim() : null,
         depositorName: values.depositorName.trim(),
         note: values.note.trim() ? values.note.trim() : null,
@@ -366,6 +371,23 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             error={!!errors.player1Phone}
           />
         </Field>
+        <Field
+          id="p1-club"
+          label="클럽명"
+          required
+          error={errors.player1ClubName}
+          helper="소속 클럽이 없으면 '무소속' 이라고 입력해 주세요."
+        >
+          <TextInput
+            id="p1-club"
+            inputRef={refs.player1ClubName}
+            value={values.player1ClubName}
+            onChange={(v) => setField('player1ClubName', v)}
+            placeholder="예: 아산TTC / 무소속"
+            maxLength={MAX_CLUB_LENGTH}
+            error={!!errors.player1ClubName}
+          />
+        </Field>
       </FormCard>
 
       {/* 선수 2 */}
@@ -394,27 +416,29 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             error={!!errors.player2Phone}
           />
         </Field>
+        <Field
+          id="p2-club"
+          label="클럽명"
+          required
+          error={errors.player2ClubName}
+          helper="소속 클럽이 없으면 '무소속' 이라고 입력해 주세요."
+        >
+          <TextInput
+            id="p2-club"
+            inputRef={refs.player2ClubName}
+            value={values.player2ClubName}
+            onChange={(v) => setField('player2ClubName', v)}
+            placeholder="예: 아산TTC / 무소속"
+            maxLength={MAX_CLUB_LENGTH}
+            error={!!errors.player2ClubName}
+          />
+        </Field>
       </FormCard>
 
       {/* 팀 정보 */}
       <FormCard label="TEAM">
-        <Field
-          id="club-name"
-          label="클럽명"
-          optional
-          error={errors.clubName}
-          helper="소속 클럽이 없으면 비워 두셔도 됩니다."
-        >
-          <TextInput
-            id="club-name"
-            inputRef={refs.clubName}
-            value={values.clubName}
-            onChange={(v) => setField('clubName', v)}
-            placeholder="소속 클럽명"
-            maxLength={MAX_CLUB_LENGTH}
-            error={!!errors.clubName}
-          />
-        </Field>
+        {/* legacy 팀 단위 '클럽명' 입력칸은 제거했다 — 클럽은 선수 블록 안에서 각각 받는다.
+            values.clubName 은 항상 빈 값이라 서버에는 null 로 저장된다(컬럼·기존 데이터는 보존). */}
         <Field
           id="depositor-name"
           label="입금자명"

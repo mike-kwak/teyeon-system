@@ -88,6 +88,12 @@ export async function POST(
   // ── 7. 검증 통과 — 여기서부터만 기존 RPC 를 호출한다. ──────────────────────
   if (!isSubmitClientConfigured()) return fail(500, 'TOURNAMENT_SUBMIT_NOT_READY');
 
+  // 선수별 클럽은 필수다(폼에서도 막지만 서버가 최종 판정한다).
+  //   ⚠ RPC 는 구버전 앱 호환을 위해 NULL 을 허용하므로, 필수 강제는 이 route 가 책임진다.
+  const p1Club = str(body.player1ClubName, MAX_CLUB);
+  const p2Club = str(body.player2ClubName, MAX_CLUB);
+  if (!p1Club || !p2Club) return fail(400, 'REQUIRED_FIELD_MISSING');
+
   const args: SubmitRpcArgs = {
     p_slug: slug,
     p_player1_name: str(body.player1Name, MAX_NAME),
@@ -95,6 +101,8 @@ export async function POST(
     p_player2_name: str(body.player2Name, MAX_NAME),
     p_player2_phone: str(body.player2Phone, MAX_PHONE),
     p_club_name: strOrNull(body.clubName, MAX_CLUB),
+    p_player1_club_name: p1Club,
+    p_player2_club_name: p2Club,
     p_depositor_name: str(body.depositorName, MAX_NAME),
     p_note: strOrNull(body.note, MAX_NOTE),
     p_eligibility_confirmed: bool(body.eligibilityConfirmed),

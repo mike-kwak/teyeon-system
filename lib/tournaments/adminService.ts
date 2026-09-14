@@ -86,6 +86,9 @@ export interface AdminRegistrationRow {
   player2Name: string;
   player2Phone: string;
   clubName: string | null;
+  /** 선수별 클럽. 미보정 기존 건은 null. */
+  player1ClubName: string | null;
+  player2ClubName: string | null;
   depositorName: string;
   note: string | null;
   registrationStatus: RegistrationStatus;
@@ -109,6 +112,8 @@ const mapRow = (r: Record<string, unknown>): AdminRegistrationRow => ({
   player2Name: String(r.player2Name || ''),
   player2Phone: String(r.player2Phone || ''),
   clubName: (r.clubName as string) ?? null,
+  player1ClubName: (r.player1ClubName as string) ?? null,
+  player2ClubName: (r.player2ClubName as string) ?? null,
   depositorName: String(r.depositorName || ''),
   note: (r.note as string) ?? null,
   registrationStatus: (r.registrationStatus as RegistrationStatus) || 'applied',
@@ -206,6 +211,9 @@ export interface SetRegistrationPlayersInput {
   player2Phone?: string | null;
   /** null = 변경 없음, '' = 클럽 지우기(NULL). */
   clubName?: string | null;
+  /** 선수별 클럽. null = 변경 없음, '' = 지우기. 기존 건 보정에 쓴다. */
+  player1ClubName?: string | null;
+  player2ClubName?: string | null;
   depositorName?: string | null;
   /** 필수. 빈 값이면 서버가 REASON_REQUIRED 로 거부한다. */
   reason: string;
@@ -221,6 +229,8 @@ export async function setRegistrationPlayers(v: SetRegistrationPlayersInput): Pr
     p_player2_name: v.player2Name ?? null,
     p_player2_phone: v.player2Phone ?? null,
     p_club_name: v.clubName ?? null,
+    p_player1_club_name: v.player1ClubName ?? null,
+    p_player2_club_name: v.player2ClubName ?? null,
     p_depositor_name: v.depositorName ?? null,
     p_reason: v.reason,
     p_eligibility_rechecked: v.eligibilityRechecked,
@@ -306,6 +316,8 @@ export const HISTORY_ACTION_LABEL: Record<string, string> = {
   player1_phone: '선수1 연락처 변경',
   player2_name: '선수2 이름 변경',
   player2_phone: '선수2 연락처 변경',
-  club_name: '클럽명 변경',
+  club_name: '클럽명 변경(팀)',
+  player1_club_name: '선수1 클럽 변경',
+  player2_club_name: '선수2 클럽 변경',
   depositor_name: '입금자명 변경',
 };

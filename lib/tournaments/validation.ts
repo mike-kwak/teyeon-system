@@ -10,8 +10,13 @@ export interface RegistrationFormValues {
   player1Name: string;
   /** 표시값(하이픈 포함). 저장 시 normalizePhone 으로 변환. */
   player1Phone: string;
+  /** 선수1 소속 클럽. 필수 — 클럽이 없으면 '무소속'을 입력한다. */
+  player1ClubName: string;
   player2Name: string;
   player2Phone: string;
+  /** 선수2 소속 클럽. 필수 — 클럽이 없으면 '무소속'을 입력한다. */
+  player2ClubName: string;
+  /** legacy 팀 단위 클럽. 신규 신청에서는 더 이상 입력받지 않는다(기존 데이터 보존용). */
   clubName: string;
   depositorName: string;
   note: string;
@@ -28,8 +33,10 @@ export type RegistrationErrors = Partial<Record<RegistrationFieldKey, string>>;
 export const EMPTY_REGISTRATION_FORM: RegistrationFormValues = {
   player1Name: '',
   player1Phone: '',
+  player1ClubName: '',
   player2Name: '',
   player2Phone: '',
+  player2ClubName: '',
   clubName: '',
   depositorName: '',
   note: '',
@@ -43,8 +50,10 @@ export const EMPTY_REGISTRATION_FORM: RegistrationFormValues = {
 export const REGISTRATION_FIELD_ORDER: RegistrationFieldKey[] = [
   'player1Name',
   'player1Phone',
+  'player1ClubName',
   'player2Name',
   'player2Phone',
+  'player2ClubName',
   'clubName',
   'depositorName',
   'note',
@@ -93,6 +102,11 @@ export function validateRegistration(v: RegistrationFormValues): RegistrationErr
   if (isBlank(v.player1Phone)) e.player1Phone = '선수 1 휴대폰 번호를 입력해 주세요.';
   else if (!isValidPhone(v.player1Phone)) e.player1Phone = '휴대폰 번호 형식을 확인해 주세요. (예: 010-1234-5678)';
 
+  if (isBlank(v.player1ClubName)) e.player1ClubName = '선수 1 클럽명을 입력해 주세요. (없으면 무소속)';
+  else if (v.player1ClubName.trim().length > MAX_CLUB_LENGTH) {
+    e.player1ClubName = `클럽명은 ${MAX_CLUB_LENGTH}자 이내로 입력해 주세요.`;
+  }
+
   if (isBlank(v.player2Name)) e.player2Name = '선수 2 이름을 입력해 주세요.';
   else if (v.player2Name.trim().length > MAX_NAME_LENGTH) e.player2Name = `이름은 ${MAX_NAME_LENGTH}자 이내로 입력해 주세요.`;
 
@@ -102,8 +116,13 @@ export function validateRegistration(v: RegistrationFormValues): RegistrationErr
     e.player2Phone = '두 선수의 휴대폰 번호가 같습니다. 각각 다른 번호를 입력해 주세요.';
   }
 
-  // 클럽명은 선택 입력이다. 공식 요강에 클럽 소속이 참가 조건으로 없으므로 필수로 만들지 않는다.
-  //   빈 값은 그대로 비워 저장한다("무소속" 같은 대체 문자열을 만들어 넣지 않는다).
+  if (isBlank(v.player2ClubName)) e.player2ClubName = '선수 2 클럽명을 입력해 주세요. (없으면 무소속)';
+  else if (v.player2ClubName.trim().length > MAX_CLUB_LENGTH) {
+    e.player2ClubName = `클럽명은 ${MAX_CLUB_LENGTH}자 이내로 입력해 주세요.`;
+  }
+
+  // legacy 팀 단위 clubName 은 신규 신청 폼에서 더 이상 입력받지 않는다(항상 빈 값).
+  //   기존 데이터 보존용 필드라 값이 들어오면 길이만 검사한다.
   if (!isBlank(v.clubName) && v.clubName.trim().length > MAX_CLUB_LENGTH) {
     e.clubName = `클럽명은 ${MAX_CLUB_LENGTH}자 이내로 입력해 주세요.`;
   }

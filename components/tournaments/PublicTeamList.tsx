@@ -24,6 +24,39 @@ interface Props {
   loading: boolean;
 }
 
+/** 선수 이름 — 카드에서 가장 강한 정보. */
+const playerName: React.CSSProperties = {
+  display: 'block',
+  fontSize: 14,
+  fontWeight: 800,
+  color: TT.ink,
+  lineHeight: 1.45,
+  wordBreak: 'keep-all',
+};
+
+/** 클럽 — 이름 바로 아래 한 단계 약한 보조 정보. */
+const playerClub: React.CSSProperties = {
+  display: 'block',
+  marginTop: 1,
+  fontSize: 12.5,
+  fontWeight: 600,
+  color: TT.muted,
+  lineHeight: 1.5,
+  wordBreak: 'keep-all',
+  overflowWrap: 'anywhere',
+};
+
+/** legacy 표시용 작은 라벨. pill·박스를 쓰지 않고 muted eyebrow 로만 처리한다. */
+const eyebrow: React.CSSProperties = {
+  display: 'block',
+  fontFamily: FONT_LABEL,
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: '0.1em',
+  color: TT.subtle,
+  lineHeight: 1.2,
+};
+
 export default function PublicTeamList({ teams, ready, loading }: Props) {
   const counts = React.useMemo(
     () => ({
@@ -117,12 +150,16 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
       >
         {teams.map((t, i) => {
           const s = STATUS[t.publicStatus] ?? STATUS.applied;
+          // 둘 다 채워졌을 때만 선수별 매칭으로 전환한다(한쪽만 있으면 오해 소지).
+          const perPlayer =
+            !!(t.player1ClubName && t.player1ClubName.trim()) &&
+            !!(t.player2ClubName && t.player2ClubName.trim());
           return (
             <div
               key={`${t.sequenceNo}-${i}`}
               style={{
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: 12,
                 padding: '14px 0',
                 borderTop: i === 0 ? 'none' : `1px solid ${TT.lineSoft}`,
@@ -132,6 +169,7 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
                 style={{
                   flexShrink: 0,
                   minWidth: 26,
+                  marginTop: 13,
                   fontFamily: FONT_LABEL,
                   fontSize: 13,
                   fontWeight: 800,
@@ -141,38 +179,40 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
               >
                 {t.sequenceNo}
               </span>
+              {/* 선수 ↔ 클럽 표시.
+                  · 선수별 클럽이 '둘 다' 있으면 각 선수 이름 바로 아래에 붙여 1:1 로 보여준다.
+                  · 하나라도 비어 있으면 legacy 표시(참가자 / 클럽 분리)로 되돌린다.
+                    한쪽만 있는 상태를 매칭처럼 보여주면 잘못된 소속으로 오해되기 때문이다.
+                  ⚠ club_name(legacy) 은 DB 원본 문자열을 그대로 출력한다. 공백으로 쪼개
+                     선수별로 배정하지 않는다 — 'Team 테연'처럼 이름에 공백이 있으면 깨진다. */}
               <span style={{ minWidth: 0, flex: 1 }}>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: TT.ink,
-                    lineHeight: 1.45,
-                    wordBreak: 'keep-all',
-                  }}
-                >
-                  {t.player1Name} · {t.player2Name}
-                </span>
-                {t.clubName && (
-                  <span
-                    style={{
-                      display: 'block',
-                      marginTop: 3,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: TT.muted,
-                      lineHeight: 1.5,
-                      wordBreak: 'keep-all',
-                    }}
-                  >
-                    {t.clubName}
-                  </span>
+                {perPlayer ? (
+                  <>
+                    <span style={playerName}>{t.player1Name}</span>
+                    <span style={playerClub}>{t.player1ClubName}</span>
+                    <span style={{ ...playerName, marginTop: 9 }}>{t.player2Name}</span>
+                    <span style={playerClub}>{t.player2ClubName}</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={eyebrow}>참가자</span>
+                    <span style={{ ...playerName, marginTop: 2 }}>
+                      {t.player1Name} · {t.player2Name}
+                    </span>
+                    {t.clubName && (
+                      <>
+                        <span style={{ ...eyebrow, marginTop: 8 }}>클럽</span>
+                        <span style={{ ...playerClub, marginTop: 2 }}>{t.clubName}</span>
+                      </>
+                    )}
+                  </>
                 )}
               </span>
+
               <span
                 style={{
                   flexShrink: 0,
+                  marginTop: 11,
                   fontSize: 11,
                   fontWeight: 800,
                   padding: '4px 9px',

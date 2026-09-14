@@ -817,7 +817,9 @@ insert into public.hosted_tournaments (
     '경기 김민준',
     '010-7224-3689',
     '카카오뱅크',
-    '3333015235337',
+    -- ⚠ 대회 참가비 전용 계좌. 클럽 월회비(lib/finance/paymentAccount.ts)·KDK 벌금 계좌와 '다른' 계좌다.
+    --   운영 중 정정됨(2026-09-14) — 기존 행은 add_hosted_tournament_fix_bank_account.sql 로 갱신한다.
+    '3333256163764',
     '곽민섭'
 )
 on conflict (slug) do nothing;   -- 재실행해도 기존 행을 덮어쓰지 않는다.
