@@ -110,4 +110,14 @@ export interface TournamentPublicStatus {
   maxCapacity: number;
   /** 서버가 판정한 접수 가능 여부. 클라이언트 시각으로 재판정하지 않는다. */
   isRegistrationOpen: boolean;
+  /** 참가비(원). 공개 RPC 가 내려주는 DB 값. */
+  entryFee: number;
+  /**
+   * 입금 계좌 — hosted_tournaments.bank_* 값.
+   *   ⚠ 공개 RPC 가 계좌를 내려주기 전에는 전부 null 이다. 그 경우 화면은 계좌를 만들어내지 않고
+   *     "신청 완료 화면에서 확인" 안내만 보여준다(하드코딩 금지).
+   */
+  bankName: string | null;
+  bankAccount: string | null;
+  bankHolder: string | null;
 }

@@ -172,7 +172,7 @@ function ContactBlock({ event }: { event: OfficialTournament }) {
           wordBreak: 'keep-all',
         }}
       >
-        접수 내용 수정이나 문의가 필요하면 연락해 주세요.
+        신청 내용 변경 · 파트너 변경 · 참가 취소는 대회 운영진에게 문의해 주세요.
       </p>
       <a
         href={`tel:${primary.phone.replace(/[^0-9]/g, '')}`}

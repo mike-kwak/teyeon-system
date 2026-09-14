@@ -18,6 +18,7 @@ import TournamentRegistrationStatus, {
   TournamentKeyBand,
 } from '@/components/tournaments/TournamentRegistrationStatus';
 import TournamentInfo from '@/components/tournaments/TournamentInfo';
+import TournamentPayment from '@/components/tournaments/TournamentPayment';
 import TournamentPrize from '@/components/tournaments/TournamentPrize';
 import TournamentFormat from '@/components/tournaments/TournamentFormat';
 import TournamentRegulations from '@/components/tournaments/TournamentRegulations';
@@ -201,6 +202,8 @@ export default function TournamentHubPage() {
       <Padded style={{ paddingTop: 30 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
           <TournamentInfo event={event} />
+          {/* 참가비·입금계좌 — 신청 후에도 Hub 에서 다시 확인할 수 있게 상시 노출. */}
+          <TournamentPayment event={event} status={status} />
           <TournamentPrize event={event} />
           <TournamentFormat event={event} regulationsHref={REGULATIONS_ANCHOR} />
           <TournamentRegulations event={event} />

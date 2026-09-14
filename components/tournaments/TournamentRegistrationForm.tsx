@@ -12,7 +12,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { AlertCircle, ArrowRight, Info } from 'lucide-react';
+import { AlertCircle, Phone, ArrowRight, Info } from 'lucide-react';
 import { TT, FONT_LABEL } from './tournamentTheme';
 import TurnstileWidget, { type TurnstileHandle } from './TurnstileWidget';
 import {
@@ -114,6 +114,9 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
     // 스크롤 도중 포커스하면 위치가 튀므로 약간 늦춘다.
     window.setTimeout(() => el.focus({ preventScroll: true }), 250);
   };
+
+  // 운영진 문의처 — 공식 요강 SSOT 재사용(새 연락처 하드코딩 금지).
+  const contact = event.contacts.find((c) => c.primary) ?? event.contacts[0] ?? null;
 
   // 제출 버튼 활성 조건.
   //   ⚠ 규칙을 여기서 새로 쓰지 않는다. validateRegistration 이 필수 입력 + 확인/동의 4개의
@@ -523,6 +526,99 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
           />
         </div>
       </FormCard>
+
+      {/* 신청 후 처리 안내 — 참가자 셀프 수정·취소 기능이 없다는 것을 제출 전에 확실히 알린다.
+          ⚠ 체크박스·추가 동의 항목을 만들지 않는다(validation/consent/DB/RPC 무영향).
+          ⚠ 연락처는 하드코딩하지 않고 공식 요강 SSOT(event.contacts)를 재사용한다. */}
+      <section
+        style={{
+          backgroundColor: TT.navy,
+          borderRadius: 12,
+          padding: '17px 17px 18px',
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            fontSize: 14.5,
+            fontWeight: 900,
+            color: '#FFFFFF',
+            lineHeight: 1.45,
+            wordBreak: 'keep-all',
+          }}
+        >
+          <AlertCircle size={16} strokeWidth={2.6} color="#FBBF24" style={{ flexShrink: 0 }} />
+          신청 전 꼭 확인해 주세요
+        </p>
+
+        <p
+          style={{
+            margin: '11px 0 0',
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.82)',
+            lineHeight: 1.8,
+            wordBreak: 'keep-all',
+          }}
+        >
+          신청 완료 후 참가자가 직접{' '}
+          <strong style={{ color: '#FBBF24', fontWeight: 800 }}>신청 정보 수정</strong>,{' '}
+          <strong style={{ color: '#FBBF24', fontWeight: 800 }}>파트너 변경</strong> 또는{' '}
+          <strong style={{ color: '#FBBF24', fontWeight: 800 }}>참가 취소</strong>를 할 수 없습니다.
+        </p>
+        <p
+          style={{
+            margin: '7px 0 0',
+            fontSize: 13,
+            fontWeight: 700,
+            color: '#FFFFFF',
+            lineHeight: 1.8,
+            wordBreak: 'keep-all',
+          }}
+        >
+          변경 또는 취소가 필요한 경우 대회 운영진에게 문의해 주세요.
+        </p>
+        <p
+          style={{
+            margin: '9px 0 0',
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.62)',
+            lineHeight: 1.75,
+            wordBreak: 'keep-all',
+          }}
+        >
+          입금계좌는 신청 완료 후 및 대회 INFO에서 다시 확인할 수 있습니다.
+        </p>
+
+        {contact && (
+          <a
+            href={`tel:${contact.phone.replace(/[^0-9]/g, '')}`}
+            style={{
+              marginTop: 13,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              minHeight: 40,
+              padding: '10px 14px',
+              borderRadius: 9,
+              border: '1px solid rgba(255,255,255,0.22)',
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              color: '#FFFFFF',
+              fontSize: 13,
+              fontWeight: 800,
+              textDecoration: 'none',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <Phone size={14} strokeWidth={2.4} color={TT.tealOnNavy} />
+            {contact.role} {contact.name} · {contact.phone}
+          </a>
+        )}
+      </section>
 
       {/* 제출 */}
       <div>

@@ -34,13 +34,19 @@ import type { PaymentStatus, RegistrationStatus } from '@/lib/tournaments/types'
 
 const card: React.CSSProperties = { background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14, padding: 15, marginBottom: 10 };
 
-const REG_TONE: Record<RegistrationStatus, { c: string; bg: string }> = {
-  applied: { c: '#1D4ED8', bg: '#EFF6FF' },
-  waitlisted: { c: '#B45309', bg: '#FEF3C7' },
-  confirmed: { c: '#047857', bg: '#DCFCE7' },
-  cancelled: { c: '#B91C1C', bg: '#FEE2E2' },
-  rejected: { c: '#B91C1C', bg: '#FEE2E2' },
+// 상태 배지 톤. ⚠ DB 값·의미는 바꾸지 않는다 — 표현만 구분한다.
+//   확정(confirmed)은 유일하게 '채운' 배지로 두어 접수(applied)와 한눈에 갈린다.
+//   취소/거절은 종료 상태라 서로도 구분되게 색을 달리한다.
+const REG_TONE: Record<RegistrationStatus, { c: string; bg: string; b?: string }> = {
+  applied:    { c: '#1D4ED8', bg: '#EFF6FF', b: '#BFDBFE' },  // blue  — 진행 중
+  waitlisted: { c: '#B45309', bg: '#FEF3C7', b: '#FCD34D' },  // amber — 대기
+  confirmed:  { c: '#FFFFFF', bg: '#047857', b: '#047857' },  // green solid — 확정(최강조)
+  cancelled:  { c: '#B91C1C', bg: '#FEE2E2', b: '#FCA5A5' },  // red   — 취소
+  rejected:   { c: '#F8FAFC', bg: '#7F1D1D', b: '#7F1D1D' },  // dark red — 거절
 };
+
+/** 종료된 신청(취소·거절) — 목록에서 한눈에 걸러지도록 보조 시각 처리를 붙인다. */
+const isClosedStatus = (s: RegistrationStatus): boolean => s === 'cancelled' || s === 'rejected';
 const PAY_TONE: Record<PaymentStatus, { c: string; bg: string }> = {
   pending: { c: '#92400E', bg: '#FEF3C7' },
   paid: { c: '#047857', bg: '#DCFCE7' },
@@ -62,8 +68,13 @@ const PAYMENT_ACTIONS: Record<PaymentStatus, { label: string; icon: 'check' | 'c
   refunded: [],
 };
 
-const Badge = ({ text, tone }: { text: string; tone: { c: string; bg: string } }) => (
-  <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, color: tone.c, background: tone.bg, whiteSpace: 'nowrap' }}>
+const Badge = ({ text, tone }: { text: string; tone: { c: string; bg: string; b?: string } }) => (
+  <span style={{
+    fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999,
+    color: tone.c, background: tone.bg,
+    border: `1px solid ${tone.b ?? 'transparent'}`,
+    whiteSpace: 'nowrap',
+  }}>
     {text}
   </span>
 );
@@ -643,6 +654,16 @@ export default function AdminTournamentRegistrationsPage() {
     }
   };
 
+  // 최신 신청이 항상 맨 위. 필터·검색·상태 변경 후에도 같은 기준이 유지된다.
+  //   ⚠ 공개 참가팀 목록(sequence_no 오름차순)은 건드리지 않는다 — Admin 목록만이다.
+  //   제출시각이 같거나 비어 있으면 접수순번 내림차순으로 떨어뜨린다.
+  const byNewest = (a: AdminRegistrationRow, b: AdminRegistrationRow): number => {
+    const ta = Date.parse(a.submittedAt || '');
+    const tb = Date.parse(b.submittedAt || '');
+    if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return tb - ta;
+    return b.sequenceNo - a.sequenceNo;
+  };
+
   const filtered = React.useMemo(() => {
     const kw = q.trim().toLowerCase();
     return rows.filter((r) => {
@@ -653,7 +674,7 @@ export default function AdminTournamentRegistrationsPage() {
       if (!kw) return true;
       return [r.registrationNo, r.player1Name, r.player2Name, r.clubName ?? '', r.player1ClubName ?? '', r.player2ClubName ?? '', r.depositorName]
         .join(' ').toLowerCase().includes(kw);
-    });
+    }).sort(byNewest);
   }, [rows, filter, q]);
 
   const summary = React.useMemo(() => {
@@ -741,8 +762,15 @@ export default function AdminTournamentRegistrationsPage() {
 
           {filtered.map((r) => {
             const open = openId === r.id;
+            // 취소·거절은 종료된 신청 — 배지 색만으로 두지 않고 행 전체를 가라앉힌다.
+            const closed = isClosedStatus(r.registrationStatus);
             return (
-              <div key={r.id} style={card}>
+              <div
+                key={r.id}
+                style={closed
+                  ? { ...card, opacity: 0.66, background: '#FAFBFC', borderColor: '#EDF0F3' }
+                  : card}
+              >
                 <div onClick={() => setOpenId(open ? null : r.id)} style={{ cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
                     <span style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 900, color: '#94A3B8', minWidth: 22 }}>#{r.sequenceNo}</span>
@@ -752,7 +780,13 @@ export default function AdminTournamentRegistrationsPage() {
                       <Badge text={PAYMENT_STATUS_LABEL[r.paymentStatus]} tone={PAY_TONE[r.paymentStatus]} />
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#0F172A', lineHeight: 1.45, wordBreak: 'keep-all' }}>
+                  <p style={{
+                    margin: 0, fontSize: 14.5, fontWeight: 900,
+                    color: closed ? '#64748B' : '#0F172A',
+                    textDecoration: closed ? 'line-through' : 'none',
+                    textDecorationColor: closed ? '#CBD5E1' : undefined,
+                    lineHeight: 1.45, wordBreak: 'keep-all',
+                  }}>
                     {r.player1Name} · {r.player2Name}
                   </p>
                   <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#94A3B8', lineHeight: 1.6, wordBreak: 'keep-all' }}>

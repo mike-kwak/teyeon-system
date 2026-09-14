@@ -23,6 +23,12 @@ const isMissingRelation = (err: unknown): boolean => {
   );
 };
 
+/** 문자열이 실제로 값이 있을 때만 돌려준다. 빈 값·비문자열은 null. */
+const nonEmpty = (v: unknown): string | null => {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return s === '' ? null : s;
+};
+
 const toCount = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
@@ -96,6 +102,11 @@ const parseStatus = (d: Record<string, unknown>): TournamentPublicStatus => ({
   targetCapacity: toCount(d.targetCapacity),
   maxCapacity: toCount(d.maxCapacity),
   isRegistrationOpen: d.isRegistrationOpen === true,
+  entryFee: toCount(d.entryFee),
+  // 공개 RPC 가 계좌를 반환하지 않는 동안에는 null 이 된다 — 절대 대체값을 만들지 않는다.
+  bankName: nonEmpty(d.bankName),
+  bankAccount: nonEmpty(d.bankAccount),
+  bankHolder: nonEmpty(d.bankHolder),
 });
 
 /**
