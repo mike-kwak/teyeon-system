@@ -530,6 +530,76 @@ SQL 을 먼저 적용하면 route/키가 없는 동안 접수 경로가 통째�
 
 전부 fail-closed. 하나라도 실패하면 RPC 를 호출하지 않고 `SECURITY_CHECK_FAILED` 만 돌려준다.
 
+## 10. 주최 대회 — Tournament 운영 기반 (Batch 1)
+
+### 적용 파일 (이 순서대로, 파일 하나씩)
+
+1. [ ] `supabase/add_hosted_tournament_events.sql`
+2. [ ] `supabase/add_hosted_tournament_teams.sql`
+3. [ ] `supabase/add_hosted_tournament_courts.sql`
+4. [ ] `supabase/add_hosted_tournament_fixture.sql`
+
+롤백: `supabase/add_hosted_tournament_batch1_rollback.sql` (4종 역순 통합 1개 파일)
+검증: `supabase/add_hosted_tournament_batch1_verify.sql` (54항목)
+
+### 왜 필요한가
+
+접수(`hosted_tournament_registrations`)는 개인정보·입금·동의 원장이다.
+경기 운영이 이 테이블을 직접 참조하면 (1) 공개 대진/경기 조회에 PII 가 새고
+(2) 접수 취소·선수교체가 지난 경기 기록을 소급 변조한다.
+그래서 **승격 시점 스냅샷**인 `hosted_tournament_teams` 를 따로 두고 경기 운영은 그쪽만 쓴다.
+
+### 변경 대상
+
+- [ ] `hosted_tournament_events` — 운영 감사 로그(append-only). ⚠ PII 미포함
+- [ ] `hosted_tournament_teams` — 경기 운영용 팀 스냅샷. ⚠ 전화·입금·동의·메모 컬럼 없음
+- [ ] `hosted_tournament_courts` — 코트 엔티티. LIVE 중계 코트는 대회당 1면(partial unique)
+- [ ] fixture 인프라 — 48/50/51/54/57/60팀 QA 대회를 운영 대회와 격리 생성
+- [ ] 신규 RPC 11종 (전부 `security definer` + `search_path` 고정 + anon/PUBLIC EXECUTE 회수)
+
+### ⚠ 하지 않는 것
+
+- [ ] 기존 `hosted_tournaments` / `hosted_tournament_registrations` / `_history` 스키마 변경 없음
+- [ ] 기존 접수 RPC·RLS·submit lockdown 변경 없음 (신규 테이블만 추가)
+- [ ] 세 신규 테이블 모두 anon 접근 미개방 — 공개 조회는 후속 Batch 의 전용 RPC 로만 연다
+- [ ] `seed_no` 자동 부여 없음, 자동 조편성·자동 seeding 없음 (경기이사가 결정)
+
+### ⚠⚠ 적용 순서 (역순 금지)
+
+`get_admin_fixture_tournaments()` 는 `language sql` 이라 **생성 시점에 참조 테이블이 해석된다**.
+teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exist` 로 실패한다.
+
+1. [ ] 위 1→2→3→4 순서로 **한 파일씩** 실행 (각각 `Success. No rows returned`)
+2. [ ] `..._batch1_verify.sql` → **54/54 ALL PASS**
+
+### 적용 후 확인
+
+- [ ] verify 결과 `SUMMARY PASS=54 / FAIL=0` → `ALL PASS`
+- [ ] `select public.hosted_tournament_fixture_guard('2026-teyeon-open');`
+      → `{"ok": false, "reason": "not_a_fixture_slug"}`
+- [ ] `2026-teyeon-open` 의 Team 0건 / Court 0건 유지, `registration_open` 유지
+
+### 운영 적용 결과 (2026-09-16 완료)
+
+- [x] verify **54 / 54 ALL PASS**
+- [x] Security QA **33 / 33 PASS** (anon raw table 차단 · 신규 RPC 11종 anon 차단 · 기존 submit lockdown 유지)
+- [x] fixture 6종 생성 — `fixture-open-48 / 50 / 51 / 54 / 57 / 60`, 총 **teams 320 / courts 60**
+- [x] Team QA PASS — 팀번호 변경·복구, seed 설정·해제, withdrawn↔active, 중복 team_no 차단, 새로고침 후 상태 유지
+- [x] Court QA PASS — LIVE 지정·이동 시 기존 자동 해제·해제, disabled↔active, 삭제·재생성, 새로고침 후 상태 유지
+- [x] Events audit 정상 기록
+- [x] Production `2026-teyeon-open` 보호 PASS (Team 0 / Court 0 / 접수 데이터·상태 무변경)
+- [x] 기존 Registration 기능·보안 회귀 없음
+
+### ⚠ 주의사항
+
+- [ ] **fixture seed 는 SQL Editor 에서 실행하지 않는다.** `seed_fixture_tournament` 가
+      `can_manage_tournaments()`(= `auth.uid()`)를 보므로 SQL Editor 에서는 `42501` 이 난다.
+      로그인한 CEO/ADMIN 세션에서 Admin FIXTURE 패널로 실행한다.
+- [ ] **production confirmed registration 승격은 접수 마감 후 명시적 승인 전까지 실행 금지.**
+      `promote_confirmed_registrations` 는 멱등이지만, 승격 시점의 선수명이 스냅샷으로 고정된다.
+- [ ] **rollback 은 비상용이다.** 운영 데이터(팀·코트·감사로그)가 쌓인 뒤에는 임의 실행 금지 —
+      신규 테이블을 통째로 삭제한다(접수 원장은 영향 없음).
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음
