@@ -157,7 +157,10 @@ export default function AdminTournamentTeamsPage() {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <Link href={`/admin/tournaments/${slug}/groups`} style={{ ...btn(), textDecoration: 'none' }}>
+          예선 조편성
+        </Link>
         <Link href={`/admin/tournaments/${slug}/courts`} style={{ ...btn(), textDecoration: 'none' }}>
           코트 관리
         </Link>

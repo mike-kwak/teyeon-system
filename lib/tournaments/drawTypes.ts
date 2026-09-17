@@ -99,3 +99,136 @@ export function teamDisplayName(t: Pick<TournamentTeam, 'player1Name' | 'player2
 export function courtDisplayName(c: Pick<TournamentCourt, 'courtNo' | 'displayName'>): string {
   return c.displayName && c.displayName.trim() !== '' ? c.displayName : `${c.courtNo}번 코트`;
 }
+
+// ── 예선 조편성 (Batch 2A) ───────────────────────────────────────────────────
+//
+//   ⚠ 시스템은 조를 자동으로 짜지 않는다. 아래 타입들은 경기이사가 만든 배치를
+//     담고 보여주기 위한 것이며, 배치를 계산하는 코드는 여기에도 서버에도 없다.
+
+/**
+ * placement = 3의 배수가 아닐 때 남는 2팀.
+ *   ⚠ 일반적인 '2팀 예선조'가 아니다. 두 팀은 순위결정전 대상이며 **둘 다 본선에 진출**한다.
+ *     그 경기는 탈락을 가르는 경기가 아니라 본선 진출 순서/배치를 정하는 경기다.
+ *     Match 생성은 Batch 3 범위다.
+ */
+export type TournamentGroupType = 'preliminary' | 'placement';
+
+/** 대회 단위 조편성 잠금 상태. 조별 lock 은 두지 않는다. */
+export type PreliminaryDrawStatus = 'draft' | 'locked';
+
+/** 조 안의 한 자리. 표시 데이터는 전부 teams 스냅샷에서 온다(접수 원장 미참조). */
+export interface GroupMember {
+  slotNo: number;
+  teamId: string;
+  teamNo: number;
+  player1Name: string;
+  player2Name: string;
+  player1ClubName: string | null;
+  player2ClubName: string | null;
+  teamStatus: TournamentTeamStatus;
+}
+
+export interface TournamentGroup {
+  groupId: string;
+  groupNo: number;
+  /** 별칭('A조' 등). Batch 2 UI 에서는 편집하지 않는다. */
+  label: string | null;
+  groupType: TournamentGroupType;
+  /** preliminary=3 / placement=2. 검증이 3을 하드코딩하지 않기 위한 값. */
+  expectedSize: number;
+  displayOrder: number;
+  members: GroupMember[];
+}
+
+/** 아직 어느 조에도 들어가지 않은 팀. */
+export interface UnassignedTeam {
+  teamId: string;
+  teamNo: number;
+  player1Name: string;
+  player2Name: string;
+  player1ClubName: string | null;
+  player2ClubName: string | null;
+  teamStatus: TournamentTeamStatus;
+}
+
+/** 검증 실패 항목. ⚠ 서버는 무엇이 틀렸는지만 알려주고 자동 교정하지 않는다. */
+export interface DrawIssue {
+  code: string;
+  /** code 별로 들어오는 부가 정보(groups / teams / slots / count …). */
+  [key: string]: unknown;
+}
+
+export interface DrawValidation {
+  ok: boolean;
+  summary: {
+    groupCount: number;
+    preliminaryGroups: number;
+    placementGroups: number;
+    activeTeams: number;
+    assignedTeams: number;
+    unassignedTeams: number;
+  };
+  issues: DrawIssue[];
+}
+
+/** `get_admin_preliminary_draw` 응답 전체. */
+export interface PreliminaryDraw {
+  slug: string;
+  /** 대회 lifecycle status(draft / registration_open …). 조편성 전제조건은 아니다. */
+  tournamentStatus: string;
+  drawStatus: PreliminaryDrawStatus;
+  /** 낙관적 동시성 버전. write RPC 마다 증가한다. */
+  version: number;
+  lockedAt: string | null;
+  groups: TournamentGroup[];
+  unassigned: UnassignedTeam[];
+  validation: DrawValidation;
+}
+
+/** 조 표시 이름. label 이 없으면 번호로 부른다. */
+export function groupDisplayName(g: Pick<TournamentGroup, 'groupNo' | 'label' | 'groupType'>): string {
+  if (g.label && g.label.trim() !== '') return g.label;
+  return g.groupType === 'placement' ? '순위결정전' : `${g.groupNo}조`;
+}
+
+/** 조편성 검증 실패 코드 → 운영자용 문구. 없는 코드는 호출부가 기본 문구로 처리한다. */
+export const DRAW_ISSUE_LABEL: Record<string, string> = {
+  no_groups: '조가 하나도 없습니다.',
+  group_size_mismatch: '인원이 맞지 않는 조가 있습니다.',
+  unassigned_teams: '아직 배정되지 않은 팀이 있습니다.',
+  withdrawn_assigned: '기권 처리된 팀이 조에 남아 있습니다.',
+  slot_out_of_range: '조 정원을 넘는 자리 번호가 있습니다.',
+  duplicate_membership: '한 팀이 두 조에 배정돼 있습니다.',
+  duplicate_slot: '같은 자리에 두 팀이 있습니다.',
+  cross_tournament_reference: '다른 대회의 팀/조가 섞여 있습니다.',
+};
+
+/**
+ * 조 수 **참고 계산값**.
+ *
+ *   ⚠⚠ 이 값은 화면에 '참고'로만 표시한다. 시스템이 조를 자동 생성하거나
+ *      팀을 자동 배치하는 데 쓰지 않는다. 실제 조 개수는 경기이사가 입력하고
+ *      생성 버튼을 눌러 확정한다.
+ *
+ *   예) 60팀 → 20조 / 나머지 0
+ *       50팀 → 16조 / 나머지 2 → 순위결정전 대상
+ */
+export interface GroupPlanHint {
+  activeTeams: number;
+  /** 3팀 기준 조 수(참고). */
+  preliminaryGroups: number;
+  /** 3으로 나눈 나머지. 2면 순위결정전 대상이 된다. */
+  remainder: number;
+  /** 나머지가 2일 때만 true. */
+  suggestsPlacement: boolean;
+}
+
+export function groupPlanHint(activeTeams: number): GroupPlanHint {
+  const n = Number.isFinite(activeTeams) && activeTeams > 0 ? Math.floor(activeTeams) : 0;
+  return {
+    activeTeams: n,
+    preliminaryGroups: Math.floor(n / 3),
+    remainder: n % 3,
+    suggestsPlacement: n % 3 === 2,
+  };
+}

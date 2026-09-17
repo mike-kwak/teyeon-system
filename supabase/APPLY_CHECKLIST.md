@@ -600,6 +600,137 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
 - [ ] **rollback 은 비상용이다.** 운영 데이터(팀·코트·감사로그)가 쌓인 뒤에는 임의 실행 금지 —
       신규 테이블을 통째로 삭제한다(접수 원장은 영향 없음).
 
+## 11. 주최 대회 — 예선 조편성 (Batch 2A)
+
+### 적용 파일
+
+- [ ] `supabase/add_hosted_tournament_groups.sql`
+
+롤백: `supabase/add_hosted_tournament_batch2_rollback.sql`
+검증: `supabase/add_hosted_tournament_batch2_verify.sql` (59항목)
+
+선행: 섹션 10(Batch 1) 4종 적용 완료.
+
+### 왜 필요한가
+
+접수 이후 운영의 첫 단계는 예선 조편성이다.
+⚠ **시스템은 조를 자동으로 짜지 않는다.** 경기이사가 모든 배치를 직접 결정하고,
+시스템은 그 결과를 담고 구조가 올바른지 검사하고 잠그는 역할만 한다.
+조 개수 계산·seed 분배·강팀/클럽 분산·본선 배치는 이 도메인에 없다.
+
+### 변경 대상
+
+- [ ] `hosted_tournament_groups` — 예선 조. `group_type`(preliminary/placement),
+      `expected_size`(preliminary=3 / placement=2 를 check 로 고정)
+- [ ] `hosted_tournament_group_members` — 팀↔조 배정. `slot_no`
+- [ ] `hosted_tournaments` 에 컬럼 4개 추가(전부 default/nullable — 기존 행 무영향)
+      `preliminary_draw_status` / `_version` / `_locked_at` / `_locked_by`
+- [ ] RPC 14종 (내부 helper 3 + 공개 11)
+
+### ⚠ 하지 않는 것
+
+- [ ] 자동 조편성·자동 seeding 없음 (`create_tournament_groups` 는 teams 를 읽지도 않는다)
+- [ ] 기존 Batch 1 / 접수 도메인 변경 없음 (신규 테이블만 추가)
+- [ ] 두 테이블 모두 anon 미개방 — 공개 DRAW 는 후속 Batch 범위
+- [ ] `tournament.status` 를 조편성 전제조건으로 강제하지 않음
+      (접수 마감 전 준비와 fixture(draft) 작업을 막지 않기 위함)
+
+### DB 가 보장하는 것 (RPC 가 아니라 제약으로)
+
+- [ ] `unique (tournament_id, team_id)` — **한 팀은 대회 내 하나의 조에만** (동시 배정 경쟁의 최종 방어선)
+- [ ] `unique (group_id, slot_no) DEFERRABLE` — 자리 중복 금지 + 두 팀 교환 허용
+- [ ] 복합 FK 2개 — 다른 대회의 조/팀 혼입 차단
+- [ ] placement partial unique — 순위결정전 조는 대회당 1개
+
+### 적용 후 확인
+
+- [ ] `..._batch2_verify.sql` → **59/59 ALL PASS**
+- [ ] `2026-teyeon-open` 조 0개 / 배정 0건 / `preliminary_draw_status = 'draft'` 유지
+
+### 운영 적용 결과 (2026-09-18 완료)
+
+- [x] verify **59 / 59 ALL PASS**
+- [x] 실계정 QA — 직접 수동 조편성 정상 / placement 배정 정상 /
+      조편성 검증 정상(“모든 참가팀 배정 완료 · 일반 조 인원 정상 · 순위결정전 인원 정상”) /
+      LOCK → unlock(사유 필수) → 수정 → re-lock 흐름 정상
+- [x] Production `2026-teyeon-open` 보호 확인 (조 0 / 배정 0 / draft 유지)
+
+### ⚠ 주의사항
+
+- [ ] LOCKED 상태에서는 unlock 외 모든 조편성 write 가 차단된다.
+- [ ] unlock 은 **사유(reason) 필수**이며 `hosted_tournament_events` 에 기록된다.
+- [ ] 접수가 열려 있는 동안 lock 하면 경고(`registration_still_open`)를 반환한다.
+      차단하지는 않지만 **실제 운영에서는 접수 종료 후 최종 lock** 하는 것을 원칙으로 한다.
+
+## 12. 주최 대회 — 조편성 일괄 반영 + 조 번호 보정 (Batch 2B follow-up)
+
+### 적용 파일
+
+- [ ] `supabase/add_hosted_tournament_group_bulk_assignment.sql`
+
+롤백: `supabase/add_hosted_tournament_group_bulk_assignment_rollback.sql`
+검증: `supabase/add_hosted_tournament_group_bulk_assignment_verify.sql` (41항목)
+
+선행: 섹션 11(Batch 2A) 적용 완료.
+
+### 왜 필요한가
+
+실제 운영에서 경기이사는 **엑셀에서 조편성을 먼저 완성**한다.
+한 팀씩 클릭해 넣는 방식만으로는 60팀 입력이 비현실적이다.
+⚠ 다만 이것도 조편성을 '결정'하는 기능이 아니다. 이미 완성된 결과를 빠르게 옮겨 담는 입력 도구다.
+
+또한 Batch 2A 의 `create_tournament_groups` 가 `max(group_no)+1` 로 번호를 매겨,
+17조를 지우고 조를 추가하면 18조가 생기는 문제가 실사용에서 발견됐다.
+
+### 변경 대상
+
+- [ ] `hosted_tournament_draw_normalize_order` 추가 (내부 helper)
+      preliminary `display_order = group_no`, placement 는 항상 맨 뒤
+- [ ] `create_tournament_groups` **교체** — 가장 작은 빈 조 번호를 사용
+      (⚠ 이미 저장된 group_no 를 renumber 하지 않는다. 새로 만드는 번호만 바뀐다)
+- [ ] `replace_preliminary_group_assignments` 추가 — 원자적 전체 교체
+
+### ⚠⚠ 재생성 함수의 권한 재적용
+
+`create_tournament_groups` 를 `create or replace` 하면 Supabase 의
+`ALTER DEFAULT PRIVILEGES` 때문에 anon/authenticated/PUBLIC EXECUTE 가 되살아난다.
+그래서 **같은 트랜잭션 안에서 revoke 를 다시 적용**한다. verify 10번이 이 지점을 검사한다.
+
+### ⚠ 하지 않는 것
+
+- [ ] 이미 운영 적용된 `add_hosted_tournament_groups.sql` 을 수정하지 않는다
+      (변경이 필요한 함수는 이 follow-up 에서 덮어쓴다)
+- [ ] 테이블·컬럼 변경 없음 (함수만 추가/교체)
+- [ ] 부분 저장 없음 — 전체가 유효할 때만 반영한다
+
+### 일괄 반영 계약
+
+- [ ] 붙여넣기 → **미리보기 필수** → 반영 (즉시 저장하지 않는다)
+- [ ] 매칭: ① `team_no` 완전 일치 ② 선수 2명 이름 완전 일치(순서 무관)
+- [ ] **부분일치로 자동 확정하지 않는다.** 후보 2개 이상이면 AMBIGUOUS, 0개면 UNMATCHED
+- [ ] 차단 조건(하나라도 있으면 반영 불가): 미매칭 / 애매 / 팀 중복 / 조 인원(3·2) 불일치 /
+      순위결정전 2개 / 기권 팀 / 다른 대회 팀 / 알 수 없는 조 표기 / **입력에서 빠진 active 팀**
+- [ ] 기존 배정이 있으면 **전체 교체 확인**을 받는다. payload 에 없는 조도 제거된다
+- [ ] 서버가 클라이언트 검증을 신뢰하지 않고 동일 조건을 재검증한다
+
+### 적용 후 확인
+
+- [ ] `..._group_bulk_assignment_verify.sql` → **41/41 ALL PASS**
+- [ ] 17조 삭제 후 “+1조 추가” → **17조**가 생기는지 (18조가 아니어야 한다)
+
+### 운영 적용 결과 (2026-09-18 완료)
+
+- [x] verify **41 / 41 ALL PASS**
+- [x] 실계정 QA — 엑셀/붙여넣기 화면 정상 / `fixture-open-50` 데이터 붙여넣기 정상 /
+      Preview 정상 / Bulk 조편성 반영 정상 / LOCK 해제 후 수정 흐름 정상
+- [x] 직접 편성(수동 배정·이동·교환·빼기)은 그대로 유지되며 보정용으로 함께 사용 가능
+
+### ⚠ Production registration promotion 미수행
+
+- [ ] **`2026-teyeon-open` 의 confirmed 접수를 Tournament Team 으로 승격하지 않았다.**
+      Batch 1·2 의 모든 QA 는 `fixture-*` 대회에서만 수행했다.
+      실제 승격은 **참가접수 마감 후 별도 승인**이 있을 때만 실행한다.
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음
