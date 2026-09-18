@@ -757,10 +757,19 @@ export default function GroupAssignBoard({ slug }: { slug: string }) {
                 disabled={unlockReason.trim().length < 2 || !!busy}
                 onClick={() =>
                   void run('unlock', async () => {
-                    await unlockDraw(slug, unlockReason.trim(), ver);
+                    const r = await unlockDraw(slug, unlockReason.trim(), ver);
                     setUnlockOpen(false);
                     setUnlockReason('');
-                    return '잠금을 해제했습니다. 수정 후 다시 확정해 주세요.';
+                    // 서버가 CALLING 을 WAITING 으로 되돌리고, 남은 경기 수를 알려준다.
+                    //   ⚠ 진행·완료된 경기가 있으면 애초에 matches_in_progress 로 차단된다.
+                    const bits: string[] = [];
+                    if (r.callingReset > 0) bits.push(`호명 ${r.callingReset}건을 대기로 되돌렸습니다`);
+                    if (r.existingMatches > 0) {
+                      bits.push(`이미 만든 경기 ${r.existingMatches}건이 있어, 조편성을 바꾸면 경기 목록이 실제와 달라집니다`);
+                    }
+                    return bits.length > 0
+                      ? `잠금을 해제했습니다 — ${bits.join(' · ')}.`
+                      : '잠금을 해제했습니다. 수정 후 다시 확정해 주세요.';
                   })
                 }
                 style={{ ...btn('primary'), opacity: unlockReason.trim().length >= 2 ? 1 : 0.5 }}

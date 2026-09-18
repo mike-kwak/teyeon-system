@@ -161,6 +161,9 @@ export default function AdminTournamentTeamsPage() {
         <Link href={`/admin/tournaments/${slug}/groups`} style={{ ...btn(), textDecoration: 'none' }}>
           예선 조편성
         </Link>
+        <Link href={`/admin/tournaments/${slug}/matches`} style={{ ...btn(), textDecoration: 'none' }}>
+          경기 운영
+        </Link>
         <Link href={`/admin/tournaments/${slug}/courts`} style={{ ...btn(), textDecoration: 'none' }}>
           코트 관리
         </Link>

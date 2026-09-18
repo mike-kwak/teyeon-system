@@ -731,6 +731,135 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
       Batch 1·2 의 모든 QA 는 `fixture-*` 대회에서만 수행했다.
       실제 승격은 **참가접수 마감 후 별도 승인**이 있을 때만 실행한다.
 
+## 13. 주최 대회 — 예선 경기 엔진 (Batch 3A)
+
+### 적용 파일
+
+- [ ] `supabase/add_hosted_tournament_matches.sql`
+
+롤백: `supabase/add_hosted_tournament_matches_rollback.sql`
+검증: `supabase/add_hosted_tournament_matches_verify.sql` (70항목)
+
+선행: 섹션 11(Batch 2A) + 섹션 12(follow-up) 적용 완료.
+
+### 변경 대상
+
+- [ ] `hosted_tournament_matches` 테이블 (21컬럼 / 복합 FK 4 / unique 3 / check 8)
+- [ ] `hosted_tournaments.preliminary_matches_fingerprint` 컬럼
+- [ ] 내부 helper 2 — `hosted_tournament_membership_fingerprint` / `hosted_tournament_match_begin`
+- [ ] 경기 RPC 8 — `generate_group_matches` / `call_match` / `uncall_match` / `start_match` /
+      `complete_match` / `amend_completed_match_score` / `cancel_match` / `get_admin_match_board`
+- [ ] `unlock_preliminary_draw` **교체** — 진행/완료 경기가 있으면 차단, CALLING 은 WAITING 으로 복귀
+
+### ⚠ 경기 결과 모델
+
+- [ ] 기권 · 노쇼에 별도 상태를 두지 않는다. **상대팀 6:0 COMPLETED** 로 입력한다
+- [ ] `CANCELLED` 는 '공식 결과 없이 취소' 하나의 뜻만 갖는다(기권 용도 아님)
+- [ ] 완료된 경기는 취소할 수 없다. 결과를 고치려면 `amend_completed_match_score`
+
+### 운영 적용 결과 (2026-09-18 완료)
+
+- [x] verify **70 / 70 ALL PASS**
+
+## 14. 주최 대회 — 예선 순위 / 합산연령 동률 확정 (Batch 3B)
+
+### 적용 파일
+
+- [ ] `supabase/add_hosted_tournament_standings.sql`
+
+롤백: `supabase/add_hosted_tournament_standings_rollback.sql`
+검증: `supabase/add_hosted_tournament_standings_verify.sql` (구조·권한·정책 81항목, 100% 읽기 전용)
+실동작: `supabase/verify_hosted_tournament_standings_fixture.sql` (알고리즘 60항목)
+
+선행: 섹션 13(Batch 3A) 적용 완료.
+
+### 왜 필요한가
+
+예선 3팀 라운드로빈에서는 세 팀이 1승 1패로 끝나는 경우가 흔하다.
+승률과 게임 득실로도 갈리지 않으면 요강상 **합산연령**으로 순위를 정하는데,
+그 값은 개인정보라 저장하지 않는다. 그래서 시스템은 '동률이 남았다'는 사실만 알려주고,
+운영진이 현장에서 확인한 **최종 순서**만 받아 기록한다.
+
+### ⚠⚠ 개인정보
+
+- [ ] DOB · 생년 · 나이 · 합산연령 값을 **저장하지 않는다.** 컬럼 자체가 없다
+- [ ] 순위 RPC 는 접수 원장(`hosted_tournament_registrations`)을 참조하지 않는다
+- [ ] 감사 로그에도 팀 번호만 남기고 선수명·나이를 남기지 않는다
+
+### 변경 대상
+
+- [ ] `hosted_tournament_group_tie_resolutions` 테이블 (12컬럼, 유효 확정 partial unique 2)
+- [ ] 내부 helper — `hosted_tournament_group_results_fingerprint`
+- [ ] `get_preliminary_standings` 추가 (조회 전용, STABLE, lock 없음)
+- [ ] `resolve_group_age_tie` 추가
+- [ ] `amend_completed_match_score` **교체** — 같은 조 동률 확정을 원자적으로 무효화
+
+### ⚠⚠ 재생성 함수의 권한 재적용
+
+`amend_completed_match_score` 를 `create or replace` 하면 Supabase 의
+`ALTER DEFAULT PRIVILEGES` 때문에 anon/authenticated/PUBLIC EXECUTE 가 되살아난다.
+그래서 **같은 트랜잭션 안에서 revoke 를 다시 적용**한다. verify 36·37 번이 이 지점을 검사한다.
+
+### 순위 계약
+
+- [ ] 정렬 키는 **승률 → 게임 득실 두 단계에서 끝난다.** 3차 tie-breaker 를 두지 않는다
+- [ ] 갈리지 않으면 시스템이 순위를 만들어내지 않는다 → `rank = null`,
+      `rankingStatus = AGE_CHECK_REQUIRED`
+- [ ] 순위 스냅샷 테이블이 없다. 항상 경기 결과에서 계산한다
+- [ ] `resolved_order` 는 서버가 계산한다(동률 묶음 시작 순위 + 입력 순서).
+      1,2,2 → 1,2,3 / 1,1,3 → 1,2,3 / 1,1,1 → 1,2,3
+- [ ] 진출 판정은 동률 묶음 전체가 진출권 안쪽이면 QUALIFIED, 밖이면 NOT_QUALIFIED,
+      경계에 걸치면 PENDING. 조가 끝나지 않았으면 전부 PENDING
+- [ ] `CANCELLED` 는 집계에서 완전히 제외되고, 하나라도 남으면 그 조는 FINAL 이 되지 않는다
+      (`policyRequired = cancelled_matches_present`). **0:0 / 6:0 으로 자동 변환하지 않는다**
+- [ ] 결과 수정(amend) 이 일어나면 그 조의 유효한 확정을 **전부** 무효화한다(행 삭제 없음)
+
+### ⚠ 하지 않는 것
+
+- [ ] 이미 운영 적용된 `add_hosted_tournament_matches.sql` 을 수정하지 않는다
+      (교체가 필요한 `amend_completed_match_score` 는 3B 파일에서 덮어쓴다)
+- [ ] `CANCELLED → WAITING` 복구 RPC 를 추가하지 않는다 (3C-2 후보)
+- [ ] Admin / Public 순위 화면을 만들지 않는다 (후속 Batch)
+- [ ] 본선(knockout) · bracket slot 을 만들지 않는다
+
+### 적용 후 확인
+
+- [ ] `add_hosted_tournament_standings_verify.sql` → **81/81 ALL PASS**
+- [ ] `verify_hosted_tournament_standings_fixture.sql` → **PASS=60 FAIL=0 ALL PASS**
+      ⚠ 이 스크립트는 **항상 ERROR 로 끝난다**(의도된 롤백). ERROR 본문이 결과표다
+
+### ⚠ 검증 스크립트를 고칠 때 알아야 할 것
+
+세 번 걸렸던 자리라 남겨 둔다.
+
+- `pg_get_function_identity_arguments` 는 타입뿐 아니라 **인자 이름까지** 출력한다.
+  그래서 타입 문자열과 비교하거나 `ilike '%order%'` 로 금지어를 찾으면
+  정상 인자 `p_ordered_team_ids` 때문에 오탐한다.
+  → verify 17·71 은 `pg_proc.proargnames` 를 **토큰 단위 완전일치**로 본다.
+- PL/pgSQL 의 `CALL` 인자에는 **subquery 를 쓸 수 없다**(`0A000`).
+  → fixture 의 60개 검사는 전부 `select ( … ) into v_ok;` 로 먼저 계산한 뒤 넘긴다.
+- DECLARE 변수와 SQL table alias 이름이 겹치면, 한정 참조(`r.col`)를
+  plpgsql 이 **레코드 필드로 먼저 해석**해 `55000 record not assigned` 가 난다.
+  → fixture 의 DECLARE 변수는 전부 `v_` 접두로 통일한다.
+
+### 운영 적용 결과 (2026-09-18 완료)
+
+- [x] `add_hosted_tournament_standings.sql` 운영 적용 완료
+- [x] catalog verify **81 / 81 ALL PASS**
+- [x] functional fixture **PASS=60 / FAIL=0 / TOTAL=60 ALL PASS**
+      (마지막 `ERROR P0001` 은 self-test 데이터 전량 롤백을 위한 의도된 예외다)
+- [x] fixture 는 임시 대회(`zz-fixture-standings-selftest`)에서만 돌고 전량 롤백됐다.
+      운영 데이터 무변경
+- [x] verify 100~105 로 `2026-teyeon-open` 무영향 확인 —
+      경기 0건 / 동률 확정 0건 / 조편성 draft / status registration_open /
+      승격된 접수 0건 / self-test 잔재 0건
+
+### ⚠ Production registration promotion 미수행
+
+- [ ] **`2026-teyeon-open` 의 confirmed 접수를 Tournament Team 으로 승격하지 않았다.**
+      Batch 3 의 모든 검증은 fixture 와 self-test 대회에서만 수행했다.
+      실제 승격은 **참가접수 마감 후 별도 승인**이 있을 때만 실행한다.
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음

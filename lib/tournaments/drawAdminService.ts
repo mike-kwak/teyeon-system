@@ -477,13 +477,34 @@ export async function lockDraw(slug: string, expectedVersion: number): Promise<L
   };
 }
 
-/** 조편성 잠금 해제. ⚠ 사유(reason)가 없으면 서버가 거부한다. */
+export interface UnlockDrawResult extends DrawWriteResult {
+  /** 이미 만들어진 경기 수. 0 보다 크면 조편성 변경 시 경기 목록이 낡게 된다. */
+  existingMatches: number;
+  /** unlock 하면서 WAITING 으로 되돌린 CALLING 경기 수. */
+  callingReset: number;
+  /** 예: 'matches_exist' · 'calling_reset' */
+  warnings: string[];
+}
+
+/**
+ * 조편성 잠금 해제. ⚠ 사유(reason)가 없으면 서버가 거부한다.
+ *   ⚠ 진행·완료된 경기가 하나라도 있으면 서버가 'matches_in_progress' 로 차단한다.
+ *   ⚠ 성공 시 CALLING 경기는 서버가 WAITING 으로 되돌린다(경기 삭제는 하지 않는다).
+ */
 export async function unlockDraw(
   slug: string, reason: string, expectedVersion?: number | null,
-): Promise<DrawWriteResult> {
-  return drawWrite('unlock_preliminary_draw', {
+): Promise<UnlockDrawResult> {
+  const { data, error } = await supabase.rpc('unlock_preliminary_draw', {
     p_slug: slug, p_reason: reason, p_expected_version: expectedVersion ?? null,
   });
+  if (error) throw error;
+  const o = unwrap(data);
+  return {
+    version: num(o.version),
+    existingMatches: num(o.existingMatches),
+    callingReset: num(o.callingReset),
+    warnings: (Array.isArray(o.warnings) ? o.warnings : []).map((w) => str(w)).filter(Boolean),
+  };
 }
 
 // ── 일괄 조편성 반영 (Batch 2B-2) ────────────────────────────────────────────
@@ -554,6 +575,7 @@ export function drawActionMessage(err: unknown): string {
     // ── 조편성 (Batch 2A) ──
     case 'draw_locked':              return '조편성이 확정(잠금)되어 있습니다. 수정하려면 먼저 잠금을 해제하세요.';
     case 'draw_not_locked':          return '잠겨 있지 않은 조편성입니다.';
+    case 'matches_in_progress':      return '진행 중이거나 완료된 경기가 있어 조편성을 열 수 없습니다.';
     case 'version_conflict':         return '다른 곳에서 먼저 변경됐습니다. 새로고침 후 다시 시도해 주세요.';
     case 'version_required':         return '조편성 버전이 필요합니다. 새로고침 후 다시 시도해 주세요.';
     case 'reason_required':          return '잠금 해제 사유를 입력해 주세요.';
