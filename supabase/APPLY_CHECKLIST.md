@@ -932,6 +932,81 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
 - [x] Batch 3B catalog verify **81 / 81 ALL PASS**
 - [x] Batch 3B functional fixture **60 / 60 ALL PASS**
 
+## 16. 공개 예선 DRAW — 공개 계약 + 순위 계산 코어 분리 (Batch 3D)
+
+> 2026-09-22 운영 DB 적용 · 검증 완료(아래 "운영 적용 결과"). **DRAW 는 아직 어떤 대회도 공개하지 않았다.**
+> 공개 계약 · 코어 분리 · unlock 자동 비공개 · 3B verify 재지정은 2026-09-21 승인.
+> 공개 순위 숫자는 서버 `gameDiff`(득실)만 쓴다 — 승점(points) 개념 없음.
+
+### 적용 파일
+
+- [x] `supabase/add_hosted_tournament_public_draw.sql`
+
+롤백: `supabase/add_hosted_tournament_public_draw_rollback.sql`
+(get_preliminary_standings · unlock_preliminary_draw 를 **기존 적용 본문 그대로** 복원 → 새 함수 5개 삭제 → 컬럼 삭제)
+
+선행: 섹션 13(3A) · 14(3B) · 15(3C-2) 적용 완료.
+
+### 무엇이 바뀌나
+
+- [x] `hosted_tournaments.preliminary_draw_published_at timestamptz null` 추가 — NULL = 비공개
+      ⚠ `preliminary_draw_status = locked`(운영 잠금)와 **다른 개념**. LOCK 이 자동 공개가 아니다
+- [x] 순위 계산 코어 분리 — `hosted_tournament_preliminary_standings_core(uuid)`
+      3B `get_preliminary_standings` 계산식을 **글자 그대로** 옮김(생성 스크립트로 원문 대조, 11,564자 일치).
+      `get_preliminary_standings` 는 권한 확인 + 코어 호출 래퍼(반환 모양 동일)
+- [x] `publish_preliminary_draw(slug, expected_version)` — locked 에서만 · 조편성 재검증 · version +1 · audit
+- [x] `unpublish_preliminary_draw(slug, reason, expected_version)` — 사유 필수 · version +1 · audit
+- [x] `unlock_preliminary_draw` 재생성 — 공개 중이면 **같은 트랜잭션에서 자동 비공개** + audit(`cause = draw_unlocked`).
+      가산적 변경만(3A/Batch2 verify 가 보는 문자열 유지). 자동 재공개 없음
+- [x] `get_admin_preliminary_draw_publication(slug)` — 운영 화면 공개 상태 조회
+- [x] `get_public_preliminary_draw(slug)` — anon 실행 가능. 대회 공개 · 조편성 locked · 공개 시각 **셋 다** 만족할 때만 반환.
+      uuid · 결과 지문 · 동률 상세 · 확정 사유 · 버전 · 접수 개인정보 · 나이 계열 미반환
+- [x] 원본 테이블 권한 / RLS **변경 없음**
+
+### 3B 카탈로그 verify 재실행 방법
+
+- 원본 `add_hosted_tournament_standings_verify.sql` 의 13개 항목(50 · 52 · 54~64)은
+  `get_preliminary_standings` **본문 문자열**을 검사한다. 코어 분리 후 원본 그대로 실행하면
+  이 13개가 **의도적으로 FAIL** 한다(계산식이 코어로 옮겨졌으므로).
+- 대응(2026-09-21 승인): `add_hosted_tournament_standings_verify_core.sql` — 같은 항목 번호 · 이름 · 기대값으로
+  검사 대상만 코어로 재지정(14 · 41 · 81 은 래퍼와 코어 **둘 다** 검사 — 약화 없음)
+  + 코어 구조 검사 93~97 + **98: 코어 계산 SQL 토큰이 3B 원문과 동일(주석/공백/줄바꿈 제외)**. 총 87항목.
+  98 은 주석 제거 + 공백 정규화 후 토큰 문자열 md5(`b225df53…`)를 비교한다 — 줄바꿈 · 들여쓰기 ·
+  주석 차이는 무시하고, 키워드 · 식별자 · 연산자 · 리터럴 · 식 · ORDER BY 가 한 글자라도 바뀌면 FAIL.
+  (처음의 raw byte md5 방식은 SQL Editor 가 LF → CRLF 로 저장해 FAIL 했다 — 아래 운영 적용 결과 참고.)
+- 3B 기능 fixture `verify_hosted_tournament_standings_fixture.sql` 은 **수정 없이** 재실행한다(60/60 기대).
+
+### 적용 후 확인 (순서)
+
+- [x] `add_hosted_tournament_public_draw_verify.sql` → 44 / 44 ALL PASS
+- [x] `add_hosted_tournament_standings_verify_core.sql` → 87 / 87 ALL PASS (3B 81항목 재지정 + 코어 구조 5 + 토큰 동일성 1)
+- [x] `verify_hosted_tournament_standings_fixture.sql` → PASS=60 FAIL=0 (3B 회귀 없음 · 원본 파일 수정 없음)
+- [x] `verify_hosted_tournament_public_draw_fixture.sql` → PASS=46 FAIL=0 (항상 ERROR 로 끝남 — 의도된 롤백)
+- [ ] 3A · 3C-2 catalog verify 재실행 → 기존 결과 유지
+- [ ] 위가 모두 PASS 한 뒤에만 배포 환경 변수 `NEXT_PUBLIC_PUBLIC_DRAW_ENABLED=1` 로 화면 기능을 켠다
+      (꺼져 있으면 새 RPC 를 호출하지 않는다 — 공개 DRAW 는 '준비 중', Admin 공개 패널 없음)
+
+### 운영 적용 결과 (2026-09-22)
+
+- [x] migration 적용 성공
+- [x] catalog verify **44 / 44 ALL PASS**
+- [x] 3B core verify **87 / 87 ALL PASS**
+      첫 실행은 86/87(98 단독 FAIL). 읽기 전용 `diagnose_standings_core_md5.sql` 로 진단한 결과
+      저장된 코어가 **CRLF 줄바꿈만** 다르고(CR 제거 후 md5 = 원문 `5dc86cfc…`), 토큰 md5 는 원문과 동일(`b225df53…`) —
+      계산식 차이 없음. 코어 재배포 · migration 재실행 없이 98 만 토큰 비교로 바꿔 재실행했다.
+- [x] 3B functional fixture **PASS=60 / FAIL=0** (원본 수정 없이 재실행 — 코어 분리 전후 계산 결과 동일)
+- [x] public DRAW functional fixture **PASS=46 / FAIL=0**
+      첫 실행은 1번 검사 전에 `0A000 cannot use subquery in CALL argument` 로 중단(fixture 문법 문제 ·
+      단일 DO 블록이라 전량 롤백). 46개 검사를 번호 · 이름 · 식 그대로 v_ok 대입 후 CALL 하도록 고쳐 재실행했다.
+- [x] self-test 데이터는 전부 롤백 — 운영 대회 데이터 변경 없음
+- [ ] 2026-teyeon-open DRAW 공개(`publish_preliminary_draw`) — **하지 않음**
+- [ ] 배포 환경 변수 `NEXT_PUBLIC_PUBLIC_DRAW_ENABLED=1` — **아직 켜지 않음**
+
+### ⚠ 하지 않는 것
+
+- [ ] 본선(knockout) · bracket · Realtime · Arena · 알림
+- [ ] 2026-teyeon-open 공개 · 조편성 · 경기 · 점수 · 동률 · 순위결정전 상태 변경
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음

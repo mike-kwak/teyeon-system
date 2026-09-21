@@ -14,6 +14,7 @@ import TournamentNavigation from '@/components/tournaments/TournamentNavigation'
 import PublicTeamList from '@/components/tournaments/PublicTeamList';
 import { getOfficialTournament } from '@/lib/tournaments/officialInfo';
 import { buildHubNavItems, resolvePhase } from '@/lib/tournaments/phase';
+import { usePublicDrawPublished } from '@/components/tournaments/draw/publicDrawView';
 import {
   fetchPublicTournamentStatus,
   fetchPublicTournamentTeams,
@@ -35,6 +36,8 @@ export default function TournamentTeamsPage() {
   const [ready, setReady] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [status, setStatus] = React.useState<string | null>(null);
+  // DRAW 탭 — 운영진이 예선 DRAW 를 공개했을 때만 연다(기능 스위치가 꺼져 있으면 항상 준비 중).
+  const drawPublished = usePublicDrawPublished(event ? event.slug : '');
 
   React.useEffect(() => {
     if (!event) return;
@@ -97,7 +100,7 @@ export default function TournamentTeamsPage() {
   const hubHref = `/tournaments/${event.slug}`;
   // 공개 RPC 가 대회를 돌려주지 않으면(비공개/draft) preparing 으로 본다.
   const phase = resolvePhase(status ? 'registration_open' : null);
-  const navItems = buildHubNavItems({ slug: event.slug, current: 'teams', phase });
+  const navItems = buildHubNavItems({ slug: event.slug, current: 'teams', phase, drawPublished });
 
   return (
     // flexShrink: 0 — GlobalMain 이 flex column + 고정 높이라 없으면 sticky 헤더가 중간에 풀린다.

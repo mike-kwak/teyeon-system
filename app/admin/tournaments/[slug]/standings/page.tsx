@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-// Admin — 예선 순위 / 합산연령 확인 (Batch 3C-2).
+// Admin — 예선 조별리그 메인 (Batch 3C-2). 조를 누르면 standings/[groupNo] 상세로 간다.
 //
 //   ⚠ Public 순위 화면이 아니다. CEO·ADMIN 전용.
 //   ⚠ 표시 데이터는 hosted_tournament_teams 스냅샷뿐이다(접수 PII 미표시).
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, ShieldAlert, ListOrdered } from 'lucide-react';
+import { ChevronLeft, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
 import StandingsBoard from '@/components/tournaments/StandingsBoard';
@@ -54,22 +54,21 @@ export default function AdminTournamentStandingsPage() {
           <ChevronLeft size={16} />
         </Link>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 900, color: '#0F172A' }}>
-            <ListOrdered size={15} strokeWidth={2.4} color="#0E8C80" />
-            예선 순위
-          </p>
-          <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', wordBreak: 'break-all' }}>
+          <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', color: '#0B7A70', wordBreak: 'break-all' }}>
             {event ? event.titleFull : slug}
             {slug.startsWith('fixture-') ? ' · FIXTURE' : ''}
           </p>
+          <h1 style={{ margin: '2px 0 0', fontSize: 22, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
+            예선 조별리그
+          </h1>
         </div>
       </div>
 
       <StandingsBoard slug={slug} />
 
       <p style={{ margin: '12px 2px 0', fontSize: 11.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.7, wordBreak: 'keep-all' }}>
-        순위는 승률 → 게임 득실 두 단계로만 정합니다. 그래도 갈리지 않으면 시스템이 순위를 만들지 않고
-        현장 합산연령 확인 결과를 기다립니다. 나이·생년월일은 저장하지 않으며 확정된 순서만 기록됩니다.
+        순위는 승률 → 게임 득실로만 정합니다. 그래도 같으면 현장에서 합산연령을 확인한 뒤
+        순서만 기록합니다. 나이·생년월일은 저장하지 않습니다.
       </p>
     </div>
   );

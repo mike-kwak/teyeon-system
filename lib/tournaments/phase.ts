@@ -6,7 +6,7 @@
 //
 //   ⚠ 이번 단계 범위
 //     · phase 판정 + 각 탭의 공개 여부/안내 문구까지만 만든다.
-//     · DRAW / LIVE / RESULTS 기능과 라우트는 아직 구현 대상이 아니다 → 계속 'pending'.
+//     · DRAW 는 운영진이 예선 DRAW 를 공개했을 때만 열린다(drawPublished). LIVE / RESULTS 는 계속 'pending'.
 //     · "phase 에 따라 기본 진입 탭을 바꾸는" 동작도 아직 넣지 않는다(아래 TODO 참고).
 //       지금 Hub 의 기본 진입은 항상 INFO 다.
 
@@ -66,15 +66,18 @@ const RELEASE_NOTE: Record<Exclude<TournamentPhaseKey, 'info' | 'teams'>, string
 
 /**
  * Hub 상단 네비게이션 구성.
- *   current  = 지금 보고 있는 화면
- *   phase    = 운영 단계(현재는 안내 문구에만 영향)
+ *   current       = 지금 보고 있는 화면
+ *   phase         = 운영 단계(현재는 안내 문구에만 영향)
+ *   drawPublished = 서버 공개 RPC 가 예선 DRAW 를 돌려줬는가.
+ *                   ⚠ 운영진이 DRAW 를 공개했을 때만 true — 조편성 LOCK 만으로는 열지 않는다.
  */
 export function buildHubNavItems(opts: {
   slug: string;
   current: TournamentPhaseKey;
   phase: TournamentPhase;
+  drawPublished?: boolean;
 }): TournamentNavItem[] {
-  const { slug, current } = opts;
+  const { slug, current, drawPublished = false } = opts;
   const base = `/tournaments/${slug}`;
 
   const item = (
@@ -91,7 +94,7 @@ export function buildHubNavItems(opts: {
   return [
     item('info', 'INFO', base),
     item('teams', 'TEAMS', `${base}/teams`),
-    item('draw', 'DRAW', null, RELEASE_NOTE.draw),
+    item('draw', 'DRAW', drawPublished ? `${base}/draw` : null, RELEASE_NOTE.draw),
     item('live', 'LIVE', null, RELEASE_NOTE.live),
     item('results', 'RESULTS', null, RELEASE_NOTE.results),
   ];

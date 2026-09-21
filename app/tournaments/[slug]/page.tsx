@@ -32,6 +32,7 @@ import {
   type PublicTournamentState,
 } from '@/lib/tournaments/publicService';
 import { buildHubNavItems, resolvePhase } from '@/lib/tournaments/phase';
+import { usePublicDrawPublished } from '@/components/tournaments/draw/publicDrawView';
 
 const REGULATIONS_ANCHOR = '#tournament-regulations';
 
@@ -117,6 +118,8 @@ export default function TournamentHubPage() {
   // 히어로가 화면에서 벗어난 뒤에만 하단 고정 바를 띄운다(첫 화면 CTA 와 중복 방지).
   const heroRef = React.useRef<HTMLDivElement | null>(null);
   const [barShown, setBarShown] = React.useState(false);
+  // DRAW 탭 — 운영진이 예선 DRAW 를 공개했을 때만 연다(기능 스위치가 꺼져 있으면 항상 준비 중).
+  const drawPublished = usePublicDrawPublished(event ? event.slug : '');
 
   React.useEffect(() => {
     if (!event) return;
@@ -162,7 +165,7 @@ export default function TournamentHubPage() {
 
   // 탭 구성은 lib/tournaments/phase 한 곳에서만 정한다(향후 phase 별 기본 탭 확장 지점).
   const phase = resolvePhase(status?.isRegistrationOpen ? 'registration_open' : null);
-  const navItems = buildHubNavItems({ slug: event.slug, current: 'info', phase });
+  const navItems = buildHubNavItems({ slug: event.slug, current: 'info', phase, drawPublished });
 
   return (
     // ⚠️ flexShrink: 0 은 필수다.
