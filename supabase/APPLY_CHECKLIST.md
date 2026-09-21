@@ -860,6 +860,78 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
       Batch 3 의 모든 검증은 fixture 와 self-test 대회에서만 수행했다.
       실제 승격은 **참가접수 마감 후 별도 승인**이 있을 때만 실행한다.
 
+## 15. 주최 대회 — 취소 경기 복구 (Batch 3C-2)
+
+### 적용 파일
+
+- [ ] `supabase/add_hosted_tournament_match_cancel_restore.sql`
+
+롤백: `supabase/add_hosted_tournament_match_cancel_restore_rollback.sql`
+검증: `supabase/add_hosted_tournament_match_cancel_restore_verify.sql` (구조·권한 45항목, 100% 읽기 전용)
+실동작: `supabase/verify_hosted_tournament_match_cancel_restore_fixture.sql` (상태 전이 28항목)
+
+선행: 섹션 13(Batch 3A) + 섹션 14(Batch 3B) 적용 완료.
+
+### 왜 필요한가
+
+운영진이 실수로 취소했거나 재경기를 해야 할 때 CANCELLED 경기를 되살릴 경로가 없었다.
+3A 는 '조용한 되돌리기'를 막기 위해 의도적으로 넣지 않았고 3B 에서도 미뤘다.
+여기서 **CANCELLED → WAITING 하나만** 연다.
+
+### 변경 대상
+
+- [ ] `restore_cancelled_match(uuid, text, integer)` 추가 — **함수 1개뿐**
+- [ ] 테이블 · 컬럼 · 인덱스 · RLS · 기존 RPC 변경 **없음**
+
+### 상태 전이 계약
+
+- [ ] 허용되는 전이는 `CANCELLED → WAITING` **하나뿐**이다.
+      WAITING · CALLING · PLAYING · COMPLETED 는 `match_not_cancelled` 로 거부한다
+- [ ] 완료된 경기의 결과를 고치는 경로는 여전히 `amend_completed_match_score` 뿐이다
+- [ ] 기권 · 노쇼는 이 기능의 대상이 아니다. 처음부터 상대팀 **6:0 COMPLETED**
+- [ ] 복구하면 코트 · 호명/시작/완료 시각 · 점수 · 승자를 **전부 비운다**
+- [ ] `version + 1`, `cancelled_at = null`, 사유 필수(2자 이상), audit `match_cancel_restored`
+- [ ] 권한 · advisory lock · version 대조는 `hosted_tournament_match_begin` 한 곳에서 처리한다
+      (락 네임스페이스가 `hosted-tournament-matches:` 하나로 유지된다)
+
+### 복구와 순위의 관계
+
+- [ ] 복구로 CANCELLED 가 사라지면 그 조의 `policyRequired` 도 사라진다
+- [ ] 다만 경기가 아직 안 끝났으므로 `rankingStatus` 는 **PROVISIONAL 로 남는다**
+- [ ] 이것은 3B `get_preliminary_standings` 가 매번 다시 계산한 결과지,
+      복구 RPC 가 따로 보정하는 값이 **아니다**
+
+### ⚠ 하지 않는 것
+
+- [ ] 이미 운영 적용된 `add_hosted_tournament_matches.sql` 을 수정하지 않는다
+- [ ] Public 순위 화면을 만들지 않는다
+- [ ] 본선(knockout) · bracket · Realtime · Arena · 알림 발송을 만들지 않는다
+
+### 적용 후 확인
+
+- [ ] `..._match_cancel_restore_verify.sql` → **45/45 ALL PASS**
+- [ ] `verify_hosted_tournament_match_cancel_restore_fixture.sql` → **PASS=28 FAIL=0 ALL PASS**
+      ⚠ 이 스크립트도 **항상 ERROR 로 끝난다**(의도된 롤백). ERROR 본문이 결과표다
+
+### 운영 적용 결과 (2026-09-21 완료)
+
+- [x] `add_hosted_tournament_match_cancel_restore.sql` 운영 적용 완료
+- [x] catalog verify **45 / 45 ALL PASS**
+- [x] functional fixture **PASS=28 / FAIL=0 / TOTAL=28 ALL PASS**
+      (마지막 `ERROR` 는 self-test 데이터 전량 롤백을 위한 의도된 예외다)
+- [x] fixture 는 임시 대회(`zz-fixture-restore-selftest`)에서만 돌고 전량 롤백됐다.
+      운영 데이터 무변경
+- [x] Admin UI QA — 320 / 360 / 390 / 430 / 768 폭에서 **135 / 135 PASS · BLOCKER 0**
+      (가로 overflow · 텍스트 잘림 · 배지 겹침 · 다이얼로그 수납 · ↑↓ 버튼 ·
+       토스트 BottomNav 침범 · 마지막 콘텐츠 접근성)
+- [x] Production `2026-teyeon-open` 데이터 무변경 — QA 중 경기 생성 · 점수 입력 ·
+      취소 · 복구 · 순위 확정 · 팀 승격 · 조편성 변경 **0건**
+
+### 함께 확인된 선행 배치 (2026-09-21)
+
+- [x] Batch 3B catalog verify **81 / 81 ALL PASS**
+- [x] Batch 3B functional fixture **60 / 60 ALL PASS**
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음

@@ -8,15 +8,21 @@
 //   ⚠ 기권·노쇼는 별도 상태가 아니라 6:0 경기 완료로 처리한다.
 //   ⚠ stale(조편성 변경) 상태에서 서버는 어떤 동작도 막지 않는다.
 //     그래서 여기서도 임의로 차단하지 않고 경고만 띄운다(정책을 UI 가 만들지 않는다).
+//
+//   Batch 3C-2 추가
+//     · 취소 복구 — CANCELLED → WAITING 하나의 전이만. 서버가 최종 판정한다.
+//     · 결과 수정으로 합산연령 순위 확정이 무효화되면 운영진에게 알린다.
+//       ⚠ 순위를 여기서 계산하지 않는다. 서버가 알려준 건수를 전달할 뿐이다.
 
 import React from 'react';
+import Link from 'next/link';
 import {
   RefreshCw, Search, AlertTriangle, Play, Check, X as XIcon, Megaphone,
-  Pencil, Ban, Trophy, Info,
+  Pencil, Ban, Trophy, Info, RotateCcw, ListOrdered,
 } from 'lucide-react';
 import {
   fetchMatchBoard, generateMatches, callMatch, uncallMatch, startMatch,
-  completeMatch, amendMatchScore, cancelMatch, matchActionMessage,
+  completeMatch, amendMatchScore, cancelMatch, restoreCancelledMatch, matchActionMessage,
 } from '@/lib/tournaments/matchAdminService';
 import {
   MATCH_STATUS_LABEL, isValidSetScore, matchCourtLabel, matchGroupLabel, matchTeamName,
@@ -69,6 +75,7 @@ type Dialog =
   | { kind: 'complete'; m: TournamentMatch }
   | { kind: 'amend'; m: TournamentMatch }
   | { kind: 'cancel'; m: TournamentMatch }
+  | { kind: 'restore'; m: TournamentMatch }
   | null;
 
 /** 6게임 규칙 빠른 선택(오입력 방지). 기권승도 여기 6:0 을 쓴다. */
@@ -89,6 +96,8 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
   const [s1, setS1] = React.useState('');
   const [s2, setS2] = React.useState('');
   const [reason, setReason] = React.useState('');
+  // 결과 수정으로 동률 확정이 무효화됐을 때의 안내. 토스트는 사라지므로 따로 띄운다.
+  const [tieNotice, setTieNotice] = React.useState('');
 
   const say = React.useCallback((m: string) => {
     setToast(m);
@@ -195,6 +204,34 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
             <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#475569', lineHeight: 1.7, wordBreak: 'keep-all' }}>
               경기를 자동으로 지우거나 다시 만들지 않습니다. 조편성을 되돌리거나, 운영진이 직접 판단해 주세요.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── 결과 수정 → 합산연령 순위 확정 무효화 안내 (서버가 알려준 건수) ─ */}
+      {tieNotice && (
+        <div style={{
+          ...card, background: '#FFFBEB', border: '1px solid #FDE68A',
+          display: 'flex', gap: 9, alignItems: 'flex-start',
+        }}>
+          <AlertTriangle size={18} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#B45309', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+              {tieNotice}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#475569', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+              예선 순위 화면에서 해당 조의 순서를 다시 확인해 주세요.
+            </p>
+            <div style={{ display: 'flex', gap: 7, marginTop: 9, flexWrap: 'wrap' }}>
+              <Link href={`/admin/tournaments/${slug}/standings`}
+                    style={{ ...btn('primary'), minHeight: 34, fontSize: 12, textDecoration: 'none' }}>
+                <ListOrdered size={13} strokeWidth={2.4} /> 예선 순위 확인
+              </Link>
+              <button type="button" onClick={() => setTieNotice('')}
+                      style={{ ...btn(), minHeight: 34, fontSize: 12 }}>
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -471,9 +508,16 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                     </button>
                   )}
                   {m.status === 'cancelled' && (
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8' }}>
-                      공식 결과 없음 (취소됨)
-                    </span>
+                    <>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', alignSelf: 'center' }}>
+                        공식 결과 없음 (취소됨)
+                      </span>
+                      <button type="button" disabled={!!busy}
+                        onClick={() => { setReason(''); setDlg({ kind: 'restore', m }); }}
+                        style={btn()}>
+                        <RotateCcw size={12} strokeWidth={2.4} /> 취소 복구
+                      </button>
+                    </>
                   )}
                   {mine && <span style={{ fontSize: 11.5, fontWeight: 800, color: '#0E8C80', alignSelf: 'center' }}>처리 중…</span>}
                 </div>
@@ -506,6 +550,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
               {dlg.kind === 'start' ? '경기 시작 — 코트 선택'
                 : dlg.kind === 'complete' ? '경기 완료 — 점수 입력'
                 : dlg.kind === 'amend' ? '결과 수정'
+                : dlg.kind === 'restore' ? '취소 복구 — 대기 상태로 되돌리기'
                 : '경기 취소'}
             </p>
             <p style={{ margin: '4px 0 0', fontSize: 12.5, fontWeight: 700, color: '#64748B', wordBreak: 'keep-all' }}>
@@ -632,6 +677,35 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
               </>
             )}
 
+            {/* restore — 취소 복구 (CANCELLED → WAITING 하나뿐) */}
+            {dlg.kind === 'restore' && (
+              <>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                  <AlertTriangle size={14} color="#B45309" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#0F172A', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+                    경기를 <strong>대기</strong> 상태로 되돌립니다.
+                    <strong>재경기</strong>를 진행하거나 <strong>잘못된 취소</strong>를 바로잡을 때만 사용하세요.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, padding: '10px 12px', borderRadius: 9, background: '#F8FAFC', border: '1px solid #EEF2F6' }}>
+                  <Info size={14} color="#94A3B8" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#475569', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+                    기권·노쇼는 이 기능의 대상이 아닙니다. 처음부터 상대팀 <strong>6:0 완료</strong>로 입력해 주세요.
+                    복구하면 코트·호명·점수 기록이 모두 비워지고 경기를 처음부터 다시 진행합니다.
+                  </p>
+                </div>
+                <div style={{ marginTop: 11 }}>
+                  <p style={{ ...label, fontSize: 10 }}>복구 사유 (필수)</p>
+                  <input style={{ ...input, marginTop: 5 }} maxLength={120}
+                    placeholder="예: 취소 오입력 · 재경기 진행" value={reason}
+                    onChange={(e) => setReason(e.target.value)} />
+                  <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 600, color: '#94A3B8' }}>
+                    사유는 운영 기록에 남습니다.
+                  </p>
+                </div>
+              </>
+            )}
+
             {/* 다이얼로그 액션 */}
             <div style={{ display: 'flex', gap: 8, marginTop: 15 }}>
               <button type="button" onClick={closeDlg} style={{ ...btn(), flex: 1, minHeight: 44 }}>닫기</button>
@@ -653,7 +727,16 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                 <button type="button"
                   disabled={!!busy || !isValidSetScore(Number(s1), Number(s2)) || reason.trim().length < 2}
                   onClick={() => void run(`amend-${dlg.m.matchId}`, async () => {
-                    await amendMatchScore(dlg.m.matchId, Number(s1), Number(s2), reason.trim(), dlg.m.version);
+                    const r = await amendMatchScore(
+                      dlg.m.matchId, Number(s1), Number(s2), reason.trim(), dlg.m.version,
+                    );
+                    // ⚠ 서버가 같은 트랜잭션에서 이미 무효화했다. 여기서 따로 호출하지 않는다.
+                    if (r.invalidatedResolutions > 0) {
+                      setTieNotice(
+                        `점수가 수정되어 ${matchGroupLabel(dlg.m)}의 합산연령 순위 확정 `
+                        + `${r.invalidatedResolutions}건이 무효화되었습니다.`,
+                      );
+                    }
                     return `#${dlg.m.matchNo} 결과를 ${s1}:${s2} 로 수정했습니다.`;
                   })}
                   style={{ ...btn('primary'), flex: 2, minHeight: 44,
@@ -674,6 +757,21 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                   경기 취소
                 </button>
               )}
+
+              {dlg.kind === 'restore' && (
+                <button type="button"
+                  disabled={!!busy || reason.trim().length < 2}
+                  onClick={() => void run(`restore-${dlg.m.matchId}`, async () => {
+                    const r = await restoreCancelledMatch(
+                      dlg.m.matchId, reason.trim(), dlg.m.version,
+                    );
+                    return `#${r.matchNo} 경기를 대기 상태로 되돌렸습니다.`;
+                  })}
+                  style={{ ...btn('primary'), flex: 2, minHeight: 44,
+                           opacity: reason.trim().length >= 2 ? 1 : 0.45 }}>
+                  대기로 되돌리기
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -681,7 +779,9 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
 
       {toast && (
         <div role="status" style={{
-          position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)',
+          position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+          // ⚠ Admin BottomNav(모바일, 약 54px + safe-area) 위로 띄운다.
+          bottom: 'calc(68px + env(safe-area-inset-bottom))',
           maxWidth: 'calc(100vw - 32px)', padding: '11px 16px', borderRadius: 10,
           background: '#0F172A', color: '#fff', fontSize: 12.5, fontWeight: 700,
           lineHeight: 1.6, zIndex: 90, wordBreak: 'keep-all', textAlign: 'center',

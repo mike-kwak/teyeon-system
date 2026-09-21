@@ -2,23 +2,23 @@
 
 export const dynamic = 'force-dynamic';
 
-// Admin — 예선 경기 운영 (Batch 3C-1).
+// Admin — 예선 순위 / 합산연령 확인 (Batch 3C-2).
 //
-//   ⚠ 최종 Control Center 디자인이 아니다. Batch 3A 경기 엔진을 실제 계정으로 검증하고
-//     현장에서 경기를 돌려 보기 위한 최소 운영 화면이다.
+//   ⚠ Public 순위 화면이 아니다. CEO·ADMIN 전용.
 //   ⚠ 표시 데이터는 hosted_tournament_teams 스냅샷뿐이다(접수 PII 미표시).
-//   ⚠ Standings / 합산연령 / 본선은 이 화면 범위가 아니다.
+//   ⚠ 순위·진출 판정을 화면에서 계산하지 않는다. 서버 값을 그대로 보여준다.
+//   ⚠ 본선(knockout) · 대진표는 이 화면 범위가 아니다.
 
 import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, ShieldAlert, Swords, ListOrdered } from 'lucide-react';
+import { ChevronLeft, ShieldAlert, ListOrdered } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
-import MatchOpsBoard from '@/components/tournaments/MatchOpsBoard';
+import StandingsBoard from '@/components/tournaments/StandingsBoard';
 import { getOfficialTournament } from '@/lib/tournaments/officialInfo';
 
-export default function AdminTournamentMatchesPage() {
+export default function AdminTournamentStandingsPage() {
   const params = useParams<{ slug: string }>();
   const slug =
     typeof params?.slug === 'string' ? params.slug
@@ -43,8 +43,8 @@ export default function AdminTournamentMatchesPage() {
     <div style={{ maxWidth: 880, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Link
-          href={`/admin/tournaments/${slug}/groups`}
-          aria-label="예선 조편성"
+          href={`/admin/tournaments/${slug}/matches`}
+          aria-label="경기 운영"
           style={{
             width: 30, height: 30, borderRadius: '50%', border: '1px solid #E2E8F0', background: '#fff',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -55,8 +55,8 @@ export default function AdminTournamentMatchesPage() {
         </Link>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 900, color: '#0F172A' }}>
-            <Swords size={15} strokeWidth={2.4} color="#0E8C80" />
-            예선 경기 운영
+            <ListOrdered size={15} strokeWidth={2.4} color="#0E8C80" />
+            예선 순위
           </p>
           <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', wordBreak: 'break-all' }}>
             {event ? event.titleFull : slug}
@@ -65,26 +65,11 @@ export default function AdminTournamentMatchesPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <Link
-          href={`/admin/tournaments/${slug}/standings`}
-          style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            minHeight: 34, padding: '7px 12px', borderRadius: 8,
-            border: '1px solid #E2E8F0', background: '#fff', color: '#475569',
-            fontSize: 12.5, fontWeight: 800, textDecoration: 'none',
-          }}
-        >
-          <ListOrdered size={13} strokeWidth={2.4} />
-          예선 순위
-        </Link>
-      </div>
-
-      <MatchOpsBoard slug={slug} />
+      <StandingsBoard slug={slug} />
 
       <p style={{ margin: '12px 2px 0', fontSize: 11.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.7, wordBreak: 'keep-all' }}>
-        기권·노쇼는 별도 상태 없이 상대팀 6:0 승리로 입력합니다. “취소”는 공식 결과가 없는 경기를 뜻합니다.
-        잘못 취소했거나 재경기를 해야 하면 취소 카드의 “취소 복구”로 대기 상태로 되돌릴 수 있습니다.
+        순위는 승률 → 게임 득실 두 단계로만 정합니다. 그래도 갈리지 않으면 시스템이 순위를 만들지 않고
+        현장 합산연령 확인 결과를 기다립니다. 나이·생년월일은 저장하지 않으며 확정된 순서만 기록됩니다.
       </p>
     </div>
   );

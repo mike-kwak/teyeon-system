@@ -37,16 +37,18 @@ export type QualificationStatus = 'QUALIFIED' | 'NOT_QUALIFIED' | 'PENDING';
  */
 export type GroupPolicyRequired = 'cancelled_matches_present';
 
+// ⚠ 운영진이 배지만 보고 바로 알아야 하므로 줄임말을 쓰지 않는다.
+//   '잠정' · '확정' 은 무엇이 잠정인지 드러나지 않아 3C-2 에서 풀어 썼다.
 export const RANKING_STATUS_LABEL: Record<GroupRankingStatus, string> = {
-  PROVISIONAL: '잠정',
+  PROVISIONAL: '진행 중',
   AGE_CHECK_REQUIRED: '합산연령 확인 필요',
-  FINAL: '확정',
+  FINAL: '순위 확정',
 };
 
 export const QUALIFICATION_LABEL: Record<QualificationStatus, string> = {
   QUALIFIED: '본선 진출',
-  NOT_QUALIFIED: '탈락',
-  PENDING: '미정',
+  NOT_QUALIFIED: '예선 탈락',
+  PENDING: '진출 확인 중',
 };
 
 export const GROUP_POLICY_LABEL: Record<GroupPolicyRequired, string> = {

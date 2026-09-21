@@ -22,7 +22,7 @@ const isMissingRelation = (err: unknown): boolean => {
     code === '42P01' ||
     code === 'PGRST202' ||
     code === 'PGRST205' ||
-    (/hosted_tournament_matches|generate_group_matches|(call|uncall|start|complete|cancel)_match|amend_completed_match_score|get_admin_match_board/.test(
+    (/hosted_tournament_matches|generate_group_matches|(call|uncall|start|complete|cancel)_match|amend_completed_match_score|restore_cancelled_match|get_admin_match_board/.test(
       msg,
     ) &&
       /does not exist|schema cache|Could not find/.test(msg))
@@ -264,6 +264,36 @@ export async function cancelMatch(
   });
 }
 
+export interface RestoreMatchResult extends MatchWriteResult {
+  matchNo: number;
+  /** 복구 후 상태. 서버 계약상 항상 'waiting' 이다. */
+  status: MatchStatus;
+}
+
+/**
+ * 취소 경기 복구 (Batch 3C-2).
+ *
+ *   ⚠ CANCELLED → WAITING **하나의 전이만** 가능하다.
+ *     WAITING/CALLING/PLAYING/COMPLETED 는 서버가 match_not_cancelled 로 거부한다.
+ *   ⚠ 완료된 경기의 결과를 고치는 경로가 아니다(그건 amendMatchScore).
+ *   ⚠ 기권·노쇼 처리 경로도 아니다(그건 처음부터 6:0 completeMatch).
+ *   ⚠ 복구되면 코트·호명/시작/완료 시각·점수·승자가 전부 비워진다. 서버가 한다.
+ */
+export async function restoreCancelledMatch(
+  matchId: string, reason: string, expectedVersion: number,
+): Promise<RestoreMatchResult> {
+  const { data, error } = await supabase.rpc('restore_cancelled_match', {
+    p_match_id: matchId, p_reason: reason, p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  return {
+    version: num(o.version),
+    matchNo: num(o.matchNo),
+    status: (str(o.status) || 'waiting') as MatchStatus,
+  };
+}
+
 // ── 오류 문구 ────────────────────────────────────────────────────────────────
 
 /** RPC reason / SQLSTATE 를 운영자용 한국어 한 줄로. 내부 상세를 노출하지 않는다. */
@@ -297,6 +327,8 @@ export function matchActionMessage(err: unknown): string {
     case 'reason_required':         return '사유를 입력해 주세요.';
     case 'match_not_completed':     return '완료된 경기만 결과를 수정할 수 있습니다.';
     case 'match_already_completed': return '완료된 경기는 취소할 수 없습니다. 결과를 고치려면 수정 기능을 쓰세요.';
+    case 'match_not_cancelled':     return '취소된 경기만 복구할 수 있습니다. 화면을 새로고침한 뒤 다시 확인해 주세요.';
+    case 'cancelled_match_has_result': return '이 경기에 결과가 남아 있어 복구할 수 없습니다. 운영진에게 확인해 주세요.';
 
     default:                        return '처리에 실패했습니다. 잠시 후 다시 시도해 주세요.';
   }
