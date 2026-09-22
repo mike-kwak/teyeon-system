@@ -6,8 +6,9 @@
 //     · "신청 완료 = 참가 확정"으로 읽히지 않게 한다. 완료 화면 전체에서 이 구분이 가장 눈에 띄어야 한다.
 //     · applied(우선 참가 대상)와 waitlisted(대기 접수)는 화면을 다르게 구성한다.
 //     · ⚠ waitlisted 에는 입금 안내·계좌·입금 CTA 를 절대 표시하지 않는다.
-//       대기팀(49~60) 입금 정책이 확정되지 않았으므로 서버도 계좌를 내려주지 않고(payment=null),
-//       화면도 입금을 유도하는 문구를 만들지 않는다.
+//       대기팀(정상 참가 60팀 이후)은 운영진의 참가 가능 안내를 받은 뒤 입금한다. 서버도 계좌를
+//       내려주지 않고(payment=null), 화면은 "안내 전에는 입금하지 마세요"를 분명히 보여 준다.
+//     · 대기 순번은 서버가 접수 시점에 계산한 waitlistPosition 만 표시한다(화면에서 계산하지 않는다).
 //     · 접수증이 없으면(직접 URL 진입 / 세션 유실) 안전한 안내만 보여준다 — 가짜 완료 화면을 만들지 않는다.
 
 import React from 'react';
@@ -301,6 +302,7 @@ export default function TournamentRegistrationComplete({ event, receipt, hubHref
   if (!receipt) return <NoReceipt event={event} hubHref={hubHref} onLeave={onLeave} />;
 
   const waitlisted = receipt.registrationStatus === 'waitlisted';
+  const waitPos = waitlisted ? receipt.waitlistPosition : null;
   const accent = waitlisted ? '#B45309' : TT.teal;
   const accentSoft = waitlisted ? '#FEF3C7' : TT.tealSoft;
 
@@ -341,8 +343,22 @@ export default function TournamentRegistrationComplete({ event, receipt, hubHref
             wordBreak: 'keep-all',
           }}
         >
-          {waitlisted ? '대기 접수되었습니다' : '참가신청 접수 완료'}
+          {waitlisted ? '대기 접수가 완료되었습니다.' : '참가신청 접수 완료'}
         </p>
+        {waitPos !== null && (
+          <p
+            style={{
+              margin: '10px 0 0',
+              fontSize: 17,
+              fontWeight: 900,
+              color: accent,
+              lineHeight: 1.4,
+              wordBreak: 'keep-all',
+            }}
+          >
+            현재 대기 {waitPos}번입니다.
+          </p>
+        )}
         <p
           style={{
             margin: '10px 0 0',
@@ -354,9 +370,27 @@ export default function TournamentRegistrationComplete({ event, receipt, hubHref
           }}
         >
           {waitlisted
-            ? '참가 가능 여부는 운영진 확인 후 안내됩니다.'
+            ? '참가 가능 여부는 순서대로 안내드립니다.'
             : '접수번호를 저장해 주세요. 접수 내용 확인 시 사용됩니다.'}
         </p>
+        {waitlisted && (
+          <p
+            role="note"
+            style={{
+              margin: '12px 0 0',
+              padding: '10px 12px',
+              borderRadius: 9,
+              backgroundColor: accentSoft,
+              color: '#92400E',
+              fontSize: 13.5,
+              fontWeight: 800,
+              lineHeight: 1.6,
+              wordBreak: 'keep-all',
+            }}
+          >
+            운영진 안내 전에는 입금하지 마세요.
+          </p>
+        )}
       </section>
 
       {/* 접수번호 */}
@@ -419,7 +453,7 @@ export default function TournamentRegistrationComplete({ event, receipt, hubHref
                   fontWeight: 800,
                 }}
               >
-                {waitlisted ? '대기 접수' : '접수 완료'}
+                {waitlisted ? (waitPos !== null ? `대기 ${waitPos}번` : '대기 접수') : '접수 완료'}
               </span>
             }
           />
@@ -504,8 +538,9 @@ export default function TournamentRegistrationComplete({ event, receipt, hubHref
             wordBreak: 'keep-all',
           }}
         >
-          입금 확인 및 운영진 확인 후 최종 참가 확정됩니다.
-          {waitlisted && ' 대기 접수는 참가 가능 여부가 확인된 뒤 운영진이 개별 안내드립니다.'}
+          {waitlisted
+            ? '대기 접수는 참가 확정이 아닙니다. 빈자리가 생기면 대기 순서대로 운영진이 개별 연락드리며, 안내를 받은 뒤 입금하시면 입금 확인 후 참가 확정됩니다. 앞 순번의 취소 · 참가 등으로 대기 순번은 달라질 수 있습니다.'
+            : '입금 확인 및 운영진 확인 후 최종 참가 확정됩니다.'}
         </p>
       </section>
 

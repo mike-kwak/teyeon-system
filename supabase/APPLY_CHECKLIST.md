@@ -1007,6 +1007,49 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
 - [ ] 본선(knockout) · bracket · Realtime · Arena · 알림
 - [ ] 2026-teyeon-open 공개 · 조편성 · 경기 · 점수 · 동률 · 순위결정전 상태 변경
 
+## 17. 주최 대회 — 정원 / 대기팀 정책 재정의 (48 목표 · 60 정상 · 이후 대기)
+
+### 적용 파일 (이 순서대로, 파일 하나씩)
+
+- [ ] `supabase/add_hosted_tournament_waitlist_policy.sql`  ← 본 적용 (단일 트랜잭션)
+- [ ] `supabase/add_hosted_tournament_waitlist_policy_verify.sql`  ← 읽기 전용 · 54개 검사 · 마지막 행 `ALL PASS · 54/54`
+- [ ] `supabase/verify_hosted_tournament_waitlist_policy_fixture.sql`  ← 실동작 57개 검사 · **항상 ERROR 로 끝나는 게 정상**(전량 롤백) · 본문 `PASS=57  FAIL=0  → ALL PASS`
+- 되돌림: `supabase/add_hosted_tournament_waitlist_policy_rollback.sql` (정책 적용 직전 함수 정의로 복원 · 데이터 무변경)
+
+### 확정 정책
+
+- 48(target_capacity) = 목표 모집 수 · 안내용. 서버 판정에 쓰지 않는다.
+- 60(max_capacity) = 정상 참가 최대 슬롯. 정상 슬롯 = `applied + confirmed` (waitlisted 제외).
+- 신규 신청: 정상 < 60 **이고** 대기 0 → `applied` / 그 외 → `waitlisted` (대기팀을 앞지르지 않는다).
+- 정원 때문에 신청을 막지 않는다(`TOURNAMENT_FULL` 제거 · 대기 상한 없음). 마감은 status · 접수 기간으로만.
+- 대기 순번 = waitlisted 를 `sequence_no ASC` 로 조회 시 계산(컬럼 없음). sequence_no / registration_no 불변.
+- 승격은 수동: `promote_waitlisted_tournament_registration` (waitlisted → applied, 입금 상태 pending 유지).
+  대기 1번이 아니면 사유 필수 → 이력 note. 정상 슬롯 60 이면 서버가 차단(`NORMAL_CAPACITY_FULL`).
+- `set_tournament_registration_status`: applied / confirmed 로 **새로 들어가는** 전환은 lock 안에서 정상 < 60 재확인.
+
+### ⚠ 적용 순서
+
+1. [ ] 이 SQL 먼저 적용 → verify → fixture (구버전 앱과 호환: 새 응답 키는 추가만, 기존 키 의미 유지)
+2. [ ] 앱 배포 (Hub · 신청 · 완료 · 참가팀 · Admin 문구/표시)
+   - SQL 없이 앱만 먼저 나가도 판정은 옛 서버가 한다. 단, 정상 48팀 이후 옛 서버가 대기로 받으므로
+     **정상 48팀 도달 전에 1번을 끝낼 것.**
+
+### 적용 전 확인 (읽기 전용)
+
+- [ ] 2026-teyeon-open `waitlisted = 0` (0 이 아니면 적용 전 보고 — 기존 대기 행 보정은 이번 범위 밖)
+
+### ⚠ 하지 않는 것
+
+- [ ] 테이블 · 컬럼 · CHECK · index · RLS · raw table 권한 변경
+- [ ] 기존 신청 행 UPDATE (backfill 없음) · 입금 상태 모델 확장 · 자동 승격
+
+### TODO (범위 밖 · 운영 체크)
+
+- [ ] **confirmed 팀을 취소/거절해도 `hosted_tournament_teams` 의 팀 행은 active 로 남는다.**
+      대기팀 승격으로 빈자리를 채울 때, 취소된 팀의 Team 은 운영진이 Teams 화면에서 직접 `withdrawn` 처리해야 한다.
+- [ ] 취소 · 거절 팀을 대기(waitlisted)로 되살리면 원래 sequence_no 기준으로 대기 순번이 계산되어 앞 순번이 될 수 있다.
+      운영상 필요할 때만 쓰고, 보통은 새로 신청받는다.
+
 ## 흔한 실패 원인
 
 - [ ] SQL Editor에 파일 경로만 붙여넣음

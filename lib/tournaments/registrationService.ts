@@ -58,10 +58,15 @@ export interface TournamentRegistrationReceipt {
   player2Name: string;
   entryFee: number;
   /**
+   * 대기 순번(1..N). 서버가 lock 안에서 계산해 'waitlisted' 응답에만 싣는다. 그 외 null.
+   *   ⚠ 접수 시점의 순번이다. 이후 앞 순번 취소 · 승격으로 줄어들 수 있다(원본 접수번호는 불변).
+   */
+  waitlistPosition: number | null;
+  /**
    * 입금 안내. 서버가 'applied'(우선 참가 대상)로 접수된 신청에만 내려준다.
    *   · 공개 Hub RPC(get_public_tournament)에는 계좌가 들어 있지 않다 — 방문자 누구에게나 공개하지 않는다.
-   *   · 'waitlisted'(대기 접수)에는 서버가 계좌를 주지 않는다. 대기팀 입금 정책이 미확정이므로
-   *     화면이 입금을 유도할 수 있는 데이터 자체를 갖지 않게 한다.
+   *   · 'waitlisted'(대기 접수)에는 서버가 계좌를 주지 않는다. 대기팀은 운영진의 참가 가능 안내를
+   *     받은 뒤 입금하므로, 화면이 입금을 유도할 수 있는 데이터 자체를 갖지 않게 한다.
    */
   payment: TournamentPaymentInfo | null;
 }
@@ -73,6 +78,12 @@ const parsePayment = (d: Record<string, unknown>): TournamentPaymentInfo | null 
   const bankHolder = String(d.bankHolder || '').trim();
   if (!bankName || !bankAccount || !bankHolder) return null;
   return { bankName, bankAccount, bankHolder };
+};
+
+/** 서버가 준 대기 순번만 받는다. 1 이상의 정수가 아니면 null(순번을 지어내지 않는다). */
+const toPosition = (v: unknown): number | null => {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 ? n : null;
 };
 
 export async function submitTournamentRegistration(
@@ -136,6 +147,7 @@ export async function submitTournamentRegistration(
     player1Name: String(d.player1Name || ''),
     player2Name: String(d.player2Name || ''),
     entryFee: Number(d.entryFee) || 0,
+    waitlistPosition: toPosition(d.waitlistPosition),
     payment: parsePayment(d),
   };
 }
@@ -150,10 +162,11 @@ export function registrationSubmitMessage(err: unknown): string {
   const msg = String(e?.message || '');
 
   if (msg.includes('TOURNAMENT_NOT_OPEN')) return '현재 참가 신청을 받고 있지 않습니다.';
-  // 마감일 도래와 정원 만석은 원인이 다르므로 문구를 명확히 구분한다(서버 에러 코드는 변경하지 않는다).
+  // 정원이 차도 신청은 대기 접수로 받는다 — 접수 마감은 기간 · 대회 상태로만 난다.
   if (msg.includes('REGISTRATION_CLOSED')) return '참가 신청 접수가 마감되었습니다.';
+  // 구버전 서버(정책 SQL 적용 전)가 던질 수 있는 코드. 새 정책에서는 발생하지 않는다.
   if (msg.includes('TOURNAMENT_FULL')) {
-    return '모집 정원이 모두 찼습니다. 추가 접수 및 참가 관련 문의는 대회 운영본부로 문의해 주세요.';
+    return '접수 처리 중 정원 확인에 실패했습니다. 잠시 후 다시 시도하거나 대회 운영본부로 문의해 주세요.';
   }
   if (msg.includes('DUPLICATE_REGISTRATION') || code === '23505') {
     return '이미 접수된 신청이 있습니다. 수정이 필요하면 대회 운영본부로 연락해 주세요.';
@@ -199,6 +212,7 @@ export function readRegistrationReceipt(slug: string): TournamentRegistrationRec
       player1Name: String(d.player1Name || ''),
       player2Name: String(d.player2Name || ''),
       entryFee: Number(d.entryFee) || 0,
+      waitlistPosition: toPosition(d.waitlistPosition),
       payment: d.payment && typeof d.payment === 'object'
         ? parsePayment(d.payment as unknown as Record<string, unknown>)
         : null,

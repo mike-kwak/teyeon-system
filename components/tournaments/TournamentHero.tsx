@@ -23,10 +23,10 @@ interface Props {
 }
 
 /**
- * 정원 만석으로 접수가 닫힌 상태의 CTA 자리.
- *   신청 버튼을 그대로 두면 사용자가 폼을 전부 작성한 뒤에야 만석을 알게 된다.
+ * 접수가 닫힌 상태(마감 · 준비 중 · 확인 불가)의 CTA 자리.
+ *   ⚠ 정원이 차도 접수는 닫히지 않는다(대기 접수). 마감은 접수 기간 · 대회 상태로만 난다.
  *   ⚠ 표시 전용이다. 접수 가능 여부 판정은 서버(get_public_tournament.isRegistrationOpen)가 하고,
- *      최종 차단은 submit RPC 의 TOURNAMENT_FULL 이 한다. 여기서 판정 로직을 만들지 않는다.
+ *      최종 판정은 submit RPC 가 한다. 여기서 판정 로직을 만들지 않는다.
  */
 function ClosedCta({ state, onRetry }: { state: RegistrationCtaState; onRetry?: () => void }) {
   const copy = CTA_COPY[state];
@@ -73,6 +73,29 @@ function ClosedCta({ state, onRetry }: { state: RegistrationCtaState; onRetry?: 
         </button>
       )}
     </div>
+  );
+}
+
+/** 대기 접수 CTA 아래 안내 — 신청 전에 '대기 접수'임을 분명히 알린다. */
+function WaitlistCtaNote() {
+  return (
+    <p
+      role="note"
+      style={{
+        margin: '8px 0 0',
+        padding: '9px 12px',
+        borderRadius: 9,
+        backgroundColor: '#FEF3C7',
+        color: '#92400E',
+        fontSize: 12.5,
+        fontWeight: 700,
+        lineHeight: 1.6,
+        textAlign: 'center',
+        wordBreak: 'keep-all',
+      }}
+    >
+      {CTA_COPY.waitlist.sub}
+    </p>
   );
 }
 
@@ -211,10 +234,11 @@ export default function TournamentHero({ event, registerHref, regulationsHref, c
           WebkitTapHighlightColor: 'transparent',
         }}
       >
-        참가 신청하기
+        {CTA_COPY[ctaState].title}
         <ArrowRight size={17} strokeWidth={2.4} />
       </Link>
       )}
+      {ctaState === 'waitlist' && <WaitlistCtaNote />}
 
       <a
         href={regulationsHref}

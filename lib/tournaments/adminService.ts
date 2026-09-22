@@ -33,6 +33,8 @@ export interface AdminHostedTournament {
   targetCapacity: number;
   maxCapacity: number;
   activeCount: number;
+  /** 정상 참가 슬롯 점유(applied + confirmed). 정책 SQL 적용 전 서버에는 없어 활성 − 대기로 대신한다. */
+  normalCount: number;
   waitlistedCount: number;
   confirmedCount: number;
   paidCount: number;
@@ -64,6 +66,9 @@ export async function fetchAdminTournaments(): Promise<{
         targetCapacity: num(r.targetCapacity),
         maxCapacity: num(r.maxCapacity),
         activeCount: num(r.activeCount),
+        normalCount: r.normalCount === undefined
+          ? Math.max(num(r.activeCount) - num(r.waitlistedCount), 0)
+          : num(r.normalCount),
         waitlistedCount: num(r.waitlistedCount),
         confirmedCount: num(r.confirmedCount),
         paidCount: num(r.paidCount),
@@ -93,6 +98,11 @@ export interface AdminRegistrationRow {
   note: string | null;
   registrationStatus: RegistrationStatus;
   paymentStatus: PaymentStatus;
+  /**
+   * 대기 순번(1..N) — 서버가 waitlisted 를 sequence_no 순으로 세어 계산한다. waitlisted 가 아니면 null.
+   *   ⚠ 표시 전용. 원본 sequence_no / registration_no 는 바뀌지 않는다.
+   */
+  waitlistPosition: number | null;
   eligibilityConfirmedAt: string | null;
   regulationsConfirmedAt: string | null;
   privacyAgreedAt: string | null;
@@ -118,6 +128,8 @@ const mapRow = (r: Record<string, unknown>): AdminRegistrationRow => ({
   note: (r.note as string) ?? null,
   registrationStatus: (r.registrationStatus as RegistrationStatus) || 'applied',
   paymentStatus: (r.paymentStatus as PaymentStatus) || 'pending',
+  waitlistPosition: Number.isInteger(Number(r.waitlistPosition)) && Number(r.waitlistPosition) >= 1
+    ? Number(r.waitlistPosition) : null,
   eligibilityConfirmedAt: (r.eligibilityConfirmedAt as string) ?? null,
   regulationsConfirmedAt: (r.regulationsConfirmedAt as string) ?? null,
   privacyAgreedAt: (r.privacyAgreedAt as string) ?? null,
@@ -197,6 +209,37 @@ export async function setRegistrationStatus(v: SetRegistrationStatusInput): Prom
   if (error) throw error;
 }
 
+// ── 대기팀 승격 ──────────────────────────────────────────────────────────────
+//   waitlisted → applied. 이 승격이 '입금 요청 대상이 됨'이다(payment_status 는 pending 그대로).
+//   ⚠ 서버가 lock 안에서 정상 슬롯(< max)을 다시 확인하고, 대기 1번이 아니면 사유를 요구한다.
+//      화면의 경고 · 사유 입력은 1차 안내일 뿐이다.
+export interface PromoteWaitlistedResult {
+  registrationNo: string;
+  previousWaitlistPosition: number;
+  exceptional: boolean;
+  normalCount: number;
+  waitlistedCount: number;
+}
+
+export async function promoteWaitlistedRegistration(
+  registrationId: string,
+  reason: string | null,
+): Promise<PromoteWaitlistedResult> {
+  const { data, error } = await supabase.rpc('promote_waitlisted_tournament_registration', {
+    p_registration_id: registrationId,
+    p_reason: reason && reason.trim() ? reason.trim() : null,
+  });
+  if (error) throw error;
+  const d = (data || {}) as Record<string, unknown>;
+  return {
+    registrationNo: String(d.registrationNo || ''),
+    previousWaitlistPosition: num(d.previousWaitlistPosition),
+    exceptional: d.exceptional === true,
+    normalCount: num(d.normalCount),
+    waitlistedCount: num(d.waitlistedCount),
+  };
+}
+
 // ── 선수(파트너) 교체 ────────────────────────────────────────────────────────
 //   ⚠ 이 함수는 신원만 바꾼다. 접수번호·순번·신청상태·입금상태는 서버가 유지한다.
 //      허용 여부(취소/거절/환불 상태 차단)도 서버 RPC 가 최종 판정한다 —
@@ -260,6 +303,10 @@ export function adminActionMessage(err: unknown): string {
   if (msg.includes('REGISTRATION_NOT_FOUND')) return '신청을 찾을 수 없습니다.';
   if (msg.includes('INVALID_PAYMENT_TRANSITION')) return '현재 입금 상태에서는 선택할 수 없는 처리입니다.';
   if (msg.includes('INVALID_STATUS')) return '허용되지 않은 상태입니다.';
+  if (msg.includes('NORMAL_CAPACITY_FULL')) return '정상 참가 슬롯이 가득 찼습니다. 정상 참가 팀의 취소 등으로 빈자리가 생긴 뒤 다시 시도해 주세요.';
+  if (msg.includes('PROMOTION_REASON_REQUIRED')) return '대기 1번이 아닌 팀을 승격하려면 사유를 입력해 주세요.';
+  if (msg.includes('NOT_WAITLISTED')) return '대기 상태인 신청만 승격할 수 있습니다. 목록을 새로고침해 주세요.';
+  // 구버전 서버(정책 SQL 적용 전) 코드
   if (msg.includes('TOURNAMENT_FULL')) return '최대 접수 인원을 초과해 활성 상태로 되돌릴 수 없습니다.';
   if (msg.includes('DUPLICATE_REGISTRATION')) return '같은 팀의 다른 신청이 이미 활성 상태입니다.';
   // 선수 교체 전용

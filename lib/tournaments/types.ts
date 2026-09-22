@@ -104,10 +104,21 @@ export interface OfficialTournament {
 
 /** 공개 접수 현황 — RPC(get_public_tournament) 응답. 개인정보·내부 UUID 미포함. */
 export interface TournamentPublicStatus {
-  /** 활성 신청 팀 수(applied + waitlisted + confirmed). */
+  /** 활성 신청 팀 수(applied + waitlisted + confirmed). legacy — 화면 표시에는 normalCount 를 쓴다. */
   appliedCount: number;
+  /** 정상 참가 슬롯 점유 팀 수(applied + confirmed). 대기팀은 들어가지 않는다. */
+  normalCount: number;
+  /** 대기 접수 팀 수(waitlisted). */
+  waitlistedCount: number;
+  /** 목표 모집 팀 수(48). 안내용 — 판정에 쓰지 않는다. */
   targetCapacity: number;
+  /** 정상 참가 최대 팀 수(60). 이후 신청은 대기 접수(상한 없음). */
   maxCapacity: number;
+  /**
+   * 지금 신청하면 대기 접수가 되는가 — 서버 판정(정상 슬롯 만석 또는 기존 대기팀 존재).
+   *   ⚠ 안내용이다. 실제 applied / waitlisted 는 제출 시점에 서버가 lock 안에서 다시 판정한다.
+   */
+  nextRegistrationWaitlisted: boolean;
   /** 서버가 판정한 접수 가능 여부. 클라이언트 시각으로 재판정하지 않는다. */
   isRegistrationOpen: boolean;
   /** 참가비(원). 공개 RPC 가 내려주는 DB 값. */

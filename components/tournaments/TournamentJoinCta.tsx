@@ -23,7 +23,7 @@ interface Props {
 const HEADLINE: Record<RegistrationCtaState, string> = {
   loading:     '참가 접수 상태를 확인하고 있습니다',
   open:        '참가 접수가 진행 중입니다',
-  full:        '참가 접수가 마감되었습니다',
+  waitlist:    '대기 접수가 진행 중입니다',
   closed:      '참가 접수가 마감되었습니다',
   unpublished: '참가 접수 준비 중입니다',
   unknown:     '참가 접수 상태를 확인할 수 없습니다',
@@ -87,9 +87,10 @@ export default function TournamentJoinCta({ event, status, registerHref, ctaStat
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {status && (
           <div>
-            <p style={factLabel}>현재 접수</p>
+            <p style={factLabel}>정상 참가</p>
             <p style={factValue}>
-              {status.appliedCount} / {status.targetCapacity} TEAMS
+              {status.normalCount} / {status.maxCapacity} TEAMS
+              {status.waitlistedCount > 0 && ` · 대기 ${status.waitlistedCount}팀`}
             </p>
           </div>
         )}
@@ -162,7 +163,7 @@ export default function TournamentJoinCta({ event, status, registerHref, ctaStat
           WebkitTapHighlightColor: 'transparent',
         }}
       >
-        참가 신청하기
+        {copy.title}
       </Link>
       )}
 
@@ -177,9 +178,11 @@ export default function TournamentJoinCta({ event, status, registerHref, ctaStat
           wordBreak: 'keep-all',
         }}
       >
-        {applyOk
+        {ctaState === 'waitlist'
+          ? copy.sub
+          : applyOk
           ? 'TEYEON 회원가입 없이 신청할 수 있습니다'
-          : ctaState === 'full' || ctaState === 'closed'
+          : ctaState === 'closed'
             ? '추가 접수 및 참가 관련 문의는 대회 운영본부로 문의해 주세요'
             : ''}
       </p>

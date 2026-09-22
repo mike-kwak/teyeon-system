@@ -187,7 +187,7 @@ export default function TournamentPayment({ event, status }: Props) {
                 wordBreak: 'keep-all',
               }}
             >
-              대기 접수는 운영진 연락 후 입금해 주세요.
+              대기 접수팀은 운영진의 참가 가능 안내를 받은 후 입금해 주세요.
             </p>
           </div>
         </div>

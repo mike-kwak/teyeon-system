@@ -6,8 +6,8 @@
 //     · 입력 필드는 최소로. 선수 2명 + 팀 정보 + 요청사항 + 확인 4가지가 전부다.
 //     · 확인/동의 문구는 공식 요강 원문 또는 수집 항목 고지만 사용한다 — 새 규정·새 동의 내용 금지.
 //     · "신청 = 참가 확정"으로 오해하지 않도록 접수 흐름을 먼저 보여준다.
-//     · WAITLISTED(49~60팀) 입금 정책은 미확정이므로 입금을 요구하는 문구를 만들지 않는다.
-//       요강 원문("입금 확인 후 참가확정 처리합니다")까지만 인용한다.
+//     · 정상 참가 60팀 이후 신청은 대기 접수(WAITLISTED)다. 대기팀은 운영진 안내 전에는 입금하지 않으므로
+//       폼에서 입금을 요구하는 문구를 만들지 않는다. 요강 원문("입금 확인 후 참가확정 처리합니다")까지만 인용한다.
 //     · 실제 저장·순번·정원 판정은 전부 서버 RPC 담당. 이 컴포넌트는 UI 와 1차 검증만 한다.
 
 import React from 'react';
@@ -52,6 +52,11 @@ interface Props {
   hubHref: string;
   /** 접수 성공 시 호출(5단계 완료 화면 연결 지점). */
   onSubmitted?: (receipt: TournamentRegistrationReceipt) => void;
+  /**
+   * 서버가 '지금 신청하면 대기 접수'라고 알려 준 상태(get_public_tournament.nextRegistrationWaitlisted).
+   *   안내 · 버튼 문구에만 쓴다. 실제 applied / waitlisted 는 제출 시 서버가 다시 판정한다.
+   */
+  waitlistExpected?: boolean;
 }
 
 /** 접수 흐름 — 요강 02 의 절차를 단계로만 표시한다(새 규정 아님). */
@@ -69,7 +74,7 @@ const CONSENT_KEYS: RegistrationFieldKey[] = [
   'mediaNoticeConfirmed',
 ];
 
-export default function TournamentRegistrationForm({ event, hubHref, onSubmitted }: Props) {
+export default function TournamentRegistrationForm({ event, hubHref, onSubmitted, waitlistExpected = false }: Props) {
   const [values, setValues] = React.useState<RegistrationFormValues>(EMPTY_REGISTRATION_FORM);
   const [errors, setErrors] = React.useState<RegistrationErrors>({});
   const [submitting, setSubmitting] = React.useState(false);
@@ -336,7 +341,8 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             wordBreak: 'keep-all',
           }}
         >
-          {event.targetCapacity}팀은 우선 참가 기준이며, 이후 신청은 대기팀으로 접수될 수 있습니다.
+          모집 목표 {event.targetCapacity}팀 · 최대 {event.maxCapacity}팀까지 참가할 수 있으며, {event.maxCapacity}팀 이후
+          신청은 대기 접수됩니다. 대기팀은 운영진 안내 전에는 입금하지 마세요.
         </p>
       </section>
 
@@ -711,7 +717,7 @@ export default function TournamentRegistrationForm({ event, hubHref, onSubmitted
             WebkitTapHighlightColor: 'transparent',
           }}
         >
-          {submitting ? '신청 접수 중…' : '참가 신청하기'}
+          {submitting ? '신청 접수 중…' : waitlistExpected ? '대기 접수 신청하기' : '참가 신청하기'}
         </button>
 
         {blockReason && (

@@ -19,7 +19,7 @@ interface Props {
   registerHref: string;
   /** 히어로 CTA 가 보이는 최상단에서는 숨긴다(중복 노출 방지). */
   shown: boolean;
-  /** 서버 판정에서 온 CTA 상태. 'open' 이 아니면 신청 버튼을 두지 않는다. */
+  /** 서버 판정에서 온 CTA 상태. 'open' · 'waitlist' 가 아니면 신청 버튼을 두지 않는다. */
   ctaState: RegistrationCtaState;
 }
 
@@ -70,7 +70,10 @@ export default function TournamentStickyBar({ event, status, registerHref, shown
                 lineHeight: 1.35,
               }}
             >
-              {status.appliedCount} / {status.targetCapacity} TEAMS
+              {status.normalCount} / {status.maxCapacity} TEAMS
+              {status.waitlistedCount > 0 && (
+                <span style={{ marginLeft: 6, color: '#B45309' }}>· 대기 {status.waitlistedCount}</span>
+              )}
             </p>
           ) : (
             <p
@@ -142,7 +145,7 @@ export default function TournamentStickyBar({ event, status, registerHref, shown
             WebkitTapHighlightColor: 'transparent',
           }}
         >
-          참가 신청하기
+          {CTA_COPY[ctaState].short}
         </Link>
         )}
       </div>

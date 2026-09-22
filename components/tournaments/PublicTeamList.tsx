@@ -251,7 +251,7 @@ export default function PublicTeamList({ teams, ready, loading }: Props) {
                 }}
               >
                 {s.solid && <Check size={11} strokeWidth={3} />}
-                {s.t}
+                {t.publicStatus === 'waitlisted' && t.waitlistPosition ? `대기 ${t.waitlistPosition}` : s.t}
               </span>
             </div>
           );

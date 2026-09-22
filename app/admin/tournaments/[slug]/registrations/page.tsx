@@ -4,8 +4,12 @@ export const dynamic = 'force-dynamic';
 
 // Admin — 주최 대회 참가신청 목록 / 상태 관리.
 //   · 목록은 연락처를 마스킹하고, 원문은 펼친 상세에서만 보여준다.
-//   · 상태 변경은 전부 set_tournament_registration_status RPC 한 경로로만 나간다.
-//     (RPC 가 CEO/ADMIN 재검증 + 정원/중복 재확인 + 이력 기록까지 한 트랜잭션으로 처리)
+//   · 상태 변경은 set_tournament_registration_status RPC 로 나간다.
+//     (RPC 가 CEO/ADMIN 재검증 + 정상 슬롯/중복 재확인 + 이력 기록까지 한 트랜잭션으로 처리)
+//   · 대기팀 승격(waitlisted → applied)은 promote_waitlisted_tournament_registration RPC 한 경로로만 나간다.
+//     서버가 lock 안에서 정상 슬롯(< 최대)을 다시 확인하고, 대기 1번이 아니면 사유를 요구해 이력에 남긴다.
+//     승격 = '입금 요청 대상이 됨'. 입금 상태는 미입금 그대로이며 운영진이 개별 연락한다.
+//   · 대기 순번은 서버가 계산한 waitlistPosition 만 쓴다(원본 접수번호 · 순번은 바뀌지 않는다).
 //   · 입금 상태는 운영 내부 정보다. 공개 화면에 절대 내보내지 않는다.
 //   · 선수(파트너) 교체는 set_tournament_registration_players RPC 한 경로로만 나간다.
 //     접수번호·순번·신청상태·입금상태는 서버가 유지하고, 이력의 연락처는 마스킹되어 저장된다.
@@ -20,8 +24,8 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
 import {
-  fetchAdminRegistrations, fetchRegistrationHistory, setRegistrationStatus,
-  setRegistrationPlayers, canEditPlayers,
+  fetchAdminRegistrations, fetchAdminTournaments, fetchRegistrationHistory, setRegistrationStatus,
+  setRegistrationPlayers, canEditPlayers, promoteWaitlistedRegistration,
   adminActionMessage, maskPhone, formatPhone,
   REGISTRATION_STATUS_LABEL, PAYMENT_STATUS_LABEL, HISTORY_ACTION_LABEL,
   type AdminRegistrationRow, type RegistrationHistoryRow, type SetRegistrationPlayersInput,
@@ -419,12 +423,113 @@ function PlayerEdit({ row, busy, onSubmit }: {
   );
 }
 
+// ── 대기팀 승격 ──────────────────────────────────────────────────────────────
+//   대기 1번 → 확인 한 번으로 승격.
+//   대기 2번 이후 → 경고 → 사유 입력 → 승격 (사유가 비면 버튼이 잠긴다. 서버도 사유를 다시 요구한다).
+//   정상 슬롯이 이미 가득이면 버튼을 잠근다(최종 차단은 서버 NORMAL_CAPACITY_FULL).
+interface CapacityView { normal: number; max: number | null }
+
+function PromoteControl({ row, first, capacity, busy, onPromote, compact }: {
+  row: AdminRegistrationRow;
+  /** 현재 대기 1번(예외 경고 문구용). */
+  first: AdminRegistrationRow | null;
+  capacity: CapacityView;
+  busy: boolean;
+  onPromote: (reason: string | null) => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [reason, setReason] = React.useState('');
+  React.useEffect(() => { setOpen(false); setReason(''); }, [row.id, row.waitlistPosition]);
+
+  const pos = row.waitlistPosition;
+  if (row.registrationStatus !== 'waitlisted' || pos === null) return null;
+  const full = capacity.max !== null && capacity.normal >= capacity.max;
+  const exceptional = pos > 1;
+  const reasonOk = reason.trim().length > 0;
+
+  const btn = (label: string, onClick: () => void, tone: 'primary' | 'warn', disabled: boolean) => (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+        minHeight: compact ? 34 : 38, padding: compact ? '7px 11px' : '9px 12px', borderRadius: 9,
+        border: `1px solid ${tone === 'primary' ? '#047857' : '#F59E0B'}`,
+        background: tone === 'primary' ? '#047857' : '#FFFBEB',
+        color: tone === 'primary' ? '#fff' : '#92400E',
+        fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap',
+        cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  if (full) {
+    return (
+      <span style={{ fontSize: 11.5, fontWeight: 800, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+        정상 슬롯 만석 · 승격 불가
+      </span>
+    );
+  }
+
+  if (!exceptional) {
+    return btn('대기 1번 승격', () => {
+      if (!window.confirm(`대기 1번 '${row.registrationNo}' 팀을 정상 참가로 승격할까요?\n승격 후 입금 요청 연락을 진행해 주세요. (입금 상태는 미입금 유지)`)) return;
+      onPromote(null);
+    }, 'primary', busy);
+  }
+
+  return (
+    <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 8, width: open ? '100%' : undefined }}>
+      {!open ? btn(`대기 ${pos}번 예외 승격`, () => setOpen(true), 'warn', busy) : (
+        <div style={{ padding: '11px 12px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FCD34D' }}>
+          <p style={{ margin: 0, display: 'flex', gap: 6, fontSize: 12.5, fontWeight: 900, color: '#92400E', lineHeight: 1.55 }}>
+            <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+            대기 {pos}번은 대기 1번이 아닙니다.
+          </p>
+          <p style={{ margin: '5px 0 0', fontSize: 12, fontWeight: 600, color: '#92400E', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+            {first ? `대기 1번(${first.registrationNo} · ${first.player1Name} · ${first.player2Name})보다 ` : ''}
+            먼저 승격하는 예외 처리입니다. 사유는 변경 이력에 남습니다.
+          </p>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value.slice(0, 300))}
+            rows={2}
+            placeholder="예외 승격 사유 (필수)"
+            aria-label="예외 승격 사유"
+            style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', borderRadius: 9, border: `1.5px solid ${reasonOk ? '#FCD34D' : '#FCA5A5'}`, padding: '9px 11px', fontSize: 13, fontFamily: 'inherit', color: '#0F172A', outline: 'none', resize: 'vertical', lineHeight: 1.6, background: '#fff' }}
+          />
+          {!reasonOk && (
+            <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 800, color: '#B91C1C' }}>사유를 입력해야 승격할 수 있습니다.</p>
+          )}
+          <div style={{ marginTop: 8, display: 'flex', gap: 7 }}>
+            <button type="button" onClick={() => { setOpen(false); setReason(''); }}
+              style={{ flex: 1, minHeight: 38, borderRadius: 9, border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}>
+              취소
+            </button>
+            <button type="button" disabled={busy || !reasonOk}
+              onClick={() => onPromote(reason.trim())}
+              style={{ flex: 1, minHeight: 38, borderRadius: 9, border: '1px solid #B45309', background: '#B45309', color: '#fff', fontSize: 12.5, fontWeight: 800, cursor: busy || !reasonOk ? 'default' : 'pointer', opacity: busy || !reasonOk ? 0.5 : 1 }}>
+              사유 저장 후 승격
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 상세 ─────────────────────────────────────────────────────────────────────
-function Detail({ row, busy, onAction, onPlayers }: {
+function Detail({ row, busy, onAction, onPlayers, promote }: {
   row: AdminRegistrationRow;
   busy: boolean;
   onAction: (patch: { registrationStatus?: RegistrationStatus; paymentStatus?: PaymentStatus; adminNote?: string }) => void;
   onPlayers: (input: Omit<SetRegistrationPlayersInput, 'registrationId'>) => void;
+  /** 대기팀 승격 컨트롤(waitlisted 일 때만 렌더된다). */
+  promote: React.ReactNode;
 }) {
   const [note, setNote] = React.useState(row.adminNote ?? '');
   const [history, setHistory] = React.useState<RegistrationHistoryRow[] | 'loading'>('loading');
@@ -551,11 +656,18 @@ function Detail({ row, busy, onAction, onPlayers }: {
             </React.Fragment>
           ))}
         </div>
-        <p style={{ margin: '12px 0 7px', fontSize: 11.5, fontWeight: 800, color: '#475569' }}>신청 상태</p>
+        <p style={{ margin: '12px 0 7px', fontSize: 11.5, fontWeight: 800, color: '#475569' }}>
+          신청 상태{row.waitlistPosition !== null ? ` · 대기 ${row.waitlistPosition}번` : ''}
+        </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-          {act('참가 확정', <Check size={13} />, { registrationStatus: 'confirmed' })}
-          {act('접수로', <Undo2 size={13} />, { registrationStatus: 'applied' })}
-          {act('대기 전환', <Clock size={13} />, { registrationStatus: 'waitlisted' })}
+          {/* 대기팀은 승격 경로(순번 경고 · 사유 · 이력)로만 정상 참가가 된다. */}
+          {row.registrationStatus === 'waitlisted' ? promote : (
+            <>
+              {act('참가 확정', <Check size={13} />, { registrationStatus: 'confirmed' })}
+              {act('접수로', <Undo2 size={13} />, { registrationStatus: 'applied' })}
+              {act('대기 전환', <Clock size={13} />, { registrationStatus: 'waitlisted' })}
+            </>
+          )}
           {act('취소', <XIcon size={13} />, { registrationStatus: 'cancelled' }, true)}
           {act('거절', <XIcon size={13} />, { registrationStatus: 'rejected' }, true)}
         </div>
@@ -582,6 +694,9 @@ function Detail({ row, busy, onAction, onPlayers }: {
                   <span style={{ color: '#64748B' }}> · {h.fromValue ?? '-'} → {h.toValue ?? '-'}</span>
                 ) : null}
                 <span style={{ color: '#CBD5E1' }}> ({h.actorType})</span>
+                {h.note && (
+                  <span style={{ display: 'block', color: '#92400E', fontWeight: 700, wordBreak: 'break-word' }}>{h.note}</span>
+                )}
               </span>
             </div>
           ))
@@ -606,12 +721,16 @@ export default function AdminTournamentRegistrationsPage() {
   const [filter, setFilter] = React.useState<FilterKey>('all');
   const [q, setQ] = React.useState('');
   const [toast, setToast] = React.useState('');
+  // 정상 참가 최대 · 모집 목표 — 서버(get_admin_hosted_tournaments) 값. 못 받으면 null(숫자를 지어내지 않는다).
+  const [cap, setCap] = React.useState<{ max: number; target: number } | null>(null);
 
   const load = React.useCallback(async () => {
     if (!allowed || !slug) return;
-    const { ready, rows } = await fetchAdminRegistrations(slug);
+    const [{ ready, rows }, list] = await Promise.all([fetchAdminRegistrations(slug), fetchAdminTournaments()]);
     setReady(ready);
     setRows(rows);
+    const t = list.rows.find((x) => x.slug === slug);
+    setCap(t && t.maxCapacity > 0 ? { max: t.maxCapacity, target: t.targetCapacity } : null);
     setLoading(false);
   }, [allowed, slug]);
 
@@ -633,6 +752,20 @@ export default function AdminTournamentRegistrationsPage() {
       setToast('처리했습니다.');
     } catch (err) {
       setToast(adminActionMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handlePromote = async (row: AdminRegistrationRow, reason: string | null) => {
+    setBusyId(row.id);
+    try {
+      const r = await promoteWaitlistedRegistration(row.id, reason);
+      await load();
+      setToast(`대기 ${r.previousWaitlistPosition}번을 정상 참가로 승격했습니다. 입금 요청 연락을 진행해 주세요.`);
+    } catch (err) {
+      setToast(adminActionMessage(err));
+      await load();
     } finally {
       setBusyId(null);
     }
@@ -674,13 +807,25 @@ export default function AdminTournamentRegistrationsPage() {
       if (!kw) return true;
       return [r.registrationNo, r.player1Name, r.player2Name, r.clubName ?? '', r.player1ClubName ?? '', r.player2ClubName ?? '', r.depositorName]
         .join(' ').toLowerCase().includes(kw);
-    }).sort(byNewest);
+    // 대기 필터에서는 대기 순번 순서(1, 2, 3 …)로 보여 준다.
+    }).sort(filter === 'waitlisted'
+      ? (a, b) => (a.waitlistPosition ?? 1e9) - (b.waitlistPosition ?? 1e9)
+      : byNewest);
   }, [rows, filter, q]);
+
+  // 대기 순서 — 서버가 준 waitlistPosition 순.
+  const waitlist = React.useMemo(
+    () => rows.filter((r) => r.registrationStatus === 'waitlisted' && r.waitlistPosition !== null)
+      .sort((a, b) => (a.waitlistPosition as number) - (b.waitlistPosition as number)),
+    [rows],
+  );
 
   const summary = React.useMemo(() => {
     const active = rows.filter((r) => ['applied', 'waitlisted', 'confirmed'].includes(r.registrationStatus));
     return {
       active: active.length,
+      // 정상 참가 슬롯 = 접수 + 참가확정. 대기팀은 들어가지 않는다.
+      normal: rows.filter((r) => r.registrationStatus === 'applied' || r.registrationStatus === 'confirmed').length,
       waitlisted: rows.filter((r) => r.registrationStatus === 'waitlisted').length,
       paid: rows.filter((r) => r.paymentStatus === 'paid').length,
       unpaid: active.filter((r) => r.paymentStatus === 'pending').length,
@@ -725,10 +870,59 @@ export default function AdminTournamentRegistrationsPage() {
 
       {!loading && ready && (
         <>
+          {/* 정원 — 정상 참가 N / 최대 · 대기 N팀 */}
+          <div style={{ ...card, display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px 16px' }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#475569' }}>
+              정상 참가{' '}
+              <span style={{ fontSize: 20, fontWeight: 900, color: cap && summary.normal >= cap.max ? '#B91C1C' : '#0F172A' }}>
+                {summary.normal}
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 900, color: '#94A3B8' }}> / {cap ? cap.max : '-'}</span>
+            </p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: summary.waitlisted ? '#B45309' : '#475569' }}>
+              대기 <span style={{ fontSize: 20, fontWeight: 900 }}>{summary.waitlisted}</span>팀
+            </p>
+            {cap && (
+              <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#94A3B8' }}>
+                모집 목표 {cap.target}팀 · {summary.normal >= cap.max
+                  ? '정상 슬롯 만석 — 신규 신청은 대기 접수'
+                  : summary.waitlisted > 0
+                    ? `빈자리 ${cap.max - summary.normal} — 대기 1번 승격 대상`
+                    : `빈자리 ${cap.max - summary.normal}`}
+              </p>
+            )}
+          </div>
+
+          {/* 대기 순서 — 대기 1번에 승격 액션. 그 외는 예외 승격(경고 → 사유 → 승격). */}
+          {waitlist.length > 0 && (
+            <div style={{ ...card, borderColor: '#FCD34D' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, color: '#92400E' }}>
+                대기 순서 · {waitlist.length}팀
+              </p>
+              {waitlist.map((w, i) => (
+                <div key={w.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: i === 0 ? 'none' : '1px solid #FEF3C7' }}>
+                  <span style={{ flexShrink: 0, minWidth: 52, fontSize: 12.5, fontWeight: 900, color: '#B45309' }}>대기 {w.waitlistPosition}</span>
+                  <span style={{ minWidth: 0, flex: 1, fontSize: 12.5, fontWeight: 800, color: '#0F172A', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                    {w.player1Name} · {w.player2Name}
+                    <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>{w.registrationNo}</span>
+                  </span>
+                  <PromoteControl
+                    row={w}
+                    first={waitlist[0] ?? null}
+                    capacity={{ normal: summary.normal, max: cap ? cap.max : null }}
+                    busy={busyId === w.id}
+                    onPromote={(reason) => void handlePromote(w, reason)}
+                    compact
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* 요약 */}
           <div style={{ ...card, display: 'flex', gap: 10 }}>
             {[
-              ['접수', summary.active, '#0F172A'],
+              ['활성', summary.active, '#0F172A'],
               ['대기', summary.waitlisted, summary.waitlisted ? '#B45309' : '#0F172A'],
               ['미입금', summary.unpaid, summary.unpaid ? '#B91C1C' : '#0F172A'],
               ['입금완료', summary.paid, '#047857'],
@@ -776,7 +970,11 @@ export default function AdminTournamentRegistrationsPage() {
                     <span style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 900, color: '#94A3B8', minWidth: 22 }}>#{r.sequenceNo}</span>
                     <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: '#475569' }}>{r.registrationNo}</span>
                     <span style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
-                      <Badge text={REGISTRATION_STATUS_LABEL[r.registrationStatus]} tone={REG_TONE[r.registrationStatus]} />
+                      <Badge
+                        text={r.registrationStatus === 'waitlisted' && r.waitlistPosition !== null
+                          ? `대기 ${r.waitlistPosition}` : REGISTRATION_STATUS_LABEL[r.registrationStatus]}
+                        tone={REG_TONE[r.registrationStatus]}
+                      />
                       <Badge text={PAYMENT_STATUS_LABEL[r.paymentStatus]} tone={PAY_TONE[r.paymentStatus]} />
                     </span>
                   </div>
@@ -799,6 +997,15 @@ export default function AdminTournamentRegistrationsPage() {
                     busy={busyId === r.id}
                     onAction={(p) => void handleAction(r, p)}
                     onPlayers={(i) => void handlePlayers(r, i)}
+                    promote={
+                      <PromoteControl
+                        row={r}
+                        first={waitlist[0] ?? null}
+                        capacity={{ normal: summary.normal, max: cap ? cap.max : null }}
+                        busy={busyId === r.id}
+                        onPromote={(reason) => void handlePromote(r, reason)}
+                      />
+                    }
                   />
                 )}
               </div>

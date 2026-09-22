@@ -150,7 +150,7 @@ export default function TournamentTeamsPage() {
             wordBreak: 'keep-all',
           }}
         >
-          {event.titleFull} · 모집 {event.targetCapacity}팀 (최대 {event.maxCapacity}팀)
+          {event.titleFull} · 모집 {event.targetCapacity}팀 · 최대 {event.maxCapacity}팀 참가 · 이후 대기 접수
         </p>
       </div>
 

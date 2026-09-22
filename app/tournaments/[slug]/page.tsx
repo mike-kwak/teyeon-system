@@ -160,7 +160,7 @@ export default function TournamentHubPage() {
   // 표시용 접수 숫자 — 조회에 성공했을 때만 존재한다(가짜 숫자 금지).
   const status = state && (state.kind === 'open' || state.kind === 'closed') ? state.status : null;
   // CTA 판정 — 서버 판정('open')일 때만 신청을 허용한다.
-  //   조회 중 / 비공개(draft) / 마감 / 만석 / 상태 확인 실패는 전부 신청 불가(fail-closed).
+  //   조회 중 / 비공개(draft) / 마감 / 상태 확인 실패는 전부 신청 불가(fail-closed). 정원이 차도 접수 기간이면 대기 접수로 신청 가능.
   const ctaState = loading ? 'loading' : toCtaState(state);
 
   // 탭 구성은 lib/tournaments/phase 한 곳에서만 정한다(향후 phase 별 기본 탭 확장 지점).

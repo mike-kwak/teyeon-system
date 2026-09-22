@@ -3,7 +3,8 @@
 // 접수 현황 카드 + 핵심 정보 밴드.
 //   ⚠️ 접수 현황 숫자는 반드시 서버(get_public_tournament RPC)에서 온 값만 표시한다.
 //      저장소 미적용(ready=false)이면 숫자를 지어내지 않고 '준비 중'으로 표시한다.
-//   ⚠️ 정원 판정(48 우선 / 60 최대)은 화면이 아니라 서버 RPC 가 원자적으로 한다. 여기 표시는 안내 전용.
+//   ⚠️ 정상 / 대기 판정은 화면이 아니라 서버 RPC 가 원자적으로 한다. 여기 표시는 안내 전용.
+//      48 = 모집 목표(안내용) · 60 = 정상 참가 최대 · 60팀 이후 신청은 대기 접수(접수는 막지 않는다).
 //   ⚠️ 입금 상태는 공개 화면에 표시하지 않는다(운영 내부 정보).
 
 import React from 'react';
@@ -46,10 +47,11 @@ const Eyebrow = ({ open }: { open: boolean }) => (
 
 export default function TournamentRegistrationStatus({ event, status, loading }: Props) {
   const hasCount = !!status;
-  const applied = status?.appliedCount ?? 0;
+  const normal = status?.normalCount ?? 0;
+  const waiting = status?.waitlistedCount ?? 0;
   const target = status?.targetCapacity || event.targetCapacity;
   const max = status?.maxCapacity || event.maxCapacity;
-  const progress = hasCount ? registrationProgress(applied, target) : 0;
+  const progress = hasCount ? registrationProgress(normal, max) : 0;
 
   return (
     <section
@@ -94,10 +96,10 @@ export default function TournamentRegistrationStatus({ event, status, loading }:
             }}
           >
             <span style={{ fontSize: 40, fontWeight: 900, color: TT.ink, lineHeight: 1 }}>
-              {applied}
+              {normal}
             </span>
             <span style={{ fontSize: 22, fontWeight: 800, color: TT.faint, lineHeight: 1 }}>
-              / {target}
+              / {max}
             </span>
             <span
               style={{
@@ -115,8 +117,8 @@ export default function TournamentRegistrationStatus({ event, status, loading }:
           <div
             role="progressbar"
             aria-valuemin={0}
-            aria-valuemax={target}
-            aria-valuenow={applied}
+            aria-valuemax={max}
+            aria-valuenow={normal}
             style={{
               margin: '13px 0 0',
               height: 6,
@@ -146,10 +148,11 @@ export default function TournamentRegistrationStatus({ event, status, loading }:
             }}
           >
             <span style={{ fontSize: 11.5, fontWeight: 700, color: TT.muted }}>
-              현재 {applied}팀 신청
+              정상 참가 {normal}팀
+              {waiting > 0 && <span style={{ color: '#B45309' }}> · 대기 {waiting}팀</span>}
             </span>
             <span style={{ fontSize: 11.5, fontWeight: 700, color: TT.muted }}>
-              우선 접수 {target}팀 · 최대 {max}팀
+              모집 목표 {target}팀 · 최대 {max}팀
             </span>
           </div>
         </>
@@ -177,7 +180,7 @@ export default function TournamentRegistrationStatus({ event, status, loading }:
               wordBreak: 'keep-all',
             }}
           >
-            우선 접수 {target}팀 · 최대 {max}팀
+            모집 목표 {target}팀 · 최대 {max}팀
           </p>
         </div>
       )}
@@ -194,8 +197,9 @@ export default function TournamentRegistrationStatus({ event, status, loading }:
           wordBreak: 'keep-all',
         }}
       >
-        {target}팀은 <strong style={{ fontWeight: 800 }}>우선 참가 기준</strong>이며, 이후 신청은
-        대기팀으로 접수될 수 있습니다.
+        모집 목표는 {target}팀이며 <strong style={{ fontWeight: 800 }}>최대 {max}팀까지 참가</strong>할 수
+        있습니다. {max}팀 이후 신청은 <strong style={{ fontWeight: 800 }}>대기 접수</strong>되며, 참가 가능
+        여부는 대기 순서대로 안내드립니다.
       </p>
     </section>
   );

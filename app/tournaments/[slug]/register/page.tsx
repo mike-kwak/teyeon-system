@@ -6,7 +6,8 @@
 //
 //   ⚠️ 접수 게이트: 서버가 'open' 이라고 판정했을 때만 폼을 렌더한다.
 //      Hub 의 CTA 만 막으면 이 URL 로 직접 들어와 폼을 채울 수 있으므로, 여기서도 같은 판정을 건다.
-//      조회 중 / 비공개 / 마감 / 만석 / 상태 확인 실패는 전부 폼을 렌더하지 않는다(fail-closed).
+//      조회 중 / 비공개 / 마감 / 상태 확인 실패는 전부 폼을 렌더하지 않는다(fail-closed).
+//      정원(정상 60팀)이 찼어도 접수 기간이면 폼을 보여 준다 — 신청은 대기 접수가 되며, 폼 위에서 먼저 알린다.
 //      서버 submit RPC 의 TOURNAMENT_NOT_OPEN / TOURNAMENT_FULL 방어는 그대로 유지된다(최종 방어선).
 
 import React from 'react';
@@ -25,6 +26,33 @@ import {
   type PublicTournamentState,
   type RegistrationCtaState,
 } from '@/lib/tournaments/publicService';
+
+/**
+ * 대기 접수 안내 — 폼 위에 표시된다. 신청 '전에' 대기 접수임을 분명히 알린다.
+ *   ⚠ 서버가 준 nextRegistrationWaitlisted 로만 띄운다. 실제 판정은 제출 시 서버가 다시 한다.
+ */
+function WaitlistNotice({ max }: { max: number }) {
+  return (
+    <section
+      role="note"
+      style={{
+        marginBottom: 12,
+        backgroundColor: '#FEF3C7',
+        border: '1px solid #FCD34D',
+        borderRadius: 12,
+        padding: '14px 16px',
+      }}
+    >
+      <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#92400E', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+        지금 신청하면 대기 접수됩니다
+      </p>
+      <p style={{ margin: '6px 0 0', fontSize: 12.5, fontWeight: 600, color: '#92400E', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+        정상 참가 {max}팀이 모두 찼거나 앞선 대기팀이 있습니다. 참가 가능 여부는 대기 순서대로 안내드리며,
+        운영진 안내 전에는 입금하지 마세요.
+      </p>
+    </section>
+  );
+}
 
 /**
  * 접수 불가 안내 — 폼 대신 표시된다.
@@ -286,14 +314,18 @@ export default function TournamentRegisterPage() {
         }}
       >
         {canApply(ctaState) ? (
+          <>
+          {ctaState === 'waitlist' && <WaitlistNotice max={state && 'status' in state ? state.status.maxCapacity : event.maxCapacity} />}
           <TournamentRegistrationForm
             event={event}
             hubHref={hubHref}
+            waitlistExpected={ctaState === 'waitlist'}
             onSubmitted={(receipt) => {
               storeRegistrationReceipt(event.slug, receipt);
               router.push(`${hubHref}/register/complete`);
             }}
           />
+          </>
         ) : (
           <RegistrationGate ctaState={ctaState} hubHref={hubHref} onRetry={retry} />
         )}

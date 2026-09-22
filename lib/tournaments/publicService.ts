@@ -58,11 +58,15 @@ export type PublicTournamentState =
   | { kind: 'unpublished' }
   | { kind: 'unknown' };
 
-/** CTA 표시 상태. 'full' 은 신청 가능 여부가 아니라 마감 '사유' 구분용이다. */
+/**
+ * CTA 표시 상태.
+ *   'waitlist' = 접수 중이지만 지금 신청하면 대기 접수가 된다(정상 슬롯 만석 또는 기존 대기팀 존재).
+ *   ⚠ 정원 때문에 접수가 닫히는 상태는 없다. 마감은 접수 기간 · 대회 상태로만 난다('closed').
+ */
 export type RegistrationCtaState =
   | 'loading'
   | 'open'
-  | 'full'
+  | 'waitlist'
   | 'closed'
   | 'unpublished'
   | 'unknown';
@@ -70,12 +74,8 @@ export type RegistrationCtaState =
 /** 상태 → CTA 표시값. 신청 허용은 'open' 하나뿐이다(그 외 전부 불가). */
 export function toCtaState(state: PublicTournamentState | null): RegistrationCtaState {
   if (!state) return 'loading';
-  if (state.kind === 'open') return 'open';
-  if (state.kind === 'closed') {
-    // 마감 사유가 '정원 만석'인 경우에만 별도 문구를 쓴다.
-    return state.status.appliedCount >= state.status.maxCapacity ? 'full' : 'closed';
-  }
-  return state.kind; // 'unpublished' | 'unknown'
+  if (state.kind === 'open') return state.status.nextRegistrationWaitlisted ? 'waitlist' : 'open';
+  return state.kind; // 'closed' | 'unpublished' | 'unknown'
 }
 
 /**
@@ -86,7 +86,7 @@ export function toCtaState(state: PublicTournamentState | null): RegistrationCta
 export const CTA_COPY: Record<RegistrationCtaState, { title: string; sub?: string; short: string }> = {
   loading:     { title: '접수 상태 확인 중', short: '확인 중' },
   open:        { title: '참가 신청하기', short: '참가 신청하기' },
-  full:        { title: '접수 마감', sub: '모집 정원이 모두 찼습니다', short: '접수 마감' },
+  waitlist:    { title: '대기 접수 신청하기', sub: '지금 신청하면 대기팀으로 접수되며, 참가 가능 여부는 대기 순서대로 안내드립니다', short: '대기 접수' },
   closed:      { title: '접수 마감', short: '접수 마감' },
   unpublished: { title: '접수 준비 중', sub: '접수가 시작되면 이 화면에서 신청할 수 있습니다', short: '접수 준비 중' },
   unknown:     { title: '접수 상태를 확인할 수 없습니다', sub: '잠시 후 다시 시도해 주세요', short: '확인 불가' },
@@ -94,13 +94,19 @@ export const CTA_COPY: Record<RegistrationCtaState, { title: string; sub?: strin
 
 /** CTA 상태에서 신청 진입을 허용할지. 이 함수 외의 곳에서 허용 판정을 만들지 않는다. */
 export function canApply(cta: RegistrationCtaState): boolean {
-  return cta === 'open';
+  return cta === 'open' || cta === 'waitlist';
 }
 
 const parseStatus = (d: Record<string, unknown>): TournamentPublicStatus => ({
   appliedCount: toCount(d.appliedCount),
+  // 정책 SQL 적용 전 서버에는 normalCount 가 없다 — 그때는 활성 − 대기(같은 서버 값)로 표시만 맞춘다.
+  normalCount: d.normalCount === undefined
+    ? Math.max(toCount(d.appliedCount) - toCount(d.waitlistedCount), 0)
+    : toCount(d.normalCount),
+  waitlistedCount: toCount(d.waitlistedCount),
   targetCapacity: toCount(d.targetCapacity),
   maxCapacity: toCount(d.maxCapacity),
+  nextRegistrationWaitlisted: d.nextRegistrationWaitlisted === true,
   isRegistrationOpen: d.isRegistrationOpen === true,
   entryFee: toCount(d.entryFee),
   // 공개 RPC 가 계좌를 반환하지 않는 동안에는 null 이 된다 — 절대 대체값을 만들지 않는다.
@@ -168,6 +174,8 @@ export interface PublicTournamentTeam {
   clubName: string | null;
   /** 'applied' | 'waitlisted' | 'confirmed' */
   publicStatus: 'applied' | 'waitlisted' | 'confirmed';
+  /** 대기 순번(1..N) — 서버가 sequence_no 순으로 계산. waitlisted 가 아니면 null. */
+  waitlistPosition: number | null;
 }
 
 export interface PublicTournamentTeamsResult {
@@ -193,6 +201,8 @@ export async function fetchPublicTournamentTeams(
         player2ClubName: (r.player2ClubName as string) ?? null,
         clubName: (r.clubName as string) ?? null,
         publicStatus: (r.publicStatus as PublicTournamentTeam['publicStatus']) || 'applied',
+        waitlistPosition: Number.isInteger(Number(r.waitlistPosition)) && Number(r.waitlistPosition) >= 1
+          ? Number(r.waitlistPosition) : null,
       })),
     };
   } catch (err) {

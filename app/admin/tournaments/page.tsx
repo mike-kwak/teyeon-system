@@ -141,7 +141,7 @@ export default function AdminTournamentsPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 10, paddingTop: 12, borderTop: '1px solid #F1F5F9' }}>
-                <Stat label="접수" value={`${t.activeCount} / ${t.targetCapacity}`} />
+                <Stat label="정상 참가" value={`${t.normalCount} / ${t.maxCapacity}`} />
                 <Stat label="대기" value={t.waitlistedCount} tone={t.waitlistedCount > 0 ? '#B45309' : undefined} />
                 <Stat label="입금완료" value={t.paidCount} tone="#047857" />
                 <Stat label="참가확정" value={t.confirmedCount} tone="#1D4ED8" />

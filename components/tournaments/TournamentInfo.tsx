@@ -19,7 +19,7 @@ export default function TournamentInfo({ event }: { event: OfficialTournament })
       <DataRow label="FORMAT" value="복식 · 비랭킹" />
       <DataRow
         label="TEAMS"
-        value={`${event.targetCapacity}팀 우선 · 최대 ${event.maxCapacity}팀`}
+        value={`모집 ${event.targetCapacity}팀 · 최대 ${event.maxCapacity}팀 참가`}
         last
       />
     </section>
