@@ -23,8 +23,8 @@ import {
   type GroupStandings, type TieGroup,
 } from '@/lib/tournaments/standingsTypes';
 import {
-  C, adminRankRow, detailStatus, groupMatches, isSettled, matchStatusView, phaseOf,
-  progressText, useStandingsData,
+  C, NO_RESULT_YET_NOTICE, adminRankRow, anyMatchStarted, detailStatus, groupMatches, isSettled, matchStatusView, phaseOf,
+  placementDisplayNo, progressText, useStandingsData,
 } from '@/components/tournaments/standingsView';
 import {
   BackLink, Callout, DetailHeader, EntryRow, MatchResultCard, Notice, PrevNextNav, QualifiedHero,
@@ -118,9 +118,9 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
   }
 
   const phase = phaseOf(g);
-  const st = detailStatus(g);
-  const settled = isSettled(phase);
   const matches = groupMatches(board, g.groupNo);
+  const st = detailStatus(g, anyMatchStarted(matches.map((m) => m.status)));
+  const settled = isSettled(phase);
   const unresolved = phase === 'AGE_CHECK' ? g.tieGroups.filter((t) => !t.resolved) : [];
   const qualified = phase === 'FINAL' ? g.standings.filter((r) => r.qualificationStatus === 'QUALIFIED') : [];
 
@@ -183,7 +183,7 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
       {phase === 'NOT_STARTED' && (
         <Callout tone="info" icon={<Clock size={17} color={C.slate} style={{ flexShrink: 0, marginTop: 1 }} />}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, lineHeight: 1.6, color: C.body, wordBreak: 'keep-all' }}>
-            아직 경기 전입니다. 첫 경기가 끝나면 순위가 표시됩니다.
+            {NO_RESULT_YET_NOTICE}
           </p>
         </Callout>
       )}
@@ -215,7 +215,7 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
 
       {/* ── 경기 결과 ───────────────────────────────────────────────────── */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <SectionHead title={phase === 'NOT_STARTED' ? '예정 경기' : '경기 결과'} hint="6게임 1세트 · 노애드" inCard={false} />
+        <SectionHead title={phase === 'NOT_STARTED' ? '경기 일정' : '경기 결과'} hint="6게임 1세트 · 노애드" inCard={false} />
         {!board ? (
           <Notice tone="info" text="경기 정보를 불러오지 못했습니다. 새로고침해 주세요." />
         ) : matches.length === 0 ? (
@@ -244,7 +244,11 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
       {/* ── 이전 조 / 다음 조 — 콘텐츠 끝에 자연스럽게. 순위결정전은 포함하지 않는다. ── */}
       <PrevNextNav
         prev={prev ? { href: `${base}/${prev.groupNo}`, label: `${prev.groupNo}조` } : null}
-        next={next ? { href: `${base}/${next.groupNo}`, label: `${next.groupNo}조` } : null}
+        next={next ? { href: `${base}/${next.groupNo}`, label: `${next.groupNo}조` }
+          // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다.
+          : idx === groups.length - 1 && (standings?.placement.length ?? 0) > 0
+            ? { href: `${base}/placement`, label: `${placementDisplayNo(groups.length)}조` }
+            : null}
       />
 
       {/* ── 순서 확정 다이얼로그 (기존 계약 그대로) ─────────────────────── */}

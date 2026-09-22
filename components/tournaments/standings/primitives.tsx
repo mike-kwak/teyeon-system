@@ -10,6 +10,11 @@ import Link from 'next/link';
 import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { C, type Tone } from './presentation';
 
+/** 순위결정전 같은 보조 라벨 색 — 강조하지 않는 옅은 blue. */
+const TAG_COLOR = '#3D5A8F';
+/** 조 카드 팀 줄의 한 줄 높이 — 이름 두 줄과 성적 두 줄의 기준선을 맞춘다(13px × 1.35). */
+const ROW_LINE = '17.5px';
+
 // ── 상태 점 + 글자 ──────────────────────────────────────────────────────────
 export function StatusDot({
   label, color, dot = 6, fontSize = 12, gap = 5,
@@ -42,16 +47,21 @@ export interface CompactRow {
   tone: Tone;
   /** null = 표시하지 않음(경기 전). */
   record: string | null;
+  /** 득실(서버 gameDiff 표기). null = 표시하지 않음(완료 경기 없음 · 순위결정전). */
+  diff: string | null;
+  diffColor?: string;
   muted: boolean;
   hit: boolean;
 }
 
 export function GroupCompactCard({
-  href, ariaLabel, title, status, progress, segments, rows,
+  href, ariaLabel, title, tag, status, progress, segments, rows,
 }: {
   href: string;
   ariaLabel: string;
   title: string;
+  /** 제목 옆 작은 보조 라벨(예: 순위결정전). */
+  tag?: string;
   status: { label: string; color: string };
   progress: string;
   segments: string[];
@@ -64,9 +74,12 @@ export function GroupCompactCard({
         padding: '12px 12px 13px', background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14,
         textDecoration: 'none', color: C.navy,
       }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 16, fontWeight: 800 }}>{title}</span>
-        <ChevronRight size={16} color={C.faint} strokeWidth={2.4} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 16, fontWeight: 800 }}>{title}</span>
+          {tag && <span style={{ fontSize: 11.5, fontWeight: 700, color: TAG_COLOR, whiteSpace: 'nowrap' }}>{tag}</span>}
+        </span>
+        <ChevronRight size={16} color={C.faint} strokeWidth={2.4} style={{ flexShrink: 0 }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <StatusDot label={status.label} color={status.color} />
@@ -92,16 +105,26 @@ export function GroupCompactCard({
                 {pre ? '' : r.rank}
               </span>
               <div style={{
-                flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.35,
+                flex: 1, minWidth: 0, fontSize: 13, lineHeight: ROW_LINE,
                 fontWeight: r.hit ? 800 : 600, color: r.muted ? C.muted : C.navy,
                 wordBreak: 'keep-all', overflowWrap: 'anywhere',
               }}>
                 <div>{r.p1}</div>
                 <div>{r.p2}</div>
               </div>
-              {r.record !== null && (
-                <span style={{ flexShrink: 0, marginTop: 2, fontSize: 11.5, fontWeight: 600, color: C.muted, whiteSpace: 'nowrap' }}>
-                  {r.record}
+              {/* 성적 — 이름 두 줄(선수1 / 선수2)과 같은 줄 높이로 승/패 · 득실을 두 줄에 둔다.
+                  한 줄에 모두 넣으면 360px 에서 이름 칸이 3글자도 못 담을 만큼 줄어든다. */}
+              {(r.record !== null || r.diff !== null) && (
+                <span style={{
+                  flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                  whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {r.record !== null && (
+                    <span style={{ fontSize: 11.5, lineHeight: ROW_LINE, fontWeight: 600, color: C.muted }}>{r.record}</span>
+                  )}
+                  {r.diff !== null && (
+                    <span style={{ fontSize: 13, lineHeight: ROW_LINE, fontWeight: 800, color: r.diffColor ?? C.muted }}>{r.diff}</span>
+                  )}
                 </span>
               )}
             </div>
@@ -112,77 +135,13 @@ export function GroupCompactCard({
   );
 }
 
-// ── 순위결정전 카드 (메인 목록) ─────────────────────────────────────────────
-export interface PlacementTeamView {
-  key: string;
-  teamNo: number;
-  name: string;
-  won: boolean;
-  hit: boolean;
-}
-
-export function PlacementCompactCard({
-  href, status, teams, done, score1, score2, note,
-}: {
-  href: string;
-  status: { label: string; color: string };
-  teams: PlacementTeamView[];
-  done: boolean;
-  score1: number | null;
-  score2: number | null;
-  note: string;
-}) {
-  return (
-    <Link href={href} className="stg-card" aria-label="순위결정전 상세정보"
-      style={{
-        display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 14px 14px',
-        background: '#F7F9FD', border: '1px dashed #BFCDE6', borderRadius: 14,
-        textDecoration: 'none', color: C.navy,
-      }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px 8px', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 15, fontWeight: 800 }}>순위결정전</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#3D5A8F' }}>두 팀 모두 본선 진출</span>
-        </div>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: status.color, flexShrink: 0 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.color }} />
-          {status.label}
-        </span>
-        <ChevronRight size={16} color={C.faint} strokeWidth={2.4} style={{ flexShrink: 0 }} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', columnGap: 10, alignItems: 'center' }}>
-        {teams.slice(0, 2).map((t, i) => {
-          const side = (
-            <div key={t.key} style={{
-              minWidth: 0, textAlign: i === 0 ? 'right' : 'left', borderRadius: 7, padding: '2px 5px',
-              background: t.hit ? C.tealTint : 'transparent',
-            }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: C.muted }}>{t.teamNo}번</p>
-              <p style={{
-                margin: '1px 0 0', fontSize: 13, lineHeight: 1.35, fontWeight: t.won || t.hit ? 800 : 600,
-                wordBreak: 'keep-all', overflowWrap: 'anywhere',
-              }}>
-                {t.name}
-              </p>
-            </div>
-          );
-          return i === 0 ? [side, (
-            <span key="vs" style={{ fontSize: done ? 17 : 12.5, fontWeight: 800, color: done ? C.navy : C.faint, fontVariantNumeric: 'tabular-nums' }}>
-              {done ? `${score1 ?? '-'} : ${score2 ?? '-'}` : 'VS'}
-            </span>
-          )] : side;
-        })}
-      </div>
-      <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: '#5B6B82' }}>{note}</p>
-    </Link>
-  );
-}
-
 // ── 상세 헤더 ───────────────────────────────────────────────────────────────
 export function DetailHeader({
-  title, sub, status, progress,
+  title, tag, sub, status, progress,
 }: {
   title: string;
+  /** 제목 옆 보조 표시(예: 순위결정전). */
+  tag?: string;
   sub: string;
   status: { label: string; color: string } | null;
   progress: string | null;
@@ -192,6 +151,12 @@ export function DetailHeader({
       <div style={{ flex: 1, minWidth: 0 }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.navy, letterSpacing: '-0.02em', lineHeight: 1.3 }}>
           {title}
+          {tag && (
+            <span style={{
+              display: 'inline-block', marginLeft: 8, verticalAlign: '3px', padding: '2px 8px', borderRadius: 6,
+              fontSize: 12, fontWeight: 700, letterSpacing: 0, color: TAG_COLOR, background: '#EEF3FB',
+            }}>{tag}</span>
+          )}
         </h1>
         <p style={{ margin: '3px 0 0', fontSize: 12.5, fontWeight: 600, color: C.muted }}>{sub}</p>
       </div>
@@ -405,9 +370,11 @@ export function MatchResultCard({
 
 // ── 순위결정전 상세 블록 ────────────────────────────────────────────────────
 export function PlacementDetailBlock({
-  matchNo, status, teams, score1, score2, winner, done,
+  matchLabel, matchSub, status, teams, score1, score2, winner, done,
 }: {
-  matchNo: number;
+  /** 경기 카드 라벨(예: 1경기) · 보조 표시(예: #49, 없으면 null). */
+  matchLabel: string;
+  matchSub: string | null;
   status: { label: string; color: string };
   teams: { key: string; teamNo: number; name: string }[];
   score1: number | null;
@@ -447,7 +414,7 @@ export function PlacementDetailBlock({
         <SectionHead title="경기 결과" hint="6게임 1세트 · 노애드" inCard={false} />
         {t1 && t2 && (
           <MatchResultCard
-            label="순위결정전" sub={`#${matchNo}`} status={status}
+            label={matchLabel} sub={matchSub} status={status}
             left={t1.name} right={t2.name} score1={score1} score2={score2}
             winner={winner} done={done} cancelled={false}
           />

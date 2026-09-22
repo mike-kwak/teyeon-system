@@ -13,12 +13,13 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import {
-  C, FILTERS, FILTER_LABEL, adminCompactRow, cardStatus, filterOf, matchStatusView, needsAttention,
-  normalizeQuery, phaseOf, progressSegments, progressText, rowMatches, teamName, useStandingsData,
-  type GroupFilter,
+  C, FILTERS, FILTER_LABEL, PLACEMENT_TAG, adminCompactRow, anyMatchStarted, cardStatus, filterOf,
+  groupMatches, needsAttention,
+  normalizeQuery, phaseOf, placementDisplayNo, placementFilterOf, placementStatusView, progressSegments,
+  progressText, rowMatches, useStandingsData, type GroupFilter,
 } from '@/components/tournaments/standingsView';
 import {
-  GroupCompactCard, LIST_CSS, PlacementCompactCard, Toast,
+  GroupCompactCard, LIST_CSS, Toast,
 } from '@/components/tournaments/standings/primitives';
 import DrawPublishPanel from '@/components/tournaments/DrawPublishPanel';
 import { PUBLIC_DRAW_ENABLED } from '@/lib/tournaments/publicDrawFlags';
@@ -37,28 +38,38 @@ export default function StandingsBoard({ slug }: { slug: string }) {
   const groups = React.useMemo(() => standings?.groups ?? [], [standings]);
   const placement = standings?.placement ?? [];
   const q = normalizeQuery(query);
+  // 조 경기 중 하나라도 시작됐는가 — 라벨 · 필터 표시 전용(서버 상태 불변). board 가 없으면 false.
+  const started = React.useCallback(
+    (groupNo: number) => anyMatchStarted(groupMatches(board, groupNo).map((m) => m.status)),
+    [board],
+  );
 
+  // ⚠ 순위결정전은 DB 상 placement 그대로다. 목록에서만 일반 조 번호 흐름(N + 1조)에 이어 보여준다.
   const counts = React.useMemo(() => {
-    const c: Record<GroupFilter, number> = { all: groups.length, live: 0, pre: 0, done: 0 };
-    groups.forEach((g) => { c[filterOf(g)] += 1; });
+    const c: Record<GroupFilter, number> = { all: groups.length + placement.length, live: 0, pre: 0, done: 0 };
+    groups.forEach((g) => { c[filterOf(g, started(g.groupNo))] += 1; });
+    placement.forEach((p) => { c[placementFilterOf(p.status)] += 1; });
     return c;
-  }, [groups]);
+  }, [groups, placement, started]);
   const attentionCount = groups.filter(needsAttention).length;
 
   const totals = groups.reduce(
     (a, g) => ({ done: a.done + g.completedMatches, all: a.all + g.generatedMatches }),
-    { done: 0, all: 0 },
+    { done: placement.filter((p) => p.status === 'completed').length, all: placement.length },
   );
   const pct = totals.all > 0 ? Math.round((totals.done / totals.all) * 100) : 0;
 
   const visible = groups.filter((g) =>
-    (filter === 'all' || filterOf(g) === filter)
+    (filter === 'all' || filterOf(g, started(g.groupNo)) === filter)
     && (!attentionOnly || needsAttention(g))
     && (!q || g.standings.some((r) => rowMatches(r, q))));
 
-  const visiblePlacement = filter === 'all' && !attentionOnly
-    ? placement.filter((p) => !q || p.teams.some((t) => rowMatches(t, q)))
-    : [];
+  const visiblePlacement = placement
+    .map((p, i) => ({ p, no: placementDisplayNo(groups.length, i) }))
+    .filter(({ p }) =>
+      (filter === 'all' || placementFilterOf(p.status) === filter)
+      && (!attentionOnly || p.status === 'cancelled')
+      && (!q || p.teams.some((t) => rowMatches(t, q))));
 
   if (!ready) {
     return (
@@ -182,7 +193,7 @@ export default function StandingsBoard({ slug }: { slug: string }) {
       </div>
 
       {/* ── 조 목록 ─────────────────────────────────────────────────────── */}
-      {visible.length === 0 ? (
+      {visible.length + visiblePlacement.length === 0 ? (
         <div style={{ ...card, textAlign: 'center', padding: '26px 15px' }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.muted, lineHeight: 1.8 }}>
             {loading ? '불러오는 중…'
@@ -200,34 +211,37 @@ export default function StandingsBoard({ slug }: { slug: string }) {
                 href={`/admin/tournaments/${slug}/standings/${g.groupNo}`}
                 ariaLabel={`${g.groupNo}조 상세정보`}
                 title={`${g.groupNo}조`}
-                status={cardStatus(g)}
+                status={cardStatus(g, started(g.groupNo))}
                 progress={progressText(g)}
                 segments={progressSegments(g)}
                 rows={g.standings.map((r) => adminCompactRow(r, phase, q))}
               />
             );
           })}
-        </div>
-      )}
-
-      {/* ── 순위결정전 — 일반 조와 분리 ─────────────────────────────────── */}
-      {visiblePlacement.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {visiblePlacement.map((p) => (
-            <PlacementCompactCard
-              key={p.matchId}
-              href={`/admin/tournaments/${slug}/standings/placement`}
-              status={matchStatusView(p.status)}
-              done={p.status === 'completed'}
-              score1={p.score1}
-              score2={p.score2}
-              teams={p.teams.map((t) => ({
-                key: t.teamId, teamNo: t.teamNo, name: teamName(t),
-                won: p.winnerTeamId === t.teamId, hit: rowMatches(t, q),
-              }))}
-              note="경기 결과는 본선 배치 순서에만 반영됩니다."
-            />
-          ))}
+          {/* 순위결정전 — 일반 조와 같은 카드로, 번호만 N + 1조로 이어 붙인다(작은 보조 라벨로 구분). */}
+          {visiblePlacement.map(({ p, no }) => {
+            const done = p.status === 'completed';
+            return (
+              <GroupCompactCard
+                key={p.matchId}
+                href={`/admin/tournaments/${slug}/standings/placement`}
+                ariaLabel={`${no}조 순위결정전 상세정보`}
+                title={`${no}조`}
+                tag={PLACEMENT_TAG}
+                status={p.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(p.status)}
+                progress={`${done ? 1 : 0} / 1`}
+                segments={[done ? C.teal : p.status === 'cancelled' ? C.amberDot : C.line]}
+                rows={p.teams.map((t) => ({
+                  key: t.teamId, p1: t.player1Name, p2: t.player2Name, rank: null,
+                  tone: { bg: '#fff', fg: C.navy, bd: C.line },
+                  record: done ? (p.winnerTeamId === t.teamId ? '승' : '패') : null,
+                  diff: null,   // 순위결정전은 일반 조 standings 가 아니다 — 득실 없음
+                  muted: done && p.winnerTeamId !== t.teamId,
+                  hit: rowMatches(t, q),
+                }))}
+              />
+            );
+          })}
         </div>
       )}
 

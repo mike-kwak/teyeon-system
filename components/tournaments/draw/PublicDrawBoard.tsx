@@ -10,14 +10,16 @@ import React from 'react';
 import { Search, X as XIcon } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import {
-  C, FILTERS, FILTER_LABEL, filterOf, normalizeQuery, phaseOf, progressSegments, progressText,
-  rowMatches, teamName, type GroupFilter,
+  C, FILTERS, FILTER_LABEL, PLACEMENT_TAG, filterOf, normalizeQuery, phaseOf, placementDisplayNo,
+  placementFilterOf, placementStatusView, progressSegments, progressText, rowMatches, type GroupFilter,
 } from '@/components/tournaments/standings/presentation';
 import {
-  GroupCompactCard, LIST_CSS, PlacementCompactCard,
+  GroupCompactCard, LIST_CSS,
 } from '@/components/tournaments/standings/primitives';
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
-import { publicCardStatus, publicCompactRow, publicMatchStatus, teamKey } from './publicDrawView';
+import {
+  publicCardStatus, publicCompactRow, publicGroupStarted, publicMatchStatus, teamKey,
+} from './publicDrawView';
 
 export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: PublicPreliminaryDraw }) {
   const [query, setQuery] = React.useState('');
@@ -26,22 +28,26 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
   const base = `/tournaments/${slug}/draw`;
 
   const groups = draw.groups;
+  const placement = draw.placement;
+  // ⚠ 순위결정전은 일반 조 번호 흐름에 이어 N + 1조로 보여준다(표시 전용 — 순위 계산과 무관).
   const counts = React.useMemo(() => {
-    const c: Record<GroupFilter, number> = { all: groups.length, live: 0, pre: 0, done: 0 };
-    groups.forEach((g) => { c[filterOf(g)] += 1; });
+    const c: Record<GroupFilter, number> = { all: groups.length + placement.length, live: 0, pre: 0, done: 0 };
+    groups.forEach((g) => { c[filterOf(g, publicGroupStarted(g))] += 1; });
+    placement.forEach((p) => { c[placementFilterOf(p.status)] += 1; });
     return c;
-  }, [groups]);
+  }, [groups, placement]);
   const totals = groups.reduce(
     (a, g) => ({ done: a.done + g.completedMatches, all: a.all + g.generatedMatches }),
-    { done: 0, all: 0 },
+    { done: placement.filter((p) => p.status === 'completed').length, all: placement.length },
   );
   const pct = totals.all > 0 ? Math.round((totals.done / totals.all) * 100) : 0;
 
   const visible = groups.filter((g) =>
-    (filter === 'all' || filterOf(g) === filter) && (!q || g.standings.some((r) => rowMatches(r, q))));
-  const visiblePlacement = filter === 'all'
-    ? draw.placement.filter((p) => !q || p.teams.some((t) => rowMatches(t, q)))
-    : [];
+    (filter === 'all' || filterOf(g, publicGroupStarted(g)) === filter) && (!q || g.standings.some((r) => rowMatches(r, q))));
+  const visiblePlacement = placement
+    .map((p, i) => ({ p, no: placementDisplayNo(groups.length, i) }))
+    .filter(({ p }) => (filter === 'all' || placementFilterOf(p.status) === filter)
+      && (!q || p.teams.some((t) => rowMatches(t, q))));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -49,7 +55,7 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
       <div style={{ background: TT.surface, border: `1px solid ${TT.line}`, borderRadius: 14, padding: '13px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontSize: 12.5, fontWeight: 700, color: TT.muted }}>
-            {groups.length}개 조 · 조별 {draw.qualifyPerGroup}팀 본선 진출
+            {groups.length + placement.length}개 조 · 조별 {draw.qualifyPerGroup}팀 본선 진출
           </span>
           <span style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 600, color: TT.muted }}>
             경기 <strong style={{ fontSize: 17, fontWeight: 800, color: TT.ink, fontVariantNumeric: 'tabular-nums' }}>{totals.done}</strong> / {totals.all}
@@ -115,7 +121,7 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
       </div>
 
       {/* ── 조 목록 ─────────────────────────────────────────────────────── */}
-      {visible.length === 0 ? (
+      {visible.length + visiblePlacement.length === 0 ? (
         <div style={{ background: TT.surface, border: `1px solid ${TT.line}`, borderRadius: 14, textAlign: 'center', padding: '26px 15px' }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: TT.muted, lineHeight: 1.8 }}>
             {q ? '검색 결과가 없습니다. 팀 번호나 선수 이름을 다시 확인해 주세요.' : '해당하는 조가 없습니다.'}
@@ -138,27 +144,32 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
               />
             );
           })}
-        </div>
-      )}
-
-      {/* ── 순위결정전 — 일반 조와 분리 ─────────────────────────────────── */}
-      {visiblePlacement.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {visiblePlacement.map((p) => (
-            <PlacementCompactCard
-              key={`p${p.matchNo}`}
-              href={`${base}/placement`}
-              status={publicMatchStatus({ status: p.status, courtNo: null, courtName: null })}
-              done={p.status === 'completed'}
-              score1={p.score1}
-              score2={p.score2}
-              teams={p.teams.map((t, i) => ({
-                key: teamKey(t), teamNo: t.teamNo, name: teamName(t),
-                won: p.winnerSide === i + 1, hit: rowMatches(t, q),
-              }))}
-              note="경기 결과는 본선 배치 순서를 결정합니다."
-            />
-          ))}
+          {/* 순위결정전 — 일반 조와 같은 카드로, 번호만 N + 1조로 이어 붙인다(작은 보조 라벨로 구분). */}
+          {visiblePlacement.map(({ p, no }) => {
+            const done = p.status === 'completed';
+            return (
+              <GroupCompactCard
+                key={`p${p.matchNo}`}
+                href={`${base}/placement`}
+                ariaLabel={`${no}조 순위결정전 상세정보`}
+                title={`${no}조`}
+                tag={PLACEMENT_TAG}
+                status={p.status === 'cancelled'
+                  ? publicMatchStatus({ status: 'cancelled', courtNo: null, courtName: null })
+                  : placementStatusView(p.status)}
+                progress={`${done ? 1 : 0} / 1`}
+                segments={[done ? C.teal : C.line]}
+                rows={p.teams.map((t, i) => ({
+                  key: teamKey(t), p1: t.player1Name, p2: t.player2Name, rank: null,
+                  tone: { bg: '#fff', fg: C.navy, bd: C.line },
+                  record: done ? (p.winnerSide === i + 1 ? '승' : '패') : null,
+                  diff: null,   // 순위결정전은 일반 조 standings 가 아니다 — 득실 없음
+                  muted: done && p.winnerSide !== i + 1,
+                  hit: rowMatches(t, q),
+                }))}
+              />
+            );
+          })}
         </div>
       )}
 

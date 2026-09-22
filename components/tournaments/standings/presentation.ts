@@ -5,7 +5,9 @@
 //     여기서 하는 일은 서버 값으로 '무엇을 어떤 모양으로 보여줄지'를 고르는 것뿐이다.
 //   ⚠ Admin 전용 판단(운영 경고 · 액션)과 Public 전용 문구는 각 래퍼가 가진다. 여기에 두지 않는다.
 
-import type { GroupRankingStatus, QualificationStatus } from '@/lib/tournaments/standingsTypes';
+import {
+  formatGameDiff, type GroupRankingStatus, type QualificationStatus,
+} from '@/lib/tournaments/standingsTypes';
 
 // ── 색 (Cool Premium Light) ─────────────────────────────────────────────────
 export const C = {
@@ -68,10 +70,24 @@ export const isSettled = (p: GroupPhase): boolean => p === 'FINAL' || p === 'AGE
 
 export type GroupFilter = 'all' | 'live' | 'pre' | 'done';
 
-export const filterOf = (g: PhaseInput): Exclude<GroupFilter, 'all'> => {
+// ── 표시 단계(라벨 · 필터 전용) ─────────────────────────────────────────────
+//   ⚠ 서버 rankingStatus · 경기 status 를 바꾸지 않는다. 화면에 '경기 전 / 진행 중 / 완료' 중
+//     무엇으로 보일지만 정한다. 완료 경기가 0건이어도 호명 · 진행 중 · 취소된 경기가 있으면
+//     이미 시작된 조이므로 '진행 중'으로 보인다('경기 전'과 충돌 방지).
+const STARTED_MATCH_STATUS = new Set(['calling', 'playing', 'completed', 'cancelled']);
+
+/** 조 경기 중 하나라도 시작됐는가(대기 외 상태). */
+export const anyMatchStarted = (statuses: readonly string[]): boolean =>
+  statuses.some((st) => STARTED_MATCH_STATUS.has(st));
+
+export type DisplayStage = Exclude<GroupFilter, 'all'>;
+
+export const displayStageOf = (g: PhaseInput, started = false): DisplayStage => {
   const p = phaseOf(g);
-  return isSettled(p) ? 'done' : p === 'NOT_STARTED' ? 'pre' : 'live';
+  return isSettled(p) ? 'done' : p === 'NOT_STARTED' && !started ? 'pre' : 'live';
 };
+
+export const filterOf = (g: PhaseInput, started = false): DisplayStage => displayStageOf(g, started);
 
 export const FILTER_LABEL: Record<GroupFilter, string> = {
   all: '전체', live: '진행 중', pre: '경기 전', done: '완료',
@@ -111,6 +127,15 @@ export function rankTone(r: Pick<RowInput, 'played' | 'rank' | 'qualificationSta
 export const recordText = (r: Pick<RowInput, 'played' | 'wins' | 'losses'>): string =>
   r.played === 0 ? '경기 전' : `${r.wins}승 ${r.losses}패`;
 
+/**
+ * 득실 표시 — 서버 gameDiff 그대로(+7 / 0 / -7). ⚠ gamesFor - gamesAgainst 로 다시 계산하지 않는다.
+ * 완료 경기가 없는 팀은 null(0 을 만들어 보여주지 않는다).
+ */
+export function gameDiffView(r: Pick<RowInput, 'played' | 'gameDiff'>): { text: string; color: string } | null {
+  if (r.played === 0) return null;
+  return { text: formatGameDiff(r.gameDiff), color: r.gameDiff > 0 ? C.tealText : C.muted };
+}
+
 export const QUAL_TONE: Record<QualificationStatus, { fg: string; bg: string }> = {
   QUALIFIED: { fg: C.tealText, bg: C.tealTint },
   NOT_QUALIFIED: { fg: C.muted, bg: '#F1F4F8' },
@@ -146,3 +171,30 @@ export function matchStatusView(
 
 export const teamName = (t: Pick<TeamNameInput, 'player1Name' | 'player2Name'>): string =>
   `${t.player1Name} · ${t.player2Name}`;
+
+// ── 순위결정전 표시 번호 ─────────────────────────────────────────────────────
+//   ⚠ 표시 전용. DB 의 group_type = 'placement' 는 그대로이며 예선 순위 계산에 들어가지 않는다.
+//   참가자가 "나는 17조"로 인지할 수 있도록 일반 조 번호 흐름에 이어 붙인다: 일반 조 N개 → N + 1조.
+//   (번호를 하드코딩하지 않는다. 48팀처럼 순위결정전이 없으면 표시되지 않는다.)
+export const placementDisplayNo = (preliminaryGroupCount: number, index = 0): number =>
+  preliminaryGroupCount + index + 1;
+
+export const PLACEMENT_TAG = '순위결정전';
+
+/** 순위결정전 경기 상태 → 목록 필터 구분(경기 1개라 상태가 곧 진행도다). */
+export const placementFilterOf = (status: string): Exclude<GroupFilter, 'all'> =>
+  status === 'completed' ? 'done' : status === 'waiting' ? 'pre' : 'live';
+
+/** 순위결정전 카드 · 상세 상태. 취소 등 예외 문구는 Admin / Public 래퍼가 정한다. */
+export function placementStatusView(status: string): { label: string; color: string } {
+  if (status === 'completed') return { label: '완료', color: C.green };
+  if (status === 'waiting') return { label: '경기 전', color: C.slate };
+  return { label: '진행 중', color: C.tealText };
+}
+
+/** 완료 경기 0건일 때 조 상세 안내 — 진행 중인 경기가 있어도 어긋나지 않는 표현. */
+export const NO_RESULT_YET_NOTICE = '아직 완료된 경기가 없습니다. 첫 경기 결과가 등록되면 순위가 표시됩니다.';
+
+/** 순위결정전 상세 안내. */
+export const PLACEMENT_NOTICE_HEAD = '두 팀 모두 본선에 진출합니다.';
+export const PLACEMENT_NOTICE_BODY = '경기 결과는 본선 배치 순서에만 반영됩니다.';

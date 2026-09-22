@@ -1,21 +1,29 @@
 'use client';
 
-// 순위결정전 상세 (운영진용).
-//   ⚠ 일반 예선 조가 아니다. 두 팀 모두 본선 진출이며, 결과는 본선 배치 순서에만 쓰인다.
+// 순위결정전 상세 (운영진용) — 목록에서는 일반 조 번호 흐름에 이어 'N + 1조'로 보인다.
+//   ⚠ 표시 번호만 이어 붙인다. DB 는 group_type = 'placement' 그대로이며 예선 순위 계산에 들어가지 않는다.
+//   ⚠ 두 팀 모두 본선 진출, 결과는 본선 배치 순서에만 쓰인다.
 //   ⚠ get_preliminary_standings 의 placement 항목(팀 · 상태 · 점수 · 승자)만 표시한다.
-//     순위 · 진출을 여기서 만들지 않고, 본선 slot 도 만들지 않는다.
 
 import React from 'react';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
-import { C, matchStatusView, teamName, useStandingsData } from '@/components/tournaments/standingsView';
 import {
-  BackLink, Callout, DetailHeader, Notice, PlacementDetailBlock,
+  C, PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNo,
+  placementStatusView, matchStatusView, teamName, useStandingsData,
+} from '@/components/tournaments/standingsView';
+import {
+  BackLink, Callout, DetailHeader, Notice, PlacementDetailBlock, PrevNextNav,
 } from '@/components/tournaments/standings/primitives';
 
 export default function StandingsPlacementDetail({ slug }: { slug: string }) {
   const { standings, ready, loading, error, reload } = useStandingsData(slug);
   const base = `/admin/tournaments/${slug}/standings`;
   const list = standings?.placement ?? [];
+  const groups = [...(standings?.groups ?? [])].sort((a, b) => a.groupNo - b.groupNo);
+  const last = groups.length > 0 ? groups[groups.length - 1] : null;
+  const displayNo = placementDisplayNo(groups.length);
+  const first = list[0] ?? null;
+  const done = first?.status === 'completed';
 
   if (!ready) {
     return (
@@ -38,12 +46,17 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
         </button>
       </div>
 
-      <DetailHeader title="순위결정전" sub={`예선 · 2팀 · ${list.length || 1}경기`} status={null} progress={null} />
+      <DetailHeader
+        title={first ? `${displayNo}조` : PLACEMENT_TAG}
+        tag={first ? PLACEMENT_TAG : undefined}
+        sub={`${PLACEMENT_TAG} · 2팀 · ${list.length || 1}경기`}
+        status={first ? (first.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(first.status)) : null}
+        progress={first ? `${done ? 1 : 0} / 1 경기` : null}
+      />
 
       <Callout tone="blue" padding="13px 14px" icon={<Info size={17} color="#3D5A8F" style={{ flexShrink: 0, marginTop: 2 }} />}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 500, lineHeight: 1.65, color: '#2E4266', wordBreak: 'keep-all' }}>
-          <strong style={{ fontWeight: 800 }}>두 팀 모두 본선에 진출합니다.</strong> 이 경기는 일반 조 순위와 별개이며,
-          결과는 본선 배치 순서를 정하는 데에만 쓰입니다.
+          <strong style={{ fontWeight: 800 }}>{PLACEMENT_NOTICE_HEAD}</strong> {PLACEMENT_NOTICE_BODY}
         </p>
       </Callout>
 
@@ -51,24 +64,31 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
         <Notice tone="info" text={loading ? '불러오는 중…' : '이 대회에는 순위결정전이 없습니다.'} />
       ) : (
         list.map((p) => {
-          const done = p.status === 'completed';
-          const winner = !done ? null
+          const pDone = p.status === 'completed';
+          const winner = !pDone ? null
             : p.winnerTeamId === p.teams[0]?.teamId ? 1
             : p.winnerTeamId === p.teams[1]?.teamId ? 2 : null;
           return (
             <PlacementDetailBlock
               key={p.matchId}
-              matchNo={p.matchNo}
+              matchLabel="1경기"
+              matchSub={`#${p.matchNo}`}
               status={matchStatusView(p.status)}
               teams={p.teams.map((t) => ({ key: t.teamId, teamNo: t.teamNo, name: teamName(t) }))}
               score1={p.score1}
               score2={p.score2}
               winner={winner}
-              done={done}
+              done={pDone}
             />
           );
         })
       )}
+
+      {/* 이전 조(마지막 예선 조) / 다음 조 없음 */}
+      <PrevNextNav
+        prev={last ? { href: `${base}/${last.groupNo}`, label: `${last.groupNo}조` } : null}
+        next={null}
+      />
     </div>
   );
 }

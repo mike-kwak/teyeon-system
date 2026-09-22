@@ -1,7 +1,7 @@
 'use client';
 
 // 공개 DRAW — 조 상세 (read-only).
-//   경기 전: 참가 팀 + 예정 경기 / 진행 중: 현재 순위 + 경기 결과 /
+//   경기 전: 참가 팀 + 경기 일정 / 진행 중: 현재 순위 + 경기 결과 /
 //   완료: 최종 순위 + 본선 진출 · 예선 탈락(서버 qualificationStatus) + 경기 결과.
 //
 //   ⚠⚠ 순위 · 진출 · 동률을 계산하지 않는다(rank <= 2 같은 판단 금지).
@@ -11,7 +11,7 @@ import React from 'react';
 import { Clock, Info } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import {
-  C, isSettled, phaseOf, progressText, teamName,
+  C, NO_RESULT_YET_NOTICE, isSettled, phaseOf, placementDisplayNo, progressText, teamName,
 } from '@/components/tournaments/standings/presentation';
 import {
   BackLink, Callout, DetailHeader, EntryRow, MatchResultCard, Notice, PrevNextNav, QualifiedHero,
@@ -78,7 +78,7 @@ export default function PublicGroupDetail({
       {phase === 'NOT_STARTED' && (
         <Callout tone="info" icon={<Clock size={17} color={C.slate} style={{ flexShrink: 0, marginTop: 1 }} />}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, lineHeight: 1.6, color: C.body, wordBreak: 'keep-all' }}>
-            아직 경기 전입니다. 첫 경기가 끝나면 순위가 표시됩니다.
+            {NO_RESULT_YET_NOTICE}
           </p>
         </Callout>
       )}
@@ -107,7 +107,7 @@ export default function PublicGroupDetail({
       </section>
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <SectionHead title={phase === 'NOT_STARTED' ? '예정 경기' : '경기 결과'} hint="6게임 1세트 · 노애드" inCard={false} />
+        <SectionHead title={phase === 'NOT_STARTED' ? '경기 일정' : '경기 결과'} hint="6게임 1세트 · 노애드" inCard={false} />
         {g.matches.length === 0 ? (
           <Notice tone="info" text="경기 일정이 아직 정해지지 않았습니다." />
         ) : (
@@ -131,7 +131,11 @@ export default function PublicGroupDetail({
 
       <PrevNextNav
         prev={prev ? { href: `${base}/groups/${prev.groupNo}`, label: `${prev.groupNo}조` } : null}
-        next={next ? { href: `${base}/groups/${next.groupNo}`, label: `${next.groupNo}조` } : null}
+        next={next ? { href: `${base}/groups/${next.groupNo}`, label: `${next.groupNo}조` }
+          // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다.
+          : idx === draw.groups.length - 1 && draw.placement.length > 0
+            ? { href: `${base}/placement`, label: `${placementDisplayNo(draw.groups.length)}조` }
+            : null}
       />
 
       <p style={{ margin: '2px 2px 0', fontSize: 11.5, fontWeight: 600, color: TT.subtle, lineHeight: 1.7, wordBreak: 'keep-all' }}>

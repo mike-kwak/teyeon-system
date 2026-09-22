@@ -16,7 +16,7 @@ import {
 } from '@/lib/tournaments/standingsTypes';
 import type { MatchBoard, TournamentMatch } from '@/lib/tournaments/matchTypes';
 import {
-  C, isSettled, phaseOf, rankText, rankTone, recordText, rowMatches, QUAL_TONE,
+  C, displayStageOf, gameDiffView, isSettled, phaseOf, rankText, rankTone, recordText, rowMatches, QUAL_TONE,
   type GroupPhase,
 } from '@/components/tournaments/standings/presentation';
 import type { CompactRow, RankRowView } from '@/components/tournaments/standings/primitives';
@@ -28,21 +28,22 @@ export * from '@/components/tournaments/standings/presentation';
 export const needsAttention = (g: GroupStandings): boolean =>
   g.rankingStatus === 'AGE_CHECK_REQUIRED' || g.policyRequired !== null;
 
-/** 메인 카드 상태 — 네 가지만. 예외는 '확인 필요' 하나로 묶는다. */
-export function cardStatus(g: GroupStandings): { label: string; color: string } {
+/**
+ * 메인 카드 상태 — 네 가지만. 예외는 '확인 필요' 하나로 묶는다.
+ *   started = 조 경기 중 하나라도 호명 · 진행 · 완료 · 취소됐는가(표시 전용 — 서버 상태 불변).
+ */
+export function cardStatus(g: GroupStandings, started = false): { label: string; color: string } {
   if (needsAttention(g)) return { label: '확인 필요', color: C.amber };
-  const p = phaseOf(g);
-  if (p === 'FINAL') return { label: '완료', color: C.green };
-  if (p === 'NOT_STARTED') return { label: '경기 전', color: C.slate };
+  if (phaseOf(g) === 'FINAL') return { label: '완료', color: C.green };
+  if (displayStageOf(g, started) === 'pre') return { label: '경기 전', color: C.slate };
   return { label: '진행 중', color: C.tealText };
 }
 
 /** 상세 헤더 상태. */
-export function detailStatus(g: GroupStandings): { label: string; color: string } {
+export function detailStatus(g: GroupStandings, started = false): { label: string; color: string } {
   if (needsAttention(g)) return { label: '확인 필요', color: C.amber };
-  const p = phaseOf(g);
-  if (p === 'FINAL') return { label: RANKING_STATUS_LABEL.FINAL, color: C.green };
-  if (p === 'NOT_STARTED') return { label: '경기 전', color: C.slate };
+  if (phaseOf(g) === 'FINAL') return { label: RANKING_STATUS_LABEL.FINAL, color: C.green };
+  if (displayStageOf(g, started) === 'pre') return { label: '경기 전', color: C.slate };
   return { label: RANKING_STATUS_LABEL.PROVISIONAL, color: C.tealText };
 }
 
@@ -56,6 +57,8 @@ export function adminCompactRow(r: StandingRow, phase: GroupPhase, q: string): C
     rank: pre ? null : rankText(r),
     tone: rankTone(r, phase),
     record: pre ? null : r.teamStatus === 'withdrawn' ? '기권' : recordText(r),
+    diff: pre ? null : gameDiffView(r)?.text ?? null,
+    diffColor: gameDiffView(r)?.color,
     muted: phase === 'FINAL' && r.qualificationStatus === 'NOT_QUALIFIED',
     hit: rowMatches(r, q),
   };

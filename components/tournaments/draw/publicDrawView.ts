@@ -14,8 +14,8 @@ import type {
 } from '@/lib/tournaments/publicDrawTypes';
 import { QUALIFICATION_LABEL, RANKING_STATUS_LABEL, formatGameDiff } from '@/lib/tournaments/standingsTypes';
 import {
-  C, QUAL_TONE, isSettled, phaseOf, rankText, rankTone, recordText, rowMatches, teamName,
-  type GroupPhase,
+  C, QUAL_TONE, anyMatchStarted, displayStageOf, gameDiffView, isSettled, phaseOf, rankText, rankTone,
+  recordText, rowMatches, teamName, type GroupPhase,
 } from '@/components/tournaments/standings/presentation';
 import type { CompactRow, RankRowView } from '@/components/tournaments/standings/primitives';
 
@@ -28,13 +28,16 @@ export function publicNotice(g: PublicDrawGroup): PublicNotice {
   return null;
 }
 
+/** 조 경기 중 하나라도 시작됐는가 — 라벨 · 필터 표시 전용. */
+export const publicGroupStarted = (g: PublicDrawGroup): boolean => anyMatchStarted(g.matches.map((m) => m.status));
+
 export function publicCardStatus(g: PublicDrawGroup): { label: string; color: string } {
   const n = publicNotice(g);
   if (n === 'RANK_CHECK') return { label: '순위 확인 중', color: C.amber };
   if (n === 'RESULT_CHECK') return { label: '결과 확인 중', color: C.amber };
   const p = phaseOf(g);
   if (p === 'FINAL') return { label: '완료', color: C.green };
-  if (p === 'NOT_STARTED') return { label: '경기 전', color: C.slate };
+  if (displayStageOf(g, publicGroupStarted(g)) === 'pre') return { label: '경기 전', color: C.slate };
   return { label: '진행 중', color: C.tealText };
 }
 
@@ -44,7 +47,7 @@ export function publicDetailStatus(g: PublicDrawGroup): { label: string; color: 
   if (n === 'RESULT_CHECK') return { label: '결과 확인 중', color: C.amber };
   const p = phaseOf(g);
   if (p === 'FINAL') return { label: RANKING_STATUS_LABEL.FINAL, color: C.green };
-  if (p === 'NOT_STARTED') return { label: '경기 전', color: C.slate };
+  if (displayStageOf(g, publicGroupStarted(g)) === 'pre') return { label: '경기 전', color: C.slate };
   return { label: RANKING_STATUS_LABEL.PROVISIONAL, color: C.tealText };
 }
 
@@ -73,6 +76,8 @@ export function publicCompactRow(r: PublicStandingRow, phase: GroupPhase, q: str
     rank: pre ? null : rankText(r),
     tone: rankTone(r, phase),
     record: pre ? null : r.withdrawn ? '기권' : recordText(r),
+    diff: pre ? null : gameDiffView(r)?.text ?? null,
+    diffColor: gameDiffView(r)?.color,
     muted: phase === 'FINAL' && r.qualificationStatus === 'NOT_QUALIFIED',
     hit: rowMatches(r, q),
   };
