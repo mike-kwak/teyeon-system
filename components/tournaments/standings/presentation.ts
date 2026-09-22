@@ -192,6 +192,30 @@ export function placementStatusView(status: string): { label: string; color: str
   return { label: '진행 중', color: C.tealText };
 }
 
+/**
+ * 순위결정전(1경기) 결과 표시 — 일반 조 카드와 같은 언어(1승 0패 / +3).
+ *   ⚠ 순위결정전은 standings 에 포함되지 않아 서버 gameDiff 가 없다. 대신 서버의 **공식 완료 경기 점수**
+ *     (score1 = teams[0], score2 = teams[1])와 **서버 승자**를 그대로 읽는다.
+ *     경기가 하나뿐이라 득실 = 내 점수 − 상대 점수 이며 합산 · 추정이 없다.
+ *   ⚠ 일반 조 gameDiff · 순위 · 진출 계산과 섞지 않는다(표시 전용).
+ *   완료 전(대기 · 호명 · 진행 · 취소)에는 null — 승패 · 득실을 만들지 않는다.
+ */
+export function placementResultView(
+  p: { status: string; score1: number | null; score2: number | null },
+  side: 1 | 2,
+  winnerSide: 1 | 2 | null,
+): { record: string; diff: string; diffColor: string } | null {
+  if (p.status !== 'completed' || p.score1 === null || p.score2 === null || winnerSide === null) return null;
+  const own = side === 1 ? p.score1 : p.score2;
+  const opp = side === 1 ? p.score2 : p.score1;
+  const d = own - opp;
+  return {
+    record: winnerSide === side ? '1승 0패' : '0승 1패',
+    diff: formatGameDiff(d),
+    diffColor: d > 0 ? C.tealText : C.muted,
+  };
+}
+
 /** 완료 경기 0건일 때 조 상세 안내 — 진행 중인 경기가 있어도 어긋나지 않는 표현. */
 export const NO_RESULT_YET_NOTICE = '아직 완료된 경기가 없습니다. 첫 경기 결과가 등록되면 순위가 표시됩니다.';
 

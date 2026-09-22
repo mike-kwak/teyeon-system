@@ -369,6 +369,20 @@ export function MatchResultCard({
 }
 
 // ── 순위결정전 상세 블록 ────────────────────────────────────────────────────
+export interface PlacementTeamRow {
+  key: string;
+  teamNo: number;
+  name: string;
+  /** 완료 결과가 있을 때만 — 1승 0패 / 0승 1패. 없으면 null(만들지 않는다). */
+  record: string | null;
+  /** 완료 결과가 있을 때만 — 공식 점수 기준 +N / -N. 없으면 null. */
+  diff: string | null;
+  diffColor?: string;
+  won: boolean;
+}
+
+const PLACEMENT_COLS = 'minmax(0, 1fr) 54px 32px auto';
+
 export function PlacementDetailBlock({
   matchLabel, matchSub, status, teams, score1, score2, winner, done,
 }: {
@@ -376,7 +390,7 @@ export function PlacementDetailBlock({
   matchLabel: string;
   matchSub: string | null;
   status: { label: string; color: string };
-  teams: { key: string; teamNo: number; name: string }[];
+  teams: PlacementTeamRow[];
   score1: number | null;
   score2: number | null;
   winner: 1 | 2 | null;
@@ -387,27 +401,37 @@ export function PlacementDetailBlock({
     <>
       <section style={sectionStyle}>
         <div style={{ padding: '12px 0 8px' }}><h2 style={h2Style}>참가 팀</h2></div>
-        {teams.map((t, i) => {
-          const won = done && winner === i + 1;
-          const lost = done && winner !== null && winner !== i + 1;
-          return (
-            <div key={t.key} style={{
-              display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr) 24px auto', columnGap: 8,
-              alignItems: 'center', padding: '12px 0', borderTop: `1px solid ${C.lineSoft}`,
-            }}>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{t.teamNo}번</span>
-              <span style={{ minWidth: 0, fontSize: 14, fontWeight: won ? 800 : 700, color: C.navy, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: PLACEMENT_COLS, columnGap: 8,
+          padding: '0 0 6px', fontSize: 11, fontWeight: 700, color: C.muted,
+        }}>
+          <span>팀</span>
+          <span style={{ textAlign: 'right' }}>승/패</span>
+          <span style={{ textAlign: 'right' }}>득실</span>
+          <span style={{ textAlign: 'right', minWidth: 60 }}>진출</span>
+        </div>
+        {teams.map((t) => (
+          <div key={t.key} style={{
+            display: 'grid', gridTemplateColumns: PLACEMENT_COLS, columnGap: 8,
+            alignItems: 'center', padding: '11px 0', borderTop: `1px solid ${C.lineSoft}`,
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: t.won ? 800 : 700, color: C.navy, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
                 {t.name}
-              </span>
-              <span style={{ fontSize: 12.5, fontWeight: 800, textAlign: 'center', color: won ? C.tealText : C.muted }}>
-                {won ? '승' : lost ? '패' : ''}
-              </span>
-              <span style={{ justifySelf: 'end', fontSize: 11.5, fontWeight: 700, padding: '3px 7px', borderRadius: 6, whiteSpace: 'nowrap', color: C.tealText, background: C.tealTint }}>
-                본선 진출
-              </span>
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{t.teamNo}번</p>
             </div>
-          );
-        })}
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: t.record ? C.body : C.muted, textAlign: 'right', whiteSpace: 'nowrap' }}>
+              {t.record ?? '경기 전'}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 800, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: t.diff ? (t.diffColor ?? C.muted) : C.faint }}>
+              {t.diff ?? '–'}
+            </span>
+            <span style={{ justifySelf: 'end', fontSize: 11.5, fontWeight: 700, padding: '3px 7px', borderRadius: 6, whiteSpace: 'nowrap', color: C.tealText, background: C.tealTint }}>
+              본선 진출
+            </span>
+          </div>
+        ))}
       </section>
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -15,7 +15,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Search, X as XIco
 import {
   C, FILTERS, FILTER_LABEL, PLACEMENT_TAG, adminCompactRow, anyMatchStarted, cardStatus, filterOf,
   groupMatches, needsAttention,
-  normalizeQuery, phaseOf, placementDisplayNo, placementFilterOf, placementStatusView, progressSegments,
+  normalizeQuery, phaseOf, placementDisplayNo, placementResultView, placementFilterOf, placementStatusView, progressSegments,
   progressText, rowMatches, useStandingsData, type GroupFilter,
 } from '@/components/tournaments/standingsView';
 import {
@@ -221,6 +221,8 @@ export default function StandingsBoard({ slug }: { slug: string }) {
           {/* 순위결정전 — 일반 조와 같은 카드로, 번호만 N + 1조로 이어 붙인다(작은 보조 라벨로 구분). */}
           {visiblePlacement.map(({ p, no }) => {
             const done = p.status === 'completed';
+            // 서버 승자(teams[0] = team1 = score1, teams[1] = team2 = score2)
+            const winnerSide = p.winnerTeamId === p.teams[0]?.teamId ? 1 : p.winnerTeamId === p.teams[1]?.teamId ? 2 : null;
             return (
               <GroupCompactCard
                 key={p.matchId}
@@ -231,14 +233,19 @@ export default function StandingsBoard({ slug }: { slug: string }) {
                 status={p.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(p.status)}
                 progress={`${done ? 1 : 0} / 1`}
                 segments={[done ? C.teal : p.status === 'cancelled' ? C.amberDot : C.line]}
-                rows={p.teams.map((t) => ({
+                rows={p.teams.map((t, i) => {
+                  // 순위결정전 결과 표시 — 공식 경기 점수 기준(일반 조 gameDiff 와 무관)
+                  const rv = placementResultView(p, i === 0 ? 1 : 2, winnerSide);
+                  return {
                   key: t.teamId, p1: t.player1Name, p2: t.player2Name, rank: null,
                   tone: { bg: '#fff', fg: C.navy, bd: C.line },
-                  record: done ? (p.winnerTeamId === t.teamId ? '승' : '패') : null,
-                  diff: null,   // 순위결정전은 일반 조 standings 가 아니다 — 득실 없음
+                  record: rv ? rv.record : null,
+                  diff: rv ? rv.diff : null,
+                  diffColor: rv?.diffColor,
                   muted: done && p.winnerTeamId !== t.teamId,
                   hit: rowMatches(t, q),
-                }))}
+                  };
+                })}
               />
             );
           })}

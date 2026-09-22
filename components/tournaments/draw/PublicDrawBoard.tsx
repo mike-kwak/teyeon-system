@@ -11,7 +11,7 @@ import { Search, X as XIcon } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import {
   C, FILTERS, FILTER_LABEL, PLACEMENT_TAG, filterOf, normalizeQuery, phaseOf, placementDisplayNo,
-  placementFilterOf, placementStatusView, progressSegments, progressText, rowMatches, type GroupFilter,
+  placementFilterOf, placementResultView, placementStatusView, progressSegments, progressText, rowMatches, type GroupFilter,
 } from '@/components/tournaments/standings/presentation';
 import {
   GroupCompactCard, LIST_CSS,
@@ -159,14 +159,19 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
                   : placementStatusView(p.status)}
                 progress={`${done ? 1 : 0} / 1`}
                 segments={[done ? C.teal : C.line]}
-                rows={p.teams.map((t, i) => ({
-                  key: teamKey(t), p1: t.player1Name, p2: t.player2Name, rank: null,
-                  tone: { bg: '#fff', fg: C.navy, bd: C.line },
-                  record: done ? (p.winnerSide === i + 1 ? '승' : '패') : null,
-                  diff: null,   // 순위결정전은 일반 조 standings 가 아니다 — 득실 없음
-                  muted: done && p.winnerSide !== i + 1,
-                  hit: rowMatches(t, q),
-                }))}
+                rows={p.teams.map((t, i) => {
+                  // 순위결정전 결과 표시 — 공식 경기 점수 기준(일반 조 gameDiff 와 무관)
+                  const rv = placementResultView(p, i === 0 ? 1 : 2, p.winnerSide);
+                  return {
+                    key: teamKey(t), p1: t.player1Name, p2: t.player2Name, rank: null,
+                    tone: { bg: '#fff', fg: C.navy, bd: C.line },
+                    record: rv ? rv.record : null,
+                    diff: rv ? rv.diff : null,
+                    diffColor: rv?.diffColor,
+                    muted: done && p.winnerSide !== i + 1,
+                    hit: rowMatches(t, q),
+                  };
+                })}
               />
             );
           })}

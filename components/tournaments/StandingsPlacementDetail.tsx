@@ -9,7 +9,7 @@ import React from 'react';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import {
   C, PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNo,
-  placementStatusView, matchStatusView, teamName, useStandingsData,
+  placementResultView, placementStatusView, matchStatusView, teamName, useStandingsData,
 } from '@/components/tournaments/standingsView';
 import {
   BackLink, Callout, DetailHeader, Notice, PlacementDetailBlock, PrevNextNav,
@@ -74,7 +74,14 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
               matchLabel="1경기"
               matchSub={`#${p.matchNo}`}
               status={matchStatusView(p.status)}
-              teams={p.teams.map((t) => ({ key: t.teamId, teamNo: t.teamNo, name: teamName(t) }))}
+              teams={p.teams.map((t, i) => {
+                const rv = placementResultView(p, i === 0 ? 1 : 2, winner);
+                return {
+                  key: t.teamId, teamNo: t.teamNo, name: teamName(t),
+                  record: rv ? rv.record : null, diff: rv ? rv.diff : null, diffColor: rv?.diffColor,
+                  won: winner === i + 1,
+                };
+              })}
               score1={p.score1}
               score2={p.score2}
               winner={winner}

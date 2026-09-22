@@ -8,7 +8,8 @@
 import React from 'react';
 import { Info } from 'lucide-react';
 import {
-  PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNo, placementStatusView,
+  PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNo, placementResultView,
+  placementStatusView,
   teamName,
 } from '@/components/tournaments/standings/presentation';
 import {
@@ -53,7 +54,14 @@ export default function PublicPlacementDetail({ slug, draw }: { slug: string; dr
             matchLabel="1경기"
             matchSub={null}
             status={publicMatchStatus({ status: p.status, courtNo: null, courtName: null })}
-            teams={p.teams.map((t) => ({ key: teamKey(t), teamNo: t.teamNo, name: teamName(t) }))}
+            teams={p.teams.map((t, i) => {
+              const rv = placementResultView(p, i === 0 ? 1 : 2, p.status === 'completed' ? p.winnerSide : null);
+              return {
+                key: teamKey(t), teamNo: t.teamNo, name: teamName(t),
+                record: rv ? rv.record : null, diff: rv ? rv.diff : null, diffColor: rv?.diffColor,
+                won: p.status === 'completed' && p.winnerSide === i + 1,
+              };
+            })}
             score1={p.score1}
             score2={p.score2}
             winner={p.status === 'completed' ? p.winnerSide : null}
