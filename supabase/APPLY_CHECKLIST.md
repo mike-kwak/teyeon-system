@@ -1011,9 +1011,9 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
 
 ### 적용 파일 (이 순서대로, 파일 하나씩)
 
-- [ ] `supabase/add_hosted_tournament_waitlist_policy.sql`  ← 본 적용 (단일 트랜잭션)
-- [ ] `supabase/add_hosted_tournament_waitlist_policy_verify.sql`  ← 읽기 전용 · 54개 검사 · 마지막 행 `ALL PASS · 54/54`
-- [ ] `supabase/verify_hosted_tournament_waitlist_policy_fixture.sql`  ← 실동작 57개 검사 · **항상 ERROR 로 끝나는 게 정상**(전량 롤백) · 본문 `PASS=57  FAIL=0  → ALL PASS`
+- [x] `supabase/add_hosted_tournament_waitlist_policy.sql`  ← 본 적용 (단일 트랜잭션) — **Production 적용 완료(2026-09-22)**
+- [x] `supabase/add_hosted_tournament_waitlist_policy_verify.sql`  ← 읽기 전용 · 54개 검사 · 마지막 행 `ALL PASS · 54/54` — **PASS**
+- [x] `supabase/verify_hosted_tournament_waitlist_policy_fixture.sql`  ← 실동작 57개 검사 · **항상 ERROR 로 끝나는 게 정상**(전량 롤백) · 본문 `PASS=57  FAIL=0  → ALL PASS` — **PASS**
 - 되돌림: `supabase/add_hosted_tournament_waitlist_policy_rollback.sql` (정책 적용 직전 함수 정의로 복원 · 데이터 무변경)
 
 ### 확정 정책
@@ -1029,14 +1029,47 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
 
 ### ⚠ 적용 순서
 
-1. [ ] 이 SQL 먼저 적용 → verify → fixture (구버전 앱과 호환: 새 응답 키는 추가만, 기존 키 의미 유지)
-2. [ ] 앱 배포 (Hub · 신청 · 완료 · 참가팀 · Admin 문구/표시)
+1. [x] 이 SQL 먼저 적용 → verify → fixture (구버전 앱과 호환: 새 응답 키는 추가만, 기존 키 의미 유지)
+2. [x] 앱 배포 (Hub · 신청 · 완료 · 참가팀 · Admin 문구/표시)
    - SQL 없이 앱만 먼저 나가도 판정은 옛 서버가 한다. 단, 정상 48팀 이후 옛 서버가 대기로 받으므로
-     **정상 48팀 도달 전에 1번을 끝낼 것.**
+     **정상 48팀 도달 전에 1번을 끝낼 것.** (실제 적용 시점 정상 37팀 — 여유 안에서 완료)
 
 ### 적용 전 확인 (읽기 전용)
 
-- [ ] 2026-teyeon-open `waitlisted = 0` (0 이 아니면 적용 전 보고 — 기존 대기 행 보정은 이번 범위 밖)
+- [x] 2026-teyeon-open `waitlisted = 0` (0 이 아니면 적용 전 보고 — 기존 대기 행 보정은 이번 범위 밖)
+      → `supabase/precheck_hosted_tournament_waitlist_policy_READONLY.sql` 실행 결과 `SAFE — 보정 필요 없음`.
+      total 42 / 정상 37(applied 5 · confirmed 32) / 대기 0 / 취소 5 / 거절 0 / max sequence_no 42 /
+      접수번호 · 순번 중복 0. 기존 행 보정 없이 적용했다.
+
+### Production 적용 기록 (2026-09-22)
+
+운영 반영 완료. 아래는 실제 실행 · 확인 결과다.
+
+- [x] **migration Production 적용 완료** — `add_hosted_tournament_waitlist_policy.sql` 1회 실행(단일 트랜잭션).
+      커밋된 파일과 실행 파일 SHA-256 동일(`a2bacb7f…`).
+- [x] **verify 54/54 PASS** — `ALL PASS · 54/54` (읽기 전용)
+- [x] **fixture 57/57 PASS** — `PASS=57  FAIL=0  → ALL PASS`.
+      마지막 `P0001` ERROR 는 self-test 데이터를 전량 롤백하기 위한 **의도된 예외**다(잔여 데이터 0).
+- [x] **앱 배포** — commit `978c3dd feat(tournaments): add tournament waitlist policy` · Vercel Production 배포 완료
+- [x] **Production smoke 98/98 PASS** — 읽기 전용(쓰기 RPC 요청 0). page error 0 · 가로 스크롤 0
+      (320 · 360 · 390 · 430 · 768px). 공개 RPC 반환 키 화이트리스트 유지(전화 · 입금자 · 메모 · 입금상태 없음),
+      anon 은 승격 RPC · Admin RPC · raw 신청 테이블 모두 차단.
+- [x] **실제 신규 신청 43번이 새 정책에서 `applied` 로 정상 유입** — 배포 직후 실제 참가팀 1건.
+      정상 슬롯 < 60 이고 대기 0 이라 정상 접수로 판정됐다(운영 쓰기 QA 아님 — 실제 신청자).
+- [x] **배포 직후 정상 참가 38팀 / 대기 0팀** — 기존 1~42번 37팀(applied 5 · confirmed 32) 상태 변화 없음.
+- [x] 기존 Production registration 데이터 수정 없음 · 테스트 신청 생성 없음
+
+운영 기준 (사용자 안내와 동일하게 유지할 것):
+
+- [x] **48 = 모집 목표**(안내용 숫자 · 서버 판정에 쓰지 않는다)
+- [x] **60 = 정상 참가 최대**(정상 슬롯 = applied + confirmed)
+- [x] **61번째부터 대기 순번 부여** — 정상 60팀이 찬 뒤 신청은 대기 1, 2, 3 …
+      (정상 슬롯에 빈자리가 있어도 대기팀이 있으면 새 신청은 대기 뒤에 붙는다)
+- [x] **대기 상한 없음** — 정원 때문에 접수를 막지 않는다. 마감은 대회 status · 접수 기간으로만.
+- [x] **대기팀 자동 승격 없음 / 운영진 수동 승격** — Admin 에서 대기 1번부터 승격.
+      대기 1번이 아니면 사유 필수(이력 note 기록), 정상 60팀이면 서버가 차단.
+- [x] **대기팀은 승격 안내 전 입금하지 않는다** — 대기 접수 응답 · 완료 화면에 계좌를 내려주지 않는다.
+      승격(waitlisted → applied) 후 운영진이 개별 연락해 입금을 요청하고, 입금 상태는 그때까지 미입금 그대로다.
 
 ### ⚠ 하지 않는 것
 
