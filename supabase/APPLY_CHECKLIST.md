@@ -1076,12 +1076,112 @@ teams/courts 보다 fixture 를 먼저 실행하면 `42P01 relation does not exi
 - [ ] 테이블 · 컬럼 · CHECK · index · RLS · raw table 권한 변경
 - [ ] 기존 신청 행 UPDATE (backfill 없음) · 입금 상태 모델 확장 · 자동 승격
 
-### TODO (범위 밖 · 운영 체크)
+### TODO (범위 밖 · 운영 체크) — **2건 모두 해소 완료(2026-09-23) · §18 참조**
 
-- [ ] **confirmed 팀을 취소/거절해도 `hosted_tournament_teams` 의 팀 행은 active 로 남는다.**
-      대기팀 승격으로 빈자리를 채울 때, 취소된 팀의 Team 은 운영진이 Teams 화면에서 직접 `withdrawn` 처리해야 한다.
-- [ ] 취소 · 거절 팀을 대기(waitlisted)로 되살리면 원래 sequence_no 기준으로 대기 순번이 계산되어 앞 순번이 될 수 있다.
-      운영상 필요할 때만 쓰고, 보통은 새로 신청받는다.
+- [x] ~~**confirmed 팀을 취소/거절해도 `hosted_tournament_teams` 의 팀 행은 active 로 남는다.**~~
+      ~~대기팀 승격으로 빈자리를 채울 때, 취소된 팀의 Team 은 운영진이 Teams 화면에서 직접 `withdrawn` 처리해야 한다.~~
+      → **해소(§18)**: 접수가 cancelled/rejected 가 되면 조·경기에 쓰이지 않은 팀을 자동 `withdrawn`
+      (`withdrawn_reason='registration_cancelled'`) 처리하고, 접수가 복구되면 그 팀만 자동 `active` 복구한다.
+      조편성 · 경기에 이미 사용된 팀은 자동으로 바꾸지 않고 Admin 경고로만 알린다(운영진 판단).
+- [x] ~~취소 · 거절 팀을 대기(waitlisted)로 되살리면 원래 sequence_no 기준으로 대기 순번이 계산되어 앞 순번이 될 수 있다.~~
+      ~~운영상 필요할 때만 쓰고, 보통은 새로 신청받는다.~~
+      → **해소(§18)**: 대기 순서를 `waitlisted_at`(대기열 진입 시각) 기준으로 바꿨다. 되살린 접수는
+      복구 시점으로 시각이 새로 찍혀 **현재 대기열 맨 뒤**에 선다. `sequence_no` 는 신청 이력 번호로만 보존한다.
+
+## 18. 주최 대회 — 대기열 순서 & 접수 ↔ 운영팀 정합성 (§17 TODO 2건 해소)
+
+### 적용 파일 (이 순서대로, 파일 하나씩)
+
+- [x] `supabase/precheck_hosted_tournament_team_sync_READONLY.sql`  ← 적용 전 읽기 전용 확인
+      결과: 보정 대상 0건(취소·active 팀 0 / confirmed·withdrawn 팀 0 / 조·경기 사용 팀 0 / 대기 0 / 순번 역전 0)
+- [x] `supabase/add_hosted_tournament_waitlist_integrity.sql`  ← 본 적용 (단일 트랜잭션) — **Production 적용 완료(2026-09-23) · 1회 실행**
+      SHA-256 `779fa408067fcb64228f81593e820c64716ca7d70b7e2dbc1d18007fd9bdb31f` (커밋된 파일과 동일)
+- [x] `supabase/add_hosted_tournament_waitlist_integrity_verify.sql`  ← 읽기 전용 47개 검사 — **47/47 ALL PASS**
+- [x] `supabase/verify_hosted_tournament_waitlist_integrity_fixture.sql`  ← 실동작 45개 검사 — **45/45 ALL PASS**
+      **항상 ERROR(P0001) 로 끝나는 게 정상**이다. self-test 데이터를 전량 롤백하기 위한 의도된 예외다.
+- [x] `supabase/postcheck_hosted_tournament_waitlist_integrity_READONLY.sql`  ← 적용 후 읽기 전용 확인
+- [x] `supabase/postcheck_hosted_tournament_waitlist_integrity_delta_READONLY.sql`  ← 기준선 차이 원인 규명
+- 되돌림: `supabase/add_hosted_tournament_waitlist_integrity_rollback.sql`
+      함수만 이전 정의로 복원한다. **추가한 컬럼 2개는 DROP 하지 않는다**(데이터 보존).
+      구조까지 지우는 문장은 파일 맨 아래 주석으로만 둔다.
+
+### 대기 순서
+
+- [x] `hosted_tournament_registrations.waitlisted_at timestamptz` nullable 추가 (backfill 없음)
+- [x] 별도 `waitlist_order` 같은 정수 순번 컬럼은 만들지 않는다
+- [x] 순서 기준 = 대기열 **진입 시각**. `updated_at` 이나 `sequence_no` 로 순서를 정하지 않는다
+      값은 `clock_timestamp()` 로 찍는다 — `now()` 는 트랜잭션 시작 시각이라 한 트랜잭션 안의 연속 전환에서
+      값이 같아져 순서가 뒤섞인다(로컬 fixture 가 실제로 이 문제를 잡아냈다)
+- [x] 대기 재진입(취소분 복구 · 승격 후 재대기 · 정상 참가 → 대기 전환) 시 **현재 대기열 맨 뒤**
+- [x] 대기 이탈(applied/confirmed/cancelled/rejected · 승격) 시 `waitlisted_at = NULL`
+- [x] `registration_no` · `sequence_no` 불변 — 재번호 · 재정렬 없음
+- [x] 표시 순번은 현재 waitlisted 만 대상으로 조회 시 `row_number()` 계산(DB 에 1,2,3 을 쓰지 않는다).
+      중간 팀이 빠지면 자동으로 재압축된다. 동시각 동률은 `sequence_no` 로 갈린다
+- [x] legacy fallback `coalesce(waitlisted_at, submitted_at)` — rollback 구간이나 구버전 함수로 들어온
+      행이 NULL 로 맨 앞에 튀지 않게 한다(verify 54번이 존재를 확인)
+
+### Team 정합성
+
+- [x] `hosted_tournament_teams.withdrawn_reason text` nullable 추가 (backfill 없음)
+- [x] 값 구분: `NULL`(참가 중 또는 legacy · 사유 미상) / `registration_cancelled`(접수 취소·거절로 자동 기권)
+      / `manual`(운영진 수동 기권). CHECK 제약 `hosted_tteam_withdrawn_reason_check` 로 허용값 제한
+- [x] 접수 cancelled·rejected + 조/경기 **미사용** 팀 → 자동 `withdrawn` + `registration_cancelled`
+- [x] 접수가 applied/confirmed 로 복구되면 `registration_cancelled` 인 팀만 자동 `active` + 사유 해제
+- [x] `manual` · legacy(NULL) 기권 팀은 **자동 복구하지 않는다**(운영진 판단 존중)
+- [x] 조편성(group_members) 또는 경기(matches)에 이미 사용된 팀은 **자동 변경 금지** —
+      `teamSync.action='blocked_in_use'` 로 Admin 에 경고만 띄운다. 조 재편성 · 경기 취소 자동화는 하지 않는다
+- [x] 팀 행 삭제 없음 · `team id` · `team_no` 유지 · 새 팀 행 생성 없음
+- [x] 수동 기권(`update_tournament_team`)은 사유를 `manual` 로, 수동 복구는 사유를 NULL 로 기록
+- [x] 자동 변경은 `hosted_tournament_events` 에 감사 기록(`auto_withdraw_registration_cancelled` /
+      `auto_restore_registration_restored`)
+
+### 보안 · 동시성
+
+- [x] 기존 advisory lock 유지. 잠금 순서는 **registration → teams** 한 방향으로 고정
+      (반대 순서로 두 잠금을 잡는 함수 없음 — `promote_confirmed_registrations` · `update_tournament_team` 은 teams 잠금만)
+- [x] 함수 7개 전부 `CREATE OR REPLACE` · 시그니처 불변 · DROP 없음
+- [x] RLS 완화 없음 · 테이블 권한 변경 없음 · anon 권한 확대 없음
+- [x] Public payload 에 `waitlisted_at` · `withdrawn_reason` · `registrationId` 미노출(계산된 대기 순번만)
+- [x] Admin RPC 에만 `waitlistedAt` · `withdrawnReason` · `registrationId` 제공
+- [x] SECURITY DEFINER + `search_path=public, pg_temp` 유지
+
+### Production 적용 기록 (2026-09-23)
+
+- [x] **migration PASS** — 1회 실행. 기존 행 UPDATE · DELETE · backfill 문장 없음
+- [x] **SHA match** — 커밋된 파일과 Production 실행 파일 동일(`779fa408…b31f`)
+- [x] **verify 47/47 ALL PASS**
+- [x] **fixture 45/45 ALL PASS** + 마지막 P0001 intentional rollback(잔재 0)
+- [x] **postcheck PASS** — schema(컬럼 2 · CHECK · 부분 인덱스) / integrity(대기 · 팀 위반 0건)
+- [x] **delta investigation PASS** — `UNEXPLAINED CHANGES = NONE` · `MIGRATION-INDUCED CHANGE = NO`.
+      기준선 차이(applied 5→4 / confirmed 32→33)는 seq 33 에 대한 운영진 처리였다
+      (2026-09-23 08:15 KST · payment pending→paid, registration applied→confirmed, actor=admin)
+- [x] **Production deploy** — commit `98b43b1 feat(tournaments): harden waitlist ordering and team sync` · Vercel 완료
+- [x] **Production smoke 98/98 PASS** — 읽기 전용. page error 0 · 가로 스크롤 0 · **쓰기 RPC 요청 0건**
+      (320 · 360 · 390 · 430 · 768px). 공개 PII 확대 없음, anon 은 승격 RPC · Admin RPC · raw 테이블 차단
+- [ ] **Admin Production 화면 육안 확인 — 미완**. 로그인이 필요해 직접 열지 못했다.
+      확인한 것은 ① 비로그인 접근 시 redirect ② 동일 코드의 로컬 Admin QA 60/60 PASS 까지다.
+      (대기 0 · 팀 0 이라 승격 UI 와 경고 배너는 원래 표시되지 않는 상태)
+- [x] **Production write QA 0건** — 테스트 신청 · 상태 변경 · 팀 기권/복구 · 대기 생성 · 승격 전부 하지 않음
+
+### Production baseline (2026-09-23 기준)
+
+| 항목 | 값 |
+|---|---|
+| total registrations | 44 |
+| 정상 참가(normal) | 39 |
+| applied | 6 |
+| confirmed | 33 |
+| waitlisted | 0 |
+| cancelled / rejected | 5 / 0 |
+| payment | paid 33 · pending 9 · refunded 2 |
+| hosted_tournament_teams | 0 |
+| remaining(60 − 정상) | 21 |
+
+### ⚠ 이 작업에서 바꾸지 않은 것
+
+- [x] 48 모집 목표 · 60 정상 참가 최대 · 61번째부터 대기 · 대기 상한 없음 · 수동 승격 정책
+- [x] 입금 상태 모델 · 전이 matrix · 접수번호 · 순번 · 공개 개인정보 범위
+- [x] Public DRAW · Groups · Matches · Standings · KDK · LIVE Phase 1 · assets
 
 ## 흔한 실패 원인
 
