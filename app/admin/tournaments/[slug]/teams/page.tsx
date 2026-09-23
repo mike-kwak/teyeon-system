@@ -170,6 +170,9 @@ export default function AdminTournamentTeamsPage() {
         <Link href={`/admin/tournaments/${slug}/courts`} style={{ ...btn(), textDecoration: 'none' }}>
           코트 관리
         </Link>
+        <Link href={`/admin/tournaments/${slug}/bracket`} style={{ ...btn(), textDecoration: 'none' }}>
+          본선 대진
+        </Link>
       </div>
 
       {!ready && (
