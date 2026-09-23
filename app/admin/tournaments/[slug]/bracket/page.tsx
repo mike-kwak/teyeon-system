@@ -10,7 +10,10 @@ export const dynamic = 'force-dynamic';
 //       경기이사가 확인(필요하면 직접 수정)한 뒤 저장 버튼을 눌러야 반영된다.
 //     · 1라운드 배치: 붙여넣기 또는 자리별 수정. 빈 자리를 BYE 로 자동으로 채우지 않는다.
 //     · 2라운드 이후: 승자 대기(TBD) 읽기 전용.
-//   ⚠ 본선 경기 생성 · 부전승 진출 · 승자 전달은 이 화면에서 하지 않는다(다음 운영 단계).
+//   ⚠ STEP 5(본선 경기 운영, 4C): 확정된 대진을 경기로 옮기고 결과를 입력한다.
+//     · 경기를 '만드는' 것뿐이며 대진을 새로 짜지 않는다. BYE 는 경기가 아니라 카드도 없다.
+//     · 완료는 한 번의 호출로 끝난다(완료 + 승자 전달). 화면이 두 단계로 나눠 부르지 않는다.
+//     · 호명 · 호명취소 · 코트 배정은 예선과 같은 RPC 를 그대로 쓴다(본선 전용 복제 금지).
 //   ⚠ 새 디자인 시스템을 만들지 않는다 — 기존 Admin 화면(신청/팀/조편성) 스타일을 그대로 쓴다.
 //   ⚠ 저장 뒤에는 로컬 상태를 믿지 않고 항상 서버에서 다시 읽는다.
 
@@ -26,17 +29,22 @@ import { isFullAdminRole } from '@/lib/admin/adminAccess';
 import {
   fetchAdminBracket, createBracket, setBracketEntrants, setBracketStructure,
   assignBracketSlot, replaceBracketSlots, lockBracket, unlockBracket,
+  materializeBracketMatches, completeKnockoutMatch, amendKnockoutMatchScore,
   bracketActionMessage,
 } from '@/lib/tournaments/bracketAdminService';
 import {
-  BRACKET_DRIFT_TEXT, BRACKET_ISSUE_TEXT, bracketTeamLabel,
+  BRACKET_DRIFT_TEXT, BRACKET_ISSUE_TEXT, KNOCKOUT_STATUS_TEXT,
+  bracketTeamLabel, knockoutTeamLabel,
   type AdminBracket, type BracketEntrant, type BracketEntrantSource, type EntrantInput,
-  type RoundInput, type ConnectionInput,
+  type RoundInput, type ConnectionInput, type KnockoutMatch,
 } from '@/lib/tournaments/bracketTypes';
 import {
   parseBracketPaste, BRACKET_PASTE_BLOCKER_TEXT,
   type BracketMatchableTeam, type BracketPastePreview,
 } from '@/lib/tournaments/bracketPasteParser';
+import { callMatch, uncallMatch, startMatch } from '@/lib/tournaments/matchAdminService';
+import { fetchAdminCourts } from '@/lib/tournaments/drawAdminService';
+import type { TournamentCourt } from '@/lib/tournaments/drawTypes';
 import { fetchPreliminaryStandings } from '@/lib/tournaments/standingsAdminService';
 import type { PreliminaryStandings } from '@/lib/tournaments/standingsTypes';
 
@@ -102,6 +110,12 @@ export default function AdminTournamentBracketPage() {
   const [preview, setPreview] = React.useState<BracketPastePreview | null>(null);
   // STEP 4
   const [unlockReason, setUnlockReason] = React.useState('');
+  // STEP 5 본선 경기 운영
+  const [courts, setCourts] = React.useState<TournamentCourt[]>([]);
+  const [courtPick, setCourtPick] = React.useState<Record<string, string>>({});
+  const [scoreDraft, setScoreDraft] = React.useState<Record<string, { s1: string; s2: string }>>({});
+  const [amendOpen, setAmendOpen] = React.useState('');
+  const [amendReason, setAmendReason] = React.useState('');
   // 생성
   const [newTitle, setNewTitle] = React.useState('본선 토너먼트');
   const [newCount, setNewCount] = React.useState('');
@@ -115,13 +129,15 @@ export default function AdminTournamentBracketPage() {
     if (!allowed || !slug) return;
     setLoading(true);
     try {
-      const [b, s] = await Promise.all([
+      const [b, s, c] = await Promise.all([
         fetchAdminBracket(slug),
         fetchPreliminaryStandings(slug).catch(() => ({ ready: false, standings: null })),
+        fetchAdminCourts(slug).catch(() => ({ ready: false, rows: [] as TournamentCourt[] })),
       ]);
       setReady(b.ready);
       setData(b.data);
       setStandings(s.standings);
+      setCourts(c.rows);
     } catch (err) {
       setReady(false);
       say(bracketActionMessage(err));
@@ -158,6 +174,20 @@ export default function AdminTournamentBracketPage() {
   const validation = data?.validation ?? null;
   const errors = (validation?.issues ?? []).filter((i) => i.severity === 'error');
   const warnings = (validation?.issues ?? []).filter((i) => i.severity === 'warning');
+
+  const matches = data?.matches ?? [];
+  const activeCourts = courts.filter((c) => c.status === 'active');
+  /** 라운드별로 묶어 보여 준다. 순서는 서버가 보낸 대진 순서 그대로. */
+  const matchesByRound = React.useMemo(() => {
+    const out: { key: string; title: string; rows: KnockoutMatch[] }[] = [];
+    for (const m of matches) {
+      const title = m.roundName ?? `${m.roundNo}라운드`;
+      const hit = out.find((g) => g.key === String(m.roundNo));
+      if (hit) hit.rows.push(m);
+      else out.push({ key: String(m.roundNo), title, rows: [m] });
+    }
+    return out;
+  }, [matches]);
 
   const firstRoundSlots = React.useMemo(
     () => slots.filter((s) => s.roundNo === 1).sort((a, b) => a.position - b.position),
@@ -258,7 +288,8 @@ export default function AdminTournamentBracketPage() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#0F172A' }}>본선 대진 만들기</h1>
           <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', wordBreak: 'break-all' }}>
-            {slug}{bracket ? ` · ${locked ? '확정(잠금)' : '작성 중'} · v${bracket.version}` : ''}
+            {slug}{bracket ? ` · ${bracket.status === 'completed' ? '본선 완료'
+              : locked ? '확정(잠금)' : '작성 중'} · v${bracket.version}` : ''}
           </p>
         </div>
         <button type="button" onClick={() => void load()} style={btn()} disabled={!!busy}>
@@ -311,7 +342,7 @@ export default function AdminTournamentBracketPage() {
               <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#0F172A', lineHeight: 1.7, wordBreak: 'keep-all' }}>
                 대진이 확정(잠금)되었습니다. 진출팀 · 구조 · 자리 배치는 수정할 수 없습니다.
                 수정하려면 아래에서 사유를 적고 잠금을 해제하세요.
-                <br />본선 경기 생성 및 승자 전달은 다음 운영 단계에서 처리됩니다.
+                <br />본선 경기 생성과 결과 입력은 아래 STEP 5에서 합니다.
               </p>
             </div>
           )}
@@ -645,7 +676,7 @@ export default function AdminTournamentBracketPage() {
               </div>
             )}
             <p style={{ ...note }}>
-              ‘만들 경기’와 ‘부전승 진출’은 숫자만 알려 드립니다. 본선 경기 생성 및 승자 전달은 다음 운영 단계에서 처리됩니다.
+              ‘만들 경기’와 ‘부전승 진출’은 확정 전 예상 숫자입니다. 실제 경기 생성은 확정 뒤 STEP 5에서 합니다.
             </p>
 
             {errors.length > 0 && (
@@ -682,6 +713,10 @@ export default function AdminTournamentBracketPage() {
                 onClick={() => void run('lock', () => lockBracket(slug, bracket.version))}>
                 <Lock size={13} />{busy === 'lock' ? '확정 중…' : '대진 확정(잠금)'}
               </button>
+            ) : bracket.status === 'completed' ? (
+              <p style={{ ...note, marginTop: 11 }}>
+                본선이 완료됐습니다. 대진 구조는 더 이상 바꿀 수 없습니다.
+              </p>
             ) : (
               <div style={{ marginTop: 11 }}>
                 <input style={input} value={unlockReason} onChange={(e) => setUnlockReason(e.target.value)}
@@ -696,6 +731,185 @@ export default function AdminTournamentBracketPage() {
               </div>
             )}
           </div>
+
+          {/* ── STEP 5 본선 경기 운영 (4C) ─────────────────────────────── */}
+          {locked && (
+            <div style={card}>
+              <StepHead no={5} title="본선 경기 운영"
+                desc="확정된 대진을 경기로 만들고 결과를 입력합니다. 부전승은 경기가 아니라 카드가 없습니다." />
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 11, alignItems: 'center' }}>
+                <button type="button" style={btn('primary')}
+                  disabled={!!busy || bracket.status === 'completed'}
+                  onClick={() => void run('materialize', () => materializeBracketMatches(slug, bracket.version))}>
+                  <Plus size={13} />{busy === 'materialize' ? '만드는 중…' : '경기 만들기'}
+                </button>
+                <span style={{ fontSize: 11.5, fontWeight: 800, padding: '6px 10px', borderRadius: 999,
+                  background: '#F1F5F9', color: '#475569', whiteSpace: 'nowrap' }}>
+                  현재 경기 {matches.length}
+                </span>
+                {bracket.status === 'completed' && (
+                  <span style={{ fontSize: 11.5, fontWeight: 800, padding: '6px 10px', borderRadius: 999,
+                    background: '#ECFDF5', color: '#047857', whiteSpace: 'nowrap' }}>
+                    본선 완료
+                  </span>
+                )}
+              </div>
+              <p style={note}>
+                여러 번 눌러도 같은 경기가 두 번 만들어지지 않습니다. 앞 라운드가 끝나면 다음 경기는 자동으로 생깁니다.
+              </p>
+
+              {matches.length === 0 ? (
+                <p style={{ ...note, marginTop: 10 }}>아직 만들어진 경기가 없습니다.</p>
+              ) : matchesByRound.map((g) => (
+                <div key={g.key} style={{ marginTop: 13 }}>
+                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A' }}>{g.title}</p>
+                  {g.rows.map((m) => {
+                    const sd = scoreDraft[m.id] ?? { s1: '', s2: '' };
+                    const setSd = (v: { s1: string; s2: string }) =>
+                      setScoreDraft((prev) => ({ ...prev, [m.id]: v }));
+                    const pick = courtPick[m.id] ?? '';
+                    const tone = m.status === 'completed' ? '#047857'
+                      : m.status === 'playing' ? '#B45309'
+                      : m.status === 'calling' ? '#1D4ED8' : '#64748B';
+                    const winner1 = m.winnerTeamNo != null && m.winnerTeamNo === m.team1.teamNo;
+                    const winner2 = m.winnerTeamNo != null && m.winnerTeamNo === m.team2.teamNo;
+                    return (
+                      <div key={m.id} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 11,
+                        border: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: '#0F172A' }}>{m.matchNo}번 경기</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: tone }}>
+                            {KNOCKOUT_STATUS_TEXT[m.status]}
+                          </span>
+                          {m.courtNo != null && (
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>
+                              {m.courtName ?? `${m.courtNo}번 코트`}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>
+                            승자 → {m.targetRoundNo}라운드 {m.targetPosition}번 자리
+                          </span>
+                        </div>
+
+                        {([[m.team1, m.score1, winner1] as const, [m.team2, m.score2, winner2] as const])
+                          .map(([tm, sc, win], i) => (
+                            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'baseline',
+                              margin: i === 0 ? '7px 0 0' : '2px 0 0' }}>
+                              <span style={{ flex: 1, fontSize: 13, fontWeight: win ? 900 : 700,
+                                color: win ? '#047857' : '#0F172A', wordBreak: 'keep-all' }}>
+                                {knockoutTeamLabel(tm)}
+                              </span>
+                              {sc != null && (
+                                <span style={{ fontSize: 14, fontWeight: 900, fontVariantNumeric: 'tabular-nums',
+                                  color: win ? '#047857' : '#64748B' }}>{sc}</span>
+                              )}
+                            </div>
+                          ))}
+
+                        {(m.status === 'waiting' || m.status === 'calling') && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
+                            {m.status === 'waiting' ? (
+                              <button type="button" style={btn()} disabled={!!busy}
+                                onClick={() => void run(`call-${m.id}`, async () => {
+                                  await callMatch(m.id, m.version); return '호명했습니다.';
+                                })}>
+                                {busy === `call-${m.id}` ? '처리 중…' : '호명'}
+                              </button>
+                            ) : (
+                              <button type="button" style={btn()} disabled={!!busy}
+                                onClick={() => void run(`uncall-${m.id}`, async () => {
+                                  await uncallMatch(m.id, m.version); return '호명을 취소했습니다.';
+                                })}>
+                                {busy === `uncall-${m.id}` ? '처리 중…' : '호명 취소'}
+                              </button>
+                            )}
+                            <select style={{ ...input, width: 'auto', minWidth: 116 }} value={pick}
+                              onChange={(e) => setCourtPick((prev) => ({ ...prev, [m.id]: e.target.value }))}>
+                              <option value="">코트 선택</option>
+                              {activeCourts.map((c) => (
+                                <option key={c.id} value={String(c.courtNo)}>
+                                  {c.displayName ?? `${c.courtNo}번 코트`}
+                                </option>
+                              ))}
+                            </select>
+                            <button type="button" style={btn('primary')} disabled={!!busy || pick === ''}
+                              onClick={() => void run(`start-${m.id}`, async () => {
+                                await startMatch(m.id, Number(pick), m.version); return '경기를 시작했습니다.';
+                              })}>
+                              {busy === `start-${m.id}` ? '시작 중…' : '시작'}
+                            </button>
+                          </div>
+                        )}
+
+                        {m.status === 'playing' && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9, alignItems: 'center' }}>
+                            <input style={{ ...input, width: 62 }} inputMode="numeric" maxLength={1}
+                              placeholder="6" value={sd.s1}
+                              onChange={(e) => setSd({ ...sd, s1: e.target.value.replace(/[^0-9]/g, '') })} />
+                            <span style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8' }}>:</span>
+                            <input style={{ ...input, width: 62 }} inputMode="numeric" maxLength={1}
+                              placeholder="0" value={sd.s2}
+                              onChange={(e) => setSd({ ...sd, s2: e.target.value.replace(/[^0-9]/g, '') })} />
+                            <button type="button" style={btn('primary')}
+                              disabled={!!busy || sd.s1 === '' || sd.s2 === ''}
+                              onClick={() => void run(`done-${m.id}`,
+                                () => completeKnockoutMatch(m.id, Number(sd.s1), Number(sd.s2), m.version),
+                                () => setScoreDraft((prev) => ({ ...prev, [m.id]: { s1: '', s2: '' } })))}>
+                              <Check size={13} />{busy === `done-${m.id}` ? '저장 중…' : '완료'}
+                            </button>
+                          </div>
+                        )}
+
+                        {m.status === 'completed' && (
+                          amendOpen === m.id ? (
+                            <div style={{ marginTop: 9 }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+                                <input style={{ ...input, width: 62 }} inputMode="numeric" maxLength={1}
+                                  value={sd.s1}
+                                  onChange={(e) => setSd({ ...sd, s1: e.target.value.replace(/[^0-9]/g, '') })} />
+                                <span style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8' }}>:</span>
+                                <input style={{ ...input, width: 62 }} inputMode="numeric" maxLength={1}
+                                  value={sd.s2}
+                                  onChange={(e) => setSd({ ...sd, s2: e.target.value.replace(/[^0-9]/g, '') })} />
+                              </div>
+                              <input style={{ ...input, marginTop: 7 }} value={amendReason} maxLength={200}
+                                onChange={(e) => setAmendReason(e.target.value)}
+                                placeholder="수정 사유 (필수 · 이력에 남습니다)" />
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 7 }}>
+                                <button type="button" style={btn('primary')}
+                                  disabled={!!busy || sd.s1 === '' || sd.s2 === '' || amendReason.trim().length < 2}
+                                  onClick={() => void run(`amend-${m.id}`,
+                                    () => amendKnockoutMatchScore(m.id, Number(sd.s1), Number(sd.s2),
+                                      amendReason.trim(), m.version),
+                                    () => { setAmendOpen(''); setAmendReason(''); })}>
+                                  {busy === `amend-${m.id}` ? '저장 중…' : '수정 저장'}
+                                </button>
+                                <button type="button" style={btn()} disabled={!!busy}
+                                  onClick={() => { setAmendOpen(''); setAmendReason(''); }}>취소</button>
+                              </div>
+                              <p style={note}>
+                                승자가 바뀌는 수정은 다음 경기가 아직 시작되지 않았을 때만 됩니다.
+                              </p>
+                            </div>
+                          ) : (
+                            <button type="button" style={{ ...btn(), marginTop: 9 }} disabled={!!busy}
+                              onClick={() => {
+                                setAmendOpen(m.id); setAmendReason('');
+                                setScoreDraft((prev) => ({ ...prev,
+                                  [m.id]: { s1: String(m.score1 ?? ''), s2: String(m.score2 ?? '') } }));
+                              }}>
+                              결과 수정
+                            </button>
+                          )
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 

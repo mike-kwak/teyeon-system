@@ -96,11 +96,48 @@ export interface BracketDrift {
   teamNo: number | null;
 }
 
+/** 본선 경기 상태. 예선 경기와 같은 값을 쓴다(운영 흐름이 같기 때문). */
+export type KnockoutMatchStatus = 'waiting' | 'calling' | 'playing' | 'completed' | 'cancelled';
+
+/** 경기 카드에 쓰는 팀 표시값. ⚠ 팀 UUID 가 없다 — 서버가 내보내지 않는다. */
+export interface KnockoutMatchTeam {
+  teamNo: number | null;
+  player1Name: string | null;
+  player2Name: string | null;
+  teamStatus: 'active' | 'withdrawn' | null;
+}
+
+/**
+ * 본선 경기 1개(4C).
+ *   ⚠ id 는 RPC 호출에만 쓴다. 화면에 표시하지 않는다.
+ *   ⚠ BYE 는 경기가 아니다 — 여기에 들어오지 않는다(서버가 경기를 만들지 않는다).
+ */
+export interface KnockoutMatch {
+  id: string;
+  matchNo: number;
+  roundNo: number;
+  roundName: string | null;
+  /** 이 경기 승자가 올라갈 자리(다음 라운드 · 자리 번호). */
+  targetRoundNo: number;
+  targetPosition: number;
+  status: KnockoutMatchStatus;
+  version: number;
+  courtNo: number | null;
+  courtName: string | null;
+  score1: number | null;
+  score2: number | null;
+  winnerTeamNo: number | null;
+  team1: KnockoutMatchTeam;
+  team2: KnockoutMatchTeam;
+}
+
 export interface AdminBracket {
   bracket: Bracket | null;
   rounds: BracketRound[];
   slots: BracketSlot[];
   entrants: BracketEntrant[];
+  /** 4C. 아직 경기를 만들지 않았으면 빈 배열이다. */
+  matches: KnockoutMatch[];
   entrantDrift: BracketDrift[];
   validation: BracketValidation | null;
 }
@@ -139,6 +176,20 @@ export interface SlotAssignmentInput {
   type: BracketSlotType;
   teamId?: string | null;
 }
+
+/** 경기 카드의 팀 한 줄. 이름 스냅샷만 쓴다. */
+export function knockoutTeamLabel(t: KnockoutMatchTeam): string {
+  if (t.teamNo == null) return '미정';
+  return `${t.teamNo}. ${t.player1Name ?? ''} · ${t.player2Name ?? ''}`.trim();
+}
+
+export const KNOCKOUT_STATUS_TEXT: Record<KnockoutMatchStatus, string> = {
+  waiting: '대기',
+  calling: '호명 중',
+  playing: '진행 중',
+  completed: '완료',
+  cancelled: '취소',
+};
 
 /** 화면에서 쓰는 팀 식별 문구. 이름만 쓴다(연락처·접수 정보 없음). */
 export function bracketTeamLabel(

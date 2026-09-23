@@ -8,8 +8,8 @@
 import { supabase } from '@/lib/supabase';
 import type {
   AdminBracket, Bracket, BracketDrift, BracketEntrant, BracketIssue, BracketRound,
-  BracketSlot, BracketSummary, BracketValidation, EntrantInput, SlotAssignmentInput,
-  StructureInput,
+  BracketSlot, BracketSummary, BracketValidation, EntrantInput, KnockoutMatch,
+  KnockoutMatchTeam, SlotAssignmentInput, StructureInput,
 } from './bracketTypes';
 
 const rec = (v: unknown): Record<string, unknown> =>
@@ -91,9 +91,20 @@ const mapValidation = (v: unknown): BracketValidation | null => {
   return { ok: o.ok === true, issues: mapIssues(o.issues), summary: mapSummary(o.summary) };
 };
 
+const mapMatchTeam = (v: unknown): KnockoutMatchTeam => {
+  const o = rec(v);
+  return {
+    teamNo: numOrNull(o.teamNo),
+    player1Name: strOrNull(o.player1Name),
+    player2Name: strOrNull(o.player2Name),
+    teamStatus: (strOrNull(o.teamStatus) as KnockoutMatchTeam['teamStatus']) ?? null,
+  };
+};
+
 export async function fetchAdminBracket(slug: string): Promise<{ ready: boolean; data: AdminBracket }> {
   const empty: AdminBracket = {
-    bracket: null, rounds: [], slots: [], entrants: [], entrantDrift: [], validation: null,
+    bracket: null, rounds: [], slots: [], entrants: [], matches: [],
+    entrantDrift: [], validation: null,
   };
   try {
     const { data, error } = await supabase.rpc('get_admin_bracket', { p_slug: slug });
@@ -136,6 +147,23 @@ export async function fetchAdminBracket(slug: string): Promise<{ ready: boolean;
           seedNo: numOrNull(e.seedNo),
           note: strOrNull(e.note),
           placed: e.placed === true,
+        })),
+        matches: arr(o.matches).map((m): KnockoutMatch => ({
+          id: str(m.id),
+          matchNo: num(m.matchNo),
+          roundNo: num(m.roundNo),
+          roundName: strOrNull(m.roundName),
+          targetRoundNo: num(m.targetRoundNo),
+          targetPosition: num(m.targetPosition),
+          status: (str(m.status) || 'waiting') as KnockoutMatch['status'],
+          version: num(m.version),
+          courtNo: numOrNull(m.courtNo),
+          courtName: strOrNull(m.courtName),
+          score1: numOrNull(m.score1),
+          score2: numOrNull(m.score2),
+          winnerTeamNo: numOrNull(m.winnerTeamNo),
+          team1: mapMatchTeam(m.team1),
+          team2: mapMatchTeam(m.team2),
         })),
         entrantDrift: arr(o.entrantDrift).map((d): BracketDrift => ({
           code: str(d.code),
@@ -272,7 +300,7 @@ export async function lockBracket(slug: string, expectedVersion: number): Promis
   const o = unwrap(data);
   const s = mapSummary(o.summary);
   return `대진을 확정(잠금)했습니다. 만들 경기 ${s.matchesToCreate} · 부전승 진출 ${s.byeAdvances}`
-    + ' — 경기 생성과 승자 전달은 다음 운영 단계에서 처리됩니다.';
+    + ' — 이제 본선 경기 운영에서 경기를 만들 수 있습니다.';
 }
 
 export async function unlockBracket(
@@ -288,6 +316,73 @@ export async function unlockBracket(
   if (error) throw error;
   unwrap(data);
   return '잠금을 해제했습니다. 사유는 변경 이력에 남았습니다.';
+}
+
+// ── 본선 경기 운영 (4C) ─────────────────────────────────────────────────────
+//
+//   ⚠ 완료는 반드시 completeKnockoutMatch 하나로 한다.
+//     '완료' 와 '승자 전달' 을 화면이 두 번 나눠 호출하면 중간에 끊겼을 때 승자가 사라진다.
+//   ⚠ 호명 · 호명취소 · 코트 배정은 예선과 같은 RPC(call/uncall/start_match)를 그대로 쓴다.
+//     본선 전용으로 다시 만들지 않는다.
+
+/** 확정된 대진 → 본선 경기 생성 + 부전승 진출. 여러 번 눌러도 안전하다(서버가 멱등). */
+export async function materializeBracketMatches(
+  slug: string,
+  expectedVersion: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('materialize_bracket_matches', {
+    p_slug: slug,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  const created = num(o.created);
+  const byes = num(o.byeAdvanced);
+  if (created === 0 && byes === 0) return '새로 만들 경기가 없습니다. (이미 모두 생성됨)';
+  return `경기 ${created}개를 만들었습니다.` + (byes > 0 ? ` 부전승 ${byes}팀이 다음 라운드로 올라갔습니다.` : '');
+}
+
+/** 본선 경기 완료 — 점수 저장 · 승자 전달 · 다음 경기 생성이 한 번에 일어난다. */
+export async function completeKnockoutMatch(
+  matchId: string,
+  score1: number,
+  score2: number,
+  expectedVersion: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('complete_knockout_match', {
+    p_match_id: matchId,
+    p_score1: score1,
+    p_score2: score2,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  if (o.bracketCompleted === true) return '결승 결과를 저장했습니다. 본선이 완료됐습니다.';
+  const created = num(o.createdMatches);
+  return '결과를 저장하고 승자를 다음 자리로 올렸습니다.'
+    + (created > 0 ? ` 다음 경기 ${created}개가 만들어졌습니다.` : '');
+}
+
+/** 본선 완료 결과 수정. 승자가 바뀌면 하위 진행 상태에 따라 서버가 거부할 수 있다. */
+export async function amendKnockoutMatchScore(
+  matchId: string,
+  score1: number,
+  score2: number,
+  reason: string,
+  expectedVersion: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('amend_knockout_match_score', {
+    p_match_id: matchId,
+    p_score1: score1,
+    p_score2: score2,
+    p_reason: reason,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  if (o.winnerChanged !== true) return '점수를 정정했습니다. 사유는 변경 이력에 남았습니다.';
+  return '승자를 정정하고 다음 라운드 자리를 다시 맞췄습니다.'
+    + (o.replacedMatch === true ? ' 다음 경기의 팀도 교체했습니다.' : '');
 }
 
 // ── 오류 문구 ───────────────────────────────────────────────────────────────
@@ -362,6 +457,36 @@ export function bracketActionMessage(err: unknown): string {
     case 'unknown_position':          return '없는 자리 번호가 들어 있습니다.';
     case 'position_count_mismatch':
       return '1라운드 자리 수와 입력 줄 수가 다릅니다. 모든 자리를 포함해 주세요.';
+
+    // 본선 경기 운영 (4C)
+    case 'bracket_not_locked':
+      return '대진을 먼저 확정(잠금)해 주세요. 확정 전에는 경기를 만들지 않습니다.';
+    case 'bracket_completed':
+      return '이미 끝난 본선입니다. 우승 결과를 바꾸려면 운영 책임자와 먼저 상의해 주세요.';
+    case 'bracket_link_missing':
+      return '이 경기가 대진의 어느 자리로 이어지는지 확인할 수 없습니다. 대진을 다시 불러와 주세요.';
+    case 'not_knockout_match':      return '본선 경기가 아닙니다.';
+    case 'knockout_requires_bracket_rpc':
+      return '본선 경기는 본선 화면에서만 처리할 수 있습니다.';
+    case 'knockout_cancel_not_supported':
+      return '본선 경기는 취소할 수 없습니다. 자리가 비면 대진이 끊깁니다.';
+    case 'match_not_found':         return '경기를 찾을 수 없습니다.';
+    case 'match_not_completed':     return '아직 완료된 경기가 아닙니다.';
+    case 'already_changed':
+      return '이미 상태가 바뀐 경기입니다. 최신 내용을 불러온 뒤 다시 시도해 주세요.';
+    case 'invalid_score':           return '점수는 6 대 0~5 로 입력해 주세요.';
+    case 'slot_occupied':
+      return '올라갈 자리에 이미 다른 팀이 있습니다. 대진 상태를 먼저 확인해 주세요.';
+    case 'downstream_calling':
+      return '다음 경기가 이미 호명됐습니다. 그 경기를 호명 취소한 뒤 다시 시도해 주세요.';
+    case 'downstream_playing':
+      return '다음 경기가 진행 중입니다. 먼저 그 경기를 정리한 뒤 다시 시도해 주세요.';
+    case 'downstream_completed':
+      return '다음 경기가 이미 끝났습니다. 뒤쪽 결과부터 바로잡아야 합니다.';
+    case 'court_not_found':         return '없는 코트 번호입니다.';
+    case 'court_disabled':          return '사용 중지된 코트입니다.';
+    case 'court_conflict':          return '그 코트에서 다른 경기가 진행 중입니다.';
+    case 'team_busy':               return '해당 팀이 다른 경기를 진행 중입니다.';
     default:
       break;
   }
