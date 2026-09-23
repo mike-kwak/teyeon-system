@@ -99,10 +99,12 @@ export interface AdminRegistrationRow {
   registrationStatus: RegistrationStatus;
   paymentStatus: PaymentStatus;
   /**
-   * 대기 순번(1..N) — 서버가 waitlisted 를 sequence_no 순으로 세어 계산한다. waitlisted 가 아니면 null.
+   * 대기 순번(1..N) — 서버가 대기열 진입 시각(waitlisted_at) 순으로 세어 계산한다. waitlisted 가 아니면 null.
    *   ⚠ 표시 전용. 원본 sequence_no / registration_no 는 바뀌지 않는다.
    */
   waitlistPosition: number | null;
+  /** 대기열 진입 시각. 대기 중일 때만 값이 있다(대기를 떠나면 서버가 지운다). */
+  waitlistedAt: string | null;
   eligibilityConfirmedAt: string | null;
   regulationsConfirmedAt: string | null;
   privacyAgreedAt: string | null;
@@ -130,6 +132,7 @@ const mapRow = (r: Record<string, unknown>): AdminRegistrationRow => ({
   paymentStatus: (r.paymentStatus as PaymentStatus) || 'pending',
   waitlistPosition: Number.isInteger(Number(r.waitlistPosition)) && Number(r.waitlistPosition) >= 1
     ? Number(r.waitlistPosition) : null,
+  waitlistedAt: (r.waitlistedAt as string) ?? null,
   eligibilityConfirmedAt: (r.eligibilityConfirmedAt as string) ?? null,
   regulationsConfirmedAt: (r.regulationsConfirmedAt as string) ?? null,
   privacyAgreedAt: (r.privacyAgreedAt as string) ?? null,
@@ -199,14 +202,53 @@ export interface SetRegistrationStatusInput {
   adminNote?: string | null;
 }
 
-export async function setRegistrationStatus(v: SetRegistrationStatusInput): Promise<void> {
-  const { error } = await supabase.rpc('set_tournament_registration_status', {
+/**
+ * 상태 변경에 따른 운영팀 동기화 결과(서버가 알려 준다).
+ *   withdrawn        = 접수 취소·거절로 팀을 자동 기권 처리했다.
+ *   restored         = 접수 복구로 팀을 다시 참가 상태로 되돌렸다.
+ *   blocked_in_use   = 조편성·경기에 이미 쓰인 팀이라 자동으로 바꾸지 않았다(운영진 확인 필요).
+ *   blocked_manual   = 운영진이 직접 기권시킨 팀이라 자동 복구하지 않았다.
+ *   already_withdrawn= 이미 기권 상태였다(사유를 덮어쓰지 않았다).
+ *   none             = 연결된 팀이 없거나 바꿀 것이 없었다.
+ */
+export type RegistrationTeamSyncAction =
+  | 'none' | 'withdrawn' | 'restored' | 'blocked_in_use' | 'blocked_manual' | 'already_withdrawn';
+
+export interface RegistrationTeamSync {
+  action: RegistrationTeamSyncAction;
+  teamNo: number | null;
+}
+
+export async function setRegistrationStatus(
+  v: SetRegistrationStatusInput,
+): Promise<RegistrationTeamSync> {
+  const { data, error } = await supabase.rpc('set_tournament_registration_status', {
     p_registration_id: v.registrationId,
     p_registration_status: v.registrationStatus ?? null,
     p_payment_status: v.paymentStatus ?? null,
     p_admin_note: v.adminNote ?? null,
   });
   if (error) throw error;
+  const sync = ((data as Record<string, unknown> | null)?.teamSync ?? null) as Record<string, unknown> | null;
+  return {
+    action: ((sync?.action as RegistrationTeamSyncAction) || 'none'),
+    teamNo: sync && sync.teamNo !== null && sync.teamNo !== undefined ? num(sync.teamNo) : null,
+  };
+}
+
+/** 운영팀 동기화 결과 문구. 'none' 이면 따로 알리지 않는다. */
+export function teamSyncMessage(s: RegistrationTeamSync): string {
+  const team = s.teamNo !== null ? `${s.teamNo}번 팀` : '연결된 팀';
+  switch (s.action) {
+    case 'withdrawn': return `${team}을 기권 처리했습니다.`;
+    case 'restored': return `${team}을 참가 상태로 되돌렸습니다.`;
+    case 'blocked_in_use':
+      return `⚠ ${team}은 조편성·경기에 이미 쓰여 자동 기권하지 않았습니다. 참가팀 화면에서 직접 확인해 주세요.`;
+    case 'blocked_manual':
+      return `${team}은 운영진이 직접 기권한 팀이라 자동 복구하지 않았습니다.`;
+    case 'already_withdrawn': return `${team}은 이미 기권 상태입니다.`;
+    default: return '';
+  }
 }
 
 // ── 대기팀 승격 ──────────────────────────────────────────────────────────────

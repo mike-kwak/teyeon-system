@@ -91,6 +91,8 @@ export async function fetchAdminTeams(
         clubName: strOrNull(r.clubName),
         source: (str(r.source) || 'manual') as TournamentTeamSource,
         status: (str(r.status) || 'active') as TournamentTeamStatus,
+        withdrawnReason: (strOrNull(r.withdrawnReason) as TournamentTeam['withdrawnReason']) ?? null,
+        registrationId: strOrNull(r.registrationId),
         seedNo: r.seedNo === null || r.seedNo === undefined ? null : num(r.seedNo),
         fromRegistration: r.fromRegistration === true,
         createdAt: strOrNull(r.createdAt),

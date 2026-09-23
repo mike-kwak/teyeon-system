@@ -270,6 +270,12 @@ export default function AdminTournamentTeamsPage() {
                       }}>
                         {teamDisplayName(t)}
                       </p>
+                      {off && t.withdrawnReason && (
+                        <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 800, lineHeight: 1.5,
+                                    color: t.withdrawnReason === 'registration_cancelled' ? '#B45309' : '#475569' }}>
+                          {t.withdrawnReason === 'registration_cancelled' ? '기권 · 접수 취소' : '기권 · 운영진 처리'}
+                        </p>
+                      )}
                       <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', lineHeight: 1.6, wordBreak: 'keep-all' }}>
                         {t.player1ClubName || '클럽 미입력'} / {t.player2ClubName || '클럽 미입력'}
                         {t.seedNo !== null ? ` · 시드 ${t.seedNo}` : ''}

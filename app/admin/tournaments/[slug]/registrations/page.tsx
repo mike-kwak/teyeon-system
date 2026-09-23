@@ -9,7 +9,9 @@ export const dynamic = 'force-dynamic';
 //   · 대기팀 승격(waitlisted → applied)은 promote_waitlisted_tournament_registration RPC 한 경로로만 나간다.
 //     서버가 lock 안에서 정상 슬롯(< 최대)을 다시 확인하고, 대기 1번이 아니면 사유를 요구해 이력에 남긴다.
 //     승격 = '입금 요청 대상이 됨'. 입금 상태는 미입금 그대로이며 운영진이 개별 연락한다.
-//   · 대기 순번은 서버가 계산한 waitlistPosition 만 쓴다(원본 접수번호 · 순번은 바뀌지 않는다).
+//   · 대기 순번은 서버가 계산한 waitlistPosition 만 쓴다(대기열 진입 시각 기준 · 원본 접수번호 · 순번 불변).
+//   · 접수를 취소·거절하면 서버가 연결된 운영팀을 자동 기권 처리한다. 조편성 · 경기에 이미 쓰인 팀은
+//     자동으로 바꾸지 않으므로(blocked_in_use) 여기서 경고만 띄운다 — 조 재편성 · 경기 취소는 하지 않는다.
 //   · 입금 상태는 운영 내부 정보다. 공개 화면에 절대 내보내지 않는다.
 //   · 선수(파트너) 교체는 set_tournament_registration_players RPC 한 경로로만 나간다.
 //     접수번호·순번·신청상태·입금상태는 서버가 유지하고, 이력의 연락처는 마스킹되어 저장된다.
@@ -23,9 +25,11 @@ import {
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
+import { fetchAdminTeams } from '@/lib/tournaments/drawAdminService';
+import type { TournamentTeam } from '@/lib/tournaments/drawTypes';
 import {
   fetchAdminRegistrations, fetchAdminTournaments, fetchRegistrationHistory, setRegistrationStatus,
-  setRegistrationPlayers, canEditPlayers, promoteWaitlistedRegistration,
+  setRegistrationPlayers, canEditPlayers, promoteWaitlistedRegistration, teamSyncMessage,
   adminActionMessage, maskPhone, formatPhone,
   REGISTRATION_STATUS_LABEL, PAYMENT_STATUS_LABEL, HISTORY_ACTION_LABEL,
   type AdminRegistrationRow, type RegistrationHistoryRow, type SetRegistrationPlayersInput,
@@ -595,6 +599,7 @@ function Detail({ row, busy, onAction, onPlayers, promote }: {
       {line('클럽', row.clubName || <span style={{ color: '#94A3B8' }}>-</span>)}
       {line('입금자명', row.depositorName)}
       {line('신청시각', fmtTime(row.submittedAt))}
+      {row.waitlistedAt && line('대기 진입', fmtTime(row.waitlistedAt))}
       {row.confirmedAt && line('확정시각', fmtTime(row.confirmedAt))}
       {row.cancelledAt && line('취소시각', fmtTime(row.cancelledAt))}
       {row.note && line('참가자 메모', row.note)}
@@ -723,12 +728,18 @@ export default function AdminTournamentRegistrationsPage() {
   const [toast, setToast] = React.useState('');
   // 정상 참가 최대 · 모집 목표 — 서버(get_admin_hosted_tournaments) 값. 못 받으면 null(숫자를 지어내지 않는다).
   const [cap, setCap] = React.useState<{ max: number; target: number } | null>(null);
+  // 운영팀 스냅샷 — 취소·거절된 접수인데 팀이 아직 참가 상태로 남은 경우를 찾기 위해서만 쓴다.
+  const [teams, setTeams] = React.useState<TournamentTeam[]>([]);
 
   const load = React.useCallback(async () => {
     if (!allowed || !slug) return;
-    const [{ ready, rows }, list] = await Promise.all([fetchAdminRegistrations(slug), fetchAdminTournaments()]);
+    const [{ ready, rows }, list, teamList] = await Promise.all([
+      fetchAdminRegistrations(slug), fetchAdminTournaments(),
+      fetchAdminTeams(slug).catch(() => ({ ready: false, rows: [] as TournamentTeam[] })),
+    ]);
     setReady(ready);
     setRows(rows);
+    setTeams(teamList.rows);
     const t = list.rows.find((x) => x.slug === slug);
     setCap(t && t.maxCapacity > 0 ? { max: t.maxCapacity, target: t.targetCapacity } : null);
     setLoading(false);
@@ -747,9 +758,10 @@ export default function AdminTournamentRegistrationsPage() {
   ) => {
     setBusyId(row.id);
     try {
-      await setRegistrationStatus({ registrationId: row.id, ...patch });
+      const sync = await setRegistrationStatus({ registrationId: row.id, ...patch });
       await load();
-      setToast('처리했습니다.');
+      const extra = teamSyncMessage(sync);
+      setToast(extra ? `처리했습니다. ${extra}` : '처리했습니다.');
     } catch (err) {
       setToast(adminActionMessage(err));
     } finally {
@@ -812,6 +824,18 @@ export default function AdminTournamentRegistrationsPage() {
       ? (a, b) => (a.waitlistPosition ?? 1e9) - (b.waitlistPosition ?? 1e9)
       : byNewest);
   }, [rows, filter, q]);
+
+  // 접수는 취소·거절인데 운영팀이 아직 참가 상태인 건(= 조편성 · 경기에 쓰여 자동 기권을 못 한 팀).
+  //   ⚠ 여기서 팀을 고치지 않는다. 운영진이 참가팀 화면에서 판단한다.
+  const teamWarnings = React.useMemo(() => {
+    const closed = new Map(rows
+      .filter((r) => r.registrationStatus === 'cancelled' || r.registrationStatus === 'rejected')
+      .map((r) => [r.id, r]));
+    return teams
+      .filter((t) => t.status === 'active' && t.registrationId && closed.has(t.registrationId))
+      .map((t) => ({ teamNo: t.teamNo, row: closed.get(t.registrationId as string)! }))
+      .sort((a, b) => a.teamNo - b.teamNo);
+  }, [rows, teams]);
 
   // 대기 순서 — 서버가 준 waitlistPosition 순.
   const waitlist = React.useMemo(
@@ -892,6 +916,33 @@ export default function AdminTournamentRegistrationsPage() {
               </p>
             )}
           </div>
+
+          {/* 접수는 취소·거절인데 팀이 아직 참가 상태 — 조편성 · 경기에 쓰여 자동 기권하지 못한 건 */}
+          {teamWarnings.length > 0 && (
+            <div style={{ ...card, borderColor: '#FCA5A5', background: '#FEF2F2' }}>
+              <p style={{ margin: '0 0 6px', display: 'flex', gap: 6, fontSize: 12.5, fontWeight: 900, color: '#B91C1C' }}>
+                <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                취소·거절 접수인데 참가 상태로 남은 팀 {teamWarnings.length}건
+              </p>
+              <p style={{ margin: '0 0 8px', fontSize: 11.5, fontWeight: 600, color: '#7F1D1D', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+                조편성 · 경기에 이미 사용된 팀이라 자동으로 기권 처리하지 않았습니다.
+                참가팀 화면에서 상황을 확인한 뒤 직접 처리해 주세요. (조 재편성 · 경기 취소는 자동으로 하지 않습니다)
+              </p>
+              {teamWarnings.map((w) => (
+                <div key={w.teamNo} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '5px 0', fontSize: 12, fontWeight: 700, color: '#0F172A' }}>
+                  <span style={{ minWidth: 52, color: '#B91C1C', fontWeight: 900 }}>{w.teamNo}번 팀</span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    {w.row.player1Name} · {w.row.player2Name}
+                    <span style={{ color: '#94A3B8', fontWeight: 600 }}> · {w.row.registrationNo} · {REGISTRATION_STATUS_LABEL[w.row.registrationStatus]}</span>
+                  </span>
+                </div>
+              ))}
+              <Link href={`/admin/tournaments/${slug}/teams`}
+                style={{ display: 'inline-block', marginTop: 6, fontSize: 12, fontWeight: 800, color: '#B91C1C' }}>
+                참가팀 화면으로 이동 →
+              </Link>
+            </div>
+          )}
 
           {/* 대기 순서 — 대기 1번에 승격 액션. 그 외는 예외 승격(경고 → 사유 → 승격). */}
           {waitlist.length > 0 && (

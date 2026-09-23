@@ -10,6 +10,13 @@ export type TournamentTeamSource = 'registration' | 'fixture' | 'manual';
 /** 팀 상태. 기권/불참은 withdrawn 으로 두고 행을 지우지 않는다(기록 보존). */
 export type TournamentTeamStatus = 'active' | 'withdrawn';
 
+/**
+ * 기권 사유. null = 참가 중이거나 사유 미상(legacy).
+ *   registration_cancelled = 접수 취소·거절로 서버가 자동 기권시킨 팀. 접수가 복구되면 자동으로 되살아난다.
+ *   manual                 = 운영진이 직접 기권시킨 팀. 접수가 복구돼도 자동 복구하지 않는다.
+ */
+export type TournamentTeamWithdrawnReason = 'registration_cancelled' | 'manual' | null;
+
 export interface TournamentTeam {
   id: string;
   /** 경기이사가 쓰는 대회 내 팀 번호. 접수 순번과 다를 수 있다. */
@@ -23,6 +30,10 @@ export interface TournamentTeam {
   clubName: string | null;
   source: TournamentTeamSource;
   status: TournamentTeamStatus;
+  /** 기권 사유(운영 화면 전용). 공개 경로에는 내보내지 않는다. */
+  withdrawnReason: TournamentTeamWithdrawnReason;
+  /** 승격 원본 접수 id. fixture/manual 팀은 null. ⚠ 운영 화면 전용 내부 식별자. */
+  registrationId: string | null;
   /** 경기이사가 부여하는 선택값. 시스템이 계산하지 않는다. */
   seedNo: number | null;
   /** confirmed 접수에서 승격된 팀인지. 접수 id 자체는 공개하지 않는다. */
