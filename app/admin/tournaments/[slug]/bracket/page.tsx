@@ -27,7 +27,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ChevronLeft, ShieldAlert, RefreshCw, AlertTriangle, Check, Lock, Unlock,
-  ClipboardPaste, Trash2, Plus, Info, Undo2, Users,
+  ClipboardPaste, Trash2, Plus, Info, Undo2, Users, Eye, EyeOff, ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
@@ -36,6 +36,7 @@ import {
   assignBracketSlot, replaceBracketSlots, lockBracket, unlockBracket,
   materializeBracketMatches, completeKnockoutMatch, amendKnockoutMatchScore,
   resolveBracketQualifiers, unresolveBracketQualifier,
+  publishBracket, unpublishBracket,
   bracketActionMessage,
 } from '@/lib/tournaments/bracketAdminService';
 import {
@@ -52,6 +53,7 @@ import {
 import { callMatch, uncallMatch, startMatch } from '@/lib/tournaments/matchAdminService';
 import { fetchAdminCourts } from '@/lib/tournaments/drawAdminService';
 import type { TournamentCourt } from '@/lib/tournaments/drawTypes';
+import { PUBLIC_KNOCKOUT_ENABLED } from '@/lib/tournaments/publicKnockoutFlags';
 import { fetchPreliminaryStandings } from '@/lib/tournaments/standingsAdminService';
 import type { PreliminaryStandings } from '@/lib/tournaments/standingsTypes';
 
@@ -79,6 +81,14 @@ const input: React.CSSProperties = {
 const note: React.CSSProperties = {
   margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', lineHeight: 1.7, wordBreak: 'keep-all',
 };
+/** 공개 시각 표기 — '10월 25일 09:30'. */
+const fmtDateTime = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
 const StepHead = ({ no, title, desc }: { no: number; title: string; desc: string }) => (
   <>
     <p style={label}>STEP {no}</p>
@@ -124,6 +134,9 @@ export default function AdminTournamentBracketPage() {
   const [undoReason, setUndoReason] = React.useState('');
   /** STEP 1(보조 기능) 펼침 여부. 기본은 접어 둔다. */
   const [showStep1, setShowStep1] = React.useState(false);
+  /** 공개 해제 확인 · 사유 입력. */
+  const [unpublishOpen, setUnpublishOpen] = React.useState(false);
+  const [unpublishReason, setUnpublishReason] = React.useState('');
   // STEP 4
   const [unlockReason, setUnlockReason] = React.useState('');
   // STEP 5 본선 경기 운영
@@ -970,6 +983,92 @@ export default function AdminTournamentBracketPage() {
               </div>
             )}
           </div>
+
+          {/* ── 본선 대진 공개 (4D-2) ─────────────────────────────────── */}
+          {PUBLIC_KNOCKOUT_ENABLED && (
+            <div style={card}>
+              <p style={label}>공개</p>
+              <p style={{ margin: '7px 0 0', fontSize: 14.5, fontWeight: 900, color: '#0F172A' }}>
+                본선 대진 공개
+              </p>
+              <p style={note}>
+                참가자 · 관람객에게 본선 대진표를 보여 줍니다.
+                <strong> 본선 경로 확정(STEP 4)과는 다른 동작입니다</strong> — 확정해도 자동으로 공개되지 않습니다.
+              </p>
+
+              {!locked ? (
+                <div style={{ marginTop: 11, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, padding: '6px 10px', borderRadius: 999,
+                    background: '#F1F5F9', color: '#64748B', whiteSpace: 'nowrap' }}>
+                    비공개
+                  </span>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: '#64748B', wordBreak: 'keep-all' }}>
+                    본선 경로를 확정한 뒤 공개할 수 있습니다.
+                  </span>
+                </div>
+              ) : !bracket.publishedAt ? (
+                <div style={{ marginTop: 11 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, padding: '6px 10px', borderRadius: 999,
+                      background: '#F1F5F9', color: '#64748B', whiteSpace: 'nowrap' }}>
+                      비공개
+                    </span>
+                    <button type="button" style={btn('primary')} disabled={!!busy}
+                      onClick={() => void run('publish', () => publishBracket(slug, bracket.version))}>
+                      <Eye size={13} />{busy === 'publish' ? '공개 중…' : '본선 대진 공개'}
+                    </button>
+                  </div>
+                  <p style={note}>
+                    아직 예선 결과가 반영되지 않은 자리는 ‘N조 M위’ 로 보입니다. 반영되면 팀 이름이 함께 표시됩니다.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ marginTop: 11 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, padding: '6px 10px', borderRadius: 999,
+                      background: '#ECFDF5', color: '#047857', whiteSpace: 'nowrap' }}>
+                      공개 중
+                    </span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: '#475569' }}>
+                      {fmtDateTime(bracket.publishedAt)}
+                    </span>
+                    <Link href={`/tournaments/${slug}/draw`} target="_blank"
+                      style={{ ...btn(), textDecoration: 'none' }}>
+                      <ExternalLink size={13} />공개 화면
+                    </Link>
+                  </div>
+
+                  {unpublishOpen ? (
+                    <div style={{ marginTop: 9 }}>
+                      <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#B91C1C',
+                        lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                        공개를 내리면 참가자 화면에서 본선 대진이 사라집니다. 대진과 경기 기록은 그대로 남습니다.
+                      </p>
+                      <input style={{ ...input, marginTop: 7 }} value={unpublishReason} maxLength={200}
+                        onChange={(e) => setUnpublishReason(e.target.value)}
+                        placeholder="공개를 내리는 사유 (필수 · 이력에 남습니다)" />
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 7 }}>
+                        <button type="button" style={btn('danger')}
+                          disabled={!!busy || unpublishReason.trim().length < 2}
+                          onClick={() => void run('unpublish',
+                            () => unpublishBracket(slug, unpublishReason.trim(), bracket.version),
+                            () => { setUnpublishOpen(false); setUnpublishReason(''); })}>
+                          <EyeOff size={13} />{busy === 'unpublish' ? '내리는 중…' : '공개 해제'}
+                        </button>
+                        <button type="button" style={btn()} disabled={!!busy}
+                          onClick={() => { setUnpublishOpen(false); setUnpublishReason(''); }}>취소</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" style={{ ...btn(), marginTop: 9 }} disabled={!!busy}
+                      onClick={() => { setUnpublishOpen(true); setUnpublishReason(''); }}>
+                      <EyeOff size={13} />공개 해제
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── STEP 5 본선 경기 운영 (4C) ─────────────────────────────── */}
           {locked && (

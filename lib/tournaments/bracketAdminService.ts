@@ -384,6 +384,45 @@ export async function lockBracket(slug: string, expectedVersion: number): Promis
     + ' — 이제 본선 경기 운영에서 경기를 만들 수 있습니다.';
 }
 
+// ── 본선 대진 공개 (4D-2) ───────────────────────────────────────────────────
+//
+//   ⚠ '본선 경로 확정(lock)' 과 '본선 대진 공개(publish)' 는 다른 행위다.
+//     확정은 자리 배치를 얼리는 것이고, 공개는 참가자 · 관람객에게 보여 주는 것이다.
+//     확정해도 자동으로 공개되지 않는다.
+//   ⚠ 아직 실제 팀이 정해지지 않은 자리가 있어도 공개할 수 있다
+//     ('1조 1위 vs 16조 2위' 를 그대로 보여 주는 것이 이 대회의 운영 방식이다).
+
+/** 확정된 본선 경로를 공개한다. 미반영 자리는 경고만 돌려주고 막지 않는다. */
+export async function publishBracket(slug: string, expectedVersion: number): Promise<string> {
+  const { data, error } = await supabase.rpc('publish_bracket', {
+    p_slug: slug,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  const warnings = arr(o.warnings).map((w) => str(w));
+  const unresolved = warnings.includes('qualifiers_unresolved');
+  return '본선 대진을 공개했습니다.'
+    + (unresolved ? ' 아직 반영되지 않은 자리는 ‘N조 M위’ 로 보입니다.' : '')
+    + (warnings.includes('tournament_not_public') ? ' (대회가 아직 비공개라 참가자에게는 보이지 않습니다.)' : '');
+}
+
+/** 공개를 내린다. 사유 필수 — 경로 · 자리 · 경기 · 결과는 그대로 남는다. */
+export async function unpublishBracket(
+  slug: string,
+  reason: string,
+  expectedVersion: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('unpublish_bracket', {
+    p_slug: slug,
+    p_reason: reason,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  unwrap(data);
+  return '본선 대진 공개를 내렸습니다. 대진과 경기 기록은 그대로 남아 있습니다.';
+}
+
 export async function unlockBracket(
   slug: string,
   reason: string,
@@ -546,6 +585,12 @@ export function bracketActionMessage(err: unknown): string {
       return '같은 조 · 순위가 두 자리에 들어 있습니다.';
     case 'not_resolved_qualifier':
       return '아직 예선 결과가 반영된 자리가 아닙니다.';
+
+    // 본선 대진 공개 (4D-2)
+    case 'already_published':
+      return '이미 공개 중입니다.';
+    case 'not_published':
+      return '공개 중이 아닙니다.';
 
     // 본선 경기 운영 (4C)
     case 'bracket_not_locked':
