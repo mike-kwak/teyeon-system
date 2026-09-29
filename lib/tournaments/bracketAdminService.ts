@@ -8,8 +8,9 @@
 import { supabase } from '@/lib/supabase';
 import type {
   AdminBracket, Bracket, BracketDrift, BracketEntrant, BracketIssue, BracketRound,
-  BracketSlot, BracketSummary, BracketValidation, EntrantInput, KnockoutMatch,
-  KnockoutMatchTeam, SlotAssignmentInput, StructureInput,
+  BracketSlot, BracketSourceKind, BracketSummary, BracketValidation, EntrantInput, KnockoutMatch,
+  KnockoutMatchTeam, QualifierDrift, QualifierResolved, QualifierSkipped,
+  ResolveQualifiersResult, SlotAssignmentInput, StructureInput,
 } from './bracketTypes';
 
 const rec = (v: unknown): Record<string, unknown> =>
@@ -82,6 +83,8 @@ const mapSummary = (v: unknown): BracketSummary => {
     unassigned: num(o.unassigned),
     matchesToCreate: num(o.matchesToCreate),
     byeAdvances: num(o.byeAdvances),
+    qualifiers: num(o.qualifiers),
+    resolved: num(o.resolved),
   };
 };
 
@@ -104,7 +107,7 @@ const mapMatchTeam = (v: unknown): KnockoutMatchTeam => {
 export async function fetchAdminBracket(slug: string): Promise<{ ready: boolean; data: AdminBracket }> {
   const empty: AdminBracket = {
     bracket: null, rounds: [], slots: [], entrants: [], matches: [],
-    entrantDrift: [], validation: null,
+    entrantDrift: [], qualifierDrift: [], validation: null,
   };
   try {
     const { data, error } = await supabase.rpc('get_admin_bracket', { p_slug: slug });
@@ -133,6 +136,11 @@ export async function fetchAdminBracket(slug: string): Promise<{ ready: boolean;
           player2Name: strOrNull(s.player2Name),
           teamStatus: (strOrNull(s.teamStatus) as BracketSlot['teamStatus']) ?? null,
           feedsSlotId: strOrNull(s.feedsSlotId),
+          sourceKind: (strOrNull(s.sourceKind) as BracketSourceKind | null) ?? null,
+          sourceGroupNo: numOrNull(s.sourceGroupNo),
+          sourceRank: numOrNull(s.sourceRank),
+          sourceLabel: strOrNull(s.sourceLabel),
+          resolvedAt: strOrNull(s.resolvedAt),
         })),
         entrants: arr(o.entrants).map((e): BracketEntrant => ({
           id: str(e.id),
@@ -168,6 +176,13 @@ export async function fetchAdminBracket(slug: string): Promise<{ ready: boolean;
         entrantDrift: arr(o.entrantDrift).map((d): BracketDrift => ({
           code: str(d.code),
           teamNo: numOrNull(d.teamNo),
+        })),
+        qualifierDrift: arr(o.qualifierDrift).map((d): QualifierDrift => ({
+          code: str(d.code),
+          position: numOrNull(d.position),
+          label: strOrNull(d.label),
+          resolvedTeamNo: numOrNull(d.resolvedTeamNo),
+          currentTeamNo: numOrNull(d.currentTeamNo),
         })),
         validation: mapValidation(o.validation),
       },
@@ -249,23 +264,32 @@ export async function setBracketStructure(
   return `구조를 저장했습니다. 라운드 ${num(o.rounds)}개 · 자리 ${num(o.slots)}개.`;
 }
 
-/** 1라운드 자리 1개 수정. 2라운드 이후는 서버가 거부한다. */
+/**
+ * 1라운드 자리 1개 수정. 2라운드 이후는 서버가 거부한다.
+ *   ⚠ 4D-0 이후 7인자 RPC 를 쓴다(qualifier = 'N조 M위' 자리).
+ *   ⚠ 표시 문구는 서버가 만든 label 을 그대로 쓴다 — 여기서 '조'/'위' 를 조합하지 않는다.
+ */
 export async function assignBracketSlot(
   slug: string,
   slotId: string,
   slotType: SlotAssignmentInput['type'],
   teamId: string | null,
   expectedVersion: number,
+  source?: { groupNo: number; rank: number } | null,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('assign_bracket_slot', {
     p_slug: slug,
     p_slot_id: slotId,
     p_slot_type: slotType,
     p_team_id: slotType === 'team' ? teamId : null,
+    p_source_group_no: slotType === 'qualifier' ? (source?.groupNo ?? null) : null,
+    p_source_rank: slotType === 'qualifier' ? (source?.rank ?? null) : null,
     p_expected_version: expectedVersion,
   });
   if (error) throw error;
-  unwrap(data);
+  const o = unwrap(data);
+  const label = str(rec(o.slot).label);
+  if (slotType === 'qualifier') return `${label || '예선 순위 자리'}로 지정했습니다.`;
   return slotType === 'team' ? '자리에 팀을 놓았습니다.'
     : slotType === 'bye' ? '자리를 부전승으로 두었습니다.'
     : '자리를 비웠습니다.';
@@ -283,12 +307,65 @@ export async function replaceBracketSlots(
       position: a.position,
       type: a.type,
       teamId: a.type === 'team' ? (a.teamId ?? null) : null,
+      groupNo: a.type === 'qualifier' ? (a.groupNo ?? null) : null,
+      rank: a.type === 'qualifier' ? (a.rank ?? null) : null,
     })),
     p_expected_version: expectedVersion,
   });
   if (error) throw error;
   const o = unwrap(data);
-  return `1라운드 배치를 저장했습니다. 팀 ${num(o.assigned)} · 부전승 ${num(o.byes)} · 빈자리 ${num(o.cleared)}.`;
+  return '1라운드 배치를 저장했습니다.'
+    + ` 예선 순위 자리 ${num(o.qualifiers)} · 팀 ${num(o.assigned)}`
+    + ` · 부전승 ${num(o.byes)} · 빈자리 ${num(o.cleared)}.`;
+}
+
+// ── 예선 결과 반영 (4D-0) ───────────────────────────────────────────────────
+//
+//   ⚠ '본선 경로 확정(lock)' 과 '예선 결과 반영(resolve)' 은 다른 행위다.
+//     lock   = 1조 1위 vs 16조 2위 같은 경로를 고정한다.
+//     resolve = 공식 확정된 예선 순위를 그 자리에 실제 팀으로 채운다.
+//   ⚠ 자동 실행이 없다. 경기이사가 직접 누를 때만 호출한다.
+
+/** 공식 확정된 조만 반영한다(부분 반영). 보류 사유는 화면에서 한국어로 바꿔 보여 준다. */
+export async function resolveBracketQualifiers(
+  slug: string,
+  expectedVersion: number,
+): Promise<ResolveQualifiersResult> {
+  const { data, error } = await supabase.rpc('resolve_bracket_qualifiers', {
+    p_slug: slug,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  return {
+    version: num(o.version),
+    resolved: arr(o.resolved).map((r): QualifierResolved => ({
+      position: num(r.position), label: str(r.label), teamNo: numOrNull(r.teamNo),
+    })),
+    skipped: arr(o.skipped).map((r): QualifierSkipped => ({
+      position: num(r.position), label: str(r.label), reason: str(r.reason),
+    })),
+  };
+}
+
+/** 한 자리만 예선 순위 자리로 되돌린다. 사유 필수 — 대기 경기가 있으면 함께 정리된다. */
+export async function unresolveBracketQualifier(
+  slug: string,
+  position: number,
+  reason: string,
+  expectedVersion: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('unresolve_bracket_qualifier', {
+    p_slug: slug,
+    p_position: position,
+    p_reason: reason,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+  const o = unwrap(data);
+  const removed = num(o.removedMatches);
+  return `${str(o.label) || '해당 자리'}를 예선 순위 자리로 되돌렸습니다.`
+    + (removed > 0 ? ' 아직 시작하지 않은 다음 경기도 함께 정리했습니다.' : '');
 }
 
 export async function lockBracket(slug: string, expectedVersion: number): Promise<string> {
@@ -299,7 +376,11 @@ export async function lockBracket(slug: string, expectedVersion: number): Promis
   if (error) throw error;
   const o = unwrap(data);
   const s = mapSummary(o.summary);
-  return `대진을 확정(잠금)했습니다. 만들 경기 ${s.matchesToCreate} · 부전승 진출 ${s.byeAdvances}`
+  if (s.qualifiers > 0) {
+    return `본선 경로를 확정했습니다. 예선 순위 자리 ${s.qualifiers}곳은`
+      + ' 예선이 끝난 뒤 ‘예선 결과 반영’으로 채웁니다.';
+  }
+  return `본선 경로를 확정했습니다. 만들 경기 ${s.matchesToCreate} · 부전승 진출 ${s.byeAdvances}`
     + ' — 이제 본선 경기 운영에서 경기를 만들 수 있습니다.';
 }
 
@@ -409,7 +490,7 @@ export function bracketActionMessage(err: unknown): string {
     case 'version_conflict':
       return '다른 곳에서 먼저 저장했습니다. 최신 내용을 불러온 뒤 다시 시도해 주세요.';
     case 'bracket_locked':
-      return '확정(잠금)된 대진입니다. 수정하려면 먼저 잠금을 해제해 주세요.';
+      return '본선 경로가 확정된 상태입니다. 수정하려면 먼저 확정을 해제해 주세요.';
     case 'already_locked':            return '이미 확정된 대진입니다.';
     case 'not_locked':                return '확정 상태가 아닙니다.';
     case 'validation_failed':
@@ -457,6 +538,14 @@ export function bracketActionMessage(err: unknown): string {
     case 'unknown_position':          return '없는 자리 번호가 들어 있습니다.';
     case 'position_count_mismatch':
       return '1라운드 자리 수와 입력 줄 수가 다릅니다. 모든 자리를 포함해 주세요.';
+
+    // 예선 순위 자리 (4D-0)
+    case 'invalid_qualifier':
+      return '조 번호와 순위를 모두 입력해 주세요. (예: 1조 1위)';
+    case 'duplicate_qualifier':
+      return '같은 조 · 순위가 두 자리에 들어 있습니다.';
+    case 'not_resolved_qualifier':
+      return '아직 예선 결과가 반영된 자리가 아닙니다.';
 
     // 본선 경기 운영 (4C)
     case 'bracket_not_locked':

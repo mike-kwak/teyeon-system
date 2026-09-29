@@ -6,8 +6,18 @@
 
 export type BracketStatus = 'draft' | 'locked' | 'completed';
 
-/** 자리 종류. team = 실제 팀 / bye = 부전승(1라운드만) / tbd = 미정 또는 승자 대기. */
-export type BracketSlotType = 'team' | 'bye' | 'tbd';
+/**
+ * 자리 종류.
+ *   team      = 실제 팀이 놓인 자리
+ *   qualifier = 예선 결과 대기 자리('N조 M위') — 1라운드만 (4D-0)
+ *   bye       = 부전승(1라운드만) · 경기이사가 직접 지정
+ *   tbd       = 2라운드 이후 '이전 경기 승자 대기'
+ *   ⚠ qualifier 와 tbd 는 뜻이 다르다. 섞어 쓰지 않는다.
+ */
+export type BracketSlotType = 'team' | 'qualifier' | 'bye' | 'tbd';
+
+/** 자리의 출처. group_rank 는 반영 뒤에도 지우지 않는다('1조 1위 · 팀명' 표시의 근거). */
+export type BracketSourceKind = 'group_rank' | 'manual' | 'bye';
 
 /** 진출 경로 스냅샷. 서버가 계산한 값이 아니라 경기이사가 확정할 때 함께 저장한 출처다. */
 export type BracketEntrantSource = 'group_rank' | 'placement' | 'manual';
@@ -46,6 +56,14 @@ export interface BracketSlot {
   teamStatus: 'active' | 'withdrawn' | null;
   /** 이 자리의 승자가 올라갈 다음 라운드 자리. 우승 자리만 null. */
   feedsSlotId: string | null;
+  // ── 4D-0 Qualifier ──
+  sourceKind: BracketSourceKind | null;
+  sourceGroupNo: number | null;
+  sourceRank: number | null;
+  /** 서버가 만든 표시 문구('1조 1위'). ⚠ 프런트에서 조합하지 않는다. */
+  sourceLabel: string | null;
+  /** 예선 결과가 반영된 시각. null 이면 아직 실제 팀이 정해지지 않았다. */
+  resolvedAt: string | null;
 }
 
 export interface BracketEntrant {
@@ -82,6 +100,10 @@ export interface BracketSummary {
   matchesToCreate: number;
   /** 4C 에서 BYE 로 자동 진출할 자리 수. 4B 는 숫자만 보여 준다. */
   byeAdvances: number;
+  /** 아직 예선 결과를 기다리는 자리 수(4D-0). */
+  qualifiers: number;
+  /** 예선 결과가 반영된 자리 수(4D-0). */
+  resolved: number;
 }
 
 export interface BracketValidation {
@@ -131,6 +153,15 @@ export interface KnockoutMatch {
   team2: KnockoutMatchTeam;
 }
 
+/** 반영한 뒤 예선 순위가 달라진 자리(표시 전용). ⚠ 자동으로 되돌리지 않는다. */
+export interface QualifierDrift {
+  code: 'qualifier_resolution_stale' | string;
+  position: number | null;
+  label: string | null;
+  resolvedTeamNo: number | null;
+  currentTeamNo: number | null;
+}
+
 export interface AdminBracket {
   bracket: Bracket | null;
   rounds: BracketRound[];
@@ -139,6 +170,8 @@ export interface AdminBracket {
   /** 4C. 아직 경기를 만들지 않았으면 빈 배열이다. */
   matches: KnockoutMatch[];
   entrantDrift: BracketDrift[];
+  /** 4D-0. 반영 뒤 예선 순위가 바뀐 자리. */
+  qualifierDrift: QualifierDrift[];
   validation: BracketValidation | null;
 }
 
@@ -175,7 +208,43 @@ export interface SlotAssignmentInput {
   position: number;
   type: BracketSlotType;
   teamId?: string | null;
+  /** type = 'qualifier' 일 때만. 예: 1조 1위 → groupNo 1 · rank 1 */
+  groupNo?: number | null;
+  rank?: number | null;
 }
+
+/** 예선 결과 반영 결과(자리 단위). */
+export interface QualifierResolved {
+  position: number;
+  label: string;
+  teamNo: number | null;
+}
+export interface QualifierSkipped {
+  position: number;
+  label: string;
+  reason: string;
+}
+export interface ResolveQualifiersResult {
+  version: number;
+  resolved: QualifierResolved[];
+  skipped: QualifierSkipped[];
+}
+
+/**
+ * 반영 보류 사유 → 운영자 문구.
+ *   ⚠ 서버 reason 을 그대로 노출하지 않는다. 모르는 값은 일반 문구로 덮는다.
+ */
+export const QUALIFIER_SKIP_TEXT: Record<string, string> = {
+  rank_not_final:      '예선 순위가 아직 확정되지 않았습니다',
+  tie_unresolved:      '합산연령 확인이 필요합니다',
+  cancelled_present:   '취소 경기 확인이 필요합니다',
+  group_not_found:     '해당 예선 조를 찾을 수 없습니다',
+  rank_out_of_range:   '해당 순위가 존재하지 않습니다',
+  team_already_placed: '이미 다른 본선 자리에 배치된 팀입니다',
+};
+
+export const qualifierSkipText = (reason: string): string =>
+  QUALIFIER_SKIP_TEXT[reason] ?? '아직 반영할 수 없습니다';
 
 /** 경기 카드의 팀 한 줄. 이름 스냅샷만 쓴다. */
 export function knockoutTeamLabel(t: KnockoutMatchTeam): string {
@@ -219,6 +288,10 @@ export const BRACKET_ISSUE_TEXT: Record<string, string> = {
   entrant_not_placed: '확정했지만 아직 자리에 놓이지 않은 팀이 있습니다.',
   declared_count_mismatch: '선언한 진출팀 수와 실제 확정 수가 다릅니다.',
   entrant_team_withdrawn: '기권 처리된 팀이 진출팀에 있습니다.',
+  // 4D-0 Qualifier
+  qualifier_group_missing: '지정한 예선 조가 없습니다. 조 편성을 확인해 주세요.',
+  qualifier_rank_out_of_range: '그 조에는 없는 순위입니다. (조 정원 초과)',
+  qualifier_rank_beyond_qualify: '본선 진출 인원을 넘는 순위를 지정했습니다. 의도한 것인지 확인해 주세요.',
 };
 
 export const BRACKET_DRIFT_TEXT: Record<string, string> = {

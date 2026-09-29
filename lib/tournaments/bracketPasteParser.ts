@@ -7,10 +7,12 @@
 //   ⚠ DB · React 의존이 없다. 단독으로 검증할 수 있다.
 //
 //   입력 예 (구분자는 | , 탭, 쉼표 모두 허용):
-//     1 | 김OO/박OO
-//     2 | BYE
-//     3 | 이OO · 최OO
-//     4 |            ← 빈 자리(TBD)
+//     1 | 1조 1위      ← 예선 순위 자리(기본 운영 방식)
+//     2 | 16조 2위
+//     3 | BYE          ← 부전승(직접 지정)
+//     4 | 12           ← 팀 번호로 직접 배치(예외/manual)
+//     5 | 이OO · 최OO  ← 이름 완전 일치로 직접 배치(예외/manual)
+//     6 |              ← 빈 자리(TBD)
 
 export interface BracketMatchableTeam {
   teamId: string;
@@ -22,7 +24,7 @@ export interface BracketMatchableTeam {
   teamStatus: 'active' | 'withdrawn';
 }
 
-export type BracketRowKind = 'team' | 'bye' | 'tbd';
+export type BracketRowKind = 'team' | 'qualifier' | 'bye' | 'tbd';
 export type BracketRowStatus = 'matched' | 'ambiguous' | 'unmatched' | 'invalid';
 
 export interface BracketParsedRow {
@@ -34,6 +36,11 @@ export interface BracketParsedRow {
   teamNoToken: number | null;
   /** 이름 셀 원문(정규화 전). */
   nameToken: string;
+  /** kind = 'qualifier' 일 때만. 예: '1조 1위' → 1 / 1 */
+  groupNo: number | null;
+  rank: number | null;
+  /** 서버 표기와 같은 형식의 화면 문구. ⚠ 저장에는 쓰지 않는다(서버가 다시 만든다). */
+  label: string | null;
   status: BracketRowStatus;
   teamId: string | null;
   teamNo: number | null;
@@ -46,7 +53,7 @@ export interface BracketPasteBlocker {
   code:
     | 'no_rows' | 'invalid_row' | 'unmatched' | 'ambiguous' | 'duplicate_position'
     | 'duplicate_team' | 'unknown_position' | 'missing_position' | 'not_entrant'
-    | 'withdrawn_team';
+    | 'withdrawn_team' | 'invalid_qualifier' | 'duplicate_qualifier';
   detail: string[];
 }
 
@@ -55,12 +62,33 @@ export interface BracketPastePreview {
   blockers: BracketPasteBlocker[];
   /** 저장 가능 여부(= blocker 0). */
   canApply: boolean;
-  counts: { team: number; bye: number; tbd: number };
+  counts: { team: number; qualifier: number; bye: number; tbd: number };
   /** 서버로 보낼 payload. canApply 일 때만 채운다. */
-  payload: { position: number; type: BracketRowKind; teamId?: string | null }[] | null;
+  payload: {
+    position: number; type: BracketRowKind;
+    teamId?: string | null; groupNo?: number | null; rank?: number | null;
+  }[] | null;
 }
 
 const BYE_TOKENS = ['bye', 'BYE', '부전승', '부전', '바이'];
+
+/**
+ * '1조 1위' · '1조1위' · '1조 1' 형태만 인정한다.
+ *   ⚠ 조 · 순위를 추측하지 않는다. 형식이 아니면 qualifier 로 보지 않는다.
+ */
+const QUALIFIER_RE = /^(\d+)\s*조\s*(\d+)\s*위?$/;
+
+const readQualifier = (token: string): { groupNo: number; rank: number } | null => {
+  const m = QUALIFIER_RE.exec(token.replace(/\s+/g, ' ').trim());
+  if (!m) return null;
+  const groupNo = Number(m[1]);
+  const rank = Number(m[2]);
+  if (!Number.isInteger(groupNo) || !Number.isInteger(rank)) return null;
+  return { groupNo, rank };
+};
+
+/** 화면 표기. 서버 라벨과 같은 형식이지만 저장에는 쓰지 않는다. */
+const qualifierLabel = (groupNo: number, rank: number): string => `${groupNo}조 ${rank}위`;
 
 /** 이름 비교용 정규화 — 공백/구분자 제거, 소문자. ⚠ 여기서 유사도 판단을 하지 않는다. */
 const normalizeName = (s: string): string =>
@@ -99,6 +127,7 @@ export function parseBracketPaste(
 
     const base: BracketParsedRow = {
       lineNo, raw: line, position, kind: 'tbd', teamNoToken: null, nameToken,
+      groupNo: null, rank: null, label: null,
       status: 'matched', teamId: null, teamNo: null, candidates: [], note: '',
     };
 
@@ -112,6 +141,19 @@ export function parseBracketPaste(
     }
     if (BYE_TOKENS.some((b) => nameToken.toLowerCase() === b.toLowerCase())) {
       rows.push({ ...base, kind: 'bye', note: '부전승 자리입니다.' });
+      return;
+    }
+
+    // 예선 순위 자리 — '1조 1위'
+    if (/조/.test(nameToken)) {
+      const q = readQualifier(nameToken);
+      if (!q) {
+        rows.push({ ...base, kind: 'qualifier', status: 'invalid',
+          note: '조 번호와 순위를 읽을 수 없습니다. 예: 1조 1위' });
+        return;
+      }
+      rows.push({ ...base, kind: 'qualifier', status: 'matched',
+        groupNo: q.groupNo, rank: q.rank, label: qualifierLabel(q.groupNo, q.rank), note: '' });
       return;
     }
 
@@ -156,7 +198,12 @@ export function parseBracketPaste(
     blockers.push({ code: 'no_rows', detail: ['읽을 줄이 없습니다.'] });
   }
 
-  push('invalid_row', rows.filter((r) => r.status === 'invalid').map((r) => `${r.lineNo}번째 줄: ${r.raw}`));
+  push('invalid_row', rows
+    .filter((r) => r.status === 'invalid' && r.kind !== 'qualifier')
+    .map((r) => `${r.lineNo}번째 줄: ${r.raw}`));
+  push('invalid_qualifier', rows
+    .filter((r) => r.status === 'invalid' && r.kind === 'qualifier')
+    .map((r) => `자리 ${r.position ?? '?'}: ${r.nameToken}`));
   push('unmatched', rows.filter((r) => r.status === 'unmatched').map((r) => `자리 ${r.position ?? '?'}: ${r.nameToken}`));
   push('ambiguous', rows.filter((r) => r.status === 'ambiguous').map((r) => `자리 ${r.position ?? '?'}: ${r.nameToken}`));
 
@@ -174,6 +221,16 @@ export function parseBracketPaste(
     teamSeen.set(r.teamId, { teamNo: r.teamNo ?? 0, count: (cur?.count ?? 0) + 1 });
   });
   push('duplicate_team', [...teamSeen.values()].filter((v) => v.count > 1).map((v) => `${v.teamNo}번 팀`));
+
+  const qualSeen = new Map<string, number>();
+  rows.forEach((r) => {
+    if (r.kind !== 'qualifier' || r.groupNo === null || r.rank === null) return;
+    const key = `${r.groupNo}-${r.rank}`;
+    qualSeen.set(key, (qualSeen.get(key) ?? 0) + 1);
+  });
+  push('duplicate_qualifier', [...qualSeen.entries()]
+    .filter(([, c]) => c > 1)
+    .map(([k]) => qualifierLabel(Number(k.split('-')[0]), Number(k.split('-')[1]))));
 
   const allowed = new Set(firstRoundPositions);
   push('unknown_position', rows
@@ -193,6 +250,7 @@ export function parseBracketPaste(
 
   const counts = {
     team: rows.filter((r) => r.kind === 'team' && r.status === 'matched').length,
+    qualifier: rows.filter((r) => r.kind === 'qualifier' && r.status === 'matched').length,
     bye: rows.filter((r) => r.kind === 'bye').length,
     tbd: rows.filter((r) => r.kind === 'tbd').length,
   };
@@ -212,6 +270,8 @@ export function parseBracketPaste(
             position: r.position as number,
             type: r.kind,
             teamId: r.kind === 'team' ? r.teamId : null,
+            groupNo: r.kind === 'qualifier' ? r.groupNo : null,
+            rank: r.kind === 'qualifier' ? r.rank : null,
           }))
       : null,
   };
@@ -228,4 +288,6 @@ export const BRACKET_PASTE_BLOCKER_TEXT: Record<BracketPasteBlocker['code'], str
   missing_position: '빠진 자리가 있습니다. 1라운드 모든 자리를 포함해 주세요(빈 자리는 번호만 적습니다).',
   not_entrant: '본선 진출팀으로 확정되지 않은 팀입니다.',
   withdrawn_team: '기권 처리된 팀입니다.',
+  invalid_qualifier: '예선 순위 자리를 읽을 수 없습니다. 예: 1조 1위',
+  duplicate_qualifier: '같은 조 · 순위가 두 자리에 들어 있습니다.',
 };

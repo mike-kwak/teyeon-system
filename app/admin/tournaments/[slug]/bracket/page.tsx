@@ -8,7 +8,12 @@ export const dynamic = 'force-dynamic';
 //     · 진출팀: 예선 결과는 '추천'일 뿐이다. 담기 버튼은 화면 초안만 채우고 저장하지 않는다.
 //     · 구조: 라운드 이름 · 자리 수를 직접 적는다. 2:1 연결은 '초안'으로 만들어 보여줄 뿐이며
 //       경기이사가 확인(필요하면 직접 수정)한 뒤 저장 버튼을 눌러야 반영된다.
-//     · 1라운드 배치: 붙여넣기 또는 자리별 수정. 빈 자리를 BYE 로 자동으로 채우지 않는다.
+//     · 1라운드 배치: 자리마다 '예선 순위 자리(N조 M위)' · 부전승 · 실제 팀 중 하나를 고른다.
+//       TEYEON OPEN 기본 운영은 **예선 조 편성 전에 본선 경로를 먼저 정하는 것**이라
+//       기본값이 '예선 순위 자리'다. 빈 자리를 BYE 로 자동으로 채우지 않는다.
+//     · 두 행위를 끝까지 구분한다:
+//         본선 경로 확정(lock)   = 1조 1위 vs 16조 2위 같은 경로를 고정
+//         예선 결과 반영(resolve) = 1조 1위 → 실제 팀
 //     · 2라운드 이후: 승자 대기(TBD) 읽기 전용.
 //   ⚠ STEP 5(본선 경기 운영, 4C): 확정된 대진을 경기로 옮기고 결과를 입력한다.
 //     · 경기를 '만드는' 것뿐이며 대진을 새로 짜지 않는다. BYE 는 경기가 아니라 카드도 없다.
@@ -22,7 +27,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ChevronLeft, ShieldAlert, RefreshCw, AlertTriangle, Check, Lock, Unlock,
-  ClipboardPaste, Trash2, Plus, Info,
+  ClipboardPaste, Trash2, Plus, Info, Undo2, Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
@@ -30,13 +35,15 @@ import {
   fetchAdminBracket, createBracket, setBracketEntrants, setBracketStructure,
   assignBracketSlot, replaceBracketSlots, lockBracket, unlockBracket,
   materializeBracketMatches, completeKnockoutMatch, amendKnockoutMatchScore,
+  resolveBracketQualifiers, unresolveBracketQualifier,
   bracketActionMessage,
 } from '@/lib/tournaments/bracketAdminService';
 import {
   BRACKET_DRIFT_TEXT, BRACKET_ISSUE_TEXT, KNOCKOUT_STATUS_TEXT,
-  bracketTeamLabel, knockoutTeamLabel,
+  bracketTeamLabel, knockoutTeamLabel, qualifierSkipText,
   type AdminBracket, type BracketEntrant, type BracketEntrantSource, type EntrantInput,
-  type RoundInput, type ConnectionInput, type KnockoutMatch,
+  type RoundInput, type ConnectionInput, type KnockoutMatch, type BracketSlot,
+  type ResolveQualifiersResult,
 } from '@/lib/tournaments/bracketTypes';
 import {
   parseBracketPaste, BRACKET_PASTE_BLOCKER_TEXT,
@@ -108,6 +115,15 @@ export default function AdminTournamentBracketPage() {
   // STEP 3
   const [paste, setPaste] = React.useState('');
   const [preview, setPreview] = React.useState<BracketPastePreview | null>(null);
+  /** 자리별 '예선 순위 자리' 입력 초안(저장 전). key = slotId */
+  const [qDraft, setQDraft] = React.useState<Record<string, { g: string; r: string }>>({});
+  /** 예선 결과 반영 결과 요약(반영/보류). */
+  const [resolveResult, setResolveResult] = React.useState<ResolveQualifiersResult | null>(null);
+  /** 되돌리기 입력 중인 자리 position. */
+  const [undoPos, setUndoPos] = React.useState<number | null>(null);
+  const [undoReason, setUndoReason] = React.useState('');
+  /** STEP 1(보조 기능) 펼침 여부. 기본은 접어 둔다. */
+  const [showStep1, setShowStep1] = React.useState(false);
   // STEP 4
   const [unlockReason, setUnlockReason] = React.useState('');
   // STEP 5 본선 경기 운영
@@ -188,6 +204,36 @@ export default function AdminTournamentBracketPage() {
     }
     return out;
   }, [matches]);
+
+  /** 자리 하나를 화면 문구로. ⚠ 서버가 준 sourceLabel 을 그대로 쓴다. */
+  const slotText = React.useCallback((s: BracketSlot | undefined): string => {
+    if (!s) return '자리 없음';
+    if (s.slotType === 'bye') return '부전승 (BYE)';
+    if (s.slotType === 'qualifier') return s.sourceLabel ?? '예선 순위 자리';
+    if (s.slotType === 'team') return `${s.teamNo}. ${s.player1Name} · ${s.player2Name}`;
+    return '비어 있음';
+  }, []);
+
+  /**
+   * 1라운드 대진 조합 미리보기.
+   *   ⚠ 조합을 만들지 않는다 — 이미 저장된 feedsSlotId 를 읽어 같은 곳으로 가는 두 자리를 묶을 뿐이다.
+   */
+  const firstRoundPairs = React.useMemo(() => {
+    const r1 = slots.filter((s) => s.roundNo === 1).sort((a, b) => a.position - b.position);
+    const byTarget = new Map<string, BracketSlot[]>();
+    for (const s of r1) {
+      if (!s.feedsSlotId) continue;
+      const list = byTarget.get(s.feedsSlotId) ?? [];
+      list.push(s);
+      byTarget.set(s.feedsSlotId, list);
+    }
+    const targets = slots.filter((t) => byTarget.has(t.id))
+      .sort((a, b) => (a.roundNo - b.roundNo) || (a.position - b.position));
+    return targets.map((t, i) => {
+      const pair = (byTarget.get(t.id) ?? []).sort((a, b) => a.position - b.position);
+      return { no: i + 1, target: t, a: pair[0], b: pair[1] };
+    });
+  }, [slots]);
 
   const firstRoundSlots = React.useMemo(
     () => slots.filter((s) => s.roundNo === 1).sort((a, b) => a.position - b.position),
@@ -289,7 +335,7 @@ export default function AdminTournamentBracketPage() {
           <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#0F172A' }}>본선 대진 만들기</h1>
           <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#64748B', wordBreak: 'break-all' }}>
             {slug}{bracket ? ` · ${bracket.status === 'completed' ? '본선 완료'
-              : locked ? '확정(잠금)' : '작성 중'} · v${bracket.version}` : ''}
+              : locked ? '경로 확정' : '작성 중'} · v${bracket.version}` : ''}
           </p>
         </div>
         <button type="button" onClick={() => void load()} style={btn()} disabled={!!busy}>
@@ -340,15 +386,53 @@ export default function AdminTournamentBracketPage() {
             <div style={{ ...card, background: '#ECFDF5', border: '1px solid #A7F3D0', display: 'flex', gap: 9 }}>
               <Lock size={17} color="#047857" style={{ flexShrink: 0, marginTop: 1 }} />
               <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#0F172A', lineHeight: 1.7, wordBreak: 'keep-all' }}>
-                대진이 확정(잠금)되었습니다. 진출팀 · 구조 · 자리 배치는 수정할 수 없습니다.
-                수정하려면 아래에서 사유를 적고 잠금을 해제하세요.
+                본선 경로가 확정되었습니다. 진출팀 · 구조 · 자리 배치는 수정할 수 없습니다.
+                수정하려면 아래에서 사유를 적고 확정을 해제하세요.
                 <br />본선 경기 생성과 결과 입력은 아래 STEP 5에서 합니다.
               </p>
             </div>
           )}
 
-          {/* ── STEP 1 진출팀 ─────────────────────────────────────────── */}
+          {/* ── 예선 순위 변경 경고 (4D-0 drift) ──────────────────────── */}
+          {(data?.qualifierDrift?.length ?? 0) > 0 && (
+            <div style={{ ...card, background: '#FFFBEB', borderColor: '#FDE68A' }}>
+              <p style={{ margin: 0, display: 'flex', gap: 7, fontSize: 13, fontWeight: 900, color: '#92400E' }}>
+                <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                예선 순위가 변경되었습니다. 본선 반영 상태를 확인하세요.
+              </p>
+              {data?.qualifierDrift.slice(0, 8).map((d, i) => (
+                <p key={i} style={{ margin: '5px 0 0', fontSize: 12, fontWeight: 700, color: '#92400E',
+                  lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                  · {d.label ?? `자리 ${d.position ?? '?'}`} — 반영된 팀 {d.resolvedTeamNo ?? '?'}번,
+                  현재 순위 기준 {d.currentTeamNo ?? '?'}번
+                </p>
+              ))}
+              <p style={{ ...note, color: '#92400E' }}>
+                시스템이 자동으로 바꾸지 않습니다. STEP 3에서 해당 자리를 되돌린 뒤 다시 반영해 주세요.
+              </p>
+            </div>
+          )}
+
+          {/* ── STEP 1 진출팀(보조) ───────────────────────────────────── */}
           <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ ...label, color: '#CBD5E1' }}>STEP 1 · 보조</p>
+                <p style={{ margin: '7px 0 0', fontSize: 13.5, fontWeight: 800, color: '#64748B', wordBreak: 'keep-all' }}>
+                  진출팀을 직접 확정하기
+                </p>
+                <p style={note}>
+                  TEYEON OPEN 기본 운영은 STEP 3의 <strong>예선 순위 자리(N조 M위)</strong>입니다.
+                  예선 결과를 반영하면 진출팀 목록은 자동으로 채워집니다. 이 단계는 팀을 직접 배치해야 하는 대회에서만 씁니다.
+                </p>
+              </div>
+              <button type="button" style={{ ...btn(), flexShrink: 0 }}
+                onClick={() => setShowStep1((v) => !v)}>
+                {showStep1 ? '접기' : '열기'}
+              </button>
+            </div>
+            {showStep1 && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #F1F5F9' }}>
             <StepHead no={1} title="본선 진출팀 확정"
               desc="예선 결과는 추천입니다. 담기 버튼은 아래 목록만 채우며 저장하지 않습니다. 최종 확정은 경기이사가 합니다." />
 
@@ -456,6 +540,8 @@ export default function AdminTournamentBracketPage() {
                 </div>
               </div>
             </div>
+            </div>
+            )}
           </div>
 
           {/* ── STEP 2 구조 ───────────────────────────────────────────── */}
@@ -551,8 +637,8 @@ export default function AdminTournamentBracketPage() {
 
           {/* ── STEP 3 1라운드 배치 ───────────────────────────────────── */}
           <div style={card}>
-            <StepHead no={3} title="1라운드 자리 배치"
-              desc="1라운드만 직접 배치합니다. 빈 자리를 부전승으로 자동으로 채우지 않습니다 — 부전승도 직접 지정합니다." />
+            <StepHead no={3} title="1라운드 자리 배치 — 본선 진출 경로"
+              desc="본선 진출 경로를 먼저 정합니다. 예선 조 편성 전에 각 자리에 ‘N조 M위’를 배치하세요. 이 경로를 기준으로 경기이사가 예선 조를 편성합니다." />
 
             {firstRoundSlots.length === 0 ? (
               <p style={{ ...note }}>먼저 구조를 저장해 주세요.</p>
@@ -561,11 +647,12 @@ export default function AdminTournamentBracketPage() {
                 {!locked && (
                   <>
                     <p style={{ ...note, marginTop: 10 }}>
-                      붙여넣기 형식: <code>자리번호 | 팀이름</code> 또는 <code>자리번호 | BYE</code>. 빈 자리는 번호만 적습니다.
+                      붙여넣기 형식: <code>자리번호 | 1조 1위</code> · <code>자리번호 | BYE</code> ·
+                      <code>자리번호 | 팀번호</code> · <code>자리번호 | 선수이름</code>. 빈 자리는 번호만 적습니다.
                       1라운드 {firstRoundSlots.length}자리를 모두 포함해야 합니다.
                     </p>
                     <textarea value={paste} onChange={(e) => { setPaste(e.target.value); setPreview(null); }} rows={5}
-                      placeholder={'1 | 김OO/박OO\n2 | BYE\n3 |'}
+                      placeholder={'1 | 1조 1위\n2 | 16조 2위\n3 | BYE\n4 |'}
                       style={{ ...input, marginTop: 6, minHeight: 110, resize: 'vertical', fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                       <button type="button" style={btn()} disabled={paste.trim() === ''}
@@ -577,7 +664,7 @@ export default function AdminTournamentBracketPage() {
                         onClick={() => void run('paste', () =>
                           replaceBracketSlots(slug, preview!.payload!, bracket.version),
                           () => { setPaste(''); setPreview(null); })}>
-                        <Check size={13} />{busy === 'paste' ? '반영 중…' : '전체 반영'}
+                        <Check size={13} />{busy === 'paste' ? '저장 중…' : '전체 저장'}
                       </button>
                     </div>
 
@@ -586,8 +673,9 @@ export default function AdminTournamentBracketPage() {
                         background: preview.canApply ? '#ECFDF5' : '#FEF2F2',
                         border: `1px solid ${preview.canApply ? '#A7F3D0' : '#FECACA'}` }}>
                         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#0F172A' }}>
-                          팀 {preview.counts.team} · 부전승 {preview.counts.bye} · 빈자리 {preview.counts.tbd}
-                          {preview.canApply ? ' — 반영할 수 있습니다.' : ' — 아래 문제를 먼저 해결해 주세요.'}
+                          예선 순위 자리 {preview.counts.qualifier} · 팀 {preview.counts.team}
+                          · 부전승 {preview.counts.bye} · 빈자리 {preview.counts.tbd}
+                          {preview.canApply ? ' — 저장할 수 있습니다.' : ' — 아래 문제를 먼저 해결해 주세요.'}
                         </p>
                         {preview.blockers.map((b, i) => (
                           <p key={i} style={{ margin: '5px 0 0', fontSize: 12, fontWeight: 700, color: '#B91C1C', lineHeight: 1.6, wordBreak: 'keep-all' }}>
@@ -600,48 +688,197 @@ export default function AdminTournamentBracketPage() {
                   </>
                 )}
 
-                {/* 자리별 목록 */}
-                <div style={{ marginTop: 12, border: '1px solid #F1F5F9', borderRadius: 10, maxHeight: 360, overflowY: 'auto' }}>
-                  {firstRoundSlots.map((s) => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
-                      padding: '8px 10px', borderTop: '1px solid #F8FAFC' }}>
-                      <span style={{ flexShrink: 0, minWidth: 34, fontSize: 12, fontWeight: 900, color: '#94A3B8' }}>
-                        #{s.position}
-                      </span>
-                      <span style={{ minWidth: 0, flex: 1, fontSize: 12.5, fontWeight: 700, lineHeight: 1.5,
-                        color: s.slotType === 'team' ? '#0F172A' : s.slotType === 'bye' ? '#B45309' : '#94A3B8',
-                        wordBreak: 'keep-all' }}>
-                        {s.slotType === 'team' ? `${s.teamNo}. ${s.player1Name} · ${s.player2Name}`
-                          : s.slotType === 'bye' ? '부전승 (BYE)' : '비어 있음'}
-                      </span>
-                      {!locked && (
-                        <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <select style={{ ...input, width: 'auto', minWidth: 120, maxWidth: 200 }}
-                            value={s.slotType === 'team' ? (s.teamId ?? '') : ''}
-                            disabled={!!busy}
-                            onChange={(e) => {
-                              const teamId = e.target.value;
-                              if (!teamId) return;
-                              void run(`slot-${s.id}`, () => assignBracketSlot(slug, s.id, 'team', teamId, bracket.version));
-                            }}>
-                            <option value="">팀 선택…</option>
-                            {entrants.map((e) => (
-                              <option key={e.teamId} value={e.teamId}>{bracketTeamLabel(e)}</option>
-                            ))}
-                          </select>
-                          <button type="button" style={btn()} disabled={!!busy}
-                            onClick={() => void run(`slot-${s.id}`, () => assignBracketSlot(slug, s.id, 'bye', null, bracket.version))}>
-                            부전승
-                          </button>
-                          <button type="button" style={btn()} disabled={!!busy}
-                            onClick={() => void run(`slot-${s.id}`, () => assignBracketSlot(slug, s.id, 'tbd', null, bracket.version))}>
-                            비우기
-                          </button>
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                {/* 자리별 목록 — 예선 순위 자리 / 부전승 / 실제 팀 */}
+                <div style={{ marginTop: 12, border: '1px solid #F1F5F9', borderRadius: 10 }}>
+                  {firstRoundSlots.map((s) => {
+                    const d = qDraft[s.id] ?? {
+                      g: s.sourceGroupNo != null ? String(s.sourceGroupNo) : '',
+                      r: s.sourceRank != null ? String(s.sourceRank) : '',
+                    };
+                    const setD = (v: { g: string; r: string }) =>
+                      setQDraft((prev) => ({ ...prev, [s.id]: v }));
+                    const resolved = s.resolvedAt != null;
+                    const tone = s.slotType === 'team' ? '#0F172A'
+                      : s.slotType === 'qualifier' ? '#1D4ED8'
+                      : s.slotType === 'bye' ? '#B45309' : '#94A3B8';
+                    return (
+                      <div key={s.id} style={{ padding: '9px 10px', borderTop: '1px solid #F8FAFC' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+                          <span style={{ flexShrink: 0, minWidth: 34, fontSize: 12, fontWeight: 900, color: '#94A3B8' }}>
+                            #{s.position}
+                          </span>
+                          <span style={{ minWidth: 0, flex: 1, fontSize: 12.5, fontWeight: 800, lineHeight: 1.5,
+                            color: tone, wordBreak: 'keep-all' }}>
+                            {s.sourceKind === 'group_rank' && s.sourceLabel ? s.sourceLabel : slotText(s)}
+                          </span>
+                          {resolved && (
+                            <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, padding: '3px 7px',
+                              borderRadius: 999, background: '#ECFDF5', color: '#047857' }}>반영 완료</span>
+                          )}
+                        </div>
+
+                        {/* 반영된 자리는 출처를 지우지 않고 팀을 덧붙여 보여 준다 */}
+                        {resolved && s.slotType === 'team' && (
+                          <p style={{ margin: '3px 0 0 42px', fontSize: 12.5, fontWeight: 700,
+                            color: '#0F172A', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                            {s.teamNo}. {s.player1Name} · {s.player2Name}
+                          </p>
+                        )}
+
+                        {!locked && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7, marginLeft: 42 }}>
+                            <input style={{ ...input, width: 58 }} inputMode="numeric" maxLength={2}
+                              placeholder="조" value={d.g} disabled={!!busy}
+                              onChange={(e) => setD({ ...d, g: e.target.value.replace(/[^0-9]/g, '') })} />
+                            <input style={{ ...input, width: 58 }} inputMode="numeric" maxLength={2}
+                              placeholder="순위" value={d.r} disabled={!!busy}
+                              onChange={(e) => setD({ ...d, r: e.target.value.replace(/[^0-9]/g, '') })} />
+                            <button type="button" style={btn('primary')}
+                              disabled={!!busy || d.g === '' || d.r === ''}
+                              onClick={() => void run(`slot-${s.id}`, () =>
+                                assignBracketSlot(slug, s.id, 'qualifier', null, bracket.version,
+                                  { groupNo: Number(d.g), rank: Number(d.r) }))}>
+                              예선 순위 자리
+                            </button>
+                            <button type="button" style={btn()} disabled={!!busy}
+                              onClick={() => void run(`slot-${s.id}`, () =>
+                                assignBracketSlot(slug, s.id, 'bye', null, bracket.version))}>
+                              부전승
+                            </button>
+                            <select style={{ ...input, width: 'auto', minWidth: 116, maxWidth: 190 }}
+                              value="" disabled={!!busy || entrants.length === 0}
+                              onChange={(e) => {
+                                const teamId = e.target.value;
+                                if (!teamId) return;
+                                void run(`slot-${s.id}`, () =>
+                                  assignBracketSlot(slug, s.id, 'team', teamId, bracket.version));
+                              }}>
+                              <option value="">팀 직접 배치…</option>
+                              {entrants.map((e) => (
+                                <option key={e.teamId} value={e.teamId}>{bracketTeamLabel(e)}</option>
+                              ))}
+                            </select>
+                            <button type="button" style={btn()} disabled={!!busy}
+                              onClick={() => void run(`slot-${s.id}`, () =>
+                                assignBracketSlot(slug, s.id, 'tbd', null, bracket.version))}>
+                              비우기
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 확정 뒤: 반영된 자리만 되돌릴 수 있다(사유 필수) */}
+                        {locked && resolved && (
+                          undoPos === s.position ? (
+                            <div style={{ marginTop: 7, marginLeft: 42 }}>
+                              <input style={input} value={undoReason} maxLength={200}
+                                onChange={(e) => setUndoReason(e.target.value)}
+                                placeholder="되돌리는 사유 (필수 · 이력에 남습니다)" />
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                                <button type="button" style={btn('danger')}
+                                  disabled={!!busy || undoReason.trim().length < 2}
+                                  onClick={() => void run(`undo-${s.position}`, () =>
+                                    unresolveBracketQualifier(slug, s.position, undoReason.trim(), bracket.version),
+                                    () => { setUndoPos(null); setUndoReason(''); })}>
+                                  {busy === `undo-${s.position}` ? '처리 중…' : '반영 되돌리기'}
+                                </button>
+                                <button type="button" style={btn()} disabled={!!busy}
+                                  onClick={() => { setUndoPos(null); setUndoReason(''); }}>취소</button>
+                              </div>
+                              <p style={note}>아직 시작하지 않은 다음 경기가 있으면 함께 정리됩니다.</p>
+                            </div>
+                          ) : (
+                            <button type="button" style={{ ...btn(), marginTop: 7, marginLeft: 42 }} disabled={!!busy}
+                              onClick={() => { setUndoPos(s.position); setUndoReason(''); }}>
+                              <Undo2 size={13} />반영 되돌리기
+                            </button>
+                          )
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* ── 대진 조합 미리보기 ─────────────────────────────────── */}
+                {firstRoundPairs.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#0F172A' }}>
+                      1라운드 대진 조합
+                    </p>
+                    <p style={note}>
+                      지금 저장된 자리로 누가 누구와 만나는지 확인하세요. 시스템이 조합을 만들지 않습니다 — 위 배치를 그대로 읽어 보여 줍니다.
+                    </p>
+                    <div style={{ marginTop: 8, display: 'grid', gap: 8,
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 232px), 1fr))' }}>
+                      {firstRoundPairs.map((m) => {
+                        const bye = m.a?.slotType === 'bye' || m.b?.slotType === 'bye';
+                        return (
+                          <div key={m.target.id} style={{ padding: '9px 11px', borderRadius: 10,
+                            border: `1px solid ${bye ? '#FDE68A' : '#E2E8F0'}`,
+                            background: bye ? '#FFFBEB' : '#F8FAFC' }}>
+                            <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em',
+                              color: '#94A3B8' }}>
+                              MATCH {String(m.no).padStart(2, '0')}{bye ? ' · 부전승' : ''}
+                            </p>
+                            <p style={{ margin: '5px 0 0', fontSize: 13, fontWeight: 800, color: '#0F172A',
+                              lineHeight: 1.45, wordBreak: 'keep-all' }}>
+                              {slotText(m.a)}
+                            </p>
+                            <p style={{ margin: '2px 0', fontSize: 10.5, fontWeight: 800, color: '#94A3B8' }}>VS</p>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F172A',
+                              lineHeight: 1.45, wordBreak: 'keep-all' }}>
+                              {slotText(m.b)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── 예선 결과 반영 (확정 이후) ─────────────────────────── */}
+                {locked && (validation?.summary.qualifiers ?? 0) + (validation?.summary.resolved ?? 0) > 0 && (
+                  <div style={{ marginTop: 12, padding: '11px 12px', borderRadius: 11,
+                    background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#0F172A' }}>예선 결과 반영</p>
+                    <p style={note}>
+                      공식 확정된 조별 순위를 본선 진출 자리에 반영합니다. 아직 확정되지 않은 조는 그대로 두고 나중에 다시 실행하면 됩니다.
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 9, alignItems: 'center' }}>
+                      <button type="button" style={btn('primary')}
+                        disabled={!!busy || bracket.status === 'completed'}
+                        onClick={() => void run('resolve', async () => {
+                          const r = await resolveBracketQualifiers(slug, bracket.version);
+                          setResolveResult(r);
+                          if (r.resolved.length === 0) return '반영할 수 있는 자리가 아직 없습니다.';
+                          return `${r.resolved.length}자리를 반영했습니다.`
+                            + (r.skipped.length > 0 ? ` ${r.skipped.length}자리는 보류했습니다.` : '');
+                        })}>
+                        <Users size={13} />{busy === 'resolve' ? '반영 중…' : '예선 결과 반영'}
+                      </button>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, padding: '6px 10px', borderRadius: 999,
+                        background: '#F1F5F9', color: '#475569', whiteSpace: 'nowrap' }}>
+                        대기 {validation?.summary.qualifiers ?? 0} · 반영 {validation?.summary.resolved ?? 0}
+                      </span>
+                    </div>
+
+                    {resolveResult && (
+                      <div style={{ marginTop: 10 }}>
+                        {resolveResult.resolved.length > 0 && (
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#047857', lineHeight: 1.6 }}>
+                            반영 {resolveResult.resolved.length}자리 —{' '}
+                            {resolveResult.resolved.map((r) => `${r.label} → ${r.teamNo}번`).join(', ')}
+                          </p>
+                        )}
+                        {resolveResult.skipped.map((k) => (
+                          <p key={k.position} style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 700,
+                            color: '#92400E', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                            · 자리 {k.position} {k.label} — {qualifierSkipText(k.reason)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {rounds.length > 1 && (
                   <p style={{ ...note, marginTop: 10, display: 'flex', gap: 6 }}>
@@ -655,8 +892,8 @@ export default function AdminTournamentBracketPage() {
 
           {/* ── STEP 4 검증 / 확정 ────────────────────────────────────── */}
           <div style={card}>
-            <StepHead no={4} title="검증하고 확정하기"
-              desc="오류가 0건일 때만 확정할 수 있습니다. 경고는 확인용이며 확정을 막지 않습니다." />
+            <StepHead no={4} title="검증하고 본선 경로 확정하기"
+              desc="오류가 0건일 때만 확정할 수 있습니다. 확정하면 자리 배치가 잠기고, 이 경로를 기준으로 예선 조를 편성합니다." />
 
             {validation && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 11 }}>
@@ -665,6 +902,8 @@ export default function AdminTournamentBracketPage() {
                   ['1라운드 자리', validation.summary.firstRoundSlots],
                   ['부전승', validation.summary.byes],
                   ['빈자리', validation.summary.unassigned],
+                  ['예선 순위 자리', validation.summary.qualifiers],
+                  ['반영 완료', validation.summary.resolved],
                   ['만들 경기', validation.summary.matchesToCreate],
                   ['부전승 진출', validation.summary.byeAdvances],
                 ].map(([k, v]) => (
@@ -676,7 +915,7 @@ export default function AdminTournamentBracketPage() {
               </div>
             )}
             <p style={{ ...note }}>
-              ‘만들 경기’와 ‘부전승 진출’은 확정 전 예상 숫자입니다. 실제 경기 생성은 확정 뒤 STEP 5에서 합니다.
+              ‘만들 경기’는 양쪽 자리에 실제 팀이 정해진 대진만 셉니다. 예선 순위 자리는 예선 결과를 반영한 뒤 경기로 만들어집니다.
             </p>
 
             {errors.length > 0 && (
@@ -711,7 +950,7 @@ export default function AdminTournamentBracketPage() {
               <button type="button" style={{ ...btn('primary'), marginTop: 11 }}
                 disabled={!!busy || !validation || errors.length > 0}
                 onClick={() => void run('lock', () => lockBracket(slug, bracket.version))}>
-                <Lock size={13} />{busy === 'lock' ? '확정 중…' : '대진 확정(잠금)'}
+                <Lock size={13} />{busy === 'lock' ? '확정 중…' : '본선 경로 확정'}
               </button>
             ) : bracket.status === 'completed' ? (
               <p style={{ ...note, marginTop: 11 }}>
@@ -720,12 +959,12 @@ export default function AdminTournamentBracketPage() {
             ) : (
               <div style={{ marginTop: 11 }}>
                 <input style={input} value={unlockReason} onChange={(e) => setUnlockReason(e.target.value)}
-                  placeholder="잠금 해제 사유 (필수 · 이력에 남습니다)" maxLength={200} />
+                  placeholder="확정 해제 사유 (필수 · 이력에 남습니다)" maxLength={200} />
                 <button type="button" style={{ ...btn('danger'), marginTop: 8 }}
                   disabled={!!busy || unlockReason.trim() === ''}
                   onClick={() => void run('unlock', () => unlockBracket(slug, unlockReason.trim(), bracket.version),
                     () => setUnlockReason(''))}>
-                  <Unlock size={13} />{busy === 'unlock' ? '해제 중…' : '잠금 해제'}
+                  <Unlock size={13} />{busy === 'unlock' ? '해제 중…' : '확정 해제'}
                 </button>
                 <p style={{ ...note }}>본선 경기가 이미 있으면 서버가 해제를 거부합니다.</p>
               </div>
