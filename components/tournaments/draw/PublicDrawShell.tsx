@@ -73,24 +73,54 @@ export function DrawHeading({ title, sub }: { title: string; sub: string }) {
   );
 }
 
-/** 예선 조별리그 | 본선 토너먼트(준비 중). 본선은 이번 범위가 아니다. */
-export function DrawStageTabs() {
+/**
+ * 예선 조별리그 | 본선 토너먼트.
+ *   ⚠ 본선 탭은 knockoutOpen 일 때만 링크가 된다. 그 전에는 지금까지처럼 '준비 중' 으로 둔다
+ *     (기능 스위치가 꺼진 운영 환경에서 동작이 달라지지 않게).
+ */
+export function DrawStageTabs({
+  slug, active = 'preliminary', knockoutOpen = false,
+}: { slug?: string; active?: 'preliminary' | 'knockout'; knockoutOpen?: boolean } = {}) {
   const base: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     minHeight: 46, borderRadius: 9, fontFamily: 'inherit', lineHeight: 1.25,
+    textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
   };
+  const on: React.CSSProperties = {
+    background: '#fff', color: TT.ink, fontSize: 14, fontWeight: 800,
+    boxShadow: '0 1px 3px rgba(15,23,42,0.10)',
+  };
+  const off: React.CSSProperties = { color: TT.inkSoft, fontSize: 14, fontWeight: 700 };
+
+  const prelimHref = slug ? `/tournaments/${slug}/draw` : null;
+  const knockoutHref = slug && knockoutOpen ? `/tournaments/${slug}/draw/knockout` : null;
+
   return (
     <div role="tablist" aria-label="대진 단계"
       style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 3, padding: 3, background: '#E6EAF0', borderRadius: 12, marginBottom: 12 }}>
-      <span role="tab" aria-selected="true"
-        style={{ ...base, background: '#fff', color: TT.ink, fontSize: 14, fontWeight: 800, boxShadow: '0 1px 3px rgba(15,23,42,0.10)' }}>
-        예선 조별리그
-      </span>
-      <span role="tab" aria-selected="false" aria-disabled="true"
-        style={{ ...base, color: TT.subtle, fontSize: 14, fontWeight: 700 }}>
-        본선 토너먼트
-        <span style={{ fontSize: 11, fontWeight: 600, color: TT.faint }}>준비 중</span>
-      </span>
+      {active === 'preliminary' || !prelimHref ? (
+        <span role="tab" aria-selected={active === 'preliminary'} style={{ ...base, ...on }}>
+          예선 조별리그
+        </span>
+      ) : (
+        <Link role="tab" aria-selected={false} href={prelimHref} style={{ ...base, ...off }}>
+          예선 조별리그
+        </Link>
+      )}
+
+      {active === 'knockout' ? (
+        <span role="tab" aria-selected style={{ ...base, ...on }}>본선 토너먼트</span>
+      ) : knockoutHref ? (
+        <Link role="tab" aria-selected={false} href={knockoutHref} style={{ ...base, ...off }}>
+          본선 토너먼트
+        </Link>
+      ) : (
+        <span role="tab" aria-selected={false} aria-disabled="true"
+          style={{ ...base, color: TT.subtle, fontSize: 14, fontWeight: 700 }}>
+          본선 토너먼트
+          <span style={{ fontSize: 11, fontWeight: 600, color: TT.faint }}>준비 중</span>
+        </span>
+      )}
     </div>
   );
 }

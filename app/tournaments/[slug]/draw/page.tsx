@@ -10,6 +10,7 @@ import {
 } from '@/components/tournaments/draw/PublicDrawShell';
 import PublicDrawBoard from '@/components/tournaments/draw/PublicDrawBoard';
 import { usePublicDraw } from '@/components/tournaments/draw/publicDrawView';
+import { PUBLIC_KNOCKOUT_ENABLED } from '@/lib/tournaments/publicKnockoutFlags';
 
 export default function TournamentDrawPage() {
   const params = useParams<{ slug: string }>();
@@ -22,7 +23,7 @@ export default function TournamentDrawPage() {
   return (
     <PublicDrawShell event={event} published={!!draw}>
       <DrawHeading title="대진표" sub={event.titleFull} />
-      <DrawStageTabs />
+      <DrawStageTabs slug={event.slug} active="preliminary" knockoutOpen={PUBLIC_KNOCKOUT_ENABLED} />
       {draw ? (
         <>
           <PublicDrawBoard slug={slug} draw={draw} />
