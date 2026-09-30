@@ -13,8 +13,7 @@ import {
 } from '@/components/tournaments/draw/PublicDrawShell';
 import PublicKnockoutBracket from '@/components/tournaments/draw/PublicKnockoutBracket';
 import { TT } from '@/components/tournaments/tournamentTheme';
-import { fetchPublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutService';
-import type { PublicKnockoutBracket as PublicBracket } from '@/lib/tournaments/publicKnockoutTypes';
+import { usePublicKnockoutBracket } from '@/components/tournaments/draw/publicKnockoutView';
 
 /** 안내 카드 — 공개 전 · 오류 모두 같은 틀을 쓴다(예선 DRAW 와 같은 형태). */
 function Notice({ title, desc }: { title: string; desc?: string }) {
@@ -41,20 +40,8 @@ export default function TournamentKnockoutDrawPage() {
   const { event } = useDrawEvent(params?.slug);
   const slug = event ? event.slug : '';
 
-  const [bracket, setBracket] = React.useState<PublicBracket | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [failed, setFailed] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!slug) return;
-    let cancelled = false;
-    // ⚠ 최초 1회만. 자동 갱신은 다음 단계에서 붙인다.
-    fetchPublicKnockoutBracket(slug)
-      .then((r) => { if (!cancelled) { setBracket(r.bracket); setFailed(false); } })
-      .catch(() => { if (!cancelled) { setBracket(null); setFailed(true); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [slug]);
+  // ⚠ 45초 주기 갱신 + 화면 복귀 시 즉시 재조회. 배경 갱신은 화면을 비우지 않는다.
+  const { bracket, loading, failed, updatedAt } = usePublicKnockoutBracket(slug);
 
   if (!event) return <DrawNotFound />;
   const hubHref = `/tournaments/${event.slug}`;
@@ -70,7 +57,7 @@ export default function TournamentKnockoutDrawPage() {
         <Notice title="본선 대진 정보를 불러오지 못했습니다."
           desc="잠시 후 다시 확인해 주세요." />
       ) : bracket ? (
-        <PublicKnockoutBracket bracket={bracket} />
+        <PublicKnockoutBracket bracket={bracket} updatedAt={updatedAt} />
       ) : (
         // ⚠ 비공개 사유(미확정 · 미공개 · 대회 비공개)를 구분해 알려주지 않는다.
         <Notice title="본선 대진은 아직 공개되지 않았습니다."
