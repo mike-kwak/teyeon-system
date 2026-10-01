@@ -170,8 +170,9 @@ export default function ArenaGroupWall({
   const compact = grid.cellHeight > 0 && grid.cellHeight < 180;
 
   if (groups.length === 0) {
+    // ⚠ 빈 상태에도 본선 보드와 같은 표식을 남긴다 — 본문이 무엇인지 밖에서 알 수 있어야 한다.
     return (
-      <div style={{ height: '100%', display: 'grid', placeItems: 'center' }}>
+      <div data-arena-board="preliminary" style={{ height: '100%', display: 'grid', placeItems: 'center' }}>
         <span style={{ fontSize: 16, fontWeight: 600, color: ARENA.muted }}>
           예선 조가 아직 없습니다.
         </span>
