@@ -92,6 +92,7 @@ export function normalizeGroups(standings: PreliminaryStandings | null): ArenaGr
       members: g.members,
       expectedMatches: g.expectedMatches,
       completedMatches: g.completedMatches,
+      cancelledMatches: g.cancelledMatches,
       rankingStatus: g.rankingStatus,
       rows: g.standings.map(rowOf).sort((a, b) => {
         // 확정 순위가 있으면 그것이, 없으면 잠정 순위(autoRank)가 자리를 정한다.

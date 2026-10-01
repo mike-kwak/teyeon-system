@@ -17,6 +17,12 @@ export const ARENA = {
   surface: TT.surface,
   line: '#E2E8EE',
   lineSoft: '#EDF1F5',
+  /**
+   * 조 순위 벽의 구획선 — Very Light Blue Gray.
+   *   카드가 아니라 '현황판의 구획선'이다. 32인치 TV 에서 옆 조와 구분될 만큼만 진하고,
+   *   그 이상 올리면 20개의 카드처럼 보이기 시작한다.
+   */
+  wallLine: '#D6DEE7',
 
   ink: TT.navy,          // Deep Navy — 가장 중요한 글자
   inkSoft: '#2F4A60',
@@ -64,3 +70,7 @@ export const arenaBoardHeight = (): number =>
   - ARENA_LAYOUT.headerHeight
   - ARENA_LAYOUT.stripHeight
   - ARENA_LAYOUT.gap * 2;
+
+/** 본문 안쪽 폭(테두리 1px 양쪽 제외). 화면을 재지 않고 계산만으로 배치하기 위해 쓴다. */
+export const arenaBoardWidth = (): number =>
+  ARENA_CANVAS.width - ARENA_LAYOUT.padX * 2 - 2;

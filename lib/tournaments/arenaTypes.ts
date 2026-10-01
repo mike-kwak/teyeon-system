@@ -69,6 +69,8 @@ export interface ArenaGroup {
   members: number;
   expectedMatches: number;
   completedMatches: number;
+  /** ⚠ 취소 경기는 집계에서 빠진다. 조 단계 판정(phaseOf)에 필요해 그대로 옮긴다. */
+  cancelledMatches: number;
   rankingStatus: GroupRankingStatus;
   rows: ArenaStandingRow[];
 }
