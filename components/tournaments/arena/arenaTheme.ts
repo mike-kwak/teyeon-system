@@ -23,6 +23,11 @@ export const ARENA = {
    *   그 이상 올리면 20개의 카드처럼 보이기 시작한다.
    */
   wallLine: '#D6DEE7',
+  /**
+   * 본선 보드의 카드 테두리 · 연결선 — 구획선보다 한 단계 진한 Blue Gray.
+   *   흰 바탕에서 대진의 뼈대가 보여야 하지만, 더 진해지면 카드가 떠 보이기 시작한다.
+   */
+  boardLine: '#BFCDDA',
 
   ink: TT.navy,          // Deep Navy — 가장 중요한 글자
   inkSoft: '#2F4A60',

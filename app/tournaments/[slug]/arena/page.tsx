@@ -16,6 +16,7 @@ import { getOfficialTournament } from '@/lib/tournaments/officialInfo';
 import ArenaShell from '@/components/tournaments/arena/ArenaShell';
 import ArenaBoardPlaceholder from '@/components/tournaments/arena/ArenaBoardPlaceholder';
 import ArenaGroupWall from '@/components/tournaments/arena/ArenaGroupWall';
+import ArenaKnockoutBoard from '@/components/tournaments/arena/ArenaKnockoutBoard';
 import { arenaBoardHeight, arenaBoardWidth } from '@/components/tournaments/arena/arenaTheme';
 import { useArenaData } from '@/components/tournaments/arena/arenaView';
 import type { ArenaMode } from '@/lib/tournaments/arenaTypes';
@@ -61,7 +62,10 @@ export default function TournamentArenaPage() {
       onModeChange={onModeChange}
       state={state}
     >
-      {mode === 'preliminary' && state.snapshot ? (
+      {!state.snapshot ? (
+        // 보여 줄 데이터가 없을 때는 ArenaShell 이 안내를 그린다(여기는 지나가지 않는다).
+        <ArenaBoardPlaceholder mode={mode} />
+      ) : mode === 'preliminary' ? (
         <ArenaGroupWall
           groups={state.snapshot.groups}
           qualifyPerGroup={state.snapshot.qualifyPerGroup}
@@ -69,8 +73,11 @@ export default function TournamentArenaPage() {
           height={arenaBoardHeight()}
         />
       ) : (
-        // 본선 보드는 4E-3 에서 채운다.
-        <ArenaBoardPlaceholder mode={mode} />
+        <ArenaKnockoutBoard
+          bracket={state.snapshot.bracket}
+          width={arenaBoardWidth()}
+          height={arenaBoardHeight()}
+        />
       )}
     </ArenaShell>
   );

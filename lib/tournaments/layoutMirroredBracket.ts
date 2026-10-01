@@ -358,9 +358,14 @@ export function layoutMirroredBracket(
 
   const step = o.cardWidth + o.columnGap;
   const halfFinal = o.finalWidth / 2;
-  // 결승 칸이 카드보다 넓으므로 1열은 결승 가장자리에서 띄운다.
-  const centerX = o.padding + maxLeftCol * step + Math.max(halfFinal, o.cardWidth / 2)
-    + (maxLeftCol > 0 ? (halfFinal - o.cardWidth / 2) : 0);
+  /**
+   * 가운데 세로축.
+   *   가장 바깥 왼쪽 칸의 왼쪽 가장자리가 정확히 padding 에 오도록 잡는다
+   *   ( centerX - (halfFinal + columnGap + (maxLeftCol-1)*step) - cardWidth = padding ).
+   *   ⚠ 이 값이 어긋나면 배치 상자의 한쪽에만 빈 띠가 생겨, 화면 가운데에 놓아도
+   *     결승이 가운데에서 밀려 보인다.
+   */
+  const centerX = o.padding + maxLeftCol * step + halfFinal;
 
   const xOf = (side: MirrorSide, column: number): { x: number; width: number } => {
     if (side === 'center') return { x: centerX - halfFinal, width: o.finalWidth };
