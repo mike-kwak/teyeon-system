@@ -18,7 +18,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  ChevronLeft, ShieldAlert, RefreshCw, Users, AlertTriangle, Check, FlaskConical,
+  ChevronLeft, ShieldAlert, RefreshCw, Users, AlertTriangle, Check, FlaskConical, ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
@@ -172,6 +172,17 @@ export default function AdminTournamentTeamsPage() {
         </Link>
         <Link href={`/admin/tournaments/${slug}/bracket`} style={{ ...btn(), textDecoration: 'none' }}>
           본선 대진
+        </Link>
+        {/* 현장 TV 화면. 새 탭으로 열어 두 번째 디스플레이로 옮긴 뒤, 전체화면은 Arena 안에서 켠다
+            (브라우저 정책상 자동 전체화면은 두지 않는다). 예선/본선 전환도 Arena 안에서 한다. */}
+        <Link
+          href={`/tournaments/${slug}/arena?mode=prelim`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...btn(), textDecoration: 'none' }}
+        >
+          <ExternalLink size={13} strokeWidth={2.4} />
+          ARENA TV 열기
         </Link>
       </div>
 
