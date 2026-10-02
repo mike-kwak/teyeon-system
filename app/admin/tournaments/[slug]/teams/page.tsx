@@ -158,6 +158,10 @@ export default function AdminTournamentTeamsPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        {/* 대회 당일 관제 화면. 운영 메뉴의 첫 칸에 둔다(당일에는 여기부터 연다). */}
+        <Link href={`/admin/tournaments/${slug}/control`} style={{ ...btn(), textDecoration: 'none' }}>
+          CONTROL CENTER
+        </Link>
         <Link href={`/admin/tournaments/${slug}/groups`} style={{ ...btn(), textDecoration: 'none' }}>
           예선 조편성
         </Link>
