@@ -11,11 +11,18 @@ import React from 'react';
 import Link from 'next/link';
 import { ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import {
-  CONTROL_PHASE_LABEL, countCourtStates, deriveCourts, deriveKnockout,
-  derivePhase, derivePreliminary, deriveSummary,
+  CONTROL_PHASE_LABEL, countCourtStates, deriveAttention, deriveCourts, deriveKnockout,
+  derivePhase, derivePlaying, derivePreliminary, deriveSummary, deriveWaiting,
 } from './controlModel';
 import type { ControlCourt, ControlGroup } from './controlModel';
+import { ControlAttention, ControlOperations } from './ControlOperations';
 import { useControlData } from './controlView';
+
+/**
+ * 대기 목록에 한 번에 그리는 줄 수 — 화면 밀도를 위한 표시 제한일 뿐이다.
+ *   ⚠ 대회 규칙이 아니다. 전체 개수는 항상 따로 보여 주고, 나머지는 경기 운영 화면에서 본다.
+ */
+const WAITING_ROWS = 6;
 import type { OfficialTournament } from '@/lib/tournaments/types';
 
 // ── 스타일 — 기존 Admin 화면(신청 목록 · 팀 관리)과 같은 토큰을 쓴다 ────────
@@ -441,6 +448,18 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
   const courts = React.useMemo(() => deriveCourts(snap?.board ?? null), [snap]);
   const prelim = React.useMemo(() => derivePreliminary(snap?.standings ?? null), [snap]);
   const knockout = React.useMemo(() => deriveKnockout(snap?.bracket ?? null), [snap]);
+  const playing = React.useMemo(
+    () => derivePlaying(snap?.board ?? null, summary.stage, snap?.bracket ?? null),
+    [snap, summary.stage],
+  );
+  const waiting = React.useMemo(
+    () => deriveWaiting(snap?.board ?? null, summary.stage, WAITING_ROWS, snap?.bracket ?? null),
+    [snap, summary.stage],
+  );
+  const attention = React.useMemo(
+    () => deriveAttention({ summary, preliminary: prelim, knockout, phase }),
+    [summary, prelim, knockout, phase],
+  );
 
   if (!st.authorized && !snap) {
     return <Quiet title="운영 권한이 필요합니다." desc="CEO · ADMIN 계정으로 로그인한 뒤 다시 열어 주세요." />;
@@ -479,6 +498,9 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
         <>
           <SummaryBar s={summary} />
 
+          {/* 왼쪽이 본문 흐름(코트 → 확인 필요 → 진행/대기), 오른쪽은 상태 레일이다.
+              ⚠ 본문을 레일 바깥에 두면 레일이 길어질 때 그 높이만큼 다음 영역이 아래로 밀린다.
+                 그래서 본문 세 영역을 한 열 안에 둔다(레일 높이와 무관하게 이어진다). */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <CourtBoard courts={courts} />
@@ -486,6 +508,16 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
                 <Quiet title="경기 생성 전"
                   desc="조편성을 확정하고 경기를 생성하면 진행 현황이 표시됩니다." />
               )}
+
+              {/* 확인 필요 — 있을 때만 나온다. */}
+              <ControlAttention items={attention} slug={slug} />
+
+              <ControlOperations
+                playing={playing}
+                waiting={waiting}
+                slug={slug}
+                allDone={phase === 'completed'}
+              />
             </div>
 
             <div style={{ flex: '0 1 300px', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 10 }}>
