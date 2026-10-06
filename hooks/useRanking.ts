@@ -3,15 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Match, Member, AttendeeConfig, RankedPlayer, RankTrend } from '@/lib/tournament_types';
 import { normalizeBirthYear, sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
-
-interface RankStats {
-    wins: number;
-    losses: number;
-    diff: number;
-    games: number;
-    pf: number;
-    pa: number;
-}
+import { aggregateKdkPlayerStats, EMPTY_KDK_PLAYER_STATS } from '@/lib/kdk/aggregate';
 
 /**
  * useRanking Hook - Portable ranking logic for KDK and Special Matches.
@@ -25,44 +17,9 @@ export function useRanking(
     attendeeConfigs: Record<string, AttendeeConfig>
 ) {
     // 1. Calculate Player Stats from completed matches
-    const playerStatsData = useMemo(() => {
-        const res: Record<string, RankStats> = {};
-        const nameMap: Record<string, string> = {};
-
-        matches?.forEach(m => {
-            // [v35.8.4] Build a name map from all matches (not just complete ones) to assist in name recovery
-            if (m?.playerIds && m?.player_names) {
-                m.playerIds.forEach((pid, idx) => {
-                    const pName = m.player_names?.[idx];
-                    if (pName && !pName.startsWith('g-')) {
-                        nameMap[pid] = pName;
-                    }
-                });
-            }
-
-            if (m?.status !== 'complete') return;
-            // 동점 경기는 집계 제외 — 공식 규칙(전광판 RPC·Archive 재계산과 동일).
-            // 과거에는 동점을 양 팀 패로 집계해 화면별 losses 가 갈릴 수 있었다.
-            if (Number(m?.score1 || 0) === Number(m?.score2 || 0)) return;
-
-            m?.playerIds?.forEach((pid, idx) => {
-                if (!res[pid]) res[pid] = { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 };
-                const isTeam1 = idx < 2;
-                const score1 = Number(m?.score1 || 0);
-                const score2 = Number(m?.score2 || 0);
-                const win = isTeam1 ? (score1 > score2) : (score2 > score1);
-                const d = isTeam1 ? (score1 - score2) : (score2 - score1);
-
-                res[pid].games += 1;
-                res[pid].pf += isTeam1 ? score1 : score2;
-                res[pid].pa += isTeam1 ? score2 : score1;
-                if (win) res[pid].wins += 1;
-                else res[pid].losses += 1;
-                res[pid].diff += d;
-            });
-        });
-        return { stats: res, nameLookup: nameMap };
-    }, [matches]);
+    //    ⚠ 집계식은 lib/kdk/aggregate.ts(SSoT)로 추출됐다 — 계산 결과는 과거와 동일하다.
+    //      LIVE KDK · Special Match · Archive 정정이 같은 함수를 쓴다.
+    const playerStatsData = useMemo(() => aggregateKdkPlayerStats(matches), [matches]);
 
     const playerStats = playerStatsData.stats;
     const nameLookup = playerStatsData.nameLookup;
@@ -102,7 +59,7 @@ export function useRanking(
                 age: conf.age || m?.age || 99,
                 birthYear,
                 birthYearStatus,
-                ...(playerStats?.[id] || { wins: 0, losses: 0, diff: 0, games: 0, pf: 0, pa: 0 })
+                ...(playerStats?.[id] || EMPTY_KDK_PLAYER_STATS)
             };
         });
         // 공식 comparator 단일 사용 — 승수 → 득실 → 연장자(출생연도 작은 값 우선, 미제공 후순위) → 이름 → id.

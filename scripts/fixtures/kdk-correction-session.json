@@ -1,0 +1,1269 @@
+{
+ "ranking_data": [
+  {
+   "id": "00000000-0000-4000-8000-000000000001",
+   "name": "P01",
+   "wins": 4,
+   "losses": 0,
+   "diff": 14,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000002",
+   "name": "P02",
+   "wins": 3,
+   "losses": 1,
+   "diff": 9,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000003",
+   "name": "P03",
+   "wins": 3,
+   "losses": 1,
+   "diff": 8,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000004",
+   "name": "P04",
+   "wins": 3,
+   "losses": 1,
+   "diff": 7,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000005",
+   "name": "P05",
+   "wins": 3,
+   "losses": 1,
+   "diff": 6,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000006",
+   "name": "P06",
+   "wins": 3,
+   "losses": 1,
+   "diff": 4,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000007",
+   "name": "P07",
+   "wins": 3,
+   "losses": 1,
+   "diff": 2,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000008",
+   "name": "P08",
+   "wins": 2,
+   "losses": 2,
+   "diff": 0,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000009",
+   "name": "P09",
+   "wins": 2,
+   "losses": 2,
+   "diff": 0,
+   "avatar": ""
+  },
+  {
+   "id": "manual-guest-P10",
+   "name": "P10",
+   "wins": 2,
+   "losses": 2,
+   "diff": 0,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000011",
+   "name": "P11",
+   "wins": 2,
+   "losses": 2,
+   "diff": -2,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000012",
+   "name": "P12",
+   "wins": 1,
+   "losses": 3,
+   "diff": -4,
+   "avatar": ""
+  },
+  {
+   "id": "manual-guest-P13",
+   "name": "P13",
+   "wins": 1,
+   "losses": 3,
+   "diff": -4,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000014",
+   "name": "P14",
+   "wins": 1,
+   "losses": 3,
+   "diff": -4,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000015",
+   "name": "P15",
+   "wins": 1,
+   "losses": 3,
+   "diff": -8,
+   "avatar": ""
+  },
+  {
+   "id": "manual-guest-P16",
+   "name": "P16",
+   "wins": 1,
+   "losses": 3,
+   "diff": -9,
+   "avatar": ""
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000017",
+   "name": "P17",
+   "wins": 1,
+   "losses": 3,
+   "diff": -10,
+   "avatar": ""
+  },
+  {
+   "id": "manual-guest-P18",
+   "name": "P18",
+   "wins": 0,
+   "losses": 4,
+   "diff": -9,
+   "avatar": ""
+  }
+ ],
+ "snapshot_data": [
+  {
+   "id": "00000000-0000-4000-9000-000000000001",
+   "mode": "KDK",
+   "court": 1,
+   "round": 1,
+   "score1": 6,
+   "score2": 3,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000006",
+    "00000000-0000-4000-8000-000000000011",
+    "00000000-0000-4000-8000-000000000012"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000006",
+    "00000000-0000-4000-8000-000000000011",
+    "00000000-0000-4000-8000-000000000012"
+   ],
+   "player_names": [
+    "P03",
+    "P06",
+    "P11",
+    "P12"
+   ],
+   "playerNames": [
+    "P03",
+    "P06",
+    "P11",
+    "P12"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000002",
+   "mode": "KDK",
+   "court": 1,
+   "round": 2,
+   "score1": 5,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "manual-guest-P18",
+    "00000000-0000-4000-8000-000000000014",
+    "00000000-0000-4000-8000-000000000006",
+    "manual-guest-P16"
+   ],
+   "playerIds": [
+    "manual-guest-P18",
+    "00000000-0000-4000-8000-000000000014",
+    "00000000-0000-4000-8000-000000000006",
+    "manual-guest-P16"
+   ],
+   "player_names": [
+    "P18(G)",
+    "P14",
+    "P06",
+    "P16(G)"
+   ],
+   "playerNames": [
+    "P18(G)",
+    "P14",
+    "P06",
+    "P16(G)"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000003",
+   "mode": "KDK",
+   "court": 2,
+   "round": 2,
+   "score1": 6,
+   "score2": 3,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000011",
+    "manual-guest-P10",
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000005"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000011",
+    "manual-guest-P10",
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000005"
+   ],
+   "player_names": [
+    "P11",
+    "P10(G)",
+    "P13(G)",
+    "P05"
+   ],
+   "playerNames": [
+    "P11",
+    "P10(G)",
+    "P13(G)",
+    "P05"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000004",
+   "mode": "KDK",
+   "court": 3,
+   "round": 2,
+   "score1": 6,
+   "score2": 2,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000009",
+    "00000000-0000-4000-8000-000000000015"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000009",
+    "00000000-0000-4000-8000-000000000015"
+   ],
+   "player_names": [
+    "P04",
+    "P01",
+    "P09",
+    "P15"
+   ],
+   "playerNames": [
+    "P04",
+    "P01",
+    "P09",
+    "P15"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000005",
+   "mode": "KDK",
+   "court": 1,
+   "round": 3,
+   "score1": 2,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000015",
+    "00000000-0000-4000-8000-000000000008",
+    "00000000-0000-4000-8000-000000000006"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000015",
+    "00000000-0000-4000-8000-000000000008",
+    "00000000-0000-4000-8000-000000000006"
+   ],
+   "player_names": [
+    "P02",
+    "P15",
+    "P08",
+    "P06"
+   ],
+   "playerNames": [
+    "P02",
+    "P15",
+    "P08",
+    "P06"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000006",
+   "mode": "KDK",
+   "court": 2,
+   "round": 3,
+   "score1": 4,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000011",
+    "00000000-0000-4000-8000-000000000007"
+   ],
+   "playerIds": [
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000011",
+    "00000000-0000-4000-8000-000000000007"
+   ],
+   "player_names": [
+    "P13(G)",
+    "P04",
+    "P11",
+    "P07"
+   ],
+   "playerNames": [
+    "P13(G)",
+    "P04",
+    "P11",
+    "P07"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000007",
+   "mode": "KDK",
+   "court": 3,
+   "round": 3,
+   "score1": 6,
+   "score2": 2,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000014",
+    "manual-guest-P10",
+    "00000000-0000-4000-8000-000000000009"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000014",
+    "manual-guest-P10",
+    "00000000-0000-4000-8000-000000000009"
+   ],
+   "player_names": [
+    "P03",
+    "P14",
+    "P10(G)",
+    "P09"
+   ],
+   "playerNames": [
+    "P03",
+    "P14",
+    "P10(G)",
+    "P09"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000008",
+   "mode": "KDK",
+   "court": 4,
+   "round": 3,
+   "score1": 6,
+   "score2": 3,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000012",
+    "00000000-0000-4000-8000-000000000017",
+    "manual-guest-P16"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000012",
+    "00000000-0000-4000-8000-000000000017",
+    "manual-guest-P16"
+   ],
+   "player_names": [
+    "P01",
+    "P12",
+    "P17",
+    "P16(G)"
+   ],
+   "playerNames": [
+    "P01",
+    "P12",
+    "P17",
+    "P16(G)"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000009",
+   "mode": "KDK",
+   "court": 1,
+   "round": 4,
+   "score1": 6,
+   "score2": 2,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000009",
+    "00000000-0000-4000-8000-000000000017",
+    "00000000-0000-4000-8000-000000000006"
+   ],
+   "playerIds": [
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000009",
+    "00000000-0000-4000-8000-000000000017",
+    "00000000-0000-4000-8000-000000000006"
+   ],
+   "player_names": [
+    "P13(G)",
+    "P09",
+    "P17",
+    "P06"
+   ],
+   "playerNames": [
+    "P13(G)",
+    "P09",
+    "P17",
+    "P06"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000010",
+   "mode": "KDK",
+   "court": 2,
+   "round": 4,
+   "score1": 6,
+   "score2": 2,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000011",
+    "manual-guest-P18"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000011",
+    "manual-guest-P18"
+   ],
+   "player_names": [
+    "P01",
+    "P02",
+    "P11",
+    "P18(G)"
+   ],
+   "playerNames": [
+    "P01",
+    "P02",
+    "P11",
+    "P18(G)"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000011",
+   "mode": "KDK",
+   "court": 3,
+   "round": 4,
+   "score1": 4,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000015",
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000007"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000015",
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000007"
+   ],
+   "player_names": [
+    "P03",
+    "P15",
+    "P05",
+    "P07"
+   ],
+   "playerNames": [
+    "P03",
+    "P15",
+    "P05",
+    "P07"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000012",
+   "mode": "KDK",
+   "court": 4,
+   "round": 4,
+   "score1": 6,
+   "score2": 3,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000004",
+    "manual-guest-P10",
+    "00000000-0000-4000-8000-000000000008",
+    "manual-guest-P16"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000004",
+    "manual-guest-P10",
+    "00000000-0000-4000-8000-000000000008",
+    "manual-guest-P16"
+   ],
+   "player_names": [
+    "P04",
+    "P10(G)",
+    "P08",
+    "P16(G)"
+   ],
+   "playerNames": [
+    "P04",
+    "P10(G)",
+    "P08",
+    "P16(G)"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000013",
+   "mode": "KDK",
+   "court": 1,
+   "round": 5,
+   "score1": 3,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000008",
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000001"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000008",
+    "manual-guest-P13",
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000001"
+   ],
+   "player_names": [
+    "P08",
+    "P13(G)",
+    "P03",
+    "P01"
+   ],
+   "playerNames": [
+    "P08",
+    "P13(G)",
+    "P03",
+    "P01"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000014",
+   "mode": "KDK",
+   "court": 2,
+   "round": 5,
+   "score1": 4,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000012",
+    "00000000-0000-4000-8000-000000000014",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000005"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000012",
+    "00000000-0000-4000-8000-000000000014",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000005"
+   ],
+   "player_names": [
+    "P12",
+    "P14",
+    "P04",
+    "P05"
+   ],
+   "playerNames": [
+    "P12",
+    "P14",
+    "P04",
+    "P05"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000015",
+   "mode": "KDK",
+   "court": 3,
+   "round": 5,
+   "score1": 4,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "manual-guest-P10",
+    "manual-guest-P18",
+    "00000000-0000-4000-8000-000000000017",
+    "00000000-0000-4000-8000-000000000015"
+   ],
+   "playerIds": [
+    "manual-guest-P10",
+    "manual-guest-P18",
+    "00000000-0000-4000-8000-000000000017",
+    "00000000-0000-4000-8000-000000000015"
+   ],
+   "player_names": [
+    "P10(G)",
+    "P18(G)",
+    "P17",
+    "P15"
+   ],
+   "playerNames": [
+    "P10(G)",
+    "P18(G)",
+    "P17",
+    "P15"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000016",
+   "mode": "KDK",
+   "court": 4,
+   "round": 5,
+   "score1": 6,
+   "score2": 2,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000009",
+    "00000000-0000-4000-8000-000000000007",
+    "manual-guest-P16"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000009",
+    "00000000-0000-4000-8000-000000000007",
+    "manual-guest-P16"
+   ],
+   "player_names": [
+    "P02",
+    "P09",
+    "P07",
+    "P16(G)"
+   ],
+   "playerNames": [
+    "P02",
+    "P09",
+    "P07",
+    "P16(G)"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000017",
+   "mode": "KDK",
+   "court": 1,
+   "round": 6,
+   "score1": 4,
+   "score2": 6,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000012",
+    "manual-guest-P18",
+    "00000000-0000-4000-8000-000000000008",
+    "00000000-0000-4000-8000-000000000007"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000012",
+    "manual-guest-P18",
+    "00000000-0000-4000-8000-000000000008",
+    "00000000-0000-4000-8000-000000000007"
+   ],
+   "player_names": [
+    "P12",
+    "P18(G)",
+    "P08",
+    "P07"
+   ],
+   "playerNames": [
+    "P12",
+    "P18(G)",
+    "P08",
+    "P07"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  },
+  {
+   "id": "00000000-0000-4000-9000-000000000018",
+   "mode": "KDK",
+   "court": 2,
+   "round": 6,
+   "score1": 6,
+   "score2": 1,
+   "status": "complete",
+   "groupName": "A",
+   "group_name": "A",
+   "player_ids": [
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000017",
+    "00000000-0000-4000-8000-000000000014"
+   ],
+   "playerIds": [
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000017",
+    "00000000-0000-4000-8000-000000000014"
+   ],
+   "player_names": [
+    "P05",
+    "P02",
+    "P17",
+    "P14"
+   ],
+   "playerNames": [
+    "P05",
+    "P02",
+    "P17",
+    "P14"
+   ],
+   "player_avatars": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "startedAt": null
+  }
+ ],
+ "settlement_data": [
+  {
+   "player_id": "00000000-0000-4000-8000-000000000001",
+   "player_name": "P01",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 1,
+   "wins": 4,
+   "losses": 0,
+   "points_for": 24,
+   "points_against": 10,
+   "diff": 14,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 10000,
+   "final_amount": 10000
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000002",
+   "player_name": "P02",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 2,
+   "wins": 3,
+   "losses": 1,
+   "points_for": 20,
+   "points_against": 11,
+   "diff": 9,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000003",
+   "player_name": "P03",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 3,
+   "wins": 3,
+   "losses": 1,
+   "points_for": 22,
+   "points_against": 14,
+   "diff": 8,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000004",
+   "player_name": "P04",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 4,
+   "wins": 3,
+   "losses": 1,
+   "points_for": 22,
+   "points_against": 15,
+   "diff": 7,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000005",
+   "player_name": "P05",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 5,
+   "wins": 3,
+   "losses": 1,
+   "points_for": 21,
+   "points_against": 15,
+   "diff": 6,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000006",
+   "player_name": "P06",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 6,
+   "wins": 3,
+   "losses": 1,
+   "points_for": 20,
+   "points_against": 16,
+   "diff": 4,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000007",
+   "player_name": "P07",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 7,
+   "wins": 3,
+   "losses": 1,
+   "points_for": 20,
+   "points_against": 18,
+   "diff": 2,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000008",
+   "player_name": "P08",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 8,
+   "wins": 2,
+   "losses": 2,
+   "points_for": 18,
+   "points_against": 18,
+   "diff": 0,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000009",
+   "player_name": "P09",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 9,
+   "wins": 2,
+   "losses": 2,
+   "points_for": 16,
+   "points_against": 16,
+   "diff": 0,
+   "penalty_level": null,
+   "penalty_amount": 0,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": 0
+  },
+  {
+   "player_id": "manual-guest-P10",
+   "player_name": "P10(G)",
+   "is_guest": true,
+   "is_associate_guest_fee_member": false,
+   "rank": 10,
+   "wins": 2,
+   "losses": 2,
+   "points_for": 18,
+   "points_against": 18,
+   "diff": 0,
+   "penalty_level": "L1",
+   "penalty_amount": -3000,
+   "guest_fee_amount": -10000,
+   "prize_amount": 0,
+   "final_amount": -13000
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000011",
+   "player_name": "P11",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 11,
+   "wins": 2,
+   "losses": 2,
+   "points_for": 17,
+   "points_against": 19,
+   "diff": -2,
+   "penalty_level": "L1",
+   "penalty_amount": -3000,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": -3000
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000012",
+   "player_name": "P12",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 12,
+   "wins": 1,
+   "losses": 3,
+   "points_for": 17,
+   "points_against": 21,
+   "diff": -4,
+   "penalty_level": "L1",
+   "penalty_amount": -3000,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": -3000
+  },
+  {
+   "player_id": "manual-guest-P13",
+   "player_name": "P13(G)",
+   "is_guest": true,
+   "is_associate_guest_fee_member": false,
+   "rank": 13,
+   "wins": 1,
+   "losses": 3,
+   "points_for": 16,
+   "points_against": 20,
+   "diff": -4,
+   "penalty_level": "L1",
+   "penalty_amount": -3000,
+   "guest_fee_amount": -10000,
+   "prize_amount": 0,
+   "final_amount": -13000
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000014",
+   "player_name": "P14",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 14,
+   "wins": 1,
+   "losses": 3,
+   "points_for": 16,
+   "points_against": 20,
+   "diff": -4,
+   "penalty_level": "L2",
+   "penalty_amount": -5000,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": -5000
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000015",
+   "player_name": "P15",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 15,
+   "wins": 1,
+   "losses": 3,
+   "points_for": 14,
+   "points_against": 22,
+   "diff": -8,
+   "penalty_level": "L2",
+   "penalty_amount": -5000,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": -5000
+  },
+  {
+   "player_id": "manual-guest-P16",
+   "player_name": "P16(G)",
+   "is_guest": true,
+   "is_associate_guest_fee_member": false,
+   "rank": 16,
+   "wins": 1,
+   "losses": 3,
+   "points_for": 14,
+   "points_against": 23,
+   "diff": -9,
+   "penalty_level": "L2",
+   "penalty_amount": -5000,
+   "guest_fee_amount": -10000,
+   "prize_amount": 0,
+   "final_amount": -15000
+  },
+  {
+   "player_id": "00000000-0000-4000-8000-000000000017",
+   "player_name": "P17",
+   "is_guest": false,
+   "is_associate_guest_fee_member": false,
+   "rank": 17,
+   "wins": 1,
+   "losses": 3,
+   "points_for": 12,
+   "points_against": 22,
+   "diff": -10,
+   "penalty_level": "L2",
+   "penalty_amount": -5000,
+   "guest_fee_amount": 0,
+   "prize_amount": 0,
+   "final_amount": -5000
+  },
+  {
+   "player_id": "manual-guest-P18",
+   "player_name": "P18(G)",
+   "is_guest": true,
+   "is_associate_guest_fee_member": false,
+   "rank": 18,
+   "wins": 0,
+   "losses": 4,
+   "points_for": 15,
+   "points_against": 24,
+   "diff": -9,
+   "penalty_level": "L2",
+   "penalty_amount": -5000,
+   "guest_fee_amount": -10000,
+   "prize_amount": 0,
+   "final_amount": -15000
+  }
+ ],
+ "settlement_meta": {
+  "prizes": {
+   "l1": 3000,
+   "l2": 5000,
+   "first": 10000
+  },
+  "guest_fee": 10000,
+  "generated_at": "2026-10-06T13:30:46.789Z"
+ },
+ "player_metadata": {
+  "manual-guest-P13": {
+   "id": "manual-guest-P13",
+   "name": "",
+   "group": "A",
+   "endTime": "22:00",
+   "is_guest": true,
+   "birthYear": 1991,
+   "startTime": "19:00",
+   "birthYearStatus": "provided"
+  },
+  "manual-guest-P10": {
+   "id": "manual-guest-P10",
+   "name": "",
+   "group": "A",
+   "endTime": "22:00",
+   "is_guest": true,
+   "birthYear": 1997,
+   "startTime": "19:00",
+   "birthYearStatus": "provided"
+  },
+  "manual-guest-P18": {
+   "id": "manual-guest-P18",
+   "name": "",
+   "group": "A",
+   "endTime": "22:00",
+   "is_guest": true,
+   "birthYear": 1982,
+   "startTime": "19:00",
+   "birthYearStatus": "provided"
+  },
+  "manual-guest-P16": {
+   "id": "manual-guest-P16",
+   "name": "",
+   "group": "A",
+   "endTime": "22:00",
+   "is_guest": true,
+   "birthYear": 1981,
+   "startTime": "19:00",
+   "birthYearStatus": "provided"
+  }
+ },
+ "title": "FIXTURE_KDK_01",
+ "date": "2026-01-01",
+ "total_matches": 18,
+ "total_rounds": 6
+}
