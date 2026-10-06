@@ -14,6 +14,8 @@ import { sortOfficialKdkRanking } from '@/lib/kdk/officialRanking';
 // 성능: 결과 공유 렌더러(canvas 이미지 생성)는 아카이브 상세 화면에서만 로드.
 const ArchiveResultShare = nextDynamic(() => import('@/components/archive/ArchiveResultShare'), { ssr: false });
 import KdkFinancePenaltyModal from '@/components/archive/KdkFinancePenaltyModal';
+// 성능: 정정 모달은 운영진이 실제로 열 때만 로드(일반 회원 번들에 포함하지 않는다).
+const KdkCorrectionModal = nextDynamic(() => import('@/components/archive/KdkCorrectionModal'), { ssr: false });
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import { fetchAllMembers, type FinanceMember } from '@/lib/finance/duesService';
 import { buildKdkPenaltyPreview, fetchExistingKdkPenalties } from '@/lib/finance/kdkPenaltyService';
@@ -92,6 +94,8 @@ export default function ArchivePage() {
 
   // Finance 벌금 등록 모달 + 세션별 등록 상태(등록 완료 / 일부 등록) 뱃지.
   const [showFinancePenaltyModal, setShowFinancePenaltyModal] = useState(false);
+  // 경기 기록 정정(CEO/ADMIN). 공식 확정 전/후 모두 같은 모달을 쓴다.
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [penaltyStatus, setPenaltyStatus] = useState<{ registered: number; linkable: number } | null>(null);
 
   const now = new Date();
@@ -1187,6 +1191,23 @@ export default function ArchivePage() {
                 테스트 기록으로 변경
               </button>
             ) : null}
+
+            {/* 경기 점수 정정 — 공식 확정 전/후 모두 가능. 계산·RPC·감사 구조는 하나다.
+                ⚠ 테스트 기록은 정정 대상이 아니다(공식 흐름이 아니므로 재확정으로 충분하다). */}
+            {!session.is_test && (
+              <button
+                type="button"
+                onClick={() => setShowCorrectionModal(true)}
+                style={{
+                  padding: '8px 14px', borderRadius: 999,
+                  background: '#FFFFFF', border: '1px solid #C9B075',
+                  color: '#8A6D3B', fontSize: 11.5, fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                {session.is_official ? '공식 기록 정정' : '경기 기록 정정'}
+              </button>
+            )}
           </section>
         )}
 
@@ -1557,6 +1578,18 @@ export default function ArchivePage() {
             createdBy={user?.id || null}
             onClose={() => setShowFinancePenaltyModal(false)}
             onRegistered={loadPenaltyStatus}
+          />
+        )}
+
+        {/* 경기 기록 정정 — CEO/ADMIN 전용. 성공 시 서버에서 다시 읽는다(optimistic 금지). */}
+        {showCorrectionModal && isAdmin && !session.isLocal && (
+          <KdkCorrectionModal
+            archiveId={session.id}
+            sessionTitle={session.title}
+            sessionDate={session.date}
+            isOfficial={!!session.is_official}
+            onClose={() => setShowCorrectionModal(false)}
+            onCorrected={() => { void fetchArchives(); void loadPenaltyStatus(); }}
           />
         )}
       </>
