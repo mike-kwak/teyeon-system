@@ -1,21 +1,26 @@
 'use client';
 
-// Control Center — 대회 당일 관제 (Batch 4F-1).
+// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3).
 //
-//   읽는 순서: 머리말 → 요약 → 코트 → 단계 상태.
-//   ⚠ 이번 단계는 **읽기 전용**이다. 호명 · 투입 · 점수 · 완료는 4F-3 에서 붙인다.
+//   읽는 순서: 머리말 → 요약 → 코트 → 확인 필요 → 진행/대기, 오른쪽은 단계 상태 레일.
 //   ⚠ 숫자와 상태는 전부 controlModel 의 순수 함수가 만든다. 여기서 다시 세지 않는다.
 //   ⚠ 코트 수 · 조 수를 숫자로 박지 않는다. 서버가 준 만큼 그린다.
+//   ⚠ 시스템이 다음 경기를 고르지 않고, 코트를 자동 배정하지 않고, 대신 호명하지 않는다.
+//     투입도 운영자가 경기 → 코트 두 번을 직접 고른 뒤에만 일어난다.
+//   ⚠ 조작 결과를 화면이 미리 그리지 않는다(optimistic 금지). 끝나면 전부 다시 읽는다.
 
 import React from 'react';
 import Link from 'next/link';
-import { ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import {
   CONTROL_PHASE_LABEL, countCourtStates, deriveAttention, deriveCourts, deriveKnockout,
   derivePhase, derivePlaying, derivePreliminary, deriveSummary, deriveWaiting,
 } from './controlModel';
-import type { ControlCourt, ControlGroup } from './controlModel';
+import type { ControlCourt, ControlGroup, ControlMatchRow } from './controlModel';
 import { ControlAttention, ControlOperations } from './ControlOperations';
+import type { ControlOps } from './ControlOperations';
+import ControlScoreDialog from './ControlScoreDialog';
+import { useControlActions } from './controlActions';
 import { useControlData } from './controlView';
 
 /**
@@ -222,7 +227,15 @@ function CourtTeam({ team }: { team: { teamNo: number; player1Name: string; play
   );
 }
 
-function CourtPanel({ court }: { court: ControlCourt }) {
+function CourtPanel({
+  court, selectable, disabled, onPick,
+}: {
+  court: ControlCourt;
+  /** 투입 선택 모드에서 이 코트를 고를 수 있는가(비어 있는 코트만 true). */
+  selectable: boolean;
+  disabled: boolean;
+  onPick: (courtNo: number) => void;
+}) {
   const playing = court.state === 'playing' && court.now;
   const closed = court.state === 'closed';
 
@@ -230,12 +243,14 @@ function CourtPanel({ court }: { court: ControlCourt }) {
     <div
       data-court={court.courtNo}
       data-court-state={court.state}
+      data-court-selectable={selectable ? '1' : undefined}
       style={{
-        border: `1px solid ${playing ? TEAL : LINE}`,
-        borderTopWidth: playing ? 3 : 1,
-        borderTopColor: playing ? TEAL : LINE,
+        // ⚠ border 축약형과 borderTop* 을 섞지 않는다 — 리렌더 때 서로 덮어써 경고가 난다.
+        borderStyle: 'solid',
+        borderColor: playing || selectable ? TEAL : LINE,
+        borderWidth: playing ? '3px 1px 1px' : 1,
         borderRadius: 12,
-        background: closed ? '#F8FAFC' : '#fff',
+        background: selectable ? TEAL_SOFT : closed ? '#F8FAFC' : '#fff',
         padding: '11px 13px 13px',
         display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0,
         minHeight: 128,
@@ -272,6 +287,22 @@ function CourtPanel({ court }: { court: ControlCourt }) {
           </span>
           <CourtTeam team={court.now.team2} />
         </div>
+      ) : selectable ? (
+        // ⚠ 선택지일 뿐이다. 비어 있는지 최종 판정은 서버(start_match)가 한다.
+        <button
+          type="button"
+          data-control-action={`court-${court.courtNo}`}
+          disabled={disabled}
+          onClick={() => onPick(court.courtNo)}
+          style={{
+            margin: 'auto 0 0', minHeight: 34, borderRadius: 9,
+            border: `1px solid ${TEAL}`, background: TEAL, color: '#fff',
+            fontSize: 12.5, fontWeight: 800,
+            opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer',
+          }}
+        >
+          이 코트에 투입
+        </button>
       ) : (
         <p style={{ margin: 'auto 0 2px', fontSize: 12.5, fontWeight: 600, color: FAINT }}>
           {closed ? '사용 중지' : '현재 경기 없음'}
@@ -281,7 +312,15 @@ function CourtPanel({ court }: { court: ControlCourt }) {
   );
 }
 
-function CourtBoard({ courts }: { courts: ControlCourt[] }) {
+function CourtBoard({
+  courts, picking, disabled, onPick,
+}: {
+  courts: ControlCourt[];
+  /** 투입할 경기를 고른 상태인가. 그때만 빈 코트가 선택 가능해진다. */
+  picking: boolean;
+  disabled: boolean;
+  onPick: (courtNo: number) => void;
+}) {
   const n = countCourtStates(courts);
   return (
     <section style={card}>
@@ -305,7 +344,13 @@ function CourtBoard({ courts }: { courts: ControlCourt[] }) {
           gridTemplateColumns: 'repeat(auto-fit, minmax(max(146px, calc((100% - 32px) / 5)), 1fr))',
           gap: 8,
         }}>
-          {courts.map((c) => <CourtPanel key={c.courtNo} court={c} />)}
+          {courts.map((c) => (
+            <CourtPanel
+              key={c.courtNo} court={c}
+              selectable={picking && c.state === 'empty'}
+              disabled={disabled} onPick={onPick}
+            />
+          ))}
         </div>
       )}
     </section>
@@ -425,6 +470,52 @@ function KnockoutStatus({ k }: { k: NonNullable<ReturnType<typeof deriveKnockout
 
 // ── 안내 ────────────────────────────────────────────────────────────────────
 
+/**
+ * 투입할 경기로 고른 뒤 띄우는 안내 줄.
+ *   ⚠ 아직 아무 것도 저장되지 않았다. 코트를 고르는 순간 한 번의 start_match 가 나간다.
+ */
+function PickBanner({
+  match, disabled, onCancel,
+}: {
+  match: ControlMatchRow; disabled: boolean; onCancel: () => void;
+}) {
+  const head = match.stage === 'knockout'
+    ? (match.roundName ?? '본선')
+    : match.groupNo !== null ? `${match.groupNo}조` : '순위결정전';
+
+  return (
+    <div data-control-pick={match.matchNo} style={{
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+      padding: '10px 14px', borderRadius: 11,
+      border: `1px solid ${TEAL}`, background: TEAL_SOFT,
+    }}>
+      <span style={{
+        fontFamily: LABEL, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.12em', color: TEAL,
+      }}>
+        투입할 경기
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 800, color: INK, minWidth: 0 }}>
+        {head} · M{match.matchNo}
+        <span style={{ color: MUTED, fontWeight: 700 }}>
+          {' · '}TEAM {String(match.team1.teamNo).padStart(2, '0')}
+          {' vs '}TEAM {String(match.team2.teamNo).padStart(2, '0')}
+        </span>
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: INK_SOFT }}>
+        아래에서 비어 있는 코트를 선택해 주세요.
+      </span>
+      <button type="button" data-control-action="pick-cancel" onClick={onCancel} disabled={disabled}
+        style={{
+          ...navBtn, marginLeft: 'auto', minHeight: 28, padding: '4px 10px', fontSize: 11.5,
+          opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer',
+        }}>
+        <X size={12} strokeWidth={2.6} />
+        선택 취소
+      </button>
+    </div>
+  );
+}
+
 function Quiet({ title, desc }: { title: string; desc?: string }) {
   return (
     <section style={{ ...card, textAlign: 'center', padding: '26px 15px' }}>
@@ -456,10 +547,69 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     () => deriveWaiting(snap?.board ?? null, summary.stage, WAITING_ROWS, snap?.bracket ?? null),
     [snap, summary.stage],
   );
+  // 선택한 경기를 다시 찾을 때 쓴다 — 화면에 보이는 6줄이 아니라 **대기 전체**에서 본다.
+  const waitingAll = React.useMemo(
+    () => deriveWaiting(snap?.board ?? null, summary.stage, 0, snap?.bracket ?? null),
+    [snap, summary.stage],
+  );
   const attention = React.useMemo(
     () => deriveAttention({ summary, preliminary: prelim, knockout, phase }),
     [summary, prelim, knockout, phase],
   );
+
+  // ── 조작 ──────────────────────────────────────────────────────────────────
+  const act = useControlActions(st.reload);
+
+  /** 투입할 경기로 고른 상태. version 까지 함께 들고 있다가 값이 바뀌면 손을 뗀다. */
+  const [pick, setPick] = React.useState<{ matchId: string; version: number } | null>(null);
+  /** 점수를 입력할 경기(진행 중). */
+  const [scoreFor, setScoreFor] = React.useState<{ matchId: string } | null>(null);
+
+  // 선택한 경기를 **항상 최신 조회 결과에서** 다시 찾는다. 들고 있던 복사본을 쓰지 않는다.
+  const picked = React.useMemo(
+    () => (pick ? waitingAll.rows.find((r) => r.matchId === pick.matchId) ?? null : null),
+    [pick, waitingAll],
+  );
+  const scoring = React.useMemo(
+    () => (scoreFor ? playing.find((r) => r.matchId === scoreFor.matchId) ?? null : null),
+    [scoreFor, playing],
+  );
+
+  /**
+   * 재조회 뒤 안전 해제.
+   *   · 고른 경기가 더 이상 대기/호명이 아니면(다른 운영자가 투입·취소했다) 선택을 푼다
+   *   · version 이 달라졌으면 그 선택으로 계속 진행하지 않는다
+   *   ⚠ 조용히 다른 경기로 옮겨 가지 않는다 — 운영자가 다시 고른다.
+   */
+  React.useEffect(() => {
+    if (!pick) return;
+    if (!picked || picked.version !== pick.version) setPick(null);
+  }, [pick, picked]);
+
+  React.useEffect(() => {
+    if (scoreFor && !scoring) setScoreFor(null);
+  }, [scoreFor, scoring]);
+
+  const ops: ControlOps = React.useMemo(() => ({
+    busy: act.busy,
+    selectedMatchId: picked?.matchId ?? null,
+    onCall: (m) => { void act.call(m); },
+    onUncall: (m) => { void act.uncall(m); },
+    onPickCourt: (m) => setPick({ matchId: m.matchId, version: m.version }),
+    onCancelPick: () => setPick(null),
+    onScore: (m) => setScoreFor({ matchId: m.matchId }),
+  }), [act, picked]);
+
+  /** 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번). */
+  const onCourtPick = React.useCallback((courtNo: number) => {
+    if (!picked || act.busy) return;
+    void act.start(picked, courtNo).finally(() => setPick(null));
+  }, [act, picked]);
+
+  const onScoreSubmit = React.useCallback((s1: number, s2: number) => {
+    if (!scoring || act.busy) return;
+    void act.complete(scoring, s1, s2).finally(() => setScoreFor(null));
+  }, [act, scoring]);
 
   if (!st.authorized && !snap) {
     return <Quiet title="운영 권한이 필요합니다." desc="CEO · ADMIN 계정으로 로그인한 뒤 다시 열어 주세요." />;
@@ -503,7 +653,16 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
                  그래서 본문 세 영역을 한 열 안에 둔다(레일 높이와 무관하게 이어진다). */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <CourtBoard courts={courts} />
+              {/* 고른 경기는 코트 바로 위에 둔다 — 다음에 누를 곳이 눈앞에 있어야 한다. */}
+              {picked && (
+                <PickBanner match={picked} disabled={act.busy !== ''} onCancel={() => setPick(null)} />
+              )}
+              <CourtBoard
+                courts={courts}
+                picking={picked !== null}
+                disabled={act.busy !== ''}
+                onPick={onCourtPick}
+              />
               {summary.total === 0 && (
                 <Quiet title="경기 생성 전"
                   desc="조편성을 확정하고 경기를 생성하면 진행 현황이 표시됩니다." />
@@ -517,6 +676,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
                 waiting={waiting}
                 slug={slug}
                 allDone={phase === 'completed'}
+                ops={ops}
               />
             </div>
 
@@ -528,6 +688,27 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
             </div>
           </div>
         </>
+      )}
+
+      {scoring && (
+        <ControlScoreDialog
+          match={scoring}
+          busy={act.busy !== ''}
+          onClose={() => setScoreFor(null)}
+          onSubmit={onScoreSubmit}
+        />
+      )}
+
+      {act.toast && (
+        <div role="status" data-control-toast style={{
+          position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+          bottom: 'calc(68px + env(safe-area-inset-bottom))',
+          maxWidth: 'calc(100vw - 32px)', padding: '11px 16px', borderRadius: 10,
+          background: INK, color: '#fff', fontSize: 12.5, fontWeight: 700,
+          lineHeight: 1.6, zIndex: 130, wordBreak: 'keep-all', textAlign: 'center',
+        }}>
+          {act.toast}
+        </div>
       )}
     </div>
   );

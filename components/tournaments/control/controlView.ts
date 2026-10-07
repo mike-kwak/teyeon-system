@@ -34,7 +34,12 @@ export interface ControlState {
   /** 마지막 조회가 실패해 화면이 과거 값인가. */
   staleError: string;
   updatedAt: number | null;
-  reload: () => void;
+  /**
+   * 전체 재조회.
+   *   ⚠ 조작(4F-3)이 끝난 뒤 **기다렸다가** 결과를 확인하므로 Promise 를 돌려준다.
+   *     버튼 onClick 처럼 기다리지 않는 쪽에서 그대로 써도 된다.
+   */
+  reload: () => Promise<void>;
 }
 
 export function useControlData(slug: string): ControlState {
@@ -98,7 +103,7 @@ export function useControlData(slug: string): ControlState {
     return () => { mounted.current = false; };
   }, [load]);
 
-  const reload = React.useCallback(() => { void load(); }, [load]);
+  const reload = React.useCallback(() => load(), [load]);
 
   return { snapshot, loading, refreshing, authorized, failed, staleError, updatedAt, reload };
 }

@@ -127,6 +127,8 @@ export interface ControlCourtMatch {
   matchNo: number;
   stage: TournamentMatch['stage'];
   groupNo: number | null;
+  /** 저장된 경기 version 그대로. 여기서 만들지 않는다 — 조작은 이 값을 그대로 되돌려 보낸다. */
+  version: number;
   team1: ControlCourtTeam;
   team2: ControlCourtTeam;
 }
@@ -168,6 +170,7 @@ export function deriveCourts(board: MatchBoard | null): ControlCourt[] {
         state: closed ? 'closed' : m ? 'playing' : 'empty',
         now: m ? {
           matchId: m.matchId, matchNo: m.matchNo, stage: m.stage, groupNo: m.groupNo,
+          version: m.version,
           team1: teamOf(m.team1), team2: teamOf(m.team2),
         } : null,
       } satisfies ControlCourt;
@@ -251,8 +254,20 @@ export interface ControlMatchRow {
   status: MatchStatus;
   groupNo: number | null;
   courtNo: number | null;
+  /**
+   * 저장된 경기 version 그대로.
+   *   ⚠ 여기서 계산하지 않는다. 조작(호명 · 투입 · 완료)은 이 값을 expectedVersion 으로 되돌려 보낸다.
+   */
+  version: number;
   /** 본선이면 저장된 라운드 이름('16강'). 없으면 null — 번호로 추측하지 않는다. */
   roundName: string | null;
+  /**
+   * 이 경기 승자가 우승 자리로 바로 올라가는가(= 결승인가).
+   *   ⚠ 저장된 대진 구조로만 판정한다(승자가 올라갈 라운드 == 우승 자리 라운드).
+   *     경기 번호 · 라운드 이름으로 추측하지 않는다.
+   *   ⚠ 이것은 확인 문구를 고르기 위한 표시용이다. 실제 본선 종료는 서버 응답이 정한다.
+   */
+  isFinal: boolean;
   team1: ControlCourtTeam;
   team2: ControlCourtTeam;
 }
@@ -266,14 +281,33 @@ export function knockoutRoundNames(bracket: AdminBracket | null): Map<number, st
   return m;
 }
 
-const rowOf = (m: TournamentMatch, rounds: Map<number, string>): ControlMatchRow => ({
+/**
+ * 결승 경기 번호.
+ *   저장된 라운드 중 우승 자리(isFinalSlot)를 찾고, 승자가 그 라운드로 올라가는 경기만 담는다.
+ *   ⚠ 우승 자리가 없으면 빈 집합이다(추측해서 채우지 않는다).
+ */
+export function knockoutFinalMatchNos(bracket: AdminBracket | null): Set<number> {
+  const s = new Set<number>();
+  const finalRound = (bracket?.rounds ?? []).find((r) => r.isFinalSlot);
+  if (!finalRound) return s;
+  (bracket?.matches ?? []).forEach((k) => {
+    if (k.targetRoundNo === finalRound.roundNo) s.add(k.matchNo);
+  });
+  return s;
+}
+
+const rowOf = (
+  m: TournamentMatch, rounds: Map<number, string>, finals: Set<number>,
+): ControlMatchRow => ({
   matchId: m.matchId,
   matchNo: m.matchNo,
   stage: m.stage,
   status: m.status,
   groupNo: m.groupNo,
   courtNo: m.courtNo,
+  version: m.version,
   roundName: m.stage === 'knockout' ? (rounds.get(m.matchNo) ?? null) : null,
+  isFinal: m.stage === 'knockout' && finals.has(m.matchNo),
   team1: teamOf(m.team1),
   team2: teamOf(m.team2),
 });
@@ -297,9 +331,10 @@ export function derivePlaying(
   bracket: AdminBracket | null = null,
 ): ControlMatchRow[] {
   const rounds = knockoutRoundNames(bracket);
+  const finals = knockoutFinalMatchNos(bracket);
   return stageMatches(board, stage)
     .filter((m) => m.status === 'playing')
-    .map((m) => rowOf(m, rounds))
+    .map((m) => rowOf(m, rounds, finals))
     .sort((a, b) => {
       const ac = a.courtNo ?? Number.MAX_SAFE_INTEGER;
       const bc = b.courtNo ?? Number.MAX_SAFE_INTEGER;
@@ -333,9 +368,10 @@ export function deriveWaiting(
   bracket: AdminBracket | null = null,
 ): ControlWaiting {
   const rounds = knockoutRoundNames(bracket);
+  const finals = knockoutFinalMatchNos(bracket);
   const all = stageMatches(board, stage)
     .filter((m) => m.status === 'waiting' || m.status === 'calling')
-    .map((m) => rowOf(m, rounds))
+    .map((m) => rowOf(m, rounds, finals))
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'calling' ? -1 : 1;
       return a.matchNo - b.matchNo;
