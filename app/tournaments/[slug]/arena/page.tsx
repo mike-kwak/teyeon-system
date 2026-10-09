@@ -17,7 +17,9 @@ import ArenaShell from '@/components/tournaments/arena/ArenaShell';
 import ArenaBoardPlaceholder from '@/components/tournaments/arena/ArenaBoardPlaceholder';
 import ArenaGroupWall from '@/components/tournaments/arena/ArenaGroupWall';
 import ArenaKnockoutBoard from '@/components/tournaments/arena/ArenaKnockoutBoard';
-import { arenaBoardHeight, arenaBoardWidth } from '@/components/tournaments/arena/arenaTheme';
+import {
+  arenaBoardHeight, arenaBoardWidth, arenaPrelimBoardHeight, arenaPrelimWallWidth,
+} from '@/components/tournaments/arena/arenaTheme';
 import { useArenaData } from '@/components/tournaments/arena/arenaView';
 import type { ArenaMode } from '@/lib/tournaments/arenaTypes';
 
@@ -66,11 +68,13 @@ export default function TournamentArenaPage() {
         // 보여 줄 데이터가 없을 때는 ArenaShell 이 안내를 그린다(여기는 지나가지 않는다).
         <ArenaBoardPlaceholder mode={mode} />
       ) : mode === 'preliminary' ? (
+        // ⚠ 예선은 왼쪽 코트 레일을 뺀 나머지 폭만 쓴다. 본선(full-width)과 값이 다르다.
+        //   열 수를 여기서 정하지 않는다 — 벽이 영역을 보고 고른다(20조면 4열 × 5행).
         <ArenaGroupWall
           groups={state.snapshot.groups}
           qualifyPerGroup={state.snapshot.qualifyPerGroup}
-          width={arenaBoardWidth()}
-          height={arenaBoardHeight()}
+          width={arenaPrelimWallWidth()}
+          height={arenaPrelimBoardHeight()}
         />
       ) : (
         <ArenaKnockoutBoard

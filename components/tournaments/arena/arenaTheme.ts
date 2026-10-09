@@ -68,7 +68,11 @@ export const ARENA_LAYOUT = {
   gap: 20,
 } as const;
 
-/** 본문(Main Board)이 쓸 수 있는 높이. 4E-2 · 4E-3 이 이 값을 기준으로 들어간다. */
+/**
+ * 본선 본문(Main Board)이 쓸 수 있는 높이.
+ *   머리말 + 상단 코트 줄 + 사이 간격 2개를 뺀 나머지다.
+ *   ⚠ 본선 전용이다. 예선은 상단 줄이 없으므로 arenaPrelimBoardHeight 를 쓴다.
+ */
 export const arenaBoardHeight = (): number =>
   ARENA_CANVAS.height
   - ARENA_LAYOUT.padY * 2
@@ -79,3 +83,30 @@ export const arenaBoardHeight = (): number =>
 /** 본문 안쪽 폭(테두리 1px 양쪽 제외). 화면을 재지 않고 계산만으로 배치하기 위해 쓴다. */
 export const arenaBoardWidth = (): number =>
   ARENA_CANVAS.width - ARENA_LAYOUT.padX * 2 - 2;
+
+/**
+ * 예선 왼쪽 코트 레일의 폭.
+ *   2열 × 5행 칸이 상단 줄 카드보다 좁아지지 않는 선에서 가장 작게 잡았다
+ *   (칸 ≈ 206×175 — 상단 줄 ≈ 179×148 보다 넉넉하므로 긴 이름이 더 잘 들어간다).
+ *   ⚠ 조 순위 벽이 20조에서 4열 × 5행으로 떨어지는 것은 이 폭의 결과다.
+ *     열 수를 어디에도 하드코딩하지 않는다 — chooseGroupGrid 가 영역을 보고 고른다.
+ */
+export const ARENA_RAIL_WIDTH = 440;
+
+/**
+ * 예선 본문 높이 — 상단 코트 줄이 없으므로 머리말과 간격 하나만 뺀다.
+ *   코트 레일과 조 순위 벽이 **같은 높이**를 쓴다.
+ */
+export const arenaPrelimBoardHeight = (): number =>
+  ARENA_CANVAS.height
+  - ARENA_LAYOUT.padY * 2
+  - ARENA_LAYOUT.headerHeight
+  - ARENA_LAYOUT.gap;
+
+/** 예선 조 순위 벽이 실제로 쓸 수 있는 안쪽 폭(레일과 사이 간격, 테두리를 뺀 값). */
+export const arenaPrelimWallWidth = (): number =>
+  ARENA_CANVAS.width
+  - ARENA_LAYOUT.padX * 2
+  - ARENA_RAIL_WIDTH
+  - ARENA_LAYOUT.gap
+  - 2;

@@ -1,8 +1,12 @@
 'use client';
 
-// Arena — 상단 코트 줄 (Batch 4E-1).
+// Arena — 본선 상단 코트 줄 (Batch 4E-1 · 모드 분리 4G).
 //
-//   코트 10개를 **항상 한 줄**로 보여 준다(2×5 · 좌우 레일 · 하단 레일을 쓰지 않는다).
+//   코트 10개를 한 줄(1×10)로 보여 준다. **본선 전용**이다.
+//   예선은 왼쪽 세로 레일(2×5)을 쓴다 — ArenaCourtRail. 두 모드가 서로 다른
+//   코트 배치를 쓰는 것이 확정된 구조이므로, 하나로 다시 합치지 않는다.
+//   ⚠ 카드 모양(CourtCell)과 1~10 자리 채우기(arenaCourtSlots)는 여기 한 곳에만 둔다.
+//     레일이 이것을 그대로 가져다 쓴다 — 같은 카드를 두 번 만들지 않는다.
 //   ⚠ 보여 주는 것은 '지금 하고 있는 경기(NOW)' 뿐이다.
 //     '다음 경기(NEXT)'를 만들지 않는다 — 저장된 데이터에 그런 개념이 없다.
 //     CALLING 은 코트를 점유하지 않으므로 코트 줄에 올리지 않는다.
@@ -53,7 +57,11 @@ function TeamLine({ team, live }: { team: ArenaTeam; live: boolean }) {
   );
 }
 
-function CourtCell({ court, divider }: { court: ArenaCourt | null; divider: boolean }) {
+/**
+ * 코트 한 칸. 상단 줄과 왼쪽 레일이 **같은 카드**를 쓴다.
+ *   ⚠ 여기 말고 다른 곳에서 코트 카드를 다시 그리지 않는다.
+ */
+export function CourtCell({ court, divider }: { court: ArenaCourt | null; divider: boolean }) {
   const playing = court?.now ?? null;
   const live = playing !== null;
 
@@ -120,27 +128,38 @@ function CourtCell({ court, divider }: { court: ArenaCourt | null; divider: bool
   );
 }
 
+export interface ArenaCourtSlot {
+  key: number;
+  court: ArenaCourt | null;
+}
+
 /**
- * 코트 줄.
+ * 1~10 자리를 늘 같은 순서로 만든다. 서버에 없는 번호는 빈 칸으로 남긴다.
  *   ⚠ 데이터가 갱신돼도 칸이 다시 만들어지지 않도록 코트 번호를 key 로 고정한다(깜빡임 방지).
+ *   ⚠ 상단 줄과 왼쪽 레일이 **같은 자리 배정**을 쓴다 — 두 모드에서 코트 순서가 달라지면 안 된다.
  */
-export default function ArenaCourtStrip({ courts }: { courts: ArenaCourt[] }) {
-  // 1~10 자리를 늘 같은 순서로 둔다. 서버에 없는 번호는 빈 칸으로 남긴다.
+export function arenaCourtSlots(courts: ArenaCourt[]): ArenaCourtSlot[] {
   const byNo = new Map<number, ArenaCourt>();
   courts.forEach((c) => byNo.set(c.courtNo, c));
   const extra = courts
     .filter((c) => c.courtNo > ARENA_COURT_COUNT)
     .sort((a, b) => a.courtNo - b.courtNo);
 
-  const cells: Array<{ key: number; court: ArenaCourt | null }> = [];
+  const cells: ArenaCourtSlot[] = [];
   for (let n = 1; n <= ARENA_COURT_COUNT; n += 1) {
     cells.push({ key: n, court: byNo.get(n) ?? null });
   }
-  // 11번 이상 코트가 있으면 뒤쪽 빈 칸을 차례로 채운다(줄 수는 늘리지 않는다).
+  // 11번 이상 코트가 있으면 뒤쪽 빈 칸을 차례로 채운다(칸 수는 늘리지 않는다).
   extra.forEach((c) => {
     const slot = cells.find((x) => x.court === null);
     if (slot) { slot.court = c; slot.key = c.courtNo; }
   });
+  return cells;
+}
+
+/** 본선 상단 코트 줄 — 1×10. */
+export default function ArenaCourtStrip({ courts }: { courts: ArenaCourt[] }) {
+  const cells = arenaCourtSlots(courts);
 
   return (
     <section

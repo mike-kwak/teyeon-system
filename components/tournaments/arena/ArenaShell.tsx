@@ -1,18 +1,25 @@
 'use client';
 
-// Arena — 화면 틀 (Batch 4E-1).
+// Arena — 화면 틀 (Batch 4E-1 · 단계별 배치 확정 4G).
 //
-//   구성: 머리말(고정 높이) → 코트 줄(고정 높이) → 본문(남은 높이 전부).
 //   1920×1080 캔버스를 그린 뒤 화면 크기에 맞춰 통째로 줄인다(contain).
+//
+//   ⚠ 코트 배치가 단계에 따라 다르다. 이것이 확정된 구조이며, 하나로 다시 합치지 않는다.
+//     예선 — 머리말 → [ 왼쪽 코트 레일 2×5 | 조 순위 벽 ]
+//            현장에서 '지금 어느 코트가 도는지' 와 '전체 판도' 를 나란히 본다.
+//     본선 — 머리말 → 코트 줄 1×10 → 대진표(full-width)
+//            대진은 좌우로 펼쳐져야 하므로 코트를 위로 올리고 아래 폭을 전부 내준다.
 //   ⚠ 전체화면에서는 조작 버튼을 숨긴다 — TV 에는 보드만 보인다.
 //   ⚠ 배경 갱신 중에 화면을 비우거나 로딩으로 되돌리지 않는다.
 
 import React from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import ArenaCourtStrip from './ArenaCourtStrip';
+import ArenaCourtRail from './ArenaCourtRail';
 import { useArenaStage } from './useArenaStage';
 import {
-  ARENA, ARENA_CANVAS, ARENA_FONT_BODY, ARENA_FONT_LABEL, ARENA_LAYOUT, arenaBoardHeight,
+  ARENA, ARENA_CANVAS, ARENA_FONT_BODY, ARENA_FONT_LABEL, ARENA_LAYOUT, ARENA_RAIL_WIDTH,
+  arenaBoardHeight, arenaPrelimBoardHeight,
 } from './arenaTheme';
 import type { ArenaMode, ArenaState } from '@/lib/tournaments/arenaTypes';
 
@@ -110,6 +117,15 @@ function ArenaNotice({ title, desc }: { title: string; desc?: string }) {
   );
 }
 
+/** 본문 상자 — 두 모드가 같은 면·테두리를 쓴다(모드마다 다르게 보이지 않게). */
+const boardBox: React.CSSProperties = {
+  minHeight: 0,
+  background: ARENA.surface,
+  border: `1px solid ${ARENA.line}`,
+  borderRadius: 14,
+  overflow: 'hidden',
+};
+
 export interface ArenaShellProps {
   title: string;
   mode: ArenaMode;
@@ -143,8 +159,10 @@ export default function ArenaShell({
         fontFamily: ARENA_FONT_BODY,
       }}
     >
-      {/* 1920×1080 캔버스 — 화면 크기에 맞춰 통째로 축소/확대한다. */}
-      <div style={{
+      {/* 1920×1080 캔버스 — 화면 크기에 맞춰 통째로 축소/확대한다.
+          ⚠ data-arena-canvas 는 측정용 표식이다(화면에 영향을 주지 않는다).
+            코트 영역의 부모로 캔버스를 추정하면 모드마다 다른 것을 재게 된다. */}
+      <div data-arena-canvas={mode} style={{
         width: ARENA_CANVAS.width,
         height: ARENA_CANVAS.height,
         transform: `scale(${stage.scale})`,
@@ -156,19 +174,29 @@ export default function ArenaShell({
       }}>
         <ArenaHeader title={title} mode={mode} updatedAt={state.updatedAt} stale={state.stale} />
 
-        {/* 코트 줄은 데이터가 없어도 자리를 지킨다(높이가 흔들리지 않게). */}
-        <ArenaCourtStrip courts={snapshot ? snapshot.courts : []} />
-
-        <main style={{
-          height: arenaBoardHeight(),
-          minHeight: 0,
-          background: ARENA.surface,
-          border: `1px solid ${ARENA.line}`,
-          borderRadius: 14,
-          overflow: 'hidden',
-        }}>
-          {notice ? <ArenaNotice title={notice.title} desc={notice.desc} /> : children}
-        </main>
+        {/* 코트는 데이터가 없어도 자리를 지킨다(높이가 흔들리지 않게). */}
+        {mode === 'preliminary' ? (
+          <div style={{
+            height: arenaPrelimBoardHeight(),
+            minHeight: 0,
+            display: 'flex',
+            gap: ARENA_LAYOUT.gap,
+          }}>
+            <div style={{ width: ARENA_RAIL_WIDTH, flexShrink: 0 }}>
+              <ArenaCourtRail courts={snapshot ? snapshot.courts : []} />
+            </div>
+            <main style={{ ...boardBox, flex: 1, minWidth: 0 }}>
+              {notice ? <ArenaNotice title={notice.title} desc={notice.desc} /> : children}
+            </main>
+          </div>
+        ) : (
+          <>
+            <ArenaCourtStrip courts={snapshot ? snapshot.courts : []} />
+            <main style={{ ...boardBox, height: arenaBoardHeight() }}>
+              {notice ? <ArenaNotice title={notice.title} desc={notice.desc} /> : children}
+            </main>
+          </>
+        )}
       </div>
 
       {/* 조작 — 전체화면에서는 보이지 않는다. */}
