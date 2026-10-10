@@ -684,7 +684,16 @@ export function controlPollDelay(failStreak: number, authStreak = 0): number {
 //   그래서 '늦었다 · 알 수 없음' 류 실패는 재조회한 서버 상태와 **요청한 결과**를 비교해 다시 판정한다.
 //   ⚠ 서버 상태만으로는 '누가' 바꿨는지 알 수 없다 — 요청한 결과가 보여도 성공이라 추정하지 않는다.
 
-export type ControlActionKind = 'call' | 'uncall' | 'start' | 'complete';
+/**
+ * 판정하는 조작. 경기 한 건의 상태 · 결과를 바꾸는 RPC 들이며, 모두 같은 규칙을 따른다(SQL 확인 — 4F-4c-2):
+ *   · hosted_tournament_match_begin 이 advisory lock 뒤 **version 을 먼저** 비교한다
+ *   · 그 경기 행의 version 을 **정확히 1** 올린다(본선 결과 수정이 다음 경기 행을 고칠 때도
+ *     그건 다른 행의 version 이다 — 이 경기 판정에 섞이지 않는다)
+ *   다른 것은 '반영됐다면 보여야 할 상태' 뿐이다 → intentVisible 에서만 갈린다.
+ *     call → 호명 · uncall → 대기 · start → 그 코트에서 진행 중 · complete → 완료 + 그 점수
+ *     amend(예선 · 본선 결과 수정) → 완료 + **새** 점수 · cancel → 취소 · restore(취소 복구) → 대기
+ */
+export type ControlActionKind = 'call' | 'uncall' | 'start' | 'complete' | 'amend' | 'cancel' | 'restore';
 
 /** 이 조작이 서버에 반영됐다면 보여야 할 상태. */
 export interface ControlActionIntent {
@@ -717,15 +726,27 @@ export type ControlActionVerdict =
 const isDefiniteReject = (reason: string | null): boolean =>
   reason !== null && reason !== 'version_conflict';
 
+/** 판정에 필요한 경기 한 건의 모양 — 대회 경기 board(TournamentMatch)와 본선 대진(KnockoutMatch) 공통. */
+export interface MatchStateLike {
+  status: string;
+  version: number;
+  courtNo: number | null;
+  score1: number | null;
+  score2: number | null;
+}
+
 /** 요청한 결과가 지금 서버 상태에 보이는가. */
-export function intentVisible(intent: ControlActionIntent, m: TournamentMatch | null): boolean {
+export function intentVisible(intent: ControlActionIntent, m: MatchStateLike | null): boolean {
   if (!m) return false;
   switch (intent.kind) {
     case 'call': return m.status === 'calling';
     case 'uncall': return m.status === 'waiting';
     case 'start': return m.status === 'playing' && m.courtNo === intent.courtNo;
-    case 'complete': return m.status === 'completed'
+    case 'complete':
+    case 'amend': return m.status === 'completed'
       && m.score1 === intent.score1 && m.score2 === intent.score2;
+    case 'cancel': return m.status === 'cancelled';
+    case 'restore': return m.status === 'waiting';
     default: return false;
   }
 }
@@ -748,12 +769,34 @@ export function judgeActionResult(
   reason: string | null,
   latest: MatchBoard | null,
 ): ControlActionVerdict {
+  return judgeMatchAction(intent, reason, latest ? latestOf(latest, intent.matchId) : undefined);
+}
+
+/**
+ * 경기 한 건으로 판정한다(경기 운영 · 본선 대진 화면용 — 규칙은 judgeActionResult 와 같다).
+ *   @param m  조작 뒤 다시 읽은 그 경기. **재조회 자체가 실패했으면 undefined**, 읽었는데 경기가 없으면 null.
+ */
+export function judgeMatchAction(
+  intent: ControlActionIntent,
+  reason: string | null,
+  m: MatchStateLike | null | undefined,
+): ControlActionVerdict {
   if (isDefiniteReject(reason)) return 'failure';
-  if (!latest) return 'unverified';                    // 확인할 길이 없다 → 추정하지 않는다
-  const m = latestOf(latest, intent.matchId);
+  if (m === undefined) return 'unverified';            // 확인할 길이 없다 → 추정하지 않는다
   if (!m || !Number.isFinite(m.version)) return 'unverified';
   const changes = m.version - intent.version;
   if (changes <= 0) return 'failure';
   if (changes === 1) return intentVisible(intent, m) ? 'unverified' : 'failure';
   return 'unverified';
+}
+
+/** 확인 필요 안내에 쓰는 서버 상태 한 줄 — '완료 · 6:3 · v8' 처럼. */
+export function describeMatchState(m: MatchStateLike | null | undefined): string | null {
+  if (!m) return null;
+  const word = (STATUS_WORD as Record<string, string>)[m.status] ?? m.status;
+  const parts = [word];
+  if (m.status === 'playing' && m.courtNo !== null) parts.push(`${m.courtNo}번 코트`);
+  if (m.score1 !== null && m.score2 !== null) parts.push(`${m.score1}:${m.score2}`);
+  parts.push(`v${m.version}`);
+  return parts.join(' · ');
 }

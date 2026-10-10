@@ -1,6 +1,6 @@
 'use client';
 
-// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3 · 조작 안전성 4F-4a · 자동 갱신 4F-4b).
+// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3 · 조작 안전성 4F-4a · 자동 갱신 4F-4b · 확인 필요 4F-4c-2).
 //
 //   읽는 순서: 머리말 → 요약 → 코트 → 확인 필요 → 진행/대기, 오른쪽은 단계 상태 레일.
 //   ⚠ 숫자와 상태는 전부 controlModel 의 순수 함수가 만든다. 여기서 다시 세지 않는다.
@@ -22,6 +22,7 @@ import { ControlAttention, ControlOperations } from './ControlOperations';
 import type { ControlOps } from './ControlOperations';
 import ControlScoreDialog from './ControlScoreDialog';
 import { useControlActions } from './controlActions';
+import type { UnverifiedAction } from './controlActions';
 import { useControlData } from './controlView';
 
 /**
@@ -531,6 +532,67 @@ function PickBanner({
   );
 }
 
+/**
+ * 조작 결과 확인 필요(4F-4c-2).
+ *   결과를 확인할 수 없었던 조작을 운영자가 [확인함] 을 누를 때까지 남긴다(토스트는 사라지므로).
+ *   ⚠ 이 브라우저 세션의 임시 기록이다 — DB · 서버 이력에 남기지 않는다.
+ *   ⚠ 여러 건이면 쌓아 보여 준다(마지막 건으로 덮어쓰지 않는다).
+ *   ⚠ 좁은 화면(360px)에서도 경기 정보와 버튼이 잘리지 않게 줄을 바꾼다.
+ */
+function UnverifiedList({
+  items, refreshing, onRefresh, onAcknowledge,
+}: {
+  items: UnverifiedAction[];
+  refreshing: boolean;
+  onRefresh: () => void;
+  onAcknowledge: (id: number) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section data-control-verify-list role="region" aria-label="조작 결과 확인 필요" style={{
+      ...card, border: '1px solid #FDBA74', background: '#FFF7ED', padding: 13,
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <AlertTriangle size={14} strokeWidth={2.4} color="#9A3412" />
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#9A3412' }}>
+          조작 결과 확인 필요 {items.length}건
+        </p>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#9A3412', minWidth: 0 }}>
+          응답을 받지 못해 이 화면의 요청이 처리됐는지 확인할 수 없습니다. 현장에서 확인한 뒤 [확인함]을 눌러 주세요.
+        </span>
+      </div>
+      {items.map((it) => (
+        <div key={it.id} data-control-verify-item={it.id} style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          padding: '9px 11px', borderRadius: 10, background: '#fff', border: `1px solid ${LINE}`,
+        }}>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: INK, wordBreak: 'keep-all' }}>
+              {it.match}
+              <span style={{ fontWeight: 700, color: INK_SOFT }}> — {it.request} 요청</span>
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 600, color: MUTED, wordBreak: 'keep-all' }}>
+              {hhmmss(it.at)} · 확인 당시 서버 상태: {it.server ?? '다시 읽지 못함'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+            <button type="button" data-control-action="verify-refresh" onClick={onRefresh} disabled={refreshing}
+              style={{ ...navBtn, minHeight: 32, opacity: refreshing ? 0.55 : 1 }}>
+              <RefreshCw size={12} strokeWidth={2.4} />
+              {refreshing ? '조회 중' : '새로고침'}
+            </button>
+            <button type="button" data-control-action={`verify-ack-${it.id}`} onClick={() => onAcknowledge(it.id)}
+              style={{ ...navBtn, minHeight: 32, background: NAVY, borderColor: NAVY, color: '#fff' }}>
+              확인함
+            </button>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function Quiet({ title, desc, retry }: {
   title: string; desc?: string;
   /** 첫 조회 실패처럼 머리말(새로고침)이 없는 화면에서만 준다. */
@@ -662,6 +724,10 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
 
       <Header event={event} slug={slug} phase={phase} updatedAt={st.updatedAt}
         refreshing={st.refreshing} onReload={manualReload} />
+
+      {/* 결과를 확인할 수 없었던 조작 — 운영자가 [확인함] 을 누를 때까지 남는다. */}
+      <UnverifiedList items={act.unverified} refreshing={st.refreshing}
+        onRefresh={manualReload} onAcknowledge={act.acknowledge} />
 
       {/* 갱신이 밀린 상태는 작은 줄로만 알린다 — 화면을 덮지 않는다. */}
       {st.staleError && (

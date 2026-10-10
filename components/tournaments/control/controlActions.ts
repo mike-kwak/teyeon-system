@@ -23,11 +23,31 @@ import {
 } from '@/lib/tournaments/matchAdminService';
 import { bracketActionMessage, completeKnockoutMatch } from '@/lib/tournaments/bracketAdminService';
 import type { MatchBoard } from '@/lib/tournaments/matchTypes';
-import { classifyFetchError, intentVisible, judgeActionResult } from './controlModel';
+import { classifyFetchError, describeMatchState, intentVisible, judgeActionResult } from './controlModel';
 import type { ControlActionIntent, ControlActionVerdict, ControlMatchRow } from './controlModel';
 
-/** 조작 대상에서 실제로 필요한 것만. 화면이 무엇을 들고 있든 이 네 가지면 된다. */
-export type ActionTarget = Pick<ControlMatchRow, 'matchId' | 'matchNo' | 'stage' | 'version'>;
+/**
+ * 조작 대상에서 실제로 필요한 것만. 조 번호 · 라운드 이름은 '확인 필요' 안내에서 경기를 알아보는 데만 쓴다.
+ */
+export type ActionTarget = Pick<ControlMatchRow, 'matchId' | 'matchNo' | 'stage' | 'version'>
+  & Partial<Pick<ControlMatchRow, 'groupNo' | 'roundName'>>;
+
+/**
+ * 결과를 확인할 수 없었던 조작 한 건(4F-4c-2).
+ *   ⚠ 이 브라우저 세션의 임시 기록이다 — DB 에 남기지 않는다. 운영자가 [확인함] 을 누를 때까지 남는다.
+ */
+export interface UnverifiedAction {
+  id: number;
+  matchId: string;
+  /** 경기 식별 — 'M70 · 1조' */
+  match: string;
+  /** 요청한 조작 — 'M70 호명' */
+  request: string;
+  /** 발생 시각(ms). */
+  at: number;
+  /** 확인 당시 서버 상태 — 다시 읽지 못했으면 null. */
+  server: string | null;
+}
 
 /** 진행 중인 조작의 키. '' 이면 한가하다. 기존 경기 운영 화면과 같은 **전역 1건** 방식이다. */
 export type BusyKey = string;
@@ -44,6 +64,10 @@ export interface ControlActions {
   /** 완료. 예선이면 complete_match, 본선이면 complete_knockout_match 로 갈린다. */
   /** ⚠ m.version 은 점수 모달을 **연 순간의** version 이어야 한다. */
   complete: (m: ActionTarget, score1: number, score2: number) => Promise<ActionResult>;
+  /** 결과를 확인할 수 없었던 조작들(오래된 것부터). 덮어쓰지 않고 쌓인다. */
+  unverified: UnverifiedAction[];
+  /** 운영자가 현장에서 확인했다 — 그 항목만 목록에서 내린다. */
+  acknowledge: (id: number) => void;
 }
 
 /** 조작이 기대는 조회 쪽 기능(useControlData 가 준다). */
@@ -68,10 +92,23 @@ const intentText = (m: ActionTarget, it: ControlActionIntent): string => {
   }
 };
 
+/** 경기 식별 한 줄 — 'M70 · 1조' · 'M301 · 결승'. */
+const matchText = (m: ActionTarget): string => {
+  const head = m.stage === 'knockout'
+    ? (m.roundName ?? '본선')
+    : m.groupNo != null ? `${m.groupNo}조` : '순위결정전';
+  return `M${m.matchNo} · ${head}`;
+};
+
 export function useControlActions(data: ControlActionData): ControlActions {
   const { reload, hold, release, latest } = data;
   const [busy, setBusy] = React.useState<BusyKey>('');
   const [toast, setToast] = React.useState('');
+  const [unverified, setUnverified] = React.useState<UnverifiedAction[]>([]);
+  const nextId = React.useRef(1);
+  const acknowledge = React.useCallback((id: number) => {
+    setUnverified((list) => list.filter((x) => x.id !== id));
+  }, []);
 
   // 렌더 사이 값이 밀리지 않도록 잠금은 ref 로 본다(state 는 화면 표시용).
   const lock = React.useRef('');
@@ -137,6 +174,18 @@ export function useControlActions(data: ControlActionData): ControlActions {
 
       if (verdict === 'unverified') {
         const now = fresh ? fresh.matches.find((x) => x.matchId === intent.matchId) ?? null : null;
+        // 토스트는 사라진다 — 운영자가 확인할 때까지 남는 목록에도 쌓는다(덮어쓰지 않는다).
+        if (mounted.current) {
+          const item: UnverifiedAction = {
+            id: nextId.current++,
+            matchId: intent.matchId,
+            match: matchText(target),
+            request: intentText(target, intent),
+            at: Date.now(),
+            server: fresh ? describeMatchState(now) : null,
+          };
+          setUnverified((list) => [...list, item]);
+        }
         say(!fresh
           ? '요청 결과를 확인할 수 없습니다. 최신 상태를 불러오지 못했습니다 — 새로고침 후 현재 상태를 확인해 주세요.'
           : intentVisible(intent, now)
@@ -199,5 +248,5 @@ export function useControlActions(data: ControlActionData): ControlActions {
     },
   ), [run]);
 
-  return { busy, toast, call, uncall, start, complete };
+  return { busy, toast, call, uncall, start, complete, unverified, acknowledge };
 }

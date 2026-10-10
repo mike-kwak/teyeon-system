@@ -21,6 +21,10 @@ export const dynamic = 'force-dynamic';
 //     · 호명 · 호명취소 · 코트 배정은 예선과 같은 RPC 를 그대로 쓴다(본선 전용 복제 금지).
 //   ⚠ 새 디자인 시스템을 만들지 않는다 — 기존 Admin 화면(신청/팀/조편성) 스타일을 그대로 쓴다.
 //   ⚠ 저장 뒤에는 로컬 상태를 믿지 않고 항상 서버에서 다시 읽는다.
+//   ⚠ 4F-4c-2 — 본선 경기 조작(호명 · 호명 취소 · 투입 · 완료 · 결과 수정)은 실패해도 다시 읽고
+//     Control Center 와 같은 규칙으로 판정한다(성공 확인 · 실패 확인 · 확인 불가). 성공 응답이 없으면
+//     서버에 결과가 보여도 성공이라 하지 않는다. 입력(점수 · 수정 사유)은 성공일 때만 비운다.
+//     조회는 대진 · 예선 순위 · 코트 중 일부가 실패해도 이전 값을 지우지 않는다('미준비' 로 바꾸지 않는다).
 
 import React from 'react';
 import Link from 'next/link';
@@ -54,6 +58,11 @@ import { callMatch, uncallMatch, startMatch } from '@/lib/tournaments/matchAdmin
 import { fetchAdminCourts } from '@/lib/tournaments/drawAdminService';
 import type { TournamentCourt } from '@/lib/tournaments/drawTypes';
 import { PUBLIC_KNOCKOUT_ENABLED } from '@/lib/tournaments/publicKnockoutFlags';
+// 조작 결과 판정 — Control Center 와 같은 규칙.
+import {
+  classifyFetchError, describeMatchState, intentVisible, judgeMatchAction,
+  type ControlActionIntent,
+} from '@/components/tournaments/control/controlModel';
 import { fetchPreliminaryStandings } from '@/lib/tournaments/standingsAdminService';
 import type { PreliminaryStandings } from '@/lib/tournaments/standingsTypes';
 
@@ -149,37 +158,67 @@ export default function AdminTournamentBracketPage() {
   const [newTitle, setNewTitle] = React.useState('본선 토너먼트');
   const [newCount, setNewCount] = React.useState('');
 
-  const say = React.useCallback((m: string) => {
+  /** 조회 오류 안내 — 보던 화면은 지우지 않는다(4F-4c-2). */
+  const [loadError, setLoadError] = React.useState('');
+  /** 첫 조회부터 실패 — '테이블 미적용' 과 구분한다. */
+  const [failed, setFailed] = React.useState(false);
+  // 같은 렌더 안의 빠른 두 번 클릭을 막는 잠금(state 는 표시용).
+  const busyRef = React.useRef('');
+  const hasData = React.useRef(false);
+  const toastTimer = React.useRef<number | null>(null);
+
+  const say = React.useCallback((m: string, ms = 4200) => {
     setToast(m);
-    window.setTimeout(() => setToast(''), 4200);
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(''), ms);
   }, []);
 
-  const load = React.useCallback(async () => {
-    if (!allowed || !slug) return;
+  /**
+   * 전체 재조회. 대진을 읽었으면 그 값을 돌려준다.
+   *   ⚠ 오류를 '미준비(ready=false)' 로 바꾸지 않는다 — 미준비는 service 가 따로 돌려준다(테이블 미적용 등).
+   *   ⚠ 일부만 실패하면 실패한 쪽은 이전 값을 그대로 두고 안내만 띄운다(빈 순위 · 빈 코트로 그리지 않는다).
+   */
+  const load = React.useCallback(async (): Promise<{ ok: boolean; data: AdminBracket | null }> => {
+    if (!allowed || !slug) return { ok: false, data: null };
     setLoading(true);
     try {
-      const [b, s, c] = await Promise.all([
+      const [b, s, c] = await Promise.allSettled([
         fetchAdminBracket(slug),
-        fetchPreliminaryStandings(slug).catch(() => ({ ready: false, standings: null })),
-        fetchAdminCourts(slug).catch(() => ({ ready: false, rows: [] as TournamentCourt[] })),
+        fetchPreliminaryStandings(slug),
+        fetchAdminCourts(slug),
       ]);
-      setReady(b.ready);
-      setData(b.data);
-      setStandings(s.standings);
-      setCourts(c.rows);
-    } catch (err) {
-      setReady(false);
-      say(bracketActionMessage(err));
+      if (b.status === 'rejected') {
+        if (hasData.current) {
+          setLoadError(classifyFetchError(b.reason) === 'network'
+            ? '연결이 불안정합니다. 화면은 마지막으로 확인된 상태입니다.'
+            : '본선 대진을 불러오지 못했습니다. 화면은 마지막으로 확인된 상태입니다.');
+        } else {
+          setFailed(true);
+        }
+        return { ok: false, data: null };
+      }
+      setReady(b.value.ready);
+      setData(b.value.data);
+      setFailed(false);
+      hasData.current = b.value.ready;
+      const missed: string[] = [];
+      if (s.status === 'fulfilled') setStandings(s.value.standings); else missed.push('예선 순위');
+      if (c.status === 'fulfilled') setCourts(c.value.rows); else missed.push('코트');
+      setLoadError(missed.length > 0
+        ? `${missed.join(' · ')} 정보를 불러오지 못했습니다. 이전에 확인된 값을 표시합니다.`
+        : '');
+      return { ok: true, data: b.value.data };
     } finally {
       setLoading(false);
     }
-  }, [allowed, slug, say]);
+  }, [allowed, slug]);
 
   React.useEffect(() => { void load(); }, [load]);
 
   /** 저장 → 토스트 → 서버 재조회(authoritative refetch). 진행 중 중복 클릭 차단. */
   const run = async (key: string, fn: () => Promise<string>, after?: () => void) => {
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = key;
     setBusy(key);
     try {
       const msg = await fn();
@@ -191,6 +230,48 @@ export default function AdminTournamentBracketPage() {
       // 버전 충돌·검증 실패도 최신 상태를 다시 읽어 화면을 맞춘다.
       await load();
     } finally {
+      busyRef.current = '';
+      setBusy('');
+    }
+  };
+
+  /**
+   * 본선 경기 조작(4F-4c-2). 성공이든 실패든 다시 읽고, 실패면 서버 상태로 판정한다.
+   *   · 서버가 받아들였다고 응답했을 때만 after(입력 비우기 · 수정 창 닫기)를 부른다.
+   *   · 확인 불가 — 응답 없이 결과만 보이거나 재조회를 못 했다 → 성공이라 하지 않고 현장 확인을 요청한다.
+   */
+  const runMatch = async (
+    key: string, fn: () => Promise<string>, intent: ControlActionIntent, label: string, after?: () => void,
+  ) => {
+    if (busyRef.current) return;
+    busyRef.current = key;
+    setBusy(key);
+    try {
+      let msg: string | null = null;
+      let err: unknown = null;
+      try { msg = await fn(); } catch (e) { err = e; }
+      const res = await load();
+      if (msg !== null) { after?.(); say(msg); return; }
+
+      const reason = (err as { reason?: string } | null)?.reason ?? null;
+      const latest = res.ok ? (res.data?.matches.find((x) => x.id === intent.matchId) ?? null) : undefined;
+      const verdict = judgeMatchAction(intent, reason, latest);
+      if (verdict === 'unverified') {
+        say(latest === undefined
+          ? `${label} 결과를 확인할 수 없습니다. 최신 상태를 불러오지 못했습니다 — 새로고침 후 현재 상태를 확인해 주세요.`
+          : intentVisible(intent, latest)
+            ? `응답은 실패로 왔지만 서버에는 ${label}(으)로 반영되어 있습니다(${describeMatchState(latest)}). `
+              + '이 화면의 요청이 처리된 것인지 확인할 수 없으니 현장에서 확인해 주세요.'
+            : `${label} 결과를 확인할 수 없습니다. 그 사이 이 경기의 상태가 다시 바뀌었습니다(${describeMatchState(latest)}) `
+              + '— 현장에서 확인해 주세요.',
+        7000);
+        return;
+      }
+      say(reason === null && classifyFetchError(err) === 'network'
+        ? '요청이 서버에 반영되지 않았습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+        : bracketActionMessage(err));
+    } finally {
+      busyRef.current = '';
       setBusy('');
     }
   };
@@ -363,6 +444,28 @@ export default function AdminTournamentBracketPage() {
         <Link href={`/admin/tournaments/${slug}/matches`} style={{ ...btn(), textDecoration: 'none' }}>경기 운영</Link>
       </div>
 
+      {loadError && (
+        <p role="status" data-bracket-load-error style={{
+          margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 12, fontWeight: 700, color: '#9A3412', wordBreak: 'keep-all',
+        }}>
+          <AlertTriangle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+          {loadError}
+        </p>
+      )}
+
+      {failed && !data && (
+        <div style={{ ...card, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#0F172A', lineHeight: 1.7 }}>
+            본선 대진을 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.
+          </p>
+          <button type="button" data-bracket-retry onClick={() => void load()} disabled={loading}
+            style={{ ...btn(), marginTop: 10 }}>
+            <RefreshCw size={13} strokeWidth={2.4} />{loading ? '조회 중' : '다시 시도'}
+          </button>
+        </div>
+      )}
+
       {!ready && (
         <div style={{ ...card, background: '#FFFBEB', border: '1px solid #FDE68A', display: 'flex', gap: 9 }}>
           <AlertTriangle size={17} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
@@ -373,8 +476,8 @@ export default function AdminTournamentBracketPage() {
         </div>
       )}
 
-      {/* 대진표 생성 */}
-      {ready && !bracket && (
+      {/* 대진표 생성 — 실제로 읽은 결과 '대진 없음' 일 때만(로딩 중 · 조회 실패에 띄우지 않는다). */}
+      {ready && data && !bracket && (
         <div style={card}>
           <StepHead no={0} title="본선 대진표 만들기"
             desc="먼저 빈 대진표를 만듭니다. 진출팀 수는 참고용 숫자이며 구조를 자동으로 만들지 않습니다." />
@@ -1149,16 +1252,16 @@ export default function AdminTournamentBracketPage() {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
                             {m.status === 'waiting' ? (
                               <button type="button" style={btn()} disabled={!!busy}
-                                onClick={() => void run(`call-${m.id}`, async () => {
+                                onClick={() => void runMatch(`call-${m.id}`, async () => {
                                   await callMatch(m.id, m.version); return '호명했습니다.';
-                                })}>
+                                }, { kind: 'call', matchId: m.id, version: m.version }, `${m.matchNo}번 경기 호명`)}>
                                 {busy === `call-${m.id}` ? '처리 중…' : '호명'}
                               </button>
                             ) : (
                               <button type="button" style={btn()} disabled={!!busy}
-                                onClick={() => void run(`uncall-${m.id}`, async () => {
+                                onClick={() => void runMatch(`uncall-${m.id}`, async () => {
                                   await uncallMatch(m.id, m.version); return '호명을 취소했습니다.';
-                                })}>
+                                }, { kind: 'uncall', matchId: m.id, version: m.version }, `${m.matchNo}번 경기 호명 취소`)}>
                                 {busy === `uncall-${m.id}` ? '처리 중…' : '호명 취소'}
                               </button>
                             )}
@@ -1172,9 +1275,10 @@ export default function AdminTournamentBracketPage() {
                               ))}
                             </select>
                             <button type="button" style={btn('primary')} disabled={!!busy || pick === ''}
-                              onClick={() => void run(`start-${m.id}`, async () => {
+                              onClick={() => void runMatch(`start-${m.id}`, async () => {
                                 await startMatch(m.id, Number(pick), m.version); return '경기를 시작했습니다.';
-                              })}>
+                              }, { kind: 'start', matchId: m.id, version: m.version, courtNo: Number(pick) },
+                              `${m.matchNo}번 경기 ${pick}번 코트 시작`)}>
                               {busy === `start-${m.id}` ? '시작 중…' : '시작'}
                             </button>
                           </div>
@@ -1191,8 +1295,10 @@ export default function AdminTournamentBracketPage() {
                               onChange={(e) => setSd({ ...sd, s2: e.target.value.replace(/[^0-9]/g, '') })} />
                             <button type="button" style={btn('primary')}
                               disabled={!!busy || sd.s1 === '' || sd.s2 === ''}
-                              onClick={() => void run(`done-${m.id}`,
+                              onClick={() => void runMatch(`done-${m.id}`,
                                 () => completeKnockoutMatch(m.id, Number(sd.s1), Number(sd.s2), m.version),
+                                { kind: 'complete', matchId: m.id, version: m.version, score1: Number(sd.s1), score2: Number(sd.s2) },
+                                `${m.matchNo}번 경기 ${sd.s1}:${sd.s2} 완료`,
                                 () => setScoreDraft((prev) => ({ ...prev, [m.id]: { s1: '', s2: '' } })))}>
                               <Check size={13} />{busy === `done-${m.id}` ? '저장 중…' : '완료'}
                             </button>
@@ -1217,9 +1323,11 @@ export default function AdminTournamentBracketPage() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 7 }}>
                                 <button type="button" style={btn('primary')}
                                   disabled={!!busy || sd.s1 === '' || sd.s2 === '' || amendReason.trim().length < 2}
-                                  onClick={() => void run(`amend-${m.id}`,
+                                  onClick={() => void runMatch(`amend-${m.id}`,
                                     () => amendKnockoutMatchScore(m.id, Number(sd.s1), Number(sd.s2),
                                       amendReason.trim(), m.version),
+                                    { kind: 'amend', matchId: m.id, version: m.version, score1: Number(sd.s1), score2: Number(sd.s2) },
+                                    `${m.matchNo}번 경기 ${sd.s1}:${sd.s2} 결과 수정`,
                                     () => { setAmendOpen(''); setAmendReason(''); })}>
                                   {busy === `amend-${m.id}` ? '저장 중…' : '수정 저장'}
                                 </button>

@@ -13,6 +13,13 @@
 //     · 취소 복구 — CANCELLED → WAITING 하나의 전이만. 서버가 최종 판정한다.
 //     · 결과 수정으로 합산연령 순위 확정이 무효화되면 운영진에게 알린다.
 //       ⚠ 순위를 여기서 계산하지 않는다. 서버가 알려준 건수를 전달할 뿐이다.
+//
+//   Batch 4F-4c-2 추가
+//     · 조작이 실패해도 **항상** 다시 읽고, 결과를 판정한다(성공 확인 · 실패 확인 · 확인 불가).
+//       판정 규칙은 Control Center 와 같다(control/controlModel judgeMatchAction).
+//     · 대화상자는 서버가 받아들였다고 응답했을 때만 닫는다 — 실패 · 확인 불가면 점수 · 사유를 남긴다.
+//       연 뒤 그 경기가 바뀌었으면 저장을 막고 안내한다.
+//     · 조회가 실패해도 보던 화면을 지우지 않는다. 조작 잠금은 ref 로 본다(빠른 두 번 클릭 차단).
 
 import React from 'react';
 import Link from 'next/link';
@@ -28,6 +35,11 @@ import {
   MATCH_STATUS_LABEL, isValidSetScore, matchCourtLabel, matchGroupLabel, matchTeamName,
   type MatchBoard, type MatchStatus, type TournamentMatch,
 } from '@/lib/tournaments/matchTypes';
+// 조작 결과 판정 — Control Center 와 같은 규칙(성공 확인 · 실패 확인 · 확인 불가)을 그대로 쓴다.
+import {
+  classifyFetchError, describeMatchState, intentVisible, judgeMatchAction,
+  type ControlActionIntent,
+} from './control/controlModel';
 
 // ── 스타일 (기존 Admin 톤 재사용) ────────────────────────────────────────────
 const card: React.CSSProperties = {
@@ -99,53 +111,113 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
   // 결과 수정으로 동률 확정이 무효화됐을 때의 안내. 토스트는 사라지므로 따로 띄운다.
   const [tieNotice, setTieNotice] = React.useState('');
 
-  const say = React.useCallback((m: string) => {
+  /** 조회 오류 안내(4F-4c-2). 보던 화면은 지우지 않고 이 줄만 띄운다. */
+  const [loadError, setLoadError] = React.useState('');
+  /** 첫 조회부터 실패했다(보여 줄 화면이 없다) — '테이블 미적용' 과 구분한다. */
+  const [failed, setFailed] = React.useState(false);
+  // 렌더 사이 값이 밀리지 않도록 조작 잠금은 ref 로 본다(같은 렌더 안의 빠른 두 번 클릭 차단).
+  const busyRef = React.useRef('');
+  const hasBoard = React.useRef(false);
+  const toastTimer = React.useRef<number | null>(null);
+
+  const say = React.useCallback((m: string, ms = 3800) => {
     setToast(m);
-    window.setTimeout(() => setToast(''), 3800);
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(''), ms);
   }, []);
 
-  const load = React.useCallback(async () => {
+  /**
+   * 전체 재조회. 성공하면 최신 board 를 돌려준다.
+   *   ⚠ 실패해도 보던 화면을 지우지 않는다(4F-4c-2) — 일시 오류를 '테이블 미적용' 으로 그리지 않는다.
+   */
+  const load = React.useCallback(async (): Promise<{ ok: boolean; board: MatchBoard | null }> => {
     setLoading(true);
     try {
       const r = await fetchMatchBoard(slug);
       setReady(r.ready);
       setBoard(r.board);
+      setLoadError('');
+      setFailed(false);
+      hasBoard.current = r.board !== null;
+      return { ok: true, board: r.board };
     } catch (err) {
-      setReady(false);
-      say(matchActionMessage(err));
+      if (hasBoard.current) {
+        setLoadError(classifyFetchError(err) === 'network'
+          ? '연결이 불안정합니다. 화면은 마지막으로 확인된 상태입니다.'
+          : '최신 상태를 불러오지 못했습니다. 화면은 마지막으로 확인된 상태입니다.');
+      } else {
+        setFailed(true);
+      }
+      return { ok: false, board: null };
     } finally {
       setLoading(false);
     }
-  }, [slug, say]);
+  }, [slug]);
 
   React.useEffect(() => { void load(); }, [load]);
 
-  /** write 공통 — 중복 클릭 방지 + 성공 후 authoritative full refetch. */
-  const run = async (key: string, fn: () => Promise<string>) => {
-    if (busy) return;
+  const closeDlg = () => { setDlg(null); setS1(''); setS2(''); setReason(''); };
+
+  /**
+   * write 공통 — 중복 클릭 방지 + **성공이든 실패든** authoritative full refetch.
+   *   · 서버가 받아들였다고 응답한 경우에만 대화상자를 닫는다(입력값 정리).
+   *   · 실패 · 늦음 · 응답 없음이면 대화상자와 입력값(점수 · 사유)을 그대로 둔다.
+   *   · 경기 조작(intent 가 있는 것)은 다시 읽은 서버 상태로 판정한다 — 성공 확인 / 실패 확인 / 확인 불가.
+   *     서버 상태만으로는 누가 바꿨는지 알 수 없으므로, 응답 없이 결과만 보이면 성공이라 하지 않는다.
+   */
+  const run = async (key: string, fn: () => Promise<string>, intent?: ControlActionIntent, label?: string) => {
+    if (busyRef.current) return;
+    busyRef.current = key;
     setBusy(key);
     try {
-      const msg = await fn();
-      setDlg(null);
-      await load();
-      say(msg);
-    } catch (err) {
-      const rsn = (err as { reason?: string }).reason;
-      if (rsn === 'version_conflict' || rsn === 'already_changed') {
-        say(rsn === 'version_conflict'
-          ? '다른 운영자가 먼저 변경했습니다. 최신 상태를 다시 불러왔습니다.'
-          : '경기 상태가 이미 바뀌었습니다. 최신 상태를 다시 불러왔습니다.');
-        setDlg(null);
+      let msg: string | null = null;
+      let err: unknown = null;
+      try { msg = await fn(); } catch (e) { err = e; }
+
+      if (msg !== null) {
+        closeDlg();
         await load();
-      } else {
-        say(matchActionMessage(err));
+        say(msg);
+        return;
       }
+
+      const res = await load();
+      const reason = (err as { reason?: string } | null)?.reason ?? null;
+      if (!intent) {                                   // 경기 조작이 아닌 것(경기 생성) — 기존 문구
+        say(matchActionMessage(err));
+        return;
+      }
+      const latest = res.ok ? (res.board?.matches.find((x) => x.matchId === intent.matchId) ?? null) : undefined;
+      const verdict = judgeMatchAction(intent, reason, latest);
+      const what = label ?? '요청';
+      if (verdict === 'unverified') {
+        say(latest === undefined
+          ? `${what} 결과를 확인할 수 없습니다. 최신 상태를 불러오지 못했습니다 — 새로고침 후 현재 상태를 확인해 주세요.`
+          : intentVisible(intent, latest)
+            ? `응답은 실패로 왔지만 서버에는 ${what}(으)로 반영되어 있습니다(${describeMatchState(latest)}). `
+              + '이 화면의 요청이 처리된 것인지 확인할 수 없으니 현장에서 확인해 주세요.'
+            : `${what} 결과를 확인할 수 없습니다. 그 사이 이 경기의 상태가 다시 바뀌었습니다(${describeMatchState(latest)}) `
+              + '— 현장에서 확인해 주세요.',
+        7000);
+        return;
+      }
+      // 실패 확인 — version_conflict 는 '증명된' 경우에만 여기 온다(그 변경은 이 요청이 아니다).
+      say(reason === 'version_conflict'
+        ? '다른 운영자가 먼저 변경했습니다. 최신 상태를 다시 불러왔습니다.'
+        : reason === 'already_changed'
+          ? '경기 상태가 이미 바뀌었습니다. 최신 상태를 다시 불러왔습니다.'
+          : reason === null && classifyFetchError(err) === 'network'
+            ? '요청이 서버에 반영되지 않았습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+            : matchActionMessage(err));
     } finally {
+      busyRef.current = '';
       setBusy('');
     }
   };
 
-  const closeDlg = () => { setDlg(null); setS1(''); setS2(''); setReason(''); };
+  /** 대화상자를 연 뒤 서버에서 그 경기가 바뀌었는가 — 바뀌었으면 저장을 막고 입력은 남긴다. */
+  const dlgLatest = dlg ? (board?.matches.find((x) => x.matchId === dlg.m.matchId) ?? null) : null;
+  const dlgStale = !!dlg && (!dlgLatest || dlgLatest.version !== dlg.m.version);
 
   const counts = React.useMemo(() => {
     const c: Record<string, number> = {
@@ -171,6 +243,20 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
       );
     });
   }, [board, filter, q]);
+
+  if (failed && !board) {
+    return (
+      <div style={{ ...card, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#0F172A', lineHeight: 1.7 }}>
+          경기 데이터를 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.
+        </p>
+        <button type="button" data-ops-retry onClick={() => void load()} disabled={loading}
+          style={{ ...btn(), marginTop: 10 }}>
+          <RefreshCw size={13} strokeWidth={2.4} />{loading ? '조회 중' : '다시 시도'}
+        </button>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (
@@ -260,6 +346,17 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
             {loading ? '조회 중' : '새로고침'}
           </button>
         </div>
+
+        {/* 조회가 실패해도 보던 화면은 그대로 — 작은 줄로만 알린다(4F-4c-2). */}
+        {loadError && (
+          <p role="status" data-ops-load-error style={{
+            margin: '10px 0 0', display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 12, fontWeight: 700, color: '#9A3412', wordBreak: 'keep-all',
+          }}>
+            <AlertTriangle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+            {loadError}
+          </p>
+        )}
 
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(84px, 1fr))',
@@ -458,7 +555,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         onClick={() => void run(`call-${m.matchId}`, async () => {
                           await callMatch(m.matchId, m.version);
                           return `#${m.matchNo} 호명했습니다.`;
-                        })}
+                        }, { kind: 'call', matchId: m.matchId, version: m.version }, `#${m.matchNo} 호명`)}
                         style={btn()}>
                         <Megaphone size={13} strokeWidth={2.4} /> 호명
                       </button>
@@ -476,7 +573,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         onClick={() => void run(`uncall-${m.matchId}`, async () => {
                           await uncallMatch(m.matchId, m.version);
                           return `#${m.matchNo} 호명을 취소했습니다.`;
-                        })}
+                        }, { kind: 'uncall', matchId: m.matchId, version: m.version }, `#${m.matchNo} 호명 취소`)}
                         style={btn()}>
                         <XIcon size={12} strokeWidth={2.6} /> 호명 취소
                       </button>
@@ -556,6 +653,15 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
             <p style={{ margin: '4px 0 0', fontSize: 12.5, fontWeight: 700, color: '#64748B', wordBreak: 'keep-all' }}>
               #{dlg.m.matchNo} · {matchGroupLabel(dlg.m)} · {matchTeamName(dlg.m.team1)} vs {matchTeamName(dlg.m.team2)}
             </p>
+            {dlgStale && (
+              <p role="alert" data-ops-dialog-stale style={{
+                margin: '10px 0 0', padding: '9px 11px', borderRadius: 9, background: '#FFF7ED',
+                border: '1px solid #FDBA74', fontSize: 12, fontWeight: 800, color: '#9A3412', lineHeight: 1.6, wordBreak: 'keep-all',
+              }}>
+                이 경기가 대화상자를 연 뒤 바뀌었습니다(현재: {describeMatchState(dlgLatest) ?? '찾을 수 없음'}).
+                입력한 내용은 그대로 두었습니다 — 저장하려면 닫고 다시 열어 주세요.
+              </p>
+            )}
 
             {/* start */}
             {dlg.kind === 'start' && (
@@ -569,11 +675,12 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                       <button
                         key={c.courtNo}
                         type="button"
-                        disabled={!sel || !!busy}
+                        disabled={!sel || !!busy || dlgStale}
                         onClick={() => void run(`start-${dlg.m.matchId}`, async () => {
                           await startMatch(dlg.m.matchId, c.courtNo, dlg.m.version);
                           return `#${dlg.m.matchNo} · ${c.courtNo}번 코트에서 시작했습니다.`;
-                        })}
+                        }, { kind: 'start', matchId: dlg.m.matchId, version: dlg.m.version, courtNo: c.courtNo },
+                        `#${dlg.m.matchNo} ${c.courtNo}번 코트 시작`)}
                         style={{
                           ...btn(sel ? 'primary' : 'plain'),
                           minHeight: 52, flexDirection: 'column', gap: 2,
@@ -712,11 +819,12 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
 
               {dlg.kind === 'complete' && (
                 <button type="button"
-                  disabled={!!busy || !isValidSetScore(Number(s1), Number(s2))}
+                  disabled={!!busy || dlgStale || !isValidSetScore(Number(s1), Number(s2))}
                   onClick={() => void run(`complete-${dlg.m.matchId}`, async () => {
                     await completeMatch(dlg.m.matchId, Number(s1), Number(s2), dlg.m.version);
                     return `#${dlg.m.matchNo} 완료 — ${s1}:${s2}`;
-                  })}
+                  }, { kind: 'complete', matchId: dlg.m.matchId, version: dlg.m.version, score1: Number(s1), score2: Number(s2) },
+                  `#${dlg.m.matchNo} ${s1}:${s2} 완료`)}
                   style={{ ...btn('primary'), flex: 2, minHeight: 44,
                            opacity: isValidSetScore(Number(s1), Number(s2)) ? 1 : 0.45 }}>
                   경기 완료
@@ -725,7 +833,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
 
               {dlg.kind === 'amend' && (
                 <button type="button"
-                  disabled={!!busy || !isValidSetScore(Number(s1), Number(s2)) || reason.trim().length < 2}
+                  disabled={!!busy || dlgStale || !isValidSetScore(Number(s1), Number(s2)) || reason.trim().length < 2}
                   onClick={() => void run(`amend-${dlg.m.matchId}`, async () => {
                     const r = await amendMatchScore(
                       dlg.m.matchId, Number(s1), Number(s2), reason.trim(), dlg.m.version,
@@ -738,7 +846,8 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                       );
                     }
                     return `#${dlg.m.matchNo} 결과를 ${s1}:${s2} 로 수정했습니다.`;
-                  })}
+                  }, { kind: 'amend', matchId: dlg.m.matchId, version: dlg.m.version, score1: Number(s1), score2: Number(s2) },
+                  `#${dlg.m.matchNo} ${s1}:${s2} 결과 수정`)}
                   style={{ ...btn('primary'), flex: 2, minHeight: 44,
                            opacity: (isValidSetScore(Number(s1), Number(s2)) && reason.trim().length >= 2) ? 1 : 0.45 }}>
                   수정 저장
@@ -747,11 +856,11 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
 
               {dlg.kind === 'cancel' && (
                 <button type="button"
-                  disabled={!!busy || reason.trim().length < 2}
+                  disabled={!!busy || dlgStale || reason.trim().length < 2}
                   onClick={() => void run(`cancel-${dlg.m.matchId}`, async () => {
                     await cancelMatch(dlg.m.matchId, reason.trim(), dlg.m.version);
                     return `#${dlg.m.matchNo} 경기를 취소했습니다.`;
-                  })}
+                  }, { kind: 'cancel', matchId: dlg.m.matchId, version: dlg.m.version }, `#${dlg.m.matchNo} 경기 취소`)}
                   style={{ ...btn('danger'), flex: 2, minHeight: 44,
                            opacity: reason.trim().length >= 2 ? 1 : 0.45 }}>
                   경기 취소
@@ -760,13 +869,13 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
 
               {dlg.kind === 'restore' && (
                 <button type="button"
-                  disabled={!!busy || reason.trim().length < 2}
+                  disabled={!!busy || dlgStale || reason.trim().length < 2}
                   onClick={() => void run(`restore-${dlg.m.matchId}`, async () => {
                     const r = await restoreCancelledMatch(
                       dlg.m.matchId, reason.trim(), dlg.m.version,
                     );
                     return `#${r.matchNo} 경기를 대기 상태로 되돌렸습니다.`;
-                  })}
+                  }, { kind: 'restore', matchId: dlg.m.matchId, version: dlg.m.version }, `#${dlg.m.matchNo} 취소 복구`)}
                   style={{ ...btn('primary'), flex: 2, minHeight: 44,
                            opacity: reason.trim().length >= 2 ? 1 : 0.45 }}>
                   대기로 되돌리기
