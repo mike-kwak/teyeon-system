@@ -517,3 +517,106 @@ export function deriveKnockout(bracket: AdminBracket | null): ControlKnockout | 
     championDecided: !!championSlot && championSlot.teamNo !== null,
   };
 }
+
+// ── 조회 사이클 판정 (4F-4a) ────────────────────────────────────────────────
+
+/** 한 번의 조회로 얻은 세 자료. 화면은 언제나 같은 사이클의 세 자료를 함께 쓴다. */
+export interface ControlSnapshot {
+  board: MatchBoard | null;
+  standings: PreliminaryStandings | null;
+  bracket: AdminBracket | null;
+}
+
+export type ControlCycleOutcome =
+  | { kind: 'ok'; snapshot: ControlSnapshot }
+  /** 운영 권한이 없거나 대회를 못 찾음 — match board RPC 가 null 을 준 경우. */
+  | { kind: 'unauthorized' }
+  | { kind: 'error' };
+
+/**
+ * 세 조회 결과를 사이클 하나의 결과로 판정한다.
+ *   · match board 가 판정의 기준이다 — 권한 없음(null)은 오류가 아니라 '권한 없음' 이다.
+ *   · 셋 중 하나라도 **오류(throw)** 면 사이클 전체가 실패다. 일부만 바꿔 끼우지 않는다.
+ *     ⚠ 실패한 쪽을 null 로 채우면 '조편성 전 · 본선 없음' 으로 잘못 그려진다.
+ *   · '아직 자료가 없음' 은 오류가 아니다. service 가 ready=false(테이블 미적용 · null 응답)
+ *     또는 bracket=null(본선 미생성)로 따로 돌려준다 — 그대로 null 로 둔다.
+ */
+export function controlCycleOutcome(
+  board: PromiseSettledResult<{ ready: boolean; board: MatchBoard | null }>,
+  standings: PromiseSettledResult<{ ready: boolean; standings: PreliminaryStandings | null }>,
+  bracket: PromiseSettledResult<{ ready: boolean; data: AdminBracket }>,
+): ControlCycleOutcome {
+  if (board.status === 'rejected') return { kind: 'error' };
+  if (!board.value.ready) return { kind: 'unauthorized' };
+  if (standings.status === 'rejected' || bracket.status === 'rejected') return { kind: 'error' };
+  return {
+    kind: 'ok',
+    snapshot: {
+      board: board.value.board,
+      standings: standings.value.ready ? standings.value.standings : null,
+      bracket: bracket.value.ready ? bracket.value.data : null,
+    },
+  };
+}
+
+// ── 선택 · 점수 입력 보호 (4F-4a) ───────────────────────────────────────────
+//
+//   운영자가 고른 경기는 **고른 순간의 값**(matchId · version · 팀 · 결승 여부)으로 고정한다.
+//   재조회는 그 값을 바꾸지 않는다 — 최신 상태와 비교해 '그대로인가' 만 판정한다.
+//   ⚠ 다른 경기로 옮겨 가지 않는다. 선택을 조용히 지우지 않는다. 해제는 운영자가 한다.
+//   ⚠ 이 판정은 화면 안내용이다. 최종 판정은 언제나 서버(expected version)가 한다.
+
+const STATUS_WORD: Record<MatchStatus, string> = {
+  waiting: '대기', calling: '호명', playing: '진행 중', completed: '완료', cancelled: '취소',
+};
+
+const latestOf = (board: MatchBoard | null, matchId: string): TournamentMatch | null =>
+  (board?.matches ?? []).find((m) => m.matchId === matchId) ?? null;
+
+export type ControlPickState =
+  /** 고른 그대로다 — 투입할 수 있다. */
+  | { kind: 'ok' }
+  /** 아직 대기/호명이지만 다른 곳에서 바뀌었다(version 이 다르다) — 투입을 막는다. */
+  | { kind: 'changed'; message: string }
+  /** 더 이상 대기/호명이 아니다(투입 · 완료 · 취소 · 사라짐) — 투입을 막는다. */
+  | { kind: 'gone'; message: string };
+
+/**
+ * 투입하려고 고른 경기가 지금도 고른 그대로인가.
+ *   ⚠ 최신 version 으로 슬쩍 바꿔 진행하지 않는다 — 새 상태로 하려면 운영자가 다시 고른다.
+ */
+export function derivePickState(picked: ControlMatchRow, board: MatchBoard | null): ControlPickState {
+  const m = latestOf(board, picked.matchId);
+  if (!m) return { kind: 'gone', message: '이 경기를 더 이상 찾을 수 없습니다.' };
+  if (m.status === 'waiting' || m.status === 'calling') {
+    if (m.version === picked.version) return { kind: 'ok' };
+    return {
+      kind: 'changed',
+      message: m.status === picked.status
+        ? '다른 곳에서 이 경기가 변경되었습니다.'
+        : `다른 곳에서 이 경기가 변경되었습니다(${STATUS_WORD[picked.status]} → ${STATUS_WORD[m.status]}).`,
+    };
+  }
+  if (m.status === 'playing') {
+    return {
+      kind: 'gone',
+      message: m.courtNo !== null
+        ? `다른 곳에서 이 경기가 ${m.courtNo}번 코트에 먼저 투입되었습니다.`
+        : '다른 곳에서 이 경기가 먼저 시작되었습니다.',
+    };
+  }
+  return { kind: 'gone', message: `이 경기는 이미 ${STATUS_WORD[m.status]}되었습니다.` };
+}
+
+/**
+ * 점수를 입력하는 경기가 지금도 모달을 연 그대로인가. 그대로면 null.
+ *   ⚠ 다르면 저장을 막는다. 입력한 점수는 지우지 않는다(운영자가 보고 닫는다).
+ */
+export function deriveScoreConflict(target: ControlMatchRow, board: MatchBoard | null): string | null {
+  const m = latestOf(board, target.matchId);
+  if (!m) return '이 경기를 더 이상 찾을 수 없습니다. 입력한 점수는 저장되지 않습니다.';
+  if (m.status === 'playing' && m.version === target.version) return null;
+  if (m.status === 'completed') return '다른 곳에서 이 경기가 먼저 완료되었습니다. 입력한 점수는 저장되지 않습니다.';
+  if (m.status === 'cancelled') return '이 경기는 취소되었습니다. 입력한 점수는 저장되지 않습니다.';
+  return '다른 곳에서 이 경기가 변경되었습니다. 입력한 점수는 저장되지 않습니다.';
+}

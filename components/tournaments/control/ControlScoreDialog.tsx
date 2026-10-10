@@ -1,6 +1,6 @@
 'use client';
 
-// Control Center 점수 입력 (Batch 4F-3).
+// Control Center 점수 입력 (Batch 4F-3 · 충돌 보호 4F-4a).
 //
 //   ⚠ 점수 규칙을 다시 쓰지 않는다 — isValidSetScore 하나만 쓴다(최종 판정은 서버).
 //   ⚠ 승자를 서버로 보내지 않는다. 아래 '진출' 표시는 미리보기일 뿐이다.
@@ -9,6 +9,9 @@
 //     다음 경기까지 만들어지기 때문이다(되돌리려면 하류를 먼저 정리해야 한다).
 //   ⚠ 배경 스크롤 잠금은 기존 공용 useBodyScrollLock 을 쓴다(새 구현 금지).
 //   ⚠ 포커스도 기존 관행을 따른다 — 첫 칸 autoFocus + Escape 닫기. 자체 focus trap 을 만들지 않는다.
+//   ⚠ match 는 모달을 **연 순간의 값**이다(부모가 고정한다). 재조회가 모달을 닫거나 바꾸지 않는다.
+//     서버 상태가 달라지면 conflict 문구를 띄우고 저장만 막는다 — 입력값은 지우지 않는다.
+//   ⚠ 저장 경로는 [경기 완료] 클릭 하나뿐이다. 닫기 · Escape · 배경 클릭 · 재조회는 아무 것도 저장하지 않는다.
 
 import React from 'react';
 import { isValidSetScore } from '@/lib/tournaments/matchTypes';
@@ -123,9 +126,11 @@ function ConfirmLine({ team, score, win }: {
 }
 
 export default function ControlScoreDialog({
-  match, busy, onClose, onSubmit,
+  match, conflict, busy, onClose, onSubmit,
 }: {
   match: ControlMatchRow;
+  /** 모달을 연 뒤 서버에서 경기가 바뀌었으면 그 안내. null 이면 그대로다. */
+  conflict: string | null;
   busy: boolean;
   onClose: () => void;
   onSubmit: (score1: number, score2: number) => void;
@@ -143,6 +148,8 @@ export default function ControlScoreDialog({
   const filled = s1.trim() !== '' && s2.trim() !== '';
   const valid = filled && isValidSetScore(n1, n2);
   const knockout = match.stage === 'knockout';
+  /** 저장 버튼을 막는 조건 — 충돌이 있으면 점수가 맞아도 보내지 않는다. */
+  const blocked = busy || !valid || conflict !== null;
 
   // 승자 표시는 미리보기다 — 저장되는 승자는 서버가 점수에서 정한다.
   const winner = n1 > n2 ? match.team1 : match.team2;
@@ -187,6 +194,16 @@ export default function ControlScoreDialog({
           </p>
         </div>
 
+        {conflict !== null && (
+          <p role="alert" data-control-score-conflict style={{
+            margin: 0, padding: '9px 11px', borderRadius: 9,
+            border: '1px solid #FDBA74', background: '#FFF7ED',
+            fontSize: 12.5, fontWeight: 800, color: '#9A3412', lineHeight: 1.6,
+          }}>
+            {conflict}
+          </p>
+        )}
+
         {!confirming ? (
           <>
             <div>
@@ -211,12 +228,12 @@ export default function ControlScoreDialog({
               <button
                 type="button"
                 data-control-action={knockout ? 'score-next' : 'score-submit'}
-                disabled={busy || !valid}
+                disabled={blocked}
                 onClick={() => { if (knockout) setConfirming(true); else onSubmit(n1, n2); }}
                 style={{
                   ...btnPrimary,
-                  opacity: busy || !valid ? 0.45 : 1,
-                  cursor: busy || !valid ? 'default' : 'pointer',
+                  opacity: blocked ? 0.45 : 1,
+                  cursor: blocked ? 'default' : 'pointer',
                 }}
               >
                 {knockout ? '다음' : '경기 완료'}
@@ -251,12 +268,12 @@ export default function ControlScoreDialog({
               <button
                 type="button"
                 data-control-action="score-submit"
-                disabled={busy || !valid}
+                disabled={blocked}
                 onClick={() => onSubmit(n1, n2)}
                 style={{
                   ...btnPrimary,
-                  opacity: busy || !valid ? 0.45 : 1,
-                  cursor: busy || !valid ? 'default' : 'pointer',
+                  opacity: blocked ? 0.45 : 1,
+                  cursor: blocked ? 'default' : 'pointer',
                 }}
               >
                 경기 완료

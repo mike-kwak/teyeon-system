@@ -2,9 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-// Admin — 대회 당일 관제 (Batch 4F-1).
+// Admin — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3).
 //
-//   ⚠ 이번 단계는 읽기 전용이다. 호명 · 투입 · 점수 · 완료는 기존 운영 화면에서 한다(4F-3 에 붙인다).
+//   ⚠ 호명 · 투입 · 점수 · 완료를 이 화면에서 한다(기존 운영 service 를 그대로 부른다 — ControlCenter 참고).
 //   ⚠ 새 RPC · 새 테이블 · 새 권한을 만들지 않는다. 기존 운영 RPC 3개만 읽는다.
 //   ⚠ 접근 판정은 기존 그대로 — 서버(middleware) · admin layout · 이 페이지 · RPC 내부에서 각각 검증한다.
 

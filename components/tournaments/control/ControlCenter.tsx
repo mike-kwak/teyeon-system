@@ -1,6 +1,6 @@
 'use client';
 
-// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3).
+// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3 · 조작 안전성 4F-4a).
 //
 //   읽는 순서: 머리말 → 요약 → 코트 → 확인 필요 → 진행/대기, 오른쪽은 단계 상태 레일.
 //   ⚠ 숫자와 상태는 전부 controlModel 의 순수 함수가 만든다. 여기서 다시 세지 않는다.
@@ -14,9 +14,10 @@ import Link from 'next/link';
 import { ExternalLink, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import {
   CONTROL_PHASE_LABEL, countCourtStates, deriveAttention, deriveCourts, deriveKnockout,
-  derivePhase, derivePlaying, derivePreliminary, deriveSummary, deriveWaiting,
+  derivePhase, derivePickState, derivePlaying, derivePreliminary, deriveScoreConflict,
+  deriveSummary, deriveWaiting,
 } from './controlModel';
-import type { ControlCourt, ControlGroup, ControlMatchRow } from './controlModel';
+import type { ControlCourt, ControlGroup, ControlMatchRow, ControlPickState } from './controlModel';
 import { ControlAttention, ControlOperations } from './ControlOperations';
 import type { ControlOps } from './ControlOperations';
 import ControlScoreDialog from './ControlScoreDialog';
@@ -473,24 +474,28 @@ function KnockoutStatus({ k }: { k: NonNullable<ReturnType<typeof deriveKnockout
 /**
  * 투입할 경기로 고른 뒤 띄우는 안내 줄.
  *   ⚠ 아직 아무 것도 저장되지 않았다. 코트를 고르는 순간 한 번의 start_match 가 나간다.
+ *   ⚠ 보여 주는 경기는 **고른 순간의 값**이다. 다른 곳에서 바뀌면 경고로 바꾸고 투입을 막는다
+ *     — 선택을 지우지도, 다른 경기로 옮기지도 않는다. 해제는 운영자가 [선택 취소] 로 한다.
  */
 function PickBanner({
-  match, disabled, onCancel,
+  match, state, disabled, onCancel,
 }: {
-  match: ControlMatchRow; disabled: boolean; onCancel: () => void;
+  match: ControlMatchRow; state: ControlPickState; disabled: boolean; onCancel: () => void;
 }) {
   const head = match.stage === 'knockout'
     ? (match.roundName ?? '본선')
     : match.groupNo !== null ? `${match.groupNo}조` : '순위결정전';
+  const ok = state.kind === 'ok';
+  const tone = ok ? TEAL : '#9A3412';
 
   return (
-    <div data-control-pick={match.matchNo} style={{
+    <div data-control-pick={match.matchNo} data-control-pick-state={state.kind} style={{
       display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
       padding: '10px 14px', borderRadius: 11,
-      border: `1px solid ${TEAL}`, background: TEAL_SOFT,
+      border: `1px solid ${ok ? TEAL : '#FDBA74'}`, background: ok ? TEAL_SOFT : '#FFF7ED',
     }}>
       <span style={{
-        fontFamily: LABEL, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.12em', color: TEAL,
+        fontFamily: LABEL, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.12em', color: tone,
       }}>
         투입할 경기
       </span>
@@ -501,9 +506,19 @@ function PickBanner({
           {' vs '}TEAM {String(match.team2.teamNo).padStart(2, '0')}
         </span>
       </span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: INK_SOFT }}>
-        아래에서 비어 있는 코트를 선택해 주세요.
-      </span>
+      {ok ? (
+        <span style={{ fontSize: 12, fontWeight: 700, color: INK_SOFT }}>
+          아래에서 비어 있는 코트를 선택해 주세요.
+        </span>
+      ) : (
+        <span role="alert" data-control-pick-warning style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          fontSize: 12, fontWeight: 700, color: tone,
+        }}>
+          <AlertTriangle size={13} strokeWidth={2.4} />
+          {state.message} 투입하려면 선택을 취소하고 다시 골라 주세요.
+        </span>
+      )}
       <button type="button" data-control-action="pick-cancel" onClick={onCancel} disabled={disabled}
         style={{
           ...navBtn, marginLeft: 'auto', minHeight: 28, padding: '4px 10px', fontSize: 11.5,
@@ -516,11 +531,25 @@ function PickBanner({
   );
 }
 
-function Quiet({ title, desc }: { title: string; desc?: string }) {
+function Quiet({ title, desc, retry }: {
+  title: string; desc?: string;
+  /** 첫 조회 실패처럼 머리말(새로고침)이 없는 화면에서만 준다. */
+  retry?: { busy: boolean; onRetry: () => void };
+}) {
   return (
     <section style={{ ...card, textAlign: 'center', padding: '26px 15px' }}>
       <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: INK_SOFT }}>{title}</p>
       {desc && <p style={{ margin: '5px 0 0', fontSize: 12, fontWeight: 600, color: MUTED }}>{desc}</p>}
+      {retry && (
+        <button type="button" data-control-action="retry" onClick={retry.onRetry} disabled={retry.busy}
+          style={{
+            ...navBtn, margin: '12px auto 0', minHeight: 34, padding: '7px 14px',
+            opacity: retry.busy ? 0.55 : 1, cursor: retry.busy ? 'default' : 'pointer',
+          }}>
+          <RefreshCw size={13} strokeWidth={2.4} />
+          {retry.busy ? '조회 중' : '다시 시도'}
+        </button>
+      )}
     </section>
   );
 }
@@ -547,11 +576,6 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     () => deriveWaiting(snap?.board ?? null, summary.stage, WAITING_ROWS, snap?.bracket ?? null),
     [snap, summary.stage],
   );
-  // 선택한 경기를 다시 찾을 때 쓴다 — 화면에 보이는 6줄이 아니라 **대기 전체**에서 본다.
-  const waitingAll = React.useMemo(
-    () => deriveWaiting(snap?.board ?? null, summary.stage, 0, snap?.bracket ?? null),
-    [snap, summary.stage],
-  );
   const attention = React.useMemo(
     () => deriveAttention({ summary, preliminary: prelim, knockout, phase }),
     [summary, prelim, knockout, phase],
@@ -560,56 +584,59 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
   // ── 조작 ──────────────────────────────────────────────────────────────────
   const act = useControlActions(st.reload);
 
-  /** 투입할 경기로 고른 상태. version 까지 함께 들고 있다가 값이 바뀌면 손을 뗀다. */
-  const [pick, setPick] = React.useState<{ matchId: string; version: number } | null>(null);
-  /** 점수를 입력할 경기(진행 중). */
-  const [scoreFor, setScoreFor] = React.useState<{ matchId: string } | null>(null);
-
-  // 선택한 경기를 **항상 최신 조회 결과에서** 다시 찾는다. 들고 있던 복사본을 쓰지 않는다.
-  const picked = React.useMemo(
-    () => (pick ? waitingAll.rows.find((r) => r.matchId === pick.matchId) ?? null : null),
-    [pick, waitingAll],
-  );
-  const scoring = React.useMemo(
-    () => (scoreFor ? playing.find((r) => r.matchId === scoreFor.matchId) ?? null : null),
-    [scoreFor, playing],
-  );
-
   /**
-   * 재조회 뒤 안전 해제.
-   *   · 고른 경기가 더 이상 대기/호명이 아니면(다른 운영자가 투입·취소했다) 선택을 푼다
-   *   · version 이 달라졌으면 그 선택으로 계속 진행하지 않는다
-   *   ⚠ 조용히 다른 경기로 옮겨 가지 않는다 — 운영자가 다시 고른다.
+   * 투입할 경기로 고른 상태 — **고른 순간의 행 그대로**(matchId · version · 팀)를 들고 있다.
+   *   ⚠ 재조회로 바꾸지 않는다. 최신 상태는 derivePickState 로 비교만 한다.
+   *   ⚠ 다른 곳에서 바뀌어도 선택을 지우지 않는다(투입만 막는다). 해제는 운영자가 한다.
    */
-  React.useEffect(() => {
-    if (!pick) return;
-    if (!picked || picked.version !== pick.version) setPick(null);
-  }, [pick, picked]);
+  const [pick, setPick] = React.useState<ControlMatchRow | null>(null);
+  /**
+   * 점수를 입력할 경기 — **모달을 연 순간의 행 그대로**(matchId · version · 팀 · 결승 여부).
+   *   ⚠ 재조회로 모달을 닫거나 다른 경기로 바꾸지 않는다. 최신 상태는 deriveScoreConflict 로 비교만 한다.
+   */
+  const [scoreFor, setScoreFor] = React.useState<ControlMatchRow | null>(null);
 
-  React.useEffect(() => {
-    if (scoreFor && !scoring) setScoreFor(null);
-  }, [scoreFor, scoring]);
+  const pickState = React.useMemo(
+    () => (pick ? derivePickState(pick, snap?.board ?? null) : null),
+    [pick, snap],
+  );
+  const scoreConflict = React.useMemo(
+    () => (scoreFor ? deriveScoreConflict(scoreFor, snap?.board ?? null) : null),
+    [scoreFor, snap],
+  );
+  const canStart = pick !== null && pickState?.kind === 'ok';
 
   const ops: ControlOps = React.useMemo(() => ({
     busy: act.busy,
-    selectedMatchId: picked?.matchId ?? null,
+    selectedMatchId: pick?.matchId ?? null,
     onCall: (m) => { void act.call(m); },
     onUncall: (m) => { void act.uncall(m); },
-    onPickCourt: (m) => setPick({ matchId: m.matchId, version: m.version }),
+    // 지금 화면에 보이는 행을 그대로 고정한다 — 운영자가 본 version 이 곧 투입할 version 이다.
+    onPickCourt: (m) => setPick(m),
     onCancelPick: () => setPick(null),
-    onScore: (m) => setScoreFor({ matchId: m.matchId }),
-  }), [act, picked]);
+    onScore: (m) => setScoreFor(m),
+  }), [act, pick]);
 
-  /** 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번). */
+  /**
+   * 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번).
+   *   ⚠ 보내는 version 은 운영자가 **고른 순간의** 값이다. 최신 조회 값으로 바꿔 넣지 않는다.
+   *   ⚠ 성공했을 때만 선택을 푼다. 실패(코트 충돌 · 늦음)면 선택을 남겨 운영자가 보고 정한다.
+   */
   const onCourtPick = React.useCallback((courtNo: number) => {
-    if (!picked || act.busy) return;
-    void act.start(picked, courtNo).finally(() => setPick(null));
-  }, [act, picked]);
+    if (!pick || !canStart || act.busy) return;
+    void act.start(pick, courtNo).then((ok) => { if (ok) setPick(null); });
+  }, [act, pick, canStart]);
 
+  /**
+   * 점수 저장 — 모달을 연 순간의 version 으로 보낸다.
+   *   ⚠ 성공했을 때만 모달을 닫는다. 실패 · 충돌이면 모달과 입력값을 그대로 둔다.
+   */
   const onScoreSubmit = React.useCallback((s1: number, s2: number) => {
-    if (!scoring || act.busy) return;
-    void act.complete(scoring, s1, s2).finally(() => setScoreFor(null));
-  }, [act, scoring]);
+    if (!scoreFor || scoreConflict !== null || act.busy) return;
+    void act.complete(scoreFor, s1, s2).then((ok) => { if (ok) setScoreFor(null); });
+  }, [act, scoreFor, scoreConflict]);
+
+  const manualReload = React.useCallback(() => { void st.reload({ manual: true }); }, [st]);
 
   if (!st.authorized && !snap) {
     return <Quiet title="운영 권한이 필요합니다." desc="CEO · ADMIN 계정으로 로그인한 뒤 다시 열어 주세요." />;
@@ -618,7 +645,10 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     return <Quiet title="불러오는 중…" />;
   }
   if (st.failed && !snap) {
-    return <Quiet title="대회 정보를 불러오지 못했습니다." desc="잠시 후 새로고침해 주세요." />;
+    return (
+      <Quiet title="대회 정보를 불러오지 못했습니다." desc="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+        retry={{ busy: st.refreshing, onRetry: manualReload }} />
+    );
   }
 
   return (
@@ -628,7 +658,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
       </div>
 
       <Header event={event} slug={slug} phase={phase} updatedAt={st.updatedAt}
-        refreshing={st.refreshing} onReload={st.reload} />
+        refreshing={st.refreshing} onReload={manualReload} />
 
       {/* 갱신이 밀린 상태는 작은 줄로만 알린다 — 화면을 덮지 않는다. */}
       {st.staleError && (
@@ -654,12 +684,13 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {/* 고른 경기는 코트 바로 위에 둔다 — 다음에 누를 곳이 눈앞에 있어야 한다. */}
-              {picked && (
-                <PickBanner match={picked} disabled={act.busy !== ''} onCancel={() => setPick(null)} />
+              {pick && pickState && (
+                <PickBanner match={pick} state={pickState} disabled={act.busy !== ''}
+                  onCancel={() => setPick(null)} />
               )}
               <CourtBoard
                 courts={courts}
-                picking={picked !== null}
+                picking={canStart}
                 disabled={act.busy !== ''}
                 onPick={onCourtPick}
               />
@@ -690,9 +721,12 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
         </>
       )}
 
-      {scoring && (
+      {scoreFor && (
         <ControlScoreDialog
-          match={scoring}
+          // 경기마다 새로 mount — 다른 경기의 입력값이 섞이지 않는다.
+          key={scoreFor.matchId}
+          match={scoreFor}
+          conflict={scoreConflict}
           busy={act.busy !== ''}
           onClose={() => setScoreFor(null)}
           onSubmit={onScoreSubmit}

@@ -1,6 +1,6 @@
 'use client';
 
-// Control Center 조작 래퍼 (Batch 4F-3).
+// Control Center 조작 래퍼 (Batch 4F-3 · 결과 반환 4F-4a).
 //
 //   ⚠ 이 파일은 **엔진이 아니다**. 기존 운영 service 를 그대로 부르고,
 //     중복 클릭 방지 · 재조회 · 오류 문구만 한 곳에 모은다.
@@ -9,6 +9,8 @@
 //   ⚠ 새 오류 체계를 만들지 않는다 — matchActionMessage · bracketActionMessage 를 그대로 쓴다.
 //   ⚠ optimistic update 를 하지 않는다. 성공이든 실패든 전체를 다시 읽는다(authoritative refetch).
 //   ⚠ 취소 · 복구 · 완료 결과 수정은 이 래퍼에 두지 않는다(기존 경기 운영 · 본선 대진 화면이 맡는다).
+//   ⚠ 조작은 성공 여부(boolean)를 돌려준다 — 화면은 **성공했을 때만** 선택을 풀고 모달을 닫는다.
+//     실패 · 충돌이면 운영자가 보던 선택과 입력을 그대로 둔다.
 
 import React from 'react';
 import {
@@ -26,11 +28,14 @@ export type BusyKey = string;
 export interface ControlActions {
   busy: BusyKey;
   toast: string;
-  call: (m: ActionTarget) => Promise<void>;
-  uncall: (m: ActionTarget) => Promise<void>;
-  start: (m: ActionTarget, courtNo: number) => Promise<void>;
+  /** true = 서버가 받아들였다. false = 거절 · 실패 · 다른 조작이 돌고 있어 시작하지 않음. */
+  call: (m: ActionTarget) => Promise<boolean>;
+  uncall: (m: ActionTarget) => Promise<boolean>;
+  /** ⚠ m.version 은 운영자가 **고른 순간의** version 이어야 한다(최신 조회 값으로 바꿔 넣지 않는다). */
+  start: (m: ActionTarget, courtNo: number) => Promise<boolean>;
   /** 완료. 예선이면 complete_match, 본선이면 complete_knockout_match 로 갈린다. */
-  complete: (m: ActionTarget, score1: number, score2: number) => Promise<void>;
+  /** ⚠ m.version 은 점수 모달을 **연 순간의** version 이어야 한다. */
+  complete: (m: ActionTarget, score1: number, score2: number) => Promise<boolean>;
 }
 
 /** 본선 경기의 실패 문구는 본선 쪽 사전을 쓴다(없는 reason 은 양쪽 모두 같은 기본 문구). */
@@ -68,20 +73,23 @@ export function useControlActions(reload: () => Promise<void>): ControlActions {
    *   1) 이미 다른 조작이 돌고 있으면 아무 것도 하지 않는다(중복 클릭 방지)
    *   2) service 호출
    *   3) **성공이든 실패든** 전체 재조회 — 화면이 서버 상태를 추측하지 않는다
-   *   4) 결과를 한 줄로 알린다
+   *      (reload 는 조회 중이어도 버려지지 않고, 이 조작 **뒤에 시작된** 조회가 끝나야 풀린다)
+   *   4) 결과를 한 줄로 알린다 — 최신 상태가 화면에 반영된 다음이다
+   *   5) 성공 여부를 돌려준다
    */
   const run = React.useCallback(async (
     key: BusyKey,
     fn: () => Promise<string>,
     toText: (err: unknown) => string,
-  ): Promise<void> => {
-    if (lock.current) return;
+  ): Promise<boolean> => {
+    if (lock.current) return false;
     lock.current = key;
     setBusy(key);
     try {
       const msg = await fn();
       await reload();
       say(msg);
+      return true;
     } catch (err) {
       const reason = (err as { reason?: string } | null)?.reason;
       // 다른 운영자가 먼저 바꾼 경우 — 실패가 아니라 '늦었다'. 문구를 따로 둔다.
@@ -92,6 +100,7 @@ export function useControlActions(reload: () => Promise<void>): ControlActions {
           : toText(err);
       await reload();
       say(msg);
+      return false;
     } finally {
       lock.current = '';
       if (mounted.current) setBusy('');
