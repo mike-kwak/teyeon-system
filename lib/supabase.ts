@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { AUTH_STORAGE_KEY, AUTH_COOKIE_OPTIONS } from './supabaseSessionConfig';
+import { isNoRetryRequest } from './supabaseRetryPolicy';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -18,6 +19,9 @@ const fetchWithRetry = async (
   retries = 3,
   backoff = 500
 ): Promise<Response> => {
+  // 대회 경기 조작 RPC(POST)는 재시도하지 않는다 — 반영된 조작을 다시 보내 실패로 오인하게 된다.
+  //   대상 목록 · 이유는 lib/supabaseRetryPolicy.ts. 그 밖의 요청은 아래 기존 동작 그대로다.
+  if (retries > 0 && isNoRetryRequest(url, options)) retries = 0;
   try {
     const res = await fetch(url, {
       ...options,
