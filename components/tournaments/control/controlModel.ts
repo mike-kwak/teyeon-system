@@ -527,11 +527,37 @@ export interface ControlSnapshot {
   bracket: AdminBracket | null;
 }
 
+/**
+ * 조회 실패의 종류 — 화면 문구와 재시도 방식이 다르다.
+ *   · network : 연결 자체가 안 됐다(오프라인 · 망 전환 · 응답 없음)
+ *   · auth    : 로그인 만료 · 권한 확인 실패(JWT 만료 · 42501)
+ *   · server  : 그 밖의 서버 오류
+ */
+export type ControlFetchCause = 'network' | 'auth' | 'server';
+
 export type ControlCycleOutcome =
   | { kind: 'ok'; snapshot: ControlSnapshot }
   /** 운영 권한이 없거나 대회를 못 찾음 — match board RPC 가 null 을 준 경우. */
   | { kind: 'unauthorized' }
-  | { kind: 'error' };
+  | { kind: 'error'; cause: ControlFetchCause };
+
+/**
+ * 조회 오류 분류. ⚠ 가능한 범위에서만 구분한다 — 모르면 server 다.
+ *   PostgREST: JWT 만료 = PGRST301/302, 권한 없음 = 42501('permission denied' · 'not authorized').
+ *   fetch 자체 실패는 postgrest-js 가 code '' + 'TypeError: Failed to fetch' 류 문구로 돌려준다.
+ */
+export function classifyFetchError(err: unknown): ControlFetchCause {
+  const e = (err ?? {}) as { code?: unknown; message?: unknown; name?: unknown };
+  const code = String(e.code ?? '');
+  const msg = `${String(e.name ?? '')} ${String(e.message ?? '')}`;
+  if (code === 'PGRST301' || code === 'PGRST302' || code === '42501'
+    || /jwt|not authorized|permission denied/i.test(msg)) return 'auth';
+  if (/failed to fetch|networkerror|network request failed|load failed|fetch failed|typeerror/i.test(msg)
+    || err instanceof TypeError) return 'network';
+  return 'server';
+}
+
+const CAUSE_RANK: Record<ControlFetchCause, number> = { auth: 3, network: 2, server: 1 };
 
 /**
  * 세 조회 결과를 사이클 하나의 결과로 판정한다.
@@ -546,9 +572,15 @@ export function controlCycleOutcome(
   standings: PromiseSettledResult<{ ready: boolean; standings: PreliminaryStandings | null }>,
   bracket: PromiseSettledResult<{ ready: boolean; data: AdminBracket }>,
 ): ControlCycleOutcome {
-  if (board.status === 'rejected') return { kind: 'error' };
+  const rejected = [board, standings, bracket]
+    .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    .map((r) => classifyFetchError(r.reason))
+    .sort((a, b) => CAUSE_RANK[b] - CAUSE_RANK[a]);
+  if (board.status === 'rejected') return { kind: 'error', cause: rejected[0] };
   if (!board.value.ready) return { kind: 'unauthorized' };
-  if (standings.status === 'rejected' || bracket.status === 'rejected') return { kind: 'error' };
+  if (standings.status === 'rejected' || bracket.status === 'rejected') {
+    return { kind: 'error', cause: rejected[0] };
+  }
   return {
     kind: 'ok',
     snapshot: {
@@ -565,6 +597,8 @@ export function controlCycleOutcome(
 //   재조회는 그 값을 바꾸지 않는다 — 최신 상태와 비교해 '그대로인가' 만 판정한다.
 //   ⚠ 다른 경기로 옮겨 가지 않는다. 선택을 조용히 지우지 않는다. 해제는 운영자가 한다.
 //   ⚠ 이 판정은 화면 안내용이다. 최종 판정은 언제나 서버(expected version)가 한다.
+//   ⚠ 안내 문구는 '누가' 바꿨는지 단정하지 않는다(4F-4b) — 서버 상태로는 알 수 없고,
+//     공용 fetch 래퍼의 재시도로 이 화면의 요청이 반영된 경우일 수도 있다.
 
 const STATUS_WORD: Record<MatchStatus, string> = {
   waiting: '대기', calling: '호명', playing: '진행 중', completed: '완료', cancelled: '취소',
@@ -593,16 +627,16 @@ export function derivePickState(picked: ControlMatchRow, board: MatchBoard | nul
     return {
       kind: 'changed',
       message: m.status === picked.status
-        ? '다른 곳에서 이 경기가 변경되었습니다.'
-        : `다른 곳에서 이 경기가 변경되었습니다(${STATUS_WORD[picked.status]} → ${STATUS_WORD[m.status]}).`,
+        ? '이 경기의 상태가 바뀌었습니다.'
+        : `이 경기의 상태가 바뀌었습니다(${STATUS_WORD[picked.status]} → ${STATUS_WORD[m.status]}).`,
     };
   }
   if (m.status === 'playing') {
     return {
       kind: 'gone',
       message: m.courtNo !== null
-        ? `다른 곳에서 이 경기가 ${m.courtNo}번 코트에 먼저 투입되었습니다.`
-        : '다른 곳에서 이 경기가 먼저 시작되었습니다.',
+        ? `이 경기는 이미 ${m.courtNo}번 코트에 투입되었습니다.`
+        : '이 경기는 이미 시작되었습니다.',
     };
   }
   return { kind: 'gone', message: `이 경기는 이미 ${STATUS_WORD[m.status]}되었습니다.` };
@@ -616,7 +650,110 @@ export function deriveScoreConflict(target: ControlMatchRow, board: MatchBoard |
   const m = latestOf(board, target.matchId);
   if (!m) return '이 경기를 더 이상 찾을 수 없습니다. 입력한 점수는 저장되지 않습니다.';
   if (m.status === 'playing' && m.version === target.version) return null;
-  if (m.status === 'completed') return '다른 곳에서 이 경기가 먼저 완료되었습니다. 입력한 점수는 저장되지 않습니다.';
+  if (m.status === 'completed') {
+    const rec = m.score1 !== null && m.score2 !== null ? `(서버 기록 ${m.score1}:${m.score2})` : '';
+    return `이 경기는 이미 완료되었습니다${rec}. 입력한 점수는 저장되지 않습니다.`;
+  }
   if (m.status === 'cancelled') return '이 경기는 취소되었습니다. 입력한 점수는 저장되지 않습니다.';
-  return '다른 곳에서 이 경기가 변경되었습니다. 입력한 점수는 저장되지 않습니다.';
+  return '이 경기의 상태가 바뀌었습니다. 입력한 점수는 저장되지 않습니다.';
+}
+
+// ── 자동 갱신 주기 (4F-4b) ──────────────────────────────────────────────────
+
+/** 평상시 갱신 주기 — 다른 운영자의 변경이 최대 이 시간 안에 보인다. */
+export const CONTROL_POLL_MS = 5_000;
+/** 연속 실패 시 다음 시도까지: 5 → 10 → 20 → 30초(상한). 성공하면 5초로 돌아간다. */
+const CONTROL_BACKOFF_MS = [5_000, 10_000, 20_000, 30_000] as const;
+/** 인증 오류 첫 회는 조용히 이만큼 뒤 한 번 더 본다(복귀 직후 토큰 갱신과 겹치는 경우). */
+export const CONTROL_AUTH_RETRY_MS = 1_500;
+/** 마지막 정상 갱신이 이보다 오래되면 '오래된 정보' 경고를 띄운다. */
+export const CONTROL_STALE_MS = 30_000;
+
+/** 다음 갱신까지 기다릴 시간. failStreak = 연속 실패 수(성공하면 0). */
+export function controlPollDelay(failStreak: number, authStreak = 0): number {
+  if (authStreak === 1) return CONTROL_AUTH_RETRY_MS;
+  const i = Math.min(Math.max(failStreak, 0), CONTROL_BACKOFF_MS.length - 1);
+  return CONTROL_BACKOFF_MS[i];
+}
+
+// ── 조작 결과 판정 (4F-4b) ──────────────────────────────────────────────────
+//
+//   공용 fetch 래퍼(lib/supabase.ts fetchWithRetry)는 5xx · 네트워크 오류 때 같은 POST 를
+//   다시 보낸다. 첫 요청이 서버에 반영됐는데 응답만 잃으면, 재시도는 expected version 이
+//   이미 지나가 version_conflict 로 거절된다 → 화면은 자기 성공을 '다른 운영자가 먼저' 로 오인한다.
+//   그래서 '늦었다 · 알 수 없음' 류 실패는 재조회한 서버 상태와 **요청한 결과**를 비교해 다시 판정한다.
+//   ⚠ 서버 상태만으로는 '누가' 바꿨는지 알 수 없다 — 요청한 결과가 보여도 성공이라 추정하지 않는다.
+
+export type ControlActionKind = 'call' | 'uncall' | 'start' | 'complete';
+
+/** 이 조작이 서버에 반영됐다면 보여야 할 상태. */
+export interface ControlActionIntent {
+  kind: ControlActionKind;
+  matchId: string;
+  /** 보낸 expected version. */
+  version: number;
+  courtNo?: number;
+  score1?: number;
+  score2?: number;
+}
+
+export type ControlActionVerdict =
+  /** 서버가 받아들였다고 응답했다. */
+  | 'success'
+  /** 서버가 거절했고, 재조회한 상태에도 요청한 결과가 없다. */
+  | 'failure'
+  /** 응답으로는 실패지만 서버에 요청한 결과가 보인다 — 이 화면의 요청인지 확인할 수 없다. */
+  | 'unverified';
+
+/**
+ * 서버가 **확실히** 거절한 것인가.
+ *   조작 RPC 는 상태 판정(already_changed · court_conflict · team_busy …)보다 **먼저** version 을 비교한다.
+ *   그보다 앞서 거절되는 것(invalid_score · version_required)은 요청 내용 자체가 잘못된 것이라
+ *   첫 시도도 같은 이유로 반영되지 않았다.
+ *   → version_conflict 를 뺀 모든 거절은 '이 요청의 version 그대로에서 서버가 판단한 거절' 이다
+ *     (앞선 시도가 반영됐다면 version 이 올라가 version_conflict 가 났을 것이다).
+ *   ⚠ version_conflict 와 응답 없음(네트워크)만 '앞선 시도가 반영됐을 수도 있는' 경우다.
+ */
+const isDefiniteReject = (reason: string | null): boolean =>
+  reason !== null && reason !== 'version_conflict';
+
+/** 요청한 결과가 지금 서버 상태에 보이는가. */
+export function intentVisible(intent: ControlActionIntent, m: TournamentMatch | null): boolean {
+  if (!m) return false;
+  switch (intent.kind) {
+    case 'call': return m.status === 'calling';
+    case 'uncall': return m.status === 'waiting';
+    case 'start': return m.status === 'playing' && m.courtNo === intent.courtNo;
+    case 'complete': return m.status === 'completed'
+      && m.score1 === intent.score1 && m.score2 === intent.score2;
+    default: return false;
+  }
+}
+
+/**
+ * 조작 결과 판정.
+ *   @param reason   서버 거절 사유(없으면 네트워크 · 알 수 없는 실패)
+ *   @param latest   재조회한 최신 board. **조작 뒤 재조회가 실패했으면 null** 을 준다.
+ *
+ *   확실한 서버 거절은 실패다. 그 밖(version_conflict · 응답 없음)은 서버 상태로 다시 보되,
+ *   **증명되는 경우에만** 실패라고 한다 — 경기의 모든 변경은 version 을 정확히 1 올린다.
+ *     · version 이 보낸 값 그대로        → 그 뒤 아무 변경도 없었다 = 이 요청은 반영되지 않았다 → 실패
+ *     · 정확히 1 올랐고 요청한 결과가 아님 → 그 한 번의 변경은 이 요청이 아니다           → 실패
+ *     · 정확히 1 올랐고 요청한 결과가 보임 → 이 요청인지 같은 조작을 한 다른 운영자인지 모른다 → 확인 불가
+ *     · 2 이상 올랐다                   → 이 요청이 반영된 뒤 다른 변경이 있었을 수도 있다  → 확인 불가
+ *     · 경기를 못 찾음 · 재조회 실패      → 판단할 근거가 없다                              → 확인 불가
+ */
+export function judgeActionResult(
+  intent: ControlActionIntent,
+  reason: string | null,
+  latest: MatchBoard | null,
+): ControlActionVerdict {
+  if (isDefiniteReject(reason)) return 'failure';
+  if (!latest) return 'unverified';                    // 확인할 길이 없다 → 추정하지 않는다
+  const m = latestOf(latest, intent.matchId);
+  if (!m || !Number.isFinite(m.version)) return 'unverified';
+  const changes = m.version - intent.version;
+  if (changes <= 0) return 'failure';
+  if (changes === 1) return intentVisible(intent, m) ? 'unverified' : 'failure';
+  return 'unverified';
 }

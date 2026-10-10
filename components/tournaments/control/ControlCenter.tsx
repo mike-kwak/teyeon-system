@@ -1,6 +1,6 @@
 'use client';
 
-// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3 · 조작 안전성 4F-4a).
+// Control Center — 대회 당일 관제 (Batch 4F-1 · 조작 4F-3 · 조작 안전성 4F-4a · 자동 갱신 4F-4b).
 //
 //   읽는 순서: 머리말 → 요약 → 코트 → 확인 필요 → 진행/대기, 오른쪽은 단계 상태 레일.
 //   ⚠ 숫자와 상태는 전부 controlModel 의 순수 함수가 만든다. 여기서 다시 세지 않는다.
@@ -582,7 +582,10 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
   );
 
   // ── 조작 ──────────────────────────────────────────────────────────────────
-  const act = useControlActions(st.reload);
+  // 조작은 조회 큐와 함께 돈다 — 조작 중에는 조회를 멈추고, 조작 전 응답은 반영하지 않는다.
+  const act = useControlActions({
+    reload: st.reload, hold: st.hold, release: st.release, latest: st.latest,
+  });
 
   /**
    * 투입할 경기로 고른 상태 — **고른 순간의 행 그대로**(matchId · version · 팀)를 들고 있다.
@@ -620,20 +623,20 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
   /**
    * 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번).
    *   ⚠ 보내는 version 은 운영자가 **고른 순간의** 값이다. 최신 조회 값으로 바꿔 넣지 않는다.
-   *   ⚠ 성공했을 때만 선택을 푼다. 실패(코트 충돌 · 늦음)면 선택을 남겨 운영자가 보고 정한다.
+   *   ⚠ 성공했을 때만 선택을 푼다. 실패(코트 충돌 · 늦음) · 확인 불가면 선택을 남겨 운영자가 보고 정한다.
    */
   const onCourtPick = React.useCallback((courtNo: number) => {
     if (!pick || !canStart || act.busy) return;
-    void act.start(pick, courtNo).then((ok) => { if (ok) setPick(null); });
+    void act.start(pick, courtNo).then((r) => { if (r === 'success') setPick(null); });
   }, [act, pick, canStart]);
 
   /**
    * 점수 저장 — 모달을 연 순간의 version 으로 보낸다.
-   *   ⚠ 성공했을 때만 모달을 닫는다. 실패 · 충돌이면 모달과 입력값을 그대로 둔다.
+   *   ⚠ 성공했을 때만 모달을 닫는다. 실패 · 충돌 · 확인 불가면 모달과 입력값을 그대로 둔다.
    */
   const onScoreSubmit = React.useCallback((s1: number, s2: number) => {
     if (!scoreFor || scoreConflict !== null || act.busy) return;
-    void act.complete(scoreFor, s1, s2).then((ok) => { if (ok) setScoreFor(null); });
+    void act.complete(scoreFor, s1, s2).then((r) => { if (r === 'success') setScoreFor(null); });
   }, [act, scoreFor, scoreConflict]);
 
   const manualReload = React.useCallback(() => { void st.reload({ manual: true }); }, [st]);
@@ -662,12 +665,22 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
 
       {/* 갱신이 밀린 상태는 작은 줄로만 알린다 — 화면을 덮지 않는다. */}
       {st.staleError && (
-        <p style={{
+        <p data-control-sync-issue style={{
           margin: 0, display: 'flex', alignItems: 'center', gap: 6,
           fontSize: 12, fontWeight: 700, color: '#9A3412',
         }}>
           <AlertTriangle size={13} strokeWidth={2.4} />
           {st.staleError} 화면은 마지막으로 확인된 상태입니다.
+        </p>
+      )}
+      {/* 마지막 정상 갱신이 30초를 넘으면 — 오류 문구와 별개로, 지금 보는 정보가 오래됐음을 알린다. */}
+      {st.stale && (
+        <p data-control-stale style={{
+          margin: 0, display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 12, fontWeight: 700, color: '#9A3412',
+        }}>
+          <AlertTriangle size={13} strokeWidth={2.4} />
+          마지막 정상 갱신 {hhmmss(st.updatedAt)} — 30초 넘게 새 정보를 받지 못했습니다.
         </p>
       )}
 
@@ -740,6 +753,8 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
           maxWidth: 'calc(100vw - 32px)', padding: '11px 16px', borderRadius: 10,
           background: INK, color: '#fff', fontSize: 12.5, fontWeight: 700,
           lineHeight: 1.6, zIndex: 130, wordBreak: 'keep-all', textAlign: 'center',
+          // 안내일 뿐이다 — 아래의 운영 버튼(호명 · 점수 입력)을 가리지 않게 클릭을 통과시킨다.
+          pointerEvents: 'none',
         }}>
           {act.toast}
         </div>
