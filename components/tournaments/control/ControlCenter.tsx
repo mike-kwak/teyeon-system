@@ -107,7 +107,8 @@ function Header({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      {/* 좁은 화면(320~430px)에서는 이 묶음이 줄을 바꾼다 — 버튼을 숨기거나 화면 밖으로 밀지 않는다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
         <span style={{ fontSize: 11.5, fontWeight: 700, color: FAINT, whiteSpace: 'nowrap' }}>
           마지막 갱신 {hhmmss(updatedAt)}
         </span>
