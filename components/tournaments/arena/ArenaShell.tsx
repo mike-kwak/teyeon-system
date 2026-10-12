@@ -53,10 +53,13 @@ function ControlButton({
   );
 }
 
+/** 조작 버튼 — Demo 장면 선택처럼 조작 줄에 덧붙이는 버튼도 같은 모양을 쓴다. */
+export { ControlButton as ArenaControlButton };
+
 /** 머리말 — 브랜드와 대회, 그리고 지금 보고 있는 화면이 무엇인지까지만. */
 function ArenaHeader({
-  title, mode, updatedAt, stale,
-}: { title: string; mode: ArenaMode; updatedAt: number | null; stale: boolean }) {
+  title, mode, updatedAt, stale, badge,
+}: { title: string; mode: ArenaMode; updatedAt: number | null; stale: boolean; badge?: string }) {
   const time = updatedAt === null ? null : new Date(updatedAt);
   return (
     <header style={{
@@ -79,6 +82,16 @@ function ArenaHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+        {/* Demo 처럼 운영 화면이 아닐 때만 붙는 작은 표식. 운영 Arena 는 넘기지 않는다. */}
+        {badge && (
+          <span data-arena-badge={badge} style={{
+            fontFamily: ARENA_FONT_LABEL, fontSize: 13, fontWeight: 700, letterSpacing: '0.18em',
+            color: ARENA.gold, padding: '3px 9px',
+            border: `1px solid ${ARENA.gold}`, borderRadius: 6,
+          }}>
+            {badge}
+          </span>
+        )}
         {/* 갱신이 밀린 상태는 아주 작게만 — TV 화면을 방해하지 않는다. */}
         {stale && (
           <span style={{ fontSize: 12, fontWeight: 600, color: ARENA.faint }}>
@@ -133,10 +146,14 @@ export interface ArenaShellProps {
   state: ArenaState;
   /** 본문(Main Board). 4E-2 · 4E-3 이 여기에 들어온다. */
   children: React.ReactNode;
+  /** 머리말의 작은 표식(예: 'DEMO'). 운영 Arena 는 넘기지 않는다. */
+  badge?: string;
+  /** 조작 줄에 덧붙일 버튼(전체화면에서는 조작 줄과 함께 숨는다). 운영 Arena 는 넘기지 않는다. */
+  extraControls?: React.ReactNode;
 }
 
 export default function ArenaShell({
-  title, mode, onModeChange, state, children,
+  title, mode, onModeChange, state, children, badge, extraControls,
 }: ArenaShellProps) {
   const stage = useArenaStage();
   const snapshot = state.snapshot;
@@ -172,7 +189,7 @@ export default function ArenaShell({
         padding: `${ARENA_LAYOUT.padY}px ${ARENA_LAYOUT.padX}px`,
         display: 'flex', flexDirection: 'column', gap: ARENA_LAYOUT.gap,
       }}>
-        <ArenaHeader title={title} mode={mode} updatedAt={state.updatedAt} stale={state.stale} />
+        <ArenaHeader title={title} mode={mode} updatedAt={state.updatedAt} stale={state.stale} badge={badge} />
 
         {/* 코트는 데이터가 없어도 자리를 지킨다(높이가 흔들리지 않게). */}
         {mode === 'preliminary' ? (
@@ -213,6 +230,7 @@ export default function ArenaShell({
           <ControlButton active={mode === 'knockout'} onClick={() => onModeChange('knockout')}>
             본선
           </ControlButton>
+          {extraControls}
           {stage.canFullscreen && (
             <ControlButton onClick={stage.toggleFullscreen} label="전체화면">
               <Maximize2 size={15} strokeWidth={2.4} />

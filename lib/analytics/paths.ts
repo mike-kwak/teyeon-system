@@ -3,7 +3,8 @@
 //   UI 표시용 한글 라벨은 lib/analytics/analyticsService.ts 의 normalizeMenu() 가 담당(역할 분리).
 //   ※ 두 모듈의 매핑 기준은 동일하게 유지할 것(향후 단일 모듈로 통합 검토 — next step).
 
-export const ANALYTICS_EXCLUDED_PREFIXES = ['/admin', '/api', '/auth'];
+// /tournaments/arena-demo: 가명 · 가상 데이터 Demo 화면 — 운영 기록(page_view)을 남기지 않는다.
+export const ANALYTICS_EXCLUDED_PREFIXES = ['/admin', '/api', '/auth', '/tournaments/arena-demo'];
 // 전광판: 자동 새로고침/장시간 유지로 page_view 를 왜곡 → 기본 제외(별도 display 정책은 후속 검토).
 export const DISPLAY_BOARD_PREFIX = '/kdk/display';
 
