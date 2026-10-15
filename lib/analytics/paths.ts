@@ -3,10 +3,12 @@
 //   UI 표시용 한글 라벨은 lib/analytics/analyticsService.ts 의 normalizeMenu() 가 담당(역할 분리).
 //   ※ 두 모듈의 매핑 기준은 동일하게 유지할 것(향후 단일 모듈로 통합 검토 — next step).
 
-// /tournaments/arena-demo: 가명 · 가상 데이터 Demo 화면 — 운영 기록(page_view)을 남기지 않는다.
-export const ANALYTICS_EXCLUDED_PREFIXES = ['/admin', '/api', '/auth', '/tournaments/arena-demo'];
+// /tournaments/arena-demo · /tournaments/arena-design: 가명 · 가상 데이터 Demo 화면 — 운영 기록(page_view)을 남기지 않는다.
+export const ANALYTICS_EXCLUDED_PREFIXES = ['/admin', '/api', '/auth', '/tournaments/arena-demo', '/tournaments/arena-design'];
 // 전광판: 자동 새로고침/장시간 유지로 page_view 를 왜곡 → 기본 제외(별도 display 정책은 후속 검토).
 export const DISPLAY_BOARD_PREFIX = '/kdk/display';
+// Signature Arena 운영 연결 전광판(/tournaments/{slug}/signature/...) — 같은 이유로 page_view 를 남기지 않는다.
+const SIGNATURE_DISPLAY_RE = /^\/tournaments\/[^/]+\/signature(\/|$)/;
 
 export interface NormalizedPath {
     slug: string;
@@ -23,6 +25,7 @@ export function normalizePath(path: string | null | undefined): NormalizedPath {
     for (const pre of ANALYTICS_EXCLUDED_PREFIXES) {
         if (p === pre || p.startsWith(pre + '/')) return { slug: 'excluded', excluded: true, isDisplayBoard: false };
     }
+    if (SIGNATURE_DISPLAY_RE.test(p)) return { slug: 'display_board', excluded: true, isDisplayBoard: true };
     if (p === DISPLAY_BOARD_PREFIX || p.startsWith(DISPLAY_BOARD_PREFIX + '/')) {
         return { slug: 'display_board', excluded: true, isDisplayBoard: true };
     }

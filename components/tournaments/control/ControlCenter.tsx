@@ -24,6 +24,7 @@ import ControlScoreDialog from './ControlScoreDialog';
 import { useControlActions } from './controlActions';
 import type { UnverifiedAction } from './controlActions';
 import { useControlData } from './controlView';
+import SignatureDisplayLauncher from '../SignatureDisplayLauncher';
 
 /**
  * 대기 목록에 한 번에 그리는 줄 수 — 화면 밀도를 위한 표시 제한일 뿐이다.
@@ -725,6 +726,9 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
 
       <Header event={event} slug={slug} phase={phase} updatedAt={st.updatedAt}
         refreshing={st.refreshing} onReload={manualReload} />
+
+      {/* Signature 전광판 3종(새 탭) — 관제 화면을 밀어내지 않게 한 줄로. 기존 ARENA TV 버튼은 머리말에 그대로 있다. */}
+      <SignatureDisplayLauncher slug={slug} variant="compact" />
 
       {/* 결과를 확인할 수 없었던 조작 — 운영자가 [확인함] 을 누를 때까지 남는다. */}
       <UnverifiedList items={act.unverified} refreshing={st.refreshing}

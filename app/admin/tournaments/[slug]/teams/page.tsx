@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
+import SignatureDisplayLauncher from '@/components/tournaments/SignatureDisplayLauncher';
 import {
   fetchAdminTeams, promoteConfirmedRegistrations, updateTeam,
   fetchFixtureTournaments, seedFixtureTournament, drawActionMessage,
@@ -189,6 +190,9 @@ export default function AdminTournamentTeamsPage() {
           ARENA TV 열기
         </Link>
       </div>
+
+      {/* Signature 전광판 3종(새 탭). 기존 ARENA TV 버튼은 위에 그대로 둔다 — 추가 선택지다. */}
+      <SignatureDisplayLauncher slug={slug} />
 
       {!ready && (
         <div style={{ ...card, background: '#FFFBEB', border: '1px solid #FDE68A', display: 'flex', gap: 9 }}>

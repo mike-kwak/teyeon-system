@@ -213,22 +213,33 @@ const ROUND_NAMES = ['64강', '32강', '16강', '8강', '4강', '결승', '우�
 const ROUND_SLOTS = [64, 32, 16, 8, 4, 2, 1];
 
 /**
- * 1라운드 64자리 — 진출 40팀 + 부전승 24.
- *   네 쌍마다 한 쌍만 실제 경기(8경기), 나머지 24쌍은 한쪽이 부전승이다.
+ * 본선 진출 팀 수 — 기본 40팀(+ 부전승 24). 36팀(+ 부전승 28)은 디자인 점검용 장면이다.
+ *   ⚠ 기본값(40)의 결과는 이 옵션이 생기기 전과 한 글자도 다르지 않다(/tournaments/arena-demo 기준 보존).
+ */
+export type ArenaDemoKnockoutTeams = 36 | 40;
+export interface ArenaDemoOptions {
+  knockoutTeams?: ArenaDemoKnockoutTeams;
+}
+
+/**
+ * 1라운드 64자리 — 진출 N팀 + 부전승 64-N.
+ *   실제 경기는 N-32 쌍(40팀 → 네 쌍마다 한 쌍, 36팀 → 여덟 쌍마다 한 쌍)이고, 나머지 쌍은 한쪽이 부전승이다.
  *   진출팀은 조 1위 · 2위를 엇갈려 놓는다(같은 조가 첫 판에서 만나지 않게).
  */
-function firstRound(): { kind: 'team' | 'bye'; teamNo: number | null; label: string | null }[] {
+function firstRound(teams: ArenaDemoKnockoutTeams): { kind: 'team' | 'bye'; teamNo: number | null; label: string | null }[] {
+  const groupCount = teams / 2;
+  const every = 32 / (teams - 32);
   const qualifiers: { teamNo: number; label: string }[] = [];
-  for (let k = 1; k <= GROUP_COUNT; k += 1) {
+  for (let k = 1; k <= groupCount; k += 1) {
     const g1 = k;
-    const g2 = GROUP_COUNT + 1 - k;
+    const g2 = groupCount + 1 - k;
     qualifiers.push({ teamNo: groupTeams(g1)[0], label: `${g1}조 1위` });
     qualifiers.push({ teamNo: groupTeams(g2)[1], label: `${g2}조 2위` });
   }
   const out: { kind: 'team' | 'bye'; teamNo: number | null; label: string | null }[] = [];
   let q = 0;
   for (let pair = 1; pair <= 32; pair += 1) {
-    const bothTeams = pair % 4 === 0;
+    const bothTeams = pair % every === 0;
     for (let side = 0; side < 2; side += 1) {
       if (side === 1 && !bothTeams) { out.push({ kind: 'bye', teamNo: null, label: null }); continue; }
       const t = qualifiers[q]; q += 1;
@@ -254,14 +265,16 @@ function statusFor(scene: ArenaDemoKnockoutScene, round: number, index: number):
 
 const slotId = (round: number, position: number) => `demo-s${round}-${position}`;
 
-function buildKnockout(scene: ArenaDemoKnockoutScene): { bracket: ArenaBracket; courts: ArenaCourt[] } {
+function buildKnockout(
+  scene: ArenaDemoKnockoutScene, teams: ArenaDemoKnockoutTeams,
+): { bracket: ArenaBracket; courts: ArenaCourt[] } {
   const rounds: ArenaRound[] = ROUND_NAMES.map((name, i) => ({
     roundNo: i + 1, name, isFinalSlot: i === ROUND_NAMES.length - 1, slotCount: ROUND_SLOTS[i],
   }));
 
   // 자리 상태(라운드별). 1라운드는 배치, 그 위는 결과로만 채운다.
   type Cell = { kind: 'team' | 'bye' | 'tbd'; teamNo: number | null; label: string | null };
-  const cells: Cell[][] = [firstRound()];
+  const cells: Cell[][] = [firstRound(teams)];
   for (let r = 2; r <= ROUND_SLOTS.length; r += 1) {
     cells.push(Array.from({ length: ROUND_SLOTS[r - 1] }, () => ({ kind: 'tbd', teamNo: null, label: null })));
   }
@@ -353,7 +366,9 @@ function buildKnockout(scene: ArenaDemoKnockoutScene): { bracket: ArenaBracket; 
 // ── 화면 전체 ───────────────────────────────────────────────────────────────
 
 /** Demo 스냅샷. 운영 Arena 가 RPC 결과를 정규화해 만드는 것과 같은 모양이다. */
-export function buildArenaDemoSnapshot(mode: ArenaMode, scene: ArenaDemoScene): ArenaSnapshot {
+export function buildArenaDemoSnapshot(
+  mode: ArenaMode, scene: ArenaDemoScene, options: ArenaDemoOptions = {},
+): ArenaSnapshot {
   if (mode === 'preliminary') {
     const s: ArenaDemoPrelimScene = scene === 'done' ? 'done' : 'mid';
     const { groups, courts } = buildPrelim(s);
@@ -364,7 +379,7 @@ export function buildArenaDemoSnapshot(mode: ArenaMode, scene: ArenaDemoScene): 
   }
   const k: ArenaDemoKnockoutScene =
     scene === 'semi' || scene === 'final' || scene === 'champion' ? scene : 'early';
-  const { bracket, courts } = buildKnockout(k);
+  const { bracket, courts } = buildKnockout(k, options.knockoutTeams ?? 40);
   return {
     slug: 'arena-demo', mode, tournamentTitle: ARENA_DEMO_TITLE,
     courts, groups: [], qualifyPerGroup: null, bracket,
