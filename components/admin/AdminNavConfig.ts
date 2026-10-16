@@ -11,6 +11,7 @@ import {
     Ticket,
     Archive,
     Trophy,
+    Medal,
     Wallet,
     Settings,
     LineChart,
@@ -46,6 +47,9 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
             { id: 'kdk', label: 'KDK 운영', href: '/kdk', icon: Swords, external: true },
             { id: 'guests', label: '게스트 패스', href: '/admin/guest-pass-defaults', icon: Ticket },
             { id: 'guest-applications', label: '게스트 신청', href: '/admin/guest-applications', icon: UserPlus },
+            // 2026 TEYEON OPEN 통합 운영 허브 — 접수 · 대회 관리 · 경기 운영 · 전광판 · 참가자 화면 검수를 한곳에서 연다.
+            //   기존 화면으로 가는 지름길일 뿐이다(새 권한 없음 · /admin/** 기본 규칙으로 CEO/ADMIN 만). OPERATOR 에게는 노출하지 않는다.
+            { id: 'teyeon-open', label: 'TEYEON OPEN', href: '/admin/teyeon-open', icon: Medal },
             // 주최 대회 접수 운영(/tournaments 공개 Hub 의 관리 화면).
             //   ⚠ '대회 캘린더'(회원 출전 대회)와 다른 기능이다. OPERATOR 에게는 노출하지 않는다.
             { id: 'hosted-tournaments', label: '대회 접수', href: '/admin/tournaments', icon: Trophy },
