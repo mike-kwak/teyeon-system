@@ -40,6 +40,35 @@ import {
   classifyFetchError, describeMatchState, intentVisible, judgeMatchAction,
   type ControlActionIntent,
 } from './control/controlModel';
+import { clockOffset, formatElapsed, matchTimerState } from '@/lib/tournaments/matchTimer';
+import MatchElapsedClock from './MatchElapsedClock';
+
+/**
+ * 경기 시간 표시(읽기 전용 · 타이머 1단계) — 진행 중은 경과, 완료는 소요 시간 고정.
+ *   ⚠ 경기 시작(타이머) 버튼은 Control Center 에만 있다. 여기서는 보기만 한다.
+ *   ⚠ 서버가 타이머를 지원하지 않으면(offset=null) 아무 것도 그리지 않는다.
+ */
+function MatchTimeChip({ m, offset }: { m: TournamentMatch; offset: number | null }) {
+  if (offset === null) return null;
+  const t = matchTimerState(m);
+  const base: React.CSSProperties = { fontSize: 11.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' };
+  switch (t.kind) {
+    case 'running':
+      return (
+        <span data-ops-time="running" style={{ ...base, color: '#0E8C80' }}>
+          경과 <MatchElapsedClock name={m.matchNo} startMs={t.startMs} offsetMs={offset} />
+        </span>
+      );
+    case 'not_started':
+      return <span data-ops-time="not_started" style={{ ...base, color: '#94A3B8' }}>시작 전</span>;
+    case 'finished':
+      return <span data-ops-time="finished" style={{ ...base, color: '#047857' }}>소요 {formatElapsed(t.durationMs)}</span>;
+    case 'no_record':
+      return <span data-ops-time="no_record" style={{ ...base, color: '#94A3B8' }}>소요 기록 없음</span>;
+    default:
+      return null;
+  }
+}
 
 // ── 스타일 (기존 Admin 톤 재사용) ────────────────────────────────────────────
 const card: React.CSSProperties = {
@@ -108,6 +137,8 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
   const [s1, setS1] = React.useState('');
   const [s2, setS2] = React.useState('');
   const [reason, setReason] = React.useState('');
+  // 서버 시계 보정(경기 시간 표시용) — 보드를 받을 때마다 다시 잰다.
+  const offset = React.useMemo(() => clockOffset(board?.serverNow ?? null, board?.receivedAt ?? null), [board]);
   // 결과 수정으로 동률 확정이 무효화됐을 때의 안내. 토스트는 사라지므로 따로 띄운다.
   const [tieNotice, setTieNotice] = React.useState('');
 
@@ -509,6 +540,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                       {m.courtNo}번 코트
                     </span>
                   )}
+                  <MatchTimeChip m={m} offset={offset} />
                   <div style={{ flex: 1 }} />
                   <span style={{ fontSize: 10.5, fontWeight: 700, color: '#CBD5E1' }}>v{m.version}</span>
                 </div>
@@ -559,8 +591,10 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         style={btn()}>
                         <Megaphone size={13} strokeWidth={2.4} /> 호명
                       </button>
+                      {/* 표시 문구만 '코트 투입' — 하는 일은 그대로 start_match(코트 배정 + 진행 중 전환).
+                          Control Center 의 [경기 시작](타이머)과 헷갈리지 않게 한다. */}
                       <button type="button" disabled={!!busy} onClick={() => setDlg({ kind: 'start', m })} style={btn('primary')}>
-                        <Play size={13} strokeWidth={2.6} /> 경기 시작
+                        <Play size={13} strokeWidth={2.6} /> 코트 투입
                       </button>
                       <button type="button" disabled={!!busy} onClick={() => { setReason(''); setDlg({ kind: 'cancel', m }); }} style={btn('danger')}>
                         <Ban size={12} strokeWidth={2.4} /> 취소
@@ -578,7 +612,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         <XIcon size={12} strokeWidth={2.6} /> 호명 취소
                       </button>
                       <button type="button" disabled={!!busy} onClick={() => setDlg({ kind: 'start', m })} style={btn('primary')}>
-                        <Play size={13} strokeWidth={2.6} /> 경기 시작
+                        <Play size={13} strokeWidth={2.6} /> 코트 투입
                       </button>
                       <button type="button" disabled={!!busy} onClick={() => { setReason(''); setDlg({ kind: 'cancel', m }); }} style={btn('danger')}>
                         <Ban size={12} strokeWidth={2.4} /> 취소
@@ -644,7 +678,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
             }}
           >
             <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#0F172A' }}>
-              {dlg.kind === 'start' ? '경기 시작 — 코트 선택'
+              {dlg.kind === 'start' ? '코트 투입 — 코트 선택'
                 : dlg.kind === 'complete' ? '경기 완료 — 점수 입력'
                 : dlg.kind === 'amend' ? '결과 수정'
                 : dlg.kind === 'restore' ? '취소 복구 — 대기 상태로 되돌리기'
@@ -678,9 +712,9 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         disabled={!sel || !!busy || dlgStale}
                         onClick={() => void run(`start-${dlg.m.matchId}`, async () => {
                           await startMatch(dlg.m.matchId, c.courtNo, dlg.m.version);
-                          return `#${dlg.m.matchNo} · ${c.courtNo}번 코트에서 시작했습니다.`;
+                          return `#${dlg.m.matchNo} · ${c.courtNo}번 코트에 투입했습니다.`;
                         }, { kind: 'start', matchId: dlg.m.matchId, version: dlg.m.version, courtNo: c.courtNo },
-                        `#${dlg.m.matchNo} ${c.courtNo}번 코트 시작`)}
+                        `#${dlg.m.matchNo} ${c.courtNo}번 코트 투입`)}
                         style={{
                           ...btn(sel ? 'primary' : 'plain'),
                           minHeight: 52, flexDirection: 'column', gap: 2,

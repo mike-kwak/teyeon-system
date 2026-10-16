@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   MatchBoard, MatchCourtSlot, MatchStage, MatchStatus, MatchTeam, TournamentMatch,
 } from './matchTypes';
+import { timeMs } from './matchTimer';
 
 const isMissingRelation = (err: unknown): boolean => {
   const e = err as { code?: unknown; message?: unknown } | null;
@@ -81,6 +82,7 @@ export async function fetchMatchBoard(
     const { data, error } = await supabase.rpc('get_admin_match_board', { p_slug: slug });
     if (error) throw error;
     if (data === null || data === undefined) return { ready: false, board: null };
+    const receivedAt = Date.now();
     const o = rec(data);
     return {
       ready: true,
@@ -108,6 +110,10 @@ export async function fetchMatchBoard(
             version: num(r.version),
             team1: teamOf(r.team1),
             team2: teamOf(r.team2),
+            // 타이머 SQL 이전 서버에는 없다 → null(화면은 타이머를 숨긴다).
+            startedAt: strOrNull(r.startedAt),
+            playStartedAt: strOrNull(r.playStartedAt),
+            completedAt: strOrNull(r.completedAt),
           } satisfies TournamentMatch;
         }),
         courts: (Array.isArray(o.courts) ? o.courts : []).map((c) => {
@@ -119,6 +125,8 @@ export async function fetchMatchBoard(
             busy: r.busy === true,
           } satisfies MatchCourtSlot;
         }),
+        serverNow: timeMs(o.serverNow),
+        receivedAt,
       },
     };
   } catch (err) {
@@ -199,6 +207,27 @@ export async function startMatch(
   if (error) throw error;
   const o = unwrap(data);
   return { version: num(o.version), courtNo: num(o.courtNo) };
+}
+
+export interface MatchTimerStartResult {
+  /** timer_started = 이번 요청이 기록했다 · already_started = 이미 시작돼 있었다(기존 시각 그대로). */
+  reason: 'timer_started' | 'already_started';
+  playStartedAt: string | null;
+}
+
+/**
+ * 경기 시작(타이머) — 코트에 투입된(playing) 경기의 실제 시작 시각을 서버가 한 번 기록한다.
+ *   ⚠ 코트 투입(start_match)과 다르다. 경기 상태 · version · 점수를 바꾸지 않는다.
+ *   ⚠ 여러 번 불러도 안전하다(이미 시작했으면 기존 시각을 돌려준다).
+ */
+export async function startHostedMatchTimer(matchId: string): Promise<MatchTimerStartResult> {
+  const { data, error } = await supabase.rpc('start_hosted_match_timer', { p_match_id: matchId });
+  if (error) throw error;
+  const o = unwrap(data);
+  return {
+    reason: o.reason === 'already_started' ? 'already_started' : 'timer_started',
+    playStartedAt: strOrNull(o.playStartedAt),
+  };
 }
 
 export interface CompleteMatchResult extends MatchWriteResult {
@@ -322,6 +351,7 @@ export function matchActionMessage(err: unknown): string {
     case 'court_disabled':          return '사용 중지된 코트에서는 경기를 시작할 수 없습니다.';
     case 'court_conflict':          return '해당 코트에서 이미 다른 경기가 진행 중입니다.';
     case 'team_busy':               return '두 팀 중 한 팀이 다른 경기를 진행 중입니다.';
+    case 'not_playing':             return '코트에 투입된(진행 중) 경기만 시작할 수 있습니다.';
 
     case 'invalid_score':           return '점수는 6:0~6:5 또는 0:6~5:6 만 입력할 수 있습니다.';
     case 'reason_required':         return '사유를 입력해 주세요.';

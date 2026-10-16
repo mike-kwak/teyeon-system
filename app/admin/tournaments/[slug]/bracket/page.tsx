@@ -1276,10 +1276,12 @@ export default function AdminTournamentBracketPage() {
                             </select>
                             <button type="button" style={btn('primary')} disabled={!!busy || pick === ''}
                               onClick={() => void runMatch(`start-${m.id}`, async () => {
-                                await startMatch(m.id, Number(pick), m.version); return '경기를 시작했습니다.';
+                                // 표시 문구만 '코트 투입' — 하는 일은 그대로 start_match(코트 배정 + 진행 중 전환).
+                                //   Control Center 의 [경기 시작](타이머)과 구분한다.
+                                await startMatch(m.id, Number(pick), m.version); return `${pick}번 코트에 투입했습니다.`;
                               }, { kind: 'start', matchId: m.id, version: m.version, courtNo: Number(pick) },
-                              `${m.matchNo}번 경기 ${pick}번 코트 시작`)}>
-                              {busy === `start-${m.id}` ? '시작 중…' : '시작'}
+                              `${m.matchNo}번 경기 ${pick}번 코트 투입`)}>
+                              {busy === `start-${m.id}` ? '투입 중…' : '코트 투입'}
                             </button>
                           </div>
                         )}

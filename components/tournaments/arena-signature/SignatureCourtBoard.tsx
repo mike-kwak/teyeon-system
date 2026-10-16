@@ -26,6 +26,7 @@ import React from 'react';
 import type { ArenaTeam } from '@/lib/tournaments/arenaTypes';
 import type { CourtBoardCourt, CourtBoardMatch } from './signatureCourtBoardFixture';
 import { fitTeamName } from './signatureModel';
+import MatchElapsedClock from '../MatchElapsedClock';
 import { SIG, SIG_FONT_BODY, SIG_FONT_DISPLAY, courtCode } from './signatureTheme';
 
 export type CourtBoardLayout = '2x5' | '5x2';
@@ -131,7 +132,39 @@ function Chip({ state, size = 'md' }: { state: CardState; size?: 'md' | 'lg' }) 
   );
 }
 
-const SectionLabel = ({ kind, meta }: { kind: 'now' | 'next'; meta: string | null }) => (
+/**
+ * NOW PLAYING 줄 오른쪽 끝의 작은 경과 시간(타이머 1단계).
+ *   시작 전 = '시작 대기'(조용한 글자) · 시작 후 = MM:SS / H:MM:SS(서버 시작 시각 기준).
+ *   ⚠ 카드 배치 · 높이를 바꾸지 않는다 — 기존 라벨 줄(높이 22 · 24) 안에서만 그린다.
+ *   ⚠ timer 가 없으면(Demo · 타이머 미지원 서버) 아무 것도 그리지 않는다.
+ */
+function NowTimer({ timer }: { timer: NonNullable<CourtBoardMatch['timer']> }) {
+  if (timer.startMs === null) {
+    return (
+      <span data-cb-timer="waiting" style={{
+        marginLeft: 'auto', flexShrink: 0, fontSize: 13.5, fontWeight: 800, color: SIG.muted, whiteSpace: 'nowrap',
+      }}>
+        시작 대기
+      </span>
+    );
+  }
+  return (
+    <span data-cb-timer="running" style={{
+      marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontFamily: SIG_FONT_DISPLAY, fontSize: 11, fontWeight: 900, letterSpacing: '0.16em', color: SIG.muted }}>
+        TIME
+      </span>
+      <MatchElapsedClock startMs={timer.startMs} offsetMs={timer.offsetMs} style={{
+        fontFamily: SIG_FONT_DISPLAY, fontSize: 18, fontWeight: 900, color: SIG.navy, lineHeight: 1,
+      }} />
+    </span>
+  );
+}
+
+const SectionLabel = ({ kind, meta, timer }: {
+  kind: 'now' | 'next'; meta: string | null; timer?: CourtBoardMatch['timer'];
+}) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
     <span style={{
       fontFamily: SIG_FONT_DISPLAY, fontSize: kind === 'now' ? 12.5 : 12, fontWeight: 900, letterSpacing: '0.16em',
@@ -146,6 +179,7 @@ const SectionLabel = ({ kind, meta }: { kind: 'now' | 'next'; meta: string | nul
         {meta}
       </span>
     )}
+    {timer && <NowTimer timer={timer} />}
   </div>
 );
 
@@ -237,7 +271,7 @@ function RowCard({ court, width, height }: { court: CourtBoardCourt; width: numb
           <Quiet {...offText(state)} size={28} tone="strong" />
         ) : (
           <>
-            <div style={{ height: 22, flexShrink: 0 }}><SectionLabel kind="now" meta={nowMeta(court)} /></div>
+            <div style={{ height: 22, flexShrink: 0 }}><SectionLabel kind="now" meta={nowMeta(court)} timer={court.now?.timer} /></div>
             {court.now ? (
               <div style={{ height: nowTeamsH, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 <TeamName team={court.now.team1} width={nowTeamW} height={nowTeamsH} base={32} min={26} align="right" kind="now" />
@@ -311,7 +345,7 @@ function ColumnCard({ court, width, height }: { court: CourtBoardCourt; width: n
           <Quiet {...offText(state)} size={28} tone="strong" />
         ) : (
           <>
-            <div style={{ height: 24, flexShrink: 0 }}><SectionLabel kind="now" meta={nowMeta(court)} /></div>
+            <div style={{ height: 24, flexShrink: 0 }}><SectionLabel kind="now" meta={nowMeta(court)} timer={court.now?.timer} /></div>
             {court.now ? (
               <>
                 <TeamName team={court.now.team1} width={innerW} height={nowH} base={31} min={24} align="center" kind="now" />

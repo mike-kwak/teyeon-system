@@ -270,6 +270,10 @@ export interface ControlMatchRow {
   isFinal: boolean;
   team1: ControlCourtTeam;
   team2: ControlCourtTeam;
+  /** 경기 시각(서버 ISO) — 타이머 표시 전용. 경기 운영 판정에 쓰지 않는다. 없으면 null. */
+  startedAt?: string | null;
+  playStartedAt?: string | null;
+  completedAt?: string | null;
 }
 
 /** 본선 경기 번호 → 저장된 라운드 이름. 저장된 값이 없으면 담지 않는다. */
@@ -310,6 +314,9 @@ const rowOf = (
   isFinal: m.stage === 'knockout' && finals.has(m.matchNo),
   team1: teamOf(m.team1),
   team2: teamOf(m.team2),
+  startedAt: m.startedAt ?? null,
+  playStartedAt: m.playStartedAt ?? null,
+  completedAt: m.completedAt ?? null,
 });
 
 /** 지금 보고 있는 단계의 경기만 고른다(요약과 같은 기준). */

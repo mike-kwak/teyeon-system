@@ -126,7 +126,7 @@ function ConfirmLine({ team, score, win }: {
 }
 
 export default function ControlScoreDialog({
-  match, conflict, busy, onClose, onSubmit,
+  match, conflict, busy, onClose, onSubmit, timer = null,
 }: {
   match: ControlMatchRow;
   /** 모달을 연 뒤 서버에서 경기가 바뀌었으면 그 안내. null 이면 그대로다. */
@@ -134,6 +134,8 @@ export default function ControlScoreDialog({
   busy: boolean;
   onClose: () => void;
   onSubmit: (score1: number, score2: number) => void;
+  /** 경기 경과 시간(최신 board 기준 · 표시 전용). 타이머를 지원하지 않는 서버면 null — 아무 것도 그리지 않는다. */
+  timer?: React.ReactNode;
 }) {
   const [s1, setS1] = React.useState('');
   const [s2, setS2] = React.useState('');
@@ -183,12 +185,23 @@ export default function ControlScoreDialog({
       >
         {/* 머리 — 어느 경기인지 먼저 확인시킨다. */}
         <div>
-          <p style={{
-            margin: 0, fontFamily: LABEL, fontSize: 11, fontWeight: 800,
-            letterSpacing: '0.14em', color: FAINT,
-          }}>
-            {match.courtNo === null ? 'MATCH' : `COURT ${String(match.courtNo).padStart(2, '0')}`}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <p style={{
+              margin: 0, fontFamily: LABEL, fontSize: 11, fontWeight: 800,
+              letterSpacing: '0.14em', color: FAINT,
+            }}>
+              {match.courtNo === null ? 'MATCH' : `COURT ${String(match.courtNo).padStart(2, '0')}`}
+            </p>
+            {/* 경과 시간 — 점수를 입력하는 동안에도 서버 시작 시각 기준으로 계속 흐른다. */}
+            {timer !== null && (
+              <span data-control-score-timer style={{
+                marginLeft: 'auto', fontFamily: LABEL, fontSize: 13, fontWeight: 800, color: TEAL,
+                fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+              }}>
+                {timer}
+              </span>
+            )}
+          </div>
           <p style={{ margin: '3px 0 0', fontSize: 15, fontWeight: 800, color: INK }}>
             {headOf(match)} · M{match.matchNo}
           </p>

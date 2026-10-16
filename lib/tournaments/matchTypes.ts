@@ -51,6 +51,14 @@ export interface TournamentMatch {
   version: number;
   team1: MatchTeam;
   team2: MatchTeam;
+  /**
+   * 경기 시각(서버 ISO). 타이머 SQL 이전 서버에는 없다 → null.
+   *   startedAt = 코트 투입 시각 · playStartedAt = 실제 경기 시작(서버가 유효한 것만 준다) · completedAt = 완료 시각.
+   *   ⚠ 표시용이다. 경기 운영 판정(version · 상태)에 쓰지 않는다.
+   */
+  startedAt?: string | null;
+  playStartedAt?: string | null;
+  completedAt?: string | null;
 }
 
 export interface MatchCourtSlot {
@@ -76,6 +84,10 @@ export interface MatchBoard {
   matchesStale: boolean;
   matches: TournamentMatch[];
   courts: MatchCourtSlot[];
+  /** 응답 시점의 서버 시각(ms). 타이머 SQL 이전 서버에는 없다 → null(타이머 미지원). */
+  serverNow?: number | null;
+  /** 이 응답을 받은 기기 시각(ms) — serverNow 와 함께 시계 보정에 쓴다. */
+  receivedAt?: number;
 }
 
 /** 코트 표시 이름. display_name 이 없으면 번호로 부른다. */

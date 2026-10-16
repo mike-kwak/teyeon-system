@@ -14,6 +14,7 @@ import type {
   ArenaBracket, ArenaCourt, ArenaCourtMatch, ArenaGroup, ArenaKnockoutMatch, ArenaMode,
   ArenaRound, ArenaSlot, ArenaSnapshot, ArenaStandingRow, ArenaTeam,
 } from './arenaTypes';
+import { clockOffset, matchTimerState } from './matchTimer';
 
 const text = (v: string | null | undefined): string => (typeof v === 'string' ? v : '');
 
@@ -29,13 +30,18 @@ const team = (
 
 // ── 코트 ────────────────────────────────────────────────────────────────────
 
-const courtMatchOf = (m: TournamentMatch): ArenaCourtMatch => ({
-  matchNo: m.matchNo,
-  stage: m.stage,
-  groupNo: m.groupNo,
-  team1: team(m.team1),
-  team2: team(m.team2),
-});
+const courtMatchOf = (m: TournamentMatch): ArenaCourtMatch => {
+  // 시작 시각은 이번 투입에서 유효한 것만 옮긴다(취소 → 복구 → 재투입 뒤 남은 예전 값은 버린다).
+  const t = matchTimerState(m);
+  return {
+    matchNo: m.matchNo,
+    stage: m.stage,
+    groupNo: m.groupNo,
+    team1: team(m.team1),
+    team2: team(m.team2),
+    playStartMs: t.kind === 'running' ? t.startMs : null,
+  };
+};
 
 /**
  * 코트 줄.
@@ -178,6 +184,7 @@ export function normalizeArena(input: {
       ? input.standings.qualifyPerGroup
       : null,
     bracket: input.mode === 'knockout' ? normalizeBracket(input.bracket) : null,
+    clockOffset: clockOffset(input.board?.serverNow ?? null, input.board?.receivedAt ?? null),
   };
 }
 

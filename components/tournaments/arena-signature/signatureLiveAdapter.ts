@@ -57,8 +57,13 @@ export function courtBoardFromSnapshot(snapshot: ArenaSnapshot): CourtBoardCourt
     if (!c) {
       return { courtNo: cell.key, displayName: null, active: false, registered: false, now: null, next: null };
     }
+    const offset = snapshot.clockOffset ?? null;
     const now: CourtBoardMatch | null = c.now
-      ? { matchNo: c.now.matchNo, stageLabel: liveStageLabel(c.now, snapshot.bracket), team1: c.now.team1, team2: c.now.team2 }
+      ? {
+          matchNo: c.now.matchNo, stageLabel: liveStageLabel(c.now, snapshot.bracket), team1: c.now.team1, team2: c.now.team2,
+          // 경과 시간 — Control Center 와 같은 서버 시작 시각 · 같은 서버 시계 보정. 타이머 미지원 서버면 넣지 않는다.
+          ...(offset !== null ? { timer: { startMs: c.now.playStartMs ?? null, offsetMs: offset } } : {}),
+        }
       : null;
     return {
       courtNo: c.courtNo,

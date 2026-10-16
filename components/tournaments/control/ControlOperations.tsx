@@ -13,6 +13,8 @@ import React from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Info, ChevronRight } from 'lucide-react';
 import type { AttentionItem, ControlMatchRow, ControlWaiting } from './controlModel';
+import { matchTimerState } from '@/lib/tournaments/matchTimer';
+import MatchElapsedClock from '../MatchElapsedClock';
 
 // 4F-1 과 같은 토큰을 쓴다(새 색 체계를 만들지 않는다).
 const INK = '#0F172A';
@@ -43,23 +45,27 @@ const linkBtn: React.CSSProperties = {
 };
 const NAVY = '#102A3D';
 
-/** 줄 안의 작은 조작 버튼. primary 하나 + secondary 하나까지만 둔다(관제 화면은 조밀하다). */
+/**
+ * 줄 안의 작은 조작 버튼. primary 하나 + secondary 하나까지만 둔다(관제 화면은 조밀하다).
+ *   accent = 진행 중 카드의 '경기 시작'(타이머) — 점수 입력(primary)과 구분되는 청록 테두리.
+ */
 function ActionButton({
   label, tone, disabled, onClick, name,
 }: {
-  label: string; tone: 'primary' | 'secondary'; disabled: boolean;
+  label: string; tone: 'primary' | 'secondary' | 'accent'; disabled: boolean;
   onClick: () => void; name: string;
 }) {
   const primary = tone === 'primary';
+  const accent = tone === 'accent';
   return (
     <button
       type="button" data-control-action={name} disabled={disabled} onClick={onClick}
       style={{
         minHeight: 26, padding: '3px 10px', borderRadius: 7, whiteSpace: 'nowrap',
         fontSize: 11.5, fontWeight: 800,
-        border: `1px solid ${primary ? NAVY : LINE}`,
-        background: primary ? NAVY : '#fff',
-        color: primary ? '#fff' : INK_SOFT,
+        border: `1px solid ${primary ? NAVY : accent ? TEAL : LINE}`,
+        background: primary ? NAVY : accent ? TEAL_SOFT : '#fff',
+        color: primary ? '#fff' : accent ? TEAL : INK_SOFT,
         opacity: disabled ? 0.4 : 1,
         cursor: disabled ? 'default' : 'pointer',
       }}
@@ -84,6 +90,13 @@ export interface ControlOps {
   onPickCourt: (m: ControlMatchRow) => void;
   onCancelPick: () => void;
   onScore: (m: ControlMatchRow) => void;
+  /** 경기 시작(타이머) — 코트 투입과 별개. 서버가 시작 시각을 기록한다. */
+  onStartTimer: (m: ControlMatchRow) => void;
+  /**
+   * 서버 시계 보정값(ms) — 서버 시각 = 기기 시각 + offset.
+   *   null 이면 서버가 타이머를 지원하지 않는다(타이머 SQL 이전) → 경기 시작 버튼 · 경과 시간을 모두 숨긴다.
+   */
+  clockOffset: number | null;
 }
 
 const teamText = (t: ControlMatchRow['team1']): string => {
@@ -174,6 +187,31 @@ function TeamLine({ team }: { team: ControlMatchRow['team1'] }) {
   );
 }
 
+/**
+ * 진행 중 카드의 타이머 칸.
+ *   시작 전 = [경기 시작] 버튼(코트 투입만으로는 흐르지 않는다) · 시작 후 = 서버 시작 시각부터 흐르는 경과 시간.
+ *   ⚠ 버튼을 눌러도 바로 흐르지 않는다 — 서버 응답 뒤 재조회한 시작 시각이 오면 그때부터 보인다.
+ */
+function PlayingTimer({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
+  if (ops.clockOffset === null) return null;
+  const t = matchTimerState(m);
+  if (t.kind === 'running') {
+    return (
+      <MatchElapsedClock
+        name={m.matchNo} startMs={t.startMs} offsetMs={ops.clockOffset}
+        style={{ fontFamily: LABEL, fontSize: 17, fontWeight: 800, color: TEAL, lineHeight: 1.1 }}
+      />
+    );
+  }
+  const mine = ops.busy === `timer-${m.matchId}`;
+  return (
+    <ActionButton
+      name={`timer-${m.matchNo}`} label={mine ? '시작 중…' : '경기 시작'} tone="accent"
+      disabled={ops.busy !== ''} onClick={() => ops.onStartTimer(m)}
+    />
+  );
+}
+
 function PlayingRow({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
   return (
     <div data-playing={m.matchNo} style={{
@@ -213,6 +251,7 @@ function PlayingRow({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
         }}>
           PLAYING
         </span>
+        <PlayingTimer m={m} ops={ops} />
         <ActionButton
           name={`score-${m.matchNo}`} label="점수 입력" tone="primary"
           disabled={ops.busy !== ''} onClick={() => ops.onScore(m)}

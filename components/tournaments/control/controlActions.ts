@@ -19,8 +19,9 @@
 
 import React from 'react';
 import {
-  callMatch, completeMatch, matchActionMessage, startMatch, uncallMatch,
+  callMatch, completeMatch, matchActionMessage, startHostedMatchTimer, startMatch, uncallMatch,
 } from '@/lib/tournaments/matchAdminService';
+import { matchTimerState } from '@/lib/tournaments/matchTimer';
 import { bracketActionMessage, completeKnockoutMatch } from '@/lib/tournaments/bracketAdminService';
 import type { MatchBoard } from '@/lib/tournaments/matchTypes';
 import { classifyFetchError, describeMatchState, intentVisible, judgeActionResult } from './controlModel';
@@ -64,6 +65,11 @@ export interface ControlActions {
   /** 완료. 예선이면 complete_match, 본선이면 complete_knockout_match 로 갈린다. */
   /** ⚠ m.version 은 점수 모달을 **연 순간의** version 이어야 한다. */
   complete: (m: ActionTarget, score1: number, score2: number) => Promise<ActionResult>;
+  /**
+   * 경기 시작(타이머) — 코트 투입과 별개다. 상태 · version · 점수를 바꾸지 않는다.
+   *   ⚠ 화면은 서버가 돌려준 시작 시각만 쓴다(성공 응답 뒤 재조회한 board). 실패하면 시간을 그리지 않는다.
+   */
+  startTimer: (m: ActionTarget) => Promise<ActionResult>;
   /** 결과를 확인할 수 없었던 조작들(오래된 것부터). 덮어쓰지 않고 쌓인다. */
   unverified: UnverifiedAction[];
   /** 운영자가 현장에서 확인했다 — 그 항목만 목록에서 내린다. */
@@ -224,13 +230,14 @@ export function useControlActions(data: ControlActionData): ControlActions {
     async () => { await uncallMatch(m.matchId, m.version); return `M${m.matchNo} 호명을 취소했습니다.`; },
   ), [run]);
 
-  // 투입 = 코트 배정 + 시작. 한 번의 start_match 로 끝난다(예선 · 본선 같은 RPC).
+  // 투입 = 코트 배정 + 진행 중 전환. 한 번의 start_match 로 끝난다(예선 · 본선 같은 RPC).
+  //   ⚠ 경기 시작(타이머)은 별개다 — 안내 문구도 '투입' 으로 구분한다.
   const start = React.useCallback((m: ActionTarget, courtNo: number) => run(
     `start-${m.matchId}`, m,
     { kind: 'start', matchId: m.matchId, version: m.version, courtNo },
     async () => {
       const r = await startMatch(m.matchId, courtNo, m.version);
-      return `M${m.matchNo} · ${r.courtNo}번 코트에서 시작했습니다.`;
+      return `M${m.matchNo} · ${r.courtNo}번 코트에 투입했습니다.`;
     },
   ), [run]);
 
@@ -248,5 +255,65 @@ export function useControlActions(data: ControlActionData): ControlActions {
     },
   ), [run]);
 
-  return { busy, toast, call, uncall, start, complete, unverified, acknowledge };
+  /**
+   * 경기 시작(타이머).
+   *   잠금 · 조회 보류 · 재조회는 다른 조작과 같다(전역 1건 — 다른 조작이 돌면 누르지 못한다).
+   *   판정은 따로 한다 — 이 RPC 는 version 을 올리지 않고, 몇 번을 불러도 결과가 같다(멱등):
+   *     · 성공 응답                         → success (timer_started · already_started 모두)
+   *     · 실패 응답인데 서버에 시작 기록이 보임 → success — 누가 눌렀든 같은 시작 시각이다(응답만 잃은 경우 포함)
+   *     · 재조회를 못 함                     → unverified — 시간을 그리지 않고 새로고침을 안내한다
+   *     · 그 밖                             → failure — 시간을 그리지 않는다
+   *   ⚠ 'success' 여도 화면의 시간은 재조회한 board 의 playStartedAt 에서만 나온다(낙관적 표시 없음).
+   */
+  const startTimer = React.useCallback(async (m: ActionTarget): Promise<ActionResult> => {
+    if (lock.current) return 'failure';
+    const key = `timer-${m.matchId}`;
+    lock.current = key;
+    setBusy(key);
+    const startedAt = Date.now();
+    let ok: Awaited<ReturnType<typeof startHostedMatchTimer>> | null = null;
+    let err: unknown = null;
+    try {
+      hold();
+      try {
+        ok = await startHostedMatchTimer(m.matchId);
+      } catch (e) {
+        err = e;
+      } finally {
+        release();
+      }
+      await reload();
+
+      if (ok) {
+        say(ok.reason === 'already_started'
+          ? `M${m.matchNo} 경기는 이미 시작되어 있습니다. 서버의 시작 시각으로 표시합니다.`
+          : `M${m.matchNo} 경기를 시작했습니다.`);
+        return 'success';
+      }
+
+      const snap = latest();
+      const fresh = snap.at !== null && snap.at >= startedAt ? snap.board : null;
+      const now = fresh ? fresh.matches.find((x) => x.matchId === m.matchId) ?? null : null;
+      if (now && matchTimerState(now).kind === 'running') {
+        say(`응답은 실패로 왔지만 서버에 M${m.matchNo} 경기 시작이 기록되어 있습니다. 서버 시각 기준으로 표시합니다.`, 6000);
+        return 'success';
+      }
+      if (!fresh) {
+        say('경기 시작 요청의 결과를 확인할 수 없습니다. 최신 상태를 불러오지 못했습니다 — 새로고침 후 다시 확인해 주세요.', 7000);
+        return 'unverified';
+      }
+      const reason = (err as { reason?: string } | null)?.reason ?? null;
+      say(reason === null && classifyFetchError(err) === 'network'
+        ? '경기 시작이 서버에 반영되지 않았습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.'
+        : reason === 'not_playing' && now && now.status !== 'playing'
+          ? `M${m.matchNo} 경기는 지금 진행 중이 아닙니다. 최신 상태를 다시 불러왔습니다.`
+          : matchActionMessage(err));
+      return 'failure';
+    } finally {
+      lock.current = '';
+      if (mounted.current) setBusy('');
+    }
+  }, [reload, hold, release, latest, say]);
+
+  return { busy, toast, call, uncall, start, complete, startTimer, unverified, acknowledge };
 }

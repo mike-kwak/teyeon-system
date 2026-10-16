@@ -27,6 +27,11 @@ export interface CourtBoardMatch {
   stageLabel: string;
   team1: ArenaTeam;
   team2: ArenaTeam;
+  /**
+   * 경기 경과 시간(운영 연결 화면의 NOW 전용). 없으면 시간 칸을 그리지 않는다(Demo · 타이머 미지원 서버).
+   *   startMs = 서버 시작 시각(ms) — null 이면 '시작 대기'. offsetMs = 서버 시각 − 기기 시각.
+   */
+  timer?: { startMs: number | null; offsetMs: number };
 }
 
 export interface CourtBoardCourt {

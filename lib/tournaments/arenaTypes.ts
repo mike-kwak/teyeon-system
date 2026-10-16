@@ -35,6 +35,8 @@ export interface ArenaCourtMatch {
   groupNo: number | null;
   team1: ArenaTeam;
   team2: ArenaTeam;
+  /** 경기 시작 시각(서버 ms · 이번 투입에서 유효한 것만). 시작 전 · 타이머 미지원이면 null. 표시 전용. */
+  playStartMs?: number | null;
 }
 
 export interface ArenaCourt {
@@ -142,6 +144,8 @@ export interface ArenaSnapshot {
   qualifyPerGroup: number | null;
   /** mode='knockout' 일 때만 채운다. 본선 대진이 없으면 null. */
   bracket: ArenaBracket | null;
+  /** 서버 시계 보정값(ms) — 서버 시각 = 기기 시각 + offset. 타이머를 지원하지 않는 서버면 null. */
+  clockOffset?: number | null;
 }
 
 /** 화면 상태. 첫 조회와 배경 갱신을 구분한다. */

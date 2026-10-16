@@ -25,6 +25,8 @@ import { useControlActions } from './controlActions';
 import type { UnverifiedAction } from './controlActions';
 import { useControlData } from './controlView';
 import SignatureDisplayLauncher from '../SignatureDisplayLauncher';
+import MatchElapsedClock from '../MatchElapsedClock';
+import { clockOffset, formatElapsed, matchTimerState } from '@/lib/tournaments/matchTimer';
 
 /**
  * 대기 목록에 한 번에 그리는 줄 수 — 화면 밀도를 위한 표시 제한일 뿐이다.
@@ -673,6 +675,21 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
   );
   const canStart = pick !== null && pickState?.kind === 'ok';
 
+  // 서버 시계 보정 — 보드를 받을 때마다 다시 잰다. serverNow 가 없는 서버면 null(타이머 숨김).
+  const offset = React.useMemo(
+    () => clockOffset(snap?.board?.serverNow ?? null, snap?.board?.receivedAt ?? null),
+    [snap],
+  );
+  /**
+   * 점수 모달 머리의 경과 시간 — 모달을 연 순간의 행이 아니라 **최신 board** 의 그 경기에서 읽는다
+   *   (모달을 연 뒤 다른 기기에서 경기 시작을 눌렀어도 보인다). 모달 · 점수 판정과는 무관한 표시다.
+   */
+  const scoreTimer = React.useMemo(() => {
+    if (!scoreFor || offset === null) return null;
+    const m = (snap?.board?.matches ?? []).find((x) => x.matchId === scoreFor.matchId);
+    return m ? matchTimerState(m) : null;
+  }, [scoreFor, snap, offset]);
+
   const ops: ControlOps = React.useMemo(() => ({
     busy: act.busy,
     selectedMatchId: pick?.matchId ?? null,
@@ -682,7 +699,9 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     onPickCourt: (m) => setPick(m),
     onCancelPick: () => setPick(null),
     onScore: (m) => setScoreFor(m),
-  }), [act, pick]);
+    onStartTimer: (m) => { void act.startTimer(m); },
+    clockOffset: offset,
+  }), [act, pick, offset]);
 
   /**
    * 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번).
@@ -814,6 +833,12 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
           busy={act.busy !== ''}
           onClose={() => setScoreFor(null)}
           onSubmit={onScoreSubmit}
+          timer={scoreTimer && offset !== null
+            ? scoreTimer.kind === 'running'
+              ? <MatchElapsedClock name={`score-${scoreFor.matchNo}`} startMs={scoreTimer.startMs} offsetMs={offset} />
+              : scoreTimer.kind === 'not_started' ? '시작 기록 없음'
+                : scoreTimer.kind === 'finished' ? formatElapsed(scoreTimer.durationMs) : null
+            : null}
         />
       )}
 
