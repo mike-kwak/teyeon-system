@@ -14,6 +14,7 @@ import AdminSidebar, { ADMIN_SIDEBAR_WIDTH } from '@/components/admin/AdminSideb
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminBottomNav from '@/components/admin/AdminBottomNav';
 import { getVisibleAdminNavSections } from '@/components/admin/AdminNavConfig';
+import { shouldShowAdminBottomNav } from '@/lib/admin/adminBottomNavPolicy';
 import { GuestPendingProvider, GuestNavBadge } from '@/context/GuestPendingContext';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     // 라우트 이동 시 시트 닫기.
     React.useEffect(() => { setMenuOpen(false); }, [pathname]);
+
+    // 모바일 BottomNav — 대회 당일 관제(Control Center)에서만 숨긴다(정확한 경로 일치 · lib/admin/adminBottomNavPolicy).
+    //   숨긴 화면은 바 높이만큼 비워 둔 하단 여백(96px)도 필요 없다 → safe-area + 기본 간격만 남긴다.
+    const showBottomNav = shouldShowAdminBottomNav(pathname);
 
     if (isLoading || waitingRankingCheck) {
         return (
@@ -66,12 +71,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <div className="admin-content" style={{ minHeight: '100dvh' }}>
                 <AdminHeader role={role} onMenu={() => setMenuOpen(true)} />
-                <main className="admin-main">
+                <main className={showBottomNav ? 'admin-main' : 'admin-main admin-main--no-bottom-nav'}>
                     {children}
                 </main>
             </div>
 
-            <AdminBottomNav onMenu={() => setMenuOpen(true)} />
+            {showBottomNav && <AdminBottomNav onMenu={() => setMenuOpen(true)} />}
 
             {/* 모바일 전체 메뉴 시트 */}
             {menuOpen && (
@@ -128,6 +133,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <style>{`
                 .admin-main { padding: 16px; padding-bottom: 96px; }
+                @media (max-width: 1023.98px) {
+                    .admin-main--no-bottom-nav { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+                }
                 @media (min-width: 1024px) {
                     .admin-content { padding-left: ${ADMIN_SIDEBAR_WIDTH}px; }
                     .admin-main { padding: 28px 32px 40px; }
