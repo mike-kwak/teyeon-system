@@ -100,7 +100,10 @@ export async function fetchPublicPreliminaryDraw(
 ): Promise<{ draw: PublicPreliminaryDraw | null }> {
   if (!PUBLIC_DRAW_ENABLED || !slug) return { draw: null };
   const { data, error } = await supabase.rpc('get_public_preliminary_draw', { p_slug: slug });
-  if (error || data === null || data === undefined) return { draw: null };
+  // ⚠ 조회 실패(네트워크 · 서버 오류)는 '공개 전' 과 다르다 — 던져서 호출부가 보고 있던 내용을 지키게 한다.
+  //   (화면 갱신 중 한 번 실패했다고 조 목록이 '공개 전' 으로 바뀌지 않게. 호출부는 모두 catch 한다.)
+  if (error) throw new Error('public preliminary draw unavailable');
+  if (data === null || data === undefined) return { draw: null };
   const o = rec(data);
   if (o.published !== true) return { draw: null };
   return {

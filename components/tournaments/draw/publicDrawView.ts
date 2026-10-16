@@ -103,28 +103,52 @@ export function publicRankRow(r: PublicStandingRow, phase: GroupPhase): RankRowV
 }
 
 // ── 데이터 ──────────────────────────────────────────────────────────────────
-//   Realtime 없음. 진입 시 1회 + 탭으로 돌아왔을 때 다시 불러온다(관람 중 결과 갱신).
+//   Realtime 없음. 진입 시 1회 + 화면을 보는 동안 주기 갱신 + 탭으로 돌아왔을 때 다시 불러온다.
+//   ⚠ 주기는 공개 본선과 같다(KNOCKOUT_POLL_MS 45초) — 경기 중인지 · 결과를 휴대폰에서 다시 열지 않아도 보게.
+//   ⚠ 배경 갱신이 실패하면 보고 있던 내용을 그대로 둔다(화면을 '공개 전' 으로 비우지 않는다).
+//   ⚠ 화면이 숨겨지면 멈춘다. 예선이 모두 끝나면(모든 조 순위 확정 · 순위결정전 완료) 주기 갱신을 멈춘다.
+export const PRELIM_POLL_MS = 45_000;
+
 export function usePublicDraw(slug: string) {
   const [draw, setDraw] = React.useState<PublicPreliminaryDraw | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const hasData = React.useRef(false);
+  const settled = React.useRef(false);
+  const inFlight = React.useRef(false);
 
   const load = React.useCallback(async () => {
-    if (!slug) return;
+    if (!slug || inFlight.current) return;
+    inFlight.current = true;
     try {
       const r = await fetchPublicPreliminaryDraw(slug);
+      hasData.current = r.draw !== null;
+      settled.current = !!r.draw && r.draw.groups.length > 0 && r.draw.groups.every((g) => g.rankingStatus === 'FINAL')
+        && r.draw.placement.every((p) => p.status === 'completed');
       setDraw(r.draw);
     } catch {
-      setDraw(null);
+      // 첫 조회 실패만 '공개 전' 과 같은 빈 상태로 둔다. 배경 갱신 실패는 보고 있던 내용을 유지한다.
+      if (!hasData.current) setDraw(null);
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   }, [slug]);
 
   React.useEffect(() => {
     void load();
-    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    let timer: number | null = null;
+    const stop = () => { if (timer !== null) { window.clearInterval(timer); timer = null; } };
+    const start = () => {
+      stop();
+      timer = window.setInterval(() => { if (!settled.current) void load(); }, PRELIM_POLL_MS);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { void load(); start(); }
+      else stop();
+    };
+    if (document.visibilityState === 'visible') start();
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisible); };
   }, [load]);
 
   return { draw, loading };

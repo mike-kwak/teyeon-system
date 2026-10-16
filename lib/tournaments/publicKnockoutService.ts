@@ -53,7 +53,10 @@ export async function fetchPublicKnockoutBracket(
   if (!PUBLIC_KNOCKOUT_ENABLED || !slug) return { bracket: null };
 
   const { data, error } = await supabase.rpc('get_public_knockout_bracket', { p_slug: slug });
-  if (error || data === null || data === undefined) return { bracket: null };
+  // ⚠ 조회 실패(네트워크 · 서버 오류)는 '공개 전' 과 다르다 — 던져서 usePublicKnockoutBracket 이
+  //   보고 있던 대진을 지키게 한다(첫 조회 실패면 '불러오지 못했습니다' 안내). 호출부는 모두 catch 한다.
+  if (error) throw new Error('public knockout bracket unavailable');
+  if (data === null || data === undefined) return { bracket: null };
 
   const o = rec(data);
   if (o.available !== true) return { bracket: null };

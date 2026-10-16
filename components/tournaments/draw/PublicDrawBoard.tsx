@@ -50,7 +50,7 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
       && (!q || p.teams.some((t) => rowMatches(t, q))));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="tt-draw-board" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* ── 진행 현황 ───────────────────────────────────────────────────── */}
       <div style={{ background: TT.surface, border: `1px solid ${TT.line}`, borderRadius: 14, padding: '13px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
@@ -179,6 +179,10 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
       )}
 
       <style>{LIST_CSS(C.teal)}</style>
+      {/* 공개 화면 전용 — 휴대폰 폭(560px 미만)에서는 조 카드를 1열로 둔다.
+          2열이면 카드 폭이 좁아 긴 이름(‘Alexander Maximilian’ · ‘남궁하늘빛바다’)이 단어 중간에서 끊긴다.
+          ⚠ 관리자 순위 화면과 같이 쓰는 LIST_CSS 는 건드리지 않는다. */}
+      <style>{`@media (max-width: 559px) { .tt-draw-board .stg-grid { grid-template-columns: minmax(0, 1fr); } }`}</style>
     </div>
   );
 }

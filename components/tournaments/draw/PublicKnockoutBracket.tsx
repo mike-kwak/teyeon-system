@@ -11,29 +11,43 @@
 //   ⚠ 경로 강조는 '이 자리에서 이어지는 대진 경로' 다. 그 팀이 이긴다는 뜻이 아니다.
 
 import React from 'react';
-import { Minus, Plus, Maximize2, RotateCcw, Search, X as XIcon } from 'lucide-react';
+import { Expand, List, Minus, Network, Plus, Maximize2, RotateCcw, Search, X as XIcon } from 'lucide-react';
 import { TT, FONT_LABEL } from '@/components/tournaments/tournamentTheme';
 import { layoutBracket, type BracketNode, type BracketSide } from '@/lib/tournaments/layoutBracket';
 import { searchBracket, downstreamPath, type BracketSearchResult } from '@/lib/tournaments/bracketSearch';
-import {
-  PUBLIC_KNOCKOUT_STATUS_TEXT, type PublicKnockoutBracket, type PublicKnockoutMatch,
-} from '@/lib/tournaments/publicKnockoutTypes';
+import type { PublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutTypes';
 import { useBracketInteraction } from './useBracketInteraction';
+import { courtText, statusTone } from './knockoutStatus';
+import PublicKnockoutRounds, { defaultRound } from './PublicKnockoutRounds';
 
 const CARD_W = 208;
-const CARD_H = 78;
+/**
+ * 카드 높이 · 1라운드 자리 간격(표시 옵션 — 대진 연결은 서버 topology 그대로).
+ *   두 팀 모두 예선 출처 줄('10조 1위') + 두 줄 이름이 들어가도 카드 밖으로 넘치지 않게 78 → 104,
+ *   카드끼리 겹치지 않게 자리 간격 52 → 60(1라운드 카드 사이 16px).
+ */
+const CARD_H = 104;
+const SLOT_PITCH = 60;
 
-/** 경기 상태별 색. 진행 중만 강조하고 나머지는 차분하게 둔다. */
-const statusTone = (m: PublicKnockoutMatch | null, bye: boolean): { label: string; color: string; bg: string } => {
-  if (bye) return { label: '부전승 진출', color: '#B45309', bg: '#FFFBEB' };
-  if (!m) return { label: '대기', color: TT.subtle, bg: TT.lineSoft };
-  switch (m.status) {
-    case 'playing':   return { label: '경기 중', color: TT.teal, bg: TT.tealSoft };
-    case 'calling':   return { label: '호출 중', color: TT.tealDeep, bg: TT.tealSoft };
-    case 'completed': return { label: '종료', color: '#047857', bg: '#ECFDF5' };
-    default:          return { label: PUBLIC_KNOCKOUT_STATUS_TEXT.waiting, color: TT.muted, bg: TT.lineSoft };
-  }
-};
+/**
+ * 보기 방식 — rounds = 라운드별 목록(휴대폰 기본) · bracket = 전체 대진표(넓은 화면 기본).
+ *   주소 ?view= 에 남겨 새로고침 · 뒤로 가기 후에도 같은 보기로 돌아온다(history.replaceState — 화면 이동 없음).
+ */
+type KnockoutView = 'rounds' | 'bracket';
+const ROUNDS_DEFAULT_MAX_WIDTH = 767;
+function initialView(): KnockoutView {
+  if (typeof window === 'undefined') return 'bracket';
+  const v = new URLSearchParams(window.location.search).get('view');
+  if (v === 'rounds' || v === 'bracket') return v;
+  return window.innerWidth <= ROUNDS_DEFAULT_MAX_WIDTH ? 'rounds' : 'bracket';
+}
+function rememberView(v: KnockoutView) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', v);
+    window.history.replaceState(window.history.state, '', url.toString());
+  } catch { /* 주소를 못 바꿔도 화면 전환은 그대로 동작한다 */ }
+}
 
 /** 카드 한쪽 줄. 이름은 줄이지 않고 두 줄까지 보여 준다(첫 글자 잘림 방지). */
 function SideRow({ side, winner, dim }: { side: BracketSide | null; winner: boolean; dim: boolean }) {
@@ -77,7 +91,7 @@ function MatchCard({ node, on, dim }: CardProps) {
   const done = m?.status === 'completed';
   const win1 = done && m?.winnerSide === 1;
   const win2 = done && m?.winnerSide === 2;
-  const court = m?.status === 'playing' ? (m.courtName || (m.courtNo ? `${m.courtNo}번 코트` : '')) : '';
+  const court = courtText(m);
   const live = m?.status === 'playing';
 
   return (
@@ -179,7 +193,7 @@ export default function PublicKnockoutBracket({
   bracket, updatedAt,
 }: { bracket: PublicKnockoutBracket; updatedAt?: number | null }) {
   const layout = React.useMemo(
-    () => layoutBracket(bracket, { cardWidth: CARD_W, cardHeight: CARD_H }),
+    () => layoutBracket(bracket, { cardWidth: CARD_W, cardHeight: CARD_H, slotPitch: SLOT_PITCH }),
     [bracket],
   );
 
@@ -189,14 +203,19 @@ export default function PublicKnockoutBracket({
 
   const [query, setQuery] = React.useState('');
   const [selected, setSelected] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<KnockoutView>(initialView);
+  // ⚠ 데이터가 갱신돼도(45초) 고른 라운드는 그대로 둔다 — 처음 한 번만 기본 라운드를 고른다.
+  const [round, setRound] = React.useState<number>(() => defaultRound(layout));
+  const [fullscreen, setFullscreen] = React.useState(false);
+  const frameRef = React.useRef<HTMLDivElement | null>(null);
 
   const results = React.useMemo(
     () => searchBracket(bracket, layout, query),
     [bracket, layout, query],
   );
   const path = React.useMemo(
-    () => (selected ? downstreamPath(layout, selected) : null),
-    [layout, selected],
+    () => (selected && view === 'bracket' ? downstreamPath(layout, selected) : null),
+    [layout, selected, view],
   );
 
   // 데이터가 갱신돼 선택한 카드가 사라지면 선택만 조용히 해제한다(이동 · 확대는 유지).
@@ -204,14 +223,61 @@ export default function PublicKnockoutBracket({
     if (selected && !layout.nodes.some((n) => n.key === selected)) setSelected(null);
   }, [layout, selected]);
 
+  const switchView = React.useCallback((v: KnockoutView) => {
+    setView(v);
+    rememberView(v);
+  }, []);
+
   const pick = React.useCallback((r: BracketSearchResult) => {
     const node = layout.nodes.find((n) => n.key === r.nodeKey);
     if (!node) return;
     setSelected(node.key);
-    focusRect(node);
-  }, [layout, focusRect]);
+    if (view === 'rounds') setRound(node.roundNo);   // 라운드별 보기 — 그 라운드 탭으로 가서 카드를 강조(스크롤은 목록이 한다)
+    else focusRect(node);
+  }, [layout, focusRect, view]);
 
   const clearSearch = React.useCallback(() => { setQuery(''); setSelected(null); }, []);
+
+  // ── 전체 화면(전체 대진표만) ──────────────────────────────────────────────
+  //   · 열면 history 에 한 칸을 쌓는다 → 브라우저 '뒤로' 가 페이지를 떠나지 않고 전체 화면만 닫는다.
+  //   · 전체 화면에서는 손가락 한 개로 상하좌우 이동(touch-action: none) — 페이지 스크롤과 다투지 않는다.
+  //   · 뒤쪽 페이지 스크롤은 잠그고, 닫으면 원래대로 돌린다.
+  const openFullscreen = React.useCallback(() => {
+    try { window.history.pushState({ ...(window.history.state ?? {}), ttKnockoutFullscreen: true }, ''); } catch { /* 기록을 못 쌓아도 닫기 버튼으로 닫힌다 */ }
+    setFullscreen(true);
+  }, []);
+  const closeFullscreen = React.useCallback(() => {
+    if (window.history.state?.ttKnockoutFullscreen) window.history.back();   // popstate 가 닫는다
+    else setFullscreen(false);
+  }, []);
+  React.useEffect(() => {
+    if (!fullscreen) return;
+    const onPop = () => { if (!window.history.state?.ttKnockoutFullscreen) setFullscreen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeFullscreen(); };
+    window.addEventListener('popstate', onPop);
+    window.addEventListener('keydown', onKey);
+    // 뒤쪽 스크롤 주인(문서 · 내부 스크롤 영역)을 잠근다.
+    const locked: { el: HTMLElement; overflow: string }[] = [];
+    let el: HTMLElement | null = frameRef.current?.parentElement ?? null;
+    while (el) {
+      const oy = getComputedStyle(el).overflowY;
+      if (oy === 'auto' || oy === 'scroll') { locked.push({ el, overflow: el.style.overflow }); el.style.overflow = 'hidden'; }
+      el = el.parentElement;
+    }
+    const root = document.documentElement;
+    locked.push({ el: root, overflow: root.style.overflow }); root.style.overflow = 'hidden';
+    locked.push({ el: document.body, overflow: document.body.style.overflow }); document.body.style.overflow = 'hidden';
+    // 창 크기가 바뀐 뒤 전체가 보이게 맞춘다.
+    const raf = requestAnimationFrame(() => fit());
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('popstate', onPop);
+      window.removeEventListener('keydown', onKey);
+      locked.forEach(({ el: e, overflow }) => { e.style.overflow = overflow; });
+      // 원래 크기 창으로 돌아오면 이동 범위만 다시 맞춘다(확대 · 위치는 유지).
+      requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+    };
+  }, [fullscreen, fit, closeFullscreen]);
 
   if (layout.empty) {
     return (
@@ -230,9 +296,27 @@ export default function PublicKnockoutBracket({
   const live = bracket.matches.filter((m) => m.status === 'playing').length;
   const done = bracket.matches.filter((m) => m.status === 'completed').length;
 
+  const viewBtn = (v: KnockoutView, label: string, Icon: typeof List) => {
+    const on = view === v;
+    return (
+      <button type="button" aria-pressed={on} data-ko-view={v} onClick={() => switchView(v)}
+        style={{
+          flex: 1, minHeight: 42, border: 0, borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          fontSize: 14, fontWeight: on ? 800 : 600, color: on ? TT.ink : '#5B6B82',
+          background: on ? '#fff' : 'transparent', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.10)' : 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}>
+        <Icon size={15} strokeWidth={2.4} />{label}
+      </button>
+    );
+  };
+
   return (
     // ⚠ 넓은 화면에서만 본문 폭을 넘어 펼친다(tt-bracket-wide). 모바일은 그대로다.
-    <div className="tt-bracket-wide" onKeyDown={(e) => { if (e.key === 'Escape') clearSearch(); }}>
+    //   라운드별 보기는 본문 폭 그대로 둔다(카드 목록은 넓힐 필요가 없다).
+    <div className={view === 'bracket' ? 'tt-bracket-wide' : undefined}
+      onKeyDown={(e) => { if (e.key === 'Escape' && !fullscreen) clearSearch(); }}>
       {/* 요약 */}
       <div style={{ background: TT.surface, border: `1px solid ${TT.line}`, borderRadius: 14,
         padding: '12px 14px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'baseline',
@@ -281,6 +365,7 @@ export default function PublicKnockoutBracket({
             </p>
           ) : results.slice(0, 8).map((r) => (
             <button key={`${r.nodeKey}:${r.slotKey}`} type="button" onClick={() => pick(r)}
+              data-ko-result={r.nodeKey}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 13px',
                 border: 0, borderTop: `1px solid ${TT.lineSoft}`, background:
                   selected === r.nodeKey ? TT.tealSoft : 'transparent',
@@ -298,110 +383,161 @@ export default function PublicKnockoutBracket({
         </div>
       )}
 
-      {/* 조작 */}
-      <div style={{ marginTop: 9, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        <button type="button" style={ctrlBtn} onClick={() => zoomBy(1 / 1.2)} aria-label="대진표 축소">
-          <Minus size={15} />
-        </button>
-        <button type="button" style={ctrlBtn} onClick={() => zoomBy(1.2)} aria-label="대진표 확대">
-          <Plus size={15} />
-        </button>
-        <button type="button" style={ctrlBtn} onClick={fit} aria-label="전체 대진 맞춤">
-          <Maximize2 size={14} />맞춤
-        </button>
-        <button type="button" style={ctrlBtn} onClick={reset} aria-label="대진표 초기화">
-          <RotateCcw size={14} />초기화
-        </button>
-        {selected && (
-          <button type="button" style={{ ...ctrlBtn, color: TT.tealDeep, borderColor: TT.teal }}
-            onClick={() => setSelected(null)} aria-label="경로 보기 해제">
-            경로 해제
-          </button>
-        )}
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 600, color: TT.subtle,
-          fontVariantNumeric: 'tabular-nums' }}>
-          {Math.round(transform.scale * 100)}%
-        </span>
+      {/* 보기 방식 */}
+      <div role="group" aria-label="본선 보기 방식" style={{
+        marginTop: 9, display: 'flex', gap: 3, padding: 3, background: '#E6EAF0', borderRadius: 12,
+      }}>
+        {viewBtn('rounds', '라운드별', List)}
+        {viewBtn('bracket', '전체 대진표', Network)}
       </div>
 
-      <p style={{ margin: '7px 2px 0', fontSize: 12, fontWeight: 600, color: TT.subtle,
-        lineHeight: 1.6, wordBreak: 'keep-all' }}>
-        끌어서 이동하고 두 손가락으로 확대할 수 있습니다. 아직 예선 결과가 반영되지 않은 자리는 ‘N조 M위’로 표시됩니다.
-      </p>
-
-      {/* ── 보이는 창 ─ 페이지 세로 스크롤은 그대로 두고(가로 이동만 가져간다) ── */}
-      <div
-        ref={viewportRef}
-        role="region"
-        aria-label="본선 대진표"
-        tabIndex={0}
-        {...handlers}
-        style={{
-          marginTop: 9, height: 'clamp(380px, 62vh, 720px)',
-          borderRadius: 14, border: `1px solid ${TT.line}`, background: TT.surface,
-          position: 'relative', overflow: 'hidden',
-          touchAction: 'pan-y',                 // 세로 스크롤은 브라우저에게 남긴다
-          cursor: dragging ? 'grabbing' : 'grab',
-          userSelect: 'none', WebkitUserSelect: 'none',
-        }}
-      >
-        {/* ── 전체 대진 면 ─ 논리 크기 그대로. 축소하지 않는다. ── */}
-        <div style={{
-          position: 'absolute', left: 0, top: 0, width: layout.width, height: layout.height,
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
-          transformOrigin: '0 0',
-        }}>
-          {/* 라운드 이름 */}
-          {layout.columns.map((c) => (
-            <div key={c.roundNo} style={{ position: 'absolute', left: c.x, top: 10, width: c.width,
-              textAlign: 'center' }}>
-              <span style={{
-                display: 'inline-block', maxWidth: '100%', padding: '3px 9px', borderRadius: 999,
-                background: c.isFinal ? '#FFFDF5' : TT.tint,
-                color: c.isFinal ? '#9A7B22' : TT.inkSoft,
-                fontFamily: FONT_LABEL, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {c.name}
-              </span>
-            </div>
-          ))}
-
-          {/* 연결선 — 카드 아래에 깔아 글자를 가리지 않게 한다 */}
-          <svg width={layout.width} height={layout.height} aria-hidden="true"
-            style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
-            {layout.connectors.map((c) => {
-              const key = `${c.from}->${c.to}`;
-              const on = path?.connectors.has(key) ?? false;
-              return (
-                <path key={key} d={c.path} fill="none" data-connector={key}
-                  data-highlight={on ? '1' : undefined}
-                  stroke={on ? TT.teal : TT.line} strokeWidth={on ? 2.5 : 1.5}
-                  strokeLinejoin="round" opacity={path && !on ? 0.4 : 1} />
-              );
-            })}
-          </svg>
-
-          {layout.nodes.map((n) => {
-            const on = path?.nodes.has(n.key) ?? false;
-            const dim = !!path && !on;
-            return n.kind === 'champion'
-              ? <ChampionCard key={n.key} node={n} on={on} dim={dim} />
-              : <MatchCard key={n.key} node={n} on={on} dim={dim} />;
-          })}
+      {view === 'rounds' ? (
+        <div style={{ marginTop: 10 }}>
+          <PublicKnockoutRounds layout={layout} round={round} onRound={(r) => { setRound(r); setSelected(null); }} highlight={selected} />
         </div>
-      </div>
+      ) : (
+        <>
+          {/* 조작 */}
+          <div style={{ marginTop: 9, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <button type="button" style={ctrlBtn} onClick={() => zoomBy(1 / 1.2)} aria-label="대진표 축소">
+              <Minus size={15} />
+            </button>
+            <button type="button" style={ctrlBtn} onClick={() => zoomBy(1.2)} aria-label="대진표 확대">
+              <Plus size={15} />
+            </button>
+            <button type="button" style={ctrlBtn} onClick={fit} aria-label="전체 대진 맞춤">
+              <Maximize2 size={14} />맞춤
+            </button>
+            <button type="button" style={ctrlBtn} onClick={reset} aria-label="대진표 초기화">
+              <RotateCcw size={14} />초기화
+            </button>
+            <button type="button" style={{ ...ctrlBtn, color: TT.tealDeep, borderColor: TT.teal }}
+              onClick={openFullscreen} aria-label="대진표 전체 화면">
+              <Expand size={14} />전체 화면
+            </button>
+            {selected && (
+              <button type="button" style={{ ...ctrlBtn, color: TT.tealDeep, borderColor: TT.teal }}
+                onClick={() => setSelected(null)} aria-label="경로 보기 해제">
+                경로 해제
+              </button>
+            )}
+            <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 600, color: TT.subtle,
+              fontVariantNumeric: 'tabular-nums' }}>
+              {Math.round(transform.scale * 100)}%
+            </span>
+          </div>
 
-      {path && (
-        <p style={{ margin: '7px 2px 0', fontSize: 11.5, fontWeight: 600, color: TT.muted,
-          lineHeight: 1.6, wordBreak: 'keep-all' }}>
-          이 자리에서 이어지는 대진 경로입니다. 아직 치르지 않은 경기의 진출을 뜻하지 않습니다.
-        </p>
+          <p style={{ margin: '7px 2px 0', fontSize: 12, fontWeight: 600, color: TT.subtle,
+            lineHeight: 1.6, wordBreak: 'keep-all' }}>
+            좌우로 끌어 이동하고 두 손가락으로 확대할 수 있습니다. 위아래로도 자유롭게 움직이려면 ‘전체 화면’을 누르세요.
+            아직 예선 결과가 반영되지 않은 자리는 ‘N조 M위’로 표시됩니다.
+          </p>
+
+          {/* ── 대진표 틀 — 평소에는 본문 안, 전체 화면에서는 화면 전체를 덮는다(같은 창 · 같은 이동 상태) ── */}
+          <div ref={frameRef} data-ko-fullscreen={fullscreen ? '1' : '0'} style={fullscreen ? {
+            position: 'fixed', inset: 0, zIndex: 1200, background: TT.bg, display: 'flex', flexDirection: 'column',
+            paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)',
+            touchAction: 'none', overscrollBehavior: 'contain',
+          } : { marginTop: 9 }}>
+            {fullscreen && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', flexWrap: 'wrap',
+                background: TT.surface, borderBottom: `1px solid ${TT.line}` }}>
+                <button type="button" style={ctrlBtn} onClick={() => zoomBy(1 / 1.2)} aria-label="대진표 축소">
+                  <Minus size={15} />
+                </button>
+                <button type="button" style={ctrlBtn} onClick={() => zoomBy(1.2)} aria-label="대진표 확대">
+                  <Plus size={15} />
+                </button>
+                <button type="button" style={ctrlBtn} onClick={fit} aria-label="전체 대진 맞춤">
+                  <Maximize2 size={14} />맞춤
+                </button>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: TT.subtle, fontVariantNumeric: 'tabular-nums' }}>
+                  {Math.round(transform.scale * 100)}%
+                </span>
+                <button type="button" style={{ ...ctrlBtn, marginLeft: 'auto', background: TT.ink, color: '#fff', borderColor: TT.ink }}
+                  onClick={closeFullscreen} aria-label="전체 화면 닫기">
+                  <XIcon size={15} />닫기
+                </button>
+              </div>
+            )}
+            {/* ── 보이는 창 ─ 평소: 세로 스크롤은 페이지에(가로 이동만) / 전체 화면: 상하좌우 이동 ── */}
+            <div
+              ref={viewportRef}
+              role="region"
+              aria-label="본선 대진표"
+              tabIndex={0}
+              {...handlers}
+              style={{
+                ...(fullscreen
+                  ? { flex: 1, minHeight: 0, borderRadius: 0, border: 0 }
+                  : { height: 'clamp(380px, 62vh, 720px)', borderRadius: 14, border: `1px solid ${TT.line}` }),
+                background: TT.surface,
+                position: 'relative', overflow: 'hidden',
+                touchAction: fullscreen ? 'none' : 'pan-y',
+                cursor: dragging ? 'grabbing' : 'grab',
+                userSelect: 'none', WebkitUserSelect: 'none',
+              }}
+            >
+              {/* ── 전체 대진 면 ─ 논리 크기 그대로. 축소하지 않는다. ── */}
+              <div style={{
+                position: 'absolute', left: 0, top: 0, width: layout.width, height: layout.height,
+                transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
+                transformOrigin: '0 0',
+              }}>
+                {/* 라운드 이름 */}
+                {layout.columns.map((c) => (
+                  <div key={c.roundNo} style={{ position: 'absolute', left: c.x, top: 10, width: c.width,
+                    textAlign: 'center' }}>
+                    <span style={{
+                      display: 'inline-block', maxWidth: '100%', padding: '3px 9px', borderRadius: 999,
+                      background: c.isFinal ? '#FFFDF5' : TT.tint,
+                      color: c.isFinal ? '#9A7B22' : TT.inkSoft,
+                      fontFamily: FONT_LABEL, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                      {c.name}
+                    </span>
+                  </div>
+                ))}
+
+                {/* 연결선 — 카드 아래에 깔아 글자를 가리지 않게 한다 */}
+                <svg width={layout.width} height={layout.height} aria-hidden="true"
+                  style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
+                  {layout.connectors.map((c) => {
+                    const key = `${c.from}->${c.to}`;
+                    const on = path?.connectors.has(key) ?? false;
+                    return (
+                      <path key={key} d={c.path} fill="none" data-connector={key}
+                        data-highlight={on ? '1' : undefined}
+                        stroke={on ? TT.teal : TT.line} strokeWidth={on ? 2.5 : 1.5}
+                        strokeLinejoin="round" opacity={path && !on ? 0.4 : 1} />
+                    );
+                  })}
+                </svg>
+
+                {layout.nodes.map((n) => {
+                  const on = path?.nodes.has(n.key) ?? false;
+                  const dim = !!path && !on;
+                  return n.kind === 'champion'
+                    ? <ChampionCard key={n.key} node={n} on={on} dim={dim} />
+                    : <MatchCard key={n.key} node={n} on={on} dim={dim} />;
+                })}
+              </div>
+            </div>
+          </div>
+
+          {path && (
+            <p style={{ margin: '7px 2px 0', fontSize: 11.5, fontWeight: 600, color: TT.muted,
+              lineHeight: 1.6, wordBreak: 'keep-all' }}>
+              이 자리에서 이어지는 대진 경로입니다. 아직 치르지 않은 경기의 진출을 뜻하지 않습니다.
+            </p>
+          )}
+        </>
       )}
       {updatedAt != null && (
         // ⚠ 과한 LIVE 장치를 만들지 않는다 — 언제 받은 내용인지만 한 줄로 남긴다.
-        <p style={{ margin: '5px 2px 0', fontSize: 11, fontWeight: 600, color: TT.faint }}>
-          {new Date(updatedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준
+        <p style={{ margin: '7px 2px 0', fontSize: 11, fontWeight: 600, color: TT.faint }}>
+          {new Date(updatedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준 · 화면을 보는 동안 자동으로 새로 고칩니다
         </p>
       )}
     </div>
