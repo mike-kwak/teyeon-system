@@ -18,14 +18,22 @@ import {
   RankTable, SectionHead, sectionStyle,
 } from '@/components/tournaments/standings/primitives';
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
+import { scheduleForGroup, type PublicGroupSchedule } from '@/lib/tournaments/groupScheduleService';
+import { GroupScheduleCard } from './PublicScheduleInfo';
 import {
   publicDetailStatus, publicMatchStatus, publicNotice, publicRankRow, teamKey,
 } from './publicDrawView';
 
 export default function PublicGroupDetail({
-  slug, draw, groupNo,
-}: { slug: string; draw: PublicPreliminaryDraw; groupNo: number }) {
-  const base = `/tournaments/${slug}/draw`;
+  slug, draw, groupNo, schedule = null, basePath,
+}: {
+  slug: string; draw: PublicPreliminaryDraw; groupNo: number;
+  /** 조별 일정(예정 코트 · 순서 · 신고). 없으면 안내 카드를 그리지 않는다. */
+  schedule?: PublicGroupSchedule | null;
+  /** 링크 기준 경로(관리자 미리보기용). 기본은 공개 DRAW. */
+  basePath?: string;
+}) {
+  const base = basePath ?? `/tournaments/${slug}/draw`;
   const idx = draw.groups.findIndex((x) => x.groupNo === groupNo);
   const g = idx >= 0 ? draw.groups[idx] : null;
 
@@ -44,6 +52,13 @@ export default function PublicGroupDetail({
   const settled = isSettled(phase);
   const notice = publicNotice(g);
   const qualified = phase === 'FINAL' ? g.standings.filter((r) => r.qualificationStatus === 'QUALIFIED') : [];
+  const sched = scheduleForGroup(schedule, g.groupNo);
+  /** 실제 코트가 예정 코트와 다르면 경기 줄에 '(변경)' 을 붙인다 — 실제 코트가 우선. */
+  const matchStatus = (m: (typeof g.matches)[number]) => {
+    const s = publicMatchStatus(m);
+    return m.status === 'playing' && sched?.plannedCourtNo != null && m.courtNo != null && m.courtNo !== sched.plannedCourtNo
+      ? { ...s, label: `${s.label}(변경)` } : s;
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -57,6 +72,8 @@ export default function PublicGroupDetail({
         status={publicDetailStatus(g)}
         progress={`${progressText(g)} 경기`}
       />
+
+      <GroupScheduleCard info={sched} done={phase === 'FINAL'} />
 
       {/* ── 확인 중 안내 — 서버 상태를 참가자 언어로만 ─────────────────── */}
       {notice === 'RANK_CHECK' && (
@@ -90,11 +107,11 @@ export default function PublicGroupDetail({
       <section style={sectionStyle}>
         <SectionHead
           title={phase === 'NOT_STARTED' ? '참가 팀' : settled ? '최종 순위' : '현재 순위'}
-          hint={phase === 'NOT_STARTED' ? '팀 번호순' : '승률 → 게임 득실'}
+          hint={phase === 'NOT_STARTED' ? '경기 시작 전' : '승률 → 게임 득실'}
         />
         {phase === 'NOT_STARTED' ? (
           [...g.standings].sort((a, b) => a.teamNo - b.teamNo).map((r) => (
-            <EntryRow key={teamKey(r)} teamNo={r.teamNo} name={teamName(r)} withdrawn={r.withdrawn} />
+            <EntryRow key={teamKey(r)} name={teamName(r)} withdrawn={r.withdrawn} />
           ))
         ) : (
           <RankTable settled={settled} rows={g.standings.map((r) => publicRankRow(r, phase))} />
@@ -116,7 +133,7 @@ export default function PublicGroupDetail({
               key={`m${m.matchNo}`}
               label={`${m.sequenceNo}경기`}
               sub={null}
-              status={publicMatchStatus(m)}
+              status={matchStatus(m)}
               left={teamName(m.team1)}
               right={teamName(m.team2)}
               score1={m.score1}

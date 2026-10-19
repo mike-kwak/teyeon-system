@@ -9,6 +9,8 @@ import {
   BackToHub, DrawHeading, DrawNotFound, DrawNotPublished, DrawStageTabs, PublicDrawShell, useDrawEvent,
 } from '@/components/tournaments/draw/PublicDrawShell';
 import PublicDrawBoard from '@/components/tournaments/draw/PublicDrawBoard';
+import { MyMatchEntryLink } from '@/components/tournaments/draw/MyMatchApp';
+import { ScheduleNotice, usePublicGroupSchedule } from '@/components/tournaments/draw/PublicScheduleInfo';
 import { usePublicDraw } from '@/components/tournaments/draw/publicDrawView';
 import { PUBLIC_KNOCKOUT_ENABLED } from '@/lib/tournaments/publicKnockoutFlags';
 
@@ -16,6 +18,7 @@ export default function TournamentDrawPage() {
   const params = useParams<{ slug: string }>();
   const { slug, event } = useDrawEvent(params?.slug);
   const { draw, loading } = usePublicDraw(event ? event.slug : '');
+  const schedule = usePublicGroupSchedule(event ? event.slug : '', !!draw);
 
   if (!event) return <DrawNotFound />;
   const hubHref = `/tournaments/${event.slug}`;
@@ -24,9 +27,11 @@ export default function TournamentDrawPage() {
     <PublicDrawShell event={event} published={!!draw}>
       <DrawHeading title="대진표" sub={event.titleFull} />
       <DrawStageTabs slug={event.slug} active="preliminary" knockoutOpen={PUBLIC_KNOCKOUT_ENABLED} />
+      {draw && <MyMatchEntryLink slug={event.slug} />}
       {draw ? (
         <>
-          <PublicDrawBoard slug={slug} draw={draw} />
+          <ScheduleNotice schedule={schedule} />
+          <PublicDrawBoard slug={slug} draw={draw} schedule={schedule} />
           <BackToHub hubHref={hubHref} />
         </>
       ) : (

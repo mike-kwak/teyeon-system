@@ -18,8 +18,10 @@ import {
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
 import { publicMatchStatus, teamKey } from './publicDrawView';
 
-export default function PublicPlacementDetail({ slug, draw }: { slug: string; draw: PublicPreliminaryDraw }) {
-  const base = `/tournaments/${slug}/draw`;
+export default function PublicPlacementDetail({
+  slug, draw, basePath,
+}: { slug: string; draw: PublicPreliminaryDraw; /** 링크 기준 경로(관리자 미리보기용). */ basePath?: string }) {
+  const base = basePath ?? `/tournaments/${slug}/draw`;
   const last = draw.groups.length > 0 ? draw.groups[draw.groups.length - 1] : null;
   const displayNo = placementDisplayNo(draw.groups.length);
   const first = draw.placement[0] ?? null;
@@ -57,7 +59,7 @@ export default function PublicPlacementDetail({ slug, draw }: { slug: string; dr
             teams={p.teams.map((t, i) => {
               const rv = placementResultView(p, i === 0 ? 1 : 2, p.status === 'completed' ? p.winnerSide : null);
               return {
-                key: teamKey(t), teamNo: t.teamNo, name: teamName(t),
+                key: teamKey(t), name: teamName(t),
                 record: rv ? rv.record : null, diff: rv ? rv.diff : null, diffColor: rv?.diffColor,
                 won: p.status === 'completed' && p.winnerSide === i + 1,
               };

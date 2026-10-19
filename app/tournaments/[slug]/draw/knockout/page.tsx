@@ -12,6 +12,7 @@ import {
   BackToHub, DrawHeading, DrawNotFound, DrawStageTabs, PublicDrawShell, useDrawEvent,
 } from '@/components/tournaments/draw/PublicDrawShell';
 import PublicKnockoutBracket from '@/components/tournaments/draw/PublicKnockoutBracket';
+import { MyMatchEntryLink } from '@/components/tournaments/draw/MyMatchApp';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import { usePublicKnockoutBracket } from '@/components/tournaments/draw/publicKnockoutView';
 
@@ -50,6 +51,7 @@ export default function TournamentKnockoutDrawPage() {
     <PublicDrawShell event={event} published={!!bracket}>
       <DrawHeading title="대진표" sub={event.titleFull} />
       <DrawStageTabs slug={event.slug} active="knockout" knockoutOpen />
+      {bracket && <MyMatchEntryLink slug={event.slug} />}
       {loading ? (
         <Notice title="불러오는 중…" />
       ) : failed ? (

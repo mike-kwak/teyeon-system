@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 import React from 'react';
 import Link from 'next/link';
 import {
-  ArrowUpRight, Award, CalendarDays, ClipboardList, Clock, Gauge, LayoutGrid, ListOrdered, MapPin,
+  ArrowUpRight, Award, CalendarClock, CalendarDays, ClipboardList, Clock, Eye, Gauge, LayoutGrid, ListOrdered, MapPin,
   Network, ShieldAlert, ShieldCheck, Smartphone, SquareStack, Trophy, Tv, UserCheck, Users, Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -69,6 +69,7 @@ function sectionsFor(slug: string): HubSection[] {
         { id: 'teams', title: '참가팀 관리 · 확정', desc: '확정 신청을 참가팀으로 옮기고 팀 정보를 관리', icon: Users, href: `${admin}/teams` },
         { id: 'courts', title: '코트 설정', desc: '사용할 코트 수 · 이름 · 운영 여부', icon: LayoutGrid, href: `${admin}/courts` },
         { id: 'groups', title: '예선 조 편성', desc: '경기이사가 직접 조를 배치하고 공개', icon: Network, href: `${admin}/groups` },
+        { id: 'schedule', title: '조별 일정 · 출전 신고', desc: '조마다 첫 번째/두 번째 조 · 예정 코트 지정, 신고 장소 · 마감 시간', icon: CalendarClock, href: `${admin}/schedule` },
         { id: 'bracket', title: '본선 대진', desc: '진출팀 · 라운드 구조 입력, 대진 확정 · 공개', icon: Trophy, href: `${admin}/bracket` },
         { id: 'settings', title: '대회 설정', desc: '일정 · 요강 · 접수 상태를 바꾸는 관리 화면은 아직 없습니다.', icon: Wrench },
       ],
@@ -87,6 +88,7 @@ function sectionsFor(slug: string): HubSection[] {
       links: [
         { id: 'pub-hub', title: '대회 Hub', desc: '참가자 첫 화면(QR 진입점)', icon: Smartphone, href: pub, newTab: true },
         { id: 'pub-teams', title: '참가팀 현황', desc: '공개 참가팀 목록', icon: Users, href: `${pub}/teams`, newTab: true },
+        { id: 'pub-preview', title: '예선 대진표 미리보기', desc: '공개 전에도 참가자 화면 그대로 확인 · 공개 상태는 바뀌지 않음', icon: Eye, href: `${admin}/draw-preview` },
         { id: 'pub-draw', title: '예선 조별 리그', desc: '공개 예선 조 · 순위', icon: LayoutGrid, href: `${pub}/draw`, newTab: true },
         { id: 'pub-knockout', title: '본선 토너먼트', desc: '공개 본선 대진', icon: Trophy, href: `${pub}/draw/knockout`, newTab: true },
         {

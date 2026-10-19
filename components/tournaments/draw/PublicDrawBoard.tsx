@@ -17,15 +17,25 @@ import {
   GroupCompactCard, LIST_CSS,
 } from '@/components/tournaments/standings/primitives';
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
+import { scheduleForGroup, type PublicGroupSchedule } from '@/lib/tournaments/groupScheduleService';
+import { GroupScheduleLine } from './PublicScheduleInfo';
 import {
   publicCardStatus, publicCompactRow, publicGroupStarted, publicMatchStatus, teamKey,
 } from './publicDrawView';
 
-export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: PublicPreliminaryDraw }) {
+export default function PublicDrawBoard({
+  slug, draw, schedule = null, basePath,
+}: {
+  slug: string; draw: PublicPreliminaryDraw;
+  /** 조별 일정(예정 코트 · 순서 · 신고 마감). 없으면 카드에 일정 줄을 그리지 않는다. */
+  schedule?: PublicGroupSchedule | null;
+  /** 조 상세 링크의 기준 경로(관리자 미리보기용). 기본은 공개 DRAW. */
+  basePath?: string;
+}) {
   const [query, setQuery] = React.useState('');
   const [filter, setFilter] = React.useState<GroupFilter>('all');
   const q = normalizeQuery(query);
-  const base = `/tournaments/${slug}/draw`;
+  const base = basePath ?? `/tournaments/${slug}/draw`;
 
   const groups = draw.groups;
   const placement = draw.placement;
@@ -77,8 +87,8 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="팀 번호, 선수명으로 검색"
-          aria-label="팀 번호, 선수명으로 검색"
+          placeholder="선수명으로 검색"
+          aria-label="선수명으로 검색"
           style={{
             flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent',
             fontFamily: 'inherit', fontSize: 16, color: TT.ink,
@@ -124,7 +134,7 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
       {visible.length + visiblePlacement.length === 0 ? (
         <div style={{ background: TT.surface, border: `1px solid ${TT.line}`, borderRadius: 14, textAlign: 'center', padding: '26px 15px' }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: TT.muted, lineHeight: 1.8 }}>
-            {q ? '검색 결과가 없습니다. 팀 번호나 선수 이름을 다시 확인해 주세요.' : '해당하는 조가 없습니다.'}
+            {q ? '검색 결과가 없습니다. 선수 이름을 다시 확인해 주세요.' : '해당하는 조가 없습니다.'}
           </p>
         </div>
       ) : (
@@ -141,6 +151,7 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
                 progress={progressText(g)}
                 segments={progressSegments(g)}
                 rows={g.standings.map((r) => publicCompactRow(r, phase, q))}
+                extra={<GroupScheduleLine info={scheduleForGroup(schedule, g.groupNo)} done={phase === 'FINAL'} />}
               />
             );
           })}
@@ -159,6 +170,7 @@ export default function PublicDrawBoard({ slug, draw }: { slug: string; draw: Pu
                   : placementStatusView(p.status)}
                 progress={`${done ? 1 : 0} / 1`}
                 segments={[done ? C.teal : C.line]}
+                extra={<GroupScheduleLine info={scheduleForGroup(schedule, p.groupNo)} done={done} />}
                 rows={p.teams.map((t, i) => {
                   // 순위결정전 결과 표시 — 공식 경기 점수 기준(일반 조 gameDiff 와 무관)
                   const rv = placementResultView(p, i === 0 ? 1 : 2, p.winnerSide);

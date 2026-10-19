@@ -55,7 +55,7 @@ export interface CompactRow {
 }
 
 export function GroupCompactCard({
-  href, ariaLabel, title, tag, status, progress, segments, rows,
+  href, ariaLabel, title, tag, status, progress, segments, rows, extra,
 }: {
   href: string;
   ariaLabel: string;
@@ -66,6 +66,8 @@ export function GroupCompactCard({
   progress: string;
   segments: string[];
   rows: CompactRow[];
+  /** 상태 줄 아래 보조 줄(공개 화면의 조별 일정 안내). 없으면 아무것도 그리지 않는다. */
+  extra?: React.ReactNode;
 }) {
   return (
     <Link href={href} className="stg-card" aria-label={ariaLabel}
@@ -85,6 +87,7 @@ export function GroupCompactCard({
         <StatusDot label={status.label} color={status.color} />
         <span style={{ fontSize: 12, fontWeight: 600, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{progress}</span>
       </div>
+      {extra}
       <Segments colors={segments} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 2 }}>
         {rows.map((r) => {
@@ -233,12 +236,15 @@ export function SectionHead({ title, hint, inCard = true }: { title: string; hin
 }
 
 // ── 참가 팀 행 (경기 전) ────────────────────────────────────────────────────
-export function EntryRow({ teamNo, name, withdrawn }: { teamNo: number; name: string; withdrawn: boolean }) {
+/** teamNo 를 넘기지 않으면 번호 칸을 그리지 않는다(참가자 공개 화면 — 내부 팀 번호 비노출). 관리자 화면은 그대로 넘긴다. */
+export function EntryRow({ teamNo, name, withdrawn }: { teamNo?: number; name: string; withdrawn: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: `1px solid ${C.lineSoft}` }}>
-      <span style={{ flexShrink: 0, minWidth: 36, fontSize: 12.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>
-        {teamNo}번
-      </span>
+      {teamNo != null && (
+        <span style={{ flexShrink: 0, minWidth: 36, fontSize: 12.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>
+          {teamNo}번
+        </span>
+      )}
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, color: C.navy, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
         {name}
       </span>
@@ -371,7 +377,8 @@ export function MatchResultCard({
 // ── 순위결정전 상세 블록 ────────────────────────────────────────────────────
 export interface PlacementTeamRow {
   key: string;
-  teamNo: number;
+  /** 없으면 번호 줄을 그리지 않는다(참가자 공개 화면). */
+  teamNo?: number;
   name: string;
   /** 완료 결과가 있을 때만 — 1승 0패 / 0승 1패. 없으면 null(만들지 않는다). */
   record: string | null;
@@ -419,7 +426,9 @@ export function PlacementDetailBlock({
               <p style={{ margin: 0, fontSize: 14, fontWeight: t.won ? 800 : 700, color: C.navy, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
                 {t.name}
               </p>
-              <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{t.teamNo}번</p>
+              {t.teamNo != null && (
+                <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{t.teamNo}번</p>
+              )}
             </div>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: t.record ? C.body : C.muted, textAlign: 'right', whiteSpace: 'nowrap' }}>
               {t.record ?? '경기 전'}

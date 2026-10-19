@@ -12,7 +12,7 @@ import React from 'react';
 import { ArrowRight, Radio } from 'lucide-react';
 import { TT, FONT_LABEL } from '@/components/tournaments/tournamentTheme';
 import type { BracketLayout, BracketNode, BracketSide } from '@/lib/tournaments/layoutBracket';
-import { courtText, statusTone } from './knockoutStatus';
+import { courtText, statusTone, WIN_ROW_BG, WIN_ROW_RING } from './knockoutStatus';
 
 /** 라운드 탭에 쓰는 열(경기 열만 — 우승 자리 열은 결과 카드로 따로 보여 준다). */
 export function matchColumns(layout: BracketLayout) {
@@ -52,7 +52,11 @@ function TeamLine({ side, winner, dim, score }: {
   }
   const muted = kind === 'tbd' || kind === 'qualifier';
   return (
-    <div data-ko-row={kind} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 38, padding: '0 2px', minWidth: 0 }}>
+    <div data-ko-row={kind} data-ko-win={winner ? '1' : undefined} style={{
+      display: 'flex', alignItems: 'center', gap: 8, minHeight: 38, padding: '0 2px', minWidth: 0,
+      // 승리 줄: 좌우로 6px 넓힌 사각형(글자 위치는 그대로 — 음수 여백만큼 안쪽 여백을 더한다)
+      ...(winner ? { margin: '0 -6px', padding: '0 8px', borderRadius: 9, background: WIN_ROW_BG, boxShadow: WIN_ROW_RING } : null),
+    }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         {side?.source && (
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: TT.subtle, lineHeight: 1.3 }}>{side.source}</p>
@@ -62,9 +66,6 @@ function TeamLine({ side, winner, dim, score }: {
           fontWeight: winner ? 800 : muted ? 600 : 700,
           color: muted ? TT.subtle : dim ? TT.muted : winner ? TT.tealDeep : TT.ink,
         }}>
-          {side?.teamNo != null && (
-            <span style={{ color: TT.subtle, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{side.teamNo}. </span>
-          )}
           {side ? side.primary : '미정'}
           {side?.withdrawn && <span style={{ color: '#B91C1C', fontWeight: 700 }}> (기권)</span>}
         </p>
@@ -79,31 +80,43 @@ function TeamLine({ side, winner, dim, score }: {
   );
 }
 
-/** 부전승 칸 — 경기가 없으므로 한 덩어리로 짧게: [부전승 · BYE] 팀 → 다음 라운드. */
+/**
+ * 부전승 칸 — 한 경기 카드 안에 [진출 팀 / BYE] 두 자리로 보여 준다(상대 자리가 비어 있음을 대진 구조로).
+ *   ⚠ 표시만 바꾼다. 팀은 서버가 저장한 자리 그대로(bye 가 아닌 쪽), 승자 · 경기를 만들지 않는다.
+ */
 function ByeCard({ node, next, highlight }: { node: BracketNode; next: { label: string } | null; highlight: boolean }) {
   const team = node.a?.kind === 'bye' ? node.b : node.a;
+  const tone = statusTone(null, true);
   return (
     <article data-ko-card={node.key} data-ko-status="bye" data-highlight={highlight ? '1' : undefined}
       style={{
-        background: highlight ? TT.tealSoft : TT.surface, borderRadius: 12, padding: '9px 12px',
+        background: highlight ? TT.tealSoft : TT.surface, borderRadius: 14, padding: '11px 13px 10px',
         border: `${highlight ? 2 : 1}px solid ${highlight ? TT.teal : TT.line}`, scrollMarginTop: 90,
-        display: 'flex', flexDirection: 'column', gap: 3,
+        boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
+        display: 'flex', flexDirection: 'column', gap: 6,
       }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: '#FFFBEB', color: '#B45309', whiteSpace: 'nowrap' }}>
-          부전승
+      <header style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: tone.bg, color: tone.color, whiteSpace: 'nowrap' }}>
+          {tone.label}
         </span>
-        <span data-ko-row="bye" style={{ fontFamily: FONT_LABEL, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', color: '#7E8898',
-          padding: '1px 7px', borderRadius: 6, border: '1px dashed #CBD2DB', background: '#F1F2F4' }}>
+      </header>
+      <div data-ko-bye-team>
+        <TeamLine side={team} winner={false} dim={false} score={null} />
+      </div>
+      <div data-ko-row="bye" style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 40, borderRadius: 9,
+        background: '#F1F2F4', border: '1px dashed #CBD2DB',
+      }}>
+        <span style={{ fontFamily: FONT_LABEL, fontSize: 18, fontWeight: 800, letterSpacing: '0.2em', color: '#7E8898', paddingLeft: '0.2em' }}>
           BYE
         </span>
-        {next && (
-          <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: TT.subtle, whiteSpace: 'nowrap' }}>
-            <ArrowRight size={13} strokeWidth={2.4} />{next.label}
-          </span>
-        )}
       </div>
-      <TeamLine side={team} winner={false} dim={false} score={null} />
+      {next && (
+        <p style={{ margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: TT.subtle, wordBreak: 'keep-all' }}>
+          <ArrowRight size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+          진출 → {next.label}
+        </p>
+      )}
     </article>
   );
 }
@@ -278,7 +291,7 @@ export default function PublicKnockoutRounds({
           </p>
           <p style={{ margin: '3px 0 0', fontSize: 15, fontWeight: 800, color: champion.champion ? TT.ink : TT.faint, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
             {champion.champion
-              ? <><span style={{ color: TT.subtle, fontWeight: 700 }}>{champion.champion.teamNo}. </span>{champion.champion.primary}</>
+              ? champion.champion.primary
               : '아직 정해지지 않았습니다'}
           </p>
         </div>

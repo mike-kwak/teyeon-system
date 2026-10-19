@@ -74,7 +74,7 @@ export function searchBracket(
       out.push({
         nodeKey: node.key,
         slotKey: side.slotKey,
-        title: side.teamNo != null ? `${side.teamNo}. ${side.primary}` : side.primary,
+        title: side.primary,   // 참가자 화면에는 내부 팀 번호를 보이지 않는다(찾기 대상에는 그대로 남김)
         subtitle: side.source,
         roundName: roundName.get(node.roundNo) ?? `${node.roundNo}라운드`,
         matchNo: node.match ? node.match.matchNo : null,

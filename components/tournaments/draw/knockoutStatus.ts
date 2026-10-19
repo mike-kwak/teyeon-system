@@ -18,6 +18,13 @@ export const statusTone = (m: PublicKnockoutMatch | null, bye: boolean): { label
   }
 };
 
+/**
+ * 완료 경기의 승리 팀 줄 — 팀명과 점수를 함께 감싸는 연한 민트 사각형(카드 전체가 아니라 그 줄만).
+ *   ⚠ 표시만. 승리 여부는 서버 winnerSide(완료 경기)를 그대로 받는다. 테두리는 box-shadow 로 그려 줄 크기를 바꾸지 않는다.
+ */
+export const WIN_ROW_BG = '#EAF6F3';
+export const WIN_ROW_RING = 'inset 0 0 0 1px #BFE3DB';
+
 /** 진행 중 경기의 코트 — 서버가 진행 중일 때만 코트를 준다(그 밖에는 빈 문자열). */
 export const courtText = (m: PublicKnockoutMatch | null): string =>
   m?.status === 'playing' ? (m.courtName || (m.courtNo ? `${m.courtNo}번 코트` : '')) : '';

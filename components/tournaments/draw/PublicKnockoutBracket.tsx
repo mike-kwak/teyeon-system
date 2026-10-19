@@ -17,17 +17,18 @@ import { layoutBracket, type BracketNode, type BracketSide } from '@/lib/tournam
 import { searchBracket, downstreamPath, type BracketSearchResult } from '@/lib/tournaments/bracketSearch';
 import type { PublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutTypes';
 import { useBracketInteraction } from './useBracketInteraction';
-import { courtText, statusTone } from './knockoutStatus';
+import { courtText, statusTone, WIN_ROW_BG, WIN_ROW_RING } from './knockoutStatus';
 import PublicKnockoutRounds, { defaultRound } from './PublicKnockoutRounds';
 
 const CARD_W = 208;
 /**
  * 카드 높이 · 1라운드 자리 간격(표시 옵션 — 대진 연결은 서버 topology 그대로).
- *   두 팀 모두 예선 출처 줄('10조 1위') + 두 줄 이름이 들어가도 카드 밖으로 넘치지 않게 78 → 104,
- *   카드끼리 겹치지 않게 자리 간격 52 → 60(1라운드 카드 사이 16px).
+ *   두 팀 모두 예선 출처 줄('10조 1위') + 두 줄 이름이어도 카드 밖으로 넘치지 않게 104 → 120
+ *   (실측: 머리줄 + 출처 · 두 줄 이름 2팀 ≈ 103px + 위아래 여백 · 테두리 12px),
+ *   1라운드 카드 사이 16px 을 유지하도록 자리 간격 60 → 68.
  */
-const CARD_H = 104;
-const SLOT_PITCH = 60;
+const CARD_H = 120;
+const SLOT_PITCH = 68;
 
 /**
  * 보기 방식 — rounds = 라운드별 목록(휴대폰 기본) · bracket = 전체 대진표(넓은 화면 기본).
@@ -65,17 +66,12 @@ function SideRow({ side, winner, dim }: { side: BracketSide | null; winner: bool
         </p>
       )}
       <p style={{
-        margin: 0, fontSize: 12.5, lineHeight: 1.35,
+        margin: 0, fontSize: 12.5, lineHeight: 1.3,
         fontWeight: winner ? 800 : muted ? 600 : 700,
         color: muted ? TT.subtle : dim ? TT.muted : winner ? TT.tealDeep : TT.ink,
         wordBreak: 'keep-all', overflowWrap: 'anywhere',
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
       }}>
-        {side.teamNo != null && (
-          <span style={{ color: TT.subtle, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-            {side.teamNo}.{' '}
-          </span>
-        )}
         {side.primary}
         {side.withdrawn && <span style={{ color: '#B91C1C', fontWeight: 700 }}> (기권)</span>}
       </p>
@@ -105,17 +101,19 @@ function MatchCard({ node, on, dim }: CardProps) {
         boxSizing: 'border-box',
         background: on ? TT.tealSoft : TT.surface,
         border: `${on ? 2 : 1}px solid ${on ? TT.teal : live ? TT.teal : TT.line}`,
-        borderRadius: 11, padding: on ? '6px 8px' : '7px 9px',
+        borderRadius: 11, padding: on ? '4px 8px' : '5px 9px',
         boxShadow: live ? '0 2px 10px rgba(14,140,128,0.14)' : '0 1px 2px rgba(15,23,42,0.05)',
         opacity: dim ? 0.38 : 1,
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-        <span style={{ fontFamily: FONT_LABEL, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em',
-          color: TT.subtle, whiteSpace: 'nowrap' }}>
-          {m ? `MATCH ${String(m.matchNo).padStart(2, '0')}` : 'MATCH –'}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, lineHeight: 1.2 }}>
+        {!node.bye && (
+          <span style={{ fontFamily: FONT_LABEL, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em',
+            color: TT.subtle, whiteSpace: 'nowrap' }}>
+            {m ? `MATCH ${String(m.matchNo).padStart(2, '0')}` : 'MATCH –'}
+          </span>
+        )}
         <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 800, padding: '1.5px 6px', borderRadius: 999,
           background: tone.bg, color: tone.color, whiteSpace: 'nowrap' }}>
           {tone.label}
@@ -128,9 +126,29 @@ function MatchCard({ node, on, dim }: CardProps) {
         )}
       </div>
 
-      {[{ s: node.a, w: win1, sc: done ? m?.score1 : null },
+      {node.bye ? (
+        // 부전승 칸 — [진출 팀 / BYE] 두 자리(라운드별 보기와 같은 뜻). ⚠ 표시만: 팀은 bye 가 아닌 저장 자리 그대로.
+        <>
+          <div data-bracket-bye-team style={{ minWidth: 0 }}>
+            <SideRow side={node.a?.kind === 'bye' ? node.b : node.a} winner={false} dim={false} />
+          </div>
+          <div data-bracket-bye style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', height: 24, flexShrink: 0,
+            borderRadius: 7, background: '#F1F2F4', border: '1px dashed #CBD2DB',
+          }}>
+            <span style={{ fontFamily: FONT_LABEL, fontSize: 13, fontWeight: 800, letterSpacing: '0.2em',
+              color: '#7E8898', paddingLeft: '0.2em', lineHeight: 1 }}>
+              BYE
+            </span>
+          </div>
+        </>
+      ) : [{ s: node.a, w: win1, sc: done ? m?.score1 : null },
         { s: node.b, w: win2, sc: done ? m?.score2 : null }].map((row, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div key={i} data-bracket-win={row.w ? '1' : undefined} style={{
+          display: 'flex', alignItems: 'center', gap: 6, minWidth: 0,
+          // 승리 줄: 음수 여백 = 안쪽 여백이라 카드 안 배치 · 높이는 그대로
+          ...(row.w ? { margin: '-2px -5px', padding: '2px 5px', borderRadius: 7, background: WIN_ROW_BG, boxShadow: WIN_ROW_RING } : null),
+        }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <SideRow side={row.s} winner={row.w} dim={done && !row.w} />
           </div>
@@ -169,7 +187,7 @@ function ChampionCard({ node, on, dim }: CardProps) {
         <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: TT.ink, lineHeight: 1.35,
           wordBreak: 'keep-all', overflowWrap: 'anywhere',
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          <span style={{ color: TT.subtle, fontWeight: 700 }}>{c.teamNo}. </span>{c.primary}
+          {c.primary}
         </p>
       ) : (
         // ⚠ 본선이 끝나기 전에는 우승자를 만들어 표시하지 않는다.

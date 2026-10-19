@@ -9,6 +9,7 @@ import {
 } from '@/components/tournaments/draw/PublicDrawShell';
 import PublicGroupDetail from '@/components/tournaments/draw/PublicGroupDetail';
 import { usePublicDraw } from '@/components/tournaments/draw/publicDrawView';
+import { usePublicGroupSchedule } from '@/components/tournaments/draw/PublicScheduleInfo';
 
 export default function TournamentDrawGroupPage() {
   const params = useParams<{ slug: string; groupNo: string }>();
@@ -16,13 +17,14 @@ export default function TournamentDrawGroupPage() {
   const raw = typeof params?.groupNo === 'string' ? params.groupNo : '';
   const groupNo = Number(raw);
   const { draw, loading } = usePublicDraw(event ? event.slug : '');
+  const schedule = usePublicGroupSchedule(event ? event.slug : '', !!draw);
 
   if (!event) return <DrawNotFound />;
 
   return (
     <PublicDrawShell event={event} published={!!draw}>
       {draw ? (
-        <PublicGroupDetail slug={slug} draw={draw} groupNo={Number.isInteger(groupNo) ? groupNo : -1} />
+        <PublicGroupDetail slug={slug} draw={draw} groupNo={Number.isInteger(groupNo) ? groupNo : -1} schedule={schedule} />
       ) : (
         <DrawNotPublished hubHref={`/tournaments/${event.slug}`} loading={loading} />
       )}
