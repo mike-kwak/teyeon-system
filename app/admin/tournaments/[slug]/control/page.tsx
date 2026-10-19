@@ -15,6 +15,7 @@ import { ChevronLeft, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isFullAdminRole } from '@/lib/admin/adminAccess';
 import { getOfficialTournament } from '@/lib/tournaments/officialInfo';
+import { isTestTournamentSlug, testControlEvent } from '@/lib/tournaments/testTournament';
 import ControlCenter from '@/components/tournaments/control/ControlCenter';
 
 export default function AdminTournamentControlPage() {
@@ -23,7 +24,9 @@ export default function AdminTournamentControlPage() {
   const slug = typeof params?.slug === 'string'
     ? params.slug
     : Array.isArray(params?.slug) ? params!.slug[0] : '';
-  const event = getOfficialTournament(slug);
+  // 공식 대회 또는 테스트(리허설) 대회(fixture-*)만 연다. 테스트 대회는 화면에 크게 표시되고 공개 링크가 숨겨진다.
+  const official = getOfficialTournament(slug);
+  const event = official ?? (isTestTournamentSlug(slug) ? testControlEvent(slug) : null);
 
   if (!isFullAdminRole(role)) {
     return (

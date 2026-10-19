@@ -42,6 +42,10 @@ import {
 } from './control/controlModel';
 import { clockOffset, formatElapsed, matchTimerState } from '@/lib/tournaments/matchTimer';
 import MatchElapsedClock from './MatchElapsedClock';
+// 체크인 경고 — Control Center 와 같은 정책(경고 후 예외 허용). 체크인 조회는 이 화면의 보드 조회와 분리돼 있다.
+import { useControlCheckins } from './control/useControlCheckins';
+import { uncheckedTeams } from '@/lib/tournaments/checkinModel';
+import { ControlCenterPathBanner, UncheckedAssignNotice } from './checkin/AssignCheckinNotice';
 
 /**
  * 경기 시간 표시(읽기 전용 · 타이머 1단계) — 진행 중은 경과, 완료는 소요 시간 고정.
@@ -137,6 +141,9 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
   const [s1, setS1] = React.useState('');
   const [s2, setS2] = React.useState('');
   const [reason, setReason] = React.useState('');
+  const checkins = useControlCheckins(slug);
+  /** 미체크인 팀 투입 '예외 허용' 확인 — 투입 대화상자를 열 때마다 초기화한다. */
+  const [ckAck, setCkAck] = React.useState(false);
   // 서버 시계 보정(경기 시간 표시용) — 보드를 받을 때마다 다시 잰다.
   const offset = React.useMemo(() => clockOffset(board?.serverNow ?? null, board?.receivedAt ?? null), [board]);
   // 결과 수정으로 동률 확정이 무효화됐을 때의 안내. 토스트는 사라지므로 따로 띄운다.
@@ -187,7 +194,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
 
   React.useEffect(() => { void load(); }, [load]);
 
-  const closeDlg = () => { setDlg(null); setS1(''); setS2(''); setReason(''); };
+  const closeDlg = () => { setDlg(null); setS1(''); setS2(''); setReason(''); setCkAck(false); };
 
   /**
    * write 공통 — 중복 클릭 방지 + **성공이든 실패든** authoritative full refetch.
@@ -304,9 +311,15 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
   const activeCourts = (board?.courts ?? []).filter((c) => c.status === 'active');
   const busyCourts = activeCourts.filter((c) => c.busy).length;
   const canGenerate = !!board && !board.matchesGenerated && board.drawStatus === 'locked';
+  // 투입 대화상자의 미체크인 팀(모르면 빈 목록 — 경고하지 않는다).
+  const ckMissing = dlg && dlg.kind === 'start'
+    ? (uncheckedTeams(checkins.lookup, [dlg.m.team1.teamNo, dlg.m.team2.teamNo]) ?? []) : [];
+  const ckBlocked = ckMissing.length > 0 && !ckAck;
 
   return (
     <div>
+      {/* 대회 당일 공식 투입 경로는 Control Center — 이 화면의 투입은 비상용으로 남긴다. */}
+      <ControlCenterPathBanner slug={slug} />
       {/* ── stale 경고 (차단하지 않는다 — 서버가 막지 않으므로) ────────────── */}
       {board?.matchesStale && (
         <div style={{
@@ -593,7 +606,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                       </button>
                       {/* 표시 문구만 '코트 투입' — 하는 일은 그대로 start_match(코트 배정 + 진행 중 전환).
                           Control Center 의 [경기 시작](타이머)과 헷갈리지 않게 한다. */}
-                      <button type="button" disabled={!!busy} onClick={() => setDlg({ kind: 'start', m })} style={btn('primary')}>
+                      <button type="button" disabled={!!busy} onClick={() => { setCkAck(false); setDlg({ kind: 'start', m }); }} style={btn('primary')}>
                         <Play size={13} strokeWidth={2.6} /> 코트 투입
                       </button>
                       <button type="button" disabled={!!busy} onClick={() => { setReason(''); setDlg({ kind: 'cancel', m }); }} style={btn('danger')}>
@@ -611,7 +624,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         style={btn()}>
                         <XIcon size={12} strokeWidth={2.6} /> 호명 취소
                       </button>
-                      <button type="button" disabled={!!busy} onClick={() => setDlg({ kind: 'start', m })} style={btn('primary')}>
+                      <button type="button" disabled={!!busy} onClick={() => { setCkAck(false); setDlg({ kind: 'start', m }); }} style={btn('primary')}>
                         <Play size={13} strokeWidth={2.6} /> 코트 투입
                       </button>
                       <button type="button" disabled={!!busy} onClick={() => { setReason(''); setDlg({ kind: 'cancel', m }); }} style={btn('danger')}>
@@ -700,6 +713,11 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
             {/* start */}
             {dlg.kind === 'start' && (
               <>
+                <UncheckedAssignNotice name={`m${dlg.m.matchNo}`} acknowledged={ckAck} onToggle={setCkAck}
+                  teams={ckMissing.map((n) => {
+                    const t = dlg.m.team1.teamNo === n ? dlg.m.team1 : dlg.m.team2;
+                    return { teamNo: n, label: [t.player1Name, t.player2Name].filter(Boolean).join(' · ') };
+                  })} />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 7, marginTop: 13 }}>
                   {(board?.courts ?? []).map((c) => {
                     const off = c.status !== 'active';
@@ -709,7 +727,7 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                       <button
                         key={c.courtNo}
                         type="button"
-                        disabled={!sel || !!busy || dlgStale}
+                        disabled={!sel || !!busy || dlgStale || ckBlocked}
                         onClick={() => void run(`start-${dlg.m.matchId}`, async () => {
                           await startMatch(dlg.m.matchId, c.courtNo, dlg.m.version);
                           return `#${dlg.m.matchNo} · ${c.courtNo}번 코트에 투입했습니다.`;

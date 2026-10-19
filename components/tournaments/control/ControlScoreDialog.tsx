@@ -41,7 +41,7 @@ const headOf = (m: ControlMatchRow): string => (
 );
 
 const btn: React.CSSProperties = {
-  minHeight: 38, padding: '8px 16px', borderRadius: 9,
+  minHeight: 44, padding: '8px 16px', borderRadius: 9,
   fontSize: 13, fontWeight: 800, cursor: 'pointer',
   border: `1px solid ${LINE}`, background: '#fff', color: INK_SOFT,
 };
@@ -271,7 +271,7 @@ export default function ControlScoreDialog({
             </p>
             <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: MUTED, lineHeight: 1.6 }}>
               저장하면 승자가 다음 자리로 올라가고 이어지는 경기가 만들어집니다.
-              되돌리려면 본선 대진 화면에서 정정해야 합니다.
+              되돌리려면 본부가 본선 대진 화면에서 정정해야 합니다.
             </p>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

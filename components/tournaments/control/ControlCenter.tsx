@@ -27,13 +27,16 @@ import { useControlData } from './controlView';
 import SignatureDisplayLauncher from '../SignatureDisplayLauncher';
 import MatchElapsedClock from '../MatchElapsedClock';
 import { clockOffset, formatElapsed, matchTimerState } from '@/lib/tournaments/matchTimer';
+import { uncheckedTeams } from '@/lib/tournaments/checkinModel';
+import { useControlCheckins } from './useControlCheckins';
+import ControlCheckinWarning from './ControlCheckinWarning';
 
 /**
  * 대기 목록에 한 번에 그리는 줄 수 — 화면 밀도를 위한 표시 제한일 뿐이다.
  *   ⚠ 대회 규칙이 아니다. 전체 개수는 항상 따로 보여 주고, 나머지는 경기 운영 화면에서 본다.
  */
 const WAITING_ROWS = 6;
-import type { OfficialTournament } from '@/lib/tournaments/types';
+import type { ControlEvent } from '@/lib/tournaments/testTournament';
 
 // ── 스타일 — 기존 Admin 화면(신청 목록 · 팀 관리)과 같은 토큰을 쓴다 ────────
 const INK = '#0F172A';
@@ -89,7 +92,7 @@ function PhasePill({ phase }: { phase: keyof typeof CONTROL_PHASE_LABEL }) {
 function Header({
   event, slug, phase, updatedAt, refreshing, onReload,
 }: {
-  event: OfficialTournament; slug: string; phase: keyof typeof CONTROL_PHASE_LABEL;
+  event: ControlEvent; slug: string; phase: keyof typeof CONTROL_PHASE_LABEL;
   updatedAt: number | null; refreshing: boolean; onReload: () => void;
 }) {
   return (
@@ -99,7 +102,9 @@ function Header({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
           <h1 style={{
             margin: 0, fontFamily: LABEL, fontSize: 21, fontWeight: 800,
-            letterSpacing: '0.01em', color: INK, whiteSpace: 'nowrap',
+            letterSpacing: '0.01em', color: INK,
+            // 테스트 대회 이름(slug 포함)은 길 수 있다 — 좁은 화면에서 줄을 바꾼다.
+            whiteSpace: event.test ? 'normal' : 'nowrap', overflowWrap: 'anywhere',
           }}>
             {event.titleFull}
           </h1>
@@ -122,28 +127,47 @@ function Header({
           <RefreshCw size={13} strokeWidth={2.4} />
           {refreshing ? '조회 중' : '새로고침'}
         </button>
-        <Link
-          href={`/tournaments/${slug}/arena?mode=prelim`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ ...navBtn, minHeight: 34, padding: '7px 12px', background: NAVY, borderColor: NAVY, color: '#fff' }}
-        >
-          ARENA TV 열기
-          <ExternalLink size={13} strokeWidth={2.4} />
-        </Link>
+        {/* 테스트 대회는 공개 전광판으로 가는 링크를 두지 않는다(공개 화면에는 나오지 않는다). */}
+        {!event.test && (
+          <Link
+            href={`/tournaments/${slug}/arena?mode=prelim`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...navBtn, minHeight: 34, padding: '7px 12px', background: NAVY, borderColor: NAVY, color: '#fff' }}
+          >
+            ARENA TV 열기
+            <ExternalLink size={13} strokeWidth={2.4} />
+          </Link>
+        )}
       </div>
     </div>
   );
 }
 
 /** 기존 운영 화면으로 가는 가벼운 이동 줄. 머리말보다 강해지지 않게 한 단계 작게 둔다. */
-function TournamentNav({ slug }: { slug: string }) {
+function TournamentNav({ slug, test = false }: { slug: string; test?: boolean }) {
   const items: Array<[string, string]> = [
     ['팀 관리', 'teams'], ['조편성', 'groups'], ['경기 운영', 'matches'],
     ['예선 순위', 'standings'], ['본선 대진', 'bracket'], ['코트 관리', 'courts'],
   ];
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      {/* 현장 운영 — 허브(전체 메뉴) · 체크인 · 현장 운영자. 모바일에서는 하단 메뉴가 없으므로 여기서 이동한다.
+          테스트 대회는 공식 허브로 가지 않는다(허브는 실제 대회 전용). */}
+      {!test && (
+        <Link href="/admin/teyeon-open" data-control-nav="hub"
+          style={{ ...navBtn, minHeight: 28, padding: '4px 9px', fontSize: 11.5, color: INK_SOFT }}>
+          TEYEON OPEN 허브
+        </Link>
+      )}
+      <Link href={`/admin/tournaments/${slug}/checkin`} data-control-nav="checkin"
+        style={{ ...navBtn, minHeight: 28, padding: '4px 9px', fontSize: 11.5, color: TEAL, borderColor: TEAL }}>
+        선수 체크인
+      </Link>
+      <Link href={`/admin/tournaments/${slug}/staff`} data-control-nav="staff"
+        style={{ ...navBtn, minHeight: 28, padding: '4px 9px', fontSize: 11.5, color: TEAL, borderColor: TEAL }}>
+        현장 운영자
+      </Link>
       {items.map(([label, path]) => (
         <Link key={path} href={`/admin/tournaments/${slug}/${path}`}
           style={{ ...navBtn, minHeight: 28, padding: '4px 9px', fontSize: 11.5, color: MUTED }}>
@@ -483,9 +507,11 @@ function KnockoutStatus({ k }: { k: NonNullable<ReturnType<typeof deriveKnockout
  *     — 선택을 지우지도, 다른 경기로 옮기지도 않는다. 해제는 운영자가 [선택 취소] 로 한다.
  */
 function PickBanner({
-  match, state, disabled, onCancel,
+  match, state, disabled, onCancel, unchecked = null,
 }: {
   match: ControlMatchRow; state: ControlPickState; disabled: boolean; onCancel: () => void;
+  /** 체크인 안 된 팀 번호(모르면 null). 표시 전용 — 코트를 고르면 한 번 더 확인한다. */
+  unchecked?: number[] | null;
 }) {
   const head = match.stage === 'knockout'
     ? (match.roundName ?? '본선')
@@ -514,6 +540,15 @@ function PickBanner({
       {ok ? (
         <span style={{ fontSize: 12, fontWeight: 700, color: INK_SOFT }}>
           아래에서 비어 있는 코트를 선택해 주세요.
+          {unchecked && unchecked.length > 0 && (
+            <span data-control-pick-unchecked={unchecked.join(',')} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 6,
+              color: '#9A3412', fontWeight: 800,
+            }}>
+              <AlertTriangle size={12} strokeWidth={2.4} />
+              {unchecked.map((n) => `TEAM ${String(n).padStart(2, '0')}`).join(' · ')} 미체크인
+            </span>
+          )}
         </span>
       ) : (
         <span role="alert" data-control-pick-warning style={{
@@ -622,7 +657,7 @@ function Quiet({ title, desc, retry }: {
 
 // ── 화면 ────────────────────────────────────────────────────────────────────
 
-export default function ControlCenter({ slug, event }: { slug: string; event: OfficialTournament }) {
+export default function ControlCenter({ slug, event }: { slug: string; event: ControlEvent }) {
   const st = useControlData(slug);
   const snap = st.snapshot;
 
@@ -653,6 +688,9 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     reload: st.reload, hold: st.hold, release: st.release, latest: st.latest,
   });
 
+  // 팀 체크인 — 별도 조회(실패해도 관제에 영향 없음). 대기 줄 표시와 투입 직전 경고에만 쓴다.
+  const checkins = useControlCheckins(slug);
+
   /**
    * 투입할 경기로 고른 상태 — **고른 순간의 행 그대로**(matchId · version · 팀)를 들고 있다.
    *   ⚠ 재조회로 바꾸지 않는다. 최신 상태는 derivePickState 로 비교만 한다.
@@ -674,6 +712,21 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     [scoreFor, snap],
   );
   const canStart = pick !== null && pickState?.kind === 'ok';
+
+  /**
+   * 미체크인 경고 — 코트를 고른 순간 체크인 안 된 팀이 있으면 바로 투입하지 않고 한 번 묻는다.
+   *   ⚠ 경고일 뿐이다. 운영자(CEO/ADMIN)가 [예외 허용]을 누르면 기존 투입 그대로 진행한다(서버는 막지 않는다).
+   *   ⚠ 체크인 정보를 모르면(조회 실패 · 미적용) 묻지 않고 기존대로 투입한다 — 경고 기능이 진행을 막지 않게.
+   */
+  const [checkinWarn, setCheckinWarn] = React.useState<
+    { match: ControlMatchRow; courtNo: number; teamNos: number[] } | null
+  >(null);
+  /** 투입 직전 체크인 확인 중(최대 2.5초) — 그동안 코트 버튼을 다시 받지 않는다. */
+  const [checkingIn, setCheckingIn] = React.useState(false);
+  const pickUnchecked = React.useMemo(
+    () => (pick ? uncheckedTeams(checkins.lookup, [pick.team1.teamNo, pick.team2.teamNo]) : null),
+    [pick, checkins.lookup],
+  );
 
   // 서버 시계 보정 — 보드를 받을 때마다 다시 잰다. serverNow 가 없는 서버면 null(타이머 숨김).
   const offset = React.useMemo(
@@ -701,17 +754,50 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
     onScore: (m) => setScoreFor(m),
     onStartTimer: (m) => { void act.startTimer(m); },
     clockOffset: offset,
-  }), [act, pick, offset]);
+    checkin: checkins.lookup,
+  }), [act, pick, offset, checkins.lookup]);
 
   /**
    * 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번).
    *   ⚠ 보내는 version 은 운영자가 **고른 순간의** 값이다. 최신 조회 값으로 바꿔 넣지 않는다.
    *   ⚠ 성공했을 때만 선택을 푼다. 실패(코트 충돌 · 늦음) · 확인 불가면 선택을 남겨 운영자가 보고 정한다.
    */
+  const startOnCourt = React.useCallback((m: ControlMatchRow, courtNo: number) => {
+    void act.start(m, courtNo).then((r) => { if (r === 'success') setPick(null); });
+  }, [act]);
+
+  /** 같은 순간의 연타 방지 — 상태(checkingIn)는 다음 렌더에야 반영된다. */
+  const checkingRef = React.useRef(false);
   const onCourtPick = React.useCallback((courtNo: number) => {
-    if (!pick || !canStart || act.busy) return;
-    void act.start(pick, courtNo).then((r) => { if (r === 'success') setPick(null); });
-  }, [act, pick, canStart]);
+    if (!pick || !canStart || act.busy || checkingRef.current) return;
+    const m = pick;
+    checkingRef.current = true;
+    setCheckingIn(true);
+    // 다른 기기에서 방금 체크인했을 수 있다 — 최신 값을 한 번 읽는다(지연 · 실패면 마지막 값).
+    void checkins.fresh().then((lookup) => {
+      checkingRef.current = false;
+      setCheckingIn(false);
+      const missing = uncheckedTeams(lookup, [m.team1.teamNo, m.team2.teamNo]);
+      if (missing && missing.length > 0) {
+        setCheckinWarn({ match: m, courtNo, teamNos: missing });
+        return;
+      }
+      startOnCourt(m, courtNo);
+    });
+  }, [act, pick, canStart, checkins, startOnCourt]);
+
+  // 고른 경기가 바뀌거나 풀리면 그 경기의 경고도 닫는다(다른 경기로 잘못 투입되지 않게).
+  React.useEffect(() => {
+    setCheckinWarn((w) => (w && w.match.matchId !== pick?.matchId ? null : w));
+  }, [pick]);
+
+  /** [예외 허용 — 투입] — 경고를 띄운 그 경기가 아직 고른 경기이고 투입 가능할 때만 보낸다. */
+  const onCheckinOverride = React.useCallback(() => {
+    const w = checkinWarn;
+    setCheckinWarn(null);
+    if (!w || !pick || pick.matchId !== w.match.matchId || !canStart || act.busy) return;
+    startOnCourt(pick, w.courtNo);
+  }, [checkinWarn, pick, canStart, act, startOnCourt]);
 
   /**
    * 점수 저장 — 모달을 연 순간의 version 으로 보낸다.
@@ -740,14 +826,28 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-        <TournamentNav slug={slug} />
+        <TournamentNav slug={slug} test={!!event.test} />
       </div>
+
+      {/* 테스트(리허설) 대회 — 실제 대회와 헷갈리지 않게 맨 위에 크게 띄운다. */}
+      {event.test && (
+        <div data-control-test-banner role="note" style={{
+          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '11px 14px', borderRadius: 11,
+          background: '#FEF3C7', border: '2px dashed #D97706', color: '#78350F',
+        }}>
+          <AlertTriangle size={16} strokeWidth={2.6} />
+          <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '0.02em' }}>테스트 대회</span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, wordBreak: 'keep-all' }}>
+            실제 대회가 아닙니다. 참가자 화면 · 전광판 · 공식 기록에 나오지 않습니다.
+          </span>
+        </div>
+      )}
 
       <Header event={event} slug={slug} phase={phase} updatedAt={st.updatedAt}
         refreshing={st.refreshing} onReload={manualReload} />
 
       {/* Signature 전광판 3종(새 탭) — 관제 화면을 밀어내지 않게 한 줄로. 기존 ARENA TV 버튼은 머리말에 그대로 있다. */}
-      <SignatureDisplayLauncher slug={slug} variant="compact" />
+      {!event.test && <SignatureDisplayLauncher slug={slug} variant="compact" />}
 
       {/* 결과를 확인할 수 없었던 조작 — 운영자가 [확인함] 을 누를 때까지 남는다. */}
       <UnverifiedList items={act.unverified} refreshing={st.refreshing}
@@ -789,12 +889,12 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
               {/* 고른 경기는 코트 바로 위에 둔다 — 다음에 누를 곳이 눈앞에 있어야 한다. */}
               {pick && pickState && (
                 <PickBanner match={pick} state={pickState} disabled={act.busy !== ''}
-                  onCancel={() => setPick(null)} />
+                  onCancel={() => setPick(null)} unchecked={pickUnchecked} />
               )}
               <CourtBoard
                 courts={courts}
                 picking={canStart}
-                disabled={act.busy !== ''}
+                disabled={act.busy !== '' || checkingIn || checkinWarn !== null}
                 onPick={onCourtPick}
               />
               {summary.total === 0 && (
@@ -839,6 +939,18 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Of
               : scoreTimer.kind === 'not_started' ? '시작 기록 없음'
                 : scoreTimer.kind === 'finished' ? formatElapsed(scoreTimer.durationMs) : null
             : null}
+        />
+      )}
+
+      {checkinWarn && (
+        <ControlCheckinWarning
+          match={checkinWarn.match}
+          courtNo={checkinWarn.courtNo}
+          teamNos={checkinWarn.teamNos}
+          slug={slug}
+          busy={act.busy !== ''}
+          onClose={() => setCheckinWarn(null)}
+          onOverride={onCheckinOverride}
         />
       )}
 

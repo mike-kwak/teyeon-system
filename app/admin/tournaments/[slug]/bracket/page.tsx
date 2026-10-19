@@ -55,6 +55,10 @@ import {
   type BracketMatchableTeam, type BracketPastePreview,
 } from '@/lib/tournaments/bracketPasteParser';
 import { callMatch, uncallMatch, startMatch } from '@/lib/tournaments/matchAdminService';
+// 체크인 경고 — Control Center 와 같은 정책(경고 후 예외 허용). 체크인 조회는 이 화면의 조회와 분리돼 있다.
+import { useControlCheckins } from '@/components/tournaments/control/useControlCheckins';
+import { uncheckedTeams } from '@/lib/tournaments/checkinModel';
+import { ControlCenterPathBanner, UncheckedAssignNotice } from '@/components/tournaments/checkin/AssignCheckinNotice';
 import { fetchAdminCourts } from '@/lib/tournaments/drawAdminService';
 import type { TournamentCourt } from '@/lib/tournaments/drawTypes';
 import { PUBLIC_KNOCKOUT_ENABLED } from '@/lib/tournaments/publicKnockoutFlags';
@@ -151,6 +155,9 @@ export default function AdminTournamentBracketPage() {
   // STEP 5 본선 경기 운영
   const [courts, setCourts] = React.useState<TournamentCourt[]>([]);
   const [courtPick, setCourtPick] = React.useState<Record<string, string>>({});
+  const checkins = useControlCheckins(slug);
+  /** 경기별 미체크인 '예외 허용' 확인 — 투입에 성공하면 그 경기 카드는 사라진다(진행 중으로 바뀐다). */
+  const [ckAck, setCkAck] = React.useState<Record<string, boolean>>({});
   const [scoreDraft, setScoreDraft] = React.useState<Record<string, { s1: string; s2: string }>>({});
   const [amendOpen, setAmendOpen] = React.useState('');
   const [amendReason, setAmendReason] = React.useState('');
@@ -1178,6 +1185,9 @@ export default function AdminTournamentBracketPage() {
             <div style={card}>
               <StepHead no={5} title="본선 경기 운영"
                 desc="확정된 대진을 경기로 만들고 결과를 입력합니다. 부전승은 경기가 아니라 카드가 없습니다." />
+              <div style={{ marginTop: 10 }}>
+                <ControlCenterPathBanner slug={slug} />
+              </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 11, alignItems: 'center' }}>
                 <button type="button" style={btn('primary')}
@@ -1210,6 +1220,11 @@ export default function AdminTournamentBracketPage() {
                     const setSd = (v: { s1: string; s2: string }) =>
                       setScoreDraft((prev) => ({ ...prev, [m.id]: v }));
                     const pick = courtPick[m.id] ?? '';
+                    // 미체크인 팀(모르면 빈 목록 — 경고하지 않는다). 본선 팀은 정해진 경우에만 번호가 있다.
+                    const ckMissing = (m.status === 'waiting' || m.status === 'calling')
+                      ? (uncheckedTeams(checkins.lookup, [m.team1.teamNo, m.team2.teamNo].filter((n): n is number => n != null)) ?? [])
+                      : [];
+                    const ckBlocked = ckMissing.length > 0 && !ckAck[m.id];
                     const tone = m.status === 'completed' ? '#047857'
                       : m.status === 'playing' ? '#B45309'
                       : m.status === 'calling' ? '#1D4ED8' : '#64748B';
@@ -1274,7 +1289,7 @@ export default function AdminTournamentBracketPage() {
                                 </option>
                               ))}
                             </select>
-                            <button type="button" style={btn('primary')} disabled={!!busy || pick === ''}
+                            <button type="button" style={btn('primary')} disabled={!!busy || pick === '' || ckBlocked}
                               onClick={() => void runMatch(`start-${m.id}`, async () => {
                                 // 표시 문구만 '코트 투입' — 하는 일은 그대로 start_match(코트 배정 + 진행 중 전환).
                                 //   Control Center 의 [경기 시작](타이머)과 구분한다.
@@ -1284,6 +1299,14 @@ export default function AdminTournamentBracketPage() {
                               {busy === `start-${m.id}` ? '투입 중…' : '코트 투입'}
                             </button>
                           </div>
+                        )}
+                        {ckMissing.length > 0 && (
+                          <UncheckedAssignNotice name={`k${m.matchNo}`} acknowledged={!!ckAck[m.id]}
+                            onToggle={(v) => setCkAck((prev) => ({ ...prev, [m.id]: v }))}
+                            teams={ckMissing.map((n) => {
+                              const t = m.team1.teamNo === n ? m.team1 : m.team2;
+                              return { teamNo: n, label: [t.player1Name, t.player2Name].filter(Boolean).join(' · ') };
+                            })} />
                         )}
 
                         {m.status === 'playing' && (

@@ -15,6 +15,7 @@ import { AlertTriangle, Info, ChevronRight } from 'lucide-react';
 import type { AttentionItem, ControlMatchRow, ControlWaiting } from './controlModel';
 import { matchTimerState } from '@/lib/tournaments/matchTimer';
 import MatchElapsedClock from '../MatchElapsedClock';
+import type { CheckinLookup } from '@/lib/tournaments/checkinModel';
 
 // 4F-1 과 같은 토큰을 쓴다(새 색 체계를 만들지 않는다).
 const INK = '#0F172A';
@@ -97,6 +98,11 @@ export interface ControlOps {
    *   null 이면 서버가 타이머를 지원하지 않는다(타이머 SQL 이전) → 경기 시작 버튼 · 경과 시간을 모두 숨긴다.
    */
   clockOffset: number | null;
+  /**
+   * 팀 체크인 현황(팀 번호 → 체크인 여부) — 대기 줄의 '미체크인' 표시 전용.
+   *   null 이면 모름(조회 실패 · 체크인 SQL 미적용) → 아무 표시도 하지 않는다. 투입 가능 여부와 무관하다.
+   */
+  checkin?: CheckinLookup | null;
 }
 
 const teamText = (t: ControlMatchRow['team1']): string => {
@@ -168,9 +174,16 @@ export function ControlAttention({ items, slug }: { items: AttentionItem[]; slug
 
 // ── 경기 줄 ─────────────────────────────────────────────────────────────────
 
-function TeamLine({ team }: { team: ControlMatchRow['team1'] }) {
+/** 대기 줄에서 체크인 안 된 팀인가 — 모르면(목록에 없음 · 조회 불가) false. 기권 팀은 표시하지 않는다. */
+const isUnchecked = (lookup: CheckinLookup | null | undefined, teamNo: number): boolean => {
+  const v = lookup?.get(teamNo);
+  return v !== undefined && v.status === 'active' && !v.checkedIn;
+};
+
+function TeamLine({ team, unchecked = false }: { team: ControlMatchRow['team1']; unchecked?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+    <div data-team-line={team.teamNo} data-team-unchecked={unchecked ? '1' : undefined}
+      style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
       <span style={{
         fontFamily: LABEL, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em',
         color: FAINT, flexShrink: 0, minWidth: 48,
@@ -183,6 +196,15 @@ function TeamLine({ team }: { team: ControlMatchRow['team1'] }) {
       }}>
         {teamText(team)}
       </span>
+      {unchecked && (
+        <span data-team-checkin-badge style={{
+          flexShrink: 0, marginLeft: 'auto', padding: '1px 6px', borderRadius: 5,
+          fontSize: 10.5, fontWeight: 800, color: AMBER_INK, background: AMBER_BG,
+          border: `1px solid ${AMBER_BD}`, whiteSpace: 'nowrap',
+        }}>
+          미체크인
+        </span>
+      )}
     </div>
   );
 }
@@ -327,8 +349,8 @@ function WaitingRow({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
         </div>
       </div>
 
-      <TeamLine team={m.team1} />
-      <TeamLine team={m.team2} />
+      <TeamLine team={m.team1} unchecked={isUnchecked(ops.checkin, m.team1.teamNo)} />
+      <TeamLine team={m.team2} unchecked={isUnchecked(ops.checkin, m.team2.teamNo)} />
     </div>
   );
 }

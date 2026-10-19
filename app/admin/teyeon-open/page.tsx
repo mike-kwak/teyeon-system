@@ -15,7 +15,7 @@ import React from 'react';
 import Link from 'next/link';
 import {
   ArrowUpRight, Award, CalendarDays, ClipboardList, Clock, Gauge, LayoutGrid, ListOrdered, MapPin,
-  Network, ShieldAlert, Smartphone, SquareStack, Trophy, Tv, Users, Wrench,
+  Network, ShieldAlert, ShieldCheck, Smartphone, SquareStack, Trophy, Tv, UserCheck, Users, Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -76,7 +76,9 @@ function sectionsFor(slug: string): HubSection[] {
     {
       id: 'operate', no: '03', title: '경기 운영', lead: '대회 당일 관제 — 호명 · 코트 투입 · 점수 · 완료.',
       links: [
+        { id: 'checkin', title: '선수 체크인', desc: '두 선수 도착 확인 후 팀 단위 체크인 · 현황 · 취소', icon: UserCheck, href: `${admin}/checkin` },
         { id: 'control', title: 'Control Center', desc: '코트 배정 · 경기 시작 · 점수 입력 · 완료 처리(당일 관제)', icon: Gauge, href: `${admin}/control` },
+        { id: 'staff', title: '현장 운영자 승인', desc: '현장 운영 권한 요청 승인 · 회수(예선 · 본선 경기 시작 · 점수 입력 · 완료)', icon: ShieldCheck, href: `${admin}/staff` },
         { id: 'matches', title: '예선 경기 운영(기존)', desc: 'Control Center 이전의 예선 경기 운영 화면', icon: Clock, href: `${admin}/matches` },
       ],
     },
