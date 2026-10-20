@@ -29,6 +29,8 @@ const MUTED = '#64748B';
 const FAINT = '#94A3B8';
 const LINE = '#E2E8F0';
 const NAVY = '#0F1B33';
+const TEAL = '#0F766E';
+const TEAL_SOFT = '#F0FAF8';
 const LABEL = 'var(--font-rajdhani), sans-serif';
 
 interface HubLink {
@@ -42,6 +44,8 @@ interface HubLink {
   newTab?: boolean;
   /** 카드 아래 작은 안내. */
   note?: string;
+  /** 눈에 띄게 강조할 카드 — 짧은 꼬리표(예: 'SMS')를 함께 보인다. */
+  badge?: string;
 }
 
 interface HubSection {
@@ -60,8 +64,11 @@ function sectionsFor(slug: string): HubSection[] {
       id: 'registration', no: '01', title: '참가 접수', lead: '참가 신청 현황을 보고 상태를 처리합니다.',
       links: [
         { id: 'registrations', title: '신청 현황', desc: '신청 목록 · 입금/확정 상태 · 대기팀 승격', icon: ClipboardList, href: `${admin}/registrations` },
+        {
+          id: 'sms-center', title: '대회 문자 안내 센터', desc: 'SMS NOTICE CENTER · 참가자 연락처 · 문자 템플릿 · 안내 링크 관리(번호 · 문구 복사 → 휴대폰 문자 앱으로 발송)',
+          icon: MessageSquareText, href: `${admin}/sms-center`, badge: 'SMS',
+        },
         { id: 'hosted-list', title: '대회 접수 목록', desc: '기존 ‘대회 접수’ 메뉴와 같은 화면 · 주최 대회 전체', icon: SquareStack, href: '/admin/tournaments' },
-        { id: 'sms-center', title: '대회 문자 안내 센터', desc: 'SMS NOTICE CENTER · 참가자 연락처 · 문자 템플릿 · 안내 링크 관리', icon: MessageSquareText, href: `${admin}/sms-center` },
       ],
     },
     {
@@ -112,18 +119,24 @@ function sectionsFor(slug: string): HubSection[] {
 function HubCard({ link }: { link: HubLink }) {
   const Icon = link.icon;
   const ready = !!link.href;
+  const accent = ready && !!link.badge;
   const body = (
     <>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, minWidth: 0 }}>
         <span aria-hidden style={{
           width: 36, height: 36, flexShrink: 0, borderRadius: 10, display: 'grid', placeItems: 'center',
-          background: ready ? '#EEF2FF' : '#F1F5F9', border: `1px solid ${ready ? '#DCE3F5' : LINE}`,
+          background: accent ? TEAL : ready ? '#EEF2FF' : '#F1F5F9', border: `1px solid ${accent ? TEAL : ready ? '#DCE3F5' : LINE}`,
         }}>
-          <Icon size={18} strokeWidth={2.2} color={ready ? NAVY : FAINT} />
+          <Icon size={18} strokeWidth={2.2} color={accent ? '#fff' : ready ? NAVY : FAINT} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14.5, fontWeight: 900, color: ready ? INK : MUTED, wordBreak: 'keep-all' }}>{link.title}</span>
+            {accent && (
+              <span data-hub-badge style={{ fontFamily: LABEL, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', color: '#fff', background: TEAL, borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                {link.badge}
+              </span>
+            )}
             {!ready && (
               <span data-hub-pending style={{ fontSize: 10.5, fontWeight: 800, color: '#B45309', background: '#FEF3C7', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
                 준비 중
@@ -151,7 +164,8 @@ function HubCard({ link }: { link: HubLink }) {
   );
   const frame: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, boxSizing: 'border-box',
-    background: ready ? '#fff' : '#F8FAFC', border: `1px ${ready ? 'solid' : 'dashed'} ${ready ? LINE : '#CBD5E1'}`,
+    background: accent ? TEAL_SOFT : ready ? '#fff' : '#F8FAFC',
+    border: accent ? `1.5px solid ${TEAL}` : `1px ${ready ? 'solid' : 'dashed'} ${ready ? LINE : '#CBD5E1'}`,
     borderRadius: 12, padding: 13, textDecoration: 'none', color: 'inherit',
   };
   if (!ready) return <div data-hub-card={link.id} aria-disabled="true" style={frame}>{body}</div>;
