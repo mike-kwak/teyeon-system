@@ -6,8 +6,12 @@
 //     interaction state = scale · translate · dragging · 그리고 그걸 바꾸는 동작뿐이다.
 //   ⚠ 데이터가 갱신돼도(45초 갱신) 이 상태는 그대로 살아 있어야 한다 —
 //     그래서 bracket 데이터가 아니라 '표면 크기' 만 인자로 받는다.
-//   ⚠ 페이지 세로 스크롤을 빼앗지 않는다. 가로 이동과 두 손가락 확대만 가져간다
-//     (viewport 에 touch-action: pan-y 를 건다 — 세로 스크롤은 브라우저가 계속 처리).
+//   ⚠ 대진표 창 안의 터치는 전부 대진표 몫이다 — 한 손가락 상하좌우 이동 · 두 손가락 확대.
+//     창에 touch-action: none 을 걸고(컴포넌트), 여기서 창에만 non-passive touchmove 를 달아 막는다.
+//     예전 pan-y 는 세로 끌기에서 대진표와 바깥 페이지가 같이 움직였다(브라우저가 스크롤을 가져가기 전까지
+//     pointermove 가 대진표를 옮기고, 그다음 페이지가 스크롤됨). iOS Safari 는 touch-action 만으로
+//     페이지 스크롤 · 확대를 다 막지 못하는 경우가 있어 touchmove · gesture 기본 동작도 창 안에서만 막는다.
+//   ⚠ 창 바깥 페이지 스크롤은 건드리지 않는다(전역 리스너 없음).
 
 import React from 'react';
 
@@ -71,8 +75,33 @@ const prefersReducedMotion = (): boolean => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 };
 
+/**
+ * 창 안 터치의 브라우저 기본 동작(페이지 스크롤 · 페이지 확대)을 막는다. 창에만 달고 떼는 함수를 돌려준다.
+ *   touchstart 는 막지 않는다(포커스 · 버튼 탭은 그대로).
+ */
+function guardViewportTouch(el: HTMLElement): () => void {
+  const stop = (e: Event) => { if (e.cancelable) e.preventDefault(); };
+  const opts: AddEventListenerOptions = { passive: false };
+  el.addEventListener('touchmove', stop, opts);
+  // Safari 전용 제스처 이벤트 — 두 손가락이 페이지 확대로 새지 않게.
+  el.addEventListener('gesturestart', stop, opts);
+  el.addEventListener('gesturechange', stop, opts);
+  return () => {
+    el.removeEventListener('touchmove', stop, opts);
+    el.removeEventListener('gesturestart', stop, opts);
+    el.removeEventListener('gesturechange', stop, opts);
+  };
+}
+
 export function useBracketInteraction(surface: Size) {
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
+  // 창은 '전체 대진표' 보기에서만 그려진다 — 붙을 때 터치 막기를 달고, 떨어질 때 뗀다(누적 없음).
+  const unguardRef = React.useRef<(() => void) | null>(null);
+  const bindViewport = React.useCallback((el: HTMLDivElement | null) => {
+    unguardRef.current?.();
+    unguardRef.current = el ? guardViewportTouch(el) : null;
+    viewportRef.current = el;
+  }, []);
   const [transform, setTransform] = React.useState<BracketTransform>({ scale: 1, x: 12, y: 0 });
   const [dragging, setDragging] = React.useState(false);
 
@@ -91,7 +120,9 @@ export function useBracketInteraction(surface: Size) {
     const view = viewSize();
     const s = clamp(next.scale, minScaleOf(view, surfaceRef.current), MAX_SCALE);
     const p = clampTranslate(next.x, next.y, s, view, surfaceRef.current);
-    setTransform({ scale: s, x: p.x, y: p.y });
+    const t = { scale: s, x: p.x, y: p.y };
+    tRef.current = t;   // 다음 렌더 전에 손가락이 바뀌어도(핀치 → 이동) 최신 값에서 이어 간다
+    setTransform(t);
   }, [viewSize]);
 
   /** 뷰포트 한 점을 기준으로 배율만 바꾼다(그 점이 제자리에 머문다). */
@@ -171,6 +202,10 @@ export function useBracketInteraction(surface: Size) {
   const onPointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
     if (!el) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // 새 제스처의 첫 손가락 — 이전 제스처에서 up/cancel 을 못 받은 손가락이 남아 있으면 버린다
+    // (남은 점이 있으면 한 손가락을 두 손가락 확대로 오인한다).
+    if (e.isPrimary) pointers.current.clear();
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     try { el.setPointerCapture(e.pointerId); } catch { /* 캡처 실패는 무시 — 이동은 계속 동작한다 */ }
 
@@ -221,7 +256,8 @@ export function useBracketInteraction(surface: Size) {
 
   const endPointer = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
-    pointers.current.delete(e.pointerId);
+    // up · cancel 다음에 lostpointercapture 가 한 번 더 온다 — 이미 끝난 손가락이면 아무것도 하지 않는다.
+    if (!pointers.current.delete(e.pointerId)) return;
     try { el?.releasePointerCapture(e.pointerId); } catch { /* 이미 해제된 경우 무시 */ }
 
     if (pointers.current.size === 1) {
@@ -258,7 +294,7 @@ export function useBracketInteraction(surface: Size) {
   }, [apply]);
 
   return {
-    viewportRef,
+    viewportRef: bindViewport,
     transform,
     dragging,
     zoomBy,
@@ -270,6 +306,7 @@ export function useBracketInteraction(surface: Size) {
       onPointerMove,
       onPointerUp: endPointer,
       onPointerCancel: endPointer,
+      onLostPointerCapture: endPointer,
       onWheel,
     },
   };

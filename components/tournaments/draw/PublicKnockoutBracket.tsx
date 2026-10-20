@@ -6,7 +6,8 @@
 //     시드 · BYE 위치 · 대진 조합 · 진출자를 여기서 정하지 않는다.
 //   ⚠ 글자를 줄여 억지로 한 화면에 넣지 않는다. 보이는 창(viewport)과 전체 면(surface)을 분리하고
 //     면을 transform 으로 옮긴다. 가로 스크롤 주인을 둘로 만들지 않는다(창은 overflow hidden).
-//   ⚠ 페이지 세로 스크롤을 빼앗지 않는다(touch-action: pan-y).
+//   ⚠ 대진표 창 안에서는 손가락 한 개로 상하좌우 이동(touch-action: none) — 끄는 동안 바깥 페이지는 움직이지 않는다.
+//     페이지 스크롤은 창 바깥(요약 · 검색 · 조작 줄 · 아래 안내)에서 한다.
 //   ⚠ 진행 중 경기에 가짜 점수를 만들지 않는다. 우승은 서버가 확정했을 때만 표시한다.
 //   ⚠ 경로 강조는 '이 자리에서 이어지는 대진 경로' 다. 그 팀이 이긴다는 뜻이 아니다.
 
@@ -258,8 +259,9 @@ export default function PublicKnockoutBracket({
 
   // ── 전체 화면(전체 대진표만) ──────────────────────────────────────────────
   //   · 열면 history 에 한 칸을 쌓는다 → 브라우저 '뒤로' 가 페이지를 떠나지 않고 전체 화면만 닫는다.
-  //   · 전체 화면에서는 손가락 한 개로 상하좌우 이동(touch-action: none) — 페이지 스크롤과 다투지 않는다.
+  //   · 창 안 이동은 평소와 같다(touch-action: none). 머리줄까지 틀 전체를 touch-action: none 으로 덮는다.
   //   · 뒤쪽 페이지 스크롤은 잠그고, 닫으면 원래대로 돌린다.
+  //     iOS Safari 는 overflow: hidden 만으로 뒤 페이지가 끌려 오는 경우가 있어 틀의 touchmove 도 막는다(틀에만 · 닫으면 뗀다).
   const openFullscreen = React.useCallback(() => {
     try { window.history.pushState({ ...(window.history.state ?? {}), ttKnockoutFullscreen: true }, ''); } catch { /* 기록을 못 쌓아도 닫기 버튼으로 닫힌다 */ }
     setFullscreen(true);
@@ -285,10 +287,14 @@ export default function PublicKnockoutBracket({
     const root = document.documentElement;
     locked.push({ el: root, overflow: root.style.overflow }); root.style.overflow = 'hidden';
     locked.push({ el: document.body, overflow: document.body.style.overflow }); document.body.style.overflow = 'hidden';
+    const frame = frameRef.current;
+    const stopTouch = (e: TouchEvent) => { if (e.cancelable) e.preventDefault(); };
+    frame?.addEventListener('touchmove', stopTouch, { passive: false });
     // 창 크기가 바뀐 뒤 전체가 보이게 맞춘다.
     const raf = requestAnimationFrame(() => fit());
     return () => {
       cancelAnimationFrame(raf);
+      frame?.removeEventListener('touchmove', stopTouch);
       window.removeEventListener('popstate', onPop);
       window.removeEventListener('keydown', onKey);
       locked.forEach(({ el: e, overflow }) => { e.style.overflow = overflow; });
@@ -447,7 +453,7 @@ export default function PublicKnockoutBracket({
 
           <p style={{ margin: '7px 2px 0', fontSize: 12, fontWeight: 600, color: TT.subtle,
             lineHeight: 1.6, wordBreak: 'keep-all' }}>
-            좌우로 끌어 이동하고 두 손가락으로 확대할 수 있습니다. 위아래로도 자유롭게 움직이려면 ‘전체 화면’을 누르세요.
+            대진표 안에서 한 손가락으로 상하좌우 이동, 두 손가락으로 확대합니다. 페이지는 대진표 바깥을 끌어 내리세요.
             아직 예선 결과가 반영되지 않은 자리는 ‘N조 M위’로 표시됩니다.
           </p>
 
@@ -478,7 +484,7 @@ export default function PublicKnockoutBracket({
                 </button>
               </div>
             )}
-            {/* ── 보이는 창 ─ 평소: 세로 스크롤은 페이지에(가로 이동만) / 전체 화면: 상하좌우 이동 ── */}
+            {/* ── 보이는 창 ─ 평소 · 전체 화면 모두 창 안에서는 상하좌우 이동(페이지 스크롤은 창 바깥에서) ── */}
             <div
               ref={viewportRef}
               role="region"
@@ -491,7 +497,7 @@ export default function PublicKnockoutBracket({
                   : { height: 'clamp(380px, 62vh, 720px)', borderRadius: 14, border: `1px solid ${TT.line}` }),
                 background: TT.surface,
                 position: 'relative', overflow: 'hidden',
-                touchAction: fullscreen ? 'none' : 'pan-y',
+                touchAction: 'none', overscrollBehavior: 'contain',
                 cursor: dragging ? 'grabbing' : 'grab',
                 userSelect: 'none', WebkitUserSelect: 'none',
               }}
