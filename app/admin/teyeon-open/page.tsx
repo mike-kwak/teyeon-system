@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 import React from 'react';
 import Link from 'next/link';
 import {
-  ArrowUpRight, Award, CalendarClock, CalendarDays, ClipboardList, Clock, Eye, Gauge, LayoutGrid, ListOrdered, MapPin,
+  ArrowUpRight, Award, CalendarClock, CalendarDays, ClipboardList, Clock, Eye, Gauge, LayoutGrid, ListOrdered, MapPin, MessageSquareText,
   Network, ShieldAlert, ShieldCheck, Smartphone, SquareStack, Trophy, Tv, UserCheck, Users, Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -61,6 +61,7 @@ function sectionsFor(slug: string): HubSection[] {
       links: [
         { id: 'registrations', title: '신청 현황', desc: '신청 목록 · 입금/확정 상태 · 대기팀 승격', icon: ClipboardList, href: `${admin}/registrations` },
         { id: 'hosted-list', title: '대회 접수 목록', desc: '기존 ‘대회 접수’ 메뉴와 같은 화면 · 주최 대회 전체', icon: SquareStack, href: '/admin/tournaments' },
+        { id: 'sms-center', title: '대회 문자 안내 센터', desc: 'SMS NOTICE CENTER · 참가자 연락처 · 문자 템플릿 · 안내 링크 관리', icon: MessageSquareText, href: `${admin}/sms-center` },
       ],
     },
     {
