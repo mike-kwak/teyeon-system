@@ -102,7 +102,7 @@ export default function DrawSheet({ entries, meta, fileBase }: {
     setZoom('fit');
   };
 
-  // 손가락 제스처(Pointer Events) — 두 손가락 = 가운데 점 기준 확대 · 축소(+ 이동), 한 손가락 = 상하좌우 이동(관성 · 끝에 닿으면 페이지 스크롤로 이어짐).
+  // 손가락 제스처(Pointer Events) — 두 손가락 = 가운데 점 기준 확대 · 축소(+ 이동), 한 손가락 = 상하좌우 이동(관성 · 표 끝에서 멈춤, 페이지는 움직이지 않음).
   //   ⚠ 페이지 viewport 확대는 열지 않는다(layout 의 userScalable: false 유지) — 이 표 영역만 직접 처리한다(.ds-view touch-action: none).
   //   ⚠ 제스처 중에는 이미지 크기만 직접 바꾸고(매 프레임 React 렌더 없음), 손을 떼면 zoom 상태에 반영한다.
   //   마우스는 브라우저 기본 스크롤 그대로(Ctrl + 휠 · 트랙패드 핀치는 커서 기준 확대).
@@ -114,21 +114,12 @@ export default function DrawSheet({ entries, meta, fileBase }: {
     // 이동 위치는 소수까지 따로 기억한다 — scrollLeft/Top 은 브라우저가 반올림해서, 매 이동마다 읽어 쓰면 오차가 쌓여 손가락보다 앞서 간다.
     let tx = 0; let ty = 0;
     const syncPos = () => { tx = v.scrollLeft; ty = v.scrollTop; };
-    const scrollParent = (): HTMLElement | null => {
-      for (let p = v.parentElement; p; p = p.parentElement) {
-        const s = getComputedStyle(p);
-        if (/(auto|scroll)/.test(s.overflowY) && p.scrollHeight > p.clientHeight + 1) return p;
-      }
-      return document.scrollingElement as HTMLElement | null;
-    };
-    // 손가락 이동만큼 표를 민다. 세로로 표 끝에 닿아 남은 만큼은 바깥(페이지) 스크롤로 넘긴다.
+    // 손가락 이동만큼 표만 민다. 표 끝에 닿으면 거기서 멈춘다 — 페이지로 넘기지 않는다(표와 페이지가 같이 움직이던 원인).
     const panBy = (dx: number, dy: number) => {
       const maxX = Math.max(0, v.scrollWidth - v.clientWidth); const maxY = Math.max(0, v.scrollHeight - v.clientHeight);
       tx = Math.min(maxX, Math.max(0, tx - dx));
-      const wantY = ty - dy; ty = Math.min(maxY, Math.max(0, wantY));
+      ty = Math.min(maxY, Math.max(0, ty - dy));
       v.scrollLeft = tx; v.scrollTop = ty;
-      const rest = wantY - ty;
-      if (Math.abs(rest) > 0.5) { const p = scrollParent(); if (p) p.scrollTop += rest; }
     };
     const paint = (nz: number) => {
       const s = sizeRef.current; const im = v.querySelector('img');
@@ -192,6 +183,9 @@ export default function DrawSheet({ entries, meta, fileBase }: {
       zRef.current = nz; setZoom(nz);
     };
     const block = (e: Event) => e.preventDefault();   // iOS Safari — 표 위 두 손가락이 페이지 전체 확대로 가지 않게
+    // touch-action 을 무시하는 브라우저(일부 인앱 · 구형 WebView)에서도 표 위 손가락이 페이지를 끌지 않게. touchstart 는 막지 않는다(누르기 · 길게 누르기 유지).
+    const holdTouch = (e: TouchEvent) => { if (e.cancelable) e.preventDefault(); };
+    v.addEventListener('touchmove', holdTouch, { passive: false });
     v.addEventListener('pointerdown', down);
     v.addEventListener('pointermove', move, { passive: false });
     v.addEventListener('pointerup', up); v.addEventListener('pointercancel', up);
@@ -199,6 +193,7 @@ export default function DrawSheet({ entries, meta, fileBase }: {
     for (const t of ['gesturestart', 'gesturechange', 'gestureend']) v.addEventListener(t, block, { passive: false });
     return () => {
       cancelAnimationFrame(raf);
+      v.removeEventListener('touchmove', holdTouch);
       v.removeEventListener('pointerdown', down); v.removeEventListener('pointermove', move);
       v.removeEventListener('pointerup', up); v.removeEventListener('pointercancel', up);
       v.removeEventListener('wheel', wheel);
