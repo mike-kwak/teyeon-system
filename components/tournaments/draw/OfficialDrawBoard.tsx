@@ -29,7 +29,11 @@ export const sName = (n: 1 | 2 | null) => (n === 1 ? '1차' : n === 2 ? '2차' :
 
 type View = 'group' | 'court';
 
-const startPhrase = (t: string | null) => (t ? `${t} 시작` : null);
+/** '09:00' → '09:00 시작' · '앞 조 종료 후' → '앞 조 종료 후 시작'. 저장된 안내가 이미 '…시작' 으로 끝나면 그대로(중복 방지). */
+const startPhrase = (t: string | null) => {
+  const s = t?.trim();
+  return s ? (/시작$/.test(s) ? s : `${s} 시작`) : null;
+};
 /** 선수별 소속 — 선수별 값이 없으면 팀 값(한 번만, 첫 선수 아래). */
 const clubsOf = (t: DrawTeamLine): [string | null, string | null] =>
   (t.club1 || t.club2 ? [t.club1, t.club2] : [t.club, null]);
