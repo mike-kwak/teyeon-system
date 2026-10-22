@@ -1,15 +1,14 @@
 'use client';
 
-// 공개 DRAW — 모바일 예선 대진표(C안: 1차 · 2차 구역 + 2열 압축 조 카드 · read-only).
+// 공개 DRAW — 모바일 예선 대진표(read-only). 참가자가 '내 조 · 코트 · 신고 시각'을 바로 찾는 화면.
 //
-//   읽는 순서: 내 이름 검색 → 조 번호 · 예정 코트 · 1차/2차 · 신고 마감 → 페어 · 소속 → 경기 상태.
-//   · 상단: 선수 검색 + 1차/2차 출전 신고 안내(신고 마감과 경기 시작을 다른 줄 · 다른 글자로 — 09:20 을 시작 시각으로 읽지 않게)
-//   · 본문: 차수 구역 띠 → 조 카드 2열(조 · 큰 코트 번호 / 차수 · 신고) → 팀 한 줄(페어) + 얇은 구분선 · 소속은 보조 줄
-//   · 정렬: 코트순(기본 — 1차 · 2차 구역, 구역 안은 예정 코트 오름차순) / 조번호순(2조 → 18조 → 순위결정전, 구역 없음 · 카드마다 차수 · 코트 · 신고 · 시작)
-//     ⚠ 정렬은 화면 배열만 바꾼다 — 저장 · 재계산 없음. 검색은 두 정렬에서 같다.
-//   · 경기 순서 · 결과는 카드 펼치기, 순위 · 상세는 조 상세 화면으로
+//   화면 목적을 둘로 나눈다(조 번호와 코트 번호를 한 목록에서 동시에 순서대로 만들 수 없으므로):
+//   · 조별 보기(기본) — 1조 → 18조. 카드 = 큰 조 번호 + 바로 옆 예정 코트 / 차수 · 신고 마감 · 경기 시작 / 팀별 선수 · 소속
+//   · 코트별 보기 — 1번 → 10번 코트. 코트 카드 = 1차 배정 조 / 2차 배정 조(없으면 '배정 없음') · 신고 마감 · 명단 펼치기 · 상세
+//   · 검색은 두 보기 위에서 같다 — 조 · 파트너 · 소속 · 코트 · 차수 · 신고 · 시작 · 첫 경기 출전을 한 카드로.
 //   ⚠ 데이터는 PrelimDrawViews 가 한 번 만들어 넘긴다(전체 조편성표와 같은 entries — 두 화면이 어긋나지 않게).
-//   ⚠ 순위 · 진출 · 점수는 서버 값 그대로. 예정 코트 · 순서 · 신고 마감은 운영진이 저장한 값만(없으면 그리지 않는다).
+//   ⚠ 보기 전환은 화면 배열만 바꾼다 — 저장 · 재계산 없음. 조 번호는 공개 표시 번호(순위결정전 = 1조), 내부 group_no 는 쓰지 않는다.
+//   ⚠ 신고 마감(08:40 · 09:20)과 경기 시작(09:00 · 앞 조 종료 후)은 다른 말로 — 09:20 을 시작 시각으로 쓰지 않는다.
 //   ⚠ 노란색 = 그 조 첫 경기 출전 팀(경기 전일 때만). teal = 본선 진출. 색만으로 구분하지 않는다(글자 · 아이콘 함께).
 
 import React from 'react';
@@ -18,7 +17,7 @@ import { ChevronDown, ChevronRight, Flag, MapPin, Search, X as XIcon } from 'luc
 import { TT } from '@/components/tournaments/tournamentTheme';
 import { normalizeQuery } from '@/components/tournaments/standings/presentation';
 import {
-  findTeams, teamMatches, type DrawEntry, type DrawTeamLine, type SessionHeader,
+  buildCourtSlots, findTeams, teamMatches, type CourtSlot, type DrawEntry, type DrawTeamLine, type SessionHeader,
 } from '@/lib/tournaments/officialDrawModel';
 import { firstMark } from './FirstMatchMarks';
 
@@ -28,33 +27,44 @@ const S2 = { fg: '#7A4B00', bg: '#FFF4E0', bd: '#F0CF95', solid: '#B7791F' };   
 export const sTone = (n: 1 | 2 | null) => (n === 2 ? S2 : S1);
 export const sName = (n: 1 | 2 | null) => (n === 1 ? '1차' : n === 2 ? '2차' : '순서 미정');
 
-type SortMode = 'court' | 'group';
+type View = 'group' | 'court';
+
+const startPhrase = (t: string | null) => (t ? `${t} 시작` : null);
+/** 선수별 소속 — 선수별 값이 없으면 팀 값(한 번만, 첫 선수 아래). */
+const clubsOf = (t: DrawTeamLine): [string | null, string | null] =>
+  (t.club1 || t.club2 ? [t.club1, t.club2] : [t.club, null]);
 
 export default function OfficialDrawBoard({
-  entries, entriesByGroup, sessions, checkinPlace, progress,
+  entries, sessions, checkinPlace, progress,
 }: {
-  /** 차수 → 코트 순으로 정렬된 조 목록(PrelimDrawViews). */
+  /** 공개 조 번호 순(1조 → 18조)으로 정렬된 조 목록(PrelimDrawViews · 전체 조편성표와 같은 배열). */
   entries: DrawEntry[];
-  /** 같은 조 목록을 조 번호 순으로(순위결정전 마지막) — 정렬만 다르고 내용은 같다. */
-  entriesByGroup: DrawEntry[];
   sessions: SessionHeader[];
   checkinPlace: string | null;
   progress: { done: number; all: number };
 }) {
   const [query, setQuery] = React.useState('');
+  const [view, setView] = React.useState<View>('group');
   const [open, setOpen] = React.useState<Record<string, boolean>>({});
-  const [sort, setSort] = React.useState<SortMode>('court');
   const q = normalizeQuery(query);
-  const list = sort === 'group' ? entriesByGroup : entries;
-  const hits = findTeams(list, q);
-  const visible = q ? list.filter((e) => e.teams.some((t) => teamMatches(t, q))) : list;
+  const hits = findTeams(entries, q);
+  const hitKeys = new Set(hits.map((h) => h.entry.key));
+  const visible = q ? entries.filter((e) => hitKeys.has(e.key)) : entries;
+  const courts = React.useMemo(() => buildCourtSlots(entries), [entries]);
   const anyFirst = entries.some((e) => e.teams.some((t) => t.first));
   const teamCount = entries.reduce((a, e) => a + e.teams.length, 0);
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
-  // 코트순 = 차수 구역별, 조번호순 = 구역 없이 한 목록(n = 'all').
-  const sections: { key: string; n: 1 | 2 | null | 'all'; items: DrawEntry[] }[] = sort === 'group'
-    ? [{ key: 'all', n: 'all', items: visible }]
-    : ([1, 2, null] as const).map((n) => ({ key: `s${n}`, n, items: visible.filter((e) => e.sessionNo === n) })).filter((s) => s.items.length > 0);
+  const lastCourt = courts.courts.length ? courts.courts[courts.courts.length - 1].courtNo : null;
+
+  // 검색 결과 · 조 바로가기 → 조별 보기의 그 카드로.
+  const goEntry = (key: string) => {
+    setView('group');
+    requestAnimationFrame(() => document.getElementById(`od-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const shownCourts = q
+    ? courts.courts.filter((c) => [...c.s1, ...c.s2, ...c.other].some((e) => hitKeys.has(e.key)))
+    : courts.courts;
 
   return (
     <div className="od-board">
@@ -68,7 +78,7 @@ export default function OfficialDrawBoard({
         )}
       </label>
 
-      {q && <SearchResult hits={hits} />}
+      {q && <SearchResult hits={hits} onGo={goEntry} />}
 
       {/* ── 1차 · 2차 출전 신고 ── */}
       {!q && sessions.length > 0 && (
@@ -79,6 +89,16 @@ export default function OfficialDrawBoard({
           )}
         </section>
       )}
+
+      {/* ── 조별 보기 / 코트별 보기 ── */}
+      <div className="od-views" role="tablist" aria-label="대진표 보기">
+        <button type="button" role="tab" aria-selected={view === 'group'} data-od-view="group" onClick={() => setView('group')}>
+          <b>조별 보기</b><small>{entries.length ? `1조 → ${entries.length}조` : '조 번호 순'}</small>
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'court'} data-od-view="court" onClick={() => setView('court')}>
+          <b>코트별 보기</b><small>{lastCourt ? `1번 → ${lastCourt}번 코트` : '코트 번호 순'}</small>
+        </button>
+      </div>
 
       {/* ── 진행 · 범례 ── */}
       {!q && (
@@ -91,87 +111,100 @@ export default function OfficialDrawBoard({
         </div>
       )}
 
-      {/* ── 정렬 ── */}
-      <div className="od-sort" role="radiogroup" aria-label="대진표 정렬">
-        <span className="od-sort-k">정렬</span>
-        {([['court', '코트순'], ['group', '조번호순']] as const).map(([k, label]) => (
-          <button key={k} type="button" role="radio" aria-checked={sort === k} data-od-sort={k} onClick={() => setSort(k)}>{label}</button>
-        ))}
-      </div>
-
-      {/* ── 대진표 ── */}
-      {visible.length === 0 ? (
-        <p className="od-empty">{q ? '검색 결과가 없습니다. 선수 이름을 다시 확인해 주세요.' : '표시할 조가 없습니다.'}</p>
-      ) : sections.map((sec) => (
-        <section key={sec.key} className="od-section" data-od-section={sec.key}>
-          {sec.n !== 'all' && <SessionBand n={sec.n} h={sessions.find((s) => s.sessionNo === sec.n) ?? null} />}
-          <div className="od-grid2">
-            {sec.items.map((e) => (
-              <CompactCard key={e.key} e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} showStart={sort === 'group'} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {view === 'group' ? (
+        <>
+          {!q && entries.length > 6 && (
+            <nav className="od-jump" aria-label="조 바로가기" data-od-jump>
+              {entries.map((e) => (
+                <button key={e.key} type="button" onClick={() => goEntry(e.key)} data-od-jump-to={e.key}
+                  aria-label={`${e.label}로 이동`} style={{ borderColor: e.sessionNo ? sTone(e.sessionNo).bd : TT.line }}>
+                  {e.displayNo ?? e.label}
+                </button>
+              ))}
+            </nav>
+          )}
+          {visible.length === 0 ? (
+            <p className="od-empty">{q ? '검색 결과가 없습니다. 선수 이름을 다시 확인해 주세요.' : '표시할 조가 없습니다.'}</p>
+          ) : (
+            <div className="od-groups" data-od-groups>
+              {visible.map((e) => <GroupCard key={e.key} e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} />)}
+            </div>
+          )}
+        </>
+      ) : shownCourts.length === 0 && (q || courts.unassigned.length === 0) ? (
+        <p className="od-empty">{q ? '검색 결과가 없습니다. 선수 이름을 다시 확인해 주세요.' : '예정 코트가 아직 정해지지 않았습니다.'}</p>
+      ) : (
+        <div className="od-courts" data-od-courts>
+          {shownCourts.map((c) => (
+            <CourtCard key={c.courtNo} c={c} q={q} hitKeys={hitKeys} open={open} onToggle={toggle} />
+          ))}
+          {!q && courts.unassigned.length > 0 && (
+            <p className="od-empty" data-od-unassigned>코트 미정 · {courts.unassigned.map((e) => e.label).join(' · ')}</p>
+          )}
+        </div>
+      )}
 
       <style>{CSS}</style>
     </div>
   );
 }
 
-function startLine(n: 1 | 2 | null, deadline: string | null, start: string | null): string {
-  const parts = [deadline ? `신고 ${deadline} 마감` : null, start ? (/^\d{1,2}:\d{2}$/.test(start) ? `${start} 시작` : `${start} 시작`) : null].filter(Boolean);
-  return parts.length ? parts.join(' · ') : (n ? '' : '순서 · 코트 안내 준비 중');
-}
-
 function SessionTile({ s }: { s: SessionHeader }) {
   const t = sTone(s.sessionNo);
-  const timeStart = s.startTime;
   return (
     <div className="od-tile" data-od-session={s.sessionNo} style={{ borderColor: t.bd, background: t.bg }}>
       <span className="od-tile-tag" style={{ background: t.solid }}>{sName(s.sessionNo)}</span>
       <div className="od-tile-row">
-        <span className="od-k">신고 마감</span>
+        <span className="od-k">출전 신고 마감</span>
         <span className="od-big" style={{ color: t.fg }}>{s.checkinDeadline ?? '—'}</span>
       </div>
       <div className="od-tile-row">
         <span className="od-k">경기 시작</span>
-        {timeStart
-          ? <span className="od-big" style={{ color: NAVY }}>{timeStart}</span>
+        {s.startTime
+          ? <span className="od-big" style={{ color: NAVY }}>{s.startTime}</span>
           : <span className="od-note" style={{ color: NAVY }}>{s.startNote ?? '안내 예정'}</span>}
       </div>
     </div>
   );
 }
 
-function SessionBand({ n, h }: { n: 1 | 2 | null; h: SessionHeader | null }) {
-  const t = sTone(n);
+/** 차수 칩 + '신고 08:40 마감' + '09:00 시작' — 두 시각을 다른 말로. */
+function SessionLine({ e }: { e: DrawEntry }) {
+  const tone = sTone(e.sessionNo);
   return (
-    <div className="od-band" data-od-band={n ?? 'none'} style={{ background: n ? t.bg : '#F1F5F9', borderColor: n ? t.bd : TT.line }}>
-      <span className="od-band-tag" style={{ background: n ? t.solid : '#64748B' }}>{sName(n)}</span>
-      <span className="od-band-text" style={{ color: n ? t.fg : TT.muted }}>
-        {n && h ? startLine(n, h.checkinDeadline, h.startTime ?? h.startNote) : n ? '' : '순서 · 코트 안내 준비 중'}
-      </span>
-    </div>
+    <p className="og-sess" style={{ color: tone.fg }} data-od-sess-line>
+      <b className="og-chip" style={{ background: e.sessionNo ? tone.solid : '#64748B' }}>{sName(e.sessionNo)}</b>
+      {e.checkinDeadline && <span className="og-ck">신고 <strong>{e.checkinDeadline}</strong> 마감</span>}
+      {e.startText && <span className="og-start" data-od-start>{startPhrase(e.startText)}</span>}
+    </p>
   );
 }
 
-function SearchResult({ hits }: { hits: { entry: DrawEntry; team: DrawTeamLine }[] }) {
+function SearchResult({ hits, onGo }: { hits: { entry: DrawEntry; team: DrawTeamLine }[]; onGo: (key: string) => void }) {
   if (hits.length === 0) return null;
+  const MAX = 6;
   return (
     <div className="od-found" data-od-found>
-      {hits.slice(0, 4).map(({ entry: e, team: t }) => {
+      {hits.length > 1 && <p className="od-found-count">검색 결과 {hits.length}팀{hits.length > MAX ? ` · 위 ${MAX}팀만 표시(이름을 더 입력해 주세요)` : ''}</p>}
+      {hits.slice(0, MAX).map(({ entry: e, team: t }) => {
         const tone = sTone(e.sessionNo);
+        const [c1, c2] = clubsOf(t);
         return (
-          <a key={`${e.key}-${t.teamNo}`} href={`#od-${e.key}`} className="od-found-card" data-od-found-team={t.teamNo}>
-            <span className="od-found-names">{t.player1Name} · {t.player2Name}</span>
+          <a key={`${e.key}-${t.teamNo}`} href={`#od-${e.key}`} onClick={(ev) => { ev.preventDefault(); onGo(e.key); }}
+            className="od-found-card" data-od-found-team={t.teamNo} data-od-found-entry={e.key}>
             <span className="od-found-main">
-              <b>{e.label}</b>
+              <b className="od-found-label">{e.label}</b>
               {e.courtNo !== null && <span className="od-court-chip">{e.courtText ?? `${e.courtNo}번 코트`}</span>}
               {e.sessionNo && <span className="od-sess-chip" style={{ background: tone.solid }}>{sName(e.sessionNo)}</span>}
             </span>
+            {e.subLabel && <span className="od-found-sub">{e.subLabel}</span>}
+            <span className="od-found-players">
+              <PlayerCell name={t.player1Name} club={c1} dark />
+              <PlayerCell name={t.player2Name} club={c2} dark />
+            </span>
             {(e.checkinDeadline || e.startText) && (
               <span className="od-found-time">
-                {e.checkinDeadline && <span>신고 <b style={{ color: tone.fg }}>{e.checkinDeadline}</b> 마감</span>}
+                {e.checkinDeadline && <span>신고 <b style={{ color: '#FFE3A3' }}>{e.checkinDeadline}</b> 마감</span>}
                 {e.startText && <span>경기 시작 <b>{e.startText}</b></span>}
               </span>
             )}
@@ -183,37 +216,51 @@ function SearchResult({ hits }: { hits: { entry: DrawEntry; team: DrawTeamLine }
   );
 }
 
-/** C — 2열 압축 조 카드. 머리: 조 · 코트(크게) / 차수 · 신고. 팀 한 줄(페어) + 얇은 구분선, 소속은 아래 작은 줄. */
-function CompactCard({ e, q, open, onToggle, showStart = false }: { e: DrawEntry; q: string; open: boolean; onToggle: () => void; showStart?: boolean }) {
+function PlayerCell({ name, club, dark = false }: { name: string; club: string | null; dark?: boolean }) {
+  return (
+    <span className={`og-player${dark ? ' og-player-dark' : ''}`}>
+      <span className="og-name od-name">{name}</span>
+      {club && <span className="og-club od-club">{club}</span>}
+    </span>
+  );
+}
+
+/** 조 카드 — 머리: 큰 조 번호 + 바로 옆 예정 코트 / 차수 · 신고 마감 · 경기 시작. 몸: 팀별 선수 두 명(이름 진하게 · 소속 작게). */
+function GroupCard({ e, q, open, onToggle }: { e: DrawEntry; q: string; open: boolean; onToggle: () => void }) {
   const tone = sTone(e.sessionNo);
   const mark = firstMark(e.firstInfo);
   return (
-    <article id={`od-${e.key}`} className="oc-card" data-od-entry={e.key} data-od-kind={e.kind} data-od-session-no={e.sessionNo ?? ''}
-      style={{ borderTopColor: e.sessionNo ? tone.solid : TT.line }}>
-      <header className="oc-head">
-        <span className="oc-label">{e.label}</span>
-        {e.courtNo !== null && <span className="oc-court" data-od-court={e.courtNo}>{e.courtNo}<small>코트</small></span>}
+    <article id={`od-${e.key}`} className="og-card" data-od-entry={e.key} data-od-kind={e.kind} data-od-session-no={e.sessionNo ?? ''}
+      data-od-display-no={e.displayNo ?? ''} style={{ borderTopColor: e.sessionNo ? tone.solid : TT.line }}>
+      <header className="og-head">
+        <span className="og-label oc-label">{e.label}</span>
+        {e.courtNo !== null && (
+          <span className="og-court" data-od-court={e.courtNo} aria-label={`예정 ${e.courtNo}번 코트`}>
+            <b>{e.courtNo}</b>번 코트
+          </span>
+        )}
+        {e.phase !== 'pre' && <span className="og-st">{e.statusLabel}</span>}
       </header>
-      <p className="oc-sub" style={{ color: tone.fg }}>
-        {e.sessionNo ? <b style={{ background: tone.solid }}>{sName(e.sessionNo)}</b> : null}
-        {e.checkinDeadline && <span>신고 {e.checkinDeadline}</span>}
-        {e.phase !== 'pre' && <span className="oc-st">{e.statusLabel}</span>}
-      </p>
-      {/* 조번호순에서는 구역 띠가 없으므로 카드에 경기 시작 안내를 함께(신고 시각과 다른 줄 · 다른 글자). */}
-      {showStart && e.startText && <p className="oc-start" data-od-start>경기 시작 {e.startText}</p>}
-      {e.pendingTeams ? <p className="oc-pending">팀 표시 준비 중</p> : (
-        <ul className="oc-teams">
+      {e.subLabel && <p className="og-subl" data-od-sublabel>{e.subLabel}</p>}
+      <SessionLine e={e} />
+      {e.pendingTeams ? <p className="og-pending">팀 표시 준비 중</p> : (
+        <ul className="og-teams">
           {e.teams.map((t) => {
             const fm = t.first && mark ? mark : null;
+            const [c1, c2] = clubsOf(t);
             return (
-              <li key={t.teamNo} className={`oc-team${teamMatches(t, q) ? ' od-hit' : ''}${t.muted ? ' od-muted' : ''}`}
+              <li key={t.teamNo} className={`og-team oc-team${teamMatches(t, q) ? ' od-hit' : ''}${t.muted ? ' od-muted' : ''}`}
+                data-od-team={t.teamNo}
                 {...(fm ? { 'data-first-row': '' } : {})}
-                style={fm ? { background: fm.bg, boxShadow: `inset 3px 0 0 ${fm.bd}` } : undefined}>
-                <span className="oc-pair"><span className="od-name">{t.player1Name}</span><span className="od-dot">·</span><span className="od-name">{t.player2Name}</span>{fm && <span className="oc-flag" style={{ color: fm.fg }} role="img" aria-label="첫 경기 출전"><Flag size={12} strokeWidth={2.8} /></span>}</span>
-                {(t.club || t.record) && (
-                  <span className="oc-meta">
-                    {t.record && <span className="oc-rec">{t.qualified ? '진출 · ' : ''}{t.record}{t.diff !== null ? ` ${t.diff > 0 ? `+${t.diff}` : t.diff}` : ''}</span>}
-                    {t.club && <span className="od-club">{t.club}</span>}
+                style={fm ? { background: fm.bg, boxShadow: `inset 4px 0 0 ${fm.bd}` } : undefined}>
+                <span className="og-pair oc-pair">
+                  <PlayerCell name={t.player1Name} club={c1} />
+                  <PlayerCell name={t.player2Name} club={c2} />
+                </span>
+                {(fm || t.record) && (
+                  <span className="og-tmeta">
+                    {fm && <span className="og-first" style={{ color: fm.fg }}><Flag size={12} strokeWidth={2.8} />첫 경기 출전</span>}
+                    {t.record && <span className="og-rec">{t.qualified ? '본선 진출 · ' : ''}{t.record}{t.diff !== null ? ` ${t.diff > 0 ? `+${t.diff}` : t.diff}` : ''}</span>}
                   </span>
                 )}
               </li>
@@ -221,14 +268,14 @@ function CompactCard({ e, q, open, onToggle, showStart = false }: { e: DrawEntry
           })}
         </ul>
       )}
-      <div className="oc-foot">
-        {e.matches.length > 0 && <button type="button" className="od-toggle" aria-expanded={open} onClick={onToggle} data-od-toggle={e.key}>경기<ChevronDown size={13} strokeWidth={2.5} style={{ transform: open ? 'rotate(180deg)' : 'none' }} /></button>}
-        <Link href={e.href} className="od-detail" aria-label={`${e.label} 상세`}>상세<ChevronRight size={13} strokeWidth={2.5} /></Link>
+      <div className="og-foot">
+        {e.matches.length > 0 && <button type="button" className="od-toggle" aria-expanded={open} onClick={onToggle} data-od-toggle={e.key}>경기 순서<ChevronDown size={14} strokeWidth={2.5} style={{ transform: open ? 'rotate(180deg)' : 'none' }} /></button>}
+        <Link href={e.href} className="od-detail" aria-label={`${e.label} 상세`} data-od-detail={e.key}>조 상세<ChevronRight size={14} strokeWidth={2.5} /></Link>
       </div>
       {open && (
-        <ol className="od-matches oc-matches" data-od-matches={e.key}>
+        <ol className="od-matches" data-od-matches={e.key}>
           {e.matches.map((m) => (
-            <li key={m.key} className="oc-match" style={m.first && mark ? { background: mark.bg } : undefined}>
+            <li key={m.key} className="od-match" style={m.first && mark ? { background: mark.bg } : undefined}>
               <span className="od-m-label">{m.label} · {m.score ?? (m.status === 'playing' ? '진행 중' : m.first ? '첫 경기' : '대기')}</span>
               <span>{m.team1}</span><span className="od-vs">vs</span><span>{m.team2}</span>
             </li>
@@ -239,9 +286,76 @@ function CompactCard({ e, q, open, onToggle, showStart = false }: { e: DrawEntry
   );
 }
 
+/** 코트 카드 — 큰 코트 번호 / 1차 배정 조 / 2차 배정 조(없으면 '배정 없음'). 줄을 누르면 그 조 명단을 펼친다. */
+function CourtCard({ c, q, hitKeys, open, onToggle }: {
+  c: CourtSlot; q: string; hitKeys: Set<string>; open: Record<string, boolean>; onToggle: (k: string) => void;
+}) {
+  const rows: { n: 1 | 2 | null; items: DrawEntry[] }[] = [
+    { n: 1, items: c.s1 }, { n: 2, items: c.s2 }, ...(c.other.length ? [{ n: null, items: c.other }] : []),
+  ];
+  return (
+    <article className="ct-card" data-od-court-card={c.courtNo} id={`odc-${c.courtNo}`}>
+      <header className="ct-head">
+        <span className="ct-no"><b>{c.courtNo}</b>번 코트</span>
+      </header>
+      {rows.map(({ n, items }) => {
+        const tone = sTone(n);
+        if (items.length === 0) {
+          return (
+            <div key={`n${n}`} className="ct-row ct-none" data-od-court-slot={`${c.courtNo}-${n}`} data-od-court-empty>
+              <b className="og-chip" style={{ background: '#CBD5E1' }}>{sName(n)}</b>
+              <span>배정 없음</span>
+            </div>
+          );
+        }
+        return items.map((e) => {
+          const expanded = !!open[`c-${e.key}`] || (!!q && hitKeys.has(e.key));
+          const mark = firstMark(e.firstInfo);
+          return (
+            <div key={e.key} className="ct-slot" data-od-court-slot={`${c.courtNo}-${n}`} data-od-court-entry={e.key}
+              style={{ borderLeftColor: n ? tone.solid : TT.line }}>
+              <button type="button" className="ct-row" aria-expanded={expanded} onClick={() => onToggle(`c-${e.key}`)} data-od-court-toggle={e.key}>
+                <b className="og-chip" style={{ background: n ? tone.solid : '#64748B' }}>{sName(n)}</b>
+                <span className="ct-group">{e.label}</span>
+                <span className="ct-times">
+                  {e.checkinDeadline && <span className="ct-ck" style={{ color: tone.fg }}>신고 <strong>{e.checkinDeadline}</strong> 마감</span>}
+                  {e.startText && <span>{startPhrase(e.startText)}</span>}
+                </span>
+                <span className="ct-more"><span className="ct-more-t">명단</span><ChevronDown size={15} strokeWidth={2.5} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} /></span>
+              </button>
+              {expanded && (
+                <div className="ct-list" data-od-court-list={e.key}>
+                  {e.subLabel && <p className="og-subl">{e.subLabel}</p>}
+                  {e.pendingTeams ? <p className="og-pending">팀 표시 준비 중</p> : (
+                    <ul>
+                      {e.teams.map((t) => {
+                        const fm = t.first && mark ? mark : null;
+                        const [c1, c2] = clubsOf(t);
+                        return (
+                          <li key={t.teamNo} className={teamMatches(t, q) ? 'od-hit' : undefined}
+                            style={fm ? { background: fm.bg, boxShadow: `inset 3px 0 0 ${fm.bd}` } : undefined}>
+                            <PlayerCell name={t.player1Name} club={c1} />
+                            <PlayerCell name={t.player2Name} club={c2} />
+                            {fm && <span className="og-first" style={{ color: fm.fg }}><Flag size={11} strokeWidth={2.8} />첫 경기 출전</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <Link href={e.href} className="od-detail" aria-label={`${e.label} 상세`}>{e.label} 상세<ChevronRight size={14} strokeWidth={2.5} /></Link>
+                </div>
+              )}
+            </div>
+          );
+        });
+      })}
+    </article>
+  );
+}
+
 const CSS = `
 .od-board { display: flex; flex-direction: column; gap: 12px; }
-.od-search { display: flex; align-items: center; gap: 9px; height: 50px; box-sizing: border-box; padding: 0 6px 0 14px;
+.od-search { display: flex; align-items: center; gap: 9px; height: 52px; box-sizing: border-box; padding: 0 6px 0 14px;
   background: #fff; border: 1.5px solid #CBD5E1; border-radius: 13px; }
 .od-search:focus-within { border-color: ${TT.teal}; }
 .od-search input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
@@ -257,71 +371,106 @@ const CSS = `
 .od-note { font-size: 15px; font-weight: 900; line-height: 1.3; word-break: keep-all; padding: 3px 0 2px; }
 .od-place { grid-column: 1 / -1; margin: 0; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; color: ${TT.muted}; word-break: keep-all; }
 .od-place b { color: ${TT.ink}; }
+.od-views { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.od-views button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 52px; padding: 4px 6px;
+  border: 1.5px solid ${TT.line}; border-radius: 12px; background: #fff; font-family: inherit; color: #5B6B82; cursor: pointer; }
+.od-views b { font-size: 15px; font-weight: 900; }
+.od-views small { font-size: 11.5px; font-weight: 700; opacity: 0.85; }
+.od-views button[aria-selected="true"] { background: ${NAVY}; border-color: ${NAVY}; color: #fff; }
 .od-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px 10px; flex-wrap: wrap; font-size: 12px; font-weight: 600; color: ${TT.muted}; }
 .od-meta b { color: ${TT.ink}; font-weight: 800; }
 .od-legend { display: inline-flex; gap: 12px; flex-wrap: wrap; }
 .od-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .od-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; }
 .od-empty { margin: 0; padding: 24px 14px; text-align: center; background: #fff; border: 1px solid ${TT.line}; border-radius: 14px; font-size: 13px; font-weight: 600; color: ${TT.muted}; }
-.od-section { display: flex; flex-direction: column; gap: 8px; }
-.od-band { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 11px; border: 1.5px solid; border-radius: 12px; }
-.od-band-tag { color: #fff; font-size: 13px; font-weight: 900; padding: 2px 9px; border-radius: 6px; }
-.od-band-text { font-size: 14px; font-weight: 800; word-break: keep-all; }
-.od-court-chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px 3px 7px; border-radius: 8px; background: ${NAVY}; color: #fff;
+.od-jump { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.od-jump button { min-height: 36px; padding: 0; border: 1.5px solid; border-radius: 9px; background: #fff; font-family: inherit;
+  font-size: 14px; font-weight: 900; color: ${NAVY}; font-variant-numeric: tabular-nums; cursor: pointer; }
+.od-court-chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; border-radius: 8px; background: ${NAVY}; color: #fff;
   font-size: 14.5px; font-weight: 900; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .od-sess-chip { color: #fff; font-size: 12.5px; font-weight: 900; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
-.od-name { font-size: 15.5px; font-weight: 800; color: ${TT.ink}; white-space: nowrap; }
-.od-dot { color: ${TT.subtle}; font-weight: 700; }
-.od-club { font-size: 12px; font-weight: 600; color: ${TT.muted}; overflow-wrap: anywhere; word-break: keep-all; margin-left: 2px; }
-.od-first { display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; font-weight: 900; white-space: nowrap; margin-left: 2px; }
 .od-hit { outline: 2px solid ${TT.teal}; outline-offset: -2px; }
-.od-muted .od-name { color: ${TT.subtle}; }
+.od-muted .og-name { color: ${TT.subtle}; }
 .od-toggle, .od-detail { display: inline-flex; align-items: center; gap: 3px; min-height: 40px; padding: 0 2px; border: 0; background: transparent; font-family: inherit;
-  font-size: 12.5px; font-weight: 800; color: ${TT.tealDeep}; cursor: pointer; text-decoration: none; }
+  font-size: 13px; font-weight: 800; color: ${TT.tealDeep}; cursor: pointer; text-decoration: none; }
 .od-detail { margin-left: auto; color: ${TT.muted}; }
-.od-matches { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.od-m-label { font-size: 11.5px; font-weight: 800; color: ${TT.muted}; white-space: nowrap; }
-.od-vs { color: ${TT.subtle}; font-size: 11.5px; font-weight: 700; }
+.od-matches { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.od-match { display: flex; flex-wrap: wrap; column-gap: 4px; padding: 6px 8px; border-radius: 8px; background: #F8FAFC; font-size: 13px; font-weight: 600; color: ${TT.ink}; word-break: keep-all; }
+.od-m-label { flex-basis: 100%; font-size: 12px; font-weight: 800; color: ${TT.muted}; }
+.od-vs { color: ${TT.subtle}; font-size: 12px; font-weight: 700; }
+/* 검색 결과 */
 .od-found { display: flex; flex-direction: column; gap: 8px; }
-.od-found-card { display: flex; flex-direction: column; gap: 5px; padding: 12px 13px; border-radius: 14px; background: ${NAVY}; color: #fff; text-decoration: none; }
-.od-found-names { font-size: 13px; font-weight: 700; color: #CBD5E1; word-break: keep-all; }
+.od-found-count { margin: 0 2px; font-size: 12.5px; font-weight: 800; color: ${TT.muted}; }
+.od-found-card { display: flex; flex-direction: column; gap: 7px; padding: 13px 14px; border-radius: 14px; background: ${NAVY}; color: #fff; text-decoration: none; }
 .od-found-main { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.od-found-main b { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; }
+.od-found-label { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.05; }
 .od-found-card .od-court-chip { background: #fff; color: ${NAVY}; font-size: 16px; }
-.od-found-time { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 14px; font-weight: 700; color: #E2E8F0; }
+.od-found-sub { margin-top: -4px; font-size: 12px; font-weight: 700; color: #CBD5E1; }
+.od-found-players { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.16); border-bottom: 1px solid rgba(255,255,255,0.16); }
+.od-found-time { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 14px; font-weight: 700; color: #E2E8F0; }
 .od-found-time b { font-size: 17px; font-weight: 900; color: #fff; }
 .od-found-first { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: 12.5px; font-weight: 900; color: #5C4300; background: #FFF1BF; border-radius: 6px; padding: 2px 8px; }
-.od-sort { display: flex; align-items: center; gap: 6px; }
-.od-sort-k { font-size: 12.5px; font-weight: 800; color: ${TT.muted}; margin-right: 2px; }
-.od-sort button { min-height: 38px; padding: 0 14px; border: 1px solid ${TT.line}; border-radius: 999px; background: #fff; font-family: inherit;
-  font-size: 13.5px; font-weight: 800; color: #5B6B82; cursor: pointer; }
-.od-sort button[aria-checked="true"] { background: ${NAVY}; border-color: ${NAVY}; color: #fff; }
-/* C — 2열 압축 */
-.od-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-.oc-card { min-width: 0; background: #fff; border: 1px solid ${TT.line}; border-top: 3px solid; border-radius: 11px; padding: 7px 8px 2px; display: flex; flex-direction: column; scroll-margin-top: 80px; }
-.oc-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 2px 4px; }
-.oc-label { font-size: 18px; font-weight: 900; color: ${NAVY}; letter-spacing: -0.02em; white-space: nowrap; }
-.oc-court { display: inline-flex; align-items: baseline; gap: 1px; padding: 1px 7px; border-radius: 7px; background: ${NAVY}; color: #fff; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.oc-court small { font-size: 10.5px; font-weight: 800; margin-left: 1px; }
-.oc-sub { margin: 3px 0 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12.5px; font-weight: 800; }
-.oc-sub b { color: #fff; font-size: 11.5px; font-weight: 900; padding: 0 6px; border-radius: 5px; line-height: 1.6; }
-.oc-st { color: ${TT.tealDeep}; margin-left: auto; font-size: 11.5px; }
-.oc-start { margin: -2px 0 4px; font-size: 11.5px; font-weight: 700; color: ${TT.muted}; word-break: keep-all; }
-.oc-pending { margin: 4px 0 8px; font-size: 12px; font-weight: 600; color: ${TT.muted}; }
-.oc-teams { list-style: none; margin: 0 -8px; padding: 0; }
-.oc-team { display: flex; flex-direction: column; padding: 5px 8px; border-top: 1px solid ${TT.line}; min-width: 0; }
-.oc-pair { display: flex; flex-wrap: wrap; column-gap: 3px; align-items: baseline; }
-.oc-team .od-name { font-size: 14.5px; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
-.oc-flag { display: inline-flex; align-self: center; margin-left: 3px; }
-.oc-meta { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 5px; }
-.oc-meta .od-club { margin-left: 0; font-size: 11px; line-height: 1.35; }
-.oc-meta .od-first { margin-left: 0; font-size: 10.5px; }
-.oc-rec { font-size: 11.5px; font-weight: 800; color: ${TT.inkSoft}; font-variant-numeric: tabular-nums; }
-.oc-foot { display: flex; justify-content: space-between; border-top: 1px solid ${TT.line}; margin: 0 -8px; padding: 0 8px; }
-.oc-foot .od-toggle, .oc-foot .od-detail { min-height: 34px; font-size: 12px; }
-.oc-matches { margin: 0 0 6px; }
-.oc-match { display: flex; flex-wrap: wrap; column-gap: 4px; padding: 5px 6px; border-radius: 7px; background: #F8FAFC; font-size: 12px; font-weight: 600; color: ${TT.ink}; word-break: keep-all; }
-.oc-match .od-m-label { flex-basis: 100%; }
-@media (min-width: 720px) { .od-grid2 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 340px) { .od-big { font-size: 23px; } .od-name { font-size: 15px; } }
+/* 선수 칸 — 이름 진하게 · 소속 작게(긴 소속은 줄바꿈, 다른 칸 침범 없음) */
+.og-player { display: flex; flex-direction: column; min-width: 0; }
+.og-name { font-size: 16.5px; font-weight: 800; color: ${TT.ink}; line-height: 1.3; overflow-wrap: anywhere; word-break: keep-all; }
+.og-club { font-size: 12px; font-weight: 600; color: ${TT.muted}; line-height: 1.35; overflow-wrap: anywhere; word-break: keep-all; }
+.og-player-dark .og-name { color: #fff; font-size: 17px; }
+.og-player-dark .og-club { color: #CBD5E1; }
+/* 조별 보기 — 휴대폰 1열(이름 · 소속을 좁은 2열 카드에 넣지 않는다) · 넓은 화면 2 · 3열 */
+.od-groups { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.og-card { min-width: 0; background: #fff; border: 1px solid ${TT.line}; border-top: 4px solid; border-radius: 13px; padding: 10px 12px 0; display: flex; flex-direction: column; scroll-margin-top: 80px; }
+.og-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.og-label { font-size: 28px; font-weight: 900; color: ${NAVY}; letter-spacing: -0.03em; line-height: 1.05; white-space: nowrap; }
+.og-court { display: inline-flex; align-items: baseline; gap: 2px; padding: 3px 10px; border-radius: 9px; background: ${NAVY}; color: #fff;
+  font-size: 13.5px; font-weight: 800; white-space: nowrap; }
+.og-court b { font-size: 20px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.og-st { margin-left: auto; font-size: 12.5px; font-weight: 900; color: ${TT.tealDeep}; }
+.og-subl { margin: 2px 0 0; font-size: 12px; font-weight: 700; color: ${TT.muted}; }
+.og-sess { margin: 6px 0 8px; display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; font-size: 13.5px; font-weight: 700; }
+.og-sess strong { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.og-chip { color: #fff; font-size: 12px; font-weight: 900; padding: 1px 7px; border-radius: 6px; line-height: 1.6; white-space: nowrap; }
+.og-start { color: ${TT.inkSoft}; font-weight: 700; }
+.og-start::before { content: '·'; margin-right: 6px; color: ${TT.subtle}; }
+.og-pending { margin: 4px 0 10px; font-size: 13px; font-weight: 600; color: ${TT.muted}; }
+.og-teams { list-style: none; margin: 0 -12px; padding: 0; }
+.og-team { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px; border-top: 1px solid ${TT.line}; min-width: 0; }
+.og-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.og-tmeta { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.og-first { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.og-rec { font-size: 12.5px; font-weight: 800; color: ${TT.inkSoft}; font-variant-numeric: tabular-nums; }
+.og-foot { display: flex; justify-content: space-between; border-top: 1px solid ${TT.line}; margin: 0 -12px; padding: 0 12px; }
+/* 코트별 보기 — 코트 하나 = 카드 하나(1번 → 10번) */
+.od-courts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.ct-card { min-width: 0; background: #fff; border: 1px solid ${TT.line}; border-radius: 13px; overflow: hidden; scroll-margin-top: 80px; }
+.ct-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: ${NAVY}; color: #fff; }
+.ct-no { font-size: 14px; font-weight: 800; }
+.ct-no b { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; margin-right: 1px; }
+.ct-slot { border-top: 1px solid ${TT.line}; border-left: 4px solid; }
+.ct-head + .ct-slot { border-top: 0; }
+/* 줄 = 차수 칩 | 조 | 신고 · 시작 | 명단 — 격자로 두 줄(1차 · 2차)의 열을 맞춘다 */
+.ct-row { width: 100%; display: grid; grid-template-columns: auto 3.2em minmax(0, 1fr) auto; align-items: center; column-gap: 10px; min-height: 56px; padding: 8px 10px; box-sizing: border-box;
+  border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; color: ${TT.ink}; }
+.ct-group { font-size: 23px; font-weight: 900; color: ${NAVY}; letter-spacing: -0.02em; white-space: nowrap; min-width: 3.1em; }
+.ct-times { display: flex; flex-direction: column; min-width: 0; font-size: 12.5px; font-weight: 700; color: ${TT.inkSoft}; line-height: 1.35; word-break: keep-all; }
+.ct-ck { white-space: nowrap; }
+.ct-row .og-chip { min-width: 2.7em; box-sizing: border-box; text-align: center; }
+.ct-times strong { font-size: 14.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.ct-more { margin-left: auto; display: inline-flex; align-items: center; gap: 1px; flex-shrink: 0; font-size: 12px; font-weight: 800; color: ${TT.tealDeep}; }
+.ct-none span { grid-column: 2 / -1; }
+.ct-none { cursor: default; border-top: 1px solid ${TT.line}; border-left: 4px solid #E2E8F0; color: ${TT.subtle}; font-size: 13.5px; font-weight: 700; min-height: 44px; }
+.ct-head + .ct-none { border-top: 0; }
+.ct-list { padding: 0 12px 2px; }
+.ct-list ul { list-style: none; margin: 0; padding: 0; }
+.ct-list li { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; padding: 7px 8px; border-top: 1px solid ${TT.line}; }
+.ct-list li .og-first { grid-column: 1 / -1; }
+.ct-list .og-name { font-size: 15.5px; }
+.ct-list .od-detail { margin-left: 0; color: ${TT.tealDeep}; }
+@media (min-width: 600px) { .od-groups, .od-courts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 980px) { .od-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 340px) {
+  .od-big { font-size: 23px; } .og-label { font-size: 26px; } .og-name { font-size: 16px; }
+  .od-jump { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .ct-row { column-gap: 8px; grid-template-columns: auto 2.9em minmax(0, 1fr) auto; }
+  .ct-more-t { display: none; }
+}
 `;

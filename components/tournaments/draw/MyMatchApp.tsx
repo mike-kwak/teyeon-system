@@ -393,7 +393,7 @@ function MatchBody({ view, slug }: { view: MyMatchView; slug: string }) {
         <Link href={team.placement ? `/tournaments/${slug}/draw/placement` : `/tournaments/${slug}/draw/groups/${team.groupNo}`} data-mm-group-link style={{
           ...btn, width: '100%', marginTop: 12, textDecoration: 'none', justifyContent: 'space-between',
         }}>
-          {team.placement ? '순위결정전 경기 보기' : `${team.groupNo}조 순위 · 전체 경기 보기`}<ChevronRight size={16} />
+          {team.placement ? (team.placementNo ? `${teamGroupLabel(team)} 순위결정전 경기 보기` : '순위결정전 경기 보기') : `${team.groupNo}조 순위 · 전체 경기 보기`}<ChevronRight size={16} />
         </Link>
       )}
     </>

@@ -11,6 +11,7 @@
 //   ⚠ Realtime 없음. 모든 write 성공/충돌 후 authoritative full refetch.
 
 import React from 'react';
+import { placementPublicSlot } from '@/lib/tournaments/publicGroupNo';
 import Link from 'next/link';
 import {
   AlertTriangle, ArrowDown, ArrowUp, ChevronRight, Clock, ListOrdered, RefreshCw, XCircle,
@@ -55,6 +56,7 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
   const idx = groups.findIndex((x) => x.groupNo === groupNo);
   const g = idx >= 0 ? groups[idx] : null;
   const prev = idx > 0 ? groups[idx - 1] : null;
+  const plSlot = (standings?.placement.length ?? 0) > 0 ? placementPublicSlot(groups.map((x) => x.groupNo)) : null;
   const next = idx >= 0 && idx < groups.length - 1 ? groups[idx + 1] : null;
 
   const closeDlg = () => { setDlg(null); setReason(DEFAULT_REASON); };
@@ -243,10 +245,11 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
 
       {/* ── 이전 조 / 다음 조 — 콘텐츠 끝에 자연스럽게. 순위결정전은 포함하지 않는다. ── */}
       <PrevNextNav
-        prev={prev ? { href: `${base}/${prev.groupNo}`, label: `${prev.groupNo}조` } : null}
+        prev={prev ? { href: `${base}/${prev.groupNo}`, label: `${prev.groupNo}조` }
+          : idx === 0 && plSlot?.at === 'lead' ? { href: `${base}/placement`, label: `${plSlot.no}조` } : null}
         next={next ? { href: `${base}/${next.groupNo}`, label: `${next.groupNo}조` }
-          // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다.
-          : idx === groups.length - 1 && (standings?.placement.length ?? 0) > 0
+          // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다. 1조로 보이면 여기 붙이지 않는다.
+          : idx === groups.length - 1 && (standings?.placement.length ?? 0) > 0 && plSlot?.at !== 'lead'
             ? { href: `${base}/placement`, label: placementTitle(placementDisplayNoFor(groups.map((x) => x.groupNo))).title }
             : null}
       />

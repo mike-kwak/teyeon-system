@@ -53,8 +53,8 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
   const base = basePath ?? `/tournaments/${slug}/draw`;
   const clubs = useClubIndex(slug);
   const all = React.useMemo(() => buildEntries(draw, schedule, clubs, base), [draw, schedule, clubs, base]);
-  const mobile = React.useMemo(() => sortEntries(all, 'mobile'), [all]);
-  const sheetRows = React.useMemo(() => sortEntries(all, 'sheet'), [all]);
+  // 두 화면 모두 공개 조 번호 순(1조 → 18조). 코트별 보기는 OfficialDrawBoard 가 같은 배열에서 코트 카드로 묶는다.
+  const byGroup = React.useMemo(() => sortEntries(all, 'group'), [all]);
   const sessions = React.useMemo(() => sessionHeaders(schedule), [schedule]);
   const event = getOfficialTournament(slug);
   const meta = React.useMemo(() => ({
@@ -76,8 +76,8 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
         </button>
       </div>
       {view === 'board'
-        ? <OfficialDrawBoard entries={mobile} entriesByGroup={sheetRows} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
-        : <DrawSheet entries={sheetRows} meta={meta} fileBase={slug} />}
+        ? <OfficialDrawBoard entries={byGroup} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
+        : <DrawSheet entries={byGroup} meta={meta} fileBase={slug} />}
       <style>{`
 .pv-wrap { display: flex; flex-direction: column; gap: 12px; }
 .pv-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: #E8EDF2; }

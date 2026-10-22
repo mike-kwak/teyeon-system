@@ -8,6 +8,7 @@
 //   ⚠ 합산연령 · 나이 · 순서 지정 · 경기 운영 · 복구를 노출하지 않는다.
 
 import React from 'react';
+import { placementPublicSlot } from '@/lib/tournaments/publicGroupNo';
 import { Clock, Info } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import {
@@ -49,6 +50,7 @@ export default function PublicGroupDetail({
   }
 
   const prev = idx > 0 ? draw.groups[idx - 1] : null;
+  const plSlot = draw.placement.length > 0 ? placementPublicSlot(draw.groups.map((x) => x.groupNo)) : null;
   const next = idx < draw.groups.length - 1 ? draw.groups[idx + 1] : null;
   const phase = phaseOf(g);
   const settled = isSettled(phase);
@@ -152,10 +154,12 @@ export default function PublicGroupDetail({
       </section>
 
       <PrevNextNav
-        prev={prev ? { href: `${base}/groups/${prev.groupNo}`, label: `${prev.groupNo}조` } : null}
+        prev={prev ? { href: `${base}/groups/${prev.groupNo}`, label: `${prev.groupNo}조` }
+          // 첫 일반 조(2조) 이전은 1조로 보이는 순위결정전.
+          : idx === 0 && plSlot?.at === 'lead' ? { href: `${base}/placement`, label: `${plSlot.no}조` } : null}
         next={next ? { href: `${base}/groups/${next.groupNo}`, label: `${next.groupNo}조` }
-          // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다.
-          : idx === draw.groups.length - 1 && draw.placement.length > 0
+          // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다. 1조로 보이면 여기 붙이지 않는다.
+          : idx === draw.groups.length - 1 && draw.placement.length > 0 && plSlot?.at !== 'lead'
             ? { href: `${base}/placement`, label: placementTitle(placementDisplayNoFor(draw.groups.map((x) => x.groupNo))).title }
             : null}
       />

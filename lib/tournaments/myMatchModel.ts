@@ -12,6 +12,7 @@ import type { PublicPreliminaryDraw } from './publicDrawTypes';
 import type { PublicKnockoutBracket } from './publicKnockoutTypes';
 import { scheduleForGroup, type GroupScheduleInfo, type PublicGroupSchedule } from './groupScheduleModel';
 import { groupFirstMatch, placementFirstMatch, type FirstMatchInfo } from './firstMatchModel';
+import { PLACEMENT_NAME, placementPublicLabel, placementPublicNo } from './publicGroupNo';
 
 export type MyStage = 'P' | 'L' | 'K';
 export type MyStatus = 'waiting' | 'calling' | 'playing' | 'completed';
@@ -24,12 +25,14 @@ export interface MyTeam {
   groupNo: number | null;
   /** 순위결정전 참가 팀인가(일반 조 순위표가 아니라 순위결정전 목록에서 찾은 팀). */
   placement: boolean;
+  /** 순위결정전 팀의 공개 조 번호(일반 조 2 ~ N 이면 1). 번호를 정할 수 없거나 일반 조 팀이면 null. 표시 전용. */
+  placementNo?: number | null;
   withdrawn: boolean;
 }
 
-/** 팀의 조 표시 — 일반 조 'N조' · 순위결정전 '순위결정전' · 본선에서만 찾은 팀 ''. 내부 조 번호(예: 19)는 쓰지 않는다. */
-export const teamGroupLabel = (t: Pick<MyTeam, 'groupNo' | 'placement'>): string =>
-  t.placement ? '순위결정전' : t.groupNo ? `${t.groupNo}조` : '';
+/** 팀의 조 표시 — 일반 조 'N조' · 순위결정전 공개 번호('1조', 없으면 '순위결정전') · 본선에서만 찾은 팀 ''. 내부 조 번호(예: 19)는 쓰지 않는다. */
+export const teamGroupLabel = (t: Pick<MyTeam, 'groupNo' | 'placement' | 'placementNo'>): string =>
+  t.placement ? placementPublicLabel(t.placementNo ?? null) : t.groupNo ? `${t.groupNo}조` : '';
 
 export interface MyOpponent {
   teamNo: number;
@@ -100,13 +103,14 @@ export function listTeams(draw: PublicPreliminaryDraw | null, bracket: PublicKno
     }
   }
   // 순위결정전 팀 — 일반 조 순위표에 없으므로 따로 모은다(공개 응답에 기권 표시가 없어 false).
-  for (const p of draw?.placement ?? []) {
+  const groupNos = (draw?.groups ?? []).map((g) => g.groupNo);
+  (draw?.placement ?? []).forEach((p, pi) => {
     for (const t of p.teams) {
       if (t.teamNo > 0 && !map.has(t.teamNo)) {
-        map.set(t.teamNo, { teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, groupNo: p.groupNo, placement: true, withdrawn: false });
+        map.set(t.teamNo, { teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, groupNo: p.groupNo, placement: true, placementNo: placementPublicNo(groupNos, pi), withdrawn: false });
       }
     }
-  }
+  });
   const addKo = (t: { teamNo: number; player1Name: string; player2Name: string; withdrawn: boolean } | null) => {
     if (t && t.teamNo > 0 && !map.has(t.teamNo)) {
       map.set(t.teamNo, { teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, groupNo: null, placement: false, withdrawn: t.withdrawn });
@@ -178,15 +182,16 @@ export function buildMyMatches(
       });
     }
   }
-  for (const p of draw?.placement ?? []) {
+  const gNos = (draw?.groups ?? []).map((g) => g.groupNo);
+  (draw?.placement ?? []).forEach((p, pi) => {
     const idx = p.teams.findIndex((t) => t.teamNo === teamNo);
-    if (idx < 0) continue;
+    if (idx < 0) return;
     const mine = (idx + 1) as 1 | 2;
     const opp = p.teams[idx === 0 ? 1 : 0] ?? null;
     const status = asStatus(p.status);
     const done = status === 'completed';
     out.push({
-      key: `L${p.matchNo}`, stage: 'L', matchNo: p.matchNo, title: '순위결정전',
+      key: `L${p.matchNo}`, stage: 'L', matchNo: p.matchNo, title: placementPublicNo(gNos, pi) === null ? PLACEMENT_NAME : `${placementPublicLabel(placementPublicNo(gNos, pi))} ${PLACEMENT_NAME}`,
       status, courtNo: null, courtName: null,
       opponent: opp ? { teamNo: opp.teamNo, player1Name: opp.player1Name, player2Name: opp.player2Name } : null,
       myScore: done ? (mine === 1 ? p.score1 : p.score2) : null,
@@ -195,7 +200,7 @@ export function buildMyMatches(
       nextRoundName: null,
       order: 100_000 + p.groupNo,
     });
-  }
+  });
   if (bracket) {
     const roundName = (no: number) => bracket.rounds.find((r) => r.roundNo === no)?.name ?? '';
     for (const m of bracket.matches) {

@@ -6,6 +6,7 @@
 //   ⚠ get_preliminary_standings 의 placement 항목(팀 · 상태 · 점수 · 승자)만 표시한다.
 
 import React from 'react';
+import { placementPublicSlot } from '@/lib/tournaments/publicGroupNo';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import {
   C, PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNoFor, placementTitle,
@@ -22,6 +23,8 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
   const groups = [...(standings?.groups ?? [])].sort((a, b) => a.groupNo - b.groupNo);
   const last = groups.length > 0 ? groups[groups.length - 1] : null;
   const displayNo = placementDisplayNoFor(groups.map((g) => g.groupNo));
+  // 1조로 보이면(일반 조 2 ~ N) 맨 앞 — 이전 없음 · 다음 = 첫 일반 조.
+  const lead = placementPublicSlot(groups.map((g) => g.groupNo))?.at === 'lead';
   const first = list[0] ?? null;
   const done = first?.status === 'completed';
 
@@ -91,10 +94,10 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
         })
       )}
 
-      {/* 이전 조(마지막 예선 조) / 다음 조 없음 */}
+      {/* 이전 조(마지막 예선 조) / 다음 조 없음 — 1조로 보이면 이전 없음 · 다음 = 첫 일반 조 */}
       <PrevNextNav
-        prev={last ? { href: `${base}/${last.groupNo}`, label: `${last.groupNo}조` } : null}
-        next={null}
+        prev={!lead && last ? { href: `${base}/${last.groupNo}`, label: `${last.groupNo}조` } : null}
+        next={lead && groups[0] ? { href: `${base}/${groups[0].groupNo}`, label: `${groups[0].groupNo}조` } : null}
       />
     </div>
   );

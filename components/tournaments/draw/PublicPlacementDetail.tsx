@@ -6,6 +6,7 @@
 //   ⚠ 서버가 준 두 팀 · 상태 · 점수 · 승자 쪽만 표시한다.
 
 import React from 'react';
+import { placementPublicSlot } from '@/lib/tournaments/publicGroupNo';
 import { Info } from 'lucide-react';
 import {
   PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNoFor, placementResultView, placementTitle,
@@ -32,6 +33,9 @@ export default function PublicPlacementDetail({
   const base = basePath ?? `/tournaments/${slug}/draw`;
   const last = draw.groups.length > 0 ? draw.groups[draw.groups.length - 1] : null;
   const displayNo = placementDisplayNoFor(draw.groups.map((g) => g.groupNo));
+  // 1조로 보이면(일반 조 2 ~ N) 맨 앞 — 이전 없음 · 다음 = 첫 일반 조. 아니면 기존대로 이전 = 마지막 예선 조.
+  const lead = placementPublicSlot(draw.groups.map((g) => g.groupNo))?.at === 'lead';
+  const firstGroup = draw.groups.length > 0 ? draw.groups[0] : null;
   const first = draw.placement[0] ?? null;
   const done = first?.status === 'completed';
   const sched = first ? scheduleForGroup(schedule, first.groupNo) : null;
@@ -89,8 +93,8 @@ export default function PublicPlacementDetail({
       )}
 
       <PrevNextNav
-        prev={last ? { href: `${base}/groups/${last.groupNo}`, label: `${last.groupNo}조` } : null}
-        next={null}
+        prev={!lead && last ? { href: `${base}/groups/${last.groupNo}`, label: `${last.groupNo}조` } : null}
+        next={lead && firstGroup ? { href: `${base}/groups/${firstGroup.groupNo}`, label: `${firstGroup.groupNo}조` } : null}
       />
     </div>
   );

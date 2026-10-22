@@ -11,6 +11,7 @@
 //   ⚠ Public 순위 화면이 아니다. CEO·ADMIN 전용.
 
 import React from 'react';
+import { placementPublicSlot } from '@/lib/tournaments/publicGroupNo';
 import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import {
   C, FILTERS, FILTER_LABEL, adminCompactRow, anyMatchStarted, cardStatus, filterOf,
@@ -70,6 +71,37 @@ export default function StandingsBoard({ slug }: { slug: string }) {
       (filter === 'all' || placementFilterOf(p.status) === filter)
       && (!attentionOnly || p.status === 'cancelled')
       && (!q || p.teams.some((t) => rowMatches(t, q))));
+
+  const placementLead = placementPublicSlot(groups.map((g) => g.groupNo))?.at === 'lead';
+  const placementCards = visiblePlacement.map(({ p, no }) => {
+    const done = p.status === 'completed';
+    // 서버 승자(teams[0] = team1 = score1, teams[1] = team2 = score2)
+    const winnerSide = p.winnerTeamId === p.teams[0]?.teamId ? 1 : p.winnerTeamId === p.teams[1]?.teamId ? 2 : null;
+    return (
+      <GroupCompactCard
+        key={p.matchId}
+        href={`/admin/tournaments/${slug}/standings/placement`}
+        ariaLabel={no === null ? '순위결정전 상세정보' : `${no}조 순위결정전 상세정보`}
+        {...placementTitle(no)}
+        status={p.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(p.status)}
+        progress={`${done ? 1 : 0} / 1`}
+        segments={[done ? C.teal : p.status === 'cancelled' ? C.amberDot : C.line]}
+        rows={p.teams.map((t, i) => {
+          // 순위결정전 결과 표시 — 공식 경기 점수 기준(일반 조 gameDiff 와 무관)
+          const rv = placementResultView(p, i === 0 ? 1 : 2, winnerSide);
+          return {
+          key: t.teamId, p1: t.player1Name, p2: t.player2Name, rank: null,
+          tone: { bg: '#fff', fg: C.navy, bd: C.line },
+          record: rv ? rv.record : null,
+          diff: rv ? rv.diff : null,
+          diffColor: rv?.diffColor,
+          muted: done && p.winnerTeamId !== t.teamId,
+          hit: rowMatches(t, q),
+          };
+        })}
+      />
+    );
+  });
 
   if (!ready) {
     return (
@@ -203,6 +235,7 @@ export default function StandingsBoard({ slug }: { slug: string }) {
         </div>
       ) : (
         <div className="stg-grid">
+          {placementLead && placementCards}
           {visible.map((g) => {
             const phase = phaseOf(g);
             return (
@@ -218,36 +251,8 @@ export default function StandingsBoard({ slug }: { slug: string }) {
               />
             );
           })}
-          {/* 순위결정전 — 일반 조와 같은 카드로, 번호만 N + 1조로 이어 붙인다(작은 보조 라벨로 구분). */}
-          {visiblePlacement.map(({ p, no }) => {
-            const done = p.status === 'completed';
-            // 서버 승자(teams[0] = team1 = score1, teams[1] = team2 = score2)
-            const winnerSide = p.winnerTeamId === p.teams[0]?.teamId ? 1 : p.winnerTeamId === p.teams[1]?.teamId ? 2 : null;
-            return (
-              <GroupCompactCard
-                key={p.matchId}
-                href={`/admin/tournaments/${slug}/standings/placement`}
-                ariaLabel={no === null ? '순위결정전 상세정보' : `${no}조 순위결정전 상세정보`}
-                {...placementTitle(no)}
-                status={p.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(p.status)}
-                progress={`${done ? 1 : 0} / 1`}
-                segments={[done ? C.teal : p.status === 'cancelled' ? C.amberDot : C.line]}
-                rows={p.teams.map((t, i) => {
-                  // 순위결정전 결과 표시 — 공식 경기 점수 기준(일반 조 gameDiff 와 무관)
-                  const rv = placementResultView(p, i === 0 ? 1 : 2, winnerSide);
-                  return {
-                  key: t.teamId, p1: t.player1Name, p2: t.player2Name, rank: null,
-                  tone: { bg: '#fff', fg: C.navy, bd: C.line },
-                  record: rv ? rv.record : null,
-                  diff: rv ? rv.diff : null,
-                  diffColor: rv?.diffColor,
-                  muted: done && p.winnerTeamId !== t.teamId,
-                  hit: rowMatches(t, q),
-                  };
-                })}
-              />
-            );
-          })}
+          {/* 순위결정전 — 일반 조와 같은 카드로, 번호만 이어 붙인다(작은 보조 라벨로 구분). 1조로 보이면(일반 조 2 ~ N) 맨 앞, N + 1조면 맨 뒤. */}
+          {!placementLead && placementCards}
         </div>
       )}
 

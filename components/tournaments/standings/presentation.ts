@@ -8,6 +8,7 @@
 import {
   formatGameDiff, type GroupRankingStatus, type QualificationStatus,
 } from '@/lib/tournaments/standingsTypes';
+import { placementPublicNo } from '@/lib/tournaments/publicGroupNo';
 
 // ── 색 (Cool Premium Light) ─────────────────────────────────────────────────
 export const C = {
@@ -182,13 +183,12 @@ export const placementDisplayNo = (preliminaryGroupCount: number, index = 0): nu
 export const PLACEMENT_TAG = '순위결정전';
 
 /**
- * 순위결정전 표시 번호 — 일반 조가 1 ~ N 으로 빈틈없이 이어질 때만 N + 1조를 쓴다.
- *   조 번호가 1부터 시작하지 않거나 중간이 비면(예: 2 ~ 18조) N + 1 이 실제 조 번호와 겹칠 수 있으므로
- *   번호 없이 '순위결정전' 만 쓴다(null). ⚠ 내부 group_no(예: 19)는 어떤 경우에도 표시하지 않는다.
+ * 순위결정전 표시 번호 — 공통 규칙(lib/tournaments/publicGroupNo)을 그대로 쓴다.
+ *   일반 조 2 ~ N + 1(1조 비어 있음) → 1조 · 일반 조 1 ~ N → N + 1조 · 그 밖 → null('순위결정전').
+ *   ⚠ 내부 group_no(예: 19)는 어떤 경우에도 표시하지 않는다.
  */
 export function placementDisplayNoFor(groupNos: number[], index = 0): number | null {
-  const sorted = [...groupNos].sort((a, b) => a - b);
-  return sorted.every((n, i) => n === i + 1) ? placementDisplayNo(sorted.length, index) : null;
+  return placementPublicNo(groupNos, index);
 }
 
 /** 순위결정전 제목 · 보조 라벨 — 번호가 있으면 'N조' + 순위결정전 라벨, 없으면 제목 자체가 '순위결정전'. */

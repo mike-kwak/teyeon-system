@@ -4,12 +4,14 @@
 //   ⚠ 예정 코트 · 순서 · 신고 마감 · 시작 안내는 운영진이 저장한 조별 일정만 쓴다(추정하지 않는다).
 //   ⚠ 소속 클럽은 공개 참가팀 목록(get_public_tournament_teams)과 선수 두 명 이름이 정확히 같을 때만 붙인다.
 //     못 찾으면 비워 둔다(지어내지 않는다).
-//   ⚠ 순위결정전은 내부 조 번호를 쓰지 않고 '순위결정전' 으로만 보인다.
+//   ⚠ 순위결정전은 내부 조 번호(group_no, 예: 19)를 화면에 쓰지 않는다. 공개 표시 번호는 publicGroupNo 규칙으로만 정한다
+//     (일반 조 2 ~ 18 → '1조'). key · href · groupNo · kind 는 내부 값 그대로다(저장 · 링크 · 경기 로직 무관).
 
 import type { PublicDrawMatch, PublicPreliminaryDraw, PublicStandingRow } from './publicDrawTypes';
 import type { PublicGroupSchedule, SessionNo } from './groupScheduleModel';
 import { scheduleForGroup } from './groupScheduleModel';
 import { groupFirstMatch, isFirstUpcoming, placementFirstMatch, SESSION2_DEFAULT_START, type FirstMatchInfo } from './firstMatchModel';
+import { PLACEMENT_NAME, placementPublicLabel, placementPublicNo } from './publicGroupNo';
 
 export interface ClubSource {
   player1Name: string; player2Name: string;
@@ -99,8 +101,14 @@ export interface DrawMatchLine {
 export interface DrawEntry {
   key: string;
   kind: 'group' | 'placement';
+  /** 내부 조 번호(DB group_no) — ⚠ 화면에 숫자로 쓰지 않는다. 화면 번호는 displayNo · label. */
   groupNo: number;
+  /** 참가자에게 보이는 조 번호(일반 조 = groupNo, 순위결정전 = 공개 표시 번호 · 정할 수 없으면 null). */
+  displayNo: number | null;
+  /** 참가자에게 보이는 조 이름('1조' · '7조' · 번호가 없으면 '순위결정전'). */
   label: string;
+  /** 작은 보조 문구(순위결정전: '2팀 · 순위결정전'). 일반 조는 null. */
+  subLabel: string | null;
   href: string;
   sessionNo: SessionNo | null;
   courtNo: number | null;
@@ -139,6 +147,9 @@ export function buildEntries(
   draw: PublicPreliminaryDraw, schedule: PublicGroupSchedule | null, clubs: ClubIndex | null, base: string,
 ): DrawEntry[] {
   const out: DrawEntry[] = [];
+  const groupNos = draw.groups.map((g) => g.groupNo);
+  const plNo = (i: number) => placementPublicNo(groupNos, i);
+  const plSub = `2팀 · ${PLACEMENT_NAME}`;
   for (const g of draw.groups) {
     const s = scheduleForGroup(schedule, g.groupNo);
     const f = groupFirstMatch(g.matches, s);
@@ -162,7 +173,7 @@ export function buildEntries(
     // 경기 전에는 조 자리 순서 그대로(서버 standings 순서는 경기 전 동률이라 자리 순) — 시작 후에는 서버 순위 순.
     const teams = g.standings.map(row);
     out.push({
-      key: `g${g.groupNo}`, kind: 'group', groupNo: g.groupNo, label: `${g.groupNo}조`, href: `${base}/groups/${g.groupNo}`,
+      key: `g${g.groupNo}`, kind: 'group', groupNo: g.groupNo, displayNo: g.groupNo, label: `${g.groupNo}조`, subLabel: null, href: `${base}/groups/${g.groupNo}`,
       sessionNo: s?.sessionNo ?? null, courtNo: s?.plannedCourtNo ?? null, courtText: s?.plannedCourtText ?? null,
       checkinDeadline: s?.checkinDeadline ?? null, startText: f?.startText ?? (s ? (s.sessionNo === 1 ? s.startTime ?? s.startNote : s.startNote ?? (s.sessionNo === 2 ? SESSION2_DEFAULT_START : null)) : null),
       phase, statusLabel: phase === 'done' ? '완료' : phase === 'live' ? '진행 중' : '경기 전',
@@ -170,14 +181,14 @@ export function buildEntries(
       teams, matches: matchLines(g.matches, f), firstInfo: f, pendingTeams: false,
     });
   }
-  for (const p of draw.placement) {
+  draw.placement.forEach((p, pi) => {
     const s = scheduleForGroup(schedule, p.groupNo);
     const f = placementFirstMatch(p, s);
     const upcoming = isFirstUpcoming(f);
     const done = p.status === 'completed';
     const phase: DrawEntry['phase'] = done ? 'done' : p.status === 'playing' ? 'live' : 'pre';
     out.push({
-      key: `p${p.groupNo}`, kind: 'placement', groupNo: p.groupNo, label: '순위결정전', href: `${base}/placement`,
+      key: `p${p.groupNo}`, kind: 'placement', groupNo: p.groupNo, displayNo: plNo(pi), label: placementPublicLabel(plNo(pi)), subLabel: plSub, href: `${base}/placement`,
       sessionNo: s?.sessionNo ?? null, courtNo: s?.plannedCourtNo ?? null, courtText: s?.plannedCourtText ?? null,
       checkinDeadline: s?.checkinDeadline ?? null, startText: f?.startText ?? (s?.sessionNo === 2 ? (s.startNote ?? SESSION2_DEFAULT_START) : s?.startTime ?? null),
       phase, statusLabel: done ? '완료' : phase === 'live' ? '진행 중' : '경기 전',
@@ -192,14 +203,14 @@ export function buildEntries(
         qualified: false, muted: done && p.winnerSide !== i + 1, withdrawn: false,
       })),
       matches: p.matchNo > 0 && p.teams.length === 2 ? [{
-        key: `m${p.matchNo}`, label: '순위결정전', status: p.status,
+        key: `m${p.matchNo}`, label: PLACEMENT_NAME, status: p.status,
         courtText: null, team1: teamText(p.teams[0]), team2: teamText(p.teams[1]),
         score: done && p.score1 !== null && p.score2 !== null ? `${p.score1} : ${p.score2}` : null,
         winnerSide: p.winnerSide, first: upcoming,
       }] : [],
       firstInfo: f, pendingTeams: false,
     });
-  }
+  });
   // 순위결정전 일정은 있는데 공개 데이터에 팀이 아직 없는 경우(경기 생성 전) — 자리만 보여 준다(팀을 지어내지 않는다).
   if (schedule) {
     const known = new Set(out.map((e) => e.groupNo));
@@ -208,7 +219,7 @@ export function buildEntries(
       const s = scheduleForGroup(schedule, row.groupNo);
       if (!s) continue;
       out.push({
-        key: `p${row.groupNo}`, kind: 'placement', groupNo: row.groupNo, label: '순위결정전', href: `${base}/placement`,
+        key: `p${row.groupNo}`, kind: 'placement', groupNo: row.groupNo, displayNo: plNo(0), label: placementPublicLabel(plNo(0)), subLabel: plSub, href: `${base}/placement`,
         sessionNo: s.sessionNo, courtNo: s.plannedCourtNo, courtText: s.plannedCourtText, checkinDeadline: s.checkinDeadline,
         startText: s.sessionNo === 2 ? (s.startNote ?? SESSION2_DEFAULT_START) : s.startTime ?? s.startNote,
         phase: 'pre', statusLabel: '경기 전', progress: null, teams: [], matches: [], firstInfo: null, pendingTeams: true,
@@ -218,15 +229,40 @@ export function buildEntries(
   return out;
 }
 
-/** 정렬 — mobile: 차수 → 코트(모바일 대진표) · sheet: 조 번호(공식 조편성표, 순위결정전 마지막). 미지정은 뒤로. */
-export type DrawOrder = 'mobile' | 'sheet';
+/**
+ * 정렬 — group: 공개 조 번호(1조 → 18조 · 번호 없는 순위결정전은 맨 뒤) · court: 차수 → 예정 코트. 미지정은 뒤로.
+ *   ⚠ 표시 순서만 정한다. 내부 group_no · 코트 · 차수는 바꾸지 않는다.
+ */
+export type DrawOrder = 'group' | 'court';
 
 export function sortEntries(es: DrawEntry[], order: DrawOrder): DrawEntry[] {
   const big = 999;
-  const byGroup = (a: DrawEntry, b: DrawEntry) => (a.kind === b.kind ? a.groupNo - b.groupNo : a.kind === 'group' ? -1 : 1);
-  return [...es].sort((a, b) => order === 'mobile'
-    ? (a.sessionNo ?? big) - (b.sessionNo ?? big) || (a.courtNo ?? big) - (b.courtNo ?? big) || byGroup(a, b)
-    : byGroup(a, b));
+  const byNo = (a: DrawEntry, b: DrawEntry) => (a.displayNo ?? big) - (b.displayNo ?? big) || (a.kind === b.kind ? a.groupNo - b.groupNo : a.kind === 'group' ? -1 : 1);
+  return [...es].sort((a, b) => order === 'court'
+    ? (a.sessionNo ?? big) - (b.sessionNo ?? big) || (a.courtNo ?? big) - (b.courtNo ?? big) || byNo(a, b)
+    : byNo(a, b));
+}
+
+/** 코트별 보기 — 코트 하나 = 차수별 배정 조. 코트 번호는 저장된 예정 코트에서만(없는 코트를 만들지 않는다). */
+export interface CourtSlot {
+  courtNo: number;
+  courtText: string | null;
+  /** 차수 1 · 2 의 배정 조(없으면 null — 예: 4 · 5번 코트 2차). 같은 차수에 둘 이상이면 모두(운영 확인용, 보통 1개). */
+  s1: DrawEntry[];
+  s2: DrawEntry[];
+  /** 차수 미정으로 이 코트에 배정된 조. */
+  other: DrawEntry[];
+}
+
+export function buildCourtSlots(es: DrawEntry[]): { courts: CourtSlot[]; unassigned: DrawEntry[] } {
+  const m = new Map<number, CourtSlot>(); const unassigned: DrawEntry[] = [];
+  for (const e of sortEntries(es, 'group')) {
+    if (e.courtNo === null) { unassigned.push(e); continue; }
+    const c = m.get(e.courtNo) ?? { courtNo: e.courtNo, courtText: e.courtText, s1: [], s2: [], other: [] };
+    (e.sessionNo === 1 ? c.s1 : e.sessionNo === 2 ? c.s2 : c.other).push(e);
+    m.set(e.courtNo, c);
+  }
+  return { courts: [...m.values()].sort((a, b) => a.courtNo - b.courtNo), unassigned };
 }
 
 export const teamMatches = (t: { teamNo: number; player1Name: string; player2Name: string }, q: string): boolean => {
