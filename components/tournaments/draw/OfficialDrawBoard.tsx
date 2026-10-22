@@ -5,6 +5,8 @@
 //   읽는 순서: 내 이름 검색 → 조 번호 · 예정 코트 · 1차/2차 · 신고 마감 → 페어 · 소속 → 경기 상태.
 //   · 상단: 선수 검색 + 1차/2차 출전 신고 안내(신고 마감과 경기 시작을 다른 줄 · 다른 글자로 — 09:20 을 시작 시각으로 읽지 않게)
 //   · 본문: 차수 구역 띠 → 조 카드 2열(조 · 큰 코트 번호 / 차수 · 신고) → 팀 한 줄(페어) + 얇은 구분선 · 소속은 보조 줄
+//   · 정렬: 코트순(기본 — 1차 · 2차 구역, 구역 안은 예정 코트 오름차순) / 조번호순(2조 → 18조 → 순위결정전, 구역 없음 · 카드마다 차수 · 코트 · 신고 · 시작)
+//     ⚠ 정렬은 화면 배열만 바꾼다 — 저장 · 재계산 없음. 검색은 두 정렬에서 같다.
 //   · 경기 순서 · 결과는 카드 펼치기, 순위 · 상세는 조 상세 화면으로
 //   ⚠ 데이터는 PrelimDrawViews 가 한 번 만들어 넘긴다(전체 조편성표와 같은 entries — 두 화면이 어긋나지 않게).
 //   ⚠ 순위 · 진출 · 점수는 서버 값 그대로. 예정 코트 · 순서 · 신고 마감은 운영진이 저장한 값만(없으면 그리지 않는다).
@@ -26,26 +28,33 @@ const S2 = { fg: '#7A4B00', bg: '#FFF4E0', bd: '#F0CF95', solid: '#B7791F' };   
 export const sTone = (n: 1 | 2 | null) => (n === 2 ? S2 : S1);
 export const sName = (n: 1 | 2 | null) => (n === 1 ? '1차' : n === 2 ? '2차' : '순서 미정');
 
+type SortMode = 'court' | 'group';
+
 export default function OfficialDrawBoard({
-  entries, sessions, checkinPlace, progress,
+  entries, entriesByGroup, sessions, checkinPlace, progress,
 }: {
   /** 차수 → 코트 순으로 정렬된 조 목록(PrelimDrawViews). */
   entries: DrawEntry[];
+  /** 같은 조 목록을 조 번호 순으로(순위결정전 마지막) — 정렬만 다르고 내용은 같다. */
+  entriesByGroup: DrawEntry[];
   sessions: SessionHeader[];
   checkinPlace: string | null;
   progress: { done: number; all: number };
 }) {
   const [query, setQuery] = React.useState('');
   const [open, setOpen] = React.useState<Record<string, boolean>>({});
+  const [sort, setSort] = React.useState<SortMode>('court');
   const q = normalizeQuery(query);
-  const hits = findTeams(entries, q);
-  const visible = q ? entries.filter((e) => e.teams.some((t) => teamMatches(t, q))) : entries;
+  const list = sort === 'group' ? entriesByGroup : entries;
+  const hits = findTeams(list, q);
+  const visible = q ? list.filter((e) => e.teams.some((t) => teamMatches(t, q))) : list;
   const anyFirst = entries.some((e) => e.teams.some((t) => t.first));
   const teamCount = entries.reduce((a, e) => a + e.teams.length, 0);
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
-  const sections = ([1, 2, null] as const).map((n) => ({
-    key: `s${n}`, n, items: visible.filter((e) => e.sessionNo === n),
-  })).filter((s) => s.items.length > 0);
+  // 코트순 = 차수 구역별, 조번호순 = 구역 없이 한 목록(n = 'all').
+  const sections: { key: string; n: 1 | 2 | null | 'all'; items: DrawEntry[] }[] = sort === 'group'
+    ? [{ key: 'all', n: 'all', items: visible }]
+    : ([1, 2, null] as const).map((n) => ({ key: `s${n}`, n, items: visible.filter((e) => e.sessionNo === n) })).filter((s) => s.items.length > 0);
 
   return (
     <div className="od-board">
@@ -82,15 +91,23 @@ export default function OfficialDrawBoard({
         </div>
       )}
 
+      {/* ── 정렬 ── */}
+      <div className="od-sort" role="radiogroup" aria-label="대진표 정렬">
+        <span className="od-sort-k">정렬</span>
+        {([['court', '코트순'], ['group', '조번호순']] as const).map(([k, label]) => (
+          <button key={k} type="button" role="radio" aria-checked={sort === k} data-od-sort={k} onClick={() => setSort(k)}>{label}</button>
+        ))}
+      </div>
+
       {/* ── 대진표 ── */}
       {visible.length === 0 ? (
         <p className="od-empty">{q ? '검색 결과가 없습니다. 선수 이름을 다시 확인해 주세요.' : '표시할 조가 없습니다.'}</p>
       ) : sections.map((sec) => (
         <section key={sec.key} className="od-section" data-od-section={sec.key}>
-          <SessionBand n={sec.n} h={sessions.find((s) => s.sessionNo === sec.n) ?? null} />
+          {sec.n !== 'all' && <SessionBand n={sec.n} h={sessions.find((s) => s.sessionNo === sec.n) ?? null} />}
           <div className="od-grid2">
             {sec.items.map((e) => (
-              <CompactCard key={e.key} e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} />
+              <CompactCard key={e.key} e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} showStart={sort === 'group'} />
             ))}
           </div>
         </section>
@@ -167,7 +184,7 @@ function SearchResult({ hits }: { hits: { entry: DrawEntry; team: DrawTeamLine }
 }
 
 /** C — 2열 압축 조 카드. 머리: 조 · 코트(크게) / 차수 · 신고. 팀 한 줄(페어) + 얇은 구분선, 소속은 아래 작은 줄. */
-function CompactCard({ e, q, open, onToggle }: { e: DrawEntry; q: string; open: boolean; onToggle: () => void }) {
+function CompactCard({ e, q, open, onToggle, showStart = false }: { e: DrawEntry; q: string; open: boolean; onToggle: () => void; showStart?: boolean }) {
   const tone = sTone(e.sessionNo);
   const mark = firstMark(e.firstInfo);
   return (
@@ -182,6 +199,8 @@ function CompactCard({ e, q, open, onToggle }: { e: DrawEntry; q: string; open: 
         {e.checkinDeadline && <span>신고 {e.checkinDeadline}</span>}
         {e.phase !== 'pre' && <span className="oc-st">{e.statusLabel}</span>}
       </p>
+      {/* 조번호순에서는 구역 띠가 없으므로 카드에 경기 시작 안내를 함께(신고 시각과 다른 줄 · 다른 글자). */}
+      {showStart && e.startText && <p className="oc-start" data-od-start>경기 시작 {e.startText}</p>}
       {e.pendingTeams ? <p className="oc-pending">팀 표시 준비 중</p> : (
         <ul className="oc-teams">
           {e.teams.map((t) => {
@@ -272,6 +291,11 @@ const CSS = `
 .od-found-time { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 14px; font-weight: 700; color: #E2E8F0; }
 .od-found-time b { font-size: 17px; font-weight: 900; color: #fff; }
 .od-found-first { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: 12.5px; font-weight: 900; color: #5C4300; background: #FFF1BF; border-radius: 6px; padding: 2px 8px; }
+.od-sort { display: flex; align-items: center; gap: 6px; }
+.od-sort-k { font-size: 12.5px; font-weight: 800; color: ${TT.muted}; margin-right: 2px; }
+.od-sort button { min-height: 38px; padding: 0 14px; border: 1px solid ${TT.line}; border-radius: 999px; background: #fff; font-family: inherit;
+  font-size: 13.5px; font-weight: 800; color: #5B6B82; cursor: pointer; }
+.od-sort button[aria-checked="true"] { background: ${NAVY}; border-color: ${NAVY}; color: #fff; }
 /* C — 2열 압축 */
 .od-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .oc-card { min-width: 0; background: #fff; border: 1px solid ${TT.line}; border-top: 3px solid; border-radius: 11px; padding: 7px 8px 2px; display: flex; flex-direction: column; scroll-margin-top: 80px; }
@@ -282,6 +306,7 @@ const CSS = `
 .oc-sub { margin: 3px 0 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12.5px; font-weight: 800; }
 .oc-sub b { color: #fff; font-size: 11.5px; font-weight: 900; padding: 0 6px; border-radius: 5px; line-height: 1.6; }
 .oc-st { color: ${TT.tealDeep}; margin-left: auto; font-size: 11.5px; }
+.oc-start { margin: -2px 0 4px; font-size: 11.5px; font-weight: 700; color: ${TT.muted}; word-break: keep-all; }
 .oc-pending { margin: 4px 0 8px; font-size: 12px; font-weight: 600; color: ${TT.muted}; }
 .oc-teams { list-style: none; margin: 0 -8px; padding: 0; }
 .oc-team { display: flex; flex-direction: column; padding: 5px 8px; border-top: 1px solid ${TT.line}; min-width: 0; }

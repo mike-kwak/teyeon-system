@@ -10,7 +10,10 @@ import React from 'react';
 import { Download, Minus, Plus, Maximize2, Share2 } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import type { DrawEntry } from '@/lib/tournaments/officialDrawModel';
-import { renderDrawSheet, type SheetMeta } from '@/lib/tournaments/drawSheetCanvas';
+import { renderDrawSheet, type SheetMeta, type SheetRowBox } from '@/lib/tournaments/drawSheetCanvas';
+
+/** 휴대폰에서 처음 열 때의 배율 — 화면 맞춤이 이보다 작으면 이 배율(선수 이름 약 14px)로 연다. */
+const READ_ZOOM = 0.62;
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const stamp = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -23,7 +26,10 @@ export default function DrawSheet({ entries, meta, fileBase }: {
 }) {
   const [url, setUrl] = React.useState<string | null>(null);
   const [size, setSize] = React.useState<{ w: number; h: number } | null>(null);
-  const [zoom, setZoom] = React.useState<number | null>(null);   // null = 화면 폭 맞춤
+  // null = 처음 배율(휴대폰은 READ_ZOOM, 넓은 화면은 맞춤). 'fit' = 화면 폭 맞춤. 숫자 = 사용자가 고른 배율.
+  const [zoom, setZoom] = React.useState<number | 'fit' | null>(null);
+  const [rowBoxes, setRowBoxes] = React.useState<SheetRowBox[]>([]);
+  const [jump, setJump] = React.useState('');
   const [msg, setMsg] = React.useState<string | null>(null);
   const [canShare, setCanShare] = React.useState(false);
   const blobRef = React.useRef<Blob | null>(null);
@@ -38,12 +44,14 @@ export default function DrawSheet({ entries, meta, fileBase }: {
       try { await (document as Document & { fonts?: FontFaceSet }).fonts?.ready; } catch { /* 글꼴 대기 실패해도 그린다 */ }
       const family = getComputedStyle(document.body).fontFamily || 'sans-serif';
       const now = new Date(); generatedRef.current = stamp(now);
-      const cv = renderDrawSheet(entries, { ...meta, generatedAt: `기준 ${stamp(now)}` }, 2, family);
+      const out = renderDrawSheet(entries, { ...meta, generatedAt: `기준 ${stamp(now)}` }, 2, family);
+      const cv = out.canvas;
       cv.toBlob((b) => {
         if (!alive || !b) return;
         blobRef.current = b;
         setUrl((old) => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(b); });
-        setSize({ w: cv.width / 2, h: cv.height / 2 });
+        setSize({ w: out.width, h: out.height });
+        setRowBoxes(out.rows);
         try { setCanShare(typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([b], 'x.png', { type: 'image/png' })] })); } catch { setCanShare(false); }
       }, 'image/png');
     };
@@ -59,8 +67,15 @@ export default function DrawSheet({ entries, meta, fileBase }: {
   }, []);
 
   const fit = size ? boxW / size.w : 0.25;
-  const z = zoom ?? fit;
+  const z = zoom === 'fit' ? fit : zoom ?? (fit < READ_ZOOM ? READ_ZOOM : fit);
   const step = (d: number) => setZoom(Math.min(1.6, Math.max(fit, Math.round((z + d) * 100) / 100)));
+  // 조 이동 — 그 조 행이 보기 창 맨 위에 오도록(가로는 맨 왼쪽: 조 · 코트 · 차수 · 신고가 보이게).
+  const goRow = (key: string) => {
+    setJump(key);
+    const b = rowBoxes.find((r) => r.key === key); const v = boxRef.current;
+    if (!b || !v) return;
+    v.scrollTo({ top: Math.max(0, Math.round(b.y * z) - 8), left: 0, behavior: 'smooth' });
+  };
   const fileName = `${fileBase}-예선조편성표-${generatedRef.current.replace(/[-: ]/g, '').slice(0, 12)}.png`;
 
   const save = () => {
@@ -80,15 +95,25 @@ export default function DrawSheet({ entries, meta, fileBase }: {
       <div className="ds-bar">
         <div className="ds-zoom" role="group" aria-label="확대 · 축소">
           <button type="button" onClick={() => step(-0.15)} aria-label="축소" data-sheet-action="zoom-out"><Minus size={16} strokeWidth={2.6} /></button>
-          <button type="button" onClick={() => setZoom(null)} aria-label="화면에 맞춤" data-sheet-action="fit"><Maximize2 size={15} strokeWidth={2.4} /><span>맞춤</span></button>
+          <button type="button" onClick={() => setZoom('fit')} aria-label="화면에 맞춤" data-sheet-action="fit"><Maximize2 size={15} strokeWidth={2.4} /><span>맞춤</span></button>
           <button type="button" onClick={() => step(0.15)} aria-label="확대" data-sheet-action="zoom-in"><Plus size={16} strokeWidth={2.6} /></button>
-          <span className="ds-pct" data-sheet-zoom>{Math.round(z * 100)}%</span>
+          <span className="ds-pct" data-sheet-zoom aria-live="polite">{Math.round(z * 100)}%</span>
         </div>
         <div className="ds-act">
           {canShare && <button type="button" onClick={() => void share()} data-sheet-action="share"><Share2 size={15} strokeWidth={2.4} />공유</button>}
           <button type="button" className="ds-save" onClick={save} disabled={!url} data-sheet-action="save"><Download size={15} strokeWidth={2.5} />이미지 저장</button>
         </div>
       </div>
+      {rowBoxes.length > 0 && (
+        <label className="ds-jump">
+          <span>조 이동</span>
+          <select value={jump} onChange={(ev) => goRow(ev.target.value)} data-sheet-jump aria-label="조편성표에서 조로 이동">
+            <option value="" disabled>조 선택</option>
+            {rowBoxes.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+          </select>
+          <small>표를 손가락으로 밀어 옆 팀을 볼 수 있습니다</small>
+        </label>
+      )}
       <div ref={boxRef} className="ds-view" data-sheet-view>
         {url && size ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -121,7 +146,10 @@ export default function DrawSheet({ entries, meta, fileBase }: {
 .ds-zoom { display: inline-flex; align-items: center; gap: 4px; }
 .ds-zoom button, .ds-act button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 40px; min-height: 40px; padding: 0 10px;
   border: 1px solid ${TT.line}; border-radius: 10px; background: #fff; color: ${TT.inkSoft}; font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
-.ds-pct { min-width: 44px; text-align: center; font-size: 12.5px; font-weight: 800; color: ${TT.muted}; font-variant-numeric: tabular-nums; }
+.ds-pct { min-width: 52px; padding: 0 6px; text-align: center; font-size: 15px; font-weight: 900; color: ${TT.ink}; font-variant-numeric: tabular-nums; }
+.ds-jump { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 800; color: ${TT.inkSoft}; }
+.ds-jump select { min-height: 40px; padding: 0 10px; border: 1px solid ${TT.line}; border-radius: 10px; background: #fff; font-family: inherit; font-size: 15px; font-weight: 800; color: ${TT.ink}; }
+.ds-jump small { flex-basis: 100%; font-size: 12px; font-weight: 600; color: ${TT.muted}; }
 .ds-act { display: inline-flex; gap: 6px; }
 .ds-act .ds-save { background: ${TT.navy}; border-color: ${TT.navy}; color: #fff; }
 .ds-act .ds-save:disabled { opacity: 0.5; }
