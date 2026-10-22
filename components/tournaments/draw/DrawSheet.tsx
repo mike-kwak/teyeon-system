@@ -67,6 +67,20 @@ export default function DrawSheet({ entries, meta, fileBase }: {
     ro.observe(el); setBoxW(el.clientWidth);
     return () => ro.disconnect();
   }, []);
+  // 보기 창 높이 = 실제로 보이는 화면 높이의 72%(px). ⚠ CSS 72vh 만 믿지 않는다 — 일부 인앱 · WebView 는 vh 를 실제 화면보다 훨씬 크게 잡아,
+  //   기본 배율에서 보기 창이 표 높이만큼 늘어나 버린다(표 아래는 화면 밖으로 잘리는데 세로로 움직일 거리가 0 이 되던 원인).
+  React.useEffect(() => {
+    const el = boxRef.current; if (!el) return;
+    const vv = window.visualViewport;
+    const apply = () => {
+      // innerHeight · visualViewport 까지 크게 주는 WebView 가 있어, 기기 화면 높이(screen.height)도 상한으로 함께 쓴다.
+      const h = Math.min(window.innerHeight || Infinity, vv?.height || Infinity, window.screen?.height || Infinity);
+      if (Number.isFinite(h) && h > 0) el.style.maxHeight = `${Math.max(260, Math.round(h * 0.72))}px`;
+    };
+    apply();
+    window.addEventListener('resize', apply); vv?.addEventListener('resize', apply);
+    return () => { window.removeEventListener('resize', apply); vv?.removeEventListener('resize', apply); };
+  }, []);
 
   const fit = size ? boxW / size.w : 0.25;
   const z = zoom === 'fit' ? fit : zoom ?? (fit < READ_ZOOM ? READ_ZOOM : fit);
