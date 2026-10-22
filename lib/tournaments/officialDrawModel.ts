@@ -230,17 +230,20 @@ export function buildEntries(
 }
 
 /**
- * 정렬 — group: 공개 조 번호(1조 → 18조 · 번호 없는 순위결정전은 맨 뒤) · court: 차수 → 예정 코트. 미지정은 뒤로.
+ * 정렬 — group: 공개 조 번호(1조 → 18조 · 번호 없는 순위결정전은 맨 뒤) · court: 차수 → 예정 코트
+ *   · sheet: 예정 코트 → 차수(전체 조편성표 — 1번 코트 1차 · 2차 → 2번 코트 …). 미지정은 뒤로.
  *   ⚠ 표시 순서만 정한다. 내부 group_no · 코트 · 차수는 바꾸지 않는다.
  */
-export type DrawOrder = 'group' | 'court';
+export type DrawOrder = 'group' | 'court' | 'sheet';
 
 export function sortEntries(es: DrawEntry[], order: DrawOrder): DrawEntry[] {
   const big = 999;
   const byNo = (a: DrawEntry, b: DrawEntry) => (a.displayNo ?? big) - (b.displayNo ?? big) || (a.kind === b.kind ? a.groupNo - b.groupNo : a.kind === 'group' ? -1 : 1);
   return [...es].sort((a, b) => order === 'court'
     ? (a.sessionNo ?? big) - (b.sessionNo ?? big) || (a.courtNo ?? big) - (b.courtNo ?? big) || byNo(a, b)
-    : byNo(a, b));
+    : order === 'sheet'
+      ? (a.courtNo ?? big) - (b.courtNo ?? big) || (a.sessionNo ?? big) - (b.sessionNo ?? big) || byNo(a, b)
+      : byNo(a, b));
 }
 
 /** 코트별 보기 — 코트 하나 = 차수별 배정 조. 코트 번호는 저장된 예정 코트에서만(없는 코트를 만들지 않는다). */

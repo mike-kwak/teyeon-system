@@ -36,16 +36,16 @@ type View = 'board' | 'sheet';
 export default function PrelimDrawViews({ slug, draw, schedule = null, basePath }: {
   slug: string; draw: PublicPreliminaryDraw; schedule?: PublicGroupSchedule | null; basePath?: string;
 }) {
-  const [view, setView] = React.useState<View>('board');
-  // 공유 링크 ?view=sheet 로 바로 전체 조편성표를 열 수 있다(표시 전용 · 다른 상태 없음).
+  // 기본 = 전체 조편성표. 모바일 대진표는 ?view=board 로 바로 열 수 있다(?view=sheet 도 그대로 조편성표 · 표시 전용).
+  const [view, setView] = React.useState<View>('sheet');
   React.useEffect(() => {
-    try { if (new URLSearchParams(window.location.search).get('view') === 'sheet') setView('sheet'); } catch { /* 무시 */ }
+    try { if (new URLSearchParams(window.location.search).get('view') === 'board') setView('board'); } catch { /* 무시 */ }
   }, []);
   const choose = (v: View) => {
     setView(v);
     try {
       const u = new URL(window.location.href);
-      if (v === 'sheet') u.searchParams.set('view', 'sheet'); else u.searchParams.delete('view');
+      if (v === 'board') u.searchParams.set('view', 'board'); else u.searchParams.delete('view');
       window.history.replaceState(window.history.state, '', u.toString());
     } catch { /* 무시 */ }
   };
@@ -53,8 +53,10 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
   const base = basePath ?? `/tournaments/${slug}/draw`;
   const clubs = useClubIndex(slug);
   const all = React.useMemo(() => buildEntries(draw, schedule, clubs, base), [draw, schedule, clubs, base]);
-  // 두 화면 모두 공개 조 번호 순(1조 → 18조). 코트별 보기는 OfficialDrawBoard 가 같은 배열에서 코트 카드로 묶는다.
+  // 같은 entries 를 순서만 달리 — 모바일 대진표는 공개 조 번호 순(코트별 보기는 그 배열을 코트 카드로 묶는다),
+  // 전체 조편성표는 코트 → 차수 순. 탭을 바꿔도 다시 조회하지 않는다.
   const byGroup = React.useMemo(() => sortEntries(all, 'group'), [all]);
+  const byCourt = React.useMemo(() => sortEntries(all, 'sheet'), [all]);
   const sessions = React.useMemo(() => sessionHeaders(schedule), [schedule]);
   const event = getOfficialTournament(slug);
   const meta = React.useMemo(() => ({
@@ -68,16 +70,16 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
   return (
     <div className="pv-wrap">
       <div className="pv-tabs" role="tablist" aria-label="대진표 보기 방식">
-        <button type="button" role="tab" aria-selected={view === 'board'} onClick={() => choose('board')} data-draw-view="board">
-          <LayoutGrid size={15} strokeWidth={2.4} />모바일 대진표
-        </button>
         <button type="button" role="tab" aria-selected={view === 'sheet'} onClick={() => choose('sheet')} data-draw-view="sheet">
           <Table2 size={15} strokeWidth={2.4} />전체 조편성표
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'board'} onClick={() => choose('board')} data-draw-view="board">
+          <LayoutGrid size={15} strokeWidth={2.4} />모바일 대진표
         </button>
       </div>
       {view === 'board'
         ? <OfficialDrawBoard entries={byGroup} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
-        : <DrawSheet entries={byGroup} meta={meta} fileBase={slug} />}
+        : <DrawSheet entries={byCourt} meta={meta} fileBase={slug} />}
       <style>{`
 .pv-wrap { display: flex; flex-direction: column; gap: 12px; }
 .pv-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: #E8EDF2; }

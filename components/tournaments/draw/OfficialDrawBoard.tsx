@@ -3,7 +3,7 @@
 // 공개 DRAW — 모바일 예선 대진표(read-only). 참가자가 '내 조 · 코트 · 신고 시각'을 바로 찾는 화면.
 //
 //   화면 목적을 둘로 나눈다(조 번호와 코트 번호를 한 목록에서 동시에 순서대로 만들 수 없으므로):
-//   · 조별 보기(기본) — 1조 → 18조. 카드 = 큰 조 번호 + 바로 옆 예정 코트 / 차수 · 신고 마감 · 경기 시작 / 팀별 선수 · 소속
+//   · 코트별 보기(기본) · 조별 보기(보조) — 조별은 1조 → 18조. 카드 = 큰 조 번호 + 바로 옆 예정 코트 / 차수 · 신고 마감 · 경기 시작 / 팀별 선수 · 소속
 //   · 코트별 보기 — 1번 → 10번 코트. 코트 카드 = 1차 배정 조 / 2차 배정 조(없으면 '배정 없음') · 신고 마감 · 명단 펼치기 · 상세
 //   · 검색은 두 보기 위에서 같다 — 조 · 파트너 · 소속 · 코트 · 차수 · 신고 · 시작 · 첫 경기 출전을 한 카드로.
 //   ⚠ 데이터는 PrelimDrawViews 가 한 번 만들어 넘긴다(전체 조편성표와 같은 entries — 두 화면이 어긋나지 않게).
@@ -44,7 +44,7 @@ export default function OfficialDrawBoard({
   progress: { done: number; all: number };
 }) {
   const [query, setQuery] = React.useState('');
-  const [view, setView] = React.useState<View>('group');
+  const [view, setView] = React.useState<View>('court');
   const [open, setOpen] = React.useState<Record<string, boolean>>({});
   const q = normalizeQuery(query);
   const hits = findTeams(entries, q);
@@ -56,10 +56,16 @@ export default function OfficialDrawBoard({
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   const lastCourt = courts.courts.length ? courts.courts[courts.courts.length - 1].courtNo : null;
 
-  // 검색 결과 · 조 바로가기 → 조별 보기의 그 카드로.
+  // 조 바로가기 → 조별 보기의 그 카드로. 검색 결과 → 지금 보기에서(코트별이면 그 코트 카드 · 명단 펼침).
   const goEntry = (key: string) => {
     setView('group');
     requestAnimationFrame(() => document.getElementById(`od-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+  const goFound = (key: string) => {
+    const e = entries.find((x) => x.key === key);
+    if (view !== 'court' || !e || e.courtNo === null) { goEntry(key); return; }
+    setOpen((o) => ({ ...o, [`c-${key}`]: true }));
+    requestAnimationFrame(() => document.getElementById(`odc-${e.courtNo}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
   const shownCourts = q
@@ -78,7 +84,7 @@ export default function OfficialDrawBoard({
         )}
       </label>
 
-      {q && <SearchResult hits={hits} onGo={goEntry} />}
+      {q && <SearchResult hits={hits} onGo={goFound} />}
 
       {/* ── 1차 · 2차 출전 신고 ── */}
       {!q && sessions.length > 0 && (
@@ -92,11 +98,11 @@ export default function OfficialDrawBoard({
 
       {/* ── 조별 보기 / 코트별 보기 ── */}
       <div className="od-views" role="tablist" aria-label="대진표 보기">
-        <button type="button" role="tab" aria-selected={view === 'group'} data-od-view="group" onClick={() => setView('group')}>
-          <b>조별 보기</b><small>{entries.length ? `1조 → ${entries.length}조` : '조 번호 순'}</small>
-        </button>
         <button type="button" role="tab" aria-selected={view === 'court'} data-od-view="court" onClick={() => setView('court')}>
           <b>코트별 보기</b><small>{lastCourt ? `1번 → ${lastCourt}번 코트` : '코트 번호 순'}</small>
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'group'} data-od-view="group" onClick={() => setView('group')}>
+          <b>조별 보기</b><small>{entries.length ? `1조 → ${entries.length}조` : '조 번호 순'}</small>
         </button>
       </div>
 
@@ -315,17 +321,21 @@ function CourtCard({ c, q, hitKeys, open, onToggle }: {
             <div key={e.key} className="ct-slot" data-od-court-slot={`${c.courtNo}-${n}`} data-od-court-entry={e.key}
               style={{ borderLeftColor: n ? tone.solid : TT.line }}>
               <button type="button" className="ct-row" aria-expanded={expanded} onClick={() => onToggle(`c-${e.key}`)} data-od-court-toggle={e.key}>
-                <b className="og-chip" style={{ background: n ? tone.solid : '#64748B' }}>{sName(n)}</b>
-                <span className="ct-group">{e.label}</span>
-                <span className="ct-times">
-                  {e.checkinDeadline && <span className="ct-ck" style={{ color: tone.fg }}>신고 <strong>{e.checkinDeadline}</strong> 마감</span>}
-                  {e.startText && <span>{startPhrase(e.startText)}</span>}
+                <span className="ct-line1">
+                  <b className="og-chip" style={{ background: n ? tone.solid : '#64748B' }}>{sName(n)}</b>
+                  <span className="ct-group">{e.label}</span>
+                  {e.subLabel && <span className="ct-sub">{e.subLabel}</span>}
+                  <span className="ct-more">{expanded ? '접기' : '명단'}<ChevronDown size={15} strokeWidth={2.5} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} /></span>
                 </span>
-                <span className="ct-more"><span className="ct-more-t">명단</span><ChevronDown size={15} strokeWidth={2.5} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} /></span>
+                {(e.checkinDeadline || e.startText) && (
+                  <span className="ct-times" data-od-court-times>
+                    {e.checkinDeadline && <span className="ct-ck" style={{ color: tone.fg }}>신고 <strong>{e.checkinDeadline}</strong> 마감</span>}
+                    {e.startText && <span className="ct-st">{startPhrase(e.startText)}</span>}
+                  </span>
+                )}
               </button>
               {expanded && (
                 <div className="ct-list" data-od-court-list={e.key}>
-                  {e.subLabel && <p className="og-subl">{e.subLabel}</p>}
                   {e.pendingTeams ? <p className="og-pending">팀 표시 준비 중</p> : (
                     <ul>
                       {e.teams.map((t) => {
@@ -416,8 +426,9 @@ const CSS = `
 .og-club { font-size: 12px; font-weight: 600; color: ${TT.muted}; line-height: 1.35; overflow-wrap: anywhere; word-break: keep-all; }
 .og-player-dark .og-name { color: #fff; font-size: 17px; }
 .og-player-dark .og-club { color: #CBD5E1; }
-/* 조별 보기 — 휴대폰 1열(이름 · 소속을 좁은 2열 카드에 넣지 않는다) · 넓은 화면 2 · 3열 */
-.od-groups { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+/* 조별 · 코트별 카드 열 수 — 화면(viewport)이 아니라 이 목록의 실제 폭으로 정한다.
+   카드 하나가 340px 이상 될 때만 2열 · 3열(앱 화면이 좁은 태블릿 · PC 에서 2열로 찌그러지지 않게). */
+.od-groups, .od-courts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 10px; }
 .og-card { min-width: 0; background: #fff; border: 1px solid ${TT.line}; border-top: 4px solid; border-radius: 13px; padding: 10px 12px 0; display: flex; flex-direction: column; scroll-margin-top: 80px; }
 .og-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .og-label { font-size: 28px; font-weight: 900; color: ${NAVY}; letter-spacing: -0.03em; line-height: 1.05; white-space: nowrap; }
@@ -440,24 +451,24 @@ const CSS = `
 .og-rec { font-size: 12.5px; font-weight: 800; color: ${TT.inkSoft}; font-variant-numeric: tabular-nums; }
 .og-foot { display: flex; justify-content: space-between; border-top: 1px solid ${TT.line}; margin: 0 -12px; padding: 0 12px; }
 /* 코트별 보기 — 코트 하나 = 카드 하나(1번 → 10번) */
-.od-courts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .ct-card { min-width: 0; background: #fff; border: 1px solid ${TT.line}; border-radius: 13px; overflow: hidden; scroll-margin-top: 80px; }
 .ct-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: ${NAVY}; color: #fff; }
 .ct-no { font-size: 14px; font-weight: 800; }
 .ct-no b { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; margin-right: 1px; }
 .ct-slot { border-top: 1px solid ${TT.line}; border-left: 4px solid; }
 .ct-head + .ct-slot { border-top: 0; }
-/* 줄 = 차수 칩 | 조 | 신고 · 시작 | 명단 — 격자로 두 줄(1차 · 2차)의 열을 맞춘다 */
-.ct-row { width: 100%; display: grid; grid-template-columns: auto 3.2em minmax(0, 1fr) auto; align-items: center; column-gap: 10px; min-height: 56px; padding: 8px 10px; box-sizing: border-box;
+/* 줄 = 1행 차수 칩 · 조 · 명단 / 2행 신고 마감 · 경기 시작(줄 전체 폭 — 좁은 칸에 넣지 않는다) */
+.ct-row { width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 56px; padding: 9px 12px 10px; box-sizing: border-box;
   border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; color: ${TT.ink}; }
-.ct-group { font-size: 23px; font-weight: 900; color: ${NAVY}; letter-spacing: -0.02em; white-space: nowrap; min-width: 3.1em; }
-.ct-times { display: flex; flex-direction: column; min-width: 0; font-size: 12.5px; font-weight: 700; color: ${TT.inkSoft}; line-height: 1.35; word-break: keep-all; }
-.ct-ck { white-space: nowrap; }
+.ct-line1 { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
+.ct-group { font-size: 23px; font-weight: 900; color: ${NAVY}; letter-spacing: -0.02em; white-space: nowrap; line-height: 1.15; }
+.ct-sub { font-size: 12px; font-weight: 700; color: ${TT.muted}; }
 .ct-row .og-chip { min-width: 2.7em; box-sizing: border-box; text-align: center; }
-.ct-times strong { font-size: 14.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.ct-more { margin-left: auto; display: inline-flex; align-items: center; gap: 1px; flex-shrink: 0; font-size: 12px; font-weight: 800; color: ${TT.tealDeep}; }
-.ct-none span { grid-column: 2 / -1; }
-.ct-none { cursor: default; border-top: 1px solid ${TT.line}; border-left: 4px solid #E2E8F0; color: ${TT.subtle}; font-size: 13.5px; font-weight: 700; min-height: 44px; }
+.ct-times { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: 13.5px; font-weight: 700; color: ${TT.inkSoft}; line-height: 1.4; word-break: keep-all; }
+.ct-times strong { font-size: 15.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.ct-ck, .ct-st { white-space: normal; overflow-wrap: anywhere; }
+.ct-more { margin-left: auto; display: inline-flex; align-items: center; gap: 1px; flex-shrink: 0; font-size: 12.5px; font-weight: 800; color: ${TT.tealDeep}; }
+.ct-none { flex-direction: row; align-items: center; gap: 10px; border-top: 1px solid ${TT.line}; border-left: 4px solid #E2E8F0; color: ${TT.subtle}; font-size: 13.5px; font-weight: 700; min-height: 44px; }
 .ct-head + .ct-none { border-top: 0; }
 .ct-list { padding: 0 12px 2px; }
 .ct-list ul { list-style: none; margin: 0; padding: 0; }
@@ -465,12 +476,8 @@ const CSS = `
 .ct-list li .og-first { grid-column: 1 / -1; }
 .ct-list .og-name { font-size: 15.5px; }
 .ct-list .od-detail { margin-left: 0; color: ${TT.tealDeep}; }
-@media (min-width: 600px) { .od-groups, .od-courts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 980px) { .od-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 340px) {
   .od-big { font-size: 23px; } .og-label { font-size: 26px; } .og-name { font-size: 16px; }
   .od-jump { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .ct-row { column-gap: 8px; grid-template-columns: auto 2.9em minmax(0, 1fr) auto; }
-  .ct-more-t { display: none; }
 }
 `;
