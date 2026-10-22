@@ -2,7 +2,7 @@
 
 // Admin — 예선 대진표 미리보기(공개 전 검수).
 //
-//   참가자 공개 화면과 같은 컴포넌트(PublicDrawBoard · PublicGroupDetail · PublicPlacementDetail · 출전 신고 안내)를
+//   참가자 공개 화면과 같은 컴포넌트(PrelimDrawViews(모바일 대진표 · 전체 조편성표) · PublicGroupDetail · PublicPlacementDetail · 출전 신고 안내)를
 //   본부 조회 데이터(get_preliminary_standings · get_admin_match_board · get_admin_group_schedule)로 그린다.
 //   ⚠ 읽기 전용. DRAW 공개 · 조편성 잠금 · 일정 어느 것도 바꾸지 않는다(쓰기 RPC 호출 없음).
 //   ⚠ 데이터 모양 · 표시 규칙은 공개 RPC 와 같다(drawPreviewModel) — 코트는 진행 중일 때만, 점수는 완료일 때만.
@@ -21,10 +21,9 @@ import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
 import type { PublicGroupSchedule } from '@/lib/tournaments/groupScheduleModel';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import { DrawHeading } from '@/components/tournaments/draw/PublicDrawShell';
-import PublicDrawBoard from '@/components/tournaments/draw/PublicDrawBoard';
+import PrelimDrawViews from '@/components/tournaments/draw/PrelimDrawViews';
 import PublicGroupDetail from '@/components/tournaments/draw/PublicGroupDetail';
 import PublicPlacementDetail from '@/components/tournaments/draw/PublicPlacementDetail';
-import { ScheduleNotice } from '@/components/tournaments/draw/PublicScheduleInfo';
 import TestTournamentBanner from '@/components/tournaments/TestTournamentBanner';
 
 const WIDTHS = [320, 360, 375, 390, 430] as const;
@@ -53,7 +52,7 @@ function useDrawPreview(slug: string) {
       ]);
       if (!st.ready || !st.standings) { setState('empty'); return; }
       setData({
-        draw: previewDraw(st.standings, board),
+        draw: previewDraw(st.standings, board, sched.data),
         schedule: previewSchedule(sched.data),
         drawStatus: board?.drawStatus ?? sched.data?.drawStatus ?? 'draft',
         published: !!sched.data?.drawPublishedAt,
@@ -135,9 +134,8 @@ export default function DrawPreview({ slug, view, groupNo }: { slug: string; vie
             <PublicPlacementDetail slug={slug} draw={data.draw} basePath={base} schedule={data.schedule} />
           ) : (
             <>
-              <DrawHeading title="대진표" sub={event ? event.titleFull : slug} />
-              <ScheduleNotice schedule={data.schedule} />
-              <PublicDrawBoard slug={slug} draw={data.draw} schedule={data.schedule} basePath={base} />
+              <DrawHeading title="예선 대진표" sub={event ? event.titleFull : slug} />
+              <PrelimDrawViews slug={slug} draw={data.draw} schedule={data.schedule} basePath={base} />
             </>
           )}
         </div>

@@ -184,6 +184,22 @@ export default function TournamentHubPage() {
       <TournamentPublicHeader shortTag={event.shortTag} />
       <TournamentNavigation items={navItems} defaultNote={NAV_DEFAULT_NOTE} />
 
+      {/* DRAW 공개 후에만 — 참가자가 허브에서 바로 대진표로(공개 전에는 서버가 null → 그리지 않는다). */}
+      {drawPublished && (
+        <Padded style={{ paddingTop: 14 }}>
+          <Link href={`/tournaments/${event.slug}/draw`} data-hub-draw-cta style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: TT.navy,
+            color: '#fff', textDecoration: 'none', boxSizing: 'border-box',
+          }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 17, fontWeight: 900, letterSpacing: '-0.01em' }}>예선 대진표 보기</span>
+              <span style={{ display: 'block', marginTop: 2, fontSize: 13, fontWeight: 700, color: '#CBD5E1', wordBreak: 'keep-all' }}>내 이름으로 조 · 코트 · 출전 신고 시간 찾기</span>
+            </span>
+            <span aria-hidden style={{ fontSize: 22, fontWeight: 900, color: TT.tealOnNavy }}>›</span>
+          </Link>
+        </Padded>
+      )}
+
       <div ref={heroRef}>
         <Padded>
           <TournamentHero

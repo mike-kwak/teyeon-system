@@ -13,7 +13,11 @@ import type { MatchBoard } from './matchTypes';
 import type { AdminGroupSchedule } from './groupScheduleService';
 import type { PublicGroupSchedule } from './groupScheduleModel';
 
-export function previewDraw(st: PreliminaryStandings, board: MatchBoard | null): PublicPreliminaryDraw {
+/**
+ * ⚠ 순위결정전: 서버 standings 코어는 순위결정전 '경기' 와 묶어서만 돌려준다 → 경기 생성 전에는 비어 있다.
+ *   미리보기는 본부 일정 조회(get_admin_group_schedule)의 순위결정전 조 · 팀으로 자리를 채운다(경기 번호 0 = 경기 미생성).
+ */
+export function previewDraw(st: PreliminaryStandings, board: MatchBoard | null, sched: AdminGroupSchedule | null = null): PublicPreliminaryDraw {
   const courtName = (no: number | null) => (no === null ? null : board?.courts.find((c) => c.courtNo === no)?.displayName ?? null);
   const groups = [...st.groups].sort((a, b) => a.groupNo - b.groupNo).map((g) => {
     const matches: PublicDrawMatch[] = (board?.matches ?? [])
@@ -66,6 +70,14 @@ export function previewDraw(st: PreliminaryStandings, board: MatchBoard | null):
       teams: p.teams.map((t) => ({ teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name })),
     };
   });
+  if (placement.length === 0 && sched) {
+    for (const g of sched.groups.filter((x) => x.groupType === 'placement' && x.teams.length > 0)) {
+      placement.push({
+        groupNo: g.groupNo, matchNo: 0, status: 'waiting', score1: null, score2: null, winnerSide: null,
+        teams: g.teams.map((t) => ({ teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name })),
+      });
+    }
+  }
   return { slug: st.slug, qualifyPerGroup: st.qualifyPerGroup, groups, placement };
 }
 
