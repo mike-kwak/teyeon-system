@@ -10,6 +10,7 @@ import React from 'react';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { ControlMatchRow } from './controlModel';
+import { matchHeadLabel } from '@/lib/tournaments/matchTypes';
 
 const INK = '#0F172A';
 const INK_SOFT = '#334155';
@@ -44,9 +45,7 @@ export default function ControlCheckinWarning({
   }, [onClose]);
 
   const teams = [match.team1, match.team2].filter((t) => teamNos.includes(t.teamNo));
-  const head = match.stage === 'knockout'
-    ? (match.roundName ?? '본선')
-    : match.groupNo !== null ? `${match.groupNo}조` : '순위결정전';
+  const head = matchHeadLabel(match);
 
   return (
     <div role="dialog" aria-modal="true" aria-label="미체크인 팀 투입 확인" data-control-dialog="checkin-warning"

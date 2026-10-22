@@ -13,6 +13,8 @@ import {
   fetchAdminGroupSchedule, saveGroupSchedule, saveScheduleSettings, scheduleActionMessage, SESSION_LABEL, WARNING_TEXT,
   type AdminGroupSchedule, type SessionNo, type SettingsInput,
 } from '@/lib/tournaments/groupScheduleService';
+import { confirmedPlanFor } from '@/lib/tournaments/confirmedSchedulePlan';
+import ConfirmedPlanApply from './ConfirmedPlanApply';
 
 const INK = '#0F172A'; const MUTED = '#64748B'; const LINE = '#E2E8F0'; const TEAL = '#0E8C80';
 const card: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: 16, boxSizing: 'border-box' };
@@ -78,9 +80,12 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
     finally { setBusy(''); }
   };
 
+  const groupLabel = (no: number | null): string =>
+    data?.groups.find((g) => g.groupNo === no)?.groupType === 'placement' ? '순위결정전' : `${no}조`;
+
   const saveGroup = async (groupNo: number, sessionNo: SessionNo | null, courtNo: number | null) => {
     setBusy(`g${groupNo}`);
-    try { await saveGroupSchedule(slug, groupNo, sessionNo, courtNo); say(`${groupNo}조 일정을 저장했습니다.`); }
+    try { await saveGroupSchedule(slug, groupNo, sessionNo, courtNo); say(`${groupLabel(groupNo)} 일정을 저장했습니다.`); }
     catch (e) { say(scheduleActionMessage(e), 'err'); }
     finally { setBusy(''); await load(true); }
   };
@@ -90,6 +95,7 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
   if (state === 'denied') return <Notice tone="warn" text="이 대회를 찾을 수 없거나 권한이 없습니다. (CEO·ADMIN 전용)" />;
   if (state === 'error' || !data) return <Notice tone="warn" text="일정을 불러오지 못했습니다." action={<button type="button" style={btn} onClick={() => void load()}><RefreshCw size={15} />다시 시도</button>} />;
 
+  // 순위결정전은 내부 조 번호(예: 19)를 쓰지 않고 '순위결정전' 으로만 보인다. 저장 키(group_no)는 그대로다.
   const courtLabel = (no: number) => {
     const c = data.courts.find((x) => x.courtNo === no);
     return `${c?.displayName || `${no}번 코트`}${c && c.status !== 'active' ? ' (사용 중지)' : ''}`;
@@ -100,6 +106,7 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
   })).filter((x) => x.groups.length > 0);
   const assigned = data.groups.filter((g) => g.sessionNo !== null && g.plannedCourtNo !== null).length;
   const published = !!data.drawPublishedAt;
+  const plan = confirmedPlanFor(slug);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -119,6 +126,8 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
           여기서 저장해도 조편성 잠금과 DRAW 공개 상태는 바뀌지 않습니다. {published ? '지금 공개 중이므로 저장하면 참가자 화면에 45초 안에 반영됩니다.' : 'DRAW 를 공개하면 참가자 화면에 표시됩니다.'}
         </p>
       </div>
+
+      {plan && data.groups.length > 0 && <ConfirmedPlanApply slug={slug} plan={plan} data={data} onApplied={() => load(true)} />}
 
       {/* ── 공통 출전 신고 안내 ── */}
       <section data-sched-settings style={card}>
@@ -174,7 +183,7 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
         {data.warnings.length > 0 && (
           <ul data-sched-warnings style={{ margin: '12px 0 0', padding: '10px 12px 10px 30px', borderRadius: 10, background: '#FFF7E6', border: '1px solid #F5D9A8', display: 'grid', gap: 4 }}>
             {data.warnings.map((w, i) => (
-              <li key={i} data-sched-warning={w.kind} style={{ fontSize: 12.5, fontWeight: 700, color: '#92400E', lineHeight: 1.55 }}>{WARNING_TEXT(w)}</li>
+              <li key={i} data-sched-warning={w.kind} style={{ fontSize: 12.5, fontWeight: 700, color: '#92400E', lineHeight: 1.55 }}>{WARNING_TEXT(w, groupLabel)}</li>
             ))}
           </ul>
         )}
@@ -191,8 +200,7 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
                   border: `1px solid ${g.sessionNo && g.plannedCourtNo ? LINE : '#F5D9A8'}`, background: g.sessionNo && g.plannedCourtNo ? '#fff' : '#FFFBF2',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: INK }}>{g.groupNo}조</span>
-                    {g.groupType === 'placement' && <span style={{ fontSize: 11.5, fontWeight: 800, color: '#7C3AED' }}>순위결정전</span>}
+                    <span style={{ fontSize: 16, fontWeight: 900, color: INK }}>{groupLabel(g.groupNo)}</span>
                     {rowBusy ? <Loader2 size={14} className="animate-spin" color={MUTED} />
                       : g.sessionNo && g.plannedCourtNo ? <CheckCircle2 size={14} color={TEAL} /> : null}
                     <span style={{ flexBasis: '100%', fontSize: 12.5, fontWeight: 600, color: MUTED, lineHeight: 1.55, wordBreak: 'keep-all' }}>
@@ -200,13 +208,13 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
                     </span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-                    <select aria-label={`${g.groupNo}조 출전 순서`} data-sched-select={`session-${g.groupNo}`} disabled={rowBusy} style={input}
+                    <select aria-label={`${groupLabel(g.groupNo)} 출전 순서`} data-sched-select={`session-${g.groupNo}`} disabled={rowBusy} style={input}
                       value={g.sessionNo ?? ''} onChange={(e) => void saveGroup(g.groupNo, e.target.value ? (Number(e.target.value) as SessionNo) : null, g.plannedCourtNo)}>
                       <option value="">순서 미정</option>
                       <option value="1">{SESSION_LABEL[1]}</option>
                       <option value="2">{SESSION_LABEL[2]}</option>
                     </select>
-                    <select aria-label={`${g.groupNo}조 예정 코트`} data-sched-select={`court-${g.groupNo}`} disabled={rowBusy || data.courts.length === 0} style={input}
+                    <select aria-label={`${groupLabel(g.groupNo)} 예정 코트`} data-sched-select={`court-${g.groupNo}`} disabled={rowBusy || data.courts.length === 0} style={input}
                       value={g.plannedCourtNo ?? ''} onChange={(e) => void saveGroup(g.groupNo, g.sessionNo, e.target.value ? Number(e.target.value) : null)}>
                       <option value="">코트 미정</option>
                       {data.courts.map((c) => <option key={c.courtNo} value={c.courtNo}>{courtLabel(c.courtNo)}</option>)}
@@ -227,7 +235,7 @@ export default function GroupScheduleEditor({ slug }: { slug: string }) {
               <div key={court.courtNo} data-sched-court={court.courtNo} style={{ display: 'flex', gap: 10, alignItems: 'baseline', fontSize: 13.5, lineHeight: 1.55 }}>
                 <span style={{ flexShrink: 0, width: 92, fontWeight: 900, color: INK }}>{courtLabel(court.courtNo)}</span>
                 <span style={{ flex: 1, minWidth: 0, fontWeight: 700, color: '#334155', wordBreak: 'keep-all' }}>
-                  {groups.map((g) => `${g.groupNo}조(${g.sessionNo ? SESSION_LABEL[g.sessionNo] : '순서 미정'})`).join(' → ')}
+                  {groups.map((g) => `${groupLabel(g.groupNo)}(${g.sessionNo ? SESSION_LABEL[g.sessionNo] : '순서 미정'})`).join(' → ')}
                   {groups.length > 2 && <AlertTriangle size={13} color="#B45309" style={{ marginLeft: 6, verticalAlign: '-2px' }} />}
                 </span>
               </div>

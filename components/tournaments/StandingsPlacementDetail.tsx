@@ -8,7 +8,7 @@
 import React from 'react';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import {
-  C, PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNo,
+  C, PLACEMENT_NOTICE_BODY, PLACEMENT_NOTICE_HEAD, PLACEMENT_TAG, placementDisplayNoFor, placementTitle,
   placementResultView, placementStatusView, matchStatusView, teamName, useStandingsData,
 } from '@/components/tournaments/standingsView';
 import {
@@ -21,7 +21,7 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
   const list = standings?.placement ?? [];
   const groups = [...(standings?.groups ?? [])].sort((a, b) => a.groupNo - b.groupNo);
   const last = groups.length > 0 ? groups[groups.length - 1] : null;
-  const displayNo = placementDisplayNo(groups.length);
+  const displayNo = placementDisplayNoFor(groups.map((g) => g.groupNo));
   const first = list[0] ?? null;
   const done = first?.status === 'completed';
 
@@ -47,8 +47,8 @@ export default function StandingsPlacementDetail({ slug }: { slug: string }) {
       </div>
 
       <DetailHeader
-        title={first ? `${displayNo}조` : PLACEMENT_TAG}
-        tag={first ? PLACEMENT_TAG : undefined}
+        title={first ? placementTitle(displayNo).title : PLACEMENT_TAG}
+        tag={first ? placementTitle(displayNo).tag : undefined}
         sub={`${PLACEMENT_TAG} · 2팀 · ${list.length || 1}경기`}
         status={first ? (first.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(first.status)) : null}
         progress={first ? `${done ? 1 : 0} / 1 경기` : null}

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import { C, type Tone } from './presentation';
 
 /** 순위결정전 같은 보조 라벨 색 — 강조하지 않는 옅은 blue. */
@@ -52,6 +52,29 @@ export interface CompactRow {
   diffColor?: string;
   muted: boolean;
   hit: boolean;
+  /** 공개 화면 — 첫 경기 출전 표시(노란 줄 + 글자 배지). 없으면 그리지 않는다(관리자 화면은 넘기지 않는다). */
+  first?: HighlightMark | null;
+}
+
+/** 첫 경기 출전 같은 '안내' 강조 — 색 · 글자를 래퍼가 정해서 넘긴다(승패 · 진출 색과 섞지 않는다). */
+export interface HighlightMark {
+  label: string;
+  bg: string;
+  bd: string;
+  fg: string;
+}
+
+/** 강조 배지 — 색만으로 구분하지 않도록 깃발 아이콘 + 글자. */
+export function HighlightBadge({ mark, size = 11 }: { mark: HighlightMark; size?: number }) {
+  return (
+    <span data-first-badge style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 7px', borderRadius: 999,
+      fontSize: size, fontWeight: 800, lineHeight: '16px', whiteSpace: 'nowrap',
+      color: mark.fg, background: '#fff', border: `1px solid ${mark.bd}`,
+    }}>
+      <Flag size={size} strokeWidth={2.6} style={{ flexShrink: 0 }} />{mark.label}
+    </span>
+  );
 }
 
 export function GroupCompactCard({
@@ -93,10 +116,11 @@ export function GroupCompactCard({
         {rows.map((r) => {
           const pre = r.rank === null;
           return (
-            <div key={r.key} style={{
+            <div key={r.key} data-first-row={r.first ? 'true' : undefined} style={{
               display: 'flex', alignItems: 'flex-start', gap: 8,
-              margin: '0 -5px', padding: '2px 5px', borderRadius: 7,
-              background: r.hit ? C.tealTint : 'transparent',
+              margin: '0 -5px', padding: r.first ? '4px 5px' : '2px 5px', borderRadius: 7,
+              background: r.hit ? C.tealTint : r.first ? r.first.bg : 'transparent',
+              boxShadow: r.first ? `inset 3px 0 0 ${r.first.bd}` : undefined,
             }}>
               {/* ⚠ 경기 전에는 순위 숫자 대신 빈 표시만 둔다 */}
               <span style={{
@@ -114,6 +138,7 @@ export function GroupCompactCard({
               }}>
                 <div>{r.p1}</div>
                 <div>{r.p2}</div>
+                {r.first && <div style={{ marginTop: 3 }}><HighlightBadge mark={r.first} /></div>}
               </div>
               {/* 성적 — 이름 두 줄(선수1 / 선수2)과 같은 줄 높이로 승/패 · 득실을 두 줄에 둔다.
                   한 줄에 모두 넣으면 360px 에서 이름 칸이 3글자도 못 담을 만큼 줄어든다. */}
@@ -237,9 +262,16 @@ export function SectionHead({ title, hint, inCard = true }: { title: string; hin
 
 // ── 참가 팀 행 (경기 전) ────────────────────────────────────────────────────
 /** teamNo 를 넘기지 않으면 번호 칸을 그리지 않는다(참가자 공개 화면 — 내부 팀 번호 비노출). 관리자 화면은 그대로 넘긴다. */
-export function EntryRow({ teamNo, name, withdrawn }: { teamNo?: number; name: string; withdrawn: boolean }) {
+export function EntryRow({ teamNo, name, withdrawn, badge }: {
+  teamNo?: number; name: string; withdrawn: boolean;
+  /** 공개 화면 — 첫 경기 출전 배지. 없으면 그리지 않는다. */
+  badge?: HighlightMark | null;
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: `1px solid ${C.lineSoft}` }}>
+    <div data-first-row={badge ? 'true' : undefined} style={{
+      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: `1px solid ${C.lineSoft}`,
+      ...(badge ? { margin: '0 -8px', padding: '12px 8px', background: badge.bg, boxShadow: `inset 3px 0 0 ${badge.bd}` } : null),
+    }}>
       {teamNo != null && (
         <span style={{ flexShrink: 0, minWidth: 36, fontSize: 12.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>
           {teamNo}번
@@ -247,6 +279,7 @@ export function EntryRow({ teamNo, name, withdrawn }: { teamNo?: number; name: s
       )}
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, color: C.navy, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
         {name}
+        {badge && <span style={{ display: 'block', marginTop: 4 }}><HighlightBadge mark={badge} /></span>}
       </span>
       {withdrawn && <span style={{ fontSize: 11.5, fontWeight: 700, color: C.red }}>기권</span>}
     </div>
@@ -332,7 +365,7 @@ export function RankTable({ settled, rows }: { settled: boolean; rows: RankRowVi
 
 // ── 경기 카드 ───────────────────────────────────────────────────────────────
 export function MatchResultCard({
-  label, sub, status, left, right, score1, score2, winner, done, cancelled,
+  label, sub, status, left, right, score1, score2, winner, done, cancelled, highlight,
 }: {
   label: string;
   sub: string | null;
@@ -344,6 +377,8 @@ export function MatchResultCard({
   winner: 1 | 2 | null;
   done: boolean;
   cancelled: boolean;
+  /** 공개 화면 — 첫 경기 안내 띠(배지 + 시간 · 코트 · 신고). 없으면 그리지 않는다. */
+  highlight?: { mark: HighlightMark; detail: string | null } | null;
 }) {
   const w1 = done && winner === 1;
   const w2 = done && winner === 2;
@@ -354,7 +389,20 @@ export function MatchResultCard({
   });
   const scoreColor = (win: boolean) => (done ? (win ? C.navy : C.faint) : '#B8C2D0');
   return (
-    <div style={{ background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14, padding: '12px 14px 14px' }}>
+    <div data-first-match={highlight ? 'true' : undefined} style={{
+      background: '#fff', border: `1px solid ${highlight ? highlight.mark.bd : C.line}`, borderRadius: 14, padding: '12px 14px 14px',
+      boxShadow: highlight ? `inset 0 3px 0 ${highlight.mark.bd}` : undefined,
+    }}>
+      {highlight && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', margin: '-4px -6px 10px', padding: '7px 8px',
+          borderRadius: 9, background: highlight.mark.bg, color: highlight.mark.fg,
+          fontSize: 12.5, fontWeight: 800, lineHeight: 1.5, wordBreak: 'keep-all',
+        }}>
+          <HighlightBadge mark={highlight.mark} size={11.5} />
+          {highlight.detail && <span style={{ minWidth: 0 }}>{highlight.detail}</span>}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>
           {label}{sub ? ' ' : null}{sub && <span style={{ fontWeight: 600, color: C.faint }}>· {sub}</span>}
@@ -386,12 +434,14 @@ export interface PlacementTeamRow {
   diff: string | null;
   diffColor?: string;
   won: boolean;
+  /** 공개 화면 — 첫 경기 출전 배지. 없으면 그리지 않는다. */
+  badge?: HighlightMark | null;
 }
 
 const PLACEMENT_COLS = 'minmax(0, 1fr) 54px 32px auto';
 
 export function PlacementDetailBlock({
-  matchLabel, matchSub, status, teams, score1, score2, winner, done,
+  matchLabel, matchSub, status, teams, score1, score2, winner, done, highlight,
 }: {
   /** 경기 카드 라벨(예: 1경기) · 보조 표시(예: #49, 없으면 null). */
   matchLabel: string;
@@ -402,6 +452,8 @@ export function PlacementDetailBlock({
   score2: number | null;
   winner: 1 | 2 | null;
   done: boolean;
+  /** 공개 화면 — 경기 카드의 첫 경기 안내 띠. */
+  highlight?: { mark: HighlightMark; detail: string | null } | null;
 }) {
   const [t1, t2] = teams;
   return (
@@ -426,6 +478,7 @@ export function PlacementDetailBlock({
               <p style={{ margin: 0, fontSize: 14, fontWeight: t.won ? 800 : 700, color: C.navy, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
                 {t.name}
               </p>
+              {t.badge && <p style={{ margin: '4px 0 0' }}><HighlightBadge mark={t.badge} /></p>}
               {t.teamNo != null && (
                 <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 700, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{t.teamNo}번</p>
               )}
@@ -449,7 +502,7 @@ export function PlacementDetailBlock({
           <MatchResultCard
             label={matchLabel} sub={matchSub} status={status}
             left={t1.name} right={t2.name} score1={score1} score2={score2}
-            winner={winner} done={done} cancelled={false}
+            winner={winner} done={done} cancelled={false} highlight={highlight}
           />
         )}
       </section>

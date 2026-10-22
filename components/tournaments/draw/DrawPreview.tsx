@@ -132,7 +132,7 @@ export default function DrawPreview({ slug, view, groupNo }: { slug: string; vie
           ) : view === 'group' ? (
             <PublicGroupDetail slug={slug} draw={data.draw} groupNo={groupNo ?? -1} schedule={data.schedule} basePath={base} />
           ) : view === 'placement' ? (
-            <PublicPlacementDetail slug={slug} draw={data.draw} basePath={base} />
+            <PublicPlacementDetail slug={slug} draw={data.draw} basePath={base} schedule={data.schedule} />
           ) : (
             <>
               <DrawHeading title="대진표" sub={event ? event.titleFull : slug} />

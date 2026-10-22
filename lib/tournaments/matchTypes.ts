@@ -101,6 +101,16 @@ export function matchGroupLabel(m: Pick<TournamentMatch, 'groupNo' | 'groupType'
   return m.groupNo === null ? '-' : `${m.groupNo}조`;
 }
 
+/**
+ * 관제 · 점수창 · 체크인 경고 공용 경기 구분 — 본선은 라운드 이름(없으면 '본선'), 순위결정전은 '순위결정전',
+ * 일반 예선은 'N조'. ⚠ 순위결정전의 내부 조 번호(예: 19)는 화면에 쓰지 않는다(stage 로 판정).
+ */
+export function matchHeadLabel(m: { stage: MatchStage; groupNo?: number | null; roundName?: string | null }): string {
+  if (m.stage === 'knockout') return m.roundName ?? '본선';
+  if (m.stage === 'placement') return '순위결정전';
+  return m.groupNo != null ? `${m.groupNo}조` : '순위결정전';
+}
+
 /** 팀 표시 이름. */
 export function matchTeamName(t: Pick<MatchTeam, 'player1Name' | 'player2Name'>): string {
   return `${t.player1Name} · ${t.player2Name}`;

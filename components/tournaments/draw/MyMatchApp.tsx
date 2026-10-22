@@ -19,8 +19,11 @@ import {
 import { MY_FAST_MS, MY_STALE_MS, useMyMatchFeed } from '@/components/tournaments/draw/useMyMatchFeed';
 import {
   buildView, checkSaved, courtText, diffEvents, freshEvents, hasPending, isCourtEvent, listTeams, searchTeams,
-  snapshotOf, type MyEvent, type MyMatch, type MyMatchSchedule, type MySnapshot, type MyTeam, type SavedTeam,
+  snapshotOf, teamGroupLabel, type MyEvent, type MyMatch, type MyMatchSchedule, type MySnapshot, type MyTeam, type SavedTeam,
 } from '@/lib/tournaments/myMatchModel';
+import { firstDetail, firstHeadline, isFirstUpcoming, type FirstMatchInfo } from '@/lib/tournaments/firstMatchModel';
+import { HighlightBadge } from '@/components/tournaments/standings/primitives';
+import { firstMark } from '@/components/tournaments/draw/FirstMatchMarks';
 import { loadSeen, loadSoundWanted, loadTeam, saveSeen, saveSoundWanted, saveTeam } from '@/lib/tournaments/myMatchStorage';
 import type { getOfficialTournament } from '@/lib/tournaments/officialInfo';
 
@@ -280,7 +283,7 @@ function TeamBar({ saved, team, onChange }: { saved: SavedTeam; team: MyTeam | n
       }}><Users size={20} strokeWidth={2.4} /></span>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: TT.muted }}>
-          내 팀{team?.groupNo ? ` · ${team.groupNo}조` : ''}{team?.withdrawn ? ' · 기권' : ''}
+          내 팀{team && teamGroupLabel(team) ? ` · ${teamGroupLabel(team)}` : ''}{team?.withdrawn ? ' · 기권' : ''}
         </span>
         <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: TT.ink, lineHeight: 1.4, wordBreak: 'keep-all' }}>{names(t)}</span>
       </span>
@@ -330,13 +333,13 @@ function TeamPicker({ teams, current, onPick, onCancel }: {
               }}>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 800, color: TT.ink, lineHeight: 1.45, wordBreak: 'keep-all' }}>{names(t)}</span>
                 <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: t.withdrawn ? RED : TT.muted }}>
-                  {t.withdrawn ? '기권' : t.groupNo ? `${t.groupNo}조` : ''}{mine ? ' · 현재' : ''}
+                  {t.withdrawn ? '기권' : teamGroupLabel(t)}{mine ? ' · 현재' : ''}
                 </span>
               </button>
               {open && (
                 <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: TT.inkSoft, wordBreak: 'keep-all' }}>
-                    {t.groupNo ? `${t.groupNo}조 · ` : ''}{names(t)} 팀이 맞습니까?
+                    {teamGroupLabel(t) ? `${teamGroupLabel(t)} · ` : ''}{names(t)} 팀이 맞습니까?
                   </p>
                   <button type="button" data-mm-action="pick-confirm" onClick={() => onPick(t)}
                     style={{ ...btn, width: '100%', background: TT.teal, borderColor: TT.teal, color: '#fff' }}>내 팀으로 선택</button>
@@ -353,10 +356,14 @@ function TeamPicker({ teams, current, onPick, onCancel }: {
 function MatchBody({ view, slug }: { view: MyMatchView; slug: string }) {
   const { current, next, results, pendingSlot, team, schedule } = view;
   const nothing = !current && !next && !pendingSlot;
+  // 조별 일정(예정 코트 · 신고)은 예선 · 순위결정전 경기에만 붙인다(본선은 본부 수동 배정).
+  const schedOf = (m: MyMatch) => (m.stage === 'P' || m.stage === 'L' ? schedule : null);
+  // 첫 경기 노란 안내 — 이 경기가 내 조의 실제 첫 경기이고 아직 시작 전일 때만.
+  const firstOfMatch = (m: MyMatch) => (view.first && view.first.matchNo === m.matchNo && m.stage !== 'K' && isFirstUpcoming(view.first) ? view.first : null);
   return (
     <>
-      {current && <CurrentCard m={current} schedule={current.stage === 'P' ? schedule : null} />}
-      {!current && next && <NextCard m={next} first schedule={next.stage === 'P' ? schedule : null} />}
+      {current && <CurrentCard m={current} schedule={schedOf(current)} firstInfo={firstOfMatch(current)} />}
+      {!current && next && <NextCard m={next} first schedule={schedOf(next)} firstInfo={firstOfMatch(next)} />}
       {current && next && <NextCard m={next} />}
       {pendingSlot && (
         <div data-mm-pending style={{ ...card, marginBottom: 12, borderColor: '#C8DDE6' }}>
@@ -383,10 +390,10 @@ function MatchBody({ view, slug }: { view: MyMatchView; slug: string }) {
         </section>
       )}
       {team?.groupNo && (
-        <Link href={`/tournaments/${slug}/draw/groups/${team.groupNo}`} data-mm-group-link style={{
+        <Link href={team.placement ? `/tournaments/${slug}/draw/placement` : `/tournaments/${slug}/draw/groups/${team.groupNo}`} data-mm-group-link style={{
           ...btn, width: '100%', marginTop: 12, textDecoration: 'none', justifyContent: 'space-between',
         }}>
-          {team.groupNo}조 순위 · 전체 경기 보기<ChevronRight size={16} />
+          {team.placement ? '순위결정전 경기 보기' : `${team.groupNo}조 순위 · 전체 경기 보기`}<ChevronRight size={16} />
         </Link>
       )}
     </>
@@ -422,7 +429,23 @@ function ScheduleBlock({ s }: { s: MyMatchSchedule | null }) {
   );
 }
 
-function CurrentCard({ m, schedule }: { m: MyMatch; schedule?: MyMatchSchedule | null }) {
+/** 첫 경기 노란 안내 — '⚑ 첫 경기 출전' + '첫 경기 · 09:00 · 예정 2번 코트 · 신고 08:40까지'. */
+function FirstNotice({ f }: { f: FirstMatchInfo | null }) {
+  const mark = firstMark(f);
+  if (!mark || !f) return null;
+  const detail = [firstHeadline(f), firstDetail(f)].filter(Boolean).join(' · ');
+  return (
+    <div data-mm-first={f.sessionNo ?? 'none'} style={{
+      marginTop: 10, padding: '8px 10px', borderRadius: 10, background: mark.bg, border: `1px solid ${mark.bd}`, color: mark.fg,
+      display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13, fontWeight: 800, lineHeight: 1.5, wordBreak: 'keep-all',
+    }}>
+      <HighlightBadge mark={mark} size={11.5} />
+      <span style={{ minWidth: 0 }}>{detail}</span>
+    </div>
+  );
+}
+
+function CurrentCard({ m, schedule, firstInfo = null }: { m: MyMatch; schedule?: MyMatchSchedule | null; firstInfo?: FirstMatchInfo | null }) {
   const playing = m.status === 'playing';
   const court = courtText(m);
   return (
@@ -449,13 +472,15 @@ function CurrentCard({ m, schedule }: { m: MyMatch; schedule?: MyMatchSchedule |
             코트 번호는 본부가 경기를 코트에 투입하면 표시됩니다.
           </p>
         )}
-        {!playing && <ScheduleBlock s={schedule ?? null} />}
+        {!playing && <FirstNotice f={firstInfo} />}
+        {/* 순위결정전은 공개 응답에 실제 코트가 없다 — 진행 중이어도 코트가 없으면 예정 코트 안내를 남긴다. */}
+        {(!playing || !court) && <ScheduleBlock s={schedule ?? null} />}
       </div>
     </section>
   );
 }
 
-function NextCard({ m, first, schedule }: { m: MyMatch; first?: boolean; schedule?: MyMatchSchedule | null }) {
+function NextCard({ m, first, schedule, firstInfo = null }: { m: MyMatch; first?: boolean; schedule?: MyMatchSchedule | null; firstInfo?: FirstMatchInfo | null }) {
   return (
     <section data-mm-next={m.key} style={{ ...card, marginBottom: 12 }}>
       <p style={label}>{first ? 'NEXT MATCH' : 'AFTER THIS'}</p>
@@ -466,6 +491,7 @@ function NextCard({ m, first, schedule }: { m: MyMatch; first?: boolean; schedul
           대기 중입니다. 실제 코트 번호는 본부가 경기를 코트에 투입하면 이 화면에 크게 표시됩니다.
         </p>
       )}
+      {first && <FirstNotice f={firstInfo} />}
       {first && <ScheduleBlock s={schedule ?? null} />}
     </section>
   );

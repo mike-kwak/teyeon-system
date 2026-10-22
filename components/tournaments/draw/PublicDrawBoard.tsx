@@ -10,7 +10,7 @@ import React from 'react';
 import { Search, X as XIcon } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import {
-  C, FILTERS, FILTER_LABEL, PLACEMENT_TAG, filterOf, normalizeQuery, phaseOf, placementDisplayNo,
+  C, FILTERS, FILTER_LABEL, filterOf, normalizeQuery, phaseOf, placementDisplayNoFor, placementTitle,
   placementFilterOf, placementResultView, placementStatusView, progressSegments, progressText, rowMatches, type GroupFilter,
 } from '@/components/tournaments/standings/presentation';
 import {
@@ -19,6 +19,8 @@ import {
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
 import { scheduleForGroup, type PublicGroupSchedule } from '@/lib/tournaments/groupScheduleService';
 import { GroupScheduleLine } from './PublicScheduleInfo';
+import { groupFirstMatch, isFirstUpcoming, placementFirstMatch } from '@/lib/tournaments/firstMatchModel';
+import { FirstMatchLine, firstMarkFor } from './FirstMatchMarks';
 import {
   publicCardStatus, publicCompactRow, publicGroupStarted, publicMatchStatus, teamKey,
 } from './publicDrawView';
@@ -39,7 +41,7 @@ export default function PublicDrawBoard({
 
   const groups = draw.groups;
   const placement = draw.placement;
-  // ⚠ 순위결정전은 일반 조 번호 흐름에 이어 N + 1조로 보여준다(표시 전용 — 순위 계산과 무관).
+  // ⚠ 순위결정전은 일반 조가 1 ~ N 일 때만 N + 1조로 이어 붙이고, 아니면 '순위결정전' 으로만 보여준다(표시 전용 — 순위 계산과 무관).
   const counts = React.useMemo(() => {
     const c: Record<GroupFilter, number> = { all: groups.length + placement.length, live: 0, pre: 0, done: 0 };
     groups.forEach((g) => { c[filterOf(g, publicGroupStarted(g))] += 1; });
@@ -51,11 +53,14 @@ export default function PublicDrawBoard({
     { done: placement.filter((p) => p.status === 'completed').length, all: placement.length },
   );
   const pct = totals.all > 0 ? Math.round((totals.done / totals.all) * 100) : 0;
+  // 첫 경기를 앞둔 조가 하나라도 있을 때만 노란 표시 범례를 보인다.
+  const anyFirst = groups.some((g) => isFirstUpcoming(groupFirstMatch(g.matches, null)))
+    || placement.some((p) => isFirstUpcoming(placementFirstMatch(p, null)));
 
   const visible = groups.filter((g) =>
     (filter === 'all' || filterOf(g, publicGroupStarted(g)) === filter) && (!q || g.standings.some((r) => rowMatches(r, q))));
   const visiblePlacement = placement
-    .map((p, i) => ({ p, no: placementDisplayNo(groups.length, i) }))
+    .map((p, i) => ({ p, no: placementDisplayNoFor(groups.map((g) => g.groupNo), i) }))
     .filter(({ p }) => (filter === 'all' || placementFilterOf(p.status) === filter)
       && (!q || p.teams.some((t) => rowMatches(t, q))));
 
@@ -123,7 +128,12 @@ export default function PublicDrawBoard({
         })}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -4 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: 14, marginTop: -4 }}>
+        {/* 노란 표시 = 그 조의 첫 경기에 나가는 팀(안내 전용 — 승패 · 진출과 무관). */}
+        {anyFirst && <span data-first-legend style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: TT.muted, minHeight: 24 }}>
+          <span style={{ width: 11, height: 11, borderRadius: 3, background: '#FFF1BF', boxShadow: 'inset 0 0 0 1.5px #E5B300' }} />
+          첫 경기 출전
+        </span>}
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: TT.muted, minHeight: 24 }}>
           <span style={{ width: 11, height: 11, borderRadius: 3, background: TT.teal }} />
           본선 진출
@@ -141,6 +151,9 @@ export default function PublicDrawBoard({
         <div className="stg-grid">
           {visible.map((g) => {
             const phase = phaseOf(g);
+            const sched = scheduleForGroup(schedule, g.groupNo);
+            // 첫 경기 — 실제 경기 행(조 안 순서가 가장 이른 경기)에서만. 경기가 없으면 '경기 순서 준비 중'.
+            const fm = groupFirstMatch(g.matches, sched);
             return (
               <GroupCompactCard
                 key={`g${g.groupNo}`}
@@ -150,27 +163,34 @@ export default function PublicDrawBoard({
                 status={publicCardStatus(g)}
                 progress={progressText(g)}
                 segments={progressSegments(g)}
-                rows={g.standings.map((r) => publicCompactRow(r, phase, q))}
-                extra={<GroupScheduleLine info={scheduleForGroup(schedule, g.groupNo)} done={phase === 'FINAL'} />}
+                rows={g.standings.map((r) => ({ ...publicCompactRow(r, phase, q), first: firstMarkFor(fm, r.teamNo) }))}
+                extra={<>
+                  <FirstMatchLine info={fm} pending={g.matches.length === 0} />
+                  <GroupScheduleLine info={sched} done={phase === 'FINAL'} />
+                </>}
               />
             );
           })}
           {/* 순위결정전 — 일반 조와 같은 카드로, 번호만 N + 1조로 이어 붙인다(작은 보조 라벨로 구분). */}
           {visiblePlacement.map(({ p, no }) => {
             const done = p.status === 'completed';
+            const sched = scheduleForGroup(schedule, p.groupNo);
+            const fm = placementFirstMatch(p, sched);
             return (
               <GroupCompactCard
                 key={`p${p.matchNo}`}
                 href={`${base}/placement`}
-                ariaLabel={`${no}조 순위결정전 상세정보`}
-                title={`${no}조`}
-                tag={PLACEMENT_TAG}
+                ariaLabel={no === null ? '순위결정전 상세정보' : `${no}조 순위결정전 상세정보`}
+                {...placementTitle(no)}
                 status={p.status === 'cancelled'
                   ? publicMatchStatus({ status: 'cancelled', courtNo: null, courtName: null })
                   : placementStatusView(p.status)}
                 progress={`${done ? 1 : 0} / 1`}
                 segments={[done ? C.teal : C.line]}
-                extra={<GroupScheduleLine info={scheduleForGroup(schedule, p.groupNo)} done={done} />}
+                extra={<>
+                  <FirstMatchLine info={fm} pending={false} />
+                  <GroupScheduleLine info={sched} done={done} />
+                </>}
                 rows={p.teams.map((t, i) => {
                   // 순위결정전 결과 표시 — 공식 경기 점수 기준(일반 조 gameDiff 와 무관)
                   const rv = placementResultView(p, i === 0 ? 1 : 2, p.winnerSide);
@@ -182,6 +202,7 @@ export default function PublicDrawBoard({
                     diffColor: rv?.diffColor,
                     muted: done && p.winnerSide !== i + 1,
                     hit: rowMatches(t, q),
+                    first: firstMarkFor(fm, t.teamNo),
                   };
                 })}
               />

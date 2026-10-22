@@ -11,7 +11,7 @@ import React from 'react';
 import { Clock, Info } from 'lucide-react';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import {
-  C, NO_RESULT_YET_NOTICE, isSettled, phaseOf, placementDisplayNo, progressText, teamName,
+  C, NO_RESULT_YET_NOTICE, isSettled, phaseOf, placementDisplayNoFor, placementTitle, progressText, teamName,
 } from '@/components/tournaments/standings/presentation';
 import {
   BackLink, Callout, DetailHeader, EntryRow, MatchResultCard, Notice, PrevNextNav, QualifiedHero,
@@ -20,6 +20,8 @@ import {
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
 import { scheduleForGroup, type PublicGroupSchedule } from '@/lib/tournaments/groupScheduleService';
 import { GroupScheduleCard } from './PublicScheduleInfo';
+import { FIRST_PENDING_LABEL, groupFirstMatch } from '@/lib/tournaments/firstMatchModel';
+import { firstMarkFor, firstMatchHighlight } from './FirstMatchMarks';
 import {
   publicDetailStatus, publicMatchStatus, publicNotice, publicRankRow, teamKey,
 } from './publicDrawView';
@@ -53,6 +55,8 @@ export default function PublicGroupDetail({
   const notice = publicNotice(g);
   const qualified = phase === 'FINAL' ? g.standings.filter((r) => r.qualificationStatus === 'QUALIFIED') : [];
   const sched = scheduleForGroup(schedule, g.groupNo);
+  // 첫 경기 — 실제 경기 행에서만(조 안 순서가 가장 이른 경기). 시작 · 진행 · 종료 후에는 강조하지 않는다.
+  const fm = groupFirstMatch(g.matches, sched);
   /** 실제 코트가 예정 코트와 다르면 경기 줄에 '(변경)' 을 붙인다 — 실제 코트가 우선. */
   const matchStatus = (m: (typeof g.matches)[number]) => {
     const s = publicMatchStatus(m);
@@ -111,7 +115,7 @@ export default function PublicGroupDetail({
         />
         {phase === 'NOT_STARTED' ? (
           [...g.standings].sort((a, b) => a.teamNo - b.teamNo).map((r) => (
-            <EntryRow key={teamKey(r)} name={teamName(r)} withdrawn={r.withdrawn} />
+            <EntryRow key={teamKey(r)} name={teamName(r)} withdrawn={r.withdrawn} badge={firstMarkFor(fm, r.teamNo)} />
           ))
         ) : (
           <RankTable settled={settled} rows={g.standings.map((r) => publicRankRow(r, phase))} />
@@ -126,7 +130,7 @@ export default function PublicGroupDetail({
       <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <SectionHead title={phase === 'NOT_STARTED' ? '경기 일정' : '경기 결과'} hint="6게임 1세트 · 노애드" inCard={false} />
         {g.matches.length === 0 ? (
-          <Notice tone="info" text="경기 일정이 아직 정해지지 않았습니다." />
+          <Notice tone="info" text={`${FIRST_PENDING_LABEL} — 경기 일정이 아직 정해지지 않았습니다.`} />
         ) : (
           g.matches.map((m) => (
             <MatchResultCard
@@ -141,6 +145,7 @@ export default function PublicGroupDetail({
               winner={m.winnerSide}
               done={m.status === 'completed'}
               cancelled={m.status === 'cancelled'}
+              highlight={fm && fm.matchNo === m.matchNo ? firstMatchHighlight(fm) : null}
             />
           ))
         )}
@@ -151,7 +156,7 @@ export default function PublicGroupDetail({
         next={next ? { href: `${base}/groups/${next.groupNo}`, label: `${next.groupNo}조` }
           // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다.
           : idx === draw.groups.length - 1 && draw.placement.length > 0
-            ? { href: `${base}/placement`, label: `${placementDisplayNo(draw.groups.length)}조` }
+            ? { href: `${base}/placement`, label: placementTitle(placementDisplayNoFor(draw.groups.map((x) => x.groupNo))).title }
             : null}
       />
 

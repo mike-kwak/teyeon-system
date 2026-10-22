@@ -159,6 +159,8 @@ export function stageLabel(court: ArenaCourt, bracket: ArenaBracket | null): str
     const m = bracket?.matches.find((x) => x.matchNo === now.matchNo);
     return m?.roundName ? `본선 ${m.roundName}` : '본선';
   }
+  // 순위결정전은 내부 조 번호(예: 19)를 쓰지 않는다 — liveStageLabel 과 같은 규칙.
+  if (now.stage === 'placement') return '순위결정전';
   return now.groupNo !== null ? `예선 ${now.groupNo}조` : '예선';
 }
 

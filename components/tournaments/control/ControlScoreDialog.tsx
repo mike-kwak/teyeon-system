@@ -14,7 +14,7 @@
 //   ⚠ 저장 경로는 [경기 완료] 클릭 하나뿐이다. 닫기 · Escape · 배경 클릭 · 재조회는 아무 것도 저장하지 않는다.
 
 import React from 'react';
-import { isValidSetScore } from '@/lib/tournaments/matchTypes';
+import { isValidSetScore, matchHeadLabel } from '@/lib/tournaments/matchTypes';
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { ControlMatchRow } from './controlModel';
 
@@ -34,11 +34,7 @@ const teamText = (t: ControlMatchRow['team1']): string => {
   return names || '—';
 };
 
-const headOf = (m: ControlMatchRow): string => (
-  m.stage === 'knockout'
-    ? (m.roundName ?? '본선')
-    : m.groupNo !== null ? `${m.groupNo}조` : '순위결정전'
-);
+const headOf = (m: ControlMatchRow): string => matchHeadLabel(m);
 
 const btn: React.CSSProperties = {
   minHeight: 44, padding: '8px 16px', borderRadius: 9,

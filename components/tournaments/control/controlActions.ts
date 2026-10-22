@@ -23,7 +23,7 @@ import {
 } from '@/lib/tournaments/matchAdminService';
 import { matchTimerState } from '@/lib/tournaments/matchTimer';
 import { bracketActionMessage, completeKnockoutMatch } from '@/lib/tournaments/bracketAdminService';
-import type { MatchBoard } from '@/lib/tournaments/matchTypes';
+import { matchHeadLabel, type MatchBoard } from '@/lib/tournaments/matchTypes';
 import { classifyFetchError, describeMatchState, intentVisible, judgeActionResult } from './controlModel';
 import type { ControlActionIntent, ControlActionVerdict, ControlMatchRow } from './controlModel';
 
@@ -100,10 +100,7 @@ const intentText = (m: ActionTarget, it: ControlActionIntent): string => {
 
 /** 경기 식별 한 줄 — 'M70 · 1조' · 'M301 · 결승'. */
 const matchText = (m: ActionTarget): string => {
-  const head = m.stage === 'knockout'
-    ? (m.roundName ?? '본선')
-    : m.groupNo != null ? `${m.groupNo}조` : '순위결정전';
-  return `M${m.matchNo} · ${head}`;
+  return `M${m.matchNo} · ${matchHeadLabel(m)}`;
 };
 
 export function useControlActions(data: ControlActionData): ControlActions {

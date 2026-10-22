@@ -181,11 +181,12 @@ export function scheduleActionMessage(err: unknown): string {
   }
 }
 
-export const WARNING_TEXT = (w: ScheduleWarning): string => {
+/** groupLabel — 조 번호 표시(순위결정전은 화면이 '순위결정전' 으로 바꿔 넘긴다). 기본은 'N조'. */
+export const WARNING_TEXT = (w: ScheduleWarning, groupLabel: (groupNo: number | null) => string = (n) => `${n}조`): string => {
   switch (w.kind) {
-    case 'unassigned':              return `${w.groupNo}조: 순서 또는 예정 코트가 아직 지정되지 않았습니다.`;
-    case 'court_unknown':           return `${w.groupNo}조: ${w.courtNo}번 코트가 코트 목록에 없습니다.`;
-    case 'court_disabled':          return `${w.groupNo}조: ${w.courtNo}번 코트가 사용 중지 상태입니다.`;
+    case 'unassigned':              return `${groupLabel(w.groupNo)}: 순서 또는 예정 코트가 아직 지정되지 않았습니다.`;
+    case 'court_unknown':           return `${groupLabel(w.groupNo)}: ${w.courtNo}번 코트가 코트 목록에 없습니다.`;
+    case 'court_disabled':          return `${groupLabel(w.groupNo)}: ${w.courtNo}번 코트가 사용 중지 상태입니다.`;
     case 'same_court_same_session': return `${w.courtNo}번 코트에 ${w.sessionNo === 1 ? '첫 번째' : '두 번째'} 조가 ${w.count}개 지정되어 있습니다.`;
     case 'court_over_two':          return `${w.courtNo}번 코트에 조가 ${w.count}개 지정되어 있습니다(보통 2개).`;
     default:                        return '확인이 필요한 일정이 있습니다.';

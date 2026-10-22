@@ -13,9 +13,9 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import {
-  C, FILTERS, FILTER_LABEL, PLACEMENT_TAG, adminCompactRow, anyMatchStarted, cardStatus, filterOf,
+  C, FILTERS, FILTER_LABEL, adminCompactRow, anyMatchStarted, cardStatus, filterOf,
   groupMatches, needsAttention,
-  normalizeQuery, phaseOf, placementDisplayNo, placementResultView, placementFilterOf, placementStatusView, progressSegments,
+  normalizeQuery, phaseOf, placementDisplayNoFor, placementTitle, placementResultView, placementFilterOf, placementStatusView, progressSegments,
   progressText, rowMatches, useStandingsData, type GroupFilter,
 } from '@/components/tournaments/standingsView';
 import {
@@ -65,7 +65,7 @@ export default function StandingsBoard({ slug }: { slug: string }) {
     && (!q || g.standings.some((r) => rowMatches(r, q))));
 
   const visiblePlacement = placement
-    .map((p, i) => ({ p, no: placementDisplayNo(groups.length, i) }))
+    .map((p, i) => ({ p, no: placementDisplayNoFor(groups.map((g) => g.groupNo), i) }))
     .filter(({ p }) =>
       (filter === 'all' || placementFilterOf(p.status) === filter)
       && (!attentionOnly || p.status === 'cancelled')
@@ -227,9 +227,8 @@ export default function StandingsBoard({ slug }: { slug: string }) {
               <GroupCompactCard
                 key={p.matchId}
                 href={`/admin/tournaments/${slug}/standings/placement`}
-                ariaLabel={`${no}조 순위결정전 상세정보`}
-                title={`${no}조`}
-                tag={PLACEMENT_TAG}
+                ariaLabel={no === null ? '순위결정전 상세정보' : `${no}조 순위결정전 상세정보`}
+                {...placementTitle(no)}
                 status={p.status === 'cancelled' ? { label: '확인 필요', color: C.amber } : placementStatusView(p.status)}
                 progress={`${done ? 1 : 0} / 1`}
                 segments={[done ? C.teal : p.status === 'cancelled' ? C.amberDot : C.line]}

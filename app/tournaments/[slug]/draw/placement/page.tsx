@@ -9,18 +9,20 @@ import {
 } from '@/components/tournaments/draw/PublicDrawShell';
 import PublicPlacementDetail from '@/components/tournaments/draw/PublicPlacementDetail';
 import { usePublicDraw } from '@/components/tournaments/draw/publicDrawView';
+import { usePublicGroupSchedule } from '@/components/tournaments/draw/PublicScheduleInfo';
 
 export default function TournamentDrawPlacementPage() {
   const params = useParams<{ slug: string }>();
   const { slug, event } = useDrawEvent(params?.slug);
   const { draw, loading } = usePublicDraw(event ? event.slug : '');
+  const schedule = usePublicGroupSchedule(event ? event.slug : '', !!draw);
 
   if (!event) return <DrawNotFound />;
 
   return (
     <PublicDrawShell event={event} published={!!draw}>
       {draw ? (
-        <PublicPlacementDetail slug={slug} draw={draw} />
+        <PublicPlacementDetail slug={slug} draw={draw} schedule={schedule} />
       ) : (
         <DrawNotPublished hubHref={`/tournaments/${event.slug}`} loading={loading} />
       )}

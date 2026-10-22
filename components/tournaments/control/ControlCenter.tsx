@@ -27,6 +27,7 @@ import { useControlData } from './controlView';
 import SignatureDisplayLauncher from '../SignatureDisplayLauncher';
 import MatchElapsedClock from '../MatchElapsedClock';
 import { clockOffset, formatElapsed, matchTimerState } from '@/lib/tournaments/matchTimer';
+import { matchHeadLabel } from '@/lib/tournaments/matchTypes';
 import { uncheckedTeams } from '@/lib/tournaments/checkinModel';
 import { useControlCheckins } from './useControlCheckins';
 import ControlCheckinWarning from './ControlCheckinWarning';
@@ -513,9 +514,7 @@ function PickBanner({
   /** 체크인 안 된 팀 번호(모르면 null). 표시 전용 — 코트를 고르면 한 번 더 확인한다. */
   unchecked?: number[] | null;
 }) {
-  const head = match.stage === 'knockout'
-    ? (match.roundName ?? '본선')
-    : match.groupNo !== null ? `${match.groupNo}조` : '순위결정전';
+  const head = matchHeadLabel(match);
   const ok = state.kind === 'ok';
   const tone = ok ? TEAL : '#9A3412';
 

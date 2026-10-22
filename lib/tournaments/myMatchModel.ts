@@ -11,6 +11,7 @@
 import type { PublicPreliminaryDraw } from './publicDrawTypes';
 import type { PublicKnockoutBracket } from './publicKnockoutTypes';
 import { scheduleForGroup, type GroupScheduleInfo, type PublicGroupSchedule } from './groupScheduleModel';
+import { groupFirstMatch, placementFirstMatch, type FirstMatchInfo } from './firstMatchModel';
 
 export type MyStage = 'P' | 'L' | 'K';
 export type MyStatus = 'waiting' | 'calling' | 'playing' | 'completed';
@@ -19,10 +20,16 @@ export interface MyTeam {
   teamNo: number;
   player1Name: string;
   player2Name: string;
-  /** 예선 조 번호(본선 목록에서만 찾은 팀이면 null). */
+  /** 예선 조 번호(본선 목록에서만 찾은 팀이면 null). 순위결정전 팀은 내부 조 번호 — ⚠ 화면에 숫자로 쓰지 않는다(teamGroupLabel). */
   groupNo: number | null;
+  /** 순위결정전 참가 팀인가(일반 조 순위표가 아니라 순위결정전 목록에서 찾은 팀). */
+  placement: boolean;
   withdrawn: boolean;
 }
+
+/** 팀의 조 표시 — 일반 조 'N조' · 순위결정전 '순위결정전' · 본선에서만 찾은 팀 ''. 내부 조 번호(예: 19)는 쓰지 않는다. */
+export const teamGroupLabel = (t: Pick<MyTeam, 'groupNo' | 'placement'>): string =>
+  t.placement ? '순위결정전' : t.groupNo ? `${t.groupNo}조` : '';
 
 export interface MyOpponent {
   teamNo: number;
@@ -35,7 +42,7 @@ export interface MyMatch {
   key: string;
   stage: MyStage;
   matchNo: number;
-  /** 참가자에게 보이는 경기 이름 — '3조 2경기' · '32강 MATCH 12' · '3조 순위결정전'. */
+  /** 참가자에게 보이는 경기 이름 — '3조 2경기' · '32강 MATCH 12' · '순위결정전'. */
   title: string;
   status: MyStatus;
   /** 진행 중일 때만 값이 있다(서버 규약). 순위결정전은 공개 응답에 코트가 없어 항상 null. */
@@ -74,25 +81,35 @@ export interface MyMatchView {
   /** 본선 대진이 공개돼 이번 조회에 들어왔는가. */
   knockoutLoaded: boolean;
   schedule: MyMatchSchedule | null;
+  /** 내 팀이 그 조(순위결정전)의 첫 경기에 나가면 그 첫 경기 정보 — 실제 경기 행에서만. 아니면 null. */
+  first: FirstMatchInfo | null;
 }
 
 // ── 팀 목록 ─────────────────────────────────────────────────────────────────
 
 const normName = (s: string): string => s.replace(/\s+/g, '').toLowerCase();
 
-/** 공개 데이터의 모든 팀(예선 조 순위표 우선, 없으면 본선 자리 · 경기). teamNo 오름차순. */
+/** 공개 데이터의 모든 팀(예선 조 순위표 → 순위결정전 → 본선 자리 · 경기 순). teamNo 오름차순. */
 export function listTeams(draw: PublicPreliminaryDraw | null, bracket: PublicKnockoutBracket | null): MyTeam[] {
   const map = new Map<number, MyTeam>();
   for (const g of draw?.groups ?? []) {
     for (const r of g.standings) {
       if (r.teamNo > 0 && !map.has(r.teamNo)) {
-        map.set(r.teamNo, { teamNo: r.teamNo, player1Name: r.player1Name, player2Name: r.player2Name, groupNo: g.groupNo, withdrawn: r.withdrawn });
+        map.set(r.teamNo, { teamNo: r.teamNo, player1Name: r.player1Name, player2Name: r.player2Name, groupNo: g.groupNo, placement: false, withdrawn: r.withdrawn });
+      }
+    }
+  }
+  // 순위결정전 팀 — 일반 조 순위표에 없으므로 따로 모은다(공개 응답에 기권 표시가 없어 false).
+  for (const p of draw?.placement ?? []) {
+    for (const t of p.teams) {
+      if (t.teamNo > 0 && !map.has(t.teamNo)) {
+        map.set(t.teamNo, { teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, groupNo: p.groupNo, placement: true, withdrawn: false });
       }
     }
   }
   const addKo = (t: { teamNo: number; player1Name: string; player2Name: string; withdrawn: boolean } | null) => {
     if (t && t.teamNo > 0 && !map.has(t.teamNo)) {
-      map.set(t.teamNo, { teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, groupNo: null, withdrawn: t.withdrawn });
+      map.set(t.teamNo, { teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, groupNo: null, placement: false, withdrawn: t.withdrawn });
     }
   };
   for (const s of bracket?.slots ?? []) addKo(s.team);
@@ -169,7 +186,7 @@ export function buildMyMatches(
     const status = asStatus(p.status);
     const done = status === 'completed';
     out.push({
-      key: `L${p.matchNo}`, stage: 'L', matchNo: p.matchNo, title: `${p.groupNo}조 순위결정전`,
+      key: `L${p.matchNo}`, stage: 'L', matchNo: p.matchNo, title: '순위결정전',
       status, courtNo: null, courtName: null,
       opponent: opp ? { teamNo: opp.teamNo, player1Name: opp.player1Name, player2Name: opp.player2Name } : null,
       myScore: done ? (mine === 1 ? p.score1 : p.score2) : null,
@@ -224,6 +241,15 @@ function pendingSlotOf(bracket: PublicKnockoutBracket | null, teamNo: number, ma
   return { roundName: rn, opponentLabel: label };
 }
 
+/** 내 팀이 나가는 조별 첫 경기(일반 조 · 순위결정전). 내 팀이 첫 경기 팀이 아니면 null. */
+function firstOf(draw: PublicPreliminaryDraw | null, team: MyTeam, sched: GroupScheduleInfo | null): FirstMatchInfo | null {
+  if (team.groupNo === null) return null;
+  const f = team.placement
+    ? (() => { const p = draw?.placement.find((x) => x.groupNo === team.groupNo); return p ? placementFirstMatch(p, sched) : null; })()
+    : (() => { const g = draw?.groups.find((x) => x.groupNo === team.groupNo); return g ? groupFirstMatch(g.matches, sched) : null; })();
+  return f && f.teamNos.includes(team.teamNo) ? f : null;
+}
+
 export function buildView(
   draw: PublicPreliminaryDraw | null, bracket: PublicKnockoutBracket | null, teamNo: number | null,
   schedule: PublicGroupSchedule | null = null,
@@ -234,11 +260,13 @@ export function buildView(
   const current = matches.find((m) => m.status === 'playing') ?? matches.find((m) => m.status === 'calling') ?? null;
   const next = matches.find((m) => m.status === 'waiting' && m !== current) ?? null;
   const results = matches.filter((m) => m.status === 'completed').reverse();
+  const sched = team?.groupNo ? scheduleForGroup(schedule, team.groupNo) : null;
   return {
     team, matches, current, next, results,
     pendingSlot: teamNo ? pendingSlotOf(bracket, teamNo, matches) : null,
     knockoutLoaded: bracket !== null,
-    schedule: team?.groupNo ? scheduleForGroup(schedule, team.groupNo) : null,
+    schedule: sched,
+    first: team ? firstOf(draw, team, sched) : null,
   };
 }
 

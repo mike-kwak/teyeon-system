@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { AlertTriangle, Info, ChevronRight } from 'lucide-react';
 import type { AttentionItem, ControlMatchRow, ControlWaiting } from './controlModel';
 import { matchTimerState } from '@/lib/tournaments/matchTimer';
+import { matchHeadLabel } from '@/lib/tournaments/matchTypes';
 import MatchElapsedClock from '../MatchElapsedClock';
 import type { CheckinLookup } from '@/lib/tournaments/checkinModel';
 
@@ -112,10 +113,7 @@ const teamText = (t: ControlMatchRow['team1']): string => {
 
 /** 경기 구분 — 저장된 값만 쓴다. 본선 라운드 이름이 없으면 '본선' 으로 둔다(번호로 추측하지 않는다). */
 const matchMeta = (m: ControlMatchRow): string => {
-  const head = m.stage === 'knockout'
-    ? (m.roundName ?? '본선')
-    : m.groupNo !== null ? `${m.groupNo}조` : '순위결정전';
-  return `${head} · M${m.matchNo}`;
+  return `${matchHeadLabel(m)} · M${m.matchNo}`;
 };
 
 // ── 확인 필요 ───────────────────────────────────────────────────────────────

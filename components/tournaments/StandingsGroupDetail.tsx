@@ -24,7 +24,7 @@ import {
 } from '@/lib/tournaments/standingsTypes';
 import {
   C, NO_RESULT_YET_NOTICE, adminRankRow, anyMatchStarted, detailStatus, groupMatches, isSettled, matchStatusView, phaseOf,
-  placementDisplayNo, progressText, useStandingsData,
+  placementDisplayNoFor, placementTitle, progressText, useStandingsData,
 } from '@/components/tournaments/standingsView';
 import {
   BackLink, Callout, DetailHeader, EntryRow, MatchResultCard, Notice, PrevNextNav, QualifiedHero,
@@ -247,7 +247,7 @@ export default function StandingsGroupDetail({ slug, groupNo }: { slug: string; 
         next={next ? { href: `${base}/${next.groupNo}`, label: `${next.groupNo}조` }
           // 마지막 예선 조 다음은 순위결정전(N + 1조) — 표시 번호만 이어 붙인다.
           : idx === groups.length - 1 && (standings?.placement.length ?? 0) > 0
-            ? { href: `${base}/placement`, label: `${placementDisplayNo(groups.length)}조` }
+            ? { href: `${base}/placement`, label: placementTitle(placementDisplayNoFor(groups.map((x) => x.groupNo))).title }
             : null}
       />
 
