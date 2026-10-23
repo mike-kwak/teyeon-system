@@ -22,7 +22,7 @@ import { normalizeQuery } from '@/components/tournaments/standings/presentation'
 import {
   buildCourtSlots, findTeams, teamMatches, type CourtSlot, type DrawEntry, type DrawTeamLine, type SessionHeader,
 } from '@/lib/tournaments/officialDrawModel';
-import { firstMark, firstMarkFor } from './FirstMatchMarks';
+import { firstMark } from './FirstMatchMarks';
 import { LIST_CSS, GroupCompactCard } from '@/components/tournaments/standings/primitives';
 import { C, phaseOf, placementResultView, placementStatusView, placementTitle, progressSegments, progressText, rowMatches } from '@/components/tournaments/standings/presentation';
 import { publicCardStatus, publicCompactRow, publicMatchStatus, teamKey } from './publicDrawView';
@@ -126,7 +126,6 @@ export default function OfficialDrawBoard({
         <div className="od-meta">
           <span>{entries.length}개 조 · {teamCount}팀 · 경기 <b>{progress.done}</b> / {progress.all}</span>
           <span className="od-legend">
-            {anyFirst && <span data-first-legend><Flag size={12} strokeWidth={2.7} color={TT.navy} />첫 경기 출전</span>}
             <span><i style={{ background: TT.teal }} />본선 진출</span>
           </span>
         </div>
@@ -191,18 +190,32 @@ const boardStatus = (s: { label: string; color: string }) =>
   s.label === '완료' ? { ...s, label: '순위 확정' } : s.label === '진행 중' ? { ...s, label: '잠정 순위' } : s;
 
 /** 조 카드 위 작은 안내 — 예정 코트 · 차수 · 신고 마감(조편성 entries 값 그대로). */
-function CardMeta({ e }: { e: DrawEntry }) {
-  if (e.courtNo === null && e.sessionNo === null && !e.checkinDeadline) return null;
+/**
+ * 조 카드 코트 줄 — 코트만(차수 · 신고 시간은 상단 안내 · MY MATCH · 조 상세에서).
+ *   진행 중(호명 · 경기 중) 경기가 실제로 들어간 코트가 있으면 그 코트를 보인다(운영자가 예정과 다른 코트에 넣은 경우).
+ */
+function CardMeta({ e, liveCourt }: { e: DrawEntry; liveCourt: { no: number; calling: boolean } | null }) {
+  if (liveCourt) {
+    return (
+      <p className="od-cmeta" data-od-cmeta={e.key} data-od-cmeta-live={liveCourt.no}>
+        <span><b>{liveCourt.no}</b>번 코트</span><span style={{ color: '#0B7A70' }}>{liveCourt.calling ? '경기 준비' : '경기 중'}</span>
+      </p>
+    );
+  }
+  if (e.courtNo === null) return null;
   return (
     <p className="od-cmeta" data-od-cmeta={e.key}>
-      {e.courtNo !== null && <span><b>{e.courtNo}</b>번 코트</span>}
-      {e.sessionNo !== null && (
-        <span className="od-cmeta-s" data-od-cmeta-session={e.sessionNo}
-          style={{ color: sTone(e.sessionNo).fg, background: sTone(e.sessionNo).bg, borderColor: sTone(e.sessionNo).bd }}>{sName(e.sessionNo)}</span>
-      )}
-      {e.checkinDeadline && <span>신고 {e.checkinDeadline}</span>}
+      <span><b>{e.courtNo}</b>번 코트</span>
     </p>
   );
+}
+
+/** 이 조에서 지금 코트에 들어가 있는 경기(호명 · 진행)의 실제 코트. 여러 개면 진행 중 우선. */
+function liveCourtOf(ms: { status: string; courtNo: number | null }[]): { no: number; calling: boolean } | null {
+  const playing = ms.find((m) => m.status === 'playing' && m.courtNo !== null);
+  if (playing) return { no: playing.courtNo!, calling: false };
+  const calling = ms.find((m) => m.status === 'calling' && m.courtNo !== null);
+  return calling ? { no: calling.courtNo!, calling: true } : null;
 }
 
 /**
@@ -227,11 +240,12 @@ function StandingsCard({ e, draw, q, fallback, myTeamNo }: { e: DrawEntry; draw:
         segments={progressSegments(g)}
         // 2열 카드 = 순위 배지 + 이름 한 줄 + (경기한 팀만) 이름 아래 '2승 0패 득실 +8'. 서버 wins · losses · gameDiff 그대로.
         //   미경기 팀(played 0)은 성적 없음 — '경기 전' 같은 문구 · 숫자를 만들지 않는다.
-        rows={g.standings.map((r) => {
-          const base = { ...publicCompactRow(r, phase, q), first: firstMarkFor(e.firstInfo, r.teamNo), mine: myTeamNo !== null && r.teamNo === myTeamNo };
+        rows={g.standings.map((r, i) => {
+          // 경기 전 서버 순서 = 확정 조편성(slot) 순서 → 순위 칸에 회색 순번. 첫 경기 깃발은 카드에서 그리지 않는다(판정은 그대로).
+          const base = { ...publicCompactRow(r, phase, q), first: null, seat: i + 1, mine: myTeamNo !== null && r.teamNo === myTeamNo };
           return r.played === 0 ? { ...base, record: null, diff: null } : base;
         })}
-        extra={<CardMeta e={e} />}
+        extra={<CardMeta e={e} liveCourt={liveCourtOf(g.matches)} />}
         compact
         selected={myTeamNo !== null && g.standings.some((r) => r.teamNo === myTeamNo)}
       />,
@@ -250,7 +264,7 @@ function StandingsCard({ e, draw, q, fallback, myTeamNo }: { e: DrawEntry; draw:
         : boardStatus(placementStatusView(p.status))}
       progress={`${done ? 1 : 0} / 1`}
       segments={[done ? C.teal : C.line]}
-      extra={<CardMeta e={e} />}
+      extra={<CardMeta e={e} liveCourt={null} />}
       compact
       selected={myTeamNo !== null && p.teams.some((t) => t.teamNo === myTeamNo)}
       rows={p.teams.map((t, i) => {
@@ -262,7 +276,7 @@ function StandingsCard({ e, draw, q, fallback, myTeamNo }: { e: DrawEntry; draw:
           key: teamKey(t), p1: t.player1Name, p2: t.player2Name, rank: won === null ? null : won ? '1' : '2',
           tone: won === null ? { bg: '#fff', fg: C.navy, bd: C.line } : { bg: C.teal, fg: '#FFFFFF', bd: C.teal },
           record: rv ? rv.record : null, diff: rv ? rv.diff : null, diffColor: rv?.diffColor,
-          muted: false, hit: rowMatches(t, q), first: firstMarkFor(e.firstInfo, t.teamNo), mine: myTeamNo !== null && t.teamNo === myTeamNo,
+          muted: false, hit: rowMatches(t, q), first: null, seat: i + 1, mine: myTeamNo !== null && t.teamNo === myTeamNo,
         };
       })}
     />,
@@ -328,7 +342,6 @@ function SearchResult({ hits, onGo }: { hits: { entry: DrawEntry; team: DrawTeam
                 {e.startText && <span>경기 시작 <b>{e.startText}</b></span>}
               </span>
             )}
-            {t.first && <span className="od-found-first"><Flag size={12} strokeWidth={2.6} />이 팀이 {e.label} 첫 경기에 나갑니다</span>}
           </a>
         );
       })}
@@ -459,7 +472,6 @@ function CourtCard({ c, q, hitKeys, open, onToggle }: {
                           <li key={t.teamNo} className={teamMatches(t, q) ? 'od-hit' : undefined} data-first-row={fm ? 'true' : undefined}>
                             <PlayerCell name={t.player1Name} club={c1} />
                             <PlayerCell name={t.player2Name} club={c2} />
-                            {fm && <span className="og-first" style={{ color: TT.navy }}><Flag size={11} strokeWidth={2.8} />첫 경기 출전</span>}
                           </li>
                         );
                       })}

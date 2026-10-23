@@ -72,6 +72,8 @@ export interface CompactRow {
   first?: HighlightMark | null;
   /** 공개 compact — 참가자가 MY MATCH 에서 고른 내 팀(표시만 · 순위 · 진출 판정과 무관). */
   mine?: boolean;
+  /** 공개 compact — 경기 전(rank null) 순위 칸에 회색으로 보일 조 안 순번(확정 조편성 순서). 순위가 아니다. */
+  seat?: number | null;
 }
 
 /** 첫 경기 출전 같은 '안내' 강조 — 색 · 글자를 래퍼가 정해서 넘긴다(승패 · 진출 색과 섞지 않는다). */
@@ -162,7 +164,7 @@ export function GroupCompactCard({
                 background: pre ? '#EEF2F8' : out ? out.badgeBg : r.tone.bg, color: out ? out.badgeFg : r.tone.fg,
                 border: `1px solid ${pre ? '#EEF2F8' : out ? out.badgeBg : r.tone.bd}`,
               }}>
-                {pre ? '' : r.rank}
+                {pre ? (compact && r.seat ? <span data-seat style={{ color: '#64748B', fontWeight: 700 }}>{r.seat}</span> : '') : r.rank}
               </span>
               <div style={{
                 flex: 1, minWidth: 0, fontSize: compact ? 'clamp(12px, 3.6vw, 13px)' : 13, lineHeight: ROW_LINE,
