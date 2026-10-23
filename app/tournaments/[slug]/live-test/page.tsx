@@ -7,6 +7,8 @@
 //   ⚠ Provider 미설정이어도 페이지가 깨지지 않는다(safe empty state).
 //   ⚠ 이 페이지는 Tournament 운영 데이터를 읽지도 쓰지도 않는다.
 //     LIVE 가 죽어도 Hub / 접수 / 참가팀 현황은 그대로 동작한다.
+//   ⚠ 공개 스위치(NEXT_PUBLIC_PUBLIC_LIVE_ENABLED=1)가 꺼져 있으면 일반 사용자에게는 플레이어를 붙이지 않는다
+//     (서버 환경변수의 예약 방송이 공개 전에 이 경로로 보이지 않게). CEO · ADMIN 은 그대로 테스트할 수 있다.
 
 import React from 'react';
 import Link from 'next/link';
@@ -18,6 +20,9 @@ import TournamentNavigation from '@/components/tournaments/TournamentNavigation'
 import TournamentLivePanel from '@/components/tournaments/TournamentLivePanel';
 import { getOfficialTournament } from '@/lib/tournaments/officialInfo';
 import { buildHubNavItems } from '@/lib/tournaments/phase';
+import { PUBLIC_LIVE_ENABLED } from '@/lib/tournaments/publicLiveFlags';
+import { useAuth } from '@/context/AuthContext';
+import { isFullAdminRole } from '@/lib/admin/adminAccess';
 
 export default function TournamentLiveTestPage() {
   const params = useParams<{ slug: string }>();
@@ -29,6 +34,9 @@ export default function TournamentLiveTestPage() {
         : '';
 
   const event = getOfficialTournament(slug);
+  const { role } = useAuth();
+  // 공개 전에는 운영진만 플레이어를 본다. 공개 후에는 기존 그대로 누구나.
+  const canWatch = PUBLIC_LIVE_ENABLED || isFullAdminRole(role);
 
   if (!event) {
     return (
@@ -101,7 +109,13 @@ export default function TournamentLiveTestPage() {
       </div>
 
       <div className="tt-container" style={{ paddingTop: '14px', paddingBottom: '32px' }}>
-        <TournamentLivePanel slug={event.slug} />
+        {canWatch ? (
+          <TournamentLivePanel slug={event.slug} />
+        ) : (
+          <section data-live-test-closed style={{ padding: '26px 18px', borderRadius: 12, backgroundColor: TT.surface, border: `1px solid ${TT.line}`, textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 14.5, fontWeight: 800, color: TT.inkSoft }}>LIVE 중계는 대회 당일 공개됩니다.</p>
+          </section>
+        )}
 
         <Link
           href={hubHref}
