@@ -46,12 +46,14 @@ const clubsOf = (t: DrawTeamLine): [string | null, string | null] =>
   (t.club1 || t.club2 ? [t.club1, t.club2] : [t.club, null]);
 
 export default function OfficialDrawBoard({
-  entries, draw = null, sessions, checkinPlace, progress,
+  entries, draw = null, myTeamNo = null, sessions, checkinPlace, progress,
 }: {
   /** 공개 조 번호 순(1조 → 18조)으로 정렬된 조 목록(PrelimDrawViews · 전체 조편성표와 같은 배열). */
   entries: DrawEntry[];
   /** 공개 DRAW 원본 — 조별 순위 카드(서버 순위 · 승패 · 득실 · 진출)용. 없으면 기존 조 카드로 그린다. */
   draw?: PublicPreliminaryDraw | null;
+  /** MY MATCH 에서 고른 내 팀 번호(표시 전용). null = 선택 없음. */
+  myTeamNo?: number | null;
   sessions: SessionHeader[];
   checkinPlace: string | null;
   progress: { done: number; all: number };
@@ -148,7 +150,7 @@ export default function OfficialDrawBoard({
             draw ? (
               // 2열 조별 순위 카드 — 1조(순위결정전) → 2조 → … → 18조
               <div className="od-groups od-cards stg-grid" data-od-groups data-od-cards>
-                {visible.map((e) => <StandingsCard key={e.key} e={e} draw={draw} q={q}
+                {visible.map((e) => <StandingsCard key={e.key} e={e} draw={draw} q={q} myTeamNo={myTeamNo}
                   fallback={<GroupCard e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} />} />)}
               </div>
             ) : (
@@ -203,7 +205,7 @@ function CardMeta({ e }: { e: DrawEntry }) {
  * 2열 조별 순위 카드 — 일반 조는 서버 standings(순위 · 승패 · 득실 · 진출), 1조(순위결정전)는 서버 공식 경기 결과.
  *   ⚠ 데이터에서 그 조를 못 찾으면 기존 조 카드(fallback)로 — 순위를 지어내지 않는다.
  */
-function StandingsCard({ e, draw, q, fallback }: { e: DrawEntry; draw: PublicPreliminaryDraw; q: string; fallback: React.ReactNode }) {
+function StandingsCard({ e, draw, q, fallback, myTeamNo }: { e: DrawEntry; draw: PublicPreliminaryDraw; q: string; fallback: React.ReactNode; myTeamNo: number | null }) {
   const wrap = (card: React.ReactNode) => (
     <div id={`od-${e.key}`} data-od-entry={e.key} data-od-kind={e.kind} data-od-display-no={e.displayNo ?? ''} style={{ minWidth: 0, scrollMarginTop: 80 }}>{card}</div>
   );
@@ -222,11 +224,12 @@ function StandingsCard({ e, draw, q, fallback }: { e: DrawEntry; draw: PublicPre
         // 2열 카드 = 순위 배지 + 이름 한 줄 + (경기한 팀만) 이름 아래 '2승 0패 득실 +8'. 서버 wins · losses · gameDiff 그대로.
         //   미경기 팀(played 0)은 성적 없음 — '경기 전' 같은 문구 · 숫자를 만들지 않는다.
         rows={g.standings.map((r) => {
-          const base = { ...publicCompactRow(r, phase, q), first: firstMarkFor(e.firstInfo, r.teamNo) };
+          const base = { ...publicCompactRow(r, phase, q), first: firstMarkFor(e.firstInfo, r.teamNo), mine: myTeamNo !== null && r.teamNo === myTeamNo };
           return r.played === 0 ? { ...base, record: null, diff: null } : base;
         })}
         extra={<CardMeta e={e} />}
         compact
+        selected={myTeamNo !== null && g.standings.some((r) => r.teamNo === myTeamNo)}
       />,
     );
   }
@@ -245,6 +248,7 @@ function StandingsCard({ e, draw, q, fallback }: { e: DrawEntry; draw: PublicPre
       segments={[done ? C.teal : C.line]}
       extra={<CardMeta e={e} />}
       compact
+      selected={myTeamNo !== null && p.teams.some((t) => t.teamNo === myTeamNo)}
       rows={p.teams.map((t, i) => {
         // 순위결정전 — 완료 후 서버 승자(winnerSide) = 1 · 패자 = 2 배지(계산 없음). 두 팀 모두 본선 진출이라 둘 다 진출 색 · 탈락 음영 없음.
         //   성적 = 서버 공식 경기 점수 · 승자(placementResultView) — 완료 전에는 없음.
@@ -254,7 +258,7 @@ function StandingsCard({ e, draw, q, fallback }: { e: DrawEntry; draw: PublicPre
           key: teamKey(t), p1: t.player1Name, p2: t.player2Name, rank: won === null ? null : won ? '1' : '2',
           tone: won === null ? { bg: '#fff', fg: C.navy, bd: C.line } : { bg: C.teal, fg: '#FFFFFF', bd: C.teal },
           record: rv ? rv.record : null, diff: rv ? rv.diff : null, diffColor: rv?.diffColor,
-          muted: false, hit: rowMatches(t, q), first: firstMarkFor(e.firstInfo, t.teamNo),
+          muted: false, hit: rowMatches(t, q), first: firstMarkFor(e.firstInfo, t.teamNo), mine: myTeamNo !== null && t.teamNo === myTeamNo,
         };
       })}
     />,

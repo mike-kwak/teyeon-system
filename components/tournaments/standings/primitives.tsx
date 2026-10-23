@@ -20,6 +20,10 @@ const ROW_LINE = '17.5px';
  *   ⚠ opacity 를 쓰지 않는다 — 배경 · 이름 · 성적 · 배지 색을 각각 낮춘다.
  *   글자 대비(배경 #EEF1F5 기준): 이름 5.4:1 · 성적 5.0:1 · 배지 글자 4.7:1(배지 배경 기준).
  */
+/** compact 카드 MY TEAM 표시 — 선택 조 테두리 · 내 팀 행 배경 · 왼쪽 줄(진출 teal · 탈락 회색 · 첫 경기 노랑과 겹치지 않는 파랑). */
+const MY_BLUE = '#2F6FED';
+const MY_BG = '#EEF4FF';
+
 const COMPACT_OUT = { rowBg: '#EEF1F5', name: '#556377', rec: '#5B6879', badgeBg: '#DDE3EA', badgeFg: '#556377' } as const;
 
 // ── 상태 점 + 글자 ──────────────────────────────────────────────────────────
@@ -44,6 +48,9 @@ export function Segments({ colors }: { colors: string[] }) {
   );
 }
 
+/** 화면에는 보이지 않고 낭독기만 읽는 글자. */
+const SR_ONLY: React.CSSProperties = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
+
 // ── 조 카드 (메인 목록) ─────────────────────────────────────────────────────
 export interface CompactRow {
   key: string;
@@ -61,6 +68,8 @@ export interface CompactRow {
   hit: boolean;
   /** 공개 화면 — 첫 경기 출전 표시(노란 줄 + 글자 배지). 없으면 그리지 않는다(관리자 화면은 넘기지 않는다). */
   first?: HighlightMark | null;
+  /** 공개 compact — 참가자가 MY MATCH 에서 고른 내 팀(표시만 · 순위 · 진출 판정과 무관). */
+  mine?: boolean;
 }
 
 /** 첫 경기 출전 같은 '안내' 강조 — 색 · 글자를 래퍼가 정해서 넘긴다(승패 · 진출 색과 섞지 않는다). */
@@ -85,7 +94,7 @@ export function HighlightBadge({ mark, size = 11 }: { mark: HighlightMark; size?
 }
 
 export function GroupCompactCard({
-  href, ariaLabel, title, tag, status, progress, segments, rows, extra, compact = false,
+  href, ariaLabel, title, tag, status, progress, segments, rows, extra, compact = false, selected = false,
 }: {
   href: string;
   ariaLabel: string;
@@ -105,13 +114,16 @@ export function GroupCompactCard({
    *   ⚠ 폭이 모자라면(긴 이름) 말줄임 없이 '·' 뒤에서 줄바꿈 — 카드 밖으로 나가지 않는다.
    */
   compact?: boolean;
+  /** (compact) 내 팀이 있는 조 — 파란 테두리(inset · 카드 크기 그대로). */
+  selected?: boolean;
 }) {
+  const mineCard = compact && selected;
   return (
     <Link href={href} className="stg-card" aria-label={ariaLabel}
       style={{
         display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, boxSizing: 'border-box',
-        padding: compact ? '9px 8px 10px' : '12px 12px 13px', background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14,
-        textDecoration: 'none', color: C.navy, ...(compact ? { gap: 6 } : null),
+        padding: compact ? '9px 8px 10px' : '12px 12px 13px', background: '#fff', border: `1px solid ${mineCard ? MY_BLUE : C.line}`, borderRadius: 14,
+        textDecoration: 'none', color: C.navy, ...(mineCard ? { boxShadow: `inset 0 0 0 1px ${MY_BLUE}` } : null), ...(compact ? { gap: 6 } : null),
       }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
@@ -130,13 +142,15 @@ export function GroupCompactCard({
         {rows.map((r) => {
           const pre = r.rank === null;
           const out = compact && r.muted ? COMPACT_OUT : null;
+          const mine = compact && !!r.mine;
           return (
             <div key={r.key} data-first-row={r.first ? 'true' : undefined} data-compact-row={compact ? 'true' : undefined} style={{
               display: 'flex', alignItems: 'flex-start', gap: compact ? 6 : 8,
               margin: '0 -5px', padding: compact ? '3px 5px' : r.first ? '4px 5px' : '2px 5px', borderRadius: 7,
-              background: r.hit ? C.tealTint : r.first ? r.first.bg : out ? out.rowBg : 'transparent',
-              boxShadow: r.first ? `inset 3px 0 0 ${r.first.bd}` : undefined,
-            }} data-out-row={out ? 'true' : undefined}>
+              // 내 팀 — 탈락 회색 · 첫 경기 노랑 배경은 그대로 두고 왼쪽 파란 줄만 더한다(상태 표시를 덮지 않는다).
+              background: r.hit ? C.tealTint : r.first ? r.first.bg : out ? out.rowBg : mine ? MY_BG : 'transparent',
+              boxShadow: mine ? `inset 3px 0 0 ${MY_BLUE}` : r.first ? `inset 3px 0 0 ${r.first.bd}` : undefined,
+            }} data-out-row={out ? 'true' : undefined} data-my-team={mine ? 'true' : undefined}>
               {/* ⚠ 경기 전에는 순위 숫자 대신 빈 표시만 둔다 */}
               <span style={{
                 flexShrink: 0, width: compact ? 18 : 20, height: compact ? 18 : 20, boxSizing: 'border-box', marginTop: compact ? 0 : 1, borderRadius: 6,
@@ -162,6 +176,7 @@ export function GroupCompactCard({
                       </span>
                     )}
                     {r.p1}<span style={{ color: C.faint, fontWeight: 600 }}>{'\u00A0·'} </span>{r.p2}
+                    {mine && <span style={SR_ONLY}> (내 팀)</span>}
                   </span>
                   {/* 성적 — 이름 시작 위치에 맞춘 작은 줄. 값이 없으면(경기 전 · 미경기) 그리지 않는다. */}
                   {(r.record !== null || r.diff !== null) && (

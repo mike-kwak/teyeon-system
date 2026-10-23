@@ -16,6 +16,7 @@ import { fetchPublicTournamentTeams } from '@/lib/tournaments/publicService';
 import { buildClubIndex, buildEntries, drawProgress, sessionHeaders, sortEntries, type ClubIndex } from '@/lib/tournaments/officialDrawModel';
 import { getOfficialTournament } from '@/lib/tournaments/officialInfo';
 import { PUBLIC_SITE_ORIGIN } from '@/lib/tournaments/smsModel';
+import { loadTeam } from '@/lib/tournaments/myMatchStorage';
 import OfficialDrawBoard from './OfficialDrawBoard';
 import DrawSheet from './DrawSheet';
 
@@ -32,6 +33,32 @@ function useClubIndex(slug: string): ClubIndex | null {
 }
 
 type View = 'board' | 'sheet';
+
+/**
+ * MY MATCH 에서 고른 내 팀 번호(이 브라우저 · 이 대회 slug 저장값) — 표시 전용.
+ *   ⚠ 브라우저에서만 읽는다(처음 렌더는 null → 서버 렌더와 어긋나지 않음). 폴링하지 않는다 —
+ *     마운트(같은 탭에서 MY MATCH → 대진표 이동 포함) · 다른 탭 저장(storage) · 뒤로가기 복귀(pageshow) · 탭 복귀 때만 다시 읽는다.
+ *   ⚠ 팀 번호(teamNo — 대회 안 유일, 공개 DRAW 와 MY MATCH 가 같은 값)로만 맞춘다. 이름 · 접수번호를 쓰지 않는다.
+ */
+function useMyTeamNo(slug: string, enabled: boolean): number | null {
+  const [no, setNo] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (!enabled || !slug) { setNo(null); return; }
+    const read = () => setNo(loadTeam(slug)?.teamNo ?? null);
+    read();
+    const onStorage = (e: StorageEvent) => { if (e.key === null || e.key.includes(`:${slug}:team`)) read(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') read(); };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('pageshow', read);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('pageshow', read);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [slug, enabled]);
+  return no;
+}
 
 export default function PrelimDrawViews({ slug, draw, schedule = null, basePath, view: controlledView }: {
   slug: string; draw: PublicPreliminaryDraw; schedule?: PublicGroupSchedule | null; basePath?: string;
@@ -55,6 +82,8 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath,
   };
 
   const base = basePath ?? `/tournaments/${slug}/draw`;
+  // 공개 화면에서만(관리자 미리보기는 basePath 를 넘긴다 — 운영자 브라우저의 MY MATCH 선택을 섞지 않는다).
+  const myTeamNo = useMyTeamNo(slug, basePath === undefined);
   const clubs = useClubIndex(slug);
   const all = React.useMemo(() => buildEntries(draw, schedule, clubs, base), [draw, schedule, clubs, base]);
   // 모바일 대진표 · 전체 조편성표 모두 공개 조 번호 순(1조 순위결정전 → 2조 → … → 18조). 코트별 보기는 같은 배열을 코트 카드로 묶는다.
@@ -82,7 +111,7 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath,
         </button>
       </div>}
       {view === 'board'
-        ? <OfficialDrawBoard entries={byGroup} draw={draw} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
+        ? <OfficialDrawBoard entries={byGroup} draw={draw} myTeamNo={myTeamNo} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
         : <DrawSheet entries={byGroup} meta={meta} fileBase={slug} />}
       <style>{`
 .pv-wrap { display: flex; flex-direction: column; gap: 12px; }
