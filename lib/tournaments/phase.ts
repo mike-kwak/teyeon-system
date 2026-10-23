@@ -10,6 +10,7 @@
 //     · "phase 에 따라 기본 진입 탭을 바꾸는" 동작도 아직 넣지 않는다(아래 TODO 참고).
 //       지금 Hub 의 기본 진입은 항상 INFO 다.
 
+import { PUBLIC_LIVE_ENABLED } from './publicLiveFlags';
 import type { TournamentNavItem, TournamentPhaseKey } from './types';
 
 export type TournamentPhase =
@@ -95,7 +96,8 @@ export function buildHubNavItems(opts: {
     item('info', 'INFO', base),
     item('teams', 'TEAMS', `${base}/teams`),
     item('draw', 'DRAW', drawPublished ? `${base}/draw` : null, RELEASE_NOTE.draw),
-    item('live', 'LIVE', null, RELEASE_NOTE.live),
+    // LIVE — 배포 스위치(NEXT_PUBLIC_PUBLIC_LIVE_ENABLED=1)가 켜졌을 때만 연다. 꺼져 있으면 기존 그대로 '대회 당일 공개'.
+    item('live', 'LIVE', PUBLIC_LIVE_ENABLED ? `${base}/live` : null, RELEASE_NOTE.live),
     item('results', 'RESULTS', null, RELEASE_NOTE.results),
   ];
 }
