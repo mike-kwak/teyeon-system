@@ -254,7 +254,9 @@ export default function DrawSheet({ entries, meta, fileBase }: {
           <span>조 이동</span>
           <select value={jump} onChange={(ev) => goRow(ev.target.value)} data-sheet-jump aria-label="조편성표에서 조로 이동">
             <option value="" disabled>조 선택</option>
-            {rowBoxes.map((r) => <option key={r.key} value={r.key}>{r.court !== null ? `${r.court}번 코트 · ` : ''}{r.label}</option>)}
+            {rowBoxes.map((r) => <option key={r.key} value={r.key}>{meta.order === 'court'
+              ? `${r.court !== null ? `${r.court}번 코트 · ` : ''}${r.label}`
+              : `${r.label}${r.court !== null ? ` · ${r.court}번 코트` : ''}`}</option>)}
           </select>
           <small>표 위에서 두 손가락으로 확대 · 축소, 한 손가락으로 밀어 옆 팀을 볼 수 있습니다</small>
         </label>

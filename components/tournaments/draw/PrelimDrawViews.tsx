@@ -53,10 +53,9 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
   const base = basePath ?? `/tournaments/${slug}/draw`;
   const clubs = useClubIndex(slug);
   const all = React.useMemo(() => buildEntries(draw, schedule, clubs, base), [draw, schedule, clubs, base]);
-  // 같은 entries 를 순서만 달리 — 모바일 대진표는 공개 조 번호 순(코트별 보기는 그 배열을 코트 카드로 묶는다),
-  // 전체 조편성표는 코트 → 차수 순. 탭을 바꿔도 다시 조회하지 않는다.
+  // 모바일 대진표 · 전체 조편성표 모두 공개 조 번호 순(1조 순위결정전 → 2조 → … → 18조). 코트별 보기는 같은 배열을 코트 카드로 묶는다.
+  // 탭을 바꿔도 다시 조회하지 않는다.
   const byGroup = React.useMemo(() => sortEntries(all, 'group'), [all]);
-  const byCourt = React.useMemo(() => sortEntries(all, 'sheet'), [all]);
   const sessions = React.useMemo(() => sessionHeaders(schedule), [schedule]);
   const event = getOfficialTournament(slug);
   const meta = React.useMemo(() => ({
@@ -65,6 +64,7 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
     checkinPlace: schedule?.checkinPlace ?? null,
     sessions,
     liveUrl: `${PUBLIC_SITE_ORIGIN.replace(/^https?:\/\//, '')}/tournaments/${slug}/draw`,
+    order: 'group' as const,
   }), [event, slug, schedule, sessions]);
 
   return (
@@ -79,7 +79,7 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
       </div>
       {view === 'board'
         ? <OfficialDrawBoard entries={byGroup} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
-        : <DrawSheet entries={byCourt} meta={meta} fileBase={slug} />}
+        : <DrawSheet entries={byGroup} meta={meta} fileBase={slug} />}
       <style>{`
 .pv-wrap { display: flex; flex-direction: column; gap: 12px; }
 .pv-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: #E8EDF2; }

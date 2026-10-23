@@ -3,7 +3,7 @@
 // 공개 DRAW — 모바일 예선 대진표(read-only). 참가자가 '내 조 · 코트 · 신고 시각'을 바로 찾는 화면.
 //
 //   화면 목적을 둘로 나눈다(조 번호와 코트 번호를 한 목록에서 동시에 순서대로 만들 수 없으므로):
-//   · 코트별 보기(기본) · 조별 보기(보조) — 조별은 1조 → 18조. 카드 = 큰 조 번호 + 바로 옆 예정 코트 / 차수 · 신고 마감 · 경기 시작 / 팀별 선수 · 소속
+//   · 조별 보기(기본) · 코트별 보기(전환) — 조별은 1조 → 18조. 카드 = 큰 조 번호 + 바로 옆 예정 코트 / 차수 · 신고 마감 · 경기 시작 / 팀별 선수 · 소속
 //   · 코트별 보기 — 1번 → 10번 코트. 코트 카드 = 1차 배정 조 / 2차 배정 조(없으면 '배정 없음') · 신고 마감 · 명단 펼치기 · 상세
 //   · 검색은 두 보기 위에서 같다 — 조 · 파트너 · 소속 · 코트 · 차수 · 신고 · 시작 · 첫 경기 출전을 한 카드로.
 //   ⚠ 데이터는 PrelimDrawViews 가 한 번 만들어 넘긴다(전체 조편성표와 같은 entries — 두 화면이 어긋나지 않게).
@@ -48,7 +48,7 @@ export default function OfficialDrawBoard({
   progress: { done: number; all: number };
 }) {
   const [query, setQuery] = React.useState('');
-  const [view, setView] = React.useState<View>('court');
+  const [view, setView] = React.useState<View>('group');   // 기본 = 조별 보기(1조 → 18조). 코트별 보기는 탭으로 전환.
   const [open, setOpen] = React.useState<Record<string, boolean>>({});
   const q = normalizeQuery(query);
   const hits = findTeams(entries, q);
@@ -102,11 +102,11 @@ export default function OfficialDrawBoard({
 
       {/* ── 조별 보기 / 코트별 보기 ── */}
       <div className="od-views" role="tablist" aria-label="대진표 보기">
-        <button type="button" role="tab" aria-selected={view === 'court'} data-od-view="court" onClick={() => setView('court')}>
-          <b>코트별 보기</b><small>{lastCourt ? `1번 → ${lastCourt}번 코트` : '코트 번호 순'}</small>
-        </button>
         <button type="button" role="tab" aria-selected={view === 'group'} data-od-view="group" onClick={() => setView('group')}>
           <b>조별 보기</b><small>{entries.length ? `1조 → ${entries.length}조` : '조 번호 순'}</small>
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'court'} data-od-view="court" onClick={() => setView('court')}>
+          <b>코트별 보기</b><small>{lastCourt ? `1번 → ${lastCourt}번 코트` : '코트 번호 순'}</small>
         </button>
       </div>
 

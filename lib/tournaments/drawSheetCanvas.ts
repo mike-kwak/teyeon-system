@@ -2,8 +2,9 @@
 //
 //   ⚠ 화면에 보이는 표와 저장되는 이미지는 이 함수 하나가 그린 같은 그림이다(두 번 그리지 않는다).
 //   ⚠ 입력은 모바일 대진표와 같은 entries(officialDrawModel.buildEntries) — 조 · 선수 · 소속 · 코트 · 차수 · 신고가 어긋날 수 없다.
-//   ⚠ 순서는 호출자가 정한다(공식 조편성표 = 예정 코트 1 → 10번 · 같은 코트는 1차 → 2차). 조 이름은 entry.label(공개 표시 번호) — 내부 group_no 는 그리지 않는다.
-//   ⚠ 코트 열이 맨 앞 — 같은 코트의 연속 행은 코트 칸을 하나로 합쳐 번호를 크게, 코트가 바뀌는 곳에 굵은 선.
+//   ⚠ 순서는 호출자가 정한다(공개 조편성표 = 조 번호 1 → 18조, meta.order='group'). 조 이름은 entry.label(공개 표시 번호) — 내부 group_no 는 그리지 않는다.
+//   ⚠ order='group'(기본): 조 열이 맨 앞, 행마다 코트 칸(병합 없음).
+//     order='court': 코트 열이 맨 앞 — 같은 코트의 연속 행은 코트 칸을 하나로 합쳐 번호를 크게, 코트가 바뀌는 곳에 굵은 선.
 //     코트 · 차수 · 신고는 저장된 값 그대로.
 //   ⚠ 글자가 칸을 넘으면 자르지 않는다 — 소속을 다음 줄로 내리고, 그래도 길면 글자를 줄이고(최소 12px), 그래도 길면 여러 줄로 나눈다.
 //   가독성: 논리 폭을 1280px 로 줄이고(휴대폰 · 공유 이미지에서 글자가 커지도록) 선수 이름을 가장 크게 · 진하게, 소속은 작고 연하게.
@@ -19,6 +20,8 @@ export interface SheetMeta {
   generatedAt: string;
   /** 바닥 줄 — 실시간 확인 주소(코드 상수에서). */
   liveUrl: string | null;
+  /** 행 순서에 맞춘 열 배치 — 'group'(기본) = 조 열 먼저 · 'court' = 코트 열 먼저(같은 코트 병합). */
+  order?: 'group' | 'court';
 }
 
 /** 표 행의 위치(논리 px) — 화면에서 '조 이동' 할 때 쓴다. */
@@ -142,12 +145,15 @@ export function renderDrawSheet(entries: DrawEntry[], meta: SheetMeta, scale = 2
   }
 
   // ── 표 머리 ──
-  const x0 = PAD; const cols = [COL.court, COL.group, COL.session, COL.checkin, teamW, teamW, teamW];
+  const byCourt = meta.order === 'court';
+  const lead = byCourt ? (['court', 'group'] as const) : (['group', 'court'] as const);
+  const x0 = PAD; const cols = [COL[lead[0]], COL[lead[1]], COL.session, COL.checkin, teamW, teamW, teamW];
   const xs: number[] = []; cols.reduce((x, w) => { xs.push(x); return x + w; }, x0);
+  const xCourt = byCourt ? xs[0] : xs[1]; const xGroup = byCourt ? xs[1] : xs[0];
   let y = tableTop;
   ctx.fillStyle = C.head; ctx.fillRect(x0, y, W - PAD * 2, tableHeadH);
   ctx.fillStyle = '#fff'; ctx.font = `800 17px ${font}`;
-  ['코트', '조', '차수', '신고 마감'].forEach((t, i) => { fitText(ctx, t, 800, 17, 13, cols[i] - 8, font); centerText(ctx, t, xs[i], cols[i], y + 27); });
+  [lead[0] === 'court' ? '코트' : '조', lead[1] === 'court' ? '코트' : '조', '차수', '신고 마감'].forEach((t, i) => { fitText(ctx, t, 800, 17, 13, cols[i] - 8, font); centerText(ctx, t, xs[i], cols[i], y + 27); });
   ctx.font = `800 17px ${font}`;
   ['1팀', '2팀', '3팀'].forEach((t, i) => {
     ctx.font = `800 17px ${font}`; ctx.fillText(t, xs[4 + i] + cellPadX, y + 27);
@@ -157,8 +163,8 @@ export function renderDrawSheet(entries: DrawEntry[], meta: SheetMeta, scale = 2
 
   // ── 행 ──
   const boxes: SheetRowBox[] = [];
-  // 같은 코트가 이어지는 묶음(코트 미정은 각자 한 묶음)
-  const sameCourt = (i: number, k: number) => rows[i] && rows[k] && rows[i].e.courtNo !== null && rows[i].e.courtNo === rows[k].e.courtNo;
+  // 같은 코트가 이어지는 묶음(코트 미정은 각자 한 묶음) — 코트 열이 맨 앞일 때만 합친다. 조 순서에서는 행마다 한 칸.
+  const sameCourt = (i: number, k: number) => byCourt && !!rows[i] && !!rows[k] && rows[i].e.courtNo !== null && rows[i].e.courtNo === rows[k].e.courtNo;
   rows.forEach((r, i) => {
     const { e } = r;
     const runStart = !sameCourt(i, i - 1);
@@ -166,25 +172,26 @@ export function renderDrawSheet(entries: DrawEntry[], meta: SheetMeta, scale = 2
     const tone = e.sessionNo === 2 ? { fg: C.s2, bg: C.s2bg } : e.sessionNo === 1 ? { fg: C.s1, bg: C.s1bg } : { fg: C.muted, bg: '#F1F5F9' };
     boxes.push({ key: e.key, label: e.label, court: e.courtNo, y, h: r.h });
     // 코트 칸은 묶음 첫 행이 묶음 높이만큼 칠한다 — 다음 행 배경이 덮지 않게 코트 칸을 뺀다.
-    ctx.fillStyle = '#fff'; ctx.fillRect(xs[1], y, W - PAD - xs[1], r.h);
-    ctx.fillStyle = tone.bg; ctx.fillRect(xs[1], y, fixedW - COL.court, r.h);
+    const fx = byCourt ? xs[1] : x0;
+    ctx.fillStyle = '#fff'; ctx.fillRect(fx, y, W - PAD - fx, r.h);
+    ctx.fillStyle = tone.bg; ctx.fillRect(fx, y, xs[4] - fx, r.h);
     const mid = y + r.h / 2;
     // 코트(묶음 첫 행에서 묶음 높이만큼 한 칸) · 조 · 차수 · 신고
     if (runStart) {
       let runH = 0; for (let k = i; k < rows.length && (k === i || sameCourt(k, k - 1)); k += 1) runH += rows[k].h;
-      ctx.fillStyle = '#E9EEF5'; ctx.fillRect(xs[0], y, COL.court, runH);
+      ctx.fillStyle = '#E9EEF5'; ctx.fillRect(xCourt, y, COL.court, runH);
       const cm = y + runH / 2;
-      ctx.fillStyle = C.head; ctx.font = `900 36px ${font}`; centerText(ctx, e.courtNo !== null ? String(e.courtNo) : '-', xs[0], COL.court, cm + 6);
-      if (e.courtNo !== null) { ctx.fillStyle = C.muted; ctx.font = `800 13px ${font}`; centerText(ctx, '번 코트', xs[0], COL.court, cm + 26); }
+      ctx.fillStyle = C.head; ctx.font = `900 36px ${font}`; centerText(ctx, e.courtNo !== null ? String(e.courtNo) : '-', xCourt, COL.court, cm + 6);
+      if (e.courtNo !== null) { ctx.fillStyle = C.muted; ctx.font = `800 13px ${font}`; centerText(ctx, '번 코트', xCourt, COL.court, cm + 26); }
     }
     ctx.fillStyle = C.ink;
     if (e.kind === 'placement' && e.displayNo === null) {
-      ctx.font = `900 19px ${font}`; centerText(ctx, '순위', xs[1], COL.group, mid - 3); centerText(ctx, '결정전', xs[1], COL.group, mid + 20);
+      ctx.font = `900 19px ${font}`; centerText(ctx, '순위', xGroup, COL.group, mid - 3); centerText(ctx, '결정전', xGroup, COL.group, mid + 20);
     } else if (e.kind === 'placement') {
       // 공개 표시 번호(예: 1조) + 작은 '순위결정전' — 2팀 조라는 것만 알려 준다.
-      fitText(ctx, e.label, 900, 30, 20, COL.group - 10, font); centerText(ctx, e.label, xs[1], COL.group, mid + 2);
-      ctx.fillStyle = C.muted; ctx.font = `700 13px ${font}`; centerText(ctx, '순위결정전', xs[1], COL.group, mid + 24); ctx.fillStyle = C.ink;
-    } else { fitText(ctx, e.label, 900, 30, 20, COL.group - 10, font); centerText(ctx, e.label, xs[1], COL.group, mid + 10); }
+      fitText(ctx, e.label, 900, 30, 20, COL.group - 10, font); centerText(ctx, e.label, xGroup, COL.group, mid + 2);
+      ctx.fillStyle = C.muted; ctx.font = `700 13px ${font}`; centerText(ctx, '순위결정전', xGroup, COL.group, mid + 24); ctx.fillStyle = C.ink;
+    } else { fitText(ctx, e.label, 900, 30, 20, COL.group - 10, font); centerText(ctx, e.label, xGroup, COL.group, mid + 10); }
     ctx.fillStyle = tone.fg; ctx.font = `900 20px ${font}`; centerText(ctx, sessionText(e.sessionNo), xs[2], COL.session, mid + 7);
     ctx.fillStyle = C.ink; ctx.font = `800 19px ${font}`; centerText(ctx, e.checkinDeadline ?? '-', xs[3], COL.checkin, mid + 7);
     // 팀 칸
@@ -214,8 +221,9 @@ export function renderDrawSheet(entries: DrawEntry[], meta: SheetMeta, scale = 2
     ctx.strokeStyle = C.colLine; ctx.lineWidth = 1;
     for (let k = 2; k < xs.length; k += 1) { ctx.beginPath(); ctx.moveTo(xs[k] + 0.5, y); ctx.lineTo(xs[k] + 0.5, y + r.h); ctx.stroke(); }
     ctx.strokeStyle = C.rowLine; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(xs[1] + 0.5, y); ctx.lineTo(xs[1] + 0.5, y + r.h); ctx.stroke();
-    // 같은 코트 안 = 보통 선(코트 칸 제외) · 코트가 바뀌는 곳 = 굵은 선(전체 폭)
-    if (runEnd) { ctx.strokeStyle = C.head; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, y + r.h); ctx.lineTo(W - PAD, y + r.h); ctx.stroke(); }
+    // 코트 순서: 같은 코트 안 = 보통 선(코트 칸 제외) · 코트가 바뀌는 곳 = 굵은 선(전체 폭). 조 순서: 모든 행 사이 보통 선(전체 폭).
+    if (!byCourt) { ctx.strokeStyle = C.rowLine; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y + r.h); ctx.lineTo(W - PAD, y + r.h); ctx.stroke(); }
+    else if (runEnd) { ctx.strokeStyle = C.head; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, y + r.h); ctx.lineTo(W - PAD, y + r.h); ctx.stroke(); }
     else { ctx.strokeStyle = C.rowLine; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(xs[1], y + r.h); ctx.lineTo(W - PAD, y + r.h); ctx.stroke(); }
     y += r.h;
   });
@@ -228,7 +236,8 @@ export function renderDrawSheet(entries: DrawEntry[], meta: SheetMeta, scale = 2
   const pl = entries.filter((e) => e.kind === 'placement');
   const plNote = pl.length ? ` · ${pl.map((e) => e.label).join(' · ')} = 2팀(순위결정전)` : '';
   ctx.fillStyle = C.soft; ctx.font = `700 16px ${font}`;
-  ctx.fillText(`총 ${entries.length}개 조 · ${teams}팀${plNote} · 코트 1 → 10번 순(같은 코트는 1차 → 2차) · 코트는 예정 코트(실제 코트는 현장 안내 · 앱 DRAW 기준)`, PAD, y + 30);
+  const orderNote = byCourt ? '코트 1 → 10번 순(같은 코트는 1차 → 2차)' : `조 번호 순(${entries[0]?.label ?? ''} → ${entries[entries.length - 1]?.label ?? ''})`;
+  ctx.fillText(`총 ${entries.length}개 조 · ${teams}팀${plNote} · ${orderNote} · 코트는 예정 코트(실제 코트는 현장 안내 · 앱 DRAW 기준)`, PAD, y + 30);
   ctx.fillStyle = C.muted; ctx.font = `600 14px ${font}`;
   const foot = `${meta.generatedAt} · 선수 교체 · 코트 변경 시 이 이미지는 바뀌지 않습니다 — 최신 정보는 앱 DRAW${meta.liveUrl ? ` (${meta.liveUrl})` : ''}`;
   fitText(ctx, foot, 600, 14, 11, W - PAD * 2, font); ctx.fillText(foot, PAD, y + 54);
