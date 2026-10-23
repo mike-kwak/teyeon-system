@@ -6,6 +6,8 @@
 //   ⚠ 결과는 서버 응답(최종 상태)으로만 반영한다 — 누르는 순간 화면을 먼저 바꾸지 않는다.
 //   ⚠ 조회가 실패해도 보던 목록을 지우지 않는다(안내 한 줄만). 다른 기기의 체크인은 15초마다 · 복귀 때 반영된다.
 //   ⚠ 취소는 한 번 더 확인한다(실수 방지). 체크인/취소는 감사 로그에 남는다(서버).
+//   ⚠ 순서 · 조 표시('3조 2번')는 본부 조편성 조회(get_admin_preliminary_draw)를 team_id 로 맞춘 표시 전용이다.
+//     조편성을 못 읽으면 기존 순서(팀 번호)로 그리고 안내 한 줄 — 조 번호를 추측하지 않는다.
 
 import React from 'react';
 import { Check, RefreshCw, Search, X, AlertTriangle, UserCheck } from 'lucide-react';
@@ -13,9 +15,10 @@ import { useVisibilityResync } from '@/hooks/useRealtimeSync';
 import {
   fetchTeamCheckins, setTeamCheckin, checkinActionMessage, isCheckinMissing,
 } from '@/lib/tournaments/checkinService';
+import { fetchPreliminaryDraw } from '@/lib/tournaments/drawAdminService';
 import {
-  applyCheckinResult, checkinSummary, matchesFilter, visibleTeams,
-  type CheckinFilter, type TeamCheckinBoard as Board, type TeamCheckinRow,
+  applyCheckinResult, buildCheckinSeats, checkinSummary, matchesFilter, seatText, visibleTeams,
+  type CheckinFilter, type CheckinSeat, type CheckinSeatMap, type TeamCheckinBoard as Board, type TeamCheckinRow,
 } from '@/lib/tournaments/checkinModel';
 
 const INK = '#0F172A';
@@ -55,7 +58,9 @@ const hhmmss = (ms: number | null): string => {
   const d = new Date(ms);
   return [d.getHours(), d.getMinutes(), d.getSeconds()].map((v) => String(v).padStart(2, '0')).join(':');
 };
-const teamTag = (n: number): string => `TEAM ${String(n).padStart(2, '0')}`;
+/** 알림 문구의 팀 이름 — 자리('3조 2번')가 있으면 자리, 없으면 선수 이름. 내부 팀 번호는 쓰지 않는다. */
+const teamName = (row: TeamCheckinRow, seat: CheckinSeat | undefined): string =>
+  seatText(seat) ?? [row.player1Name, row.player2Name].filter(Boolean).join(' · ');
 
 // ── 데이터 ──────────────────────────────────────────────────────────────────
 
@@ -118,6 +123,30 @@ function useCheckinData(slug: string) {
   }, []);
 
   return { board, state, staleError, updatedAt, refreshing, load, applyResult };
+}
+
+/**
+ * 조편성 자리(team_id → '3조 2번') — 처음 한 번 · 새로고침 때 읽는다(확정 조편성은 대회 중 바뀌지 않는다).
+ *   실패 · 조 없음 = seats null → 화면은 기존 순서 + 안내. 한 번 읽은 자리는 다음 조회가 실패해도 지우지 않는다.
+ */
+type SeatState = 'loading' | 'ready' | 'unavailable';
+function useCheckinSeats(slug: string) {
+  const [seats, setSeats] = React.useState<CheckinSeatMap | null>(null);
+  const [seatState, setSeatState] = React.useState<SeatState>('loading');
+  const seq = React.useRef(0);
+  const loadSeats = React.useCallback(async () => {
+    const my = ++seq.current;
+    try {
+      const r = await fetchPreliminaryDraw(slug);
+      if (my !== seq.current) return;
+      const map = r.ready && r.draw ? buildCheckinSeats(r.draw.groups) : null;
+      if (map) { setSeats(map); setSeatState('ready'); } else setSeatState((s) => (s === 'ready' ? s : 'unavailable'));
+    } catch {
+      if (my === seq.current) setSeatState((s) => (s === 'ready' ? s : 'unavailable'));
+    }
+  }, [slug]);
+  React.useEffect(() => { if (slug) void loadSeats(); }, [slug, loadSeats]);
+  return { seats, seatState, loadSeats };
 }
 
 // ── 부품 ────────────────────────────────────────────────────────────────────
@@ -202,8 +231,8 @@ function FilterTabs({ value, counts, searching, onChange }: {
   );
 }
 
-function TeamCard({ row, busy, confirming, error, onCheckin, onAskCancel, onCancel, onKeep }: {
-  row: TeamCheckinRow; busy: boolean; confirming: boolean; error: string;
+function TeamCard({ row, seat, busy, confirming, error, onCheckin, onAskCancel, onCancel, onKeep }: {
+  row: TeamCheckinRow; seat: CheckinSeat | undefined; busy: boolean; confirming: boolean; error: string;
   onCheckin: () => void; onAskCancel: () => void; onCancel: () => void; onKeep: () => void;
 }) {
   const checked = row.checkedInAt !== null;
@@ -226,19 +255,25 @@ function TeamCard({ row, busy, confirming, error, onCheckin, onAskCancel, onCanc
   );
 
   return (
-    <div data-checkin-team={row.teamNo} data-checkin-state={state} style={{
+    <div data-checkin-team={row.teamNo} data-checkin-seat={seatText(seat) ?? ''} data-checkin-state={state} style={{
       ...card, padding: 12, display: 'flex', flexDirection: 'column', gap: 8,
       borderColor: checked ? TEAL : LINE, background: checked ? '#F7FBFA' : '#fff',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <div style={{
-          flexShrink: 0, width: 52, padding: '5px 0', borderRadius: 9, textAlign: 'center',
+        {/* 자리 — '3조' / '2번'. 조편성을 모르면 '조 —'(번호를 추측하지 않는다). 내부 팀 번호는 그리지 않는다. */}
+        <div data-checkin-seat-badge style={{
+          flexShrink: 0, width: 56, padding: '5px 0', borderRadius: 9, textAlign: 'center',
           background: checked ? TEAL : withdrawn ? '#F1F5F9' : '#F8FAFC',
           border: `1px solid ${checked ? TEAL : LINE}`,
         }}>
-          <span style={{ display: 'block', fontFamily: LABEL, fontSize: 9.5, fontWeight: 800, letterSpacing: '0.1em', color: checked ? '#D5F0EC' : FAINT }}>TEAM</span>
-          <span style={{ display: 'block', fontFamily: LABEL, fontSize: 21, fontWeight: 800, lineHeight: 1, color: checked ? '#fff' : withdrawn ? FAINT : INK, fontVariantNumeric: 'tabular-nums' }}>
-            {String(row.teamNo).padStart(2, '0')}
+          <span style={{
+            display: 'block', fontSize: seat && seat.publicNo === null ? 11 : 17, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.02em',
+            color: checked ? '#fff' : withdrawn ? FAINT : INK, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+          }}>
+            {seat ? seat.label : '조 —'}
+          </span>
+          <span style={{ display: 'block', marginTop: 2, fontSize: 12, fontWeight: 800, lineHeight: 1.1, color: checked ? '#D5F0EC' : MUTED, fontVariantNumeric: 'tabular-nums' }}>
+            {seat ? `${seat.order}번` : '-'}
           </span>
         </div>
         <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -320,6 +355,7 @@ function Quiet({ title, desc, onRetry }: { title: string; desc?: string; onRetry
 
 export default function TeamCheckinBoard({ slug }: { slug: string }) {
   const { board, state, staleError, updatedAt, refreshing, load, applyResult } = useCheckinData(slug);
+  const { seats, seatState, loadSeats } = useCheckinSeats(slug);
   const [query, setQuery] = React.useState('');
   const [filter, setFilter] = React.useState<CheckinFilter>('pending');
   const [busy, setBusy] = React.useState<Record<string, boolean>>({});
@@ -340,6 +376,9 @@ export default function TeamCheckinBoard({ slug }: { slug: string }) {
     toastTimer.current = window.setTimeout(() => setToast(''), 2600);
   };
 
+  const seatsRef = React.useRef(seats);
+  seatsRef.current = seats;
+
   /** 보내는 중인 팀 — 상태(busy)는 다음 렌더에야 반영되므로, 같은 순간의 연타는 이 ref 로 막는다. */
   const inflight = React.useRef<Set<string>>(new Set());
 
@@ -352,9 +391,8 @@ export default function TeamCheckinBoard({ slug }: { slug: string }) {
       const r = await setTeamCheckin(slug, row.teamId, checked);
       applyResult(row.teamId, r.checkedIn ? r.checkedInAt : null);
       setConfirming((c) => (c === row.teamId ? null : c));
-      say(r.checkedIn
-        ? `${teamTag(row.teamNo)} 체크인 완료`
-        : `${teamTag(row.teamNo)} 체크인을 취소했습니다`);
+      const name = teamName(row, seatsRef.current?.get(row.teamId));
+      say(r.checkedIn ? `${name} 체크인 완료` : `${name} 체크인을 취소했습니다`);
     } catch (e) {
       setErrors((x) => ({ ...x, [row.teamId]: checkinActionMessage(e) }));
       // 응답을 잃었을 수 있다 — 서버 상태로 다시 맞춘다(체크인은 같은 값을 다시 보내도 안전하다).
@@ -383,7 +421,7 @@ export default function TeamCheckinBoard({ slug }: { slug: string }) {
     return <Quiet title="체크인 현황을 불러오지 못했습니다." desc="네트워크 상태를 확인한 뒤 다시 시도해 주세요." onRetry={() => { void load(true); }} />;
   }
 
-  const rows = visibleTeams(board.teams, query, filter);
+  const rows = visibleTeams(board.teams, query, filter, seats);
   const counts: Record<CheckinFilter, number> = {
     pending: board.teams.filter((t) => matchesFilter(t, 'pending')).length,
     done: board.teams.filter((t) => matchesFilter(t, 'done')).length,
@@ -393,7 +431,14 @@ export default function TeamCheckinBoard({ slug }: { slug: string }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <Kpi board={board} updatedAt={updatedAt} refreshing={refreshing} onReload={() => { void load(true); }} />
+      <Kpi board={board} updatedAt={updatedAt} refreshing={refreshing} onReload={() => { void load(true); void loadSeats(); }} />
+
+      {seatState === 'unavailable' && (
+        <p data-checkin-seat-note style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 12.5, fontWeight: 700, color: AMBER_INK, wordBreak: 'keep-all' }}>
+          <AlertTriangle size={14} strokeWidth={2.4} style={{ flexShrink: 0, marginTop: 2 }} />
+          조편성 정보를 불러오지 못해 조 번호 없이 등록 순서로 표시합니다. 체크인은 그대로 할 수 있습니다.
+        </p>
+      )}
 
       {staleError && (
         <p data-checkin-stale style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 12.5, fontWeight: 700, color: AMBER_INK, wordBreak: 'keep-all' }}>
@@ -407,8 +452,8 @@ export default function TeamCheckinBoard({ slug }: { slug: string }) {
         <input
           type="search" inputMode="search" enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false}
           data-checkin-search value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="팀 번호 · 선수 · 클럽 검색"
-          aria-label="팀 번호, 선수 이름, 클럽 이름으로 검색"
+          placeholder="조 · 선수 · 클럽 검색 (예: 3조)"
+          aria-label="조, 선수 이름, 클럽 이름으로 검색"
           style={{
             width: '100%', boxSizing: 'border-box', minHeight: 48, padding: '10px 44px 10px 38px',
             borderRadius: 12, border: `1px solid ${LINE}`, background: '#fff',
@@ -435,15 +480,18 @@ export default function TeamCheckinBoard({ slug }: { slug: string }) {
 
       {board.teams.length === 0 ? (
         <Quiet title="등록된 참가팀이 없습니다." desc="팀 관리 화면에서 참가팀을 확정하면 이곳에 표시됩니다." />
+      ) : seatState === 'loading' ? (
+        // 조편성 순서가 오기 전에 다른 순서로 그렸다가 바뀌지 않게 잠깐 기다린다(실패하면 기존 순서 + 안내).
+        <Quiet title="조편성 순서를 불러오는 중…" />
       ) : rows.length === 0 ? (
         <Quiet
           title={searching ? '검색 결과가 없습니다.' : filter === 'pending' ? '미체크인 팀이 없습니다.' : '해당하는 팀이 없습니다.'}
-          desc={searching ? '팀 번호는 숫자만(예: 12), 이름은 일부만 입력해도 찾습니다.' : filter === 'pending' ? '모든 참가팀이 체크인했습니다.' : undefined}
+          desc={searching ? '조는 \'3조\' · \'3조 2번\', 이름은 일부만 입력해도 찾습니다.' : filter === 'pending' ? '모든 참가팀이 체크인했습니다.' : undefined}
         />
       ) : (
         <div className="checkin-grid" data-checkin-list={rows.length}>
           {rows.map((r) => (
-            <TeamCard key={r.teamId} row={r}
+            <TeamCard key={r.teamId} row={r} seat={seats?.get(r.teamId)}
               busy={!!busy[r.teamId]} confirming={confirming === r.teamId} error={errors[r.teamId] || ''}
               onCheckin={() => { void write(r, true); }}
               onAskCancel={() => askCancel(r.teamId)}
