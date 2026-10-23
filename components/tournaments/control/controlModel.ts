@@ -5,7 +5,8 @@
 //   ⚠ 새로운 사실을 만들지 않는다 — 전부 기존 운영 RPC 응답에서 파생한다.
 //     · 경기 상태 뜻은 기존 그대로다(대기 · 호명 · 진행 중 · 완료 · 취소).
 //     · 카운트 기준도 기존 경기 운영 화면과 같다(전체 = 취소 포함, 호명은 따로 센다).
-//     · 코트의 '다음 경기'를 고르지 않고, 순위를 다시 계산하지 않는다.
+//     · 코트의 '다음 경기'는 조 일정에 저장된 배정으로 **추천만** 한다(deriveCourtSuggestions — 투입은 운영자).
+//       순위를 다시 계산하지 않는다.
 //   ⚠ 코트 수 · 조 수 · 진출 수를 숫자로 박지 않는다. 전부 서버가 준 값에서 센다.
 
 import type { MatchBoard, MatchStatus, TournamentMatch } from '@/lib/tournaments/matchTypes';
@@ -440,6 +441,149 @@ export function deriveWaiting(
     waiting: all.length - calling,
     hidden: Math.max(0, all.length - rows.length),
   };
+}
+
+// ── 코트별 다음 경기 추천 (표시 전용) ───────────────────────────────────────
+//
+//   빈 코트에 '이 코트에 배정된 조의 다음 경기' 를 보여 준다. **추천은 표시일 뿐이다.**
+//   ⚠ 투입 · 호명 · 시작을 하지 않는다. 운영자가 [추천 경기 투입] → [이 코트에 투입] 을 직접 누른다(기존 확인 · RPC 그대로).
+//   ⚠ 배정은 조 일정(get_admin_group_schedule)에 저장된 예정 코트 · 차수만 쓴다. 배정표를 따로 박지 않는다.
+//     저장값이 비었거나 어긋나면 고쳐 쓰지 않고 경고로 보여 준다(그 조는 추천에서 빠진다).
+//   ⚠ 순서: ① 그 코트의 조 ② 1차 → 2차(1차 경기가 남아 있으면 2차를 추천하지 않는다) ③ 조 안 경기 순서
+//     ④ 두 팀 체크인 완료 우선(같은 순서끼리일 때만) ⑤ 다른 코트에서 진행 중인 팀이 있는 경기는 뺀다.
+//   ⚠ 시각 조건(09:20 등)으로 2차를 막거나 열지 않는다 — 2차 투입 시점은 운영자가 정한다.
+
+/** 추천 한 칸에 붙이는 팀 체크인 상태. 체크인 정보를 모르면 null. */
+export type SuggestCheckin = 'both' | 'partial' | null;
+
+export type ControlCourtSuggestion =
+  /** 추천 경기가 있다. */
+  | { courtNo: number; kind: 'match'; match: ControlMatchRow; sessionNo: number | null; checkin: SuggestCheckin; uncheckedTeamNos: number[] }
+  /** 배정된 경기가 남아 있지만 지금은 넣을 수 없다(그 조 경기가 다른 코트에서 진행 중 등). */
+  | { courtNo: number; kind: 'hold'; message: string }
+  /** 이 코트에 배정된 경기가 모두 끝났다(또는 배정된 조가 없다). */
+  | { courtNo: number; kind: 'none'; message: string }
+  /** 조 일정을 읽지 못했다 — 추천하지 않는다. */
+  | { courtNo: number; kind: 'unknown'; message: string };
+
+export interface ControlSuggestions {
+  /** 코트 번호 → 추천. 사용 중인 코트(active)만 담는다. */
+  byCourt: Map<number, ControlCourtSuggestion>;
+  /** 배정 데이터 경고(고치지 않고 보여 준다). 정상이면 빈 배열. */
+  warnings: string[];
+}
+
+const SESSION_WORD = (s: number | null): string => (s === 1 ? '1차' : s === 2 ? '2차' : '차수 미정');
+
+/**
+ * 코트별 다음 경기 추천.
+ *   @param schedule  조 일정(예정 코트 · 차수). null = 아직 못 읽음 · 읽기 실패 → 'unknown'.
+ *   @param checkin   팀 번호 → 체크인. null = 모름(체크인 우선 판단 없이 경기 순서만 쓴다).
+ *   ⚠ 본선 경기는 다루지 않는다(예선 · 순위결정전만).
+ */
+export function deriveCourtSuggestions(
+  board: MatchBoard | null,
+  schedule: ControlPlannedGroup[] | null,
+  checkin: ReadonlyMap<number, { checkedIn: boolean; status: string }> | null,
+  ctx: ControlRowContext | null = null,
+): ControlSuggestions {
+  const byCourt = new Map<number, ControlCourtSuggestion>();
+  const warnings: string[] = [];
+  if (!board) return { byCourt, warnings };
+  const courts = [...board.courts].sort((a, b) => a.courtNo - b.courtNo);
+  const active = courts.filter((c) => c.status === 'active');
+
+  if (!schedule) {
+    active.forEach((c) => byCourt.set(c.courtNo, { courtNo: c.courtNo, kind: 'unknown', message: '조 일정을 불러오지 못해 추천하지 않습니다.' }));
+    return { byCourt, warnings };
+  }
+
+  const prelim = board.matches.filter((m) => m.stage !== 'knockout' && m.groupNo !== null);
+  const label = (g: number) => {
+    const m = prelim.find((x) => x.groupNo === g);
+    return m?.stage === 'placement' ? (ctx?.placementLabel ?? PLACEMENT_NAME) : `${g}조`;
+  };
+  const plan = new Map(schedule.map((g) => [g.groupNo, g] as const));
+  const groupNos = [...new Set(prelim.map((m) => m.groupNo as number))].sort((a, b) => a - b);
+  const courtNos = new Set(courts.map((c) => c.courtNo));
+
+  // 배정 데이터 점검 — 고쳐 쓰지 않는다. 문제 있는 조는 추천에서 빠진다.
+  const usable = new Set<number>();
+  groupNos.forEach((g) => {
+    const p = plan.get(g);
+    if (!p || p.plannedCourtNo === null || p.sessionNo === null) {
+      warnings.push(`${label(g)}: 예정 코트 또는 차수가 지정되지 않아 추천에서 빠졌습니다.`);
+      return;
+    }
+    if (!courtNos.has(p.plannedCourtNo)) {
+      warnings.push(`${label(g)}: 예정 ${p.plannedCourtNo}번 코트가 코트 목록에 없어 추천에서 빠졌습니다.`);
+      return;
+    }
+    usable.add(g);
+  });
+  const perSlot = new Map<string, number[]>();
+  usable.forEach((g) => {
+    const p = plan.get(g)!;
+    const k = `${p.plannedCourtNo}:${p.sessionNo}`;
+    perSlot.set(k, [...(perSlot.get(k) ?? []), g]);
+  });
+  perSlot.forEach((gs, k) => {
+    if (gs.length < 2) return;
+    const [c, s] = k.split(':').map(Number);
+    warnings.push(`${c}번 코트 ${SESSION_WORD(s)}에 ${gs.map(label).join(' · ')} 가 함께 지정되어 있습니다. 조 일정을 확인해 주세요.`);
+  });
+
+  // 지금 진행 중인 팀(본선 포함) — 이 팀이 들어간 경기는 추천하지 않는다.
+  const busyTeams = new Set<number>();
+  board.matches.filter((m) => m.status === 'playing').forEach((m) => { busyTeams.add(m.team1.teamNo); busyTeams.add(m.team2.teamNo); });
+  const rounds = new Map<number, string>();
+  const finals = new Set<number>();
+  const checkedBoth = (m: TournamentMatch): SuggestCheckin => {
+    if (!checkin) return null;
+    const u = [m.team1.teamNo, m.team2.teamNo].filter((n) => { const v = checkin.get(n); return v !== undefined && v.status === 'active' && !v.checkedIn; });
+    return u.length === 0 ? 'both' : 'partial';
+  };
+
+  courts.forEach((c) => {
+    const mine = [...usable].filter((g) => plan.get(g)!.plannedCourtNo === c.courtNo);
+    const left = prelim.filter((m) => mine.includes(m.groupNo as number) && (m.status === 'waiting' || m.status === 'calling' || m.status === 'playing'));
+    if (c.status !== 'active') {
+      if (left.length > 0) warnings.push(`${c.courtNo}번 코트가 사용 중지 상태인데 배정 경기 ${left.length}개가 남아 있습니다.`);
+      return;
+    }
+    if (left.length === 0) {
+      byCourt.set(c.courtNo, { courtNo: c.courtNo, kind: 'none', message: '배정 경기 없음' });
+      return;
+    }
+    // 가장 앞 차수(1차 → 2차)만 본다 — 앞 차수 경기가 하나라도 남아 있으면 다음 차수를 추천하지 않는다.
+    const sessionOf = (m: TournamentMatch) => plan.get(m.groupNo as number)!.sessionNo as number;
+    const head = Math.min(...left.map(sessionOf));
+    const cur = left.filter((m) => sessionOf(m) === head);
+    const candidates = cur
+      .filter((m) => m.status !== 'playing' && !busyTeams.has(m.team1.teamNo) && !busyTeams.has(m.team2.teamNo))
+      .sort((a, b) => (a.sequenceNo - b.sequenceNo)
+        || ((checkedBoth(a) === 'partial' ? 1 : 0) - (checkedBoth(b) === 'partial' ? 1 : 0))
+        || ((a.groupNo as number) - (b.groupNo as number))
+        || (a.matchNo - b.matchNo));
+    const pickM = candidates[0];
+    if (!pickM) {
+      const playingHere = cur.filter((m) => m.status === 'playing');
+      const blocked = cur.filter((m) => m.status !== 'playing');
+      const where = playingHere.map((m) => `M${m.matchNo}${m.courtNo !== null ? ` ${m.courtNo}번 코트` : ''}`).join(' · ');
+      byCourt.set(c.courtNo, {
+        courtNo: c.courtNo, kind: 'hold',
+        message: blocked.length > 0
+          ? `${[...new Set(cur.map((m) => m.groupNo as number))].map(label).join(' · ')} 다음 경기 팀이 다른 코트에서 경기 중입니다${where ? `(${where})` : ''}.`
+          : `${SESSION_WORD(head)} ${[...new Set(cur.map((m) => m.groupNo as number))].map(label).join(' · ')} 경기 진행 중${where ? `(${where})` : ''} — 끝나면 다음 차수를 추천합니다.`,
+      });
+      return;
+    }
+    const row = rowOf(pickM, rounds, finals, ctx);
+    const u = checkin ? [pickM.team1.teamNo, pickM.team2.teamNo].filter((n) => { const v = checkin.get(n); return v !== undefined && v.status === 'active' && !v.checkedIn; }) : [];
+    byCourt.set(c.courtNo, { courtNo: c.courtNo, kind: 'match', match: row, sessionNo: head, checkin: checkedBoth(pickM), uncheckedTeamNos: u });
+  });
+
+  return { byCourt, warnings };
 }
 
 // ── 확인 필요 ───────────────────────────────────────────────────────────────
