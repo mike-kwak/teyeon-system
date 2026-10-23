@@ -73,51 +73,68 @@ export function DrawHeading({ title, sub }: { title: string; sub: string }) {
   );
 }
 
+/** DRAW 메뉴 — 대진표(전체 조편성표) · 예선(모바일 대진표: 조별 · 코트별) · 본선(본선 토너먼트). */
+export type DrawStage = 'sheet' | 'board' | 'knockout';
+
 /**
- * 예선 조별리그 | 본선 토너먼트.
+ * 대진표 | 예선 | 본선.
+ *   · 대진표 = /draw(전체 조편성표) · 예선 = /draw?view=board(모바일 대진표) · 본선 = /draw/knockout — 기존 주소 · 공유 링크 그대로.
+ *   · 예선 화면 안에서는 onPrelimSelect 로 보기만 바꾼다(다시 불러오지 않음). 본선 화면에서는 링크로 이동한다.
  *   ⚠ 본선 탭은 knockoutOpen 일 때만 링크가 된다. 그 전에는 지금까지처럼 '준비 중' 으로 둔다
  *     (기능 스위치가 꺼진 운영 환경에서 동작이 달라지지 않게).
+ *   ⚠ 'preliminary' 는 예전 호출 호환용(= 대진표).
  */
 export function DrawStageTabs({
-  slug, active = 'preliminary', knockoutOpen = false,
-}: { slug?: string; active?: 'preliminary' | 'knockout'; knockoutOpen?: boolean } = {}) {
+  slug, active = 'sheet', knockoutOpen = false, onPrelimSelect,
+}: {
+  slug?: string; active?: DrawStage | 'preliminary'; knockoutOpen?: boolean;
+  /** 예선 화면 안에서 대진표 ↔ 예선 전환(주소 이동 없이). 없으면 링크로 이동한다. */
+  onPrelimSelect?: (v: 'sheet' | 'board') => void;
+} = {}) {
+  const cur: DrawStage = active === 'preliminary' ? 'sheet' : active;
   const base: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    minHeight: 46, borderRadius: 9, fontFamily: 'inherit', lineHeight: 1.25,
-    textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
+    minHeight: 46, minWidth: 0, borderRadius: 9, border: 0, fontFamily: 'inherit', lineHeight: 1.25,
+    textDecoration: 'none', WebkitTapHighlightColor: 'transparent', whiteSpace: 'nowrap', cursor: 'pointer',
   };
   const on: React.CSSProperties = {
-    background: '#fff', color: TT.ink, fontSize: 14, fontWeight: 800,
+    background: '#fff', color: TT.ink, fontSize: 14.5, fontWeight: 800,
     boxShadow: '0 1px 3px rgba(15,23,42,0.10)',
   };
-  const off: React.CSSProperties = { color: TT.inkSoft, fontSize: 14, fontWeight: 700 };
+  const off: React.CSSProperties = { background: 'transparent', color: TT.inkSoft, fontSize: 14.5, fontWeight: 700 };
 
-  const prelimHref = slug ? `/tournaments/${slug}/draw` : null;
+  const sheetHref = slug ? `/tournaments/${slug}/draw` : null;
+  const boardHref = slug ? `/tournaments/${slug}/draw?view=board` : null;
   const knockoutHref = slug && knockoutOpen ? `/tournaments/${slug}/draw/knockout` : null;
 
-  return (
-    <div role="tablist" aria-label="대진 단계"
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 3, padding: 3, background: '#E6EAF0', borderRadius: 12, marginBottom: 12 }}>
-      {active === 'preliminary' || !prelimHref ? (
-        <span role="tab" aria-selected={active === 'preliminary'} style={{ ...base, ...on }}>
-          예선 조별리그
-        </span>
-      ) : (
-        <Link role="tab" aria-selected={false} href={prelimHref} style={{ ...base, ...off }}>
-          예선 조별리그
-        </Link>
-      )}
+  const prelimTab = (v: 'sheet' | 'board', label: string, href: string | null) => {
+    if (cur === v) return <span key={v} role="tab" aria-selected data-draw-view={v} data-draw-stage={v} style={{ ...base, ...on }}>{label}</span>;
+    if (onPrelimSelect) {
+      return (
+        <button key={v} type="button" role="tab" aria-selected={false} data-draw-view={v} data-draw-stage={v}
+          onClick={() => onPrelimSelect(v)} style={{ ...base, ...off }}>{label}</button>
+      );
+    }
+    return href
+      ? <Link key={v} role="tab" aria-selected={false} href={href} data-draw-stage={v} style={{ ...base, ...off }}>{label}</Link>
+      : <span key={v} role="tab" aria-selected={false} data-draw-stage={v} style={{ ...base, ...off }}>{label}</span>;
+  };
 
-      {active === 'knockout' ? (
-        <span role="tab" aria-selected style={{ ...base, ...on }}>본선 토너먼트</span>
+  return (
+    <div role="tablist" aria-label="대진표 메뉴" data-draw-stages
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 3, padding: 3, background: '#E6EAF0', borderRadius: 12, marginBottom: 12 }}>
+      {prelimTab('sheet', '대진표', sheetHref)}
+      {prelimTab('board', '예선', boardHref)}
+      {cur === 'knockout' ? (
+        <span role="tab" aria-selected data-draw-stage="knockout" style={{ ...base, ...on }}>본선</span>
       ) : knockoutHref ? (
-        <Link role="tab" aria-selected={false} href={knockoutHref} style={{ ...base, ...off }}>
-          본선 토너먼트
+        <Link role="tab" aria-selected={false} href={knockoutHref} data-draw-stage="knockout" style={{ ...base, ...off }}>
+          본선
         </Link>
       ) : (
-        <span role="tab" aria-selected={false} aria-disabled="true"
-          style={{ ...base, color: TT.subtle, fontSize: 14, fontWeight: 700 }}>
-          본선 토너먼트
+        <span role="tab" aria-selected={false} aria-disabled="true" data-draw-stage="knockout"
+          style={{ ...base, color: TT.subtle, fontSize: 14.5, fontWeight: 700, cursor: 'default' }}>
+          본선
           <span style={{ fontSize: 11, fontWeight: 600, color: TT.faint }}>준비 중</span>
         </span>
       )}

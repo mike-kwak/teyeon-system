@@ -19,18 +19,31 @@ export default function TournamentDrawPage() {
   const { slug, event } = useDrawEvent(params?.slug);
   const { draw, loading } = usePublicDraw(event ? event.slug : '');
   const schedule = usePublicGroupSchedule(event ? event.slug : '', !!draw);
+  // 대진표(전체 조편성표) | 예선(모바일 대진표) — 기존 공유 링크(?view=board · ?view=sheet) 그대로.
+  const [view, setView] = React.useState<'sheet' | 'board'>('sheet');
+  React.useEffect(() => {
+    try { if (new URLSearchParams(window.location.search).get('view') === 'board') setView('board'); } catch { /* 무시 */ }
+  }, []);
+  const choose = React.useCallback((v: 'sheet' | 'board') => {
+    setView(v);
+    try {
+      const u = new URL(window.location.href);
+      if (v === 'board') u.searchParams.set('view', 'board'); else u.searchParams.delete('view');
+      window.history.replaceState(window.history.state, '', u.toString());
+    } catch { /* 무시 */ }
+  }, []);
 
   if (!event) return <DrawNotFound />;
   const hubHref = `/tournaments/${event.slug}`;
 
   return (
     <PublicDrawShell event={event} published={!!draw}>
-      <DrawHeading title="예선 대진표" sub={event.titleFull} />
-      <DrawStageTabs slug={event.slug} active="preliminary" knockoutOpen={PUBLIC_KNOCKOUT_ENABLED} />
+      <DrawHeading title="대진표" sub={event.titleFull} />
+      <DrawStageTabs slug={event.slug} active={view} knockoutOpen={PUBLIC_KNOCKOUT_ENABLED} onPrelimSelect={draw ? choose : undefined} />
       {draw && <MyMatchEntryLink slug={event.slug} />}
       {draw ? (
         <>
-          <PrelimDrawViews slug={slug} draw={draw} schedule={schedule} />
+          <PrelimDrawViews slug={slug} draw={draw} schedule={schedule} view={view} />
           <BackToHub hubHref={hubHref} />
         </>
       ) : (

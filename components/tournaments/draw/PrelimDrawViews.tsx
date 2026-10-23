@@ -33,14 +33,18 @@ function useClubIndex(slug: string): ClubIndex | null {
 
 type View = 'board' | 'sheet';
 
-export default function PrelimDrawViews({ slug, draw, schedule = null, basePath }: {
+export default function PrelimDrawViews({ slug, draw, schedule = null, basePath, view: controlledView }: {
   slug: string; draw: PublicPreliminaryDraw; schedule?: PublicGroupSchedule | null; basePath?: string;
+  /** 공개 화면 — 바깥 DRAW 메뉴(대진표 | 예선 | 본선)가 보기를 정한다. 주면 안쪽 탭을 그리지 않는다. */
+  view?: View;
 }) {
   // 기본 = 전체 조편성표. 모바일 대진표는 ?view=board 로 바로 열 수 있다(?view=sheet 도 그대로 조편성표 · 표시 전용).
-  const [view, setView] = React.useState<View>('sheet');
+  const [innerView, setView] = React.useState<View>('sheet');
+  const view = controlledView ?? innerView;
   React.useEffect(() => {
+    if (controlledView) return;   // 바깥 메뉴가 주소를 다룬다
     try { if (new URLSearchParams(window.location.search).get('view') === 'board') setView('board'); } catch { /* 무시 */ }
-  }, []);
+  }, [controlledView]);
   const choose = (v: View) => {
     setView(v);
     try {
@@ -69,14 +73,14 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath 
 
   return (
     <div className="pv-wrap">
-      <div className="pv-tabs" role="tablist" aria-label="대진표 보기 방식">
+      {!controlledView && <div className="pv-tabs" role="tablist" aria-label="대진표 보기 방식">
         <button type="button" role="tab" aria-selected={view === 'sheet'} onClick={() => choose('sheet')} data-draw-view="sheet">
           <Table2 size={15} strokeWidth={2.4} />전체 조편성표
         </button>
         <button type="button" role="tab" aria-selected={view === 'board'} onClick={() => choose('board')} data-draw-view="board">
           <LayoutGrid size={15} strokeWidth={2.4} />모바일 대진표
         </button>
-      </div>
+      </div>}
       {view === 'board'
         ? <OfficialDrawBoard entries={byGroup} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
         : <DrawSheet entries={byGroup} meta={meta} fileBase={slug} />}
