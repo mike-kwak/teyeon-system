@@ -10,6 +10,9 @@
 //   ⚠ 보기 전환은 화면 배열만 바꾼다 — 저장 · 재계산 없음. 조 번호는 공개 표시 번호(순위결정전 = 1조), 내부 group_no 는 쓰지 않는다.
 //   ⚠ 신고 마감(08:40 · 09:20)과 경기 시작(09:00 · 앞 조 종료 후)은 다른 말로 — 09:20 을 시작 시각으로 쓰지 않는다.
 //   ⚠ 노란색 = 그 조 첫 경기 출전 팀(경기 전일 때만). teal = 본선 진출. 색만으로 구분하지 않는다(글자 · 아이콘 함께).
+//   ⚠ 조별 보기 카드 = 2열 조별 순위 카드(GroupCompactCard — 관리자 순위 화면과 같은 부품). 순위 · 승패 · 득실 · 진출은
+//     공개 DRAW 서버 값(standings · placement) 그대로 — 여기서 계산하지 않는다. 경기 전 = 순위 칸 비움 · 승패 없음,
+//     진행 중 = '잠정 순위', 확정 = '순위 확정' + 본선 진출 강조. 카드를 누르면 그 조 상세(경기 · 순위).
 
 import React from 'react';
 import Link from 'next/link';
@@ -19,7 +22,11 @@ import { normalizeQuery } from '@/components/tournaments/standings/presentation'
 import {
   buildCourtSlots, findTeams, teamMatches, type CourtSlot, type DrawEntry, type DrawTeamLine, type SessionHeader,
 } from '@/lib/tournaments/officialDrawModel';
-import { firstMark } from './FirstMatchMarks';
+import { firstMark, firstMarkFor } from './FirstMatchMarks';
+import { LIST_CSS, GroupCompactCard } from '@/components/tournaments/standings/primitives';
+import { C, phaseOf, placementResultView, placementStatusView, placementTitle, progressSegments, progressText, rowMatches } from '@/components/tournaments/standings/presentation';
+import { publicCardStatus, publicCompactRow, publicMatchStatus, teamKey } from './publicDrawView';
+import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
 
 const NAVY = TT.navy;
 const S1 = { fg: '#0A6F65', bg: '#E7F3F1', bd: '#9ED3CB', solid: '#0E8C80' };   // 1차 — teal
@@ -39,10 +46,12 @@ const clubsOf = (t: DrawTeamLine): [string | null, string | null] =>
   (t.club1 || t.club2 ? [t.club1, t.club2] : [t.club, null]);
 
 export default function OfficialDrawBoard({
-  entries, sessions, checkinPlace, progress,
+  entries, draw = null, sessions, checkinPlace, progress,
 }: {
   /** 공개 조 번호 순(1조 → 18조)으로 정렬된 조 목록(PrelimDrawViews · 전체 조편성표와 같은 배열). */
   entries: DrawEntry[];
+  /** 공개 DRAW 원본 — 조별 순위 카드(서버 순위 · 승패 · 득실 · 진출)용. 없으면 기존 조 카드로 그린다. */
+  draw?: PublicPreliminaryDraw | null;
   sessions: SessionHeader[];
   checkinPlace: string | null;
   progress: { done: number; all: number };
@@ -136,9 +145,17 @@ export default function OfficialDrawBoard({
           {visible.length === 0 ? (
             <p className="od-empty">{q ? '검색 결과가 없습니다. 선수 이름을 다시 확인해 주세요.' : '표시할 조가 없습니다.'}</p>
           ) : (
-            <div className="od-groups" data-od-groups>
-              {visible.map((e) => <GroupCard key={e.key} e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} />)}
-            </div>
+            draw ? (
+              // 2열 조별 순위 카드 — 1조(순위결정전) → 2조 → … → 18조
+              <div className="od-groups od-cards stg-grid" data-od-groups data-od-cards>
+                {visible.map((e) => <StandingsCard key={e.key} e={e} draw={draw} q={q}
+                  fallback={<GroupCard e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} />} />)}
+              </div>
+            ) : (
+              <div className="od-groups" data-od-groups>
+                {visible.map((e) => <GroupCard key={e.key} e={e} q={q} open={!!open[e.key]} onToggle={() => toggle(e.key)} />)}
+              </div>
+            )
           )}
         </>
       ) : shownCourts.length === 0 && (q || courts.unassigned.length === 0) ? (
@@ -155,7 +172,92 @@ export default function OfficialDrawBoard({
       )}
 
       <style>{CSS}</style>
+      <style>{LIST_CSS(C.teal)}</style>
+      {/* 공개 board 전용 — 휴대폰(320px~)부터 2열. 관리자 순위 화면과 같이 쓰는 LIST_CSS 는 건드리지 않는다.
+          이름은 말줄임 없이 줄바꿈(첫 글자부터 보인다). */}
+      <style>{`.od-board .od-cards.stg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        @media (min-width: 700px) { .od-board .od-cards.stg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } }
+        .od-cmeta { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 6px; font-size: 11.5px; font-weight: 700; color: ${TT.muted}; line-height: 1.45; }
+        .od-cmeta b { color: ${TT.ink}; font-weight: 800; }`}</style>
     </div>
+  );
+}
+
+/** 공개 카드 상태 — 기존 문구에 순위 단계를 분명히(진행 중 = 잠정 순위 · 완료 = 순위 확정). 확인 필요 문구는 그대로. */
+const boardStatus = (s: { label: string; color: string }) =>
+  s.label === '완료' ? { ...s, label: '순위 확정' } : s.label === '진행 중' ? { ...s, label: '잠정 순위' } : s;
+
+/** 조 카드 위 작은 안내 — 예정 코트 · 차수 · 신고 마감(조편성 entries 값 그대로). */
+function CardMeta({ e }: { e: DrawEntry }) {
+  if (e.courtNo === null && e.sessionNo === null && !e.checkinDeadline) return null;
+  return (
+    <p className="od-cmeta" data-od-cmeta={e.key}>
+      {e.courtNo !== null && <span><b>{e.courtNo}</b>번 코트</span>}
+      {e.sessionNo !== null && <span style={{ color: sTone(e.sessionNo).fg }}>{sName(e.sessionNo)}</span>}
+      {e.checkinDeadline && <span>신고 {e.checkinDeadline}</span>}
+    </p>
+  );
+}
+
+/**
+ * 2열 조별 순위 카드 — 일반 조는 서버 standings(순위 · 승패 · 득실 · 진출), 1조(순위결정전)는 서버 공식 경기 결과.
+ *   ⚠ 데이터에서 그 조를 못 찾으면 기존 조 카드(fallback)로 — 순위를 지어내지 않는다.
+ */
+function StandingsCard({ e, draw, q, fallback }: { e: DrawEntry; draw: PublicPreliminaryDraw; q: string; fallback: React.ReactNode }) {
+  const wrap = (card: React.ReactNode) => (
+    <div id={`od-${e.key}`} data-od-entry={e.key} data-od-kind={e.kind} data-od-display-no={e.displayNo ?? ''} style={{ minWidth: 0, scrollMarginTop: 80 }}>{card}</div>
+  );
+  if (e.kind === 'group') {
+    const g = draw.groups.find((x) => x.groupNo === e.groupNo);
+    if (!g) return <>{fallback}</>;
+    const phase = phaseOf(g);
+    return wrap(
+      <GroupCompactCard
+        href={e.href}
+        ariaLabel={`${e.label} 상세정보`}
+        title={e.label}
+        status={boardStatus(publicCardStatus(g))}
+        progress={progressText(g)}
+        segments={progressSegments(g)}
+        // 2열 카드 = 순위 배지 + 이름 한 줄 + (경기한 팀만) 이름 아래 '2승 0패 득실 +8'. 서버 wins · losses · gameDiff 그대로.
+        //   미경기 팀(played 0)은 성적 없음 — '경기 전' 같은 문구 · 숫자를 만들지 않는다.
+        rows={g.standings.map((r) => {
+          const base = { ...publicCompactRow(r, phase, q), first: firstMarkFor(e.firstInfo, r.teamNo) };
+          return r.played === 0 ? { ...base, record: null, diff: null } : base;
+        })}
+        extra={<CardMeta e={e} />}
+        compact
+      />,
+    );
+  }
+  const p = draw.placement.find((x) => x.groupNo === e.groupNo);
+  if (!p || p.teams.length === 0) return <>{fallback}</>;
+  const done = p.status === 'completed';
+  return wrap(
+    <GroupCompactCard
+      href={e.href}
+      ariaLabel={`${e.label} 순위결정전 상세정보`}
+      {...placementTitle(e.displayNo)}
+      status={p.status === 'cancelled'
+        ? publicMatchStatus({ status: 'cancelled', courtNo: null, courtName: null })
+        : boardStatus(placementStatusView(p.status))}
+      progress={`${done ? 1 : 0} / 1`}
+      segments={[done ? C.teal : C.line]}
+      extra={<CardMeta e={e} />}
+      compact
+      rows={p.teams.map((t, i) => {
+        // 순위결정전 — 완료 후 서버 승자(winnerSide) = 1 · 패자 = 2 배지(계산 없음). 두 팀 모두 본선 진출이라 둘 다 진출 색 · 탈락 음영 없음.
+        //   성적 = 서버 공식 경기 점수 · 승자(placementResultView) — 완료 전에는 없음.
+        const won = done && p.winnerSide !== null ? p.winnerSide === i + 1 : null;
+        const rv = placementResultView(p, i === 0 ? 1 : 2, p.winnerSide);
+        return {
+          key: teamKey(t), p1: t.player1Name, p2: t.player2Name, rank: won === null ? null : won ? '1' : '2',
+          tone: won === null ? { bg: '#fff', fg: C.navy, bd: C.line } : { bg: C.teal, fg: '#FFFFFF', bd: C.teal },
+          record: rv ? rv.record : null, diff: rv ? rv.diff : null, diffColor: rv?.diffColor,
+          muted: false, hit: rowMatches(t, q), first: firstMarkFor(e.firstInfo, t.teamNo),
+        };
+      })}
+    />,
   );
 }
 

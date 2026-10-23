@@ -15,6 +15,13 @@ const TAG_COLOR = '#3D5A8F';
 /** 조 카드 팀 줄의 한 줄 높이 — 이름 두 줄과 성적 두 줄의 기준선을 맞춘다(13px × 1.35). */
 const ROW_LINE = '17.5px';
 
+/**
+ * compact 카드의 확정 탈락 팀(row.muted = 서버 FINAL · NOT_QUALIFIED) 음영.
+ *   ⚠ opacity 를 쓰지 않는다 — 배경 · 이름 · 성적 · 배지 색을 각각 낮춘다.
+ *   글자 대비(배경 #EEF1F5 기준): 이름 5.4:1 · 성적 5.0:1 · 배지 글자 4.7:1(배지 배경 기준).
+ */
+const COMPACT_OUT = { rowBg: '#EEF1F5', name: '#556377', rec: '#5B6879', badgeBg: '#DDE3EA', badgeFg: '#556377' } as const;
+
 // ── 상태 점 + 글자 ──────────────────────────────────────────────────────────
 export function StatusDot({
   label, color, dot = 6, fontSize = 12, gap = 5,
@@ -78,7 +85,7 @@ export function HighlightBadge({ mark, size = 11 }: { mark: HighlightMark; size?
 }
 
 export function GroupCompactCard({
-  href, ariaLabel, title, tag, status, progress, segments, rows, extra,
+  href, ariaLabel, title, tag, status, progress, segments, rows, extra, compact = false,
 }: {
   href: string;
   ariaLabel: string;
@@ -91,13 +98,20 @@ export function GroupCompactCard({
   rows: CompactRow[];
   /** 상태 줄 아래 보조 줄(공개 화면의 조별 일정 안내). 없으면 아무것도 그리지 않는다. */
   extra?: React.ReactNode;
+  /**
+   * 공개 모바일 2열용 컴팩트 — 한 팀 = 한 줄('선수1 · 선수2'), 첫 경기 출전 = 이름 앞 작은 깃발, 여백 축소.
+   *   성적이 있으면 이름 바로 아래 작은 줄('2승 0패  득실 +8'), 확정 탈락 팀은 중간 회색 음영.
+   *   ⚠ 표시만 바꾼다(순위 · 성적 값은 그대로). 기본 false — 관리자 순위 화면은 기존 그대로.
+   *   ⚠ 폭이 모자라면(긴 이름) 말줄임 없이 '·' 뒤에서 줄바꿈 — 카드 밖으로 나가지 않는다.
+   */
+  compact?: boolean;
 }) {
   return (
     <Link href={href} className="stg-card" aria-label={ariaLabel}
       style={{
         display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, boxSizing: 'border-box',
-        padding: '12px 12px 13px', background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14,
-        textDecoration: 'none', color: C.navy,
+        padding: compact ? '9px 8px 10px' : '12px 12px 13px', background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14,
+        textDecoration: 'none', color: C.navy, ...(compact ? { gap: 6 } : null),
       }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
@@ -112,37 +126,64 @@ export function GroupCompactCard({
       </div>
       {extra}
       <Segments colors={segments} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 3 : 7, marginTop: compact ? 0 : 2 }}>
         {rows.map((r) => {
           const pre = r.rank === null;
+          const out = compact && r.muted ? COMPACT_OUT : null;
           return (
-            <div key={r.key} data-first-row={r.first ? 'true' : undefined} style={{
-              display: 'flex', alignItems: 'flex-start', gap: 8,
-              margin: '0 -5px', padding: r.first ? '4px 5px' : '2px 5px', borderRadius: 7,
-              background: r.hit ? C.tealTint : r.first ? r.first.bg : 'transparent',
+            <div key={r.key} data-first-row={r.first ? 'true' : undefined} data-compact-row={compact ? 'true' : undefined} style={{
+              display: 'flex', alignItems: 'flex-start', gap: compact ? 6 : 8,
+              margin: '0 -5px', padding: compact ? '3px 5px' : r.first ? '4px 5px' : '2px 5px', borderRadius: 7,
+              background: r.hit ? C.tealTint : r.first ? r.first.bg : out ? out.rowBg : 'transparent',
               boxShadow: r.first ? `inset 3px 0 0 ${r.first.bd}` : undefined,
-            }}>
+            }} data-out-row={out ? 'true' : undefined}>
               {/* ⚠ 경기 전에는 순위 숫자 대신 빈 표시만 둔다 */}
               <span style={{
-                flexShrink: 0, width: 20, height: 20, boxSizing: 'border-box', marginTop: 1, borderRadius: 6,
+                flexShrink: 0, width: compact ? 18 : 20, height: compact ? 18 : 20, boxSizing: 'border-box', marginTop: compact ? 0 : 1, borderRadius: 6,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
-                background: pre ? '#EEF2F8' : r.tone.bg, color: r.tone.fg, border: `1px solid ${pre ? '#EEF2F8' : r.tone.bd}`,
+                background: pre ? '#EEF2F8' : out ? out.badgeBg : r.tone.bg, color: out ? out.badgeFg : r.tone.fg,
+                border: `1px solid ${pre ? '#EEF2F8' : out ? out.badgeBg : r.tone.bd}`,
               }}>
                 {pre ? '' : r.rank}
               </span>
               <div style={{
-                flex: 1, minWidth: 0, fontSize: 13, lineHeight: ROW_LINE,
-                fontWeight: r.hit ? 800 : 600, color: r.muted ? C.muted : C.navy,
+                flex: 1, minWidth: 0, fontSize: compact ? 'clamp(12px, 3.6vw, 13px)' : 13, lineHeight: ROW_LINE,
+                fontWeight: r.hit ? 800 : 600, color: out ? out.name : r.muted ? C.muted : C.navy,
                 wordBreak: 'keep-all', overflowWrap: 'anywhere',
               }}>
-                <div>{r.p1}</div>
-                <div>{r.p2}</div>
-                {r.first && <div style={{ marginTop: 3 }}><HighlightBadge mark={r.first} /></div>}
+                {compact ? (<>
+                  {/* 한 줄 — '·' 앞은 붙여서(nbsp) 줄바꿈이 '·' 뒤에서만 일어나게. 첫 경기 출전 = 작은 깃발(색 + 아이콘 + 읽기 라벨). */}
+                  <span data-compact-names>
+                    {r.first && (
+                      <span data-first-badge role="img" aria-label={r.first.label} title={r.first.label}
+                        style={{ display: 'inline-flex', verticalAlign: '-1px', marginRight: 2, color: r.first.fg }}>
+                        <Flag size={11} strokeWidth={2.8} />
+                      </span>
+                    )}
+                    {r.p1}<span style={{ color: C.faint, fontWeight: 600 }}>{'\u00A0·'} </span>{r.p2}
+                  </span>
+                  {/* 성적 — 이름 시작 위치에 맞춘 작은 줄. 값이 없으면(경기 전 · 미경기) 그리지 않는다. */}
+                  {(r.record !== null || r.diff !== null) && (
+                    <span data-compact-rec style={{
+                      display: 'block', fontSize: 11, lineHeight: '14px', fontWeight: 600, whiteSpace: 'nowrap',
+                      color: out ? out.rec : C.muted, fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {r.record}{r.diff !== null && <>{' '}<span style={{ marginLeft: 3 }}>득실 <b style={{ fontWeight: 800, color: out ? out.rec : r.diffColor ?? C.muted }}>{r.diff}</b></span></>}
+                    </span>
+                  )}
+                </>) : (
+                  <>
+                    <div>{r.p1}</div>
+                    <div>{r.p2}</div>
+                    {r.first && <div style={{ marginTop: 3 }}><HighlightBadge mark={r.first} /></div>}
+                  </>
+                )}
               </div>
               {/* 성적 — 이름 두 줄(선수1 / 선수2)과 같은 줄 높이로 승/패 · 득실을 두 줄에 둔다.
                   한 줄에 모두 넣으면 360px 에서 이름 칸이 3글자도 못 담을 만큼 줄어든다. */}
-              {(r.record !== null || r.diff !== null) && (
+              {/* compact 는 이름 아래 줄에 성적을 그린다 — 오른쪽 두 줄 성적 칸은 관리자 · 기존 카드 전용. */}
+              {!compact && (r.record !== null || r.diff !== null) && (
                 <span style={{
                   flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
                   whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',

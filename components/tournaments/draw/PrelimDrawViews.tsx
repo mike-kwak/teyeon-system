@@ -82,7 +82,7 @@ export default function PrelimDrawViews({ slug, draw, schedule = null, basePath,
         </button>
       </div>}
       {view === 'board'
-        ? <OfficialDrawBoard entries={byGroup} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
+        ? <OfficialDrawBoard entries={byGroup} draw={draw} sessions={sessions} checkinPlace={schedule?.checkinPlace ?? null} progress={drawProgress(draw)} />
         : <DrawSheet entries={byGroup} meta={meta} fileBase={slug} />}
       <style>{`
 .pv-wrap { display: flex; flex-direction: column; gap: 12px; }
