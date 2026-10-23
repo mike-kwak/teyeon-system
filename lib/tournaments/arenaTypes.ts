@@ -68,6 +68,10 @@ export interface ArenaStandingRow {
 
 export interface ArenaGroup {
   groupNo: number;
+  /** 화면 조 이름(예: 순위결정전 = '1조'). 없으면 '{groupNo}조'. ⚠ 표시 전용 — groupNo(내부 번호)는 그대로. */
+  label?: string;
+  /** 순위결정전(placement) 카드인가 — 2팀 · 1경기, 두 팀 모두 본선 진출. */
+  isPlacement?: boolean;
   members: number;
   expectedMatches: number;
   completedMatches: number;
@@ -140,6 +144,8 @@ export interface ArenaSnapshot {
   courts: ArenaCourt[];
   /** mode='preliminary' 일 때만 채운다. */
   groups: ArenaGroup[];
+  /** 순위결정전 카드(공개 1조) — Signature 예선 전광판이 맨 앞에 붙인다. 기존 Arena 조 벽은 쓰지 않는다. */
+  placementGroups?: ArenaGroup[];
   /** 요강상 조별 본선 진출 팀 수. ⚠ 서버가 알려 준다 — 화면이 2 를 가정하지 않는다. */
   qualifyPerGroup: number | null;
   /** mode='knockout' 일 때만 채운다. 본선 대진이 없으면 null. */

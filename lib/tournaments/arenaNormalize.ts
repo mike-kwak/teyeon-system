@@ -10,7 +10,7 @@
 import type { AdminBracket } from './bracketTypes';
 import type { MatchBoard, TournamentMatch } from './matchTypes';
 import type { PreliminaryStandings } from './standingsTypes';
-import { placementNoMap, publicGroupRankLabel } from './publicGroupNo';
+import { placementNoMap, placementPublicNo, publicGroupRankLabel } from './publicGroupNo';
 import type {
   ArenaBracket, ArenaCourt, ArenaCourtMatch, ArenaGroup, ArenaKnockoutMatch, ArenaMode,
   ArenaRound, ArenaSlot, ArenaSnapshot, ArenaStandingRow, ArenaTeam,
@@ -114,6 +114,42 @@ export function normalizeGroups(standings: PreliminaryStandings | null): ArenaGr
     }));
 }
 
+/**
+ * 순위결정전 카드(공개 1조) — 서버 placement 요약(경기 상태 · 점수 · 승자)을 그대로 옮긴다.
+ *   · 경기 1개 · 2팀. 완료 = 순위 확정(승자 1위 · 패자 2위, 두 팀 모두 본선 진출) · 취소 = 취소 1 · 그 밖 = 경기 전 / 진행 중
+ *   · 이름은 공개 조 번호 규칙(일반 조 2 ~ 18 → 1조). 정할 수 없으면 '순위결정전'.
+ *   ⚠ 조 순위 계산 코어와 같은 값만 쓴다 — 점수 · 승자를 여기서 만들지 않는다.
+ */
+export function normalizePlacementGroups(standings: PreliminaryStandings | null): ArenaGroup[] {
+  if (!standings) return [];
+  const pre = standings.groups.map((g) => g.groupNo);
+  return [...standings.placement].sort((a, b) => a.groupNo - b.groupNo).map((p, i) => {
+    const done = p.status === 'completed' && p.winnerTeamId !== null;
+    const no = placementPublicNo(pre, i);
+    const [t1, t2] = p.teams;
+    const scoreOf = (teamId: string): number | null => {
+      if (p.score1 === null || p.score2 === null || !t1 || !t2) return null;
+      return teamId === t1.teamId ? p.score1 - p.score2 : p.score2 - p.score1;
+    };
+    const rows: ArenaStandingRow[] = p.teams.map((t): ArenaStandingRow => {
+      const win = done && t.teamId === p.winnerTeamId;
+      return {
+        teamNo: t.teamNo, player1Name: t.player1Name, player2Name: t.player2Name, withdrawn: false,
+        played: done ? 1 : 0, wins: win ? 1 : 0, losses: done && !win ? 1 : 0,
+        gameDiff: done ? (scoreOf(t.teamId) ?? 0) : 0,
+        rank: done ? (win ? 1 : 2) : null, autoRank: done ? (win ? 1 : 2) : 1,
+        qualificationStatus: done ? 'QUALIFIED' : 'PENDING',
+      };
+    }).sort((a, b) => (a.rank ?? 9) - (b.rank ?? 9));
+    return {
+      groupNo: p.groupNo, label: no === null ? '순위결정전' : `${no}조`, isPlacement: true,
+      members: p.teams.length, expectedMatches: 1,
+      completedMatches: p.status === 'completed' ? 1 : 0, cancelledMatches: p.status === 'cancelled' ? 1 : 0,
+      rankingStatus: done ? 'FINAL' : 'PROVISIONAL', rows,
+    };
+  });
+}
+
 // ── 본선 ────────────────────────────────────────────────────────────────────
 
 const slotOf = (s: AdminBracket['slots'][number], noMap: Map<number, number>): ArenaSlot => ({
@@ -191,6 +227,7 @@ export function normalizeArena(input: {
     tournamentTitle: input.tournamentTitle ?? null,
     courts: normalizeCourts(input.board),
     groups: input.mode === 'preliminary' ? normalizeGroups(input.standings) : [],
+    placementGroups: input.mode === 'preliminary' ? normalizePlacementGroups(input.standings) : [],
     qualifyPerGroup: input.mode === 'preliminary' && input.standings
       ? input.standings.qualifyPerGroup
       : null,

@@ -66,7 +66,8 @@ function SignaturePrelimLiveView() {
     >
       {(snapshot) => (
         <div data-prelim-view={view} style={{ width: SIG_BOARD_WIDTH, height: wallHeight(view) }}>
-          <SignatureGroupWall groups={snapshot.groups} courts={snapshot.courts} width={SIG_BOARD_WIDTH} height={wallHeight(view)} />
+          {/* 공개 1조(내부 순위결정전) → 2조 → … → 18조 */}
+          <SignatureGroupWall groups={[...(snapshot.placementGroups ?? []), ...snapshot.groups]} courts={snapshot.courts} width={SIG_BOARD_WIDTH} height={wallHeight(view)} />
         </div>
       )}
     </SignatureLiveFrame>

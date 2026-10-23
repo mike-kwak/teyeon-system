@@ -54,7 +54,8 @@ export function liveCourtsByGroup(courts: ArenaCourt[]): Map<number, number[]> {
   const map = new Map<number, number[]>();
   courts.forEach((c) => {
     const now = c.now;
-    if (!now || now.stage !== 'preliminary' || now.groupNo === null) return;
+    // 순위결정전 경기도 그 조 카드(공개 1조)에 LIVE 로 붙인다.
+    if (!now || (now.stage !== 'preliminary' && now.stage !== 'placement') || now.groupNo === null) return;
     const list = map.get(now.groupNo) ?? [];
     list.push(c.courtNo);
     map.set(now.groupNo, list.sort((a, b) => a - b));
@@ -78,8 +79,8 @@ function metricsFor(cellH: number, rows: number): Metrics {
   // 팀 줄 하나가 52px 이상 나오면(코트 미포함 · 2~3팀 조) 한 단계 크게.
   const roomy = (cellH - 54) / Math.max(rows, 1) >= 52;
   return roomy
-    ? { headH: 46, rankW: 34, rankFont: 19, noW: 24, recordW: 70, nameBase: 21, nameMin: 17, recordFont: 18 }
-    : { headH: 40, rankW: 30, rankFont: 17, noW: 22, recordW: 64, nameBase: 19, nameMin: 16, recordFont: 16 };
+    ? { headH: 46, rankW: 34, rankFont: 19, noW: 0, recordW: 70, nameBase: 21, nameMin: 17, recordFont: 18 }
+    : { headH: 40, rankW: 30, rankFont: 17, noW: 0, recordW: 64, nameBase: 19, nameMin: 16, recordFont: 16 };
 }
 
 function TeamRow({ row, settled, m, width, height }: {
@@ -91,7 +92,8 @@ function TeamRow({ row, settled, m, width, height }: {
   const out = settled && row.qualificationStatus === 'NOT_QUALIFIED';
   const tieOpen = settled && row.rank === null && !row.withdrawn;
   const padX = 10;
-  const nameW = width - padX * 2 - m.rankW - m.noW - m.recordW - 8 * 3;
+  // 팀 번호(접수 · 팀 번호) 칸은 그리지 않는다 — 선수명이 그 폭을 쓴다.
+  const nameW = width - padX * 2 - m.rankW - m.recordW - 8 * 2;
   const stackMax = Math.min(m.nameBase, Math.floor(((height - 4) / 2.12) * 2) / 2);
   const fit = fitTeamName([row.player1Name, row.player2Name], nameW, { base: m.nameBase, min: m.nameMin, stackMax });
 
@@ -114,12 +116,6 @@ function TeamRow({ row, settled, m, width, height }: {
         border: `1.5px solid ${qualified ? SIG.royal : out ? '#EFEFEC' : tieOpen ? '#E0A43A' : SIG.line}`,
       }}>
         {rank}
-      </span>
-      <span style={{
-        width: m.noW, flexShrink: 0, textAlign: 'right', fontFamily: SIG_FONT_DISPLAY, fontSize: 13, fontWeight: 800,
-        color: SIG.faint, fontVariantNumeric: 'tabular-nums',
-      }}>
-        {row.teamNo}
       </span>
       <span data-sig-name="prelim" style={{
         flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center',
@@ -184,8 +180,13 @@ function GroupCard({ group, live, width, height }: {
         background: t.head, borderBottom: `2px solid ${HEAD_RULE}`, minWidth: 0,
       }}>
         <span style={{ fontSize: m.headH >= 46 ? 25 : 23, fontWeight: 900, color: SIG.navy, letterSpacing: '-0.02em', lineHeight: 1 }}>
-          {group.groupNo}<span style={{ fontSize: '0.78em', marginLeft: 1 }}>조</span>
+          {group.label && !/^\d+조$/.test(group.label)
+            ? group.label
+            : <>{group.label ? group.label.replace(/조$/, '') : group.groupNo}<span style={{ fontSize: '0.78em', marginLeft: 1 }}>조</span></>}
         </span>
+        {group.isPlacement && (
+          <span data-prelim-placement="1" style={{ fontSize: 12.5, fontWeight: 800, color: SIG.muted, whiteSpace: 'nowrap' }}>순위결정전</span>
+        )}
         <span data-prelim-status={tone} style={{
           fontSize: 13.5, fontWeight: 800, color: t.fg, whiteSpace: 'nowrap',
         }}>
