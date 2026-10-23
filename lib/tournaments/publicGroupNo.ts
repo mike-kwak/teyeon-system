@@ -26,3 +26,33 @@ export const PLACEMENT_NAME = '순위결정전';
 
 /** 순위결정전 조 라벨 — 번호가 있으면 'N조', 없으면 '순위결정전'. ⚠ 내부 group_no 는 어떤 경우에도 쓰지 않는다. */
 export const placementPublicLabel = (no: number | null): string => (no === null ? PLACEMENT_NAME : `${no}조`);
+
+/**
+ * 순위결정전 내부 조 번호 → 공개 조 번호 지도(표시 전용). 예: 일반 조 2 ~ 18 · 순위결정전 19 → {19 → 1}.
+ *   ⚠ 일반 조 번호를 모르면(빈 목록) 빈 지도 — 추측하지 않는다. 공개 번호를 정할 수 없는 순위결정전도 넣지 않는다.
+ */
+export function placementNoMap(preliminaryGroupNos: number[], placementGroupNos: number[]): Map<number, number> {
+  const map = new Map<number, number>();
+  const pre = [...new Set(preliminaryGroupNos)];
+  if (pre.length === 0) return map;
+  [...new Set(placementGroupNos)].sort((a, b) => a - b).forEach((g, i) => {
+    const no = placementPublicNo(pre, i);
+    if (no !== null && no !== g && !pre.includes(no)) map.set(g, no);
+  });
+  return map;
+}
+
+/** 서버 조·순위 라벨 형식('19조 1위') — 문자열 전체가 정확히 이 모양일 때만 바꾼다. */
+const GROUP_RANK_LABEL = /^(\d+)조 (\d+)위$/;
+
+/**
+ * 조·순위 라벨의 조 번호만 공개 번호로(표시 전용). '19조 1위' → '1조 1위'. 일반 조 · 다른 글자 · '119조 1위' 등은 그대로.
+ *   ⚠ DB 값(source_group_no 19) · 자리 연결 · 결과 반영과 무관하다 — 화면에 그릴 글자만 바꾼다.
+ */
+export function publicGroupRankLabel(label: string | null, map: Map<number, number>): string | null {
+  if (label === null || map.size === 0) return label;
+  const m = GROUP_RANK_LABEL.exec(label);
+  if (!m) return label;
+  const pub = map.get(Number(m[1]));
+  return pub === undefined ? label : `${pub}조 ${m[2]}위`;
+}

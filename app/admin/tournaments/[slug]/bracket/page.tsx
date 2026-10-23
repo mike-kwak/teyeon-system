@@ -773,6 +773,7 @@ export default function AdminTournamentBracketPage() {
                       붙여넣기 형식: <code>자리번호 | 1조 1위</code> · <code>자리번호 | BYE</code> ·
                       <code>자리번호 | 팀번호</code> · <code>자리번호 | 선수이름</code>. 빈 자리는 번호만 적습니다.
                       1라운드 {firstRoundSlots.length}자리를 모두 포함해야 합니다.
+                      순위결정전 조는 <strong>내부 조 번호</strong>로 적습니다(TEYEON OPEN 2026: 공개 1조 = <code>19조 1위</code> · <code>19조 2위</code>). 참가자 화면에는 1조로 표시됩니다.
                     </p>
                     <textarea value={paste} onChange={(e) => { setPaste(e.target.value); setPreview(null); }} rows={5}
                       placeholder={'1 | 1조 1위\n2 | 16조 2위\n3 | BYE\n4 |'}

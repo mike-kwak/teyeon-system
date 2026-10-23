@@ -10,6 +10,7 @@
 import type { AdminBracket } from './bracketTypes';
 import type { MatchBoard, TournamentMatch } from './matchTypes';
 import type { PreliminaryStandings } from './standingsTypes';
+import { placementNoMap, publicGroupRankLabel } from './publicGroupNo';
 import type {
   ArenaBracket, ArenaCourt, ArenaCourtMatch, ArenaGroup, ArenaKnockoutMatch, ArenaMode,
   ArenaRound, ArenaSlot, ArenaSnapshot, ArenaStandingRow, ArenaTeam,
@@ -115,7 +116,7 @@ export function normalizeGroups(standings: PreliminaryStandings | null): ArenaGr
 
 // ── 본선 ────────────────────────────────────────────────────────────────────
 
-const slotOf = (s: AdminBracket['slots'][number]): ArenaSlot => ({
+const slotOf = (s: AdminBracket['slots'][number], noMap: Map<number, number>): ArenaSlot => ({
   id: s.id,
   roundNo: s.roundNo,
   position: s.position,
@@ -124,7 +125,8 @@ const slotOf = (s: AdminBracket['slots'][number]): ArenaSlot => ({
     ? null
     : team({ teamNo: s.teamNo, player1Name: s.player1Name, player2Name: s.player2Name,
              teamStatus: s.teamStatus }),
-  sourceLabel: s.sourceLabel,
+  // 순위결정전 출처는 공개 조 번호로('19조 1위' → '1조 1위') — 표시 전용
+  sourceLabel: publicGroupRankLabel(s.sourceLabel, noMap),
   resolved: s.resolvedAt !== null,
   feedsSlotId: s.feedsSlotId,
 });
@@ -149,8 +151,17 @@ const knockoutMatchOf = (m: AdminBracket['matches'][number]): ArenaKnockoutMatch
   team2: team(m.team2),
 });
 
+/** 경기판의 단계 · 조 번호로 순위결정전 공개 조 번호 지도(표시 전용). */
+export function placementNoMapFromBoard(board: MatchBoard | null): Map<number, number> {
+  const ms = board?.matches ?? [];
+  return placementNoMap(
+    ms.filter((m) => m.stage === 'preliminary' && m.groupNo !== null).map((m) => m.groupNo as number),
+    ms.filter((m) => m.stage === 'placement' && m.groupNo !== null).map((m) => m.groupNo as number),
+  );
+}
+
 /** 본선 대진. 대진 자체가 없으면 null(= '본선 구조가 아직 없다'). */
-export function normalizeBracket(admin: AdminBracket | null): ArenaBracket | null {
+export function normalizeBracket(admin: AdminBracket | null, noMap: Map<number, number> = new Map()): ArenaBracket | null {
   if (!admin || !admin.bracket) return null;
   return {
     title: admin.bracket.title,
@@ -159,7 +170,7 @@ export function normalizeBracket(admin: AdminBracket | null): ArenaBracket | nul
     rounds: [...admin.rounds].sort((a, b) => a.roundNo - b.roundNo).map(roundOf),
     slots: [...admin.slots]
       .sort((a, b) => (a.roundNo - b.roundNo) || (a.position - b.position))
-      .map(slotOf),
+      .map((s) => slotOf(s, noMap)),
     matches: [...admin.matches].sort((a, b) => a.matchNo - b.matchNo).map(knockoutMatchOf),
   };
 }
@@ -183,7 +194,7 @@ export function normalizeArena(input: {
     qualifyPerGroup: input.mode === 'preliminary' && input.standings
       ? input.standings.qualifyPerGroup
       : null,
-    bracket: input.mode === 'knockout' ? normalizeBracket(input.bracket) : null,
+    bracket: input.mode === 'knockout' ? normalizeBracket(input.bracket, placementNoMapFromBoard(input.board)) : null,
     clockOffset: clockOffset(input.board?.serverNow ?? null, input.board?.receivedAt ?? null),
   };
 }

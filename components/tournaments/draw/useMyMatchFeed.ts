@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { fetchPublicPreliminaryDraw } from '@/lib/tournaments/publicDrawService';
-import { fetchPublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutService';
+import { fetchPublicKnockoutBracket, placementNoMapFromDraw, withPublicGroupLabels } from '@/lib/tournaments/publicKnockoutService';
 import { fetchPublicGroupSchedule, type PublicGroupSchedule } from '@/lib/tournaments/groupScheduleService';
 import type { PublicPreliminaryDraw } from '@/lib/tournaments/publicDrawTypes';
 import type { PublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutTypes';
@@ -69,7 +69,10 @@ export function useMyMatchFeed(slug: string, fast: boolean): MyFeed {
     fails.current = okAll ? 0 : fails.current + 1;
     setState((s) => ({
       draw: p.status === 'fulfilled' ? p.value.draw : s.draw,
-      bracket: k.status === 'fulfilled' ? k.value.bracket : s.bracket,
+      // 순위결정전 출처 라벨은 공개 조 번호로(내부 19조 1위 → 1조 1위) — 표시 전용
+      bracket: k.status === 'fulfilled'
+        ? withPublicGroupLabels(k.value.bracket, placementNoMapFromDraw(p.status === 'fulfilled' ? p.value.draw : s.draw))
+        : s.bracket,
       schedule: sc.status === 'fulfilled' ? sc.value : s.schedule,
       loaded: s.loaded || p.status === 'fulfilled' || k.status === 'fulfilled',
       failing: !okAll,

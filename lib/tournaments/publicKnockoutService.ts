@@ -9,6 +9,29 @@ import type {
   PublicKnockoutBracket, PublicKnockoutMatch, PublicKnockoutRound, PublicKnockoutSlot,
   PublicKnockoutTeam, PublicSlotType, PublicSourceKind,
 } from './publicKnockoutTypes';
+import type { PublicPreliminaryDraw } from './publicDrawTypes';
+import { placementNoMap, publicGroupRankLabel } from './publicGroupNo';
+
+/** 공개 예선 DRAW 의 조 번호로 순위결정전 공개 번호 지도(표시 전용). DRAW 가 없으면 빈 지도. */
+export function placementNoMapFromDraw(draw: PublicPreliminaryDraw | null): Map<number, number> {
+  if (!draw) return new Map();
+  return placementNoMap(draw.groups.map((g) => g.groupNo), draw.placement.map((p) => p.groupNo));
+}
+
+/**
+ * 자리 출처 라벨의 조 번호를 공개 번호로('19조 1위' → '1조 1위'). 반영 전 · 후 모두 같은 자리 라벨을 쓰므로 여기 한 곳에서 바꾼다.
+ *   ⚠ 표시 전용 — 자리 · 연결 · 팀 · 출처 종류는 그대로 둔다.
+ */
+export function withPublicGroupLabels(bracket: PublicKnockoutBracket | null, map: Map<number, number>): PublicKnockoutBracket | null {
+  if (!bracket || map.size === 0) return bracket;
+  return {
+    ...bracket,
+    slots: bracket.slots.map((s) => {
+      const label = publicGroupRankLabel(s.sourceLabel, map);
+      return label === s.sourceLabel ? s : { ...s, sourceLabel: label };
+    }),
+  };
+}
 
 const rec = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' ? (v as Record<string, unknown>) : {};

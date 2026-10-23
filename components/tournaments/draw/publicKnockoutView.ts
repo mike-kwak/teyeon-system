@@ -8,7 +8,8 @@
 //   ⚠ 본선이 끝나면 주기 갱신을 멈춘다(돌아올 때만 다시 확인).
 
 import React from 'react';
-import { fetchPublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutService';
+import { fetchPublicKnockoutBracket, placementNoMapFromDraw, withPublicGroupLabels } from '@/lib/tournaments/publicKnockoutService';
+import { fetchPublicPreliminaryDraw } from '@/lib/tournaments/publicDrawService';
 import { PUBLIC_KNOCKOUT_ENABLED } from '@/lib/tournaments/publicKnockoutFlags';
 import type { PublicKnockoutBracket } from '@/lib/tournaments/publicKnockoutTypes';
 
@@ -35,6 +36,16 @@ export function usePublicKnockoutBracket(slug: string): PublicKnockoutState {
   const hasData = React.useRef(false);
   /** 본선이 끝났는가 — 주기 갱신을 멈추는 기준. */
   const completed = React.useRef(false);
+  /** 순위결정전 공개 조 번호(내부 19 → 1) — 표시 전용. 예선 DRAW 를 한 번 읽어 정한다. */
+  const [noMap, setNoMap] = React.useState<Map<number, number>>(() => new Map());
+  React.useEffect(() => {
+    if (!slug || !PUBLIC_KNOCKOUT_ENABLED) return;
+    let alive = true;
+    fetchPublicPreliminaryDraw(slug)
+      .then((r) => { if (alive) setNoMap(placementNoMapFromDraw(r.draw)); })
+      .catch(() => { /* 원래 라벨 그대로 */ });
+    return () => { alive = false; };
+  }, [slug]);
 
   const load = React.useCallback(async () => {
     if (!slug) return;
@@ -93,5 +104,8 @@ export function usePublicKnockoutBracket(slug: string): PublicKnockoutState {
     };
   }, [load]);
 
-  return state;
+  return React.useMemo(
+    () => (noMap.size === 0 ? state : { ...state, bracket: withPublicGroupLabels(state.bracket, noMap) }),
+    [state, noMap],
+  );
 }
