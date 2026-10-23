@@ -22,6 +22,8 @@ const ROW_LINE = '17.5px';
  */
 /** compact 카드 MY TEAM 표시 — 선택 조 테두리 · 내 팀 행 배경 · 왼쪽 줄(진출 teal · 탈락 회색 · 첫 경기 노랑과 겹치지 않는 파랑). */
 const MY_BLUE = '#2F6FED';
+/** compact 카드 첫 경기 출전 깃발 — 중립 남색(1차 teal · 2차 amber 차수 색과 섞이지 않게). */
+const FIRST_FLAG = C.navy;
 const MY_BG = '#EEF4FF';
 
 const COMPACT_OUT = { rowBg: '#EEF1F5', name: '#556377', rec: '#5B6879', badgeBg: '#DDE3EA', badgeFg: '#556377' } as const;
@@ -148,8 +150,9 @@ export function GroupCompactCard({
               display: 'flex', alignItems: 'flex-start', gap: compact ? 6 : 8,
               margin: '0 -5px', padding: compact ? '3px 5px' : r.first ? '4px 5px' : '2px 5px', borderRadius: 7,
               // 내 팀 — 탈락 회색 · 첫 경기 노랑 배경은 그대로 두고 왼쪽 파란 줄만 더한다(상태 표시를 덮지 않는다).
-              background: r.hit ? C.tealTint : r.first ? r.first.bg : out ? out.rowBg : mine ? MY_BG : 'transparent',
-              boxShadow: mine ? `inset 3px 0 0 ${MY_BLUE}` : r.first ? `inset 3px 0 0 ${r.first.bd}` : undefined,
+              // compact 는 첫 경기 출전을 깃발로만 보인다(노란 배경 · 줄 없음 — 1차 · 2차 색과 혼동 방지). 관리자 카드는 기존 그대로.
+              background: r.hit ? C.tealTint : compact ? (out ? out.rowBg : mine ? MY_BG : 'transparent') : r.first ? r.first.bg : 'transparent',
+              boxShadow: mine ? `inset 3px 0 0 ${MY_BLUE}` : !compact && r.first ? `inset 3px 0 0 ${r.first.bd}` : undefined,
             }} data-out-row={out ? 'true' : undefined} data-my-team={mine ? 'true' : undefined}>
               {/* ⚠ 경기 전에는 순위 숫자 대신 빈 표시만 둔다 */}
               <span style={{
@@ -171,7 +174,7 @@ export function GroupCompactCard({
                   <span data-compact-names>
                     {r.first && (
                       <span data-first-badge role="img" aria-label={r.first.label} title={r.first.label}
-                        style={{ display: 'inline-flex', verticalAlign: '-1px', marginRight: 2, color: r.first.fg }}>
+                        style={{ display: 'inline-flex', verticalAlign: '-1px', marginRight: 2, color: FIRST_FLAG }}>
                         <Flag size={11} strokeWidth={2.8} />
                       </span>
                     )}

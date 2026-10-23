@@ -126,7 +126,7 @@ export default function OfficialDrawBoard({
         <div className="od-meta">
           <span>{entries.length}개 조 · {teamCount}팀 · 경기 <b>{progress.done}</b> / {progress.all}</span>
           <span className="od-legend">
-            {anyFirst && <span data-first-legend><i style={{ background: '#FFF1BF', boxShadow: 'inset 0 0 0 1.5px #E5B300' }} /><Flag size={11} strokeWidth={2.7} color="#5C4300" />첫 경기 출전</span>}
+            {anyFirst && <span data-first-legend><Flag size={12} strokeWidth={2.7} color={TT.navy} />첫 경기 출전</span>}
             <span><i style={{ background: TT.teal }} />본선 진출</span>
           </span>
         </div>
@@ -180,7 +180,8 @@ export default function OfficialDrawBoard({
       <style>{`.od-board .od-cards.stg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
         @media (min-width: 700px) { .od-board .od-cards.stg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } }
         .od-cmeta { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 6px; font-size: 11.5px; font-weight: 700; color: ${TT.muted}; line-height: 1.45; }
-        .od-cmeta b { color: ${TT.ink}; font-weight: 800; }`}</style>
+        .od-cmeta b { color: ${TT.ink}; font-weight: 800; }
+        .od-cmeta-s { display: inline-flex; align-items: center; padding: 0 6px; border: 1px solid; border-radius: 6px; font-weight: 800; line-height: 16px; }`}</style>
     </div>
   );
 }
@@ -195,7 +196,10 @@ function CardMeta({ e }: { e: DrawEntry }) {
   return (
     <p className="od-cmeta" data-od-cmeta={e.key}>
       {e.courtNo !== null && <span><b>{e.courtNo}</b>번 코트</span>}
-      {e.sessionNo !== null && <span style={{ color: sTone(e.sessionNo).fg }}>{sName(e.sessionNo)}</span>}
+      {e.sessionNo !== null && (
+        <span className="od-cmeta-s" data-od-cmeta-session={e.sessionNo}
+          style={{ color: sTone(e.sessionNo).fg, background: sTone(e.sessionNo).bg, borderColor: sTone(e.sessionNo).bd }}>{sName(e.sessionNo)}</span>
+      )}
       {e.checkinDeadline && <span>신고 {e.checkinDeadline}</span>}
     </p>
   );
@@ -452,11 +456,10 @@ function CourtCard({ c, q, hitKeys, open, onToggle }: {
                         const fm = t.first && mark ? mark : null;
                         const [c1, c2] = clubsOf(t);
                         return (
-                          <li key={t.teamNo} className={teamMatches(t, q) ? 'od-hit' : undefined}
-                            style={fm ? { background: fm.bg, boxShadow: `inset 3px 0 0 ${fm.bd}` } : undefined}>
+                          <li key={t.teamNo} className={teamMatches(t, q) ? 'od-hit' : undefined} data-first-row={fm ? 'true' : undefined}>
                             <PlayerCell name={t.player1Name} club={c1} />
                             <PlayerCell name={t.player2Name} club={c2} />
-                            {fm && <span className="og-first" style={{ color: fm.fg }}><Flag size={11} strokeWidth={2.8} />첫 경기 출전</span>}
+                            {fm && <span className="og-first" style={{ color: TT.navy }}><Flag size={11} strokeWidth={2.8} />첫 경기 출전</span>}
                           </li>
                         );
                       })}
@@ -529,7 +532,7 @@ const CSS = `
 .od-found-players { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.16); border-bottom: 1px solid rgba(255,255,255,0.16); }
 .od-found-time { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 14px; font-weight: 700; color: #E2E8F0; }
 .od-found-time b { font-size: 17px; font-weight: 900; color: #fff; }
-.od-found-first { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: 12.5px; font-weight: 900; color: #5C4300; background: #FFF1BF; border-radius: 6px; padding: 2px 8px; }
+.od-found-first { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: 12.5px; font-weight: 900; color: ${TT.navy}; background: #EEF2F6; border-radius: 6px; padding: 2px 8px; }
 /* 선수 칸 — 이름 진하게 · 소속 작게(긴 소속은 줄바꿈, 다른 칸 침범 없음) */
 .og-player { display: flex; flex-direction: column; min-width: 0; }
 .og-name { font-size: 16.5px; font-weight: 800; color: ${TT.ink}; line-height: 1.3; overflow-wrap: anywhere; word-break: keep-all; }
