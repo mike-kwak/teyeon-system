@@ -486,6 +486,8 @@ export function deriveCourtSuggestions(
   schedule: ControlPlannedGroup[] | null,
   checkin: ReadonlyMap<number, { checkedIn: boolean; status: string }> | null,
   ctx: ControlRowContext | null = null,
+  /** NEXT UP 으로 대기 지정된 경기 → 그 코트. 다른 코트의 추천에서 뺀다(대기 코트 고정). */
+  reserved: ReadonlyMap<string, number> | null = null,
 ): ControlSuggestions {
   const byCourt = new Map<number, ControlCourtSuggestion>();
   const warnings: string[] = [];
@@ -559,13 +561,19 @@ export function deriveCourtSuggestions(
     const sessionOf = (m: TournamentMatch) => plan.get(m.groupNo as number)!.sessionNo as number;
     const head = Math.min(...left.map(sessionOf));
     const cur = left.filter((m) => sessionOf(m) === head);
+    const elsewhere = (m: TournamentMatch) => { const r = reserved?.get(m.matchId); return r !== undefined && r !== c.courtNo; };
     const candidates = cur
-      .filter((m) => m.status !== 'playing' && !busyTeams.has(m.team1.teamNo) && !busyTeams.has(m.team2.teamNo))
+      .filter((m) => m.status !== 'playing' && !elsewhere(m) && !busyTeams.has(m.team1.teamNo) && !busyTeams.has(m.team2.teamNo))
       .sort((a, b) => (a.sequenceNo - b.sequenceNo)
         || ((checkedBoth(a) === 'partial' ? 1 : 0) - (checkedBoth(b) === 'partial' ? 1 : 0))
         || ((a.groupNo as number) - (b.groupNo as number))
         || (a.matchNo - b.matchNo));
     const pickM = candidates[0];
+    if (!pickM && cur.some((m) => m.status !== 'playing' && elsewhere(m))) {
+      const moved = cur.filter((m) => m.status !== 'playing' && elsewhere(m)).map((m) => `M${m.matchNo} → ${reserved!.get(m.matchId)}번`).join(' · ');
+      byCourt.set(c.courtNo, { courtNo: c.courtNo, kind: 'hold', message: `남은 경기가 다른 코트 대기로 지정되어 있습니다(${moved}).` });
+      return;
+    }
     if (!pickM) {
       const playingHere = cur.filter((m) => m.status === 'playing');
       const blocked = cur.filter((m) => m.status !== 'playing');
@@ -584,6 +592,74 @@ export function deriveCourtSuggestions(
   });
 
   return { byCourt, warnings };
+}
+
+// ── 코트 NEXT UP(대기 코트 지정) 판정 ──────────────────────────────────────
+//
+//   지정 자체는 useCourtNextUp(이 브라우저 저장)이 들고 있다. 여기서는 최신 경기 데이터로 '지금 유효한가' 만 본다.
+//   ⚠ 무효여도 지우지 않는다 — 표시하고, 해제는 운영자가 한다.
+
+export type ControlNextUp =
+  /** 대기 중(대기 · 호명) — busyTeams 가 비어 있고 코트가 비면 투입할 수 있다. */
+  | { courtNo: number; kind: 'ready'; matchId: string; match: ControlMatchRow; busyTeams: number[]; uncheckedTeamNos: number[] | null }
+  /** 더는 대기 경기가 아니다(완료 · 취소 · 다른 코트에서 진행 · 찾을 수 없음). */
+  | { courtNo: number; kind: 'invalid'; matchId: string; matchNo: number; match: ControlMatchRow | null; message: string };
+
+export function deriveNextUps(
+  entries: ReadonlyArray<{ courtNo: number; matchId: string; matchNo: number }>,
+  board: MatchBoard | null,
+  checkin: ReadonlyMap<number, { checkedIn: boolean; status: string }> | null,
+  ctx: ControlRowContext | null = null,
+): Map<number, ControlNextUp> {
+  const out = new Map<number, ControlNextUp>();
+  if (!board) return out;
+  const rounds = new Map<number, string>(); const finals = new Set<number>();
+  entries.forEach((e) => {
+    const m = latestOf(board, e.matchId);
+    if (!m) { out.set(e.courtNo, { courtNo: e.courtNo, kind: 'invalid', matchId: e.matchId, matchNo: e.matchNo, match: null, message: `M${e.matchNo} 경기를 찾을 수 없습니다.` }); return; }
+    const row = rowOf(m, rounds, finals, ctx);
+    if (m.status === 'waiting' || m.status === 'calling') {
+      const busy = board.matches
+        .filter((x) => x.status === 'playing' && x.matchId !== m.matchId)
+        .flatMap((x) => [x.team1.teamNo, x.team2.teamNo])
+        .filter((n) => n === m.team1.teamNo || n === m.team2.teamNo);
+      const unchecked = checkin ? [m.team1.teamNo, m.team2.teamNo].filter((n) => { const v = checkin.get(n); return v !== undefined && v.status === 'active' && !v.checkedIn; }) : null;
+      out.set(e.courtNo, { courtNo: e.courtNo, kind: 'ready', matchId: e.matchId, match: row, busyTeams: [...new Set(busy)], uncheckedTeamNos: unchecked });
+      return;
+    }
+    const message = m.status === 'playing'
+      ? (m.courtNo === e.courtNo ? `M${m.matchNo} 은(는) 이미 이 코트에서 진행 중입니다.` : `M${m.matchNo} 은(는) ${m.courtNo ?? '?'}번 코트에서 진행 중입니다.`)
+      : `M${m.matchNo} 은(는) 이미 ${STATUS_WORD[m.status]}되었습니다.`;
+    out.set(e.courtNo, { courtNo: e.courtNo, kind: 'invalid', matchId: e.matchId, matchNo: m.matchNo, match: row, message });
+  });
+  return out;
+}
+
+/**
+ * 이 경기를 이 코트 대기로 지정할 수 있는가. 막히면 이유, 아니면 null.
+ *   · 대기 · 호명 경기만
+ *   · 순위결정전(M52)은 조 일정의 예정 코트(운영 3번)에만 — 예정 코트를 모르면 막는다(추측하지 않는다).
+ */
+export function nextUpAssignBlock(
+  m: Pick<ControlMatchRow, 'status' | 'stage' | 'matchNo' | 'planned' | 'publicLabel'>,
+  courtNo: number,
+): string | null {
+  if (m.status !== 'waiting' && m.status !== 'calling') return `M${m.matchNo} 은(는) 대기 경기가 아닙니다.`;
+  if (m.stage === 'placement') {
+    const pc = m.planned?.courtNo ?? null;
+    if (pc === null) return `${m.publicLabel ?? PLACEMENT_NAME}의 예정 코트를 알 수 없어 대기 지정할 수 없습니다.`;
+    if (pc !== courtNo) return `${m.publicLabel ?? PLACEMENT_NAME}(M${m.matchNo})은(는) ${pc}번 코트에만 대기 지정할 수 있습니다.`;
+  }
+  return null;
+}
+
+/** 대기 지정 후보 — 대기 · 호명 경기 전부(단계 무관), 경기 번호 순. */
+export function deriveAssignable(board: MatchBoard | null, bracket: AdminBracket | null = null, ctx: ControlRowContext | null = null): ControlMatchRow[] {
+  const rounds = knockoutRoundNames(bracket); const finals = knockoutFinalMatchNos(bracket);
+  return (board?.matches ?? [])
+    .filter((m) => m.status === 'waiting' || m.status === 'calling')
+    .map((m) => rowOf(m, rounds, finals, ctx))
+    .sort((a, b) => a.matchNo - b.matchNo);
 }
 
 // ── 확인 필요 ───────────────────────────────────────────────────────────────

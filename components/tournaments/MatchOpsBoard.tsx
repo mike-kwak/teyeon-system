@@ -45,6 +45,8 @@ import MatchElapsedClock from './MatchElapsedClock';
 // 체크인 경고 — Control Center 와 같은 정책(경고 후 예외 허용). 체크인 조회는 이 화면의 보드 조회와 분리돼 있다.
 import { useControlCheckins } from './control/useControlCheckins';
 import { uncheckedTeams } from '@/lib/tournaments/checkinModel';
+// 코트 NEXT UP(본부 PC 저장) — 어긋나는 투입은 확인 후 진행, 투입되면 그 경기의 대기 지정을 푼다.
+import { dropNextUpMatch, nextUpConflictText, readNextUp } from './control/useCourtNextUp';
 import { ControlCenterPathBanner, UncheckedAssignNotice } from './checkin/AssignCheckinNotice';
 
 /**
@@ -728,11 +730,16 @@ export default function MatchOpsBoard({ slug }: { slug: string }) {
                         key={c.courtNo}
                         type="button"
                         disabled={!sel || !!busy || dlgStale || ckBlocked}
-                        onClick={() => void run(`start-${dlg.m.matchId}`, async () => {
+                        onClick={() => {
+                          const warn = nextUpConflictText(readNextUp(slug), dlg.m.matchId, dlg.m.matchNo, c.courtNo);
+                          if (warn && !window.confirm(warn)) return;
+                          void run(`start-${dlg.m.matchId}`, async () => {
                           await startMatch(dlg.m.matchId, c.courtNo, dlg.m.version);
+                          dropNextUpMatch(slug, dlg.m.matchId);
                           return `#${dlg.m.matchNo} · ${c.courtNo}번 코트에 투입했습니다.`;
                         }, { kind: 'start', matchId: dlg.m.matchId, version: dlg.m.version, courtNo: c.courtNo },
-                        `#${dlg.m.matchNo} ${c.courtNo}번 코트 투입`)}
+                        `#${dlg.m.matchNo} ${c.courtNo}번 코트 투입`);
+                        }}
                         style={{
                           ...btn(sel ? 'primary' : 'plain'),
                           minHeight: 52, flexDirection: 'column', gap: 2,
