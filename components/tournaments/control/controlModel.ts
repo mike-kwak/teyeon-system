@@ -11,6 +11,7 @@
 import type { MatchBoard, MatchStatus, TournamentMatch } from '@/lib/tournaments/matchTypes';
 import type { PreliminaryStandings } from '@/lib/tournaments/standingsTypes';
 import type { AdminBracket } from '@/lib/tournaments/bracketTypes';
+import { placementPublicNo, PLACEMENT_NAME } from '@/lib/tournaments/publicGroupNo';
 
 // ── 대회 단계 ───────────────────────────────────────────────────────────────
 
@@ -270,6 +271,16 @@ export interface ControlMatchRow {
   isFinal: boolean;
   team1: ControlCourtTeam;
   team2: ControlCourtTeam;
+  /**
+   * 예선 · 순위결정전의 예정 코트 · 차수(조 일정에 저장된 값) — 안내 표시 전용.
+   *   ⚠ 실제 코트(courtNo)와 다르다. 투입 가능 여부 · 코트 선택에 쓰지 않는다(자동 배정 없음).
+   *   일정이 없거나 본선이면 null.
+   */
+  planned?: { courtNo: number | null; sessionNo: number | null } | null;
+  /**
+   * 순위결정전의 참가자 화면 표기('1조 순위결정전'). 내부 group_no(19)는 쓰지 않는다. 그 밖에는 null.
+   */
+  publicLabel?: string | null;
   /** 경기 시각(서버 ISO) — 타이머 표시 전용. 경기 운영 판정에 쓰지 않는다. 없으면 null. */
   startedAt?: string | null;
   playStartedAt?: string | null;
@@ -300,8 +311,33 @@ export function knockoutFinalMatchNos(bracket: AdminBracket | null): Set<number>
   return s;
 }
 
+/** 조 일정 한 줄(관리자 일정 조회 응답에서 필요한 값만). */
+export interface ControlPlannedGroup { groupNo: number; plannedCourtNo: number | null; sessionNo: number | null }
+
+/**
+ * 대기 · 진행 줄에 붙일 표시 정보 — 예정 코트 · 차수, 순위결정전 공개 표기.
+ *   ⚠ 표시 전용. 경기 상태 · 조작 · 코트 판정에 쓰지 않는다.
+ */
+export interface ControlRowContext {
+  planned: Map<number, { courtNo: number | null; sessionNo: number | null }>;
+  /** 순위결정전 공개 표기('1조 순위결정전'). 정할 수 없으면 '순위결정전'. */
+  placementLabel: string;
+}
+
+export function deriveRowContext(board: MatchBoard | null, schedule: ControlPlannedGroup[] | null): ControlRowContext {
+  const planned = new Map<number, { courtNo: number | null; sessionNo: number | null }>();
+  (schedule ?? []).forEach((g) => {
+    if (g.plannedCourtNo !== null || g.sessionNo !== null) planned.set(g.groupNo, { courtNo: g.plannedCourtNo, sessionNo: g.sessionNo });
+  });
+  // 공개 조 번호 규칙과 같은 helper — 일반 예선 조 번호만 보고 정한다(2 ~ 18조 → 순위결정전 = 1조).
+  const prelimNos = [...new Set((board?.matches ?? [])
+    .filter((m) => m.stage === 'preliminary' && m.groupNo !== null).map((m) => m.groupNo as number))];
+  const no = prelimNos.length ? placementPublicNo(prelimNos) : null;
+  return { planned, placementLabel: no === null ? PLACEMENT_NAME : `${no}조 ${PLACEMENT_NAME}` };
+}
+
 const rowOf = (
-  m: TournamentMatch, rounds: Map<number, string>, finals: Set<number>,
+  m: TournamentMatch, rounds: Map<number, string>, finals: Set<number>, ctx: ControlRowContext | null = null,
 ): ControlMatchRow => ({
   matchId: m.matchId,
   matchNo: m.matchNo,
@@ -314,15 +350,24 @@ const rowOf = (
   isFinal: m.stage === 'knockout' && finals.has(m.matchNo),
   team1: teamOf(m.team1),
   team2: teamOf(m.team2),
+  planned: m.stage !== 'knockout' && m.groupNo !== null ? (ctx?.planned.get(m.groupNo) ?? null) : null,
+  publicLabel: m.stage === 'placement' ? (ctx?.placementLabel ?? null) : null,
   startedAt: m.startedAt ?? null,
   playStartedAt: m.playStartedAt ?? null,
   completedAt: m.completedAt ?? null,
 });
 
-/** 지금 보고 있는 단계의 경기만 고른다(요약과 같은 기준). */
-const stageMatches = (board: MatchBoard | null, stage: ControlSummary['stage']): TournamentMatch[] =>
+/**
+ * 목록에 담을 경기 단계.
+ *   'preliminary' = 예선 + 순위결정전 · 'knockout' = 본선 · 'all' = 전부.
+ *   ⚠ 예선과 본선(64강 선행 경기)은 같은 코트에서 동시에 돌 수 있다 — 진행 중 · 대기 목록은 화면 단계(phase)로 거르지 않는다.
+ */
+export type ControlStageFilter = ControlSummary['stage'] | 'all';
+
+/** 고른 단계의 경기만(요약과 같은 기준, 'all' 이면 전부). */
+const stageMatches = (board: MatchBoard | null, stage: ControlStageFilter): TournamentMatch[] =>
   (board?.matches ?? []).filter((m) => (
-    stage === 'knockout' ? m.stage === 'knockout' : m.stage !== 'knockout'
+    stage === 'all' ? true : stage === 'knockout' ? m.stage === 'knockout' : m.stage !== 'knockout'
   ));
 
 /**
@@ -334,14 +379,15 @@ const stageMatches = (board: MatchBoard | null, stage: ControlSummary['stage']):
  */
 export function derivePlaying(
   board: MatchBoard | null,
-  stage: ControlSummary['stage'],
+  stage: ControlStageFilter,
   bracket: AdminBracket | null = null,
+  ctx: ControlRowContext | null = null,
 ): ControlMatchRow[] {
   const rounds = knockoutRoundNames(bracket);
   const finals = knockoutFinalMatchNos(bracket);
   return stageMatches(board, stage)
     .filter((m) => m.status === 'playing')
-    .map((m) => rowOf(m, rounds, finals))
+    .map((m) => rowOf(m, rounds, finals, ctx))
     .sort((a, b) => {
       const ac = a.courtNo ?? Number.MAX_SAFE_INTEGER;
       const bc = b.courtNo ?? Number.MAX_SAFE_INTEGER;
@@ -370,15 +416,16 @@ export interface ControlWaiting {
  */
 export function deriveWaiting(
   board: MatchBoard | null,
-  stage: ControlSummary['stage'],
+  stage: ControlStageFilter,
   limit: number,
   bracket: AdminBracket | null = null,
+  ctx: ControlRowContext | null = null,
 ): ControlWaiting {
   const rounds = knockoutRoundNames(bracket);
   const finals = knockoutFinalMatchNos(bracket);
   const all = stageMatches(board, stage)
     .filter((m) => m.status === 'waiting' || m.status === 'calling')
-    .map((m) => rowOf(m, rounds, finals))
+    .map((m) => rowOf(m, rounds, finals, ctx))
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'calling' ? -1 : 1;
       return a.matchNo - b.matchNo;

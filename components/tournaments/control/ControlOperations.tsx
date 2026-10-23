@@ -104,6 +104,8 @@ export interface ControlOps {
    *   null 이면 모름(조회 실패 · 체크인 SQL 미적용) → 아무 표시도 하지 않는다. 투입 가능 여부와 무관하다.
    */
   checkin?: CheckinLookup | null;
+  /** 지금 빈 코트 번호(켜져 있고 진행 중 경기 없음) — 예정 코트가 비었는지 안내하는 데만 쓴다. 투입은 운영자가 코트를 직접 고른다. */
+  emptyCourts?: Set<number>;
 }
 
 const teamText = (t: ControlMatchRow['team1']): string => {
@@ -113,8 +115,31 @@ const teamText = (t: ControlMatchRow['team1']): string => {
 
 /** 경기 구분 — 저장된 값만 쓴다. 본선 라운드 이름이 없으면 '본선' 으로 둔다(번호로 추측하지 않는다). */
 const matchMeta = (m: ControlMatchRow): string => {
-  return `${matchHeadLabel(m)} · M${m.matchNo}`;
+  // 순위결정전은 참가자 화면과 같은 '1조 순위결정전'(내부 19조는 쓰지 않는다).
+  return `${m.publicLabel ?? matchHeadLabel(m)} · M${m.matchNo}`;
 };
+
+/**
+ * 예정 코트 · 차수 배지 — 조 일정에 저장된 안내 값. 실제 코트(진행 중 카드의 COURT)와 헷갈리지 않게
+ *   점선 테두리 + '예정' 글자로 그린다. 예정 코트가 지금 비어 있으면 '비어 있음' 을 덧붙인다(투입은 운영자가 아무 빈 코트나 고른다).
+ */
+function PlannedBadge({ m, empty }: { m: ControlMatchRow; empty: boolean }) {
+  const p = m.planned;
+  if (!p || (p.courtNo === null && p.sessionNo === null)) return null;
+  const text = [p.courtNo !== null ? `예정 ${p.courtNo}번 코트` : '예정 코트 미정', p.sessionNo !== null ? `${p.sessionNo}차` : null].filter(Boolean).join(' · ');
+  return (
+    <div data-waiting-planned={p.courtNo ?? ''} data-waiting-planned-session={p.sessionNo ?? ''} data-waiting-planned-free={empty ? '1' : undefined}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+      <span style={{
+        padding: '1px 7px', borderRadius: 6, border: `1px dashed ${empty ? TEAL : FAINT}`,
+        fontSize: 11, fontWeight: 800, color: empty ? TEAL : MUTED, background: empty ? TEAL_SOFT : '#fff', whiteSpace: 'nowrap',
+      }}>
+        {text}
+      </span>
+      {empty && <span style={{ fontSize: 10.5, fontWeight: 800, color: TEAL, whiteSpace: 'nowrap' }}>예정 코트 비어 있음</span>}
+    </div>
+  );
+}
 
 // ── 확인 필요 ───────────────────────────────────────────────────────────────
 
@@ -347,8 +372,58 @@ function WaitingRow({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
         </div>
       </div>
 
+      <PlannedBadge m={m} empty={m.planned?.courtNo != null && !!ops.emptyCourts?.has(m.planned.courtNo)} />
       <TeamLine team={m.team1} unchecked={isUnchecked(ops.checkin, m.team1.teamNo)} />
       <TeamLine team={m.team2} unchecked={isUnchecked(ops.checkin, m.team2.teamNo)} />
+    </div>
+  );
+}
+
+/**
+ * 대기 구역 하나(예선 · 본선 각각).
+ *   ⚠ 두 구역은 같은 조작(호명 · 투입)을 쓴다 — 코트 · 팀 충돌은 서버가 막는다.
+ */
+function WaitingBlock({ title, name, waiting, slug, ops }: {
+  title: string; name: 'preliminary' | 'knockout'; waiting: ControlWaiting; slug: string; ops: ControlOps;
+}) {
+  return (
+    <div data-waiting-block={name} style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+        <p style={eyebrow}>WAITING</p>
+        <span style={{ fontSize: 12, fontWeight: 800, color: INK_SOFT }}>{title}</span>
+        <span data-waiting-total={waiting.total} style={{
+          fontFamily: LABEL, fontSize: 12.5, fontWeight: 800, color: waiting.total ? INK : FAINT,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {waiting.total}
+        </span>
+        {waiting.calling > 0 && (
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: BLUE }}>
+            호명 {waiting.calling}
+          </span>
+        )}
+      </div>
+
+      {waiting.total === 0 ? (
+        <p style={{ margin: '10px 0 2px', fontSize: 12.5, fontWeight: 600, color: FAINT }}>
+          대기 중인 {title} 경기가 없습니다.
+        </p>
+      ) : (
+        <>
+          <div data-waiting-list={name}>{waiting.rows.map((m) => <WaitingRow key={m.matchId} m={m} ops={ops} />)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9 }}>
+            {waiting.hidden > 0 && (
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: MUTED }}>
+                외 {waiting.hidden}경기
+              </span>
+            )}
+            <Link href={`/admin/tournaments/${slug}/${name === 'knockout' ? 'bracket' : 'matches'}`} style={{ ...linkBtn, marginLeft: 'auto' }}>
+              전체 {title} 목록
+              <ChevronRight size={13} strokeWidth={2.4} />
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -356,13 +431,19 @@ function WaitingRow({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
 // ── 진행 중 · 대기 ──────────────────────────────────────────────────────────
 
 export function ControlOperations({
-  playing, waiting, slug, allDone, ops,
+  playing, waiting, knockoutWaiting = null, slug, allDone, ops,
 }: {
-  playing: ControlMatchRow[]; waiting: ControlWaiting; slug: string; allDone: boolean;
+  playing: ControlMatchRow[];
+  /** 예선 · 순위결정전 대기. */
+  waiting: ControlWaiting;
+  /** 본선 대기 — 본선 경기가 하나라도 생겼을 때만 준다(없으면 null → 구역을 그리지 않는다). */
+  knockoutWaiting?: ControlWaiting | null;
+  slug: string; allDone: boolean;
   ops: ControlOps;
 }) {
+  const koTotal = knockoutWaiting?.total ?? 0;
   // 대회가 끝나 더 볼 것이 없으면 빈 상자 두 개를 만들지 않는다.
-  if (allDone && playing.length === 0 && waiting.total === 0) {
+  if (allDone && playing.length === 0 && waiting.total === 0 && koTotal === 0) {
     return (
       <section data-control-section="operations" style={{ ...card, textAlign: 'center', padding: '20px 15px' }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: INK_SOFT }}>
@@ -397,43 +478,10 @@ export function ControlOperations({
         )}
       </div>
 
-      {/* 대기 */}
-      <div style={{ flex: '1 1 300px', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-          <p style={eyebrow}>WAITING</p>
-          <span style={{
-            fontFamily: LABEL, fontSize: 12.5, fontWeight: 800, color: waiting.total ? INK : FAINT,
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {waiting.total}
-          </span>
-          {waiting.calling > 0 && (
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: BLUE }}>
-              호명 {waiting.calling}
-            </span>
-          )}
-        </div>
-
-        {waiting.total === 0 ? (
-          <p style={{ margin: '10px 0 2px', fontSize: 12.5, fontWeight: 600, color: FAINT }}>
-            대기 중인 경기가 없습니다.
-          </p>
-        ) : (
-          <>
-            <div data-waiting-list>{waiting.rows.map((m) => <WaitingRow key={m.matchId} m={m} ops={ops} />)}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9 }}>
-              {waiting.hidden > 0 && (
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: MUTED }}>
-                  외 {waiting.hidden}경기
-                </span>
-              )}
-              <Link href={`/admin/tournaments/${slug}/matches`} style={{ ...linkBtn, marginLeft: 'auto' }}>
-                전체 대기 목록
-                <ChevronRight size={13} strokeWidth={2.4} />
-              </Link>
-            </div>
-          </>
-        )}
+      {/* 대기 — 예선 · 본선을 나눠 둘 다 보여 준다(본선 선행 경기와 예선을 같은 코트에서 병행). */}
+      <div style={{ flex: '1 1 300px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {(!knockoutWaiting || waiting.total > 0) && <WaitingBlock title="예선" name="preliminary" waiting={waiting} slug={slug} ops={ops} />}
+        {knockoutWaiting && <WaitingBlock title="본선" name="knockout" waiting={knockoutWaiting} slug={slug} ops={ops} />}
       </div>
     </section>
   );

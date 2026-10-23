@@ -14,8 +14,8 @@ import Link from 'next/link';
 import { ExternalLink, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import {
   CONTROL_PHASE_LABEL, countCourtStates, deriveAttention, deriveCourts, deriveKnockout,
-  derivePhase, derivePickState, derivePlaying, derivePreliminary, deriveScoreConflict,
-  deriveSummary, deriveWaiting,
+  derivePhase, derivePickState, derivePlaying, derivePreliminary, deriveRowContext, deriveScoreConflict,
+  deriveSummary, deriveWaiting, type ControlPlannedGroup,
 } from './controlModel';
 import type { ControlCourt, ControlGroup, ControlMatchRow, ControlPickState } from './controlModel';
 import { ControlAttention, ControlOperations } from './ControlOperations';
@@ -28,6 +28,7 @@ import SignatureDisplayLauncher from '../SignatureDisplayLauncher';
 import MatchElapsedClock from '../MatchElapsedClock';
 import { clockOffset, formatElapsed, matchTimerState } from '@/lib/tournaments/matchTimer';
 import { matchHeadLabel } from '@/lib/tournaments/matchTypes';
+import { fetchAdminGroupSchedule } from '@/lib/tournaments/groupScheduleService';
 import { uncheckedTeams } from '@/lib/tournaments/checkinModel';
 import { useControlCheckins } from './useControlCheckins';
 import ControlCheckinWarning from './ControlCheckinWarning';
@@ -665,17 +666,40 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
     [snap],
   );
   const summary = React.useMemo(() => deriveSummary(snap?.board ?? null, phase), [snap, phase]);
+  // 병행 운영 — 본선 단계여도 예선 경기가 남아 있으면 예선 요약을 한 줄 더 보여 준다(위 요약은 본선만 센다).
+  const prelimSummary = React.useMemo(() => {
+    if (summary.stage !== 'knockout') return null;
+    const p = deriveSummary(snap?.board ?? null, 'preliminary');
+    return p.waiting + p.calling + p.playing > 0 ? p : null;
+  }, [snap, summary.stage]);
   const courts = React.useMemo(() => deriveCourts(snap?.board ?? null), [snap]);
   const prelim = React.useMemo(() => derivePreliminary(snap?.standings ?? null), [snap]);
   const knockout = React.useMemo(() => deriveKnockout(snap?.bracket ?? null), [snap]);
+  // 예정 코트 · 차수(조 일정) — 대기 줄 안내 전용. 한 번 읽는다(실패 · 미적용이면 표시만 없다 — 관제는 그대로).
+  const [schedule, setSchedule] = React.useState<ControlPlannedGroup[] | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    fetchAdminGroupSchedule(slug)
+      .then((r) => { if (alive && r.data) setSchedule(r.data.groups.map((g) => ({ groupNo: g.groupNo, plannedCourtNo: g.plannedCourtNo, sessionNo: g.sessionNo }))); })
+      .catch(() => { /* 안내 표시만 생략 */ });
+    return () => { alive = false; };
+  }, [slug]);
+  const rowCtx = React.useMemo(() => deriveRowContext(snap?.board ?? null, schedule), [snap, schedule]);
+  // ⚠ 진행 중 · 대기는 화면 단계(phase)로 거르지 않는다 — 본선 선행 경기가 생겨도 예선 경기가 목록에서 사라지지 않게.
   const playing = React.useMemo(
-    () => derivePlaying(snap?.board ?? null, summary.stage, snap?.bracket ?? null),
-    [snap, summary.stage],
+    () => derivePlaying(snap?.board ?? null, 'all', snap?.bracket ?? null, rowCtx),
+    [snap, rowCtx],
   );
   const waiting = React.useMemo(
-    () => deriveWaiting(snap?.board ?? null, summary.stage, WAITING_ROWS, snap?.bracket ?? null),
-    [snap, summary.stage],
+    () => deriveWaiting(snap?.board ?? null, 'preliminary', WAITING_ROWS, snap?.bracket ?? null, rowCtx),
+    [snap, rowCtx],
   );
+  const knockoutWaiting = React.useMemo(
+    () => deriveWaiting(snap?.board ?? null, 'knockout', WAITING_ROWS, snap?.bracket ?? null, rowCtx),
+    [snap, rowCtx],
+  );
+  const hasKnockout = React.useMemo(() => (snap?.board?.matches ?? []).some((m) => m.stage === 'knockout'), [snap]);
+  const emptyCourts = React.useMemo(() => new Set(courts.filter((c) => c.state === 'empty').map((c) => c.courtNo)), [courts]);
   const attention = React.useMemo(
     () => deriveAttention({ summary, preliminary: prelim, knockout, phase }),
     [summary, prelim, knockout, phase],
@@ -754,7 +778,8 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
     onStartTimer: (m) => { void act.startTimer(m); },
     clockOffset: offset,
     checkin: checkins.lookup,
-  }), [act, pick, offset, checkins.lookup]);
+    emptyCourts,
+  }), [act, pick, offset, checkins.lookup, emptyCourts]);
 
   /**
    * 코트를 고른 순간 — 여기서 처음으로 저장이 일어난다(코트 배정 + 시작이 한 번).
@@ -879,6 +904,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
       ) : (
         <>
           <SummaryBar s={summary} />
+          {prelimSummary && <SummaryBar s={prelimSummary} />}
 
           {/* 왼쪽이 본문 흐름(코트 → 확인 필요 → 진행/대기), 오른쪽은 상태 레일이다.
               ⚠ 본문을 레일 바깥에 두면 레일이 길어질 때 그 높이만큼 다음 영역이 아래로 밀린다.
@@ -907,6 +933,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
               <ControlOperations
                 playing={playing}
                 waiting={waiting}
+                knockoutWaiting={hasKnockout ? knockoutWaiting : null}
                 slug={slug}
                 allDone={phase === 'completed'}
                 ops={ops}
