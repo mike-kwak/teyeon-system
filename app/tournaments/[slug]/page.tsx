@@ -9,7 +9,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { TT } from '@/components/tournaments/tournamentTheme';
 import TournamentPublicHeader from '@/components/tournaments/TournamentPublicHeader';
 import TournamentNavigation from '@/components/tournaments/TournamentNavigation';
@@ -142,6 +142,27 @@ export default function TournamentHubPage() {
     };
   }, [event, reloadKey]);
 
+  /**
+   * 참가자 첫 진입 → 예선 DRAW(모바일 2열 조별 카드). QR · 문자 '대회 홈' 링크가 이 주소다.
+   *   · DRAW 가 공개됐고, 이 탭(세션)에서 처음 들어왔을 때 한 번만 /draw?view=board 로 바꿔 이동(뒤로가기로 허브에 다시 끌려오지 않게 replace).
+   *   · 그 뒤 INFO 탭 · '뒤로' 로 허브에 오면 그대로 INFO 를 보여 준다(세션 표시 → 무한 이동 없음).
+   *   · ?info=1 · 세션 저장소를 못 쓰는 환경 · DRAW 비공개 · 대회 종료 단계면 이동하지 않는다. 로그인 · 관리자 화면과 무관.
+   */
+  const router = useRouter();
+  React.useEffect(() => {
+    if (!event || !drawPublished) return;
+    const st = state && (state.kind === 'open' || state.kind === 'closed') ? state.status : null;
+    if (resolvePhase(st?.isRegistrationOpen ? 'registration_open' : null) === 'finished') return;
+    try {
+      if (new URLSearchParams(window.location.search).get('info') === '1') return;
+      const key = `teyeon:hub:auto-draw:v1:${event.slug}`;
+      if (window.sessionStorage.getItem(key)) return;
+      window.sessionStorage.setItem(key, '1');
+      if (window.sessionStorage.getItem(key) !== '1') return;   // 저장이 안 되면 이동하지 않는다(반복 이동 방지)
+      router.replace(`/tournaments/${event.slug}/draw?view=board`);
+    } catch { /* 세션 저장소를 쓸 수 없으면 허브 그대로 */ }
+  }, [event, drawPublished, state, router]);
+
   /** 'unknown'(상태 확인 실패) 일 때 사용자가 직접 다시 조회. */
   const retry = React.useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -187,7 +208,7 @@ export default function TournamentHubPage() {
       {/* DRAW 공개 후에만 — 참가자가 허브에서 바로 대진표로(공개 전에는 서버가 null → 그리지 않는다). */}
       {drawPublished && (
         <Padded style={{ paddingTop: 14 }}>
-          <Link href={`/tournaments/${event.slug}/draw`} data-hub-draw-cta style={{
+          <Link href={`/tournaments/${event.slug}/draw?view=board`} data-hub-draw-cta style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: TT.navy,
             color: '#fff', textDecoration: 'none', boxSizing: 'border-box',
           }}>
