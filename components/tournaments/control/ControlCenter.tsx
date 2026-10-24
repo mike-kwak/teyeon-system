@@ -11,7 +11,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ExternalLink, RefreshCw, AlertTriangle, X } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertTriangle, X, Sparkles } from 'lucide-react';
 import {
   CONTROL_PHASE_LABEL, countCourtStates, deriveAssignable, deriveAttention, deriveCourtSuggestions, deriveCourts, deriveKnockout,
   deriveNextUps, deriveNextUpRecommendations, deriveOpeningFeedGroups, nextUpAssignBlock,
@@ -20,7 +20,7 @@ import {
 } from './controlModel';
 import type { ControlCourt, ControlCourtSuggestion, ControlGroup, ControlMatchRow, ControlNextUp, ControlPickState, NextUpRecItem, NextUpRecommendation } from './controlModel';
 import { useCourtNextUp } from './useCourtNextUp';
-import { ControlAttention, ControlOperations } from './ControlOperations';
+import { ControlAttention, ControlOperations, CourtCardTimer } from './ControlOperations';
 import type { ControlOps } from './ControlOperations';
 import ControlScoreDialog from './ControlScoreDialog';
 import { useControlActions } from './controlActions';
@@ -52,6 +52,9 @@ const LINE_SOFT = '#EEF2F7';
 const TEAL = '#0E8C80';
 const TEAL_SOFT = '#E7F3F1';
 const NAVY = '#102A3D';
+/** 스마트 추천 코트 투입 — 일반 투입(청록)과 구분되는 파란색. */
+const REC_BLUE = '#1D4ED8';
+const REC_BLUE_SOFT = '#EFF6FF';
 const LABEL = 'var(--font-rajdhani), sans-serif';
 
 const card: React.CSSProperties = {
@@ -679,8 +682,11 @@ function CourtNextUp({
 }
 
 function CourtPanel({
-  court, selectable, disabled, onPick, suggestion, scheduleState, onSuggest, hinted = false, nextUp, nuOps,
+  court, selectable, disabled, onPick, suggestion, scheduleState, onSuggest, hinted = false, nextUp, nuOps, timerRow, ops,
 }: {
+  /** 진행 중 경기 줄(NOW PLAYING 과 같은 값) — 코트 카드 타이머용. 없으면 타이머를 그리지 않는다. */
+  timerRow?: ControlMatchRow;
+  ops?: ControlOps;
   nextUp?: ControlNextUp;
   nuOps: NextUpOps;
   court: ControlCourt;
@@ -706,10 +712,10 @@ function CourtPanel({
       style={{
         // ⚠ border 축약형과 borderTop* 을 섞지 않는다 — 리렌더 때 서로 덮어써 경고가 난다.
         borderStyle: 'solid',
-        borderColor: playing || selectable ? TEAL : LINE,
+        borderColor: hinted && selectable ? REC_BLUE : playing || selectable ? TEAL : LINE,
         borderWidth: playing ? '3px 1px 1px' : hinted && selectable ? 3 : 1,
         borderRadius: 12,
-        background: selectable ? TEAL_SOFT : closed ? '#F8FAFC' : '#fff',
+        background: hinted && selectable ? REC_BLUE_SOFT : selectable ? TEAL_SOFT : closed ? '#F8FAFC' : '#fff',
         padding: '11px 13px 13px',
         display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0,
         minHeight: 128,
@@ -745,24 +751,29 @@ function CourtPanel({
             VS
           </span>
           <CourtTeam team={court.now.team2} />
+          {timerRow && ops && <CourtCardTimer m={timerRow} ops={ops} />}
           <div style={{ marginTop: 4 }}>
             <CourtNextUp courtNo={court.courtNo} empty={false} nu={nextUp} suggestion={undefined} ops={nuOps} disabled={disabled} />
           </div>
         </div>
       ) : selectable ? (
         // ⚠ 선택지일 뿐이다. 비어 있는지 최종 판정은 서버(start_match)가 한다.
+        //   추천 코트는 파란색 + 추천 표시(색만으로 구분하지 않는다) · 누르는 동작은 일반 투입과 같다.
         <button
           type="button"
           data-control-action={`court-${court.courtNo}`}
+          data-court-pick-kind={hinted ? 'recommended' : 'normal'}
           disabled={disabled}
           onClick={() => onPick(court.courtNo)}
           style={{
-            margin: 'auto 0 0', minHeight: 34, borderRadius: 9,
-            border: `1px solid ${TEAL}`, background: TEAL, color: '#fff',
-            fontSize: 12.5, fontWeight: 800,
+            margin: 'auto 0 0', minHeight: 34, borderRadius: 9, padding: '4px 8px',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, flexWrap: 'wrap',
+            border: `1px solid ${hinted ? REC_BLUE : TEAL}`, background: hinted ? REC_BLUE : TEAL, color: '#fff',
+            fontSize: 12.5, fontWeight: 800, lineHeight: 1.25, wordBreak: 'keep-all',
             opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer',
           }}
         >
+          {hinted && <Sparkles size={13} strokeWidth={2.4} aria-hidden style={{ flexShrink: 0 }} />}
           {hinted ? '추천 코트에 투입' : '이 코트에 투입'}
         </button>
       ) : closed ? (
@@ -789,8 +800,11 @@ function CourtPanel({
 }
 
 function CourtBoard({
-  courts, picking, disabled, onPick, suggestions, suggestWarnings, scheduleState, onSuggest, hintCourt, nuOps, nuStorageError,
+  courts, picking, disabled, onPick, suggestions, suggestWarnings, scheduleState, onSuggest, hintCourt, nuOps, nuStorageError, playingRows, ops,
 }: {
+  /** 진행 중 경기 줄(경기 id → 줄) — 코트 카드 타이머용. */
+  playingRows?: Map<string, ControlMatchRow>;
+  ops?: ControlOps;
   courts: ControlCourt[];
   /** 투입할 경기를 고른 상태인가. 그때만 빈 코트가 선택 가능해진다. */
   picking: boolean;
@@ -868,6 +882,7 @@ function CourtBoard({
               suggestion={suggestions.get(c.courtNo)} scheduleState={scheduleState}
               onSuggest={onSuggest} hinted={hintCourt === c.courtNo}
               nextUp={nuOps.byCourt.get(c.courtNo)} nuOps={nuOps}
+              timerRow={c.now ? playingRows?.get(c.now.matchId) : undefined} ops={ops}
             />
           ))}
         </div>
@@ -995,6 +1010,8 @@ function KnockoutStatus({ k }: { k: NonNullable<ReturnType<typeof deriveKnockout
  *   ⚠ 보여 주는 경기는 **고른 순간의 값**이다. 다른 곳에서 바뀌면 경고로 바꾸고 투입을 막는다
  *     — 선택을 지우지도, 다른 경기로 옮기지도 않는다. 해제는 운영자가 [선택 취소] 로 한다.
  */
+const pickNames = (t: ControlMatchRow['team1']) => [t.player1Name, t.player2Name].filter((x) => x.trim() !== '').join('·');
+
 function PickBanner({
   match, state, disabled, onCancel, unchecked = null, hintCourt = null,
 }: {
@@ -1022,8 +1039,8 @@ function PickBanner({
       <span style={{ fontSize: 13, fontWeight: 800, color: INK, minWidth: 0 }}>
         {head} · M{match.matchNo}
         <span style={{ color: MUTED, fontWeight: 700 }}>
-          {' · '}TEAM {String(match.team1.teamNo).padStart(2, '0')}
-          {' vs '}TEAM {String(match.team2.teamNo).padStart(2, '0')}
+          {' · '}TEAM {String(match.team1.teamNo).padStart(2, '0')} {pickNames(match.team1)}
+          {' vs '}TEAM {String(match.team2.teamNo).padStart(2, '0')} {pickNames(match.team2)}
         </span>
       </span>
       {ok ? (
@@ -1190,6 +1207,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
     () => derivePlaying(snap?.board ?? null, 'all', snap?.bracket ?? null, rowCtx),
     [snap, rowCtx],
   );
+  const playingRows = React.useMemo(() => new Map(playing.map((m) => [m.matchId, m])), [playing]);
   const waiting = React.useMemo(
     () => deriveWaiting(snap?.board ?? null, 'preliminary', WAITING_ROWS, snap?.bracket ?? null, rowCtx),
     [snap, rowCtx],
@@ -1556,6 +1574,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
                 hintCourt={hintCourt}
                 nuOps={nuOps}
                 nuStorageError={nextUp.storageError}
+                playingRows={playingRows} ops={ops}
               />
               {summary.total === 0 && (
                 <Quiet title="경기 생성 전"

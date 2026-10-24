@@ -257,6 +257,38 @@ function PlayingTimer({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
   );
 }
 
+/**
+ * 상단 코트 카드의 타이머 — NOW PLAYING 과 같은 [경기 시작](ops.onStartTimer · 같은 잠금)과 서버 시작 시각을 그대로 쓴다.
+ *   시작 전 = '시작 전' + [경기 시작] · 시작 후 = 경과 mm:ss. 진행 중이 아니면 그리지 않는다.
+ */
+export function CourtCardTimer({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
+  if (ops.clockOffset === null) return null;
+  const t = matchTimerState(m);
+  const row: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 };
+  if (t.kind === 'running') {
+    return (
+      <div data-court-timer={m.courtNo ?? ''} data-court-timer-state="running" style={row}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: FAINT }}>경과</span>
+        <MatchElapsedClock
+          name={`court-${m.matchNo}`} startMs={t.startMs} offsetMs={ops.clockOffset}
+          style={{ fontFamily: LABEL, fontSize: 18, fontWeight: 800, color: TEAL, lineHeight: 1.1 }}
+        />
+      </div>
+    );
+  }
+  if (t.kind !== 'not_started') return null;
+  const mine = ops.busy === `timer-${m.matchId}`;
+  return (
+    <div data-court-timer={m.courtNo ?? ''} data-court-timer-state="not_started" style={row}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: '#9A3412' }}>시작 전</span>
+      <ActionButton
+        name={`court-timer-${m.matchNo}`} label={mine ? '시작 중…' : '경기 시작'} tone="accent"
+        disabled={ops.busy !== ''} onClick={() => ops.onStartTimer(m)}
+      />
+    </div>
+  );
+}
+
 function PlayingRow({ m, ops }: { m: ControlMatchRow; ops: ControlOps }) {
   return (
     <div data-playing={m.matchNo} style={{
