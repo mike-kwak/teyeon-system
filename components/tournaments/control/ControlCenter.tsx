@@ -14,11 +14,11 @@ import Link from 'next/link';
 import { ExternalLink, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import {
   CONTROL_PHASE_LABEL, countCourtStates, deriveAssignable, deriveAttention, deriveCourtSuggestions, deriveCourts, deriveKnockout,
-  deriveNextUps, nextUpAssignBlock,
+  deriveNextUps, deriveNextUpRecommendations, nextUpAssignBlock,
   derivePhase, derivePickState, derivePlaying, derivePreliminary, deriveRowContext, deriveScoreConflict,
   deriveSummary, deriveWaiting, type ControlPlannedGroup,
 } from './controlModel';
-import type { ControlCourt, ControlCourtSuggestion, ControlGroup, ControlMatchRow, ControlNextUp, ControlPickState } from './controlModel';
+import type { ControlCourt, ControlCourtSuggestion, ControlGroup, ControlMatchRow, ControlNextUp, ControlPickState, NextUpRecItem, NextUpRecommendation } from './controlModel';
 import { useCourtNextUp } from './useCourtNextUp';
 import { ControlAttention, ControlOperations } from './ControlOperations';
 import type { ControlOps } from './ControlOperations';
@@ -362,6 +362,12 @@ interface NextUpOps {
   onAssign: (courtNo: number, m: ControlMatchRow) => string | null;
   onClear: (courtNo: number) => void;
   onInsert: (courtNo: number) => void;
+  /** 이 코트 스마트 추천(표시 전용 · 최대 3개). */
+  recommend: (courtNo: number) => NextUpRecommendation;
+  /** 추천 지정 직전 재확인 — 경기판 · 체크인을 새로 읽어 다시 계산한다. 그대로면 null, 바뀌었거나 못 읽었으면 이유. */
+  recheck: (courtNo: number, matchId: string, tier: NextUpRecItem['tier']) => Promise<string | null>;
+  /** matchId → 경기 중인 팀의 코트 · 체크인 미완료 팀(직접 선택 목록 표시용). */
+  flags: Map<string, { busyCourt: number | null; unchecked: number[] | null }>;
 }
 
 const teamNames = (t: ControlMatchRow['team1']) =>
@@ -373,6 +379,177 @@ const nuBtn = (tone: 'solid' | 'line' | 'quiet', disabled: boolean): React.CSSPr
   background: tone === 'solid' ? NAVY : '#fff', color: tone === 'solid' ? '#fff' : tone === 'line' ? NAVY : MUTED,
   opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
 });
+
+const groupKeyOf = (m: ControlMatchRow) => (m.stage === 'knockout' ? 'ko' : String(m.groupNo ?? ''));
+
+/**
+ * [다음 경기 지정] 창 — 위: 스마트 추천(최대 3개) · 아래: 직접 경기 선택(조 필터 · 번호/선수명 검색).
+ *   ⚠ 어느 쪽이든 NEXT UP 지정(이 PC 저장)만 한다. 실제 투입은 코트 카드의 [대기 경기 투입] 으로 따로 한다.
+ *   ⚠ 추천 지정 직전에 최신 상태로 다시 계산해, 그사이 바뀌었으면 지정하지 않고 이유를 보여 준다.
+ */
+function NextUpPicker({
+  courtNo, empty, options, defaultId, ops, error, setError, onClose,
+}: {
+  courtNo: number;
+  empty: boolean;
+  options: ControlMatchRow[];
+  defaultId: string;
+  ops: NextUpOps;
+  error: string | null;
+  setError: (e: string | null) => void;
+  onClose: () => void;
+}) {
+  const rec = React.useMemo(() => ops.recommend(courtNo), [ops, courtNo]);
+  const [choice, setChoice] = React.useState(defaultId);
+  const [group, setGroup] = React.useState('');
+  const [query, setQuery] = React.useState('');
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const groups = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    [...options].sort((a, b) => (a.stage === 'knockout' ? 1 : 0) - (b.stage === 'knockout' ? 1 : 0) || ((a.groupNo ?? 0) - (b.groupNo ?? 0)))
+      .forEach((m) => { const k = groupKeyOf(m); if (!seen.has(k)) seen.set(k, m.stage === 'knockout' ? '본선' : (m.publicLabel ?? matchHeadLabel(m))); });
+    return [...seen];
+  }, [options]);
+  const shown = React.useMemo(() => {
+    const q = query.trim().toLowerCase().replace(/\s+/g, '');
+    const no = /^m?\d+$/.test(q) ? Number(q.replace(/^m/, '')) : null;
+    return options.filter((m) => {
+      if (group && groupKeyOf(m) !== group) return false;
+      if (!q) return true;
+      if (no !== null) return m.matchNo === no;
+      return [m.team1, m.team2].some((t) => `${t.player1Name}${t.player2Name}`.replace(/\s+/g, '').toLowerCase().includes(q));
+    });
+  }, [options, group, query]);
+  const value = shown.some((m) => m.matchId === choice) ? choice : '';
+
+  const assign = (m: ControlMatchRow) => {
+    const msg = ops.onAssign(courtNo, m);
+    if (msg) { setError(msg); return; }
+    onClose();
+  };
+  const [checking, setChecking] = React.useState(false);
+  const pickRec = async (it: NextUpRecItem) => {
+    if (checking) return;
+    setChecking(true); setError(null);
+    const changed = await ops.recheck(courtNo, it.match.matchId, it.tier);
+    setChecking(false);
+    if (changed) { setError(changed); return; }
+    assign(it.match);
+  };
+  const save = () => {
+    const m = options.find((x) => x.matchId === value);
+    if (!m) { setError('대기로 지정할 경기를 골라 주세요.'); return; }
+    assign(m);
+  };
+
+  const field: React.CSSProperties = { minWidth: 0, minHeight: 34, borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 12.5, fontWeight: 700, color: INK, background: '#fff', padding: '0 8px' };
+  const sub: React.CSSProperties = { margin: 0, fontFamily: LABEL, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.12em', color: FAINT };
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label={`${courtNo}번 코트 NEXT UP 지정`} data-nextup-editor={courtNo}
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(15,23,42,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 520, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <p style={sub}>COURT {String(courtNo).padStart(2, '0')} · {empty ? '비어 있음' : '경기 중 — 끝난 뒤 투입'}</p>
+          <p style={{ margin: '3px 0 0', fontSize: 16, fontWeight: 800, color: INK }}>다음 경기(NEXT UP) 지정</p>
+          <p style={{ margin: '3px 0 0', fontSize: 11.5, fontWeight: 600, color: MUTED, lineHeight: 1.55, wordBreak: 'keep-all' }}>
+            지정은 이 PC 의 대기 예약만 합니다. 경기 상태 · 호명은 바뀌지 않고, 실제 투입은 코트의 [대기 경기 투입] 으로 따로 합니다.
+          </p>
+        </div>
+
+        {error && <p role="alert" data-nextup-error={courtNo} style={{ margin: 0, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FCA5A5', fontSize: 12, fontWeight: 700, color: '#B91C1C', wordBreak: 'keep-all' }}>{error}</p>}
+
+        {/* 스마트 추천 */}
+        <div data-nextup-rec-list={courtNo} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <p style={sub}>추천 후보</p>
+          {rec.note ? (
+            <p data-nextup-rec-note style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: MUTED }}>{rec.note}</p>
+          ) : rec.items.length === 0 ? (
+            <p data-nextup-rec-none style={{ margin: 0, padding: '9px 11px', borderRadius: 9, background: '#F8FAFC', border: `1px solid ${LINE}`, fontSize: 12.5, fontWeight: 800, color: MUTED }}>
+              추천 가능한 경기 없음 — 아래에서 직접 골라 주세요.
+            </p>
+          ) : rec.items.map((it, i) => {
+            const m = it.match; const check = it.tier === 'check';
+            return (
+              <div key={m.matchId} data-nextup-rec={m.matchNo} data-rec-tier={it.tier} data-rec-source={it.source}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, minWidth: 0,
+                  border: `1px solid ${check ? '#FDBA74' : '#B6DED8'}`, background: check ? '#FFF7ED' : '#F3FAF8' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: INK }}>{m.publicLabel ?? matchHeadLabel(m)} · M{m.matchNo}</span>
+                    {m.planned?.courtNo && <span style={{ fontSize: 11, fontWeight: 800, color: MUTED }}>예정 {m.planned.courtNo}번{m.planned.sessionNo ? `·${m.planned.sessionNo}차` : ''}</span>}
+                    {check && <span style={{ fontSize: 10.5, fontWeight: 800, color: '#9A3412', border: '1px solid #FDBA74', borderRadius: 5, padding: '0 5px', background: '#fff' }}>확인 필요</span>}
+                    {m.status === 'calling' && <span style={{ fontSize: 11, fontWeight: 800, color: '#9A3412' }}>호명됨</span>}
+                  </div>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 700, color: INK_SOFT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {teamNames(m.team1)} vs {teamNames(m.team2)}
+                  </p>
+                  <p data-rec-reason style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 700, color: check ? '#9A3412' : TEAL, wordBreak: 'keep-all' }}>{it.reason}</p>
+                </div>
+                <button type="button" data-control-action={`nextup-rec-${courtNo}-${i}`} onClick={() => { void pickRec(it); }} disabled={checking}
+                  style={{ ...nuBtn(check ? 'line' : 'solid', checking), flexShrink: 0, minHeight: 34, padding: '4px 10px' }}>
+                  {checking ? '확인 중…' : '이 경기로 지정'}
+                </button>
+              </div>
+            );
+          })}
+          {rec.excluded.length > 0 && (
+            <div data-nextup-excluded style={{ fontSize: 11, fontWeight: 600, color: FAINT, lineHeight: 1.6, wordBreak: 'keep-all' }}>
+              추천 제외 · {rec.excluded.map((x) => `M${x.matchNo} ${x.reason}`).join(' / ')}
+            </div>
+          )}
+        </div>
+
+        {/* 직접 경기 선택 */}
+        <div data-nextup-manual={courtNo} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: `1px solid ${LINE}`, paddingTop: 11 }}>
+          <p style={sub}>직접 경기 선택</p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <select data-control-action={`nextup-group-${courtNo}`} value={group} onChange={(e) => { setGroup(e.target.value); setError(null); }} style={{ ...field, flex: '0 0 110px' }}>
+              <option value="">전체 조</option>
+              {groups.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+            </select>
+            <input data-control-action={`nextup-search-${courtNo}`} value={query} onChange={(e) => { setQuery(e.target.value); setError(null); }}
+              placeholder="경기 번호(M12) · 선수명" style={{ ...field, flex: '1 1 160px' }} />
+          </div>
+          <select
+            data-control-action={`nextup-select-${courtNo}`}
+            value={value}
+            onChange={(e) => { setChoice(e.target.value); setError(null); }}
+            style={{ ...field, width: '100%' }}
+          >
+            <option value="">{shown.length ? `경기 선택 (${shown.length}개)` : '조건에 맞는 경기 없음'}</option>
+            {shown.map((m) => {
+              const block = nextUpAssignBlock(m, courtNo);
+              const at = ops.reservedBy.get(m.matchId);
+              const f = ops.flags.get(m.matchId);
+              const plan = m.planned?.courtNo ? ` · 예정 ${m.planned.courtNo}번${m.planned.sessionNo ? `·${m.planned.sessionNo}차` : ''}` : '';
+              const tag = at !== undefined && at !== courtNo ? ` · ${at}번 대기` : '';
+              const busy = f && f.busyCourt !== null ? ` · 경기 중(${f.busyCourt}번)` : '';
+              const unck = f?.unchecked?.length ? ' · 체크인 미완료' : '';
+              return (
+                <option key={m.matchId} value={m.matchId} disabled={!!block}>
+                  {`${m.publicLabel ?? matchHeadLabel(m)} M${m.matchNo}${plan}${tag}${busy}${unck}${block ? ' · 지정 불가' : ''} — ${teamNames(m.team1)} vs ${teamNames(m.team2)}`}
+                </option>
+              );
+            })}
+          </select>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button type="button" data-control-action={`nextup-save-${courtNo}`} onClick={save} style={{ ...nuBtn('solid', false), flex: 1, minHeight: 34 }}>대기 지정</button>
+            <button type="button" data-control-action={`nextup-close-${courtNo}`} onClick={onClose} style={{ ...nuBtn('quiet', false), minHeight: 34, padding: '4px 14px' }}>닫기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * 코트 NEXT UP — 본부가 '이 코트 대기' 로 지정한 경기.
@@ -405,44 +582,12 @@ function CourtNextUp({
     const free = options.find((m) => m.planned?.courtNo === courtNo && ops.reservedBy.get(m.matchId) === undefined && !nextUpAssignBlock(m, courtNo));
     return free?.matchId ?? '';
   }, [nu, suggestion, options, ops.reservedBy, courtNo]);
-  const [choice, setChoice] = React.useState('');
-  const open = () => { setChoice(defaultId); setError(null); setEditing(true); };
-
-  const save = () => {
-    const m = options.find((x) => x.matchId === choice);
-    if (!m) { setError('대기로 지정할 경기를 골라 주세요.'); return; }
-    const msg = ops.onAssign(courtNo, m);
-    if (msg) { setError(msg); return; }
-    setEditing(false); setError(null);
-  };
+  const open = () => { setError(null); setEditing(true); };
+  const close = React.useCallback(() => { setEditing(false); setError(null); }, []);
 
   const editor = editing && (
-    <div data-nextup-editor={courtNo} style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
-      <select
-        data-control-action={`nextup-select-${courtNo}`}
-        value={choice}
-        onChange={(e) => { setChoice(e.target.value); setError(null); }}
-        style={{ width: '100%', minWidth: 0, minHeight: 32, borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 12, fontWeight: 700, color: INK, background: '#fff' }}
-      >
-        <option value="">경기 선택</option>
-        {options.map((m) => {
-          const block = nextUpAssignBlock(m, courtNo);
-          const at = ops.reservedBy.get(m.matchId);
-          const plan = m.planned?.courtNo ? ` · 예정 ${m.planned.courtNo}번${m.planned.sessionNo ? `·${m.planned.sessionNo}차` : ''}` : '';
-          const tag = at !== undefined && at !== courtNo ? ` · ${at}번 대기` : '';
-          return (
-            <option key={m.matchId} value={m.matchId} disabled={!!block}>
-              {`${m.publicLabel ?? matchHeadLabel(m)} M${m.matchNo}${plan}${tag}${block ? ' · 지정 불가' : ''} — ${teamNames(m.team1)} vs ${teamNames(m.team2)}`}
-            </option>
-          );
-        })}
-      </select>
-      {error && <p role="alert" data-nextup-error={courtNo} style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#B91C1C', wordBreak: 'keep-all' }}>{error}</p>}
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        <button type="button" data-control-action={`nextup-save-${courtNo}`} onClick={save} style={{ ...nuBtn('solid', false), flex: 1 }}>대기 지정</button>
-        <button type="button" data-control-action={`nextup-close-${courtNo}`} onClick={() => { setEditing(false); setError(null); }} style={nuBtn('quiet', false)}>닫기</button>
-      </div>
-    </div>
+    <NextUpPicker courtNo={courtNo} empty={empty} options={options} defaultId={defaultId} ops={ops}
+      error={error} setError={setError} onClose={close} />
   );
 
   if (!nu) {
@@ -1211,8 +1356,62 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
     beginStart(nu.match, courtNo, 'nextup');
   }, [nextUps, courts, pick, beginStart]);
 
+  // 추천 계산 입력의 최신 값(일정 · 대기 지정) — 지정 직전 재확인에서 쓴다.
+  const recInput = React.useRef({ schedule, ctx: rowCtx, reserved: reservedBy });
+  React.useEffect(() => { recInput.current = { schedule, ctx: rowCtx, reserved: reservedBy }; }, [schedule, rowCtx, reservedBy]);
+  const recommendNextUp = React.useCallback(
+    (courtNo: number) => deriveNextUpRecommendations(snap?.board ?? null, schedule, checkins.lookup, rowCtx, reservedBy, courtNo),
+    [snap, schedule, checkins.lookup, rowCtx, reservedBy],
+  );
+  /**
+   * 추천 지정 직전 재확인 — 경기판 · 체크인을 새로 읽고(최대 3초) 다시 계산한다.
+   *   그대로면 null. 후보에서 빠졌거나 '확인 필요' 로 바뀌었거나 새로 읽지 못했으면 이유(지정하지 않는다).
+   */
+  const recheckNextUp = React.useCallback(async (courtNo: number, matchId: string, tier: NextUpRecItem['tier']): Promise<string | null> => {
+    const before = st.latest()?.at ?? null;
+    const [, lookup] = await Promise.all([
+      Promise.race([st.reload().catch(() => undefined), new Promise<void>((res) => { window.setTimeout(res, 3_000); })]),
+      checkins.fresh(),
+    ]);
+    const got = st.latest();
+    if (!got || got.at === before) return '최신 경기 상태를 확인하지 못했습니다. [새로고침] 후 다시 골라 주세요.';
+    const r = recInput.current;
+    const board = got.board;
+    // 순위만 밀린 후보는 그대로 지정할 수 있다 — 제한 없이 다시 계산해 그 경기의 현재 판정을 본다.
+    const now = deriveNextUpRecommendations(board, r.schedule, lookup, r.ctx, r.reserved, courtNo, Number.POSITIVE_INFINITY);
+    const it = now.items.find((x) => x.match.matchId === matchId);
+    if (it && it.tier === tier) return null;
+    const no = board?.matches.find((x) => x.matchId === matchId)?.matchNo;
+    if (it) return `M${no} 상태가 바뀌어 '확인 필요' 후보가 되었습니다 — ${it.reason}. 다시 확인한 뒤 골라 주세요.`;
+    const why = now.excluded.find((x) => x.matchNo === no)?.reason;
+    return `M${no ?? ''} 은(는) 지금 추천 후보가 아닙니다${why ? ` — ${why}` : ''}. 목록을 다시 확인해 주세요.`;
+  }, [st, checkins]);
+  // 직접 선택 목록 표시 — 경기 중인 팀의 코트 · 체크인 미완료 팀.
+  const nextUpFlags = React.useMemo(() => {
+    const out = new Map<string, { busyCourt: number | null; unchecked: number[] | null }>();
+    const board = snap?.board; if (!board) return out;
+    const busyAt = new Map<number, number | null>();
+    board.matches.filter((m) => m.status === 'playing').forEach((m) => { busyAt.set(m.team1.teamNo, m.courtNo); busyAt.set(m.team2.teamNo, m.courtNo); });
+    const lk = checkins.lookup;
+    board.matches.filter((m) => m.status === 'waiting' || m.status === 'calling').forEach((m) => {
+      const t = [m.team1.teamNo, m.team2.teamNo];
+      const b = t.find((n) => busyAt.has(n));
+      out.set(m.matchId, {
+        busyCourt: b === undefined ? null : (busyAt.get(b) ?? null),
+        unchecked: lk ? t.filter((n) => { const v = lk.get(n); return v !== undefined && v.status === 'active' && !v.checkedIn; }) : null,
+      });
+    });
+    return out;
+  }, [snap, checkins.lookup]);
+
   /** 대기 지정 — 이 PC 저장만 바꾼다. 다른 코트 대기였던 경기는 확인 후 옮긴다. 막히면 이유를 돌려준다. */
   const onNextUpAssign = React.useCallback((courtNo: number, m: ControlMatchRow): string | null => {
+    // 지정 직전 — 마지막으로 받은 경기판에서 아직 대기 · 호명인지 다시 본다(진행 · 완료 · 취소 경기는 지정하지 않는다).
+    const cur = (st.latest()?.board ?? null)?.matches.find((x) => x.matchId === m.matchId);
+    if (!cur) return `M${m.matchNo} 경기를 찾을 수 없습니다. [새로고침] 후 다시 골라 주세요.`;
+    if (cur.status !== 'waiting' && cur.status !== 'calling') {
+      return `M${m.matchNo} 은(는) 이미 ${cur.status === 'playing' ? `${cur.courtNo ?? '?'}번 코트에서 진행 중` : cur.status === 'completed' ? '완료' : '취소'}이라 대기 지정할 수 없습니다.`;
+    }
     const block = nextUpAssignBlock(m, courtNo);
     if (block) return block;
     const other = reservedBy.get(m.matchId);
@@ -1220,12 +1419,13 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
       && !window.confirm(`M${m.matchNo}은(는) ${other}번 코트 대기입니다.\n${courtNo}번 코트 대기로 옮길까요?`)) return '대기 코트를 옮기지 않았습니다.';
     nextUp.assign(courtNo, m.matchId, m.matchNo);
     return null;
-  }, [reservedBy, nextUp]);
+  }, [reservedBy, nextUp, st]);
 
   const nuOps: NextUpOps = React.useMemo(() => ({
     byCourt: nextUps, assignable, reservedBy,
     onAssign: onNextUpAssign, onClear: nextUp.clearCourt, onInsert: onNextUpInsert,
-  }), [nextUps, assignable, reservedBy, onNextUpAssign, nextUp.clearCourt, onNextUpInsert]);
+    recommend: recommendNextUp, recheck: recheckNextUp, flags: nextUpFlags,
+  }), [nextUps, assignable, reservedBy, onNextUpAssign, nextUp.clearCourt, onNextUpInsert, recommendNextUp, recheckNextUp, nextUpFlags]);
 
   // 고른 경기가 바뀌거나 풀리면 그 경기의 경고도 닫는다(다른 경기로 잘못 투입되지 않게). 대기 경기 투입 경고는 선택과 무관하다.
   React.useEffect(() => {

@@ -662,6 +662,141 @@ export function deriveAssignable(board: MatchBoard | null, bracket: AdminBracket
     .sort((a, b) => a.matchNo - b.matchNo);
 }
 
+// ── NEXT UP 스마트 추천 (표시 전용) ─────────────────────────────────────────
+//
+//   [다음 경기 지정] 창에서 '이 코트 대기로 지정하기 좋은 경기' 를 최대 3개 보여 준다. 운영 안정성 우선:
+//   ① 이 코트 조 일정 먼저. 다른 코트 경기 당겨오기는 이 코트에 지정할 일정 경기가 하나도 없을 때만(보조 수단).
+//   ② 추천 제외 — 다른 코트에서 경기 중인 팀 · 조 순서 위반(같은 조 앞 경기 대기) · 코트 제한(순위결정전) ·
+//      다른 코트 NEXT UP · 이 코트 앞 차수 경기 남음 · 비어 있는 다른 코트의 다음 경기.
+//   ③ 체크인 미완료 · 체크인 정보 없음은 '확인 필요' 로 안전 후보 뒤에 둔다.
+//   ⚠ 종료 시각을 예측하지 않는다. 남은 경기 수 · 코트 상태 · 체크인 · 조 순서처럼 저장된 값만 쓴다.
+//   ⚠ 표시 전용 — 지정 · 투입 · 호명을 하지 않는다. 3개를 억지로 채우지 않는다. 본선 경기는 추천하지 않는다(수동 선택).
+
+export interface NextUpRecItem {
+  match: ControlMatchRow;
+  /** safe = 바로 지정해도 되는 후보 · check = 현장 확인 필요. */
+  tier: 'safe' | 'check';
+  /** own = 이 코트 조 일정 · pull = 다른 코트 경기 당겨오기. */
+  source: 'own' | 'pull';
+  reason: string;
+}
+export interface NextUpRecommendation {
+  items: NextUpRecItem[];
+  /** 추천하지 않은 경기와 짧은 이유(이 코트 일정 경기 먼저). */
+  excluded: { matchNo: number; reason: string }[];
+  /** 추천을 만들지 못한 이유(일정 · 경기 정보 없음, 사용 중지 코트). 정상이면 null. */
+  note: string | null;
+}
+
+export const NEXT_UP_REC_LIMIT = 3;
+
+export function deriveNextUpRecommendations(
+  board: MatchBoard | null,
+  schedule: ControlPlannedGroup[] | null,
+  checkin: ReadonlyMap<number, { checkedIn: boolean; status: string }> | null,
+  ctx: ControlRowContext | null,
+  reserved: ReadonlyMap<string, number> | null,
+  courtNo: number,
+  /** 보여 줄 후보 수. 지정 직전 재확인은 순위가 밀린 후보도 찾도록 제한 없이 부른다. */
+  limit = NEXT_UP_REC_LIMIT,
+): NextUpRecommendation {
+  const none = (note: string): NextUpRecommendation => ({ items: [], excluded: [], note });
+  if (!board) return none('경기 정보를 불러오는 중입니다.');
+  if (!schedule) return none('조 일정을 불러오지 못해 추천하지 않습니다. 아래에서 직접 골라 주세요.');
+  const court = board.courts.find((c) => c.courtNo === courtNo);
+  if (!court || court.status !== 'active') return none('사용 중인 코트가 아니어서 추천하지 않습니다.');
+
+  const courtNos = new Set(board.courts.map((c) => c.courtNo));
+  const plan = new Map<number, { courtNo: number; sessionNo: number }>();
+  schedule.forEach((g) => {
+    if (g.plannedCourtNo !== null && g.sessionNo !== null && courtNos.has(g.plannedCourtNo)) plan.set(g.groupNo, { courtNo: g.plannedCourtNo, sessionNo: g.sessionNo });
+  });
+  // 경기 중인 팀 → 그 코트
+  const busyAt = new Map<number, number | null>();
+  board.matches.filter((m) => m.status === 'playing').forEach((m) => { busyAt.set(m.team1.teamNo, m.courtNo); busyAt.set(m.team2.teamNo, m.courtNo); });
+  const isOpen = (m: TournamentMatch) => m.status === 'waiting' || m.status === 'calling';
+  const open = board.matches.filter((m) => m.stage !== 'knockout' && m.groupNo !== null && isOpen(m));
+  // 조마다 가장 앞 순서의 대기 경기(조 순서)
+  const head = new Map<number, TournamentMatch>();
+  open.forEach((m) => { const h = head.get(m.groupNo as number); if (!h || m.sequenceNo < h.sequenceNo || (m.sequenceNo === h.sequenceNo && m.matchNo < h.matchNo)) head.set(m.groupNo as number, m); });
+  const elsewhere = (m: TournamentMatch) => { const r = reserved?.get(m.matchId); return r !== undefined && r !== courtNo ? r : null; };
+  // 코트별 남은(대기 · 호명) 일정 경기 수 — 다른 코트 NEXT UP 으로 빠진 경기는 세지 않는다.
+  const load = new Map<number, number>();
+  open.forEach((m) => { const p = plan.get(m.groupNo as number); if (p && elsewhere(m) === null) load.set(p.courtNo, (load.get(p.courtNo) ?? 0) + 1); });
+  // 비어 있는 다른 코트가 지금 받을 다음 경기 — 당겨오지 않는다.
+  const sugg = deriveCourtSuggestions(board, schedule, checkin, ctx, reserved).byCourt;
+  const emptyCourts = new Set(board.courts.filter((c) => c.status === 'active' && !board.matches.some((m) => m.status === 'playing' && m.courtNo === c.courtNo)).map((c) => c.courtNo));
+  const rounds = new Map<number, string>(); const finals = new Set<number>();
+  const unchecked = (m: TournamentMatch) => (checkin ? [m.team1.teamNo, m.team2.teamNo].filter((n) => { const v = checkin.get(n); return v !== undefined && v.status === 'active' && !v.checkedIn; }) : null);
+  const teamNo = (n: number) => `TEAM ${String(n).padStart(2, '0')}`;
+
+  /** 공통 제외 판정 — 막히면 짧은 이유. */
+  const blockOf = (m: TournamentMatch, row: ControlMatchRow): string | null => {
+    if (reserved?.get(m.matchId) === courtNo) return '이미 이 코트 NEXT UP';
+    const r = elsewhere(m); if (r !== null) return `${r}번 코트 NEXT UP`;
+    const b = nextUpAssignBlock(row, courtNo); if (b) return m.stage === 'placement' ? `${row.planned?.courtNo ?? '?'}번 코트 전용` : '지정 불가';
+    const h = head.get(m.groupNo as number); if (h && h.matchId !== m.matchId) return `조 순서 — M${h.matchNo} 먼저`;
+    const busy = [m.team1.teamNo, m.team2.teamNo].filter((n) => busyAt.has(n) && busyAt.get(n) !== courtNo);
+    if (busy.length) return `${busy.map(teamNo).join(' · ')} ${busyAt.get(busy[0]) ?? '?'}번 코트 경기 중`;
+    return null;
+  };
+  const consecutive = (m: TournamentMatch) => [m.team1.teamNo, m.team2.teamNo].filter((n) => busyAt.get(n) === courtNo);
+  const checkText = (u: number[] | null) => (u === null ? '체크인 정보 없음 — 확인 필요' : `${u.map(teamNo).join(' · ')} 체크인 미완료 — 확인 필요`);
+  const order = (a: TournamentMatch, b: TournamentMatch) => ((plan.get(a.groupNo as number)!.sessionNo - plan.get(b.groupNo as number)!.sessionNo)
+    || (a.sequenceNo - b.sequenceNo) || ((a.groupNo as number) - (b.groupNo as number)) || (a.matchNo - b.matchNo));
+
+  // 제외 이유 — 운영자에게 중요한 순서로 보여 준다(이 코트 일정 → 다른 코트 NEXT UP → 코트 제한 → 경기 중 → 그 밖).
+  const excluded: { matchNo: number; reason: string; rank: number }[] = [];
+  const rankOf = (own: boolean, why: string) => (own ? 0 : /NEXT UP/.test(why) ? 1 : /전용/.test(why) ? 2 : /경기 중/.test(why) ? 3 : 4);
+  const items: NextUpRecItem[] = [];
+
+  // ① 이 코트 조 일정
+  const own = open.filter((m) => plan.get(m.groupNo as number)?.courtNo === courtNo).sort(order);
+  const ownHeadSession = own.length ? Math.min(...own.map((m) => plan.get(m.groupNo as number)!.sessionNo)) : null;
+  const ownOk: NextUpRecItem[] = [];
+  own.forEach((m) => {
+    const row = rowOf(m, rounds, finals, ctx);
+    const s = plan.get(m.groupNo as number)!.sessionNo;
+    const blocked = blockOf(m, row) ?? (ownHeadSession !== null && s > ownHeadSession ? `이 코트 ${SESSION_WORD(ownHeadSession)} 경기 남음` : null);
+    if (blocked) { excluded.push({ matchNo: m.matchNo, reason: blocked, rank: rankOf(true, blocked) }); return; }
+    const u = unchecked(m); const c = consecutive(m);
+    const tier = u === null || u.length > 0 ? 'check' : 'safe';
+    const base = emptyCourts.has(courtNo) ? '이 코트 일정' : '이 코트 일정 다음 경기 · 현재 경기 후 투입';
+    const reason = tier === 'check' ? `${base} · ${checkText(u)}`
+      : `${base}${c.length ? ` · ${c.map(teamNo).join(' · ')} 연속 출전` : emptyCourts.has(courtNo) ? ' · 양 팀 준비 완료 · 바로 투입 가능' : ' · 양 팀 준비 완료'}`;
+    ownOk.push({ match: row, tier, source: 'own', reason });
+  });
+
+  // ② 다른 코트 경기 당겨오기 — 이 코트에 지정할 일정 경기가 없을 때만
+  const pullOk: NextUpRecItem[] = [];
+  if (ownOk.length === 0) {
+    const fromCourt = new Set<number>();
+    open.filter((m) => { const p = plan.get(m.groupNo as number); return p !== undefined && p.courtNo !== courtNo; })
+      .sort((a, b) => ((load.get(plan.get(b.groupNo as number)!.courtNo) ?? 0) - (load.get(plan.get(a.groupNo as number)!.courtNo) ?? 0)) || order(a, b))
+      .forEach((m) => {
+        const row = rowOf(m, rounds, finals, ctx);
+        const src = plan.get(m.groupNo as number)!.courtNo; const left = load.get(src) ?? 0;
+        let blocked = blockOf(m, row);
+        if (blocked?.startsWith('조 순서')) return; // 조 안 뒷경기 — 이유 목록을 채우지 않는다
+        const sg = sugg.get(src);
+        if (!blocked && emptyCourts.has(src) && sg?.kind === 'match' && sg.match.matchId === m.matchId) blocked = `${src}번 코트가 비어 있어 그 코트 다음 경기`;
+        if (!blocked && left < 2) blocked = `${src}번 코트 잔여 ${left}경기 — 당겨올 부담 적음`;
+        if (blocked) { excluded.push({ matchNo: m.matchNo, reason: blocked, rank: rankOf(false, blocked) }); return; }
+        if (fromCourt.has(src)) return; // 코트 하나에서 하나만 — 여러 코트 부담을 고르게 본다
+        fromCourt.add(src);
+        const u = unchecked(m); const tier = u === null || u.length > 0 ? 'check' : 'safe';
+        pullOk.push({ match: row, tier, source: 'pull',
+          reason: tier === 'check' ? `${src}번 코트 잔여 ${left}경기 분산 · ${checkText(u)}` : `${src}번 코트 잔여 ${left}경기 부담 분산 · 양 팀 준비 완료` });
+      });
+  }
+  // 안전 후보 먼저(이 코트 일정 → 당겨오기), 그다음 확인 필요.
+  [...ownOk, ...pullOk].filter((x) => x.tier === 'safe').forEach((x) => items.push(x));
+  [...ownOk, ...pullOk].filter((x) => x.tier === 'check').forEach((x) => items.push(x));
+  const shownExcluded = excluded.map((x, i) => ({ ...x, i })).sort((a, b) => (a.rank - b.rank) || (a.i - b.i)).slice(0, 6)
+    .map(({ matchNo, reason }) => ({ matchNo, reason }));
+  return { items: items.slice(0, limit), excluded: shownExcluded, note: null };
+}
+
 // ── 확인 필요 ───────────────────────────────────────────────────────────────
 
 export type AttentionSeverity = 'warning' | 'info';
