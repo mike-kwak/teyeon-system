@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { ExternalLink, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import {
   CONTROL_PHASE_LABEL, countCourtStates, deriveAssignable, deriveAttention, deriveCourtSuggestions, deriveCourts, deriveKnockout,
-  deriveNextUps, deriveNextUpRecommendations, nextUpAssignBlock,
+  deriveNextUps, deriveNextUpRecommendations, deriveOpeningFeedGroups, nextUpAssignBlock,
   derivePhase, derivePickState, derivePlaying, derivePreliminary, deriveRowContext, deriveScoreConflict,
   deriveSummary, deriveWaiting, type ControlPlannedGroup,
 } from './controlModel';
@@ -1357,11 +1357,12 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
   }, [nextUps, courts, pick, beginStart]);
 
   // 추천 계산 입력의 최신 값(일정 · 대기 지정) — 지정 직전 재확인에서 쓴다.
-  const recInput = React.useRef({ schedule, ctx: rowCtx, reserved: reservedBy });
-  React.useEffect(() => { recInput.current = { schedule, ctx: rowCtx, reserved: reservedBy }; }, [schedule, rowCtx, reservedBy]);
+  const koFeeds = React.useMemo(() => deriveOpeningFeedGroups(snap?.bracket ?? null), [snap]);
+  const recInput = React.useRef({ schedule, ctx: rowCtx, reserved: reservedBy, feeds: koFeeds });
+  React.useEffect(() => { recInput.current = { schedule, ctx: rowCtx, reserved: reservedBy, feeds: koFeeds }; }, [schedule, rowCtx, reservedBy, koFeeds]);
   const recommendNextUp = React.useCallback(
-    (courtNo: number) => deriveNextUpRecommendations(snap?.board ?? null, schedule, checkins.lookup, rowCtx, reservedBy, courtNo),
-    [snap, schedule, checkins.lookup, rowCtx, reservedBy],
+    (courtNo: number) => deriveNextUpRecommendations(snap?.board ?? null, schedule, checkins.lookup, rowCtx, reservedBy, courtNo, undefined, koFeeds),
+    [snap, schedule, checkins.lookup, rowCtx, reservedBy, koFeeds],
   );
   /**
    * 추천 지정 직전 재확인 — 경기판 · 체크인을 새로 읽고(최대 3초) 다시 계산한다.
@@ -1378,7 +1379,7 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
     const r = recInput.current;
     const board = got.board;
     // 순위만 밀린 후보는 그대로 지정할 수 있다 — 제한 없이 다시 계산해 그 경기의 현재 판정을 본다.
-    const now = deriveNextUpRecommendations(board, r.schedule, lookup, r.ctx, r.reserved, courtNo, Number.POSITIVE_INFINITY);
+    const now = deriveNextUpRecommendations(board, r.schedule, lookup, r.ctx, r.reserved, courtNo, Number.POSITIVE_INFINITY, r.feeds);
     const it = now.items.find((x) => x.match.matchId === matchId);
     if (it && it.tier === tier) return null;
     const no = board?.matches.find((x) => x.matchId === matchId)?.matchNo;

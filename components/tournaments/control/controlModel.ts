@@ -669,6 +669,7 @@ export function deriveAssignable(board: MatchBoard | null, bracket: AdminBracket
 //   ② 추천 제외 — 다른 코트에서 경기 중인 팀 · 조 순서 위반(같은 조 앞 경기 대기) · 코트 제한(순위결정전) ·
 //      다른 코트 NEXT UP · 이 코트 앞 차수 경기 남음 · 비어 있는 다른 코트의 다음 경기.
 //   ③ 체크인 미완료 · 체크인 정보 없음은 '확인 필요' 로 안전 후보 뒤에 둔다.
+//   ④ 당겨오기 후보 안에서는 본선 첫 경기(64강) 대진을 정하는 조를 앞에 둔다 — 순서만, 제외 규칙은 그대로.
 //   ⚠ 종료 시각을 예측하지 않는다. 남은 경기 수 · 코트 상태 · 체크인 · 조 순서처럼 저장된 값만 쓴다.
 //   ⚠ 표시 전용 — 지정 · 투입 · 호명을 하지 않는다. 3개를 억지로 채우지 않는다. 본선 경기는 추천하지 않는다(수동 선택).
 
@@ -690,6 +691,25 @@ export interface NextUpRecommendation {
 
 export const NEXT_UP_REC_LIMIT = 3;
 
+/**
+ * 본선 첫 라운드의 실제 경기(양쪽 모두 BYE 아님)에 순위가 들어가는 조 번호(내부 group_no).
+ *   저장된 대진 자리(sourceKind group_rank · sourceGroupNo)만 본다 — 대진이 없으면 빈 집합(추측하지 않는다).
+ *   ⚠ 추천 순서 · 이유 문구 전용. 지정 가능 여부 · 코트 제한 · 조 순서 판정에 쓰지 않는다.
+ */
+export function deriveOpeningFeedGroups(bracket: AdminBracket | null): Set<number> {
+  const s = new Set<number>();
+  const slots = bracket?.slots ?? [];
+  if (!slots.length) return s;
+  const first = Math.min(...slots.map((x) => x.roundNo));
+  const byPos = new Map(slots.filter((x) => x.roundNo === first).map((x) => [x.position, x]));
+  byPos.forEach((x, pos) => {
+    const sib = byPos.get(pos % 2 === 1 ? pos + 1 : pos - 1);
+    if (!sib || x.slotType === 'bye' || sib.slotType === 'bye') return;
+    if (x.sourceKind === 'group_rank' && x.sourceGroupNo !== null) s.add(x.sourceGroupNo);
+  });
+  return s;
+}
+
 export function deriveNextUpRecommendations(
   board: MatchBoard | null,
   schedule: ControlPlannedGroup[] | null,
@@ -699,6 +719,8 @@ export function deriveNextUpRecommendations(
   courtNo: number,
   /** 보여 줄 후보 수. 지정 직전 재확인은 순위가 밀린 후보도 찾도록 제한 없이 부른다. */
   limit = NEXT_UP_REC_LIMIT,
+  /** 본선 첫 경기 대진을 정하는 조(deriveOpeningFeedGroups) — 당겨오기 후보 안에서만 앞에 둔다. */
+  feeds: ReadonlySet<number> | null = null,
 ): NextUpRecommendation {
   const none = (note: string): NextUpRecommendation => ({ items: [], excluded: [], note });
   if (!board) return none('경기 정보를 불러오는 중입니다.');
@@ -729,6 +751,9 @@ export function deriveNextUpRecommendations(
   const rounds = new Map<number, string>(); const finals = new Set<number>();
   const unchecked = (m: TournamentMatch) => (checkin ? [m.team1.teamNo, m.team2.teamNo].filter((n) => { const v = checkin.get(n); return v !== undefined && v.status === 'active' && !v.checkedIn; }) : null);
   const teamNo = (n: number) => `TEAM ${String(n).padStart(2, '0')}`;
+  const feedsKo = (m: TournamentMatch) => feeds?.has(m.groupNo as number) ?? false;
+  const groupWord = (m: TournamentMatch) => (m.stage === 'placement' ? (ctx?.placementLabel.split(' ')[0] ?? PLACEMENT_NAME) : `${m.groupNo}조`);
+  const koWord = (m: TournamentMatch) => `${groupWord(m)} · 64강 대진 결정`;
 
   /** 공통 제외 판정 — 막히면 짧은 이유. */
   const blockOf = (m: TournamentMatch, row: ControlMatchRow): string | null => {
@@ -761,7 +786,7 @@ export function deriveNextUpRecommendations(
     if (blocked) { excluded.push({ matchNo: m.matchNo, reason: blocked, rank: rankOf(true, blocked) }); return; }
     const u = unchecked(m); const c = consecutive(m);
     const tier = u === null || u.length > 0 ? 'check' : 'safe';
-    const base = emptyCourts.has(courtNo) ? '이 코트 일정' : '이 코트 일정 다음 경기 · 현재 경기 후 투입';
+    const base = `${emptyCourts.has(courtNo) ? '이 코트 일정' : '이 코트 일정 다음 경기 · 현재 경기 후 투입'}${feedsKo(m) ? ` · ${koWord(m)}` : ''}`;
     const reason = tier === 'check' ? `${base} · ${checkText(u)}`
       : `${base}${c.length ? ` · ${c.map(teamNo).join(' · ')} 연속 출전` : emptyCourts.has(courtNo) ? ' · 양 팀 준비 완료 · 바로 투입 가능' : ' · 양 팀 준비 완료'}`;
     ownOk.push({ match: row, tier, source: 'own', reason });
@@ -785,9 +810,13 @@ export function deriveNextUpRecommendations(
         if (fromCourt.has(src)) return; // 코트 하나에서 하나만 — 여러 코트 부담을 고르게 본다
         fromCourt.add(src);
         const u = unchecked(m); const tier = u === null || u.length > 0 ? 'check' : 'safe';
+        const ko = feedsKo(m) ? ` · ${koWord(m)}` : '';
         pullOk.push({ match: row, tier, source: 'pull',
-          reason: tier === 'check' ? `${src}번 코트 잔여 ${left}경기 분산 · ${checkText(u)}` : `${src}번 코트 잔여 ${left}경기 부담 분산 · 양 팀 준비 완료` });
+          reason: tier === 'check' ? `${src}번 코트 잔여 ${left}경기 분산${ko} · ${checkText(u)}` : `${src}번 코트 잔여 ${left}경기 부담 분산${ko} · 양 팀 준비 완료` });
       });
+    // 본선 첫 경기 대진을 정하는 조를 앞에 둔다(코트당 하나 · 제외 규칙은 그대로, 순서만 바꾼다).
+    const koFirst = (x: NextUpRecItem) => (feeds?.has(x.match.groupNo as number) ? 0 : 1);
+    pullOk.sort((a, b) => koFirst(a) - koFirst(b));
   }
   // 안전 후보 먼저(이 코트 일정 → 당겨오기), 그다음 확인 필요.
   [...ownOk, ...pullOk].filter((x) => x.tier === 'safe').forEach((x) => items.push(x));
