@@ -51,13 +51,23 @@ export function liveStageLabel(now: ArenaCourtMatch, bracket: ArenaBracket | nul
  *   자리 배정은 운영 코트 줄과 같은 함수(arenaCourtSlots)를 쓴다. 등록되지 않은 자리는 registered=false.
  *   NOW = 그 코트의 playing 경기(정규화가 이미 골라 둔 값). NEXT = 항상 null(운영 데이터에 없음 → '미정').
  */
-export function courtBoardFromSnapshot(snapshot: ArenaSnapshot): CourtBoardCourt[] {
+export function courtBoardFromSnapshot(
+  snapshot: ArenaSnapshot,
+  /** 본부 NEXT UP 지정(코트 → 경기 id). 지금 대기 · 호명인 경기만 NEXT 로 보인다 — 진행 · 완료 · 취소면 '미정'. */
+  nextUps: ReadonlyArray<{ courtNo: number; matchId: string }> = [],
+): CourtBoardCourt[] {
+  const waitingById = new Map((snapshot.waiting ?? []).map((m) => [m.matchId, m]));
   return arenaCourtSlots(snapshot.courts).map((cell) => {
     const c = cell.court;
     if (!c) {
       return { courtNo: cell.key, displayName: null, active: false, registered: false, now: null, next: null };
     }
     const offset = snapshot.clockOffset ?? null;
+    const nextOf = (courtNo: number): CourtBoardMatch | null => {
+      const e = nextUps.find((x) => x.courtNo === courtNo);
+      const w = e ? waitingById.get(e.matchId) : undefined;
+      return w ? { matchNo: w.matchNo, stageLabel: liveStageLabel(w, snapshot.bracket), team1: w.team1, team2: w.team2 } : null;
+    };
     const now: CourtBoardMatch | null = c.now
       ? {
           matchNo: c.now.matchNo, stageLabel: liveStageLabel(c.now, snapshot.bracket), team1: c.now.team1, team2: c.now.team2,
@@ -71,7 +81,7 @@ export function courtBoardFromSnapshot(snapshot: ArenaSnapshot): CourtBoardCourt
       active: c.active,
       registered: true,
       now: c.active ? now : null,
-      next: null,
+      next: c.active ? nextOf(c.courtNo) : null,
     };
   });
 }

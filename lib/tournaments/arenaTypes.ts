@@ -152,6 +152,8 @@ export interface ArenaSnapshot {
   bracket: ArenaBracket | null;
   /** 서버 시계 보정값(ms) — 서버 시각 = 기기 시각 + offset. 타이머를 지원하지 않는 서버면 null. */
   clockOffset?: number | null;
+  /** 대기 · 호명 경기(코트 전광판 NEXT 표시용). 없으면 NEXT 는 '미정'. */
+  waiting?: Array<ArenaCourtMatch & { matchId: string }>;
 }
 
 /** 화면 상태. 첫 조회와 배경 갱신을 구분한다. */

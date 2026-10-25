@@ -20,6 +20,7 @@ import {
 } from './controlModel';
 import type { ControlCourt, ControlCourtSuggestion, ControlGroup, ControlMatchRow, ControlNextUp, ControlPickState, NextUpRecItem, NextUpRecommendation } from './controlModel';
 import { useCourtNextUp } from './useCourtNextUp';
+import NextUpServerSync from './NextUpServerSync';
 import { ControlAttention, ControlOperations, CourtCardTimer } from './ControlOperations';
 import type { ControlOps } from './ControlOperations';
 import ControlScoreDialog from './ControlScoreDialog';
@@ -1562,6 +1563,8 @@ export default function ControlCenter({ slug, event }: { slug: string; event: Co
                 <PickBanner match={pick} state={pickState} disabled={act.busy !== ''}
                   onCancel={() => setPick(null)} unchecked={pickUnchecked} hintCourt={hintCourt} />
               )}
+              {/* 코트 전광판 NEXT 연동(서버 복사) — SQL 미적용 · 권한 없음이면 그리지 않는다. 경기 운영과 무관. */}
+              <NextUpServerSync slug={slug} entries={nextUp.entries} loaded={nextUp.loaded} />
               <CourtBoard
                 courts={courts}
                 picking={canStart}

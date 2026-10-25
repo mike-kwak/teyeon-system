@@ -233,6 +233,10 @@ export function normalizeArena(input: {
       : null,
     bracket: input.mode === 'knockout' ? normalizeBracket(input.bracket, placementNoMapFromBoard(input.board)) : null,
     clockOffset: clockOffset(input.board?.serverNow ?? null, input.board?.receivedAt ?? null),
+    // 대기 · 호명 경기(경기 id → 표시값) — 코트 전광판 NEXT 를 본부 NEXT UP 지정과 맞출 때만 쓴다(같은 조회 결과, 추가 요청 없음).
+    waiting: (input.board?.matches ?? [])
+      .filter((m) => m.status === 'waiting' || m.status === 'calling')
+      .map((m) => ({ matchId: m.matchId, ...courtMatchOf(m), playStartMs: null })),
   };
 }
 
