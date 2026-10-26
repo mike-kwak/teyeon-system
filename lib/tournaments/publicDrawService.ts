@@ -103,15 +103,21 @@ export async function fetchPublicPreliminaryDraw(
   // ⚠ 조회 실패(네트워크 · 서버 오류)는 '공개 전' 과 다르다 — 던져서 호출부가 보고 있던 내용을 지키게 한다.
   //   (화면 갱신 중 한 번 실패했다고 조 목록이 '공개 전' 으로 바뀌지 않게. 호출부는 모두 catch 한다.)
   if (error) throw new Error('public preliminary draw unavailable');
-  if (data === null || data === undefined) return { draw: null };
+  return { draw: parsePublicPreliminaryDraw(data) };
+}
+
+/**
+ * 공개 예선 DRAW 응답(get_public_preliminary_draw 모양) → 화면 타입. 공개되지 않았거나 비어 있으면 null.
+ *   공식 결과 아카이브(확정 스냅샷 안에 같은 모양으로 보관)도 이 함수로 읽는다.
+ */
+export function parsePublicPreliminaryDraw(data: unknown): PublicPreliminaryDraw | null {
+  if (data === null || data === undefined) return null;
   const o = rec(data);
-  if (o.published !== true) return { draw: null };
+  if (o.published !== true) return null;
   return {
-    draw: {
-      slug: str(o.slug),
-      qualifyPerGroup: num(o.qualifyPerGroup),
-      groups: arr(o.groups).map(groupOf).sort((a, b) => a.groupNo - b.groupNo),
-      placement: arr(o.placement).map(placementOf),
-    },
+    slug: str(o.slug),
+    qualifyPerGroup: num(o.qualifyPerGroup),
+    groups: arr(o.groups).map(groupOf).sort((a, b) => a.groupNo - b.groupNo),
+    placement: arr(o.placement).map(placementOf),
   };
 }

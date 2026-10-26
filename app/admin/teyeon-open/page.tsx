@@ -110,7 +110,8 @@ function sectionsFor(slug: string): HubSection[] {
       links: [
         { id: 'standings', title: '예선 순위', desc: '조별 순위 · 진출 · 동률 확인(관리자)', icon: ListOrdered, href: `${admin}/standings` },
         { id: 'placement', title: '순위결정전', desc: '순위결정전 상세(관리자)', icon: Award, href: `${admin}/standings/placement` },
-        { id: 'final-results', title: '최종 결과 · 시상', desc: '본선 최종 순위 · 공개 RESULTS 화면은 아직 없습니다.', icon: Award },
+        { id: 'final-results', title: '공식 결과 아카이브', desc: '공식 결과 검증 · 확정 · 공개 · 시상 사진 · 영상 연결', icon: Award, href: `${admin}/results` },
+        { id: 'pub-results', title: '공개 RESULTS', desc: '참가자 화면의 공식 결과(공개 후 보임)', icon: Trophy, href: `${pub}/results`, newTab: true },
       ],
     },
   ];

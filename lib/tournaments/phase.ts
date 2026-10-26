@@ -98,6 +98,7 @@ export function buildHubNavItems(opts: {
     item('draw', 'DRAW', drawPublished ? `${base}/draw` : null, RELEASE_NOTE.draw),
     // LIVE — 배포 스위치(NEXT_PUBLIC_PUBLIC_LIVE_ENABLED=1)가 켜졌을 때만 연다. 꺼져 있으면 기존 그대로 '대회 당일 공개'.
     item('live', 'LIVE', PUBLIC_LIVE_ENABLED ? `${base}/live` : null, RELEASE_NOTE.live),
-    item('results', 'RESULTS', null, RELEASE_NOTE.results),
+    // RESULTS — 공식 결과 아카이브. 확정 · 공개 전이면 그 화면이 '공식 결과 준비 중'을 안내한다.
+    item('results', 'RESULTS', `${base}/results`, RELEASE_NOTE.results),
   ];
 }

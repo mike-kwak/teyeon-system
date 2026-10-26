@@ -79,10 +79,18 @@ export async function fetchPublicKnockoutBracket(
   // ⚠ 조회 실패(네트워크 · 서버 오류)는 '공개 전' 과 다르다 — 던져서 usePublicKnockoutBracket 이
   //   보고 있던 대진을 지키게 한다(첫 조회 실패면 '불러오지 못했습니다' 안내). 호출부는 모두 catch 한다.
   if (error) throw new Error('public knockout bracket unavailable');
-  if (data === null || data === undefined) return { bracket: null };
+  return { bracket: parsePublicKnockoutBracket(data, slug) };
+}
+
+/**
+ * 공개 본선 응답(get_public_knockout_bracket 모양) → 화면 타입. 공개되지 않았거나 비어 있으면 null.
+ *   공식 결과 아카이브(확정 스냅샷 안에 같은 모양으로 보관)도 이 함수로 읽는다.
+ */
+export function parsePublicKnockoutBracket(data: unknown, slug: string): PublicKnockoutBracket | null {
+  if (data === null || data === undefined) return null;
 
   const o = rec(data);
-  if (o.available !== true) return { bracket: null };
+  if (o.available !== true) return null;
 
   const pubInfo = rec(o.publication);
   const b = rec(o.bracket);
@@ -90,7 +98,6 @@ export async function fetchPublicKnockoutBracket(
   const status = str(pubInfo.bracketStatus);
 
   return {
-    bracket: {
       slug: str(t.slug) || slug,
       tournamentTitle: str(t.title),
       bracketTitle: strOrNull(b.title),
@@ -142,7 +149,6 @@ export async function fetchPublicKnockoutBracket(
         };
       }).sort((a, z) => a.matchNo - z.matchNo),
       champion: teamOf(o.champion),
-    },
   };
 }
 
