@@ -190,7 +190,7 @@ const MAX_EDGE = 2400;
  * 사진 업로드 — 긴 변 2400px 이하 · WebP(지원 안 하면 JPEG)로 줄여 올린다. 경로 = <tournamentId>/<uuid>.<ext>.
  *   ⚠ 원래 파일 이름은 쓰지 않는다. 올린 뒤 save_tournament_result_media 로 연결해야 화면에 쓰인다.
  */
-export async function uploadResultPhoto(tournamentId: string, file: File): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
+export async function uploadResultPhoto(tournamentId: string, file: File): Promise<{ ok: true; path: string } | { ok: false; reason: string; detail?: string }> {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return { ok: false, reason: 'type' };
   if (file.size > 30 * 1024 * 1024) return { ok: false, reason: 'size' };
   let blob: Blob = file; let ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
@@ -209,7 +209,20 @@ export async function uploadResultPhoto(tournamentId: string, file: File): Promi
   const { error } = await supabase.storage.from(RESULT_MEDIA_BUCKET).upload(path, blob, {
     contentType: ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', upsert: false, cacheControl: '3600',
   });
-  return error ? { ok: false, reason: 'upload' } : { ok: true, path };
+  return error ? { ok: false, reason: 'upload', detail: error.message } : { ok: true, path };
+}
+
+/** 사진 올리기 실패 → 운영자 안내(서버가 준 원인을 쉬운 말로). */
+export function photoUploadMessage(reason: string, detail?: string): string {
+  if (reason === 'type') return 'JPEG · PNG · WebP 사진만 올릴 수 있습니다.';
+  if (reason === 'size') return '사진이 너무 큽니다. 10MB 이하로 줄여 다시 올려 주세요.';
+  const d = detail ?? '';
+  if (/row-level security|unauthori[sz]ed|permission|403/i.test(d)) return '사진을 올릴 권한이 없습니다. CEO · ADMIN 계정으로 다시 로그인해 주세요.';
+  if (/bucket not found/i.test(d)) return '사진 저장소(tournament-results)를 찾지 못했습니다. 저장소 SQL 적용 상태를 확인해 주세요.';
+  if (/payload too large|exceed|maximum allowed size/i.test(d)) return '사진이 저장소 크기 제한(10MB)을 넘었습니다.';
+  if (/mime|content type|invalid.*type/i.test(d)) return '이 형식의 파일은 저장소가 받지 않습니다(JPEG · PNG · WebP).';
+  if (/fetch|network|timeout/i.test(d)) return '네트워크 문제로 사진을 올리지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.';
+  return `사진을 올리지 못했습니다${d ? `(${d.slice(0, 120)})` : ''}.`;
 }
 
 export const RESULT_ACTION_MESSAGE: Record<string, string> = {

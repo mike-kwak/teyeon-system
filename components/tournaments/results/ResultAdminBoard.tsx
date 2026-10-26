@@ -10,7 +10,7 @@ import React from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Eye, EyeOff, ImagePlus, Lock, RefreshCw, Trash2, TriangleAlert, Video } from 'lucide-react';
 import {
-  amendResult, confirmResult, deleteResultMedia, fetchResultAdmin, resultActionMessage, saveResultMedia, setResultPublic, uploadResultPhoto,
+  amendResult, confirmResult, deleteResultMedia, fetchResultAdmin, photoUploadMessage, resultActionMessage, saveResultMedia, setResultPublic, uploadResultPhoto,
 } from '@/lib/tournaments/resultArchiveService';
 import { parseYouTubeVideoId } from '@/lib/tournaments/youtube';
 import { RESULT_PHOTO_CATEGORIES, RESULT_VIDEO_CATEGORIES } from '@/lib/tournaments/resultArchiveTypes';
@@ -85,9 +85,11 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
   const [editionNo, setEditionNo] = React.useState('');
   const [editionLabel, setEditionLabel] = React.useState('');
   const [reason, setReason] = React.useState('');
-  const [photo, setPhoto] = React.useState<{ category: string; title: string; isPublic: boolean; file: File | null }>({ category: 'champion', title: '', isPublic: false, file: null });
+  // ⚠ 공개 승인은 기본 해제 — 올린 뒤 목록에서 사진을 확인하고 [공개]를 누르는 것이 기본 흐름이다.
+  const [photo, setPhoto] = React.useState<{ category: string; title: string; isPublic: boolean }>({ category: 'champion', title: '', isPublic: false });
   const [video, setVideo] = React.useState<{ category: string; title: string; url: string; isPublic: boolean }>({ category: 'highlight', title: '', url: '', isPublic: false });
   const fileRef = React.useRef<HTMLInputElement | null>(null);
+  const [upload, setUpload] = React.useState<{ kind: 'idle' | 'selected' | 'uploading' | 'done' | 'error'; text: string }>({ kind: 'idle', text: '' });
 
   const reload = React.useCallback(async () => {
     const r = await fetchResultAdmin(slug);
@@ -135,14 +137,25 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
     if (r.ok) setReason('');
     return r.ok ? { ok: true, text: '공식 기록을 정정했습니다.' } : { ok: false, text: resultActionMessage(r.reason) };
   });
-  const doUploadPhoto = () => run(async () => {
-    if (!photo.file) return { ok: false, text: '사진 파일을 골라 주세요.' };
-    const up = await uploadResultPhoto(s.tournamentId, photo.file);
-    if (!up.ok) return { ok: false, text: up.reason === 'type' ? 'JPEG · PNG · WebP 사진만 올릴 수 있습니다.' : up.reason === 'size' ? '사진이 너무 큽니다(10MB 이하로 줄여 주세요).' : '사진을 올리지 못했습니다.' };
+  // 파일을 고르면 바로 올린다(고르는 창은 [사진 올리기] = 파일 입력과 연결된 label 이 연다).
+  const doUploadPhoto = (file: File) => run(async () => {
+    setUpload({ kind: 'uploading', text: `업로드 중… ${file.name}` });
+    const up = await uploadResultPhoto(s.tournamentId, file);
+    if (!up.ok) { const text = photoUploadMessage(up.reason, up.detail); setUpload({ kind: 'error', text: `업로드 실패 — ${text}` }); return { ok: false, text }; }
     const r = await saveResultMedia(slug, { id: null, kind: 'photo', category: photo.category, title: photo.title.trim() || null, storagePath: up.path, youtubeId: null, isPublic: photo.isPublic, displayOrder: photos.length + 1 });
-    if (r.ok) { setPhoto({ category: photo.category, title: '', isPublic: false, file: null }); if (fileRef.current) fileRef.current.value = ''; }
-    return r.ok ? { ok: true, text: '사진을 연결했습니다.' } : { ok: false, text: resultActionMessage(r.reason) };
+    if (!r.ok) { const text = resultActionMessage(r.reason); setUpload({ kind: 'error', text: `업로드 실패 — ${text}` }); return { ok: false, text }; }
+    setUpload({ kind: 'done', text: `업로드 완료 — ${file.name}${photo.isPublic ? ' (공개 승인됨)' : ' (비공개 · 아래 목록에서 확인 후 [공개]를 누르세요)'}` });
+    setPhoto({ category: photo.category, title: '', isPublic: false });
+    return { ok: true, text: '사진을 연결했습니다.' };
   });
+  const onPickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    e.target.value = ''; // 같은 파일을 다시 고를 수 있게
+    if (!f) return;      // 고르기 취소 — 아무 일도 하지 않는다
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { setUpload({ kind: 'error', text: `업로드 실패 — ${photoUploadMessage('type')}` }); return; }
+    setUpload({ kind: 'selected', text: `선택됨 — ${f.name}` });
+    void doUploadPhoto(f);
+  };
   const doAddVideo = () => run(async () => {
     const yt = parseYouTubeVideoId(video.url);
     if (!yt.ok) return { ok: false, text: 'YouTube 영상 주소(watch · youtu.be · shorts)를 붙여 넣어 주세요.' };
@@ -234,10 +247,22 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
             {RESULT_PHOTO_CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
           <input style={{ ...input, flex: '1 1 160px' }} maxLength={80} placeholder="설명(선택)" value={photo.title} onChange={(e) => setPhoto({ ...photo, title: e.target.value })} />
-          <input ref={fileRef} data-result-photo-file type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhoto({ ...photo, file: e.target.files?.[0] ?? null })} style={{ fontSize: 13, maxWidth: '100%' }} />
-          <label style={{ fontSize: 13, fontWeight: 700, color: INK, display: 'inline-flex', gap: 5, alignItems: 'center' }}><input type="checkbox" checked={photo.isPublic} onChange={(e) => setPhoto({ ...photo, isPublic: e.target.checked })} />바로 공개 승인</label>
-          <button type="button" data-result-action="upload-photo" style={btn(true)} disabled={busy || !photo.file} onClick={() => void doUploadPhoto()}>사진 올리기</button>
+          <label style={{ fontSize: 13, fontWeight: 700, color: INK, display: 'inline-flex', gap: 5, alignItems: 'center' }}>
+            <input type="checkbox" data-result-photo-public checked={photo.isPublic} onChange={(e) => setPhoto({ ...photo, isPublic: e.target.checked })} />올리면서 바로 공개 승인
+          </label>
+          {/* 파일 고르기 — label 이 숨긴 파일 입력과 연결되어 있어 누르면 바로 선택 창이 열린다(PC · 모바일 공통, 사용자 클릭 그대로). */}
+          <input ref={fileRef} id={`result-photo-file-${slug}`} data-result-photo-file type="file" accept="image/jpeg,image/png,image/webp"
+            disabled={busy} onChange={onPickPhoto}
+            style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0, opacity: 0 }} />
+          <label htmlFor={`result-photo-file-${slug}`} data-result-action="upload-photo" role="button" aria-disabled={busy}
+            style={{ ...btn(true), opacity: busy ? 0.5 : 1, pointerEvents: busy ? 'none' : 'auto' }}>
+            <ImagePlus size={14} />{upload.kind === 'uploading' ? '업로드 중…' : '사진 올리기'}
+          </label>
         </div>
+        {upload.kind !== 'idle' && (
+          <p role="status" data-result-upload-status={upload.kind} style={{ margin: 0, fontSize: 12.5, fontWeight: 800, overflowWrap: 'anywhere',
+            color: upload.kind === 'error' ? WARN : upload.kind === 'done' ? '#065F46' : INK }}>{upload.text}</p>
+        )}
         {photos.length === 0 ? <p style={{ margin: 0, fontSize: 12.5, color: MUTED }}>연결된 사진이 없습니다. 사진이 없어도 결과 화면은 정상으로 보입니다.</p>
           : <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>{photos.map((m) => <MediaRow key={m.id} m={m} busy={busy} onTogglePublic={() => void toggleMedia(m)} onDelete={() => void removeMedia(m)} />)}</ul>}
       </section>
