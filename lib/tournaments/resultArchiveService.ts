@@ -61,7 +61,7 @@ const parseMedia = (v: unknown): ResultMedia[] => arr(v).flatMap((x) => {
   if (!kind || !str(m.id)) return [];
   return [{
     id: str(m.id), kind, category: str(m.category) as ResultMedia['category'], title: strOrNull(m.title),
-    storagePath: strOrNull(m.storagePath), youtubeId: strOrNull(m.youtubeId), displayOrder: numOrNull(m.displayOrder) ?? 0,
+    storagePath: strOrNull(m.storagePath), youtubeId: strOrNull(m.youtubeId), displayOrder: numOrNull(m.displayOrder) ?? 0, teamNo: numOrNull(m.teamNo),
     ...(typeof m.isPublic === 'boolean' ? { isPublic: m.isPublic } : {}),
   }];
 });
@@ -170,9 +170,9 @@ export const amendResult = (slug: string, reason: string, expectedVersion: numbe
   callAction('amend_tournament_result', { p_slug: slug, p_reason: reason, p_expected_version: expectedVersion, p_expected_md5: expectedMd5 });
 export const setResultPublic = (slug: string, isPublic: boolean) =>
   callAction('set_tournament_result_public', { p_slug: slug, p_public: isPublic });
-export const saveResultMedia = (slug: string, m: { id: string | null; kind: 'photo' | 'video'; category: string; title: string | null; storagePath: string | null; youtubeId: string | null; isPublic: boolean; displayOrder: number }) =>
+export const saveResultMedia = (slug: string, m: { id: string | null; kind: 'photo' | 'video'; category: string; title: string | null; storagePath: string | null; youtubeId: string | null; isPublic: boolean; displayOrder: number; teamNo: number | null }) =>
   callAction('save_tournament_result_media', { p_slug: slug, p_id: m.id, p_kind: m.kind, p_category: m.category, p_title: m.title,
-    p_storage_path: m.storagePath, p_youtube_id: m.youtubeId, p_is_public: m.isPublic, p_display_order: m.displayOrder });
+    p_storage_path: m.storagePath, p_youtube_id: m.youtubeId, p_is_public: m.isPublic, p_display_order: m.displayOrder, p_team_no: m.teamNo });
 
 /** 연결 삭제 → 사진이면 파일도 지운다(파일 삭제 실패는 연결 삭제를 되돌리지 않는다 — 공개되지 않으므로). */
 export async function deleteResultMedia(slug: string, id: string): Promise<ResultActionResult> {
@@ -241,5 +241,7 @@ export const RESULT_ACTION_MESSAGE: Record<string, string> = {
   invalid_media: '사진 · 영상 정보가 올바르지 않습니다(분류 · YouTube 주소 확인).',
   not_found: '대상을 찾지 못했습니다. 새로고침해 주세요.',
   tournament_not_found: '대회를 찾지 못했습니다.',
+  team_required: '공동 3위 사진은 어느 팀 사진인지 먼저 골라 주세요.',
+  team_mismatch: '고른 팀이 공식 결과의 그 입상팀이 아닙니다. 새로고침 뒤 다시 골라 주세요.',
 };
 export const resultActionMessage = (reason: string) => RESULT_ACTION_MESSAGE[reason] ?? `처리하지 못했습니다(${reason}).`;

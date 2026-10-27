@@ -115,58 +115,102 @@ function EditionSelector({ editions, current }: { editions: ResultEditionSummary
 
 // ── 입상 ──────────────────────────────────────────────────────────────────
 
-function TeamNames({ team, size }: { team: PublicKnockoutTeam; size: number }) {
+//   공식 시상 갤러리 — 우승(전체 폭 · 가장 큰 카드) → 준우승(전체 폭 · 한 단계 낮게) → 공동 3위(PC 2열 · 모바일 1열).
+//   카드에는 입상 등급 · 선수 이름 · 시상 사진만 둔다. 팀 번호 · 경기 번호 · 점수 · 상대는 예선 결과와 본선 대진표에서 본다
+//   (스냅샷 값은 그대로 두고 화면에서만 숨긴다). 사진이 없거나 못 읽으면 사진 칸 없이 문장 카드로 바뀐다(깨진 이미지 금지).
+
+type AwardSize = 'champion' | 'runner' | 'semi';
+type AwardTone = { accent: string; deep: string; line: string; from: string; to: string; ring: string };
+
+const TONES: Record<AwardSize, AwardTone> = {
+  champion: { accent: GOLD, deep: '#7E5B12', line: '#E3CF9E', from: '#FFFDF7', to: GOLD_SOFT, ring: '#F3E6C4' },
+  runner: { accent: SILVER, deep: '#3E4C5E', line: '#D5DCE5', from: '#FCFDFE', to: '#EEF2F6', ring: '#E1E7EE' },
+  semi: { accent: BRONZE, deep: '#6F4626', line: '#E8D6C6', from: '#FFFDFB', to: '#F8EFE7', ring: '#F0E0D2' },
+};
+
+/** 월계수 가지(장식) — 우승 카드 머리말 양옆. */
+function Laurel({ color, flip = false }: { color: string; flip?: boolean }) {
+  const leaves: Array<[number, number, number]> = [[21, 49, -58], [15, 41, -42], [11, 32, -26], [10, 23, -10], [11, 14, 6], [14, 6, 20]];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-      {names(team).map((n) => (
-        <span key={n} style={{ fontSize: size, fontWeight: 900, color: TT.ink, lineHeight: 1.25, overflowWrap: 'anywhere', wordBreak: 'keep-all' }}>{n}</span>
-      ))}
-      <span style={{ fontFamily: FONT_LABEL, fontSize: 11.5, fontWeight: 800, letterSpacing: '0.08em', color: TT.subtle }}>TEAM {pad2(team.teamNo)}</span>
-    </div>
+    <svg width="30" height="54" viewBox="0 0 34 58" aria-hidden style={{ flexShrink: 0, transform: flip ? 'scaleX(-1)' : undefined }}>
+      <path d="M28 56 C 12 46, 6 28, 15 3" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+      {leaves.map(([x, y, r]) => <ellipse key={y} cx={x - 3} cy={y} rx="2.6" ry="6.2" transform={`rotate(${r} ${x - 3} ${y})`} fill={color} opacity="0.8" />)}
+      {leaves.slice(0, 5).map(([x, y, r]) => <ellipse key={`i${y}`} cx={x + 4} cy={y - 3} rx="2.3" ry="5.4" transform={`rotate(${r + 62} ${x + 4} ${y - 3})`} fill={color} opacity="0.55" />)}
+    </svg>
   );
 }
 
-function AwardCard({ tier, title, sub, team, line, photos, color, soft, big = false }: {
-  tier: string; title: string; sub: string; team: PublicKnockoutTeam; line: string; photos: ResultMedia[]; color: string; soft: string; big?: boolean;
+function AwardCard({ tier, size, title, sub, team, photo }: {
+  tier: string; size: AwardSize; title: string; sub: string; team: PublicKnockoutTeam; photo: ResultMedia | null;
 }) {
+  const [broken, setBroken] = React.useState(false);
+  const tone = TONES[size];
+  const ns = names(team);
+  const shown = photo && photo.url && !broken ? photo : null;
+  const Icon = size === 'champion' ? Trophy : Medal;
+  const icon = size === 'champion' ? 26 : size === 'runner' ? 22 : 18;
+  const badge = size === 'champion' ? 56 : size === 'runner' ? 46 : 38;
   return (
-    <article data-result-award={tier} style={{ background: TT.surface, border: `1px solid ${TT.line}`, borderTop: `4px solid ${color}`, borderRadius: 14, padding: big ? 18 : 15, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: big ? 34 : 28, height: big ? 34 : 28, borderRadius: 8, background: soft, color, flexShrink: 0 }}>
-          {big ? <Trophy size={18} strokeWidth={2.4} /> : <Medal size={15} strokeWidth={2.4} />}
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontFamily: FONT_LABEL, fontSize: 12, fontWeight: 800, letterSpacing: '0.16em', color }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: TT.muted }}>{sub}</p>
+    <article data-result-award={tier} aria-label={`${sub} ${ns.join(', ')}`}
+      className={`rs-award rs-award--${size}${shown ? '' : ' rs-award--nophoto'}`}
+      style={{ ['--fade' as string]: tone.to, background: `linear-gradient(120deg, ${tone.from} 0%, ${tone.to} 100%)`, border: `1px solid ${tone.line}` }}>
+      <div className="rs-award__in" style={size === 'champion' ? { border: `1px solid ${tone.line}` } : undefined}>
+        <div className="rs-award__head">
+          <div className="rs-award__badge-row">
+            {size === 'champion' && <Laurel color={tone.accent} />}
+            <span className="rs-award__badge" style={{ width: badge, height: badge, color: tone.accent, background: '#fff', boxShadow: `0 0 0 4px ${tone.ring}, 0 6px 14px -8px ${tone.deep}` }}>
+              <Icon size={icon} strokeWidth={2.1} />
+            </span>
+            {size === 'champion' && <Laurel color={tone.accent} flip />}
+          </div>
+          <div className="rs-award__tier">
+            <p style={{ margin: 0, fontFamily: FONT_LABEL, fontWeight: 800, letterSpacing: '0.22em', color: tone.accent }} className="rs-award__en">{title}</p>
+            <p style={{ margin: 0, fontWeight: 900, color: tone.deep, letterSpacing: '-0.01em' }} className="rs-award__ko">{sub}</p>
+          </div>
         </div>
+        {shown && (
+          <figure className="rs-award__photo" style={{ background: tone.ring }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={shown.url as string} alt={`${sub} ${ns.join(' · ')} 시상 사진`} loading={size === 'champion' ? 'eager' : 'lazy'} decoding="async" onError={() => setBroken(true)} />
+          </figure>
+        )}
+        <div className="rs-award__names">
+          {size === 'champion' && <span aria-hidden className="rs-award__rule" style={{ background: tone.line }} />}
+          <p className="rs-award__name" style={{ color: NAVY }}>
+            {ns.map((n, i) => (
+              <React.Fragment key={`${n}-${i}`}>
+                {i > 0 && <span aria-hidden className="rs-award__dot" style={{ color: tone.accent }}>·</span>}
+                <span className="rs-award__player">{n}</span>
+              </React.Fragment>
+            ))}
+          </p>
+        </div>
+        {!shown && <Icon aria-hidden className="rs-award__mark" size={size === 'champion' ? 150 : 110} strokeWidth={1.1} color={tone.accent} />}
       </div>
-      {photos.slice(0, 1).map((m) => <Photo key={m.id} m={m} ratio={big ? '16 / 10' : '4 / 3'} />)}
-      <TeamNames team={team} size={big ? 22 : 17} />
-      <a href="#knockout" style={{ marginTop: 'auto', fontSize: 12, fontWeight: 700, color: TT.muted, textDecoration: 'none', wordBreak: 'keep-all' }}>{line}</a>
     </article>
   );
+}
+
+/** 입상 사진 고르기 — 사진에 적힌 입상팀 번호(teamNo)가 공식 스냅샷의 그 팀 번호와 같을 때만 붙인다.
+ *   우승 · 준우승은 분류만으로 팀이 하나로 정해지므로 번호가 비어 있어도 그 분류 사진을 쓴다(번호가 다르면 쓰지 않음).
+ *   공동 3위는 두 팀이라 번호가 정확히 같아야만 쓴다 — 올린 순서 · 제목으로 짐작하지 않는다(미지정 사진은 표시하지 않음). */
+function awardPhoto(media: ResultMedia[], category: 'champion' | 'runner_up' | 'semifinal', teamNo: number): ResultMedia | null {
+  return media.find((m) => m.kind === 'photo' && m.category === category && m.url
+    && (m.teamNo === teamNo || (category !== 'semifinal' && (m.teamNo === null || m.teamNo === undefined)))) ?? null;
 }
 
 function Awards({ a }: { a: ResultArchive }) {
   if (!a.awards) {
     return <p role="alert" style={{ margin: 0, padding: 14, borderRadius: 12, background: '#FFF7ED', color: '#9A3412', fontSize: 13, fontWeight: 700 }}>입상 결과를 확인할 수 없습니다(확정 기록에 결승 · 4강 결과 없음).</p>;
   }
-  const { champion, runnerUp, final, semifinalists } = a.awards;
-  const ph = (c: string) => a.media.filter((m) => m.kind === 'photo' && m.category === c && m.url);
-  const champScore = final.winnerSide === 1 ? `${final.score1}:${final.score2}` : `${final.score2}:${final.score1}`;
+  const { champion, runnerUp, semifinalists } = a.awards;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div className="rs-awards-top">
-        <AwardCard tier="champion" title="CHAMPION" sub="우승" team={champion.team} photos={ph('champion')} color={GOLD} soft={GOLD_SOFT} big
-          line={`결승 MATCH ${pad2(final.matchNo)} · ${champScore} 승`} />
-        <AwardCard tier="runner_up" title="RUNNER-UP" sub="준우승" team={runnerUp.team} photos={ph('runner_up')} color={SILVER} soft="#EEF2F6"
-          line={`결승 MATCH ${pad2(final.matchNo)} · ${champScore.split(':').reverse().join(':')} 패`} />
-      </div>
+    <div data-result-awards style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <AwardCard tier="champion" size="champion" title="CHAMPION" sub="우승" team={champion.team} photo={awardPhoto(a.media, 'champion', champion.team.teamNo)} />
+      <AwardCard tier="runner_up" size="runner" title="RUNNER-UP" sub="준우승" team={runnerUp.team} photo={awardPhoto(a.media, 'runner_up', runnerUp.team.teamNo)} />
       <div className="rs-awards-semi">
-        {semifinalists.map((s, i) => (
-          <AwardCard key={s.team.teamNo} tier="semifinal" title="SEMIFINALIST" sub="공동 3위" team={s.team} color={BRONZE} soft="#F6EEE6"
-            photos={ph('semifinal').slice(i, i + 1)}
-            line={`4강${s.matchNo ? ` MATCH ${pad2(s.matchNo)}` : ''} · ${s.loserSide === 1 ? `${s.score1}:${s.score2}` : `${s.score2}:${s.score1}`} 패${s.lostTo ? ` (vs ${names(s.lostTo).join('·')})` : ''}`} />
+        {semifinalists.map((s) => (
+          <AwardCard key={s.team.teamNo} tier="semifinal" size="semi" title="SEMIFINALIST" sub="공동 3위" team={s.team} photo={awardPhoto(a.media, 'semifinal', s.team.teamNo)} />
         ))}
       </div>
     </div>
@@ -351,12 +395,77 @@ export default function ResultArchiveView({ archive, editions }: { archive: Resu
   return (
     <div data-result-archive={archive.slug} style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
       <style>{`
-        .rs-awards-top { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-        .rs-awards-semi, .rs-videos, .rs-gallery { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .rs-videos, .rs-gallery { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .rs-groups { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-        @media (max-width: 459px) { .rs-awards-semi, .rs-videos, .rs-gallery { grid-template-columns: minmax(0, 1fr); } }
+        @media (max-width: 459px) { .rs-videos, .rs-gallery { grid-template-columns: minmax(0, 1fr); } }
+
+        .rs-awards-semi { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+        .rs-award { position: relative; min-width: 0; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,42,61,0.04), 0 12px 28px -18px rgba(16,42,61,0.28); }
+        .rs-award--champion { padding: 5px; border-radius: 18px; box-shadow: 0 1px 2px rgba(16,42,61,0.05), 0 18px 36px -20px rgba(126,91,18,0.42); }
+        .rs-award__in { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "photo" "names"; border-radius: 15px; overflow: hidden; }
+        .rs-award--champion .rs-award__in { border-radius: 13px; }
+        .rs-award__head { grid-area: head; position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px; }
+        .rs-award__badge-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .rs-award__badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
+        .rs-award__tier { min-width: 0; }
+        .rs-award__en { font-size: 12px; }
+        .rs-award__ko { font-size: 15px; margin-top: 1px; }
+        .rs-award__photo { grid-area: photo; position: relative; margin: 0; overflow: hidden; aspect-ratio: 5 / 4; }
+        .rs-award__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; display: block; transform: scale(var(--zoom, 1)); transform-origin: 50% 50%; }
+        .rs-award--champion .rs-award__photo, .rs-award--runner .rs-award__photo { --zoom: 1.5; }
+        .rs-award--semi .rs-award__photo { --zoom: 1.15; }
+        .rs-award__names { grid-area: names; position: relative; z-index: 1; padding: 14px 16px 18px; min-width: 0; }
+        .rs-award__name { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 2px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.22; font-size: 20px; }
+        .rs-award__player { min-width: 0; max-width: 100%; word-break: keep-all; overflow-wrap: anywhere; }
+        .rs-award__dot { font-weight: 700; }
+        .rs-award__rule { display: block; width: 44px; height: 1px; margin: 0 auto 12px; }
+        .rs-award__mark { position: absolute; right: -14px; bottom: -22px; opacity: 0.08; pointer-events: none; }
+        .rs-award--nophoto .rs-award__in { grid-template-areas: "head" "names"; }
+
+        .rs-award--champion .rs-award__head { flex-direction: column; gap: 10px; padding: 22px 16px 16px; text-align: center; }
+        .rs-award--champion .rs-award__en { font-size: 13px; }
+        .rs-award--champion .rs-award__ko { font-size: 19px; margin-top: 2px; }
+        .rs-award--champion .rs-award__photo { aspect-ratio: 1 / 1; }
+        .rs-award--champion .rs-award__names { padding: 18px 16px 22px; }
+        .rs-award--champion .rs-award__name { justify-content: center; font-size: 27px; column-gap: 10px; }
+        .rs-award--runner .rs-award__name { font-size: 23px; }
+        .rs-award--semi .rs-award__head { padding: 14px 14px 12px; gap: 10px; }
+        .rs-award--semi .rs-award__en { font-size: 11px; }
+        .rs-award--semi .rs-award__names { padding: 12px 14px 16px; }
+
+        @media (min-width: 768px) {
+          .rs-awards-semi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .rs-award--champion .rs-award__in, .rs-award--runner .rs-award__in {
+            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "head photo" "names photo";
+          }
+          .rs-award--champion .rs-award__head, .rs-award--runner .rs-award__head { align-self: end; }
+          .rs-award--champion .rs-award__names, .rs-award--runner .rs-award__names { align-self: start; }
+          .rs-award--champion .rs-award__photo, .rs-award--runner .rs-award__photo { aspect-ratio: auto; height: 100%; }
+          .rs-award--champion .rs-award__photo { min-height: 340px; }
+          .rs-award--runner .rs-award__photo { min-height: 240px; }
+          .rs-award--champion .rs-award__photo::before, .rs-award--runner .rs-award__photo::before {
+            content: ''; position: absolute; inset: 0 auto 0 0; width: 22%; z-index: 1; background: linear-gradient(90deg, var(--fade), transparent);
+          }
+          .rs-award--champion .rs-award__name { font-size: 32px; }
+          .rs-award--champion .rs-award__ko { font-size: 21px; }
+          .rs-award--runner .rs-award__head { padding: 22px 22px 10px; }
+          .rs-award--runner .rs-award__names { padding: 6px 22px 24px; }
+          .rs-award--runner .rs-award__name { font-size: 25px; }
+          .rs-award--nophoto .rs-award__in { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto !important; grid-template-areas: "head" "names" !important; }
+        }
+        @media (min-width: 1100px) {
+          .rs-award--champion .rs-award__photo { min-height: 380px; }
+          .rs-award--champion .rs-award__name { font-size: 34px; }
+          .rs-award--runner .rs-award__photo { min-height: 260px; }
+          .rs-award--semi .rs-award__in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "head photo" "names photo"; }
+          .rs-award--semi .rs-award__head { flex-direction: column; align-items: flex-start; align-self: end; padding: 18px 16px 8px; }
+          .rs-award--semi .rs-award__names { align-self: start; padding: 4px 16px 18px; }
+          .rs-award--semi .rs-award__name { flex-direction: column; align-items: flex-start; font-size: 21px; }
+          .rs-award--semi .rs-award__dot { display: none; }
+          .rs-award--semi .rs-award__photo { aspect-ratio: auto; height: 100%; min-height: 220px; --zoom: 1.35; }
+        }
+
         @media (min-width: 760px) {
-          .rs-awards-top { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
           .rs-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .rs-videos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
@@ -366,7 +475,7 @@ export default function ResultArchiveView({ archive, editions }: { archive: Resu
       <EditionSelector editions={editions} current={archive.slug} />
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <SectionHead label="CHAMPIONS & AWARDS" title="입상" note="실제 결승 · 4강 경기 결과 기준입니다. 3 · 4위전 없이 4강 패배 두 팀이 공동 3위입니다." />
+        <SectionHead label="CHAMPIONS & AWARDS" title="입상팀" note="실제 결승 · 4강 경기 결과 기준입니다. 3 · 4위전 없이 4강 패배 두 팀이 공동 3위입니다." />
         <Awards a={archive} />
       </section>
 

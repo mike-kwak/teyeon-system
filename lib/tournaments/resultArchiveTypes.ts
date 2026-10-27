@@ -47,6 +47,8 @@ export interface ResultMedia {
   storagePath: string | null;
   youtubeId: string | null;
   displayOrder: number;
+  /** 이 사진의 입상팀 번호(공식 스냅샷의 teamNo). 우승 · 준우승 · 공동 3위 사진만, 비어 있으면 미지정. */
+  teamNo?: number | null;
   /** 관리자 조회에만 있다. */
   isPublic?: boolean;
   /** 화면이 붙인다 — 사진의 서명 URL(실패 · 만료면 null). */

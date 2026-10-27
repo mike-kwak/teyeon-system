@@ -39,6 +39,9 @@ const ACTION_LABEL: Record<string, string> = {
 };
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const tn = (t: { player1Name: string; player2Name: string; teamNo: number } | null) => (t ? `${t.player1Name} · ${t.player2Name} (TEAM ${pad2(t.teamNo)})` : '-');
+// 입상 사진 분류별 고를 수 있는 팀(공식 확정 기록 기준). 우승 · 준우승은 한 팀, 공동 3위는 두 팀.
+const awardTeams = (aw: ResultAwards | null, category: string): ResultAwards['champion']['team'][] =>
+  !aw ? [] : category === 'champion' ? [aw.champion.team] : category === 'runner_up' ? [aw.runnerUp.team] : category === 'semifinal' ? aw.semifinalists.map((x) => x.team) : [];
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-');
 
 function AwardsList({ a }: { a: ResultAwards | null }) {
@@ -52,8 +55,14 @@ function AwardsList({ a }: { a: ResultAwards | null }) {
   );
 }
 
-function MediaRow({ m, busy, onTogglePublic, onDelete }: { m: ResultMedia; busy: boolean; onTogglePublic: () => void; onDelete: () => void }) {
+function MediaRow({ m, busy, awards, onTogglePublic, onDelete, onAssign }: {
+  m: ResultMedia; busy: boolean; awards: ResultAwards | null; onTogglePublic: () => void; onDelete: () => void; onAssign?: (teamNo: number) => void;
+}) {
   const cat = [...RESULT_PHOTO_CATEGORIES, ...RESULT_VIDEO_CATEGORIES].find(([k]) => k === m.category)?.[1] ?? m.category;
+  const teams = m.kind === 'photo' ? awardTeams(awards, m.category) : [];
+  const linked = teams.find((t) => t.teamNo === m.teamNo) ?? null;
+  // 공동 3위는 팀 번호가 정확히 맞아야 공개 화면에 나온다. 우승 · 준우승은 분류만으로 정해진다(다른 팀 번호가 적혀 있으면 숨김).
+  const hidden = m.kind === 'photo' && teams.length > 0 && !linked && (m.category === 'semifinal' || (m.teamNo !== null && m.teamNo !== undefined));
   return (
     <li data-result-media={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: `1px solid ${LINE}` }}>
       <div style={{ width: 64, height: 44, borderRadius: 8, overflow: 'hidden', background: '#F1F5F9', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -68,7 +77,20 @@ function MediaRow({ m, busy, onTogglePublic, onDelete }: { m: ResultMedia; busy:
       <div style={{ minWidth: 0, flex: 1 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: INK, overflowWrap: 'anywhere' }}>{cat}{m.title ? ` · ${m.title}` : ''}</p>
         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: m.isPublic ? TEAL : MUTED }}>{m.isPublic ? '공개 승인' : '비공개(관리자만)'}</p>
+        {teams.length > 0 && !hidden && (
+          <p data-result-media-team={linked ? linked.teamNo : 'category'} style={{ margin: 0, fontSize: 11.5, fontWeight: 800, color: INK }}>
+            입상팀 {tn(linked ?? teams[0])}{linked ? '' : '(분류로 정해짐)'}
+          </p>
+        )}
+        {hidden && <p role="alert" data-result-media-team="unlinked" style={{ margin: 0, fontSize: 11.5, fontWeight: 800, color: WARN }}>입상팀 미지정 — 결과 화면에 표시되지 않습니다. 팀을 고르세요.</p>}
       </div>
+      {onAssign && m.category === 'semifinal' && teams.length > 0 && (
+        <select data-result-media-assign style={{ ...input, maxWidth: 170 }} disabled={busy} value={linked ? String(linked.teamNo) : ''}
+          onChange={(e) => { const n = Number(e.target.value); if (n) onAssign(n); }} aria-label="이 사진의 입상팀">
+          <option value="" disabled>팀 고르기</option>
+          {teams.map((t) => <option key={t.teamNo} value={t.teamNo}>{t.player1Name} · {t.player2Name}</option>)}
+        </select>
+      )}
       <button type="button" style={btn()} disabled={busy} onClick={onTogglePublic} aria-label={m.isPublic ? '비공개로' : '공개 승인'}>
         {m.isPublic ? <EyeOff size={14} /> : <Eye size={14} />}{m.isPublic ? '비공개' : '공개'}
       </button>
@@ -86,7 +108,7 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
   const [editionLabel, setEditionLabel] = React.useState('');
   const [reason, setReason] = React.useState('');
   // ⚠ 공개 승인은 기본 해제 — 올린 뒤 목록에서 사진을 확인하고 [공개]를 누르는 것이 기본 흐름이다.
-  const [photo, setPhoto] = React.useState<{ category: string; title: string; isPublic: boolean }>({ category: 'champion', title: '', isPublic: false });
+  const [photo, setPhoto] = React.useState<{ category: string; title: string; isPublic: boolean; teamNo: number | null }>({ category: 'champion', title: '', isPublic: false, teamNo: null });
   const [video, setVideo] = React.useState<{ category: string; title: string; url: string; isPublic: boolean }>({ category: 'highlight', title: '', url: '', isPublic: false });
   const fileRef = React.useRef<HTMLInputElement | null>(null);
   const [upload, setUpload] = React.useState<{ kind: 'idle' | 'selected' | 'uploading' | 'done' | 'error'; text: string }>({ kind: 'idle', text: '' });
@@ -115,6 +137,10 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
   const s: ResultAdminState = load.state;
   const a = s.archive; const p = s.preview;
   const photos = s.media.filter((m) => m.kind === 'photo'); const videos = s.media.filter((m) => m.kind === 'video');
+  // 올릴 사진의 입상팀 — 우승 · 준우승은 공식 기록에서 자동, 공동 3위는 관리자가 고른다(고르기 전에는 올리지 않음).
+  const photoTeams = awardTeams(a?.awards ?? null, photo.category);
+  const photoTeamNo = photo.category === 'semifinal' ? (photoTeams.some((t) => t.teamNo === photo.teamNo) ? photo.teamNo : null) : photoTeams[0]?.teamNo ?? null;
+  const needTeam = photo.category === 'semifinal' && photoTeamNo === null;
 
   const doConfirm = () => run(async () => {
     const no = Number(editionNo);
@@ -142,16 +168,17 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
     setUpload({ kind: 'uploading', text: `업로드 중… ${file.name}` });
     const up = await uploadResultPhoto(s.tournamentId, file);
     if (!up.ok) { const text = photoUploadMessage(up.reason, up.detail); setUpload({ kind: 'error', text: `업로드 실패 — ${text}` }); return { ok: false, text }; }
-    const r = await saveResultMedia(slug, { id: null, kind: 'photo', category: photo.category, title: photo.title.trim() || null, storagePath: up.path, youtubeId: null, isPublic: photo.isPublic, displayOrder: photos.length + 1 });
+    const r = await saveResultMedia(slug, { id: null, kind: 'photo', category: photo.category, title: photo.title.trim() || null, storagePath: up.path, youtubeId: null, isPublic: photo.isPublic, displayOrder: photos.length + 1, teamNo: photoTeamNo });
     if (!r.ok) { const text = resultActionMessage(r.reason); setUpload({ kind: 'error', text: `업로드 실패 — ${text}` }); return { ok: false, text }; }
     setUpload({ kind: 'done', text: `업로드 완료 — ${file.name}${photo.isPublic ? ' (공개 승인됨)' : ' (비공개 · 아래 목록에서 확인 후 [공개]를 누르세요)'}` });
-    setPhoto({ category: photo.category, title: '', isPublic: false });
+    setPhoto({ category: photo.category, title: '', isPublic: false, teamNo: null });
     return { ok: true, text: '사진을 연결했습니다.' };
   });
   const onPickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     e.target.value = ''; // 같은 파일을 다시 고를 수 있게
     if (!f) return;      // 고르기 취소 — 아무 일도 하지 않는다
+    if (needTeam) { setUpload({ kind: 'error', text: `업로드 실패 — ${resultActionMessage('team_required')}` }); return; }
     if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { setUpload({ kind: 'error', text: `업로드 실패 — ${photoUploadMessage('type')}` }); return; }
     setUpload({ kind: 'selected', text: `선택됨 — ${f.name}` });
     void doUploadPhoto(f);
@@ -159,13 +186,19 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
   const doAddVideo = () => run(async () => {
     const yt = parseYouTubeVideoId(video.url);
     if (!yt.ok) return { ok: false, text: 'YouTube 영상 주소(watch · youtu.be · shorts)를 붙여 넣어 주세요.' };
-    const r = await saveResultMedia(slug, { id: null, kind: 'video', category: video.category, title: video.title.trim() || null, storagePath: null, youtubeId: yt.videoId, isPublic: video.isPublic, displayOrder: videos.length + 1 });
+    const r = await saveResultMedia(slug, { id: null, kind: 'video', category: video.category, title: video.title.trim() || null, storagePath: null, youtubeId: yt.videoId, isPublic: video.isPublic, displayOrder: videos.length + 1, teamNo: null });
     if (r.ok) setVideo({ category: video.category, title: '', url: '', isPublic: false });
     return r.ok ? { ok: true, text: '영상을 연결했습니다.' } : { ok: false, text: resultActionMessage(r.reason) };
   });
   const toggleMedia = (m: ResultMedia) => run(async () => {
-    const r = await saveResultMedia(slug, { id: m.id, kind: m.kind, category: m.category, title: m.title, storagePath: m.storagePath, youtubeId: m.youtubeId, isPublic: !m.isPublic, displayOrder: m.displayOrder });
+    const r = await saveResultMedia(slug, { id: m.id, kind: m.kind, category: m.category, title: m.title, storagePath: m.storagePath, youtubeId: m.youtubeId, isPublic: !m.isPublic, displayOrder: m.displayOrder, teamNo: m.teamNo ?? null });
     return r.ok ? { ok: true, text: m.isPublic ? '비공개로 돌렸습니다.' : '공개 승인했습니다.' } : { ok: false, text: resultActionMessage(r.reason) };
+  });
+  const assignTeam = (m: ResultMedia, teamNo: number) => run(async () => {
+    const t = awardTeams(a?.awards ?? null, m.category).find((x) => x.teamNo === teamNo);
+    if (!t) return { ok: false, text: resultActionMessage('team_mismatch') };
+    const r = await saveResultMedia(slug, { id: m.id, kind: m.kind, category: m.category, title: m.title, storagePath: m.storagePath, youtubeId: m.youtubeId, isPublic: !!m.isPublic, displayOrder: m.displayOrder, teamNo });
+    return r.ok ? { ok: true, text: `이 사진을 ${tn(t)} 사진으로 연결했습니다.` } : { ok: false, text: resultActionMessage(r.reason) };
   });
   const removeMedia = (m: ResultMedia) => run(async () => {
     if (!window.confirm(m.kind === 'photo' ? '이 사진 연결과 파일을 지웁니다.' : '이 영상 연결을 지웁니다(YouTube 영상은 그대로).')) return { ok: false, text: '취소했습니다.' };
@@ -243,28 +276,36 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
         <p style={h}><ImagePlus size={15} style={{ verticalAlign: '-2px' }} /> 시상 사진</p>
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: MUTED, lineHeight: 1.7 }}>JPEG · PNG · WebP. 올릴 때 긴 변 2400px 로 줄여 저장합니다. 참가자 초상권 · 공개 동의를 확인한 사진만 [공개 승인]하세요. 승인 전 사진은 관리자만 볼 수 있습니다.</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <select style={input} value={photo.category} onChange={(e) => setPhoto({ ...photo, category: e.target.value })} aria-label="사진 분류">
+          <select style={input} value={photo.category} onChange={(e) => setPhoto({ ...photo, category: e.target.value, teamNo: null })} aria-label="사진 분류">
             {RESULT_PHOTO_CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
+          {photo.category === 'semifinal' && (
+            <select data-result-photo-team style={{ ...input, borderColor: needTeam ? '#FDBA74' : LINE }} value={photoTeamNo === null ? '' : String(photoTeamNo)} disabled={photoTeams.length === 0}
+              onChange={(e) => setPhoto({ ...photo, teamNo: Number(e.target.value) || null })} aria-label="공동 3위 입상팀">
+              <option value="" disabled>{photoTeams.length ? '어느 팀 사진인가요?' : '공식 결과 확정 후 고를 수 있음'}</option>
+              {photoTeams.map((t) => <option key={t.teamNo} value={t.teamNo}>{t.player1Name} · {t.player2Name}</option>)}
+            </select>
+          )}
           <input style={{ ...input, flex: '1 1 160px' }} maxLength={80} placeholder="설명(선택)" value={photo.title} onChange={(e) => setPhoto({ ...photo, title: e.target.value })} />
           <label style={{ fontSize: 13, fontWeight: 700, color: INK, display: 'inline-flex', gap: 5, alignItems: 'center' }}>
             <input type="checkbox" data-result-photo-public checked={photo.isPublic} onChange={(e) => setPhoto({ ...photo, isPublic: e.target.checked })} />올리면서 바로 공개 승인
           </label>
           {/* 파일 고르기 — label 이 숨긴 파일 입력과 연결되어 있어 누르면 바로 선택 창이 열린다(PC · 모바일 공통, 사용자 클릭 그대로). */}
           <input ref={fileRef} id={`result-photo-file-${slug}`} data-result-photo-file type="file" accept="image/jpeg,image/png,image/webp"
-            disabled={busy} onChange={onPickPhoto}
+            disabled={busy || needTeam} onChange={onPickPhoto}
             style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0, opacity: 0 }} />
-          <label htmlFor={`result-photo-file-${slug}`} data-result-action="upload-photo" role="button" aria-disabled={busy}
-            style={{ ...btn(true), opacity: busy ? 0.5 : 1, pointerEvents: busy ? 'none' : 'auto' }}>
+          <label htmlFor={`result-photo-file-${slug}`} data-result-action="upload-photo" role="button" aria-disabled={busy || needTeam}
+            style={{ ...btn(true), opacity: busy || needTeam ? 0.5 : 1, pointerEvents: busy || needTeam ? 'none' : 'auto' }}>
             <ImagePlus size={14} />{upload.kind === 'uploading' ? '업로드 중…' : '사진 올리기'}
           </label>
         </div>
+        {needTeam && <p data-result-photo-team-hint style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: WARN }}>공동 3위 사진은 어느 팀 사진인지 먼저 고르세요. 고른 팀의 카드에만 표시됩니다.</p>}
         {upload.kind !== 'idle' && (
           <p role="status" data-result-upload-status={upload.kind} style={{ margin: 0, fontSize: 12.5, fontWeight: 800, overflowWrap: 'anywhere',
             color: upload.kind === 'error' ? WARN : upload.kind === 'done' ? '#065F46' : INK }}>{upload.text}</p>
         )}
         {photos.length === 0 ? <p style={{ margin: 0, fontSize: 12.5, color: MUTED }}>연결된 사진이 없습니다. 사진이 없어도 결과 화면은 정상으로 보입니다.</p>
-          : <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>{photos.map((m) => <MediaRow key={m.id} m={m} busy={busy} onTogglePublic={() => void toggleMedia(m)} onDelete={() => void removeMedia(m)} />)}</ul>}
+          : <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>{photos.map((m) => <MediaRow key={m.id} m={m} busy={busy} awards={a?.awards ?? null} onTogglePublic={() => void toggleMedia(m)} onDelete={() => void removeMedia(m)} onAssign={(n) => void assignTeam(m, n)} />)}</ul>}
       </section>
 
       {/* ⑥ 영상 */}
@@ -280,7 +321,7 @@ export default function ResultAdminBoard({ slug }: { slug: string }) {
           <button type="button" data-result-action="add-video" style={btn(true)} disabled={busy || !video.url.trim()} onClick={() => void doAddVideo()}>영상 연결</button>
         </div>
         {videos.length === 0 ? <p style={{ margin: 0, fontSize: 12.5, color: MUTED }}>연결된 영상이 없습니다. 영상이 없으면 결과 화면에서 영상 구역은 숨겨집니다.</p>
-          : <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>{videos.map((m) => <MediaRow key={m.id} m={m} busy={busy} onTogglePublic={() => void toggleMedia(m)} onDelete={() => void removeMedia(m)} />)}</ul>}
+          : <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>{videos.map((m) => <MediaRow key={m.id} m={m} busy={busy} awards={null} onTogglePublic={() => void toggleMedia(m)} onDelete={() => void removeMedia(m)} />)}</ul>}
       </section>
 
       {/* ⑦ 이력 */}
