@@ -1,6 +1,7 @@
 // TEYEON OPEN 공식 결과 아카이브 — 조회 · 관리 service.
 //
 //   공개: get_public_tournament_result_editions · get_public_tournament_result (공개 승인된 회차 · 사진/영상만)
+//         · get_public_tournament_result_clubs (입상팀 선수별 소속 — 대회 당시 고정 기록. 없거나 실패해도 결과 화면은 그대로)
 //   관리(CEO/ADMIN): get_admin_tournament_result · confirm_tournament_result · amend_tournament_result ·
 //                    set_tournament_result_public · save_tournament_result_media · delete_tournament_result_media
 //   ⚠ 권한 · 검증 · 불변 보호는 전부 SQL 이 한다. 여기서 흉내 내지 않는다.
@@ -12,7 +13,7 @@ import { parsePublicPreliminaryDraw } from './publicDrawService';
 import { parsePublicKnockoutBracket, placementNoMapFromDraw, withPublicGroupLabels } from './publicKnockoutService';
 import type { PublicKnockoutTeam } from './publicKnockoutTypes';
 import type {
-  ResultAdminState, ResultArchive, ResultAwards, ResultCheck, ResultCounts, ResultEditionSummary, ResultMedia,
+  ResultAdminState, ResultArchive, ResultAwards, ResultCheck, ResultCounts, ResultEditionSummary, ResultMedia, ResultTeamClubs,
 } from './resultArchiveTypes';
 
 export const RESULT_MEDIA_BUCKET = 'tournament-results';
@@ -104,14 +105,28 @@ export async function fetchResultEditions(): Promise<ResultEditionSummary[]> {
   }).filter((e) => e.slug !== '');
 }
 
+/** 입상팀 선수별 소속(대회 당시 고정 기록). 함수 미적용 · 실패 · 미공개면 [] — 클럽은 부가 정보라 결과 화면을 막지 않는다. */
+async function fetchResultTeamClubs(slug: string): Promise<ResultTeamClubs[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_public_tournament_result_clubs', { p_slug: slug });
+    if (error) return [];
+    return arr(data).flatMap((x) => {
+      const c = rec(x); const teamNo = numOrNull(c.teamNo);
+      return teamNo === null ? [] : [{ teamNo, player1Name: str(c.player1Name), player2Name: str(c.player2Name), player1Club: strOrNull(c.player1Club), player2Club: strOrNull(c.player2Club) }];
+    });
+  } catch {
+    return [];
+  }
+}
+
 /** 공개된 회차의 공식 기록. 공개되지 않았으면 null. 조회 실패는 던진다(화면이 '불러오지 못함'으로 구분). */
 export async function fetchResultArchive(slug: string): Promise<ResultArchive | null> {
-  const { data, error } = await supabase.rpc('get_public_tournament_result', { p_slug: slug });
+  const [{ data, error }, teamClubs] = await Promise.all([supabase.rpc('get_public_tournament_result', { p_slug: slug }), fetchResultTeamClubs(slug)]);
   if (error) throw new Error('result archive unavailable');
   if (data === null || data === undefined) return null;
   const o = rec(data);
   const media = await withSignedUrls(parseMedia(o.media));
-  return parseArchiveSnapshot(slug, { editionNo: numOrNull(o.editionNo) ?? 0, editionLabel: str(o.editionLabel), version: numOrNull(o.version) ?? 1, confirmedAt: strOrNull(o.confirmedAt) }, o.snapshot, media);
+  return { ...parseArchiveSnapshot(slug, { editionNo: numOrNull(o.editionNo) ?? 0, editionLabel: str(o.editionLabel), version: numOrNull(o.version) ?? 1, confirmedAt: strOrNull(o.confirmedAt) }, o.snapshot, media), teamClubs };
 }
 
 // ── 관리 ───────────────────────────────────────────────────────────────────

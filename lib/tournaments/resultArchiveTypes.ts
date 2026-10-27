@@ -55,6 +55,15 @@ export interface ResultMedia {
   url?: string | null;
 }
 
+/** 입상팀 선수별 소속 클럽(대회 당시 기록 — get_public_tournament_result_clubs). 이름은 저장 당시 스냅샷 이름(대조용). */
+export interface ResultTeamClubs {
+  teamNo: number;
+  player1Name: string;
+  player2Name: string;
+  player1Club: string | null;
+  player2Club: string | null;
+}
+
 export interface ResultArchive {
   slug: string;
   editionNo: number;
@@ -67,6 +76,8 @@ export interface ResultArchive {
   preliminary: PublicPreliminaryDraw | null;
   knockout: PublicKnockoutBracket | null;
   media: ResultMedia[];
+  /** 입상팀 소속 클럽. 고정 기록이 없거나 조회 실패면 빈 배열 — 화면은 클럽 줄 없이 그린다. */
+  teamClubs?: ResultTeamClubs[];
 }
 
 export interface ResultCheck { key: string; ok: boolean; value: string | number | null }

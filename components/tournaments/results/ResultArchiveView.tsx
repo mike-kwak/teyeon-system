@@ -18,7 +18,7 @@ import { youtubeEmbedUrl } from '@/lib/tournaments/youtube';
 import type { PublicKnockoutTeam } from '@/lib/tournaments/publicKnockoutTypes';
 import type { PublicDrawGroup, PublicDrawTeam, PublicPlacement } from '@/lib/tournaments/publicDrawTypes';
 import { RESULT_VIDEO_CATEGORIES } from '@/lib/tournaments/resultArchiveTypes';
-import type { ResultArchive, ResultEditionSummary, ResultMedia } from '@/lib/tournaments/resultArchiveTypes';
+import type { ResultArchive, ResultEditionSummary, ResultMedia, ResultTeamClubs } from '@/lib/tournaments/resultArchiveTypes';
 
 const GOLD = '#A97C1F';
 const GOLD_SOFT = '#FBF5E6';
@@ -116,7 +116,8 @@ function EditionSelector({ editions, current }: { editions: ResultEditionSummary
 // ── 입상 ──────────────────────────────────────────────────────────────────
 
 //   공식 시상 갤러리 — 우승(전체 폭 · 가장 큰 카드) → 준우승(전체 폭 · 한 단계 낮게) → 공동 3위(PC 2열 · 모바일 1열).
-//   카드에는 입상 등급 · 선수 이름 · 시상 사진만 둔다. 팀 번호 · 경기 번호 · 점수 · 상대는 예선 결과와 본선 대진표에서 본다
+//   네 카드 모두 같은 구조 · 중앙 정렬: 메달(트로피) → 영문 등급 → 한글 등급 → 사진 → 선수 이름 → 선수별 소속.
+//   카드에는 입상 등급 · 선수 이름 · 소속 · 시상 사진만 둔다. 팀 번호 · 경기 번호 · 점수 · 상대는 예선 결과와 본선 대진표에서 본다
 //   (스냅샷 값은 그대로 두고 화면에서만 숨긴다). 사진이 없거나 못 읽으면 사진 칸 없이 문장 카드로 바뀐다(깨진 이미지 금지).
 
 type AwardSize = 'champion' | 'runner' | 'semi';
@@ -140,8 +141,38 @@ function Laurel({ color, flip = false }: { color: string; flip?: boolean }) {
   );
 }
 
-function AwardCard({ tier, size, title, sub, team, photo }: {
-  tier: string; size: AwardSize; title: string; sub: string; team: PublicKnockoutTeam; photo: ResultMedia | null;
+/** 입상팀의 대회 당시 선수별 소속. 고정 기록의 팀 번호와 두 선수 이름이 공식 스냅샷과 모두 같을 때만 쓴다(아니면 소속 줄 없음). */
+function teamClubs(list: ResultTeamClubs[] | undefined, team: PublicKnockoutTeam): ResultTeamClubs | null {
+  const c = (list ?? []).find((x) => x.teamNo === team.teamNo && x.player1Name === team.player1Name && x.player2Name === team.player2Name);
+  return c && (c.player1Club || c.player2Club) ? c : null;
+}
+
+/** 두 선수 이름 + 이름 바로 아래 각자의 소속. 두 사람 소속이 같으면 소속을 한 줄로 합친다. 소속이 없는 선수는 비워 둔다(지어내지 않음). */
+function Players({ team, clubs, accent }: { team: PublicKnockoutTeam; clubs: ResultTeamClubs | null; accent: string }) {
+  const ns = names(team);
+  const cl = ns.length === 2 ? clubs : null;
+  const same = !!cl && !!cl.player1Club && cl.player1Club === cl.player2Club;
+  return (
+    <div className={`rs-award__players${cl ? (same ? ' is-same' : ' is-split') : ''}`} style={{ color: NAVY }}>
+      {ns.map((n, i) => (
+        <React.Fragment key={`${n}-${i}`}>
+          {i > 0 && <span aria-hidden className="rs-award__dot" style={{ color: accent }}>·</span>}
+          <span className={`rs-award__player rs-p-n${i + 1}`}>{n}</span>
+        </React.Fragment>
+      ))}
+      {cl && same && <span className="rs-award__club rs-p-cc" data-result-award-club="both">{cl.player1Club}</span>}
+      {cl && !same && (
+        <>
+          <span className="rs-award__club rs-p-c1" data-result-award-club="1">{cl.player1Club ?? ''}</span>
+          <span className="rs-award__club rs-p-c2" data-result-award-club="2">{cl.player2Club ?? ''}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AwardCard({ tier, size, title, sub, team, photo, clubs }: {
+  tier: string; size: AwardSize; title: string; sub: string; team: PublicKnockoutTeam; photo: ResultMedia | null; clubs: ResultTeamClubs | null;
 }) {
   const [broken, setBroken] = React.useState(false);
   const tone = TONES[size];
@@ -151,7 +182,7 @@ function AwardCard({ tier, size, title, sub, team, photo }: {
   const icon = size === 'champion' ? 26 : size === 'runner' ? 22 : 18;
   const badge = size === 'champion' ? 56 : size === 'runner' ? 46 : 38;
   return (
-    <article data-result-award={tier} aria-label={`${sub} ${ns.join(', ')}`}
+    <article data-result-award={tier} data-result-award-team={team.teamNo} aria-label={`${sub} ${ns.join(', ')}`}
       className={`rs-award rs-award--${size}${shown ? '' : ' rs-award--nophoto'}`}
       style={{ ['--fade' as string]: tone.to, background: `linear-gradient(120deg, ${tone.from} 0%, ${tone.to} 100%)`, border: `1px solid ${tone.line}` }}>
       <div className="rs-award__in" style={size === 'champion' ? { border: `1px solid ${tone.line}` } : undefined}>
@@ -176,14 +207,7 @@ function AwardCard({ tier, size, title, sub, team, photo }: {
         )}
         <div className="rs-award__names">
           {size === 'champion' && <span aria-hidden className="rs-award__rule" style={{ background: tone.line }} />}
-          <p className="rs-award__name" style={{ color: NAVY }}>
-            {ns.map((n, i) => (
-              <React.Fragment key={`${n}-${i}`}>
-                {i > 0 && <span aria-hidden className="rs-award__dot" style={{ color: tone.accent }}>·</span>}
-                <span className="rs-award__player">{n}</span>
-              </React.Fragment>
-            ))}
-          </p>
+          <Players team={team} clubs={clubs} accent={tone.accent} />
         </div>
         {!shown && <Icon aria-hidden className="rs-award__mark" size={size === 'champion' ? 150 : 110} strokeWidth={1.1} color={tone.accent} />}
       </div>
@@ -204,13 +228,14 @@ function Awards({ a }: { a: ResultArchive }) {
     return <p role="alert" style={{ margin: 0, padding: 14, borderRadius: 12, background: '#FFF7ED', color: '#9A3412', fontSize: 13, fontWeight: 700 }}>입상 결과를 확인할 수 없습니다(확정 기록에 결승 · 4강 결과 없음).</p>;
   }
   const { champion, runnerUp, semifinalists } = a.awards;
+  const clubs = (t: PublicKnockoutTeam) => teamClubs(a.teamClubs, t);
   return (
     <div data-result-awards style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <AwardCard tier="champion" size="champion" title="CHAMPION" sub="우승" team={champion.team} photo={awardPhoto(a.media, 'champion', champion.team.teamNo)} />
-      <AwardCard tier="runner_up" size="runner" title="RUNNER-UP" sub="준우승" team={runnerUp.team} photo={awardPhoto(a.media, 'runner_up', runnerUp.team.teamNo)} />
+      <AwardCard tier="champion" size="champion" title="CHAMPION" sub="우승" team={champion.team} photo={awardPhoto(a.media, 'champion', champion.team.teamNo)} clubs={clubs(champion.team)} />
+      <AwardCard tier="runner_up" size="runner" title="RUNNER-UP" sub="준우승" team={runnerUp.team} photo={awardPhoto(a.media, 'runner_up', runnerUp.team.teamNo)} clubs={clubs(runnerUp.team)} />
       <div className="rs-awards-semi">
         {semifinalists.map((s) => (
-          <AwardCard key={s.team.teamNo} tier="semifinal" size="semi" title="SEMIFINALIST" sub="공동 3위" team={s.team} photo={awardPhoto(a.media, 'semifinal', s.team.teamNo)} />
+          <AwardCard key={s.team.teamNo} tier="semifinal" size="semi" title="SEMIFINALIST" sub="공동 3위" team={s.team} photo={awardPhoto(a.media, 'semifinal', s.team.teamNo)} clubs={clubs(s.team)} />
         ))}
       </div>
     </div>
@@ -400,38 +425,48 @@ export default function ResultArchiveView({ archive, editions }: { archive: Resu
         @media (max-width: 459px) { .rs-videos, .rs-gallery { grid-template-columns: minmax(0, 1fr); } }
 
         .rs-awards-semi { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
-        .rs-award { position: relative; min-width: 0; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,42,61,0.04), 0 12px 28px -18px rgba(16,42,61,0.28); }
+        .rs-award { position: relative; min-width: 0; display: flex; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,42,61,0.04), 0 12px 28px -18px rgba(16,42,61,0.28); }
         .rs-award--champion { padding: 5px; border-radius: 18px; box-shadow: 0 1px 2px rgba(16,42,61,0.05), 0 18px 36px -20px rgba(126,91,18,0.42); }
-        .rs-award__in { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "photo" "names"; border-radius: 15px; overflow: hidden; }
+        .rs-award__in { position: relative; flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "head" "photo" "names"; border-radius: 15px; overflow: hidden; text-align: center; }
         .rs-award--champion .rs-award__in { border-radius: 13px; }
-        .rs-award__head { grid-area: head; position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px; }
-        .rs-award__badge-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .rs-award__head { grid-area: head; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 18px 16px 14px; }
+        .rs-award__badge-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
         .rs-award__badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
-        .rs-award__tier { min-width: 0; }
+        .rs-award__tier { min-width: 0; display: flex; flex-direction: column; align-items: center; }
         .rs-award__en { font-size: 12px; }
-        .rs-award__ko { font-size: 15px; margin-top: 1px; }
+        .rs-award__ko { font-size: 16px; margin-top: 2px; }
         .rs-award__photo { grid-area: photo; position: relative; margin: 0; overflow: hidden; aspect-ratio: 5 / 4; }
         .rs-award__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; display: block; transform: scale(var(--zoom, 1)); transform-origin: 50% 50%; }
         .rs-award--champion .rs-award__photo, .rs-award--runner .rs-award__photo { --zoom: 1.5; }
         .rs-award--semi .rs-award__photo { --zoom: 1.15; }
-        .rs-award__names { grid-area: names; position: relative; z-index: 1; padding: 14px 16px 18px; min-width: 0; }
-        .rs-award__name { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 2px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.22; font-size: 20px; }
-        .rs-award__player { min-width: 0; max-width: 100%; word-break: keep-all; overflow-wrap: anywhere; }
-        .rs-award__dot { font-weight: 700; }
-        .rs-award__rule { display: block; width: 44px; height: 1px; margin: 0 auto 12px; }
-        .rs-award__mark { position: absolute; right: -14px; bottom: -22px; opacity: 0.08; pointer-events: none; }
-        .rs-award--nophoto .rs-award__in { grid-template-areas: "head" "names"; }
+        .rs-award__names { grid-area: names; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 16px 16px 20px; min-width: 0; }
 
-        .rs-award--champion .rs-award__head { flex-direction: column; gap: 10px; padding: 22px 16px 16px; text-align: center; }
+        /* 이름 줄(선수1 · 선수2) 아래에 각자의 소속 — 열마다 가운데 정렬. 소속이 같으면 한 줄(cc)로 합친다.
+           좌우 열은 같은 폭(1fr · 내용 폭)이라 소속 길이가 달라도 이름 쌍이 카드 중심에 온다. */
+        .rs-award__players { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "n1 dot n2"; align-items: baseline; column-gap: 10px; row-gap: 5px; width: max-content; max-width: 100%; font-weight: 900; letter-spacing: -0.02em; line-height: 1.22; font-size: 21px; }
+        .rs-award__players.is-split { grid-template-areas: "n1 dot n2" "c1 . c2"; }
+        .rs-award__players.is-same { grid-template-areas: "n1 dot n2" "cc cc cc"; }
+        .rs-p-n1 { grid-area: n1; } .rs-p-n2 { grid-area: n2; } .rs-award__dot { grid-area: dot; font-weight: 700; }
+        .rs-p-c1 { grid-area: c1; } .rs-p-c2 { grid-area: c2; } .rs-p-cc { grid-area: cc; }
+        .rs-award__player { min-width: 0; text-align: center; word-break: keep-all; }
+        .rs-award__club { min-width: 0; text-align: center; font-size: 12.5px; font-weight: 700; letter-spacing: 0; line-height: 1.35; color: ${TT.muted}; word-break: keep-all; overflow-wrap: anywhere; }
+        .rs-award__rule { display: block; width: 44px; height: 1px; margin: 0 auto 14px; }
+        .rs-award__mark { position: absolute; right: -14px; bottom: -22px; opacity: 0.08; pointer-events: none; }
+        .rs-award--nophoto .rs-award__in { grid-template-rows: auto 1fr; grid-template-areas: "head" "names"; }
+
+        .rs-award--champion .rs-award__head { gap: 10px; padding: 22px 16px 16px; }
         .rs-award--champion .rs-award__en { font-size: 13px; }
-        .rs-award--champion .rs-award__ko { font-size: 19px; margin-top: 2px; }
+        .rs-award--champion .rs-award__ko { font-size: 19px; }
         .rs-award--champion .rs-award__photo { aspect-ratio: 1 / 1; }
         .rs-award--champion .rs-award__names { padding: 18px 16px 22px; }
-        .rs-award--champion .rs-award__name { justify-content: center; font-size: 27px; column-gap: 10px; }
-        .rs-award--runner .rs-award__name { font-size: 23px; }
-        .rs-award--semi .rs-award__head { padding: 14px 14px 12px; gap: 10px; }
+        .rs-award--champion .rs-award__players { font-size: 27px; column-gap: 12px; row-gap: 6px; }
+        .rs-award--champion .rs-award__club { font-size: 13.5px; }
+        .rs-award--runner .rs-award__players { font-size: 23px; }
+        .rs-award--runner .rs-award__club { font-size: 13px; }
+        .rs-award--semi .rs-award__head { padding: 16px 14px 12px; gap: 8px; }
         .rs-award--semi .rs-award__en { font-size: 11px; }
-        .rs-award--semi .rs-award__names { padding: 12px 14px 16px; }
+        .rs-award--semi .rs-award__ko { font-size: 15px; }
+        .rs-award--semi .rs-award__names { padding: 14px 14px 18px; }
 
         @media (min-width: 768px) {
           .rs-awards-semi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -442,27 +477,33 @@ export default function ResultArchiveView({ archive, editions }: { archive: Resu
           .rs-award--champion .rs-award__names, .rs-award--runner .rs-award__names { align-self: start; }
           .rs-award--champion .rs-award__photo, .rs-award--runner .rs-award__photo { aspect-ratio: auto; height: 100%; }
           .rs-award--champion .rs-award__photo { min-height: 340px; }
-          .rs-award--runner .rs-award__photo { min-height: 240px; }
+          .rs-award--runner .rs-award__photo { min-height: 260px; }
           .rs-award--champion .rs-award__photo::before, .rs-award--runner .rs-award__photo::before {
             content: ''; position: absolute; inset: 0 auto 0 0; width: 22%; z-index: 1; background: linear-gradient(90deg, var(--fade), transparent);
           }
-          .rs-award--champion .rs-award__name { font-size: 32px; }
+          .rs-award--champion .rs-award__players { font-size: 32px; }
+          .rs-award--champion .rs-award__club { font-size: 14px; }
           .rs-award--champion .rs-award__ko { font-size: 21px; }
           .rs-award--runner .rs-award__head { padding: 22px 22px 10px; }
-          .rs-award--runner .rs-award__names { padding: 6px 22px 24px; }
-          .rs-award--runner .rs-award__name { font-size: 25px; }
-          .rs-award--nophoto .rs-award__in { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto !important; grid-template-areas: "head" "names" !important; }
+          .rs-award--runner .rs-award__names { padding: 8px 22px 24px; }
+          .rs-award--runner .rs-award__players { font-size: 25px; }
+          .rs-award--nophoto .rs-award__in { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto 1fr !important; grid-template-areas: "head" "names" !important; }
         }
         @media (min-width: 1100px) {
           .rs-award--champion .rs-award__photo { min-height: 380px; }
-          .rs-award--champion .rs-award__name { font-size: 34px; }
-          .rs-award--runner .rs-award__photo { min-height: 260px; }
+          .rs-award--champion .rs-award__players { font-size: 34px; }
+          .rs-award--runner .rs-award__photo { min-height: 270px; }
           .rs-award--semi .rs-award__in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "head photo" "names photo"; }
-          .rs-award--semi .rs-award__head { flex-direction: column; align-items: flex-start; align-self: end; padding: 18px 16px 8px; }
-          .rs-award--semi .rs-award__names { align-self: start; padding: 4px 16px 18px; }
-          .rs-award--semi .rs-award__name { flex-direction: column; align-items: flex-start; font-size: 21px; }
+          .rs-award--semi .rs-award__head { align-self: end; padding: 18px 14px 8px; }
+          .rs-award--semi .rs-award__names { align-self: start; padding: 6px 14px 18px; }
+          /* 좁은 왼쪽 칸 — 선수마다 이름 → 소속을 세로로 쌓는다(가운데 정렬 유지). */
+          .rs-award--semi .rs-award__players { grid-template-columns: auto; grid-template-areas: "n1" "n2"; font-size: 21px; row-gap: 3px; }
+          .rs-award--semi .rs-award__players.is-split { grid-template-areas: "n1" "c1" "n2" "c2"; }
+          .rs-award--semi .rs-award__players.is-same { grid-template-areas: "n1" "n2" "cc"; }
+          .rs-award--semi .rs-p-c1 { margin-bottom: 8px; }
+          .rs-award--semi .rs-p-cc { margin-top: 4px; }
           .rs-award--semi .rs-award__dot { display: none; }
-          .rs-award--semi .rs-award__photo { aspect-ratio: auto; height: 100%; min-height: 220px; --zoom: 1.35; }
+          .rs-award--semi .rs-award__photo { aspect-ratio: auto; height: 100%; min-height: 230px; --zoom: 1.35; }
         }
 
         @media (min-width: 760px) {

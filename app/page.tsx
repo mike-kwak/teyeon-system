@@ -19,8 +19,6 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { usePublicDrawPublished } from '@/components/tournaments/draw/publicDrawView';
-import { TEYEON_OPEN_2026_SLUG } from '@/lib/tournaments/officialInfo';
 import { supabase } from '@/lib/supabase';
 import { excludedRolesPostgrestList } from '@/lib/members/membershipStatus';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
@@ -88,8 +86,6 @@ export default function Home() {
   // TENNIS LOG(회원 전용 개인 기록): 실제 클럽 회원 자격(members.role) 기준 공통 판정.
   //   조회 중(loading)에는 'allowed'가 아니므로 카드가 정상 접근으로 보이지 않음(안전한 잠금 기본값).
   const tennisLogStatus = useTennisLogAccess();
-  // TEYEON OPEN — 예선 DRAW 공개 여부는 공개 RPC 로만 판정(공개 전 null → 허브로). 실패하면 허브로(안전한 기본값).
-  const openDrawPublished = usePublicDrawPublished(TEYEON_OPEN_2026_SLUG);
   const [isMounted, setIsMounted] = useState(false);
   // null = 조회 전(— 표시). 과거에 24를 초기값으로 박아둬 실제 인원과 다른 숫자가
   // 정적 HTML/첫 렌더에 잔상으로 노출됐다 — 숫자는 조회 완료 후에만 표시한다.
@@ -776,15 +772,6 @@ export default function Home() {
                 badge="KDK"
                 accent="teal"
               />
-              {/* TEYEON OPEN 2026 — 공개 후에는 예선 대진표로 바로 간다. */}
-              <MenuCard
-                label="TEYEON OPEN 2026"
-                description={openDrawPublished ? '예선 대진표 공개 · 내 이름으로 조 · 코트 · 신고 시간 찾기' : '대회 안내 · 참가팀 · 대진표(공개 후)'}
-                icon={<Trophy size={21} strokeWidth={1.7} />}
-                path={openDrawPublished ? `/tournaments/${TEYEON_OPEN_2026_SLUG}/draw` : `/tournaments/${TEYEON_OPEN_2026_SLUG}`}
-                badge={openDrawPublished ? 'DRAW' : 'OPEN 2026'}
-                accent="teal"
-              />
               {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
                 label="TEYEON 일정"
@@ -852,6 +839,16 @@ export default function Home() {
                 lockedBadge="회원 전용"
                 deniedTitle={TENNIS_LOG_LOCKED_TITLE}
                 deniedBody={TENNIS_LOG_LOCKED_BODY}
+              />
+              {/* TEYEON OPEN — 역대 공식 결과 입구. /tournaments/results 가 공개된 최신 회차로 보낸다(회차 선택으로 이전 회차).
+                  대회 Hub(INFO · TEAMS · DRAW · LIVE)는 결과 화면 상단 탭으로 그대로 이동할 수 있다. */}
+              <MenuCard
+                label="TEYEON OPEN"
+                description="공식 대회 결과 · 역대 입상팀 · 대진 기록"
+                icon={<Trophy size={21} strokeWidth={1.7} />}
+                path="/tournaments/results"
+                badge="RESULTS"
+                accent="teal"
               />
               {/* 그룹 3 — 관리/재무 (gold) */}
               <MenuCard
