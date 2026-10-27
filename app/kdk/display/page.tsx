@@ -28,6 +28,7 @@ const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 1080;
 
 const CANVAS_PADDING = 40;
+const HEADER_PADDING_X = 32;
 const HEADER_HEIGHT = 88;
 const TICKER_HEIGHT = 60;
 const STACK_GAP = 14;
@@ -543,6 +544,10 @@ function HeaderStat({ title, value, color }: { title: string; value: number | st
 function KdkDisplayBoard() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session') || '';
+  // 현장 진단(?frame=1): 브라우저가 실제로 그리는 화면 가장자리에 빨간 테두리 + 크기 표시.
+  //   모니터에서 테두리 일부가 안 보이면 모니터 오버스캔(화면 설정 문제), 테두리는 보이는데 내용이 잘리면 레이아웃 문제.
+  const showFrame = searchParams.get('frame') === '1';
+  const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
   const [matches, setMatches] = useState<Match[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [sessionTitle, setSessionTitle] = useState('');
@@ -771,6 +776,7 @@ function KdkDisplayBoard() {
       const sw = window.innerWidth / DESIGN_WIDTH;
       const sh = window.innerHeight / DESIGN_HEIGHT;
       setScale(Math.min(sw, sh));
+      setViewportSize({ w: window.innerWidth, h: window.innerHeight });
     };
     calcScale();
     window.addEventListener('resize', calcScale);
@@ -1322,14 +1328,16 @@ function KdkDisplayBoard() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,#E6EEF9_0%,#D3DEEF_55%,#BFCEE5_100%)]" />
         <div className="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(rgba(28,62,118,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(28,62,118,0.8)_1px,transparent_1px)] [background-size:96px_96px]" />
 
-        <div className="relative flex h-full flex-col gap-3.5 p-10 text-[#0A172F]">
+        {/* 바깥 여백은 인라인으로 준다 — 전역 Stitches 리셋('*' { padding: 0 }, 레이어 밖)이 Tailwind p-10 을 0 으로 덮어써
+            보드가 화면 끝에 붙고, 오버스캔 모니터에서 COURT 1 · RANKING TOWER · 세션명 · NEXT UP 가장자리가 잘렸다. */}
+        <div className="relative flex h-full flex-col gap-3.5 text-[#0A172F]" style={{ padding: CANVAS_PADDING }}>
 
           {/* HEADER */}
           <header
             className="relative grid shrink-0 grid-cols-[auto_1fr_auto] items-center overflow-hidden rounded-[16px] bg-[linear-gradient(180deg,#163E73_0%,#0A234F_100%)] px-8 shadow-[0_14px_28px_rgba(15,40,95,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(242,199,101,0.30)]"
-            style={{ height: HEADER_HEIGHT }}
+            style={{ height: HEADER_HEIGHT, paddingInline: HEADER_PADDING_X }}
           >
-            {/* LEFT column — session info; position handled by header px-8 alone, no forced shift */}
+            {/* LEFT column — session info; 좌우 여백은 header 인라인 paddingInline(px-8 은 전역 리셋에 덮임) */}
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-[12px] font-black uppercase leading-[1.15] tracking-[0.32em] text-[#F2C765]">TEYEON KDK · LIVE BOARD</p>
               <h1 className="truncate text-[34px] font-black leading-[1.1] text-white">
@@ -1744,6 +1752,14 @@ function KdkDisplayBoard() {
           </div>
         )}
       </div>
+      {showFrame && (
+        <div aria-hidden data-display-frame className="pointer-events-none fixed inset-0 z-[10001]" style={{ boxShadow: 'inset 0 0 0 4px #FF1744' }}>
+          <span className="absolute left-0 top-0 bg-[#FF1744] font-black text-white" style={{ padding: '4px 8px', fontSize: 14 }}>
+            {viewportSize.w}×{viewportSize.h} · scale {scale.toFixed(3)} · DPR {typeof window !== 'undefined' ? window.devicePixelRatio : 1}
+          </span>
+          <span className="absolute bottom-0 right-0 bg-[#FF1744] font-black text-white" style={{ padding: '4px 8px', fontSize: 14 }}>EDGE</span>
+        </div>
+      )}
     </div>
   );
 }
