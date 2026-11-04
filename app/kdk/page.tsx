@@ -23,7 +23,7 @@ import { computeSettlement, isAssociateGuestFeeMember, isGuestRankedPlayer } fro
 import { normalizeBirthYear, sortOfficialKdkRanking, findUnresolvedTieBirthYears, type BirthYearStatus } from '@/lib/kdk/officialRanking';
 import { getGuestProfilesByKeys, upsertGuestProfiles, saveSessionBirthYearSnapshot, getSessionAttendeeMeta, saveSessionAttendeeBirthYearDecision } from '@/lib/kdk/guestProfileService';
 import { loadKdkSession } from '@/lib/finance/kdkSettlementService';
-import { Member, Match, AttendeeConfig, KDKConcept, UserRole } from '@/lib/tournament_types';
+import { Member, Match, AttendeeConfig, KDKConcept } from '@/lib/tournament_types';
 import MemberSelector from '@/components/tournament/MemberSelector';
 import { WarningModal, CustomConfirmModal } from '@/components/tournament/Modals';
 import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/components/tournament/LiveCourtCards';
@@ -44,6 +44,26 @@ import type { ClubSchedule } from '@/lib/clubScheduleData';
 //   기존 64px 는 BottomNav 영역(72px+safe)보다 작아 마지막 CTA 가 nav 뒤로 ~8px 가림(실측).
 //   공통 토큰 var(--page-bottom-safe) = calc((72px+safe)+24px) 로 맞춰 nav 위 24px 여백을 보장(safe-area 는 한 번만 계산).
 const KDK_STEP_BOTTOM_PADDING = 'var(--page-bottom-safe)';
+
+// KDK 회원 목록 조회 상한(ms). 공통 fetchWithRetry 의 5xx 재시도(0.5·1·2초 + 요청 4회)는 끊지 않는 값.
+const KDK_MEMBERS_TIMEOUT_MS = 12000;
+
+/**
+ * KDK 전용 대기 상한 — 시간이 지나면 'timeout' 오류로 거절한다(describeMembersLoadError 가 네트워크 안내로 분류).
+ *   실제 네트워크 요청은 중단하지 않는다(abort 하면 공통 재시도가 오히려 대기를 늘린다).
+ *   늦게 끝난 원래 요청의 결과·오류는 여기서 소비되어 상태를 바꾸거나 unhandled rejection 을 만들지 않는다.
+ */
+function withKdkTimeout<T>(work: PromiseLike<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(Object.assign(new Error(`${label} request timeout after ${ms}ms`), { code: 'KDK_TIMEOUT' }));
+        }, ms);
+        Promise.resolve(work).then(
+            (value) => { clearTimeout(timer); resolve(value); },
+            (error) => { clearTimeout(timer); reject(error); },
+        );
+    });
+}
 
 // LIVE COURT 복원 — 마지막으로 보던 세션/탭을 사용자별 localStorage 에 저장(핵심 복원값).
 //   · sessionStorage 는 PWA/앱 프로세스 종료 시 사라져 복원에 부적합 → localStorage 사용.
@@ -315,7 +335,6 @@ export default function KDKPage() {
     const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
     const [tempScores, setTempScores] = useState({ s1: 0, s2: 0 });
     const [showRankingModal, setShowRankingModal] = useState(false);
-    const [userRole, setUserRole] = useState<UserRole>('GUEST');
     const [allActiveSessions, setAllActiveSessions] = useState<ActiveKdkSession[]>([]);
     const [sessionDeleteTarget, setSessionDeleteTarget] = useState<ActiveKdkSession | null>(null);
     const [isDeletingSession, setIsDeletingSession] = useState(false);
@@ -332,7 +351,8 @@ export default function KDKPage() {
     const [lastSyncTime, setLastSyncTime] = useState<string>("");
     const [isLegacySync, setIsLegacySync] = useState(false);
     const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
-    const [hasProfileError, setHasProfileError] = useState(false); // [v34.4] Prevent 400 spam
+    // fetchMembers 호출 순번 — 늦게 끝난 이전 호출의 결과·로딩 해제를 무시한다.
+    const membersFetchSeqRef = useRef(0);
     const [hasArchiveError, setHasArchiveError] = useState(false); // [v34.5] Prevent 404 spam
 
     const [showWarning, setShowWarning] = useState(false);
@@ -1439,31 +1459,16 @@ export default function KDKPage() {
 
     // opts.skipSessionSync: 수동 대진 이름 매칭의 "다시 시도" — 회원 목록만 다시 읽고 활성 세션 동기화는 하지 않는다.
     //   (MemberSelector 의 onRetry 는 click 이벤트를 넘기므로 skipSessionSync 가 없어 기존 동작 그대로)
+    //   초기 로딩 단축: 예전의 auth.getUser() → profiles 역할 조회(결과 userRole 은 어디서도 읽히지 않음)를 제거.
+    //   운영진 판단은 AuthContext role(isAdmin) 그대로. 요청 순서는 members → 생년 RPC → matches 유지.
+    //   membersFetchSeqRef: 여러 번 호출(재시도 등)될 때 늦게 끝난 이전 호출이 최신 결과·로딩 상태를 덮어쓰지 않게 한다.
     const fetchMembers = async (opts?: { skipSessionSync?: boolean }) => {
+        const seq = ++membersFetchSeqRef.current;
+        const isLatest = () => seq === membersFetchSeqRef.current;
         try {
             setIsMembersLoading(true);
             setIsMembersError(false);
             setMembersErrorDetail(null);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user && !hasProfileError) {
-                // Defensive profile check: app roles now live in profiles.role.
-                try {
-                    const { data: profile, error: profError } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', user.id)
-                        .maybeSingle();
-                    if (profError) {
-                        console.warn("Profile check failed. Continuing with AuthContext role.", profError);
-                        setHasProfileError(true);
-                    } else if (profile) {
-                        setUserRole((profile as any).role as UserRole);
-                    }
-                } catch (e) {
-                    console.warn("Profile check skipped. Continuing with AuthContext role.", e);
-                    setHasProfileError(true);
-                }
-            }
 
             const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
@@ -1474,7 +1479,10 @@ export default function KDKPage() {
                 query = query.eq('club_id', clubId);
             }
 
-            const { data, error } = await query.order('nickname');
+            // KDK 전용 12초 상한 — 응답이 멈춰도 로딩 화면이 끝없이 남지 않고 기존 오류 안내·재조회(dcbe095)로 넘어간다.
+            //   (실제 요청은 중단하지 않는다: 공통 fetchWithRetry 무변경. 늦게 온 응답은 무시되고 오류도 여기서 소비된다)
+            const { data, error } = await withKdkTimeout(query.order('nickname'), KDK_MEMBERS_TIMEOUT_MS, 'members');
+            if (!isLatest()) return;
 
             if (error) throw error;
             // KDK 참가 후보는 현재 회원만 — 탈회 회원 제외(단일 판정: lib/members/membershipStatus).
@@ -1509,12 +1517,14 @@ export default function KDKPage() {
                     }
                 }
             } catch { /* 생년 취득 실패는 무해 — snapshot/공식 RPC 가 순위 담보 */ }
+            if (!isLatest()) return;
 
             setAllMembers(memberRows);
 
             // After fetching members, check for active session in DB
             if (!opts?.skipSessionSync) await syncActiveSession();
         } catch (err) {
+            if (!isLatest()) return;
             console.error("Fetch Members Error:", err);
             setIsMembersError(true);
             setMembersErrorDetail(describeMembersLoadError(err));
@@ -1524,7 +1534,7 @@ export default function KDKPage() {
                 setStep(0);
             }
         } finally {
-            setIsMembersLoading(false);
+            if (isLatest()) setIsMembersLoading(false);
         }
     };
 
