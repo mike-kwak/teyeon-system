@@ -978,6 +978,12 @@ export default function KDKPage() {
 
     const handleFinalArchive = async () => {
         if (!guardWriteAction('공식 기록 확정/아카이브')) return; // 촬영 보호 모드 차단
+        // 운영진 전용(RankingTab 확정 버튼과 같은 조건 · 화면 우회 호출 방지용 이중 확인).
+        //   ※ DB 수준 보호는 P1-b 적용 전까지 없다(authenticated 직접 쓰기 가능).
+        if (!isAdmin) {
+            alert('관리자만 아카이브를 확정할 수 있습니다.');
+            return;
+        }
         // 이중 가드 — 완전 동률 그룹에 '미해결' 참가자가 남아 있으면 확정 금지(모달 버튼도 disabled).
         //   미해결 = 출생연도도 없고, 운영자의 '미입력으로 진행' 승인도 없는 상태.
         //   미입력 승인(declined)까지 끝난 참가자는 차단 대상이 아니다(완전 동률에서 후순위로 반영).
@@ -1087,27 +1093,26 @@ export default function KDKPage() {
 
             // 서버 저장이 실제 확인됐을 때만 완료 화면을 띄운다(로컬 백업만으론 성공으로 표시하지 않음).
             let serverArchived = false;
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-            const endpoint = `${supabaseUrl}/rest/v1/teyeon_archive_v1`;
 
+            // 로그인 사용자 연결로 저장한다(예전: anon 키로 직접 POST → P0-A 이후 42501 로 거부됨).
+            //   payload · 같은 id 덮어쓰기(onConflict id = 예전 Prefer: resolution=merge-duplicates) · 저장 순서는 그대로.
+            //   로그인 세션이 없거나 만료돼 갱신되지 않으면 저장하지 않는다(→ 아래 실패 처리: 로컬 백업 유지 · 라이브 데이터 보존).
             try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': `Bearer ${supabaseKey}`,
-                        'Prefer': 'resolution=merge-duplicates',
-                        'Cache-Control': 'no-cache'
-                    },
-                    body: JSON.stringify({ id: sessionId, raw_data: rawDataPayload })
-                });
+                const { data: { session: authSession } } = await supabase.auth.getSession();
+                if (!authSession?.access_token) {
+                    throw new Error('로그인 세션이 없거나 만료되었습니다. 다시 로그인한 뒤 공식 확정을 다시 눌러주세요.');
+                }
+                const { error: archiveError } = await supabase
+                    .from('teyeon_archive_v1')
+                    .upsert({ id: sessionId, raw_data: rawDataPayload }, { onConflict: 'id' });
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    console.error(`❌ [v14.0] SERVER REJECTED (${response.status}):`, errText);
-                    throw new Error(`Server Rejected: ${errText}`);
+                if (archiveError) {
+                    const code = String((archiveError as any).code || '');
+                    console.error(`❌ [v14.0] SERVER REJECTED (${code}):`, archiveError);
+                    if (code === '42501' || code === 'PGRST301' || code === 'PGRST303' || /jwt|permission denied/i.test(archiveError.message || '')) {
+                        throw new Error(`Archive 저장 권한이 확인되지 않았습니다(${code || 'auth'}). 운영진 계정으로 다시 로그인한 뒤 다시 시도해주세요.`);
+                    }
+                    throw new Error(`Server Rejected: ${archiveError.message || code}`);
                 }
                 console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
                 serverArchived = true;
