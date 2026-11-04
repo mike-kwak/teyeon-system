@@ -343,11 +343,24 @@ export default function MembersPage() {
                         .filter((id): id is string => Boolean(id))
                 ));
 
-                if (authUserIds.length > 0) {
-                    const { data: rows, error } = await supabase
-                        .from('profiles')
-                        .select('id, avatar_url, profile_visibility_level')
-                        .in('id', authUserIds);
+                // 프로필 사진(profiles)과 대회 입상 요약(member_achievements)은 둘 다 members 결과에만 의존하고
+                //   서로 독립 → 동시에 요청한다(예전: 순차 대기). allSettled 라 한쪽이 실패해도 다른 쪽 결과와
+                //   회원 목록은 유지된다(각 실패 시 처리는 예전과 동일: 아바타 없음 / 입상 요약 빈 Map).
+                const [profileResult, achievementResult] = await Promise.allSettled([
+                    authUserIds.length > 0
+                        ? supabase
+                            .from('profiles')
+                            .select('id, avatar_url, profile_visibility_level')
+                            .in('id', authUserIds)
+                        : Promise.resolve(null),
+                    // 대회 입상 기록 요약 — 회원 전체 1회 batch(N+1 금지). 테이블 미생성 시 빈 Map.
+                    fetchAchievementSummaries(activeRows.map((m: Member) => m.id)),
+                ]);
+
+                if (profileResult.status === 'rejected') {
+                    console.warn('[Members] Profile fetch by id skipped:', profileResult.reason);
+                } else if (profileResult.value) {
+                    const { data: rows, error } = profileResult.value;
                     if (error) {
                         console.warn('[Members] Profile fetch by id skipped:', error);
                     } else {
@@ -357,8 +370,12 @@ export default function MembersPage() {
                     }
                 }
 
-                // 대회 입상 기록 요약 — 회원 전체 1회 batch(N+1 금지). 테이블 미생성 시 빈 Map.
-                const achSummaries = await fetchAchievementSummaries(activeRows.map((m: Member) => m.id));
+                const achSummaries = achievementResult.status === 'fulfilled'
+                    ? achievementResult.value
+                    : (new Map() as Awaited<ReturnType<typeof fetchAchievementSummaries>>);
+                if (achievementResult.status === 'rejected') {
+                    console.warn('[Members] Achievement summary skipped:', achievementResult.reason);
+                }
 
                 const enriched = activeRows.map((m: Member) => {
                     const matched = m.auth_user_id ? profileById.get(m.auth_user_id) : undefined;
