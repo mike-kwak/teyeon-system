@@ -83,11 +83,13 @@ export default function ArchivePage() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  const CEO_EMAIL = process.env.NEXT_PUBLIC_CEO_EMAIL || 'cws786@nate.com';
-  const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',');
+  // Archive 운영진 = 앱 권한(profiles.role, AuthContext 가 검증한 값) CEO · ADMIN 만.
+  //   예전에는 이메일 목록(NEXT_PUBLIC_CEO_EMAIL · NEXT_PUBLIC_ADMIN_EMAILS)도 운영진으로 인정했지만,
+  //   DB(is_full_admin · P1-b)는 역할로만 판정하므로 화면도 같은 기준으로 맞춘다(탈회·권한 없는 계정의 화면 운영 권한 제거).
+  //   이 값은 버튼 표시뿐 아니라 저장 함수(updateArchiveRecordStatus · deleteSession) 진입 확인에도 쓰인다.
   // 촬영 보호 모드/미리보기에서는 관리자 컨트롤을 숨긴다(기존 조건 유지 + 촬영 숨김 조건 추가).
   //   일반 모드에서는 shouldHideAdminControls=false 라 기존과 동일(영향 0).
-  const isAdmin = ((userEmail && (userEmail === CEO_EMAIL || ADMIN_EMAILS.includes(userEmail))) || role === 'ADMIN' || role === 'CEO') && !shouldHideAdminControls;
+  const isAdmin = (role === 'ADMIN' || role === 'CEO') && !shouldHideAdminControls;
   // Finance 벌금 등록 권한: CEO / ADMIN / FINANCE_MANAGER 만. 일반 회원에게는 노출되지 않는다.
   //   (Finance 로직/모달은 미변경 — 촬영 중에는 진입 버튼만 숨겨 모달 도달 자체를 막는다.)
   const canRegisterFinancePenalty = canManageFinance(role) && !shouldHideAdminControls;
