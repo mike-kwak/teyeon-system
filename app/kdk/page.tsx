@@ -30,6 +30,7 @@ import { PlayingMatchCard, WaitingMatchCard, CompletedMatchCard } from '@/compon
 import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import { filterActiveMembers } from '@/lib/members/membershipStatus';
+import { describeMembersLoadError, getManualMemberGate } from '@/lib/kdk/manualMemberGate';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
 
 
@@ -363,6 +364,8 @@ export default function KDKPage() {
     const [manualGuestBirthYears, setManualGuestBirthYears] = useState<Record<string, string>>({});
     const [isMembersLoading, setIsMembersLoading] = useState(true);
     const [isMembersError, setIsMembersError] = useState(false);
+    // 회원 목록 조회 실패 사유(오류 코드 포함) — 수동 대진 이름 매칭 게이트 표시용.
+    const [membersErrorDetail, setMembersErrorDetail] = useState<string | null>(null);
     // isMembersLoading → LoadingOverlay 연동 (fetchMembers 로직 무변경)
     useEffect(() => {
         if (isMembersLoading) showLoading();
@@ -1434,10 +1437,13 @@ export default function KDKPage() {
         }
     }, [showScoreModal]);
 
-    const fetchMembers = async () => {
+    // opts.skipSessionSync: 수동 대진 이름 매칭의 "다시 시도" — 회원 목록만 다시 읽고 활성 세션 동기화는 하지 않는다.
+    //   (MemberSelector 의 onRetry 는 click 이벤트를 넘기므로 skipSessionSync 가 없어 기존 동작 그대로)
+    const fetchMembers = async (opts?: { skipSessionSync?: boolean }) => {
         try {
             setIsMembersLoading(true);
             setIsMembersError(false);
+            setMembersErrorDetail(null);
             const { data: { user } } = await supabase.auth.getUser();
             if (user && !hasProfileError) {
                 // Defensive profile check: app roles now live in profiles.role.
@@ -1505,12 +1511,13 @@ export default function KDKPage() {
             } catch { /* 생년 취득 실패는 무해 — snapshot/공식 RPC 가 순위 담보 */ }
 
             setAllMembers(memberRows);
-            
+
             // After fetching members, check for active session in DB
-            await syncActiveSession();
+            if (!opts?.skipSessionSync) await syncActiveSession();
         } catch (err) {
             console.error("Fetch Members Error:", err);
             setIsMembersError(true);
+            setMembersErrorDetail(describeMembersLoadError(err));
             if (kdkEntryMode === 'CHECKING') {
                 setHasRestoredSession(false);
                 updateKdkEntryMode('CREATE');
@@ -2436,6 +2443,12 @@ export default function KDKPage() {
 
         if (manualPastePreview.length === 0) {
             alert('저장할 수동 대진이 없습니다.');
+            return;
+        }
+
+        // 회원 목록 미확보(조회 실패·0명·로딩 중) — 전원이 GUEST 로 저장되는 것을 차단.
+        if (!manualMemberGate.ready) {
+            alert(`${manualMemberGate.title}\n${manualMemberGate.detail}\n\n회원 목록을 다시 불러온 뒤 저장해 주세요.`);
             return;
         }
 
@@ -3731,6 +3744,13 @@ export default function KDKPage() {
         return names;
     }, [manualPastePreview]);
 
+    // 회원 목록을 정상 조회(1명 이상)한 뒤에만 이름 매칭 결과 표시·저장 허용 — 조회 실패/0명이면
+    //   후보가 없어 전원이 GUEST 로 잡히므로(아래 매칭 규칙은 무변경) 화면·저장 단계에서 막는다.
+    const manualMemberGate = useMemo(
+        () => getManualMemberGate({ isLoading: isMembersLoading, isError: isMembersError, memberCount: allMembers.length }, membersErrorDetail),
+        [isMembersLoading, isMembersError, allMembers.length, membersErrorDetail],
+    );
+
     const manualNameMatches = useMemo<ManualNameMatch[]>(() => {
         const memberPool = [...allMembers, ...tempGuests];
 
@@ -3764,12 +3784,12 @@ export default function KDKPage() {
     // 재참여 게스트 출생연도 자동 불러오기 — 매칭된 guest_key 들로 batch 1회 조회(N+1 금지).
     // 운영자가 이미 입력한 값은 덮어쓰지 않는다. 테이블 미생성/무권한이면 빈 결과(미제공 취급).
     const manualGuestKeysSig = useMemo(
-        () => manualNameMatches
+        () => !manualMemberGate.ready ? '' : manualNameMatches   // 회원 목록 미확보 시 "가짜 게스트" 출생연도 조회 안 함
             .filter(m => m.status !== 'MEMBER')
             .map(m => m.guestKey)
             .sort()
             .join('|'),
-        [manualNameMatches],
+        [manualNameMatches, manualMemberGate.ready],
     );
     useEffect(() => {
         if (!manualGuestKeysSig) return;
@@ -3861,6 +3881,43 @@ export default function KDKPage() {
         };
     };
 
+
+    // 수동 대진 — 회원 목록 미확보 안내(오류 사유 + 다시 시도). ready 면 아무것도 그리지 않는다.
+    const renderManualMemberGate = () => {
+        if (manualMemberGate.ready) return null;
+        const isLoadingGate = manualMemberGate.kind === 'LOADING';
+        return (
+            <div data-kdk-manual-member-gate={manualMemberGate.kind} role={isLoadingGate ? 'status' : 'alert'} style={{
+                borderRadius: 14, padding: 14, marginBottom: 12,
+                border: `1px solid ${isLoadingGate ? '#DCE8F5' : '#F4C7C7'}`,
+                background: isLoadingGate ? '#F6FAFD' : '#FDEEEE',
+            }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: isLoadingGate ? '#0F2747' : '#9B2C2C' }}>{manualMemberGate.title}</p>
+                <p style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 700, lineHeight: 1.55, color: isLoadingGate ? '#56729A' : '#9B2C2C', wordBreak: 'keep-all' }}>
+                    {manualMemberGate.detail}
+                </p>
+                {!isLoadingGate && (
+                    <>
+                        <p style={{ margin: '6px 0 0', fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: '#9B2C2C' }}>
+                            회원 목록을 확인하기 전에는 이름을 게스트로 지정하거나 저장할 수 없습니다.
+                        </p>
+                        <button
+                            type="button"
+                            data-kdk-manual-member-retry
+                            onClick={() => { void fetchMembers({ skipSessionSync: true }); }}
+                            style={{
+                                marginTop: 10, height: 40, padding: '0 16px', borderRadius: 999,
+                                border: '1px solid #F4C7C7', background: '#FFFFFF',
+                                fontSize: 12, fontWeight: 900, color: '#C0392B', cursor: 'pointer',
+                            }}
+                        >
+                            회원 목록 다시 불러오기
+                        </button>
+                    </>
+                )}
+            </div>
+        );
+    };
 
     const renderActiveSessionSelector = () => (
         <main
@@ -4907,8 +4964,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     </span>
                                 </div>
 
+                                {renderManualMemberGate()}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {manualNameMatches.map(match => (
+                                    {manualMemberGate.ready && manualNameMatches.map(match => (
                                         <div key={match.originalName} style={{
                                             borderRadius: 14, border: '1px solid #E1EAF5',
                                             background: '#F8FBFE', padding: 12,
@@ -4990,7 +5048,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                             })()}
                                         </div>
                                     ))}
-                                    {manualNameMatches.some(m => m.status !== 'MEMBER') && (
+                                    {manualMemberGate.ready && manualNameMatches.some(m => m.status !== 'MEMBER') && (
                                         <p style={{ margin: '10px 2px 0', fontSize: 10.5, fontWeight: 700, color: '#8AA0BC', lineHeight: 1.55, wordBreak: 'keep-all' }}>
                                             출생연도 미제공 시 완전 동률에서 후순위가 될 수 있습니다.
                                         </p>
@@ -5008,7 +5066,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <span style={{ fontSize: 10, fontWeight: 800, color: '#1F5FB5', textAlign: 'right' }}>{manualPastePreview.length} matches · {manualGroups.length || 0} groups</span>
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {manualPastePreview.map((row, index) => (
+                                    {!manualMemberGate.ready && (
+                                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#8AA0BC' }}>회원 목록을 불러온 뒤 표시됩니다.</p>
+                                    )}
+                                    {manualMemberGate.ready && manualPastePreview.map((row, index) => (
                                         <div key={`${row.raw}-matched-${index}`} style={{
                                             borderRadius: 14, border: '1px solid #E1EAF5',
                                             background: '#F8FBFE', padding: '10px 12px',
@@ -5038,7 +5099,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
                             <button
                                 type="button"
+                                data-kdk-manual-next-rules
+                                disabled={!manualMemberGate.ready}
                                 onClick={() => {
+                                    if (!manualMemberGate.ready) return; // 회원 목록 미확보 — 진행 차단
                                     commitTotalCourts(4);
                                     setManualStep('RULES');
                                     setStep(2);
@@ -5046,13 +5110,13 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     width: '100%', height: 60, boxSizing: 'border-box', borderRadius: 18,
-                                    background: 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)',
-                                    color: '#FFFFFF', fontSize: 15, fontWeight: 800,
-                                    letterSpacing: '0.02em', border: 'none', cursor: 'pointer',
-                                    boxShadow: '0 14px 28px rgba(37,99,235,0.24)',
+                                    background: manualMemberGate.ready ? 'linear-gradient(90deg, #2563EB 0%, #1D9BF0 100%)' : '#E1EAF5',
+                                    color: manualMemberGate.ready ? '#FFFFFF' : '#9CB2CC', fontSize: 15, fontWeight: 800,
+                                    letterSpacing: '0.02em', border: 'none', cursor: manualMemberGate.ready ? 'pointer' : 'not-allowed',
+                                    boxShadow: manualMemberGate.ready ? '0 14px 28px rgba(37,99,235,0.24)' : 'none',
                                 }}
                             >
-                                다음: 룰 설정 →
+                                {manualMemberGate.ready ? '다음: 룰 설정 →' : '회원 목록 확인 후 진행할 수 있습니다'}
                             </button>
                         </div>
                     )}
@@ -5161,10 +5225,11 @@ A    1    봉준    상윤    영호    광현    19:00`}
             const m = [...allMembers, ...tempGuests].find(x => x.id === id);
             return { id, name: m?.nickname || 'Unknown', is_guest: !!m?.is_guest };
         });
+        // 회원 목록 미확보 시 매칭 결과(전원 'X(G)') 대신 붙여넣은 이름 원문만 표시 — 회원/게스트 판정 숨김.
         const manualMatchedRows = manualPastePreview.map(row => ({
             ...row,
-            teamAResolved: row.teamA.map(getManualResolvedName),
-            teamBResolved: row.teamB.map(getManualResolvedName),
+            teamAResolved: manualMemberGate.ready ? row.teamA.map(getManualResolvedName) : row.teamA.map(name => name.trim()),
+            teamBResolved: manualMemberGate.ready ? row.teamB.map(getManualResolvedName) : row.teamB.map(name => name.trim()),
         }));
         const manualMatchedGroups = manualGroups.map(group => ({
             group,
@@ -5184,16 +5249,19 @@ A    1    봉준    상윤    영호    광현    19:00`}
             const roundKeys = Array.from(new Set(manualPastePreview.map((row, index) => (
                 row.time?.trim() ? `TIME_${row.time.trim()}` : `ORDER_${row.order || index + 1}`
             ))));
-            const guestNames = manualNameMatches
+            // 회원 목록 미확보 시 게스트/미매칭 요약을 만들지 않는다(전원 GUEST 로 잘못 보이는 것 방지).
+            //   정상 조회 후에는 기존 규칙 그대로.
+            const guestNames = !manualMemberGate.ready ? [] : manualNameMatches
                 .filter(match => match.status === 'GUEST')
                 .map(match => match.displayName);
-            const unmatchedNames = manualNameMatches
+            const unmatchedNames = !manualMemberGate.ready ? [] : manualNameMatches
                 .filter(match => match.status === 'GUEST' && match.candidates.length === 0)
                 .map(match => match.displayName);
             const invalidRows = manualPastePreview.filter(row => !row.isValid);
             const rowsWithoutGroup = manualPastePreview.filter(row => !row.group?.trim());
             const rowsWithoutTime = manualPastePreview.filter(row => !row.time?.trim());
             const warnings = [
+                ...(!manualMemberGate.ready ? ['회원 목록 미확인 — 회원/게스트 판정 보류'] : []),
                 ...(manualPastePreview.length === 0 ? ['No manual matches'] : []),
                 ...((groupCounts.A || 0) === 0 ? ['A group has 0 matches'] : []),
                 ...((groupCounts.B || 0) === 0 ? ['B group has 0 matches'] : []),
@@ -5219,6 +5287,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
             };
         })();
         const isStep2ButtonDisabled = isGenerating || (isManualRulesMode && (
+            !manualMemberGate.ready ||   // 회원 목록 미확보 — 전원 GUEST 저장 차단
             manualExpectedSummary.totalMatches === 0 ||
             totalCourts < 1 ||
             totalCourts > 99
@@ -5802,7 +5871,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     ['총 경기', manualExpectedSummary.totalMatches],
                                     ['코트', totalCourts],
                                     ['참가자', manualPlayerNames.length],
-                                    ['게스트', manualExpectedSummary.guestNames.length],
+                                    ['게스트', manualMemberGate.ready ? manualExpectedSummary.guestNames.length : '—'],
                                     ['A조', manualExpectedSummary.groupA],
                                     ['B조', manualExpectedSummary.groupB],
                                     ['라운드', manualExpectedSummary.totalRounds],
@@ -5828,7 +5897,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, fontSize: 11 }}>
                                     <span style={{ flexShrink: 0, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1F5FB5' }}>Guests</span>
                                     <span style={{ textAlign: 'right', fontWeight: 700, color: '#3F5B82' }}>
-                                        {manualExpectedSummary.guestNames.length > 0 ? manualExpectedSummary.guestNames.join(', ') : 'None'}
+                                        {!manualMemberGate.ready
+                                            ? '회원 목록 확인 후 표시'
+                                            : manualExpectedSummary.guestNames.length > 0 ? manualExpectedSummary.guestNames.join(', ') : 'None'}
                                     </span>
                                 </div>
                                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, fontSize: 11 }}>
@@ -5858,6 +5929,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         RULES/GUESTS/WARNINGS 아래, 스크롤 끝에서만 노출되어 카드를 가리지 않는다. */}
                     {isAdmin && (
                         <div data-kdk-rules-actions style={{ position: 'relative', width: '100%', marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {isManualRulesMode && renderManualMemberGate()}
                             <button
                                 data-kdk-rules-primary-cta
                                 disabled={isStep2ButtonDisabled}
