@@ -206,6 +206,31 @@ export default function KDKPage() {
     //   촬영 보호 모드/미리보기에서는 운영 UI 를 숨긴다(기존 권한 조건 유지 + 촬영 숨김 조건 추가).
     //   일반 모드에서는 shouldHideAdminControls=false 라 기존과 동일하게 동작(영향 0).
     const isAdmin = (role === 'CEO' || role === 'ADMIN') && !shouldHideAdminControls;
+    // KDK 권한 3단계(DB 판정 그대로 · 화면은 보조):
+    //   isFullAdmin      = CEO·ADMIN(기존 isAdmin) — 세션 삭제 · 전체 초기화 · 강제 동기화 · 기존 Archive 저장 경로
+    //   canManageKdk     = CEO·ADMIN 또는 KDK 관리자(kdk_managers 등재) — 대진 생성·설정 · 정정 · 되돌리기 · 당일 공식 저장(RPC)
+    //   canOperateCourt  = 로그인 회원(GUEST 제외) — 빈 코트 투입 · 타이머 시작
+    //   DB 함수(can_manage_kdk · kdk_can_operate_court)가 없거나 실패하면 false → 지금과 같은 화면(CEO·ADMIN 만).
+    const isFullAdmin = isAdmin;
+    // ready: 판정 조회가 끝났는가(비로그인 · GUEST 는 조회하지 않고 바로 false 확정).
+    const [kdkDbPerm, setKdkDbPerm] = useState<{ manage: boolean; court: boolean; ready: boolean }>({ manage: false, court: false, ready: false });
+    useEffect(() => {
+        if (!uid || role === 'GUEST') { setKdkDbPerm({ manage: false, court: false, ready: true }); return; }
+        let alive = true;
+        Promise.all([supabase.rpc('can_manage_kdk'), supabase.rpc('kdk_can_operate_court')])
+            .then(([m, c]) => {
+                if (!alive) return;
+                setKdkDbPerm({ manage: !m.error && m.data === true, court: !c.error && c.data === true, ready: true });
+            })
+            .catch(() => { if (alive) setKdkDbPerm({ manage: false, court: false, ready: true }); });
+        return () => { alive = false; };
+    }, [uid, role]);
+    const canManageKdk = isFullAdmin || (kdkDbPerm.manage && !shouldHideAdminControls);
+    const canOperateCourt = canManageKdk || (kdkDbPerm.court && !shouldHideAdminControls);
+    const canDeleteKdkSession = isFullAdmin;
+    const isKdkManagerOnly = canManageKdk && !isFullAdmin;
+    // 대진 생성·수동 저장: 기존 기능 권한(kdk WRITE) 또는 KDK 관리자(등재 자체가 권한 — DB kdk_p1_can_generate 와 같음).
+    const canWriteKdkDraw = hasPermission('kdk') === 'WRITE' || isKdkManagerOnly;
     const clubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
 
     // 권한 제한 알림 헬퍼
@@ -980,7 +1005,7 @@ export default function KDKPage() {
         if (!guardWriteAction('공식 기록 확정/아카이브')) return; // 촬영 보호 모드 차단
         // 운영진 전용(RankingTab 확정 버튼과 같은 조건 · 화면 우회 호출 방지용 이중 확인).
         //   ※ DB 수준 보호는 P1-b 적용 전까지 없다(authenticated 직접 쓰기 가능).
-        if (!isAdmin) {
+        if (!canManageKdk) {
             alert('관리자만 아카이브를 확정할 수 있습니다.');
             return;
         }
@@ -1093,6 +1118,8 @@ export default function KDKPage() {
 
             // 서버 저장이 실제 확인됐을 때만 완료 화면을 띄운다(로컬 백업만으론 성공으로 표시하지 않음).
             let serverArchived = false;
+            // KDK 관리자 경로(RPC)는 저장과 라이브 경기 정리를 서버가 한 번에 한다 → 화면에서 직접 삭제하지 않는다.
+            let liveCleanedByServer = false;
 
             // 로그인 사용자 연결로 저장한다(예전: anon 키로 직접 POST → P0-A 이후 42501 로 거부됨).
             //   payload · 같은 id 덮어쓰기(onConflict id = 예전 Prefer: resolution=merge-duplicates) · 저장 순서는 그대로.
@@ -1102,19 +1129,57 @@ export default function KDKPage() {
                 if (!authSession?.access_token) {
                     throw new Error('로그인 세션이 없거나 만료되었습니다. 다시 로그인한 뒤 공식 확정을 다시 눌러주세요.');
                 }
-                const { error: archiveError } = await supabase
-                    .from('teyeon_archive_v1')
-                    .upsert({ id: sessionId, raw_data: rawDataPayload }, { onConflict: 'id' });
-
-                if (archiveError) {
-                    const code = String((archiveError as any).code || '');
-                    console.error(`❌ [v14.0] SERVER REJECTED (${code}):`, archiveError);
-                    if (code === '42501' || code === 'PGRST301' || code === 'PGRST303' || /jwt|permission denied/i.test(archiveError.message || '')) {
-                        throw new Error(`Archive 저장 권한이 확인되지 않았습니다(${code || 'auth'}). 운영진 계정으로 다시 로그인한 뒤 다시 시도해주세요.`);
+                if (isKdkManagerOnly) {
+                    // KDK 관리자: Archive 직접 쓰기 권한 없음(P1-b) → 검증 RPC 로 "당일 최초 1회"만 저장한다.
+                    //   서버가 DB 라이브 경기와 snapshot · 순위 · 정산을 대조하고, 이미 저장된 세션이면 거부(덮어쓰기 없음).
+                    //   저장 행은 미확정 상태 — 공식 확정은 지금처럼 CEO·ADMIN 이 Archive 에서 한다.
+                    const { data: saveRes, error: saveErr } = await supabase.rpc('save_kdk_official_archive', {
+                        p_session_id: sessionId,
+                        p_club_id: clubId,
+                        p_raw_data: rawDataPayload,
+                    });
+                    if (saveErr) {
+                        const code = String((saveErr as any).code || '');
+                        console.error(`❌ [KDK] save_kdk_official_archive error (${code}):`, saveErr);
+                        if (code === 'PGRST202' || /could not find the function|schema cache/i.test(saveErr.message || '')) {
+                            throw new Error('KDK 관리자 공식 저장 기능이 아직 준비되지 않았습니다. CEO·ADMIN 에게 확정을 요청해주세요.');
+                        }
+                        if (code === '42501' || /permission denied/i.test(saveErr.message || '')) {
+                            throw new Error('공식 저장 권한이 확인되지 않았습니다. 다시 로그인한 뒤 다시 시도해주세요.');
+                        }
+                        throw new Error(`Server Rejected: ${saveErr.message || code}`);
                     }
-                    throw new Error(`Server Rejected: ${archiveError.message || code}`);
+                    const r = (saveRes || {}) as { ok?: boolean; reason?: string };
+                    if (!r.ok) {
+                        const reasonText: Record<string, string> = {
+                            already_archived: '이 세션은 이미 Archive 에 저장되어 있습니다. 수정은 CEO·ADMIN 만 가능합니다.',
+                            not_same_day: '당일 세션만 KDK 관리자가 저장할 수 있습니다. CEO·ADMIN 에게 요청해주세요.',
+                            match_in_progress: '진행 중인 경기가 있습니다. 모든 경기를 마친 뒤 다시 확정해주세요.',
+                            snapshot_mismatch: '화면의 경기 결과가 서버와 다릅니다. 최신 상태로 갱신한 뒤 다시 확정해주세요.',
+                            guest_fee_missing: '게스트비가 설정되지 않았습니다. 운영 설정에서 게스트비를 저장한 뒤 다시 확정해주세요.',
+                            forbidden: 'KDK 관리자 권한이 확인되지 않았습니다.',
+                            auth_required: '로그인 세션이 만료되었습니다. 다시 로그인해주세요.',
+                        };
+                        if (r.reason === 'snapshot_mismatch') { try { await syncActiveSession(); } catch { /* 갱신 실패는 무시 */ } }
+                        throw new Error(reasonText[r.reason || ''] || `서버 검증을 통과하지 못했습니다(${r.reason || 'unknown'}). CEO·ADMIN 에게 확정을 요청해주세요.`);
+                    }
+                    liveCleanedByServer = true;
+                    console.log("✅ [KDK] MANAGER OFFICIAL SAVE SUCCESS");
+                } else {
+                    const { error: archiveError } = await supabase
+                        .from('teyeon_archive_v1')
+                        .upsert({ id: sessionId, raw_data: rawDataPayload }, { onConflict: 'id' });
+
+                    if (archiveError) {
+                        const code = String((archiveError as any).code || '');
+                        console.error(`❌ [v14.0] SERVER REJECTED (${code}):`, archiveError);
+                        if (code === '42501' || code === 'PGRST301' || code === 'PGRST303' || /jwt|permission denied/i.test(archiveError.message || '')) {
+                            throw new Error(`Archive 저장 권한이 확인되지 않았습니다(${code || 'auth'}). 운영진 계정으로 다시 로그인한 뒤 다시 시도해주세요.`);
+                        }
+                        throw new Error(`Server Rejected: ${archiveError.message || code}`);
+                    }
+                    console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
                 }
-                console.log("✅ [v14.0] SERVER ARCHIVE SUCCESS");
                 serverArchived = true;
             } catch (err: any) {
                 console.error("❌ [v14.0] CRITICAL SYNC ERROR:", err);
@@ -1138,8 +1203,11 @@ export default function KDKPage() {
             if (window.navigator?.vibrate) window.navigator.vibrate([200, 100, 200, 100, 200]);
 
             // 3. Cleanup Live Data from Supabase (서버 저장 확인 후에만 라이브 데이터 삭제)
-            const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
-            if (delError) console.error("Cleanup Error (Non-Fatal):", delError);
+            //    KDK 관리자 경로는 RPC 가 같은 트랜잭션에서 이미 정리했다(관리자는 직접 삭제 권한 없음).
+            if (!liveCleanedByServer) {
+                const { error: delError } = await supabase.from('matches').delete().eq('session_id', sessionId);
+                if (delError) console.error("Cleanup Error (Non-Fatal):", delError);
+            }
 
             // 4. Clear live-session cache while keeping Archive actions visible.
             localStorage.removeItem('kdk_live_session');
@@ -1403,11 +1471,12 @@ export default function KDKPage() {
 
     // [v25.0] Guest Access Auto Router
     useEffect(() => {
-        if (!isAdmin && step < 3) {
+        // KDK 관리자는 판정 조회가 끝나기 전 잠깐 false 이므로, 조회가 끝난 뒤에만 이동시킨다(CEO·ADMIN 은 즉시 true).
+        if (!canManageKdk && kdkDbPerm.ready && step < 3) {
             setStep(3);
             if (!selectedSessionId) setShowGateway(true);
         }
-    }, [isAdmin, step, selectedSessionId]);
+    }, [canManageKdk, kdkDbPerm.ready, step, selectedSessionId]);
 
     // Save to LocalStorage
     useEffect(() => {
@@ -1968,7 +2037,7 @@ export default function KDKPage() {
     };
 
     const startNewKdkCreation = () => {
-        if (!isAdmin) {
+        if (!canManageKdk) {
             triggerAccessDenied("새로운 경기는 관리자만 생성 가능합니다.");
             return;
         }
@@ -1997,7 +2066,7 @@ export default function KDKPage() {
         if (!sessionDeleteTarget) return;
         if (isDeletingSession) return; // 처리 중 중복 클릭 방지
         if (!guardWriteAction('세션 삭제')) { setSessionDeleteTarget(null); return; } // 촬영 보호 모드 차단
-        if (!isAdmin) {
+        if (!canDeleteKdkSession) {
             triggerAccessDenied("진행 중인 세션 삭제는 관리자만 가능합니다.");
             setSessionDeleteTarget(null);
             return;
@@ -2281,7 +2350,7 @@ export default function KDKPage() {
     const generateKDK = async () => {
         if (!guardWriteAction('대진 생성/저장')) return; // 촬영 보호 모드 차단
         // Late Gaming: Permission Check at Final Button
-        if (hasPermission('kdk') !== 'WRITE') {
+        if (!canWriteKdkDraw) {
             alert(getRestrictionMessage('kdk'));
             return;
         }
@@ -2445,7 +2514,7 @@ export default function KDKPage() {
         if (isGenerating) return;
         if (!guardWriteAction('수동 대진 저장')) return; // 촬영 보호 모드 차단
 
-        if (hasPermission('kdk') !== 'WRITE') {
+        if (!canWriteKdkDraw) {
             alert(getRestrictionMessage('kdk'));
             return;
         }
@@ -2832,7 +2901,7 @@ export default function KDKPage() {
     //   원자성(동시 클릭/다중 운영자)은 RPC(start_kdk_match_timer)가 담당: started_at 이 이미
     //   있으면 덮어쓰지 않고 기존 값을 반환한다. 코트 투입 RPC(start_kdk_match)와는 별개.
     const startMatchTimer = async (matchId: string) => {
-        if (!isAdmin || !adminModeManual) return triggerAccessDenied('경기 시작은 관리자 모드에서만 가능합니다.');
+        if (!canOperateCourt || !adminModeManual) return triggerAccessDenied('경기 시작은 로그인한 회원만 가능합니다.');
         if (!guardWriteAction('경기 타이머 시작')) return; // 촬영 보호 모드 차단
         const lockKey = `timer:${matchId}`;
         if (!beginAction(lockKey)) return; // 같은 경기 더블탭 동기 차단
@@ -4042,7 +4111,7 @@ export default function KDKPage() {
                         <p style={{ margin: '8px 0 0', fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: '#56729A' }}>
                             새 대진을 생성해 LIVE COURT를 시작하세요.
                         </p>
-                        {isAdmin && (
+                        {canManageKdk && (
                             <button
                                 type="button"
                                 onClick={startNewKdkCreation}
@@ -5370,6 +5439,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         )}
                     </div>
 
+                    {isFullAdmin && (
                     <button
                         onClick={() => {
                             if (!isAdmin) return triggerAccessDenied();
@@ -5387,6 +5457,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                         <span>초기화</span>
                     </button>
+                    )}
                 </header>
 
                 <div style={{ maxWidth: 520, margin: '0 auto', width: '100%', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14, boxSizing: 'border-box' }}>
@@ -5942,7 +6013,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
 
                     {/* STEP 4 저장 전 확인 — 액션 버튼을 fixed overlay 가 아닌 콘텐츠 최하단 일반 흐름으로 배치.
                         RULES/GUESTS/WARNINGS 아래, 스크롤 끝에서만 노출되어 카드를 가리지 않는다. */}
-                    {isAdmin && (
+                    {canManageKdk && (
                         <div data-kdk-rules-actions style={{ position: 'relative', width: '100%', marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {isManualRulesMode && renderManualMemberGate()}
                             <button
@@ -6189,13 +6260,13 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     )}
                 </div>
 
-                { (allActiveSessions.length === 0 || isAdmin) && (
+                { (allActiveSessions.length === 0 || canManageKdk) && (
                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full px-8 pb-4">
                         <button
                             onClick={startNewKdkCreation}
                             className="w-full py-5 rounded-full bg-white/5 border border-white/10 text-white/40 font-black text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                         >
-                            {isAdmin ? '+ 새로운 대회 생성하기' : '준비 된 경기가 없습니다'}
+                            {canManageKdk ? '+ 새로운 대회 생성하기' : '준비 된 경기가 없습니다'}
                         </button>
                     </div>
                 )}
@@ -6335,7 +6406,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                     >
                         결과
                     </button>
-                    {adminModeManual && isAdmin && (
+                    {adminModeManual && canManageKdk && (
                         <button
                             type="button"
                             onClick={() => setShowMemberEditModal(true)}
@@ -6449,7 +6520,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     key={m.id}
                                                     match={m}
                                                     getPlayerName={getPlayerName}
-                                                    isAdmin={isAdmin && adminModeManual}
+                                                    isAdmin={canManageKdk && adminModeManual}
+                                                    canStartTimer={canOperateCourt && adminModeManual}
                                                     onCancel={(id) => cancelMatch(id)}
                                                     spinningMatchId={spinningMatchId}
                                                     matchNo={matchNo}
@@ -6517,11 +6589,12 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                                             index={idx}
                                                                             matchNo={matchNo}
                                                                             getPlayerName={getPlayerName}
-                                                                            isAdmin={isAdmin && adminModeManual}
+                                                                            isAdmin={canManageKdk && adminModeManual}
+                                                                            canStart={canOperateCourt && adminModeManual}
                                                                             isStartingMatch={isStartingMatch}
                                                                             hasConflict={hasConflict}
                                                                             onStart={(id) => {
-                                                                                if (!isAdmin || !adminModeManual) return triggerAccessDenied("경기 투입은 관리자 모드에서만 가능합니다.");
+                                                                                if (!canOperateCourt || !adminModeManual) return triggerAccessDenied("경기 투입은 로그인한 회원만 가능합니다.");
                                                                                 startMatch(id);
                                                                             }}
                                                                         />
@@ -6561,10 +6634,10 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     index={idx}
                                                     matchNo={gMatchNo}
                                                     getPlayerName={getPlayerName}
-                                                    isAdmin={isAdmin}
+                                                    isAdmin={canManageKdk}
                                                     onResetStatus={(id) => setResetMatchTarget(id)}
                                                     onEdit={(match) => {
-                                                        if (!isAdmin) return triggerAccessDenied();
+                                                        if (!canManageKdk) return triggerAccessDenied();
                                                         setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
                                                         setShowScoreModal(match.id);
                                                     }}
@@ -6582,7 +6655,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             players={resolvedRanking}
                             sessionTitle={sessionTitle}
                             isArchive={false}
-                            isAdmin={isAdmin}
+                            isAdmin={canManageKdk}
                             prizes={{ first: firstPrize, l1: bottom25Late, l2: bottom25Penalty }}
                             guestFee={guestFee}
                             onShareMatch={execCopySchedule}
@@ -6808,9 +6881,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </div>
                             </section>
 
-                            {/* 운영 설정 — CEO/ADMIN 만. 상단 헤더에서 이동한 전광판 티커 / 정모 연결.
+                            {/* 운영 설정 — CEO/ADMIN · KDK 관리자. 상단 헤더에서 이동한 전광판 티커 / 정모 연결.
                                 기존 state·handler·upsert 로직을 그대로 재사용하고 위치만 모달로 옮김. */}
-                            {isAdmin && (
+                            {canManageKdk && (
                                 <section style={{ borderRadius: 16, background: '#F8FBFE', border: '1px solid #E1EAF5', padding: 14 }}>
                                     <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#1F5FB5' }}>운영 설정</p>
 
@@ -6989,8 +7062,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                 </section>
                             )}
 
-                            {/* Danger Zone — CEO/ADMIN 만 */}
-                            {isAdmin && (
+                            {/* Danger Zone — CEO/ADMIN 만(KDK 관리자 제외) */}
+                            {canDeleteKdkSession && (
                                 <section style={{ borderRadius: 16, background: '#FEF2F2', border: '1px solid #FBD0D0', padding: 14 }}>
                                     <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#DC2626' }}>Danger Zone</p>
                                     <p style={{ margin: '8px 0 2px', fontSize: 13.5, fontWeight: 900, color: '#B91C1C' }}>현재 세션 삭제</p>

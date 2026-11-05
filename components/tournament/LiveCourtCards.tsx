@@ -100,6 +100,7 @@ export const PlayingMatchCard = ({
     toastMsg,
     onStartTimer,
     timerPending = false,
+    canStartTimer,
 }: CardProps & {
     onInputScore: (id: string, s1: number, s2: number) => void;
     isAdmin?: boolean;
@@ -111,6 +112,8 @@ export const PlayingMatchCard = ({
     /** 경기 타이머 "시작" 핸들러 — 전달된 화면(KDK)에서만 타이머 UI 노출. /special 미전달 → 무변화. */
     onStartTimer?: (id: string) => void;
     timerPending?: boolean;
+    /** 타이머 "시작" 버튼 노출 권한. 미전달 = isAdmin(기존 동작). KDK 는 로그인 회원 현장 운영 권한을 따로 넘긴다. */
+    canStartTimer?: boolean;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
     const { normalizedGroup, accentColor, softBg, softBorder, headerBg } = groupMeta;
@@ -191,7 +194,7 @@ export const PlayingMatchCard = ({
                             }}>
                                 시작 대기
                             </span>
-                            {isAdmin && onStartTimer && (
+                            {(canStartTimer ?? isAdmin) && onStartTimer && (
                                 <button
                                     type="button"
                                     disabled={timerPending}
@@ -327,6 +330,7 @@ export const WaitingMatchCard = ({
     isAdmin = false,
     isStartingMatch = false,
     hasConflict = false,
+    canStart,
 }: CardProps & {
     index: number;
     onStart: (id: string) => void;
@@ -334,6 +338,8 @@ export const WaitingMatchCard = ({
     isAdmin?: boolean;
     isStartingMatch?: boolean;
     hasConflict?: boolean;
+    /** "투입" 버튼 권한. 미전달 = isAdmin(기존 동작). KDK 는 로그인 회원 현장 운영 권한을 따로 넘긴다. */
+    canStart?: boolean;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
     const { normalizedGroup, accentColor, softBg, softBorder } = groupMeta;
@@ -437,7 +443,7 @@ export const WaitingMatchCard = ({
                         width: '100%',
                     }}
                 >
-                    {isStartingMatch ? '...' : hasConflict ? '대기중' : (isAdmin ? '투입' : '대기')}
+                    {isStartingMatch ? '...' : hasConflict ? '대기중' : ((canStart ?? isAdmin) ? '투입' : '대기')}
                 </button>
             </div>
         </div>
