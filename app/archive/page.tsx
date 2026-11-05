@@ -1121,7 +1121,8 @@ export default function ArchivePage() {
             </p>
             {session.is_official && session.confirmed_at && (
               <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#3F5B82' }}>
-                {formatArchiveDateTime(session.confirmed_at)}{session.confirmed_by ? ` · 관리자 ${session.confirmed_by} 확인` : ''}
+                {/* 확정자 원문(이메일/계정 id)은 표시하지 않는다 — 누가 확정했는지는 운영 DB 감사용(ISS-018). */}
+                {formatArchiveDateTime(session.confirmed_at)}{session.confirmed_by ? ' · 운영진 확인' : ''}
               </p>
             )}
             {!session.is_official && (
@@ -1602,7 +1603,8 @@ export default function ArchivePage() {
     if (!guardWriteAction('공식 기록 변경')) return; // 촬영 보호 모드 차단
     if (!isAdmin) return;
 
-    const confirmedBy = userEmail || user?.email || user?.id || '';
+    // 확정자 기록: 이메일 대신 로그인 계정 id(감사 추적은 profiles 로 연결). 기존 행의 값은 바꾸지 않는다(ISS-018).
+    const confirmedBy = user?.id || '';
     const payload =
       status === 'official'
         ? {
