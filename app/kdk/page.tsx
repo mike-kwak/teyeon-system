@@ -32,6 +32,7 @@ import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import { describeMembersLoadError, getManualMemberGate } from '@/lib/kdk/manualMemberGate';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
+import KdkSpotlightEntry from '@/components/kdk/spotlight/KdkSpotlightEntry';
 
 
 // KDK 대진 생성 스텝 공통 하단 여백 — inline-CTA(다음/생성) 스텝의 실제 스크롤 콘텐츠 끝에
@@ -6476,6 +6477,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
             <div className="flex-1 space-y-0 overflow-y-auto px-3 antialiased no-scrollbar sm:px-4" style={{ background: '#F4F8FC', paddingBottom: 'calc(var(--page-bottom-safe) + 100px)' }}>
                 {activeTab === 'MATCHES' && (
                     <>
+                        {/* MATCH SPOTLIGHT — 공개 배너(누구나) + 관리(CEO·ADMIN·KDK 관리자, 관리자 모드). 독립 조회, 경기 진행 로직과 무관. */}
+                        <KdkSpotlightEntry sessionId={activeSessionId || null} isAdmin={canManageKdk && adminModeManual} />
                         {/* 헤더(RULES 요약) ↔ NOW PLAYING 사이 명확한 여백(한쪽에만 적용해 중복 마진 방지). */}
                         <section className="h-auto" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>

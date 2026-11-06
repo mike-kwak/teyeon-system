@@ -82,16 +82,19 @@ const normalizeName = (v?: string | null): string =>
     .trim()
     .toLowerCase();
 
-const isGuestId = (pid: string, name?: string | null): boolean =>
+// ⚠ 아래 세 helper(isGuestId · parseCompleteMatch · buildMemberResolver)는 공식 KDK 분석 엔진
+//   (lib/kdk/analytics/*)이 같은 판정을 재사용하도록 export 만 한다. 동작을 바꾸면
+//   상대전적·파트너 전적·MATCH SPOTLIGHT 수치가 함께 바뀐다(scripts/verify_match_spotlight.mts 회귀).
+export const isGuestId = (pid: string, name?: string | null): boolean =>
   /^manual-guest-/i.test(pid) || /^g-/i.test(pid) || /\(G\)\s*$/i.test(String(name || ''));
 
 const getPids = (m: any): string[] => (m?.player_ids || m?.playerIds || []).map((x: unknown) => String(x ?? ''));
 const getNames = (m: any): string[] => (m?.player_names || m?.playerNames || []).map((x: unknown) => String(x ?? ''));
 
-interface ParsedMatch { pids: string[]; names: string[]; s1: number; s2: number; }
+export interface ParsedMatch { pids: string[]; names: string[]; s1: number; s2: number; }
 
 /** 2:2 · 완료 · 무승부 아님만 통과. 그 외 null. */
-function parseCompleteMatch(m: any): ParsedMatch | null {
+export function parseCompleteMatch(m: any): ParsedMatch | null {
   const pids = getPids(m);
   const names = getNames(m);
   if (pids.length !== 4) return null;
@@ -102,14 +105,14 @@ function parseCompleteMatch(m: any): ParsedMatch | null {
   return { pids, names, s1, s2 };
 }
 
-interface MemberResolver {
+export interface MemberResolver {
   /** slot → 회원 id | 'GUEST' | 'ORPHAN'. id exact → guest → name exact(중복 아님) → orphan. */
   resolveSlot(pid: string, name: string): string | 'GUEST' | 'ORPHAN';
   /** 특정 회원 id 의 slot index(0~3). id exact → legacy exact-name(중복 이름 제외). 없으면 -1. */
   findMemberSlot(id: string, resolved: string[], pids: string[], names: string[]): number;
 }
 
-function buildMemberResolver(members: HeadToHeadMemberRef[]): MemberResolver {
+export function buildMemberResolver(members: HeadToHeadMemberRef[]): MemberResolver {
   const memberIds = new Set(members.map((m) => m.id));
   const nameToId = new Map<string, string>();
   for (const m of members) {
