@@ -21,7 +21,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let body: unknown = null;
   try {
     const text = await req.text();
-    if (text.length > 4096) return NextResponse.json({ ok: false, reason: 'payload_too_large' }, { status: 413, headers: noStore });
+    // 운영진 관전 포인트(최대 8개 × 120자)를 담을 수 있는 크기. 내용 검증은 handler 가 한다.
+    if (text.length > 16384) return NextResponse.json({ ok: false, reason: 'payload_too_large' }, { status: 413, headers: noStore });
     body = text ? JSON.parse(text) : null;
   } catch {
     return NextResponse.json({ ok: false, reason: 'invalid_json' }, { status: 400, headers: noStore });

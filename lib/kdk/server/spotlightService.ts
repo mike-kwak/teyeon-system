@@ -68,6 +68,7 @@ export function createSpotlightDeps(): SpotlightDeps {
       configured: false, clubId,
       verifyUser: notConfigured, getRole: notConfigured, canManageKdk: notConfigured, loadSessionMatches: notConfigured,
       loadOfficialArchives: notConfigured, loadMembers: notConfigured, loadRestrictedMemberIds: notConfigured,
+      latestRunRevision: notConfigured,
       rpc: async () => ({ ok: false, status: 0, code: 'not_configured' }),
       randomSlug, today: () => kstToday(),
     };
@@ -130,6 +131,14 @@ export function createSpotlightDeps(): SpotlightDeps {
         }
       }
       return out;
+    },
+    async latestRunRevision(token, sessionId) {
+      // publish RPC 의 "최신 회차" 판정과 같은 집합(draft · published · unpublished = superseded 제외)을
+      // 기존 운영진 RPC(get_kdk_spotlight_admin)로 사용자 본인 토큰으로 읽는다 — 테이블 직접 권한에 기대지 않는다.
+      const r = await rest(c, '/rest/v1/rpc/get_kdk_spotlight_admin',
+        { method: 'POST', bearer: token, headers: { apikey: c.anon }, body: JSON.stringify({ p_session_id: sessionId }) });
+      if (!r.ok || !r.body || !Array.isArray(r.body.runs)) return null;
+      return r.body.runs.reduce((mx: number, x: any) => Math.max(mx, Number(x?.revision) || 0), 0);
     },
     async rpc(fn, args): Promise<RpcResult> {
       const r = await rest(c, `/rest/v1/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });

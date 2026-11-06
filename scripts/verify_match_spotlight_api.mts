@@ -60,6 +60,7 @@ function makeDeps(over: Record<string, any> = {}) {
     loadOfficialArchives: async () => ARCHIVES,
     loadMembers: async () => MEMBERS,
     loadRestrictedMemberIds: async () => [],
+    latestRunRevision: async () => (over.latest === undefined ? 1 : over.latest),
     randomSlug: () => 'abcdefghijklmnop',
     today: () => '2026-11-03',
     rpc: async (fn: string, args: any) => {
@@ -74,8 +75,9 @@ function makeDeps(over: Record<string, any> = {}) {
       }
       if (fn === 'get_kdk_spotlight_run_for_publish') {
         const res = se.buildSpotlight({ sessionId: 'S1', sessionDate: '2026-11-03', sessionMatches: MATCHES, archiveRows: ARCHIVES, members: MEMBERS });
-        return { ok: true, data: { ok: true, run: { id: RUN_ID, club_id: over.otherClub ? 'OTHER' : 'CLUB', session_id: 'S1', status: 'draft', model_version: res.modelVersion, select_version: res.selectVersion, cutoff_date: '2026-11-03', session_title: 't', session_date: '2026-11-03' },
-          predictions: res.predictions.map((p: any) => ({ match_id: p.matchId, status: 'active', selected: true, snapshot: p,
+        return { ok: true, data: { ok: true, run: { id: RUN_ID, club_id: over.otherClub ? 'OTHER' : 'CLUB', session_id: 'S1', status: over.runStatus || 'draft', revision: over.revision ?? 1, model_version: res.modelVersion, select_version: res.selectVersion, cutoff_date: '2026-11-03', session_title: 't', session_date: '2026-11-03' },
+          predictions: res.predictions.map((p: any) => ({ match_id: p.matchId, status: 'active', selected: over.selectOnly ? over.selectOnly.includes(p.matchId) : true,
+            snapshot: over.mutateSnap ? over.mutateSnap(p) : p,
             current_player_ids: over.changedL1 && p.matchId === 'L1' ? ['mem-1', 'mem-2', 'mem-3', 'mem-8'] : p.playerIds })) } };
       }
       if (fn === 'publish_kdk_spotlight_run') return { ok: true, data: { ok: true, reason: 'published', public_slug: 'abcdefghijklmnop' } };
@@ -186,6 +188,94 @@ for (const [label, body, reason] of [
   const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
   check('대기 경기 없음 → 409 no_predictable_matches', r.status === 409 && r.body.reason === 'no_predictable_matches');
   check('대기 경기 없음 → detail no_waiting', r.body.detail === 'no_waiting');
+}
+// ── 운영진 관전 포인트 · 운영진 PICK · 미리보기 · 재공개 ─────────────────────────────
+{
+  const writes = (calls: any[]) => calls.filter((c) => ['publish_kdk_spotlight_run', 'unpublish_kdk_spotlight_run', 'save_kdk_spotlight_run'].includes(c.fn));
+  const PUB = { action: 'publish', runId: RUN_ID };
+  {
+    const { deps, calls } = makeDeps();
+    const r = await handleSpotlightAction(deps, 'Bearer tok-kdkmgr', { action: 'preview', runId: RUN_ID });
+    check('미리보기(입력 없음) → 200 · 저장 없음', r.status === 200 && r.body.preview === true && writes(calls).length === 0, `${r.status} ${r.body.reason}`);
+    check('미리보기: 공개와 같은 계산(payload 반환)', Array.isArray(r.body.payload?.items) && Array.isArray(r.body.payload?.matches));
+  }
+  {
+    const { deps, calls } = makeDeps();
+    const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', { action: 'preview', runId: RUN_ID, operator: { points: [{ matchNo: 1, text: '회원1·회원2 호흡이 좋다는 소식' }] } });
+    const m1 = r.body.payload?.matches?.find((m: any) => m.matchNo === 1);
+    check('미리보기(관전 포인트) → 반영 · 저장 없음', r.status === 200 && m1?.operatorPoint === '회원1·회원2 호흡이 좋다는 소식' && writes(calls).length === 0, JSON.stringify(r.body).slice(0, 160));
+  }
+  {
+    const { deps, calls } = makeDeps();
+    const r = await handleSpotlightAction(deps, 'Bearer tok-kdkmgr', { ...PUB, operator: { points: [{ matchNo: 1, text: '  회원1 오늘 컨디션 최고\n' }] } });
+    const pub = calls.find((c) => c.fn === 'publish_kdk_spotlight_run');
+    const m1 = pub?.args.p_public_payload.matches.find((m: any) => m.matchNo === 1);
+    check('공개(관전 포인트) → publish payload 에 정리된 문구', r.status === 200 && m1?.operatorPoint === '회원1 오늘 컨디션 최고', JSON.stringify(m1));
+    check('공개 payload: 숫자 확률 · 내부 id 없음', !/probA|"mem-\d|player_ids|playerIds/.test(JSON.stringify(pub?.args.p_public_payload)));
+  }
+  for (const [label, operator, status, reason] of [
+    ['HTML', { points: [{ matchNo: 1, text: '<script>x</script>' }] }, 400, 'operator_html'],
+    ['121자', { points: [{ matchNo: 1, text: '가'.repeat(121) }] }, 400, 'operator_text_too_long'],
+    ['빈 문구', { points: [{ matchNo: 1, text: '   ' }] }, 400, 'operator_text_empty'],
+    ['형식 오류', { points: 'x' }, 400, 'operator_invalid'],
+    ['같은 경기 2개', { points: [{ matchNo: 1, text: 'a' }, { matchNo: 1, text: 'b' }] }, 400, 'operator_duplicate_match'],
+    ['없는 경기', { points: [{ matchNo: 99, text: '좋아요' }] }, 409, 'operator_unknown_match'],
+    ['다른 경기 선수', { points: [{ matchNo: 1, text: '회원5 출전 기대' }] }, 409, 'operator_player_mismatch'],
+  ] as const) {
+    const { deps, calls } = makeDeps();
+    const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', { ...PUB, operator });
+    check(`운영진 입력 ${label} → ${status} ${reason} · 쓰기 없음`, r.status === status && r.body.reason === reason && writes(calls).length === 0, `${r.status} ${r.body.reason}`);
+  }
+  {
+    const { deps, calls } = makeDeps();
+    const r = await handleSpotlightAction(deps, 'Bearer tok-member', { ...PUB, operator: { points: [{ matchNo: 1, text: 'a' }] } });
+    check('일반 회원 운영진 입력 → 403 · 호출 없음', r.status === 403 && calls.length === 0);
+    const g = makeDeps();
+    const rg = await handleSpotlightAction(g.deps, 'Bearer tok-guest', { action: 'preview', runId: RUN_ID });
+    check('게스트 미리보기 → 403 · 호출 없음', rg.status === 403 && g.calls.length === 0);
+  }
+  {
+    const { deps, calls } = makeDeps({ runStatus: 'published', latest: 1 });
+    const r = await handleSpotlightAction(deps, 'Bearer tok-kdkmgr', { ...PUB, republish: true, operator: { points: [{ matchNo: 1, text: '회원1 화이팅' }] } });
+    const order = writes(calls).map((c) => c.fn);
+    check('재공개: 검증 후 비공개 → 같은 회차 공개(순서)', r.status === 200 && JSON.stringify(order) === '["unpublish_kdk_spotlight_run","publish_kdk_spotlight_run"]', `${r.status} ${JSON.stringify(order)}`);
+    check('재공개: 같은 run(같은 링크)', calls.find((c) => c.fn === 'publish_kdk_spotlight_run')?.args.p_run_id === RUN_ID);
+  }
+  {
+    const { deps, calls } = makeDeps({ runStatus: 'published', latest: 1 });
+    const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', { ...PUB, republish: true, operator: { points: [{ matchNo: 1, text: '<b>x</b>' }] } });
+    check('재공개 검증 실패 → 비공개 안 함(공개 유지)', r.status === 400 && writes(calls).length === 0);
+    const b = makeDeps({ runStatus: 'published', latest: 1 });
+    const r2 = await handleSpotlightAction(b.deps, 'Bearer tok-ceo', { ...PUB, republish: true, operator: { points: [{ matchNo: 1, text: '회원7 기대' }] } });
+    check('재공개 선수 불일치 → 비공개 안 함', r2.status === 409 && writes(b.calls).length === 0);
+  }
+  {
+    const { deps, calls } = makeDeps({ runStatus: 'published', revision: 1, latest: 2 });
+    const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', { ...PUB, republish: true, operator: { points: [{ matchNo: 1, text: '회원1' }] } });
+    check('더 새 회차 있음 → not_latest · 비공개 안 함', r.status === 409 && r.body.reason === 'not_latest' && writes(calls).length === 0, `${r.status} ${r.body.reason}`);
+  }
+  {
+    const { deps, calls } = makeDeps({ runStatus: 'published', latest: null });
+    const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', { ...PUB, republish: true, operator: { points: [] } });
+    check('최신 회차 확인 실패 → 502 · 비공개 안 함', r.status === 502 && writes(calls).length === 0);
+  }
+  {
+    // 운영진 PICK: L2 는 유형 없음 → 거부, 유형을 준 L2 + L1 만 자동 선정 → 추가 가능
+    const a = makeDeps({ selectOnly: ['L1'] });
+    const r = await handleSpotlightAction(a.deps, 'Bearer tok-ceo', { ...PUB, operator: { pick: { matchNo: 2, replace: null } } });
+    check('PICK 유형 없는 경기 → pick_no_analysis · 쓰기 없음', r.status === 409 && r.body.reason === 'pick_no_analysis' && writes(a.calls).length === 0, `${r.status} ${r.body.reason}`);
+    const closeL2 = (p: any) => (p.matchId === 'L2' ? { ...p, mainType: 'CLOSE', score: 61, candidates: [{ type: 'CLOSE', score: 61, fact: { type: 'CLOSE', probA: 0.5, tier: 'reference' } }] } : p);
+    const b = makeDeps({ selectOnly: ['L1'], mutateSnap: closeL2 });
+    const r2 = await handleSpotlightAction(b.deps, 'Bearer tok-ceo', { ...PUB, operator: { pick: { matchNo: 2, replace: null } } });
+    const pl = b.calls.find((c) => c.fn === 'publish_kdk_spotlight_run')?.args.p_public_payload;
+    check('PICK 성공 → 운영진 PICK 카드(공식 배지 그대로)', r2.status === 200 && pl?.items.some((i: any) => i.matchNo === 2 && i.operatorPick === true && i.badge === 'CLOSE'), `${r2.status} ${r2.body.reason}`);
+    const c = makeDeps({ selectOnly: ['L1'], mutateSnap: closeL2, deps: { loadSessionMatches: async () => MATCHES.map((m) => (m.id === 'L2' ? { ...m, status: 'playing' } : m)) } });
+    const r3 = await handleSpotlightAction(c.deps, 'Bearer tok-ceo', { ...PUB, operator: { pick: { matchNo: 2, replace: null } } });
+    check('PICK 시작된 경기 → pick_not_waiting · 쓰기 없음', r3.status === 409 && r3.body.reason === 'pick_not_waiting' && writes(c.calls).length === 0);
+    const d = makeDeps({ selectOnly: ['L1'], mutateSnap: closeL2, deps: { loadSessionMatches: async () => null } });
+    const r4 = await handleSpotlightAction(d.deps, 'Bearer tok-ceo', { ...PUB, operator: { pick: { matchNo: 2, replace: null } } });
+    check('PICK 상태 조회 실패 → 502 · 쓰기 없음(fail-closed)', r4.status === 502 && writes(d.calls).length === 0);
+  }
 }
 // ── 생성 실패 원인 구분(판정은 DB 그대로 · 안내만 구분) ──
 {

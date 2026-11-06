@@ -41,13 +41,21 @@ export interface PublicMatchAnalysis {
   sampleRange: { min: number; max: number } | null;
   /** 분석에서 제외된 선수 수(식별 불가 게스트·표본 부족). */
   unanalyzedPlayers: number;
+  /** 운영진 관전 포인트 — 운영진이 승인한 문구 그대로(공식 분석과 별개 · 최대 120자). 없으면 생략. */
+  operatorPoint?: string;
 }
 
 export interface PublicSpotlightItem extends PublicMatchAnalysis {
   badge: SpotlightType;
   headline: string;
   viewpoint: string;
+  /** 운영진 PICK — 자동 TOP 대신 운영진이 고른 경기(배지 · 분석 문구는 공식 분석 그대로). */
+  operatorPick?: boolean;
 }
+
+/** 운영진 관전 포인트가 있을 때 덧붙이는 안내. */
+export const OPERATOR_POINT_NOTICE = '운영진 관전 포인트는 운영진이 제공한 현장 정보이며 공식 기록이 아닙니다.';
+export const OPERATOR_PICK_LABEL = '운영진 PICK';
 
 export interface PublicSpotlightPayload {
   schema: number;
@@ -167,14 +175,16 @@ export function buildSpotlightShareText(payload: PublicSpotlightPayload, url: st
     lines.push('오늘은 공식 기록상 특별히 주목할 경기가 선정되지 않았습니다.');
   } else {
     payload.items.forEach((it, i) => {
-      lines.push(`${i + 1}. [${SPOTLIGHT_BADGE_LABEL[it.badge]}] R${it.round} · ${it.matchNo}경기`);
+      lines.push(`${i + 1}. [${SPOTLIGHT_BADGE_LABEL[it.badge]}]${it.operatorPick ? ` [${OPERATOR_PICK_LABEL}]` : ''} R${it.round} · ${it.matchNo}경기`);
       lines.push(`   ${teamText(it.teamA)} vs ${teamText(it.teamB)}`);
       lines.push(`   ${it.headline} — ${it.viewpoint}`);
+      if (it.operatorPoint) lines.push(`   운영진 관전 포인트: ${it.operatorPoint}`);
     });
   }
   lines.push('');
   lines.push(`전체 경기 분석 보기 👉 ${url}`);
   lines.push(`※ ${payload.disclaimer}`);
+  if (payload.matches.some((m) => m.operatorPoint) || payload.items.some((m) => m.operatorPoint)) lines.push(`※ ${OPERATOR_POINT_NOTICE}`);
   return lines.join('\n');
 }
 
@@ -211,8 +221,18 @@ function parseMatch(v: unknown): PublicMatchAnalysis | null {
     confidence: CONFIDENCES.includes(o.confidence as PublicConfidence) ? (o.confidence as PublicConfidence) : '데이터 부족',
     sampleRange: sr ? { min: int(sr.min), max: int(sr.max) } : null,
     unanalyzedPlayers: Math.max(0, Math.min(4, int(o.unanalyzedPlayers))),
+    ...(operatorPointOf(o.operatorPoint) ? { operatorPoint: operatorPointOf(o.operatorPoint) as string } : {}),
   };
 }
+
+// 운영진 관전 포인트(allow-list) — 문자열 · 꺾쇠 제거 · 제어문자 정리 · 120자. 비면 생략.
+// eslint-disable-next-line no-control-regex
+const operatorPointOf = (v: unknown): string | null => {
+  if (typeof v !== 'string') return null;
+  const t = v.replace(/[<>]/g, '').replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  return t ? [...t].slice(0, 120).join('') : null;
+};
 
 export function parsePublicSpotlightPayload(v: unknown): PublicSpotlightPayload | null {
   if (!v || typeof v !== 'object') return null;
@@ -222,7 +242,8 @@ export function parsePublicSpotlightPayload(v: unknown): PublicSpotlightPayload 
     const m = parseMatch(raw);
     const r = raw as Record<string, unknown>;
     if (!m || !m.badge) continue;
-    items.push({ ...m, badge: m.badge, headline: str(r.headline, 40), viewpoint: str(r.viewpoint, 160) });
+    items.push({ ...m, badge: m.badge, headline: str(r.headline, 40), viewpoint: str(r.viewpoint, 160),
+      ...(r.operatorPick === true ? { operatorPick: true } : {}) });
   }
   const matches = (Array.isArray(o.matches) ? o.matches.slice(0, 80) : [])
     .map(parseMatch)

@@ -34,13 +34,15 @@ export interface PreparePublishResult {
   payload: PublicSpotlightPayload;
   invalidateMatchIds: string[];
   droppedForPrivacy: string[];
+  /** 공개 대상 snapshot(무효 제외 · 현재 공개 범위 반영). 운영진 PICK 검증용 — 계산 결과는 바꾸지 않는다. */
+  eligible: SpotlightPredictionSnapshot[];
 }
 
 const sameIds = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((v, i) => String(v) === String(b[i]));
 
-/** 메인 근거가 비공개 slot 을 쓰는가. */
-function mainFactUsesRestricted(p: SpotlightPredictionSnapshot): boolean {
+/** 메인 근거가 비공개 slot 을 쓰는가. (운영진 PICK 도 같은 규칙으로 막는다) */
+export function mainFactUsesRestricted(p: SpotlightPredictionSnapshot): boolean {
   const main = p.candidates.find((c) => c.type === p.mainType);
   if (!main) return false;
   const f = main.fact;
@@ -101,5 +103,6 @@ export function preparePublish(input: PreparePublishInput): PreparePublishResult
     payload: buildPublicSpotlightPayload(result, { title: input.title, date: input.date }),
     invalidateMatchIds,
     droppedForPrivacy,
+    eligible: valid.map((v) => v.snap),
   };
 }

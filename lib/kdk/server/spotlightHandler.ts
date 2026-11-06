@@ -7,12 +7,16 @@
 //                 ⚠ 요청 body 의 확률·선정·payload 는 읽지 않는다(sessionId 만 사용).
 //                 RPC 가 stale_matches 로 거부한 경기는 제외하고 1회만 재계산·재시도.
 //     publish   : 저장 snapshot + 현재 선수 구성 + 현재 공개 범위로 DTO 재구성(preparePublish) → publish RPC.
+//                 operator(선택): 운영진 승인 관전 포인트 · 운영진 PICK — 형식 · 경기 · 선수 · PICK 자격 검증 후 반영.
+//                 republish=true: 공개 중이면 검증 통과 후에만 비공개 → 같은 회차 재공개(링크 유지).
+//     preview   : publish 와 같은 계산 · 검증 결과만 반환(저장 없음).
 //     unpublish : unpublish RPC.
 //   공개 범위 조회 실패 시 생성/공개를 거부한다(fail-closed — 비공개 회원 수치 노출 방지).
 
 import { buildSpotlight, type SessionMatchRow } from '../analytics/spotlightEngine';
 import { buildPublicSpotlightPayload } from '../analytics/publicSpotlight';
-import { preparePublish, type StoredPredictionForPublish } from '../analytics/spotlightPublish';
+import { preparePublish, mainFactUsesRestricted, type StoredPredictionForPublish } from '../analytics/spotlightPublish';
+import { applyOperatorInput, parseOperatorInput, type OperatorInput } from '../analytics/spotlightOperator';
 import type { HeadToHeadMemberRef } from '../../ranking/headToHead';
 import type { KdkArchiveRow } from '../../kdkArchiveStats';
 
@@ -32,6 +36,8 @@ export interface SpotlightDeps {
   loadMembers(): Promise<HeadToHeadMemberRef[] | null>;
   /** private/partial 회원 id. 조회 실패 시 null(→ 거부). */
   loadRestrictedMemberIds(): Promise<string[] | null>;
+  /** 세션의 최신 회차 번호(superseded 제외 · 사용자 토큰으로 운영진 RPC 조회). 조회 실패 null. 재공개 전 확인용. */
+  latestRunRevision(token: string, sessionId: string): Promise<number | null>;
   rpc(fn: string, args: Record<string, unknown>): Promise<RpcResult>;
   randomSlug(): string;
   /** KST 오늘(YYYY-MM-DD). */
@@ -85,10 +91,13 @@ export async function handleSpotlightAction(
     if (!SESSION_RE.test(sessionId)) return fail(400, 'invalid_session');
     return generate(deps, userId, sessionId);
   }
-  if (action === 'publish') {
+  if (action === 'publish' || action === 'preview') {
     const runId = String(b.runId || '');
     if (!UUID_RE.test(runId)) return fail(400, 'invalid_run');
-    return publish(deps, userId, runId);
+    // 운영진 입력(승인 문구 · PICK) — 형식 검증 실패는 아무것도 바꾸지 않고 거부.
+    const op = parseOperatorInput(b.operator);
+    if (!op.ok) return fail(400, op.reason, op.matchNo ? { matchNo: op.matchNo } : {});
+    return publish(deps, userId, token, runId, op.input, { previewOnly: action === 'preview', republish: b.republish === true });
   }
   if (action === 'unpublish') {
     const sessionId = String(b.sessionId || '');
@@ -212,7 +221,10 @@ async function generate(deps: SpotlightDeps, userId: string, sessionId: string):
   return fail(409, 'stale_matches', { rejected: lastRejected });
 }
 
-async function publish(deps: SpotlightDeps, userId: string, runId: string): Promise<HandlerResponse> {
+async function publish(
+  deps: SpotlightDeps, userId: string, token: string, runId: string, operator: OperatorInput,
+  opts: { previewOnly: boolean; republish: boolean },
+): Promise<HandlerResponse> {
   const [ctx, restricted] = await Promise.all([
     deps.rpc('get_kdk_spotlight_run_for_publish', { p_run_id: runId, p_actor: userId }),
     deps.loadRestrictedMemberIds(),
@@ -241,24 +253,49 @@ async function publish(deps: SpotlightDeps, userId: string, runId: string): Prom
     predictions,
     restrictedMemberIds: restricted,
   });
+
+  // 운영진 입력 반영(없으면 자동 결과 그대로). PICK 은 지금도 대기 중인 경기만 — 현재 상태를 DB 원본으로 확인.
+  let currentStatus: Map<number, string> | null = null;
+  if (operator.pick) {
+    const rows = await deps.loadSessionMatches(String(run.session_id || ''));
+    if (!rows) return fail(502, 'db_unavailable');
+    const statusById = new Map(rows.map((m) => [String(m.id), String(m.status || '')]));
+    currentStatus = new Map(prepared.eligible.map((s) => [s.matchNo, statusById.get(String(s.matchId)) || '']));
+  }
+  const applied = applyOperatorInput(prepared.payload, operator, {
+    eligible: prepared.eligible,
+    usesRestricted: mainFactUsesRestricted,
+    currentStatus,
+  });
+  if (!applied.ok) return fail(409, applied.reason, applied.matchNo ? { matchNo: applied.matchNo } : {});
+  const payload = applied.payload;
+  const summary = {
+    payload,
+    invalidated: prepared.invalidateMatchIds.length,
+    droppedForPrivacy: prepared.droppedForPrivacy.length,
+    runStatus: String(run.status || ''),
+  };
+  // 미리보기: 같은 계산 · 같은 검증 결과만 돌려준다(저장 없음).
+  if (opts.previewOnly) return { status: 200, body: { ok: true, preview: true, ...summary } };
+
+  // 공개 중 수정(재공개): 검증을 모두 통과한 뒤에만 비공개 → 같은 회차 재공개(같은 링크 유지).
+  if (opts.republish && run.status === 'published') {
+    // 더 새 회차(재생성 draft)가 있으면 재공개가 not_latest 로 실패해 아무것도 공개되지 않는다 → 비공개 전에 막는다.
+    const latest = await deps.latestRunRevision(token, String(run.session_id || ''));
+    if (latest == null) return fail(502, 'db_unavailable');
+    if (latest !== Number(run.revision)) return fail(409, 'not_latest');
+    const u = await deps.rpc('unpublish_kdk_spotlight_run', { p_club_id: deps.clubId, p_session_id: String(run.session_id || ''), p_actor: userId });
+    if (!u.ok) return rpcFail(u);
+    if (u.data?.ok !== true) return fail(409, String(u.data?.reason || 'rejected'));
+  }
   const r = await deps.rpc('publish_kdk_spotlight_run', {
     p_run_id: runId,
     p_actor: userId,
-    p_public_payload: prepared.payload,
+    p_public_payload: payload,
     p_invalidate_match_ids: prepared.invalidateMatchIds,
   });
   if (!r.ok) return rpcFail(r);
   const res = r.data || {};
   if (res.ok !== true) return fail(409, String(res.reason || 'rejected'));
-  return {
-    status: 200,
-    body: {
-      ok: true,
-      reason: res.reason,
-      slug: res.public_slug,
-      payload: prepared.payload,
-      invalidated: prepared.invalidateMatchIds.length,
-      droppedForPrivacy: prepared.droppedForPrivacy.length,
-    },
-  };
+  return { status: 200, body: { ok: true, reason: res.reason, slug: res.public_slug, ...summary } };
 }

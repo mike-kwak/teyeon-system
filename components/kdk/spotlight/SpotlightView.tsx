@@ -5,7 +5,7 @@
 
 import React from 'react';
 import type { PublicMatchAnalysis, PublicSpotlightItem, PublicSpotlightPayload } from '@/lib/kdk/analytics/publicSpotlight';
-import { SPOTLIGHT_BADGE_LABEL } from '@/lib/kdk/analytics/publicSpotlight';
+import { OPERATOR_PICK_LABEL, OPERATOR_POINT_NOTICE, SPOTLIGHT_BADGE_LABEL } from '@/lib/kdk/analytics/publicSpotlight';
 import type { SpotlightType } from '@/lib/kdk/analytics/spotlight';
 
 const C = {
@@ -29,6 +29,24 @@ function Badge({ type }: { type: SpotlightType }) {
     <span style={{ display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 9px', borderRadius: 999, fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', color: t.color, background: t.bg, border: `1px solid ${t.border}`, whiteSpace: 'nowrap' }}>
       {SPOTLIGHT_BADGE_LABEL[type]}
     </span>
+  );
+}
+
+function PickBadge() {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 9px', borderRadius: 999, fontSize: 11, fontWeight: 900, letterSpacing: '0.04em', color: '#0F2747', background: '#E9D8A6', border: '1px solid rgba(184,137,28,0.45)', whiteSpace: 'nowrap' }}>
+      {OPERATOR_PICK_LABEL}
+    </span>
+  );
+}
+
+/** 운영진 관전 포인트 — 공식 분석과 구분(금색 테두리 · "운영진" 라벨). 운영진이 승인한 문구 그대로. */
+function OperatorPoint({ text }: { text: string }) {
+  return (
+    <div style={{ borderRadius: 12, padding: '10px 12px', background: '#FFF9EA', border: '1px solid rgba(184,137,28,0.32)', borderLeft: '4px solid #B8891C' }}>
+      <div style={{ fontSize: 11, fontWeight: 900, color: C.gold, letterSpacing: '0.06em', marginBottom: 3 }}>운영진 관전 포인트</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.5, ...wrapText }}>{text}</div>
+    </div>
   );
 }
 
@@ -83,14 +101,17 @@ function SpotlightCard({ item, rank }: { item: PublicSpotlightItem; rank: number
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'linear-gradient(90deg, #0F2747 0%, #17375F 100%)', color: '#FFFFFF' }}>
         <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', color: '#E9D8A6' }}>#{rank}</span>
         <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.04em', opacity: 0.92, flex: 1, minWidth: 0, ...wrapText }}>{matchMeta(item)}</span>
+        {item.operatorPick && <PickBadge />}
         <Badge type={item.badge} />
       </div>
       <div style={{ padding: '14px 14px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Teams m={item} />
         <div style={{ background: C.bg, borderRadius: 12, padding: '10px 12px' }}>
+          <div style={{ fontSize: 10.5, fontWeight: 900, color: C.faint, letterSpacing: '0.06em', marginBottom: 3 }}>공식 KDK 기록 분석</div>
           <div style={{ fontSize: 13.5, fontWeight: 900, color: C.text, marginBottom: 3, ...wrapText }}>{item.headline}</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.sub, lineHeight: 1.5, ...wrapText }}>{item.viewpoint}</div>
         </div>
+        {item.operatorPoint && <OperatorPoint text={item.operatorPoint} />}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 10px' }}>
           <span style={{ fontSize: 13, fontWeight: 900, color: p.tone }}>{p.text}</span>
           <span style={{ fontSize: 11.5, fontWeight: 600, color: C.faint, ...wrapText }}>{sampleText(item)}</span>
@@ -111,6 +132,7 @@ function MatchRow({ m }: { m: PublicMatchAnalysis }) {
       </div>
       <Teams m={m} size={13.5} />
       <div style={{ fontSize: 11, fontWeight: 600, color: C.faint, ...wrapText }}>{sampleText(m)}</div>
+      {m.operatorPoint && <OperatorPoint text={m.operatorPoint} />}
     </div>
   );
 }
@@ -140,6 +162,7 @@ export default function SpotlightView({ payload }: { payload: PublicSpotlightPay
 
       <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.faint, lineHeight: 1.6, textAlign: 'center', ...wrapText }}>
         {payload.disclaimer}<br />우세 · 박빙은 과거 공식 기록 기반 설명이며, 게스트 등 기록이 확인되지 않는 선수는 분석에서 제외됩니다.
+        {payload.matches.some((m) => m.operatorPoint) || payload.items.some((m) => m.operatorPoint) ? <><br />{OPERATOR_POINT_NOTICE}</> : null}
       </p>
     </div>
   );
