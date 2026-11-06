@@ -67,6 +67,9 @@ function makeDeps(over: Record<string, any> = {}) {
       if (fn === 'save_kdk_spotlight_run') {
         saveCount += 1;
         if (over.staleOnce && saveCount === 1) return { ok: true, data: { ok: false, reason: 'stale_matches', rejected: [{ match_id: 'L2', reason: 'started_before' }] } };
+        // DB 가 받은 대기 경기를 전부 거절(예: SQL 설치 이전 경기 = uncertifiable). over.rejectAll = 경기별 사유 함수.
+        if (over.rejectAll) return { ok: true, data: { ok: false, reason: 'stale_matches',
+          rejected: args.p_predictions.map((p: any) => ({ match_id: p.match_id, reason: over.rejectAll(p.match_id) })) } };
         return { ok: true, data: { ok: true, run_id: RUN_ID, revision: saveCount, public_slug: 'abcdefghijklmnop', saved: args.p_predictions.length } };
       }
       if (fn === 'get_kdk_spotlight_run_for_publish') {
@@ -182,6 +185,45 @@ for (const [label, body, reason] of [
   const { deps } = makeDeps({ deps: { loadSessionMatches: async () => MATCHES.map((m) => ({ ...m, status: 'complete' })) } });
   const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
   check('대기 경기 없음 → 409 no_predictable_matches', r.status === 409 && r.body.reason === 'no_predictable_matches');
+  check('대기 경기 없음 → detail no_waiting', r.body.detail === 'no_waiting');
+}
+// ── 생성 실패 원인 구분(판정은 DB 그대로 · 안내만 구분) ──
+{
+  // SQL 설치 이전에 만든 대기 경기: DB 가 전부 uncertifiable 로 거절 → 재시도 대상 0 → 저장 없이 원인 안내.
+  const { deps, calls } = makeDeps({ rejectAll: () => 'uncertifiable' });
+  const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
+  const saves = calls.filter((c) => c.fn === 'save_kdk_spotlight_run');
+  check('설치 이전 경기 전부 거절 → 409 no_predictable_matches', r.status === 409 && r.body.reason === 'no_predictable_matches');
+  check('설치 이전 경기 → detail uncertified · 사유별 2경기', r.body.detail === 'uncertified' && r.body.blocked?.uncertifiable === 2);
+  check('설치 이전 경기 → 저장 1회 시도 뒤 재저장 없음(우회 없음)', saves.length === 1);
+}
+{
+  const { deps } = makeDeps({ rejectAll: () => 'no_certificate' });
+  check('증명서 없음 → detail uncertified', (await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN)).body.detail === 'uncertified');
+}
+{
+  const { deps } = makeDeps({ rejectAll: (id: string) => (id === 'L1' ? 'uncertifiable' : 'started_before') });
+  const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
+  check('시작 이력 섞임 → detail blocked', r.status === 409 && r.body.detail === 'blocked' && r.body.blocked?.started_before === 1);
+}
+{
+  const { deps } = makeDeps({ rejectAll: () => 'row_changed' });
+  check('행 버전 불일치 → detail blocked', (await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN)).body.detail === 'blocked');
+}
+{
+  const { deps } = makeDeps({ deps: { loadSessionMatches: async () => MATCHES.map((m) => (m.status === 'waiting' ? { ...m, player_ids: ['mem-1', 'mem-1', 'mem-3'] } : m)) } });
+  const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
+  check('대기 경기 선수 정보 불완전 → detail invalid_players', r.status === 409 && r.body.detail === 'invalid_players' && r.body.invalidPlayers === 2);
+}
+{
+  const { deps } = makeDeps({ staleOnce: true });
+  const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
+  check('일부만 거절 → 나머지로 생성 · 제외 사유 집계', r.status === 200 && r.body.blocked?.started_before === 1 && r.body.predicted === 1);
+}
+{
+  const { deps } = makeDeps({});
+  const r = await handleSpotlightAction(deps, 'Bearer tok-ceo', GEN);
+  check('정상 생성(신규 세션) → 제외 0', r.status === 200 && Object.keys(r.body.blocked || {}).length === 0 && r.body.predicted === 2);
 }
 {
   const { deps } = makeDeps({ deps: { rpc: async () => ({ ok: false, status: 404, code: 'PGRST202' }) } });

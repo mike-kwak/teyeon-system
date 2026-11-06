@@ -47,6 +47,10 @@ const fail = (status: number, reason: string, extra: Record<string, unknown> = {
   ({ status, body: { ok: false, reason, ...extra } });
 
 const ADMIN_ROLES = new Set(['CEO', 'ADMIN']);
+// DB 판정 사유 중 "시작 전임을 증명할 수 없음"(SQL 설치 이전 경기 · 증명서 없음) — 경기 시작과 무관한 이력 부재.
+const UNCERTIFIED_REASONS = new Set(['uncertifiable', 'no_certificate']);
+const countBy = (xs: string[]): Record<string, number> =>
+  xs.reduce<Record<string, number>>((acc, k) => { acc[k] = (acc[k] || 0) + 1; return acc; }, {});
 const SESSION_RE = /^[A-Za-z0-9_\-:.]{1,120}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -130,7 +134,20 @@ async function generate(deps: SpotlightDeps, userId: string, sessionId: string):
       restrictedMemberIds: restricted,
     });
     if (result.predictions.length === 0) {
-      return fail(409, 'no_predictable_matches', { skipped: result.skipped.length, rejected: lastRejected });
+      // 같은 reason 을 유지하되 원인을 detail 로 구분한다(판정은 그대로 — 화면 안내만 정확하게).
+      //   uncertified: 대기 경기가 있으나 DB 가 "시작 전 증명 불가"(설치 이전 생성 · 증명서 없음)로 거절
+      //   blocked:     대기 경기가 있으나 시작 이력 · 행 변경 · 기록 오류로 거절
+      //   invalid_players: 대기 경기의 선수 4명 정보가 온전하지 않음
+      //   no_waiting:  대기 경기 자체가 없음
+      const blocked = countBy(lastRejected.map((x: any) => String(x?.reason || 'unknown')));
+      const invalidPlayers = result.skipped.filter((s) => s.reason === 'invalid_players').length;
+      const blockedTotal = Object.values(blocked).reduce((a, b) => a + b, 0);
+      const detail = blockedTotal > 0
+        ? (Object.keys(blocked).every((k) => UNCERTIFIED_REASONS.has(k)) ? 'uncertified' : 'blocked')
+        : invalidPlayers > 0 ? 'invalid_players' : 'no_waiting';
+      return fail(409, 'no_predictable_matches', {
+        detail, skipped: result.skipped.length, blocked, invalidPlayers, rejected: lastRejected,
+      });
     }
     const payload = buildPublicSpotlightPayload(result, { title, date: sessionDate });
     const selected = new Set(result.selection.matchIds);
@@ -178,6 +195,8 @@ async function generate(deps: SpotlightDeps, userId: string, sessionId: string):
           preview: payload,
           predicted: result.predictions.length,
           skipped: result.skipped.length + excluded.size,
+          // DB 가 예측을 거절해 제외한 대기 경기 수(사유별) — 일부만 제외된 경우 화면 안내용.
+          blocked: countBy(lastRejected.map((x: any) => String(x?.reason || 'unknown'))),
           selected: result.selection.matchIds.length,
           shortfall: result.selection.shortfall,
         },

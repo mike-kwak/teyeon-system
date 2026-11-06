@@ -12,7 +12,7 @@ import { useGuideRecording } from '@/hooks/useGuideRecording';
 import { useVisibilityResync, realtimeBackoffMs, isRealtimeErrorStatus } from '@/hooks/useRealtimeSync';
 import { useLoading } from '@/context/LoadingContext';
 import { generateKdkMatches, Player as KdkPlayer, Match as KdkMatch } from '@/lib/kdk';
-import { RotateCw, CheckCircle2, Settings } from 'lucide-react';
+import { RotateCw, CheckCircle2, Settings, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import PremiumSpinner from '@/components/PremiumSpinner';
 import { DataStateView } from '@/components/DataStateView';
 import { Skeleton, SkeletonGroup } from '@/components/Skeleton';
@@ -32,7 +32,7 @@ import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import { describeMembersLoadError, getManualMemberGate } from '@/lib/kdk/manualMemberGate';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
-import KdkSpotlightEntry from '@/components/kdk/spotlight/KdkSpotlightEntry';
+import KdkSpotlightEntry, { KdkSpotlightManager } from '@/components/kdk/spotlight/KdkSpotlightEntry';
 
 
 // KDK 대진 생성 스텝 공통 하단 여백 — inline-CTA(다음/생성) 스텝의 실제 스크롤 콘텐츠 끝에
@@ -385,6 +385,9 @@ export default function KDKPage() {
     const [warningMsg, setWarningMsg] = useState("");
 
     const [showMemberEditModal, setShowMemberEditModal] = useState(false);
+    // 세션 관리 모달 본문 화면 — 'spotlight' 면 같은 모달 안에서 MATCH SPOTLIGHT 관리로 전환(중첩 모달 없음).
+    const [sessionModalView, setSessionModalView] = useState<'main' | 'spotlight'>('main');
+    useEffect(() => { if (!showMemberEditModal) setSessionModalView('main'); }, [showMemberEditModal]);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [archiveSuccessUrl, setArchiveSuccessUrl] = useState("");
     const [showConfetti, setShowConfetti] = useState(false);
@@ -6477,8 +6480,8 @@ A    1    봉준    상윤    영호    광현    19:00`}
             <div className="flex-1 space-y-0 overflow-y-auto px-3 antialiased no-scrollbar sm:px-4" style={{ background: '#F4F8FC', paddingBottom: 'calc(var(--page-bottom-safe) + 100px)' }}>
                 {activeTab === 'MATCHES' && (
                     <>
-                        {/* MATCH SPOTLIGHT — 공개 배너(누구나) + 관리(CEO·ADMIN·KDK 관리자, 관리자 모드). 독립 조회, 경기 진행 로직과 무관. */}
-                        <KdkSpotlightEntry sessionId={activeSessionId || null} isAdmin={canManageKdk && adminModeManual} />
+                        {/* MATCH SPOTLIGHT — 공개 배너만(누구나, published 일 때). 관리는 [세션 관리] 모달 안. 독립 조회, 경기 진행 로직과 무관. */}
+                        <KdkSpotlightEntry sessionId={activeSessionId || null} />
                         {/* 헤더(RULES 요약) ↔ NOW PLAYING 사이 명확한 여백(한쪽에만 적용해 중복 마진 방지). */}
                         <section className="h-auto" style={{ marginTop: '16px', position: 'relative', zIndex: 10 }}>
                             <div className="flex flex-col" style={{ marginBottom: '16px' }}>
@@ -6807,6 +6810,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 const realTotalCourts = totalCourts > 0 && totalCourts <= 12 ? totalCourts : 0;
                 const courtButtonCount = Math.min(12, Math.max(4, usedMaxCourt, selectedMaxCourt, realTotalCourts));
                 const courtButtons = Array.from({ length: courtButtonCount }, (_, i) => i + 1);
+                // MATCH SPOTLIGHT 관리 — CEO·ADMIN·KDK 관리자(canManageKdk). 세션이 있을 때만.
+                const canSpotlight = canManageKdk && !!activeSessionId;
+                const showSpotlightView = canSpotlight && sessionModalView === 'spotlight';
                 return (
                 <div
                     onClick={() => setShowMemberEditModal(false)}
@@ -6838,11 +6844,33 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         {/* Header — 고정(스크롤 안 함) */}
                         <div style={{ flexShrink: 0, padding: '18px 18px 14px', borderBottom: '1px solid #EAF1F9' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                                {showSpotlightView ? (
+                                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSessionModalView('main')}
+                                            aria-label="세션 관리로 돌아가기"
+                                            style={{
+                                                flexShrink: 0, width: 36, height: 36, borderRadius: '50%',
+                                                border: '1px solid #DCE8F5', background: '#F8FBFE', color: '#3B5A85',
+                                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                            }}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </button>
+                                        <div style={{ minWidth: 0 }}>
+                                            <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#0D9488' }}>Match Spotlight</p>
+                                            <h2 style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em', wordBreak: 'keep-all' }}>오늘의 주목 경기</h2>
+                                            <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#7A93B3', wordBreak: 'keep-all' }}>생성 · 미리보기 · 공개 · 비공개 · 공유</p>
+                                        </div>
+                                    </div>
+                                ) : (
                                 <div style={{ minWidth: 0 }}>
                                     <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#3B82F6' }}>Live Management</p>
                                     <h2 style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 900, color: '#0F2747', letterSpacing: '-0.02em' }}>세션 관리</h2>
                                     <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#7A93B3' }}>현재 진행 중인 KDK 세션을 관리합니다.</p>
                                 </div>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => setShowMemberEditModal(false)}
@@ -6868,6 +6896,9 @@ A    1    봉준    상윤    영호    광현    19:00`}
                             padding: 16,
                             paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
                         }}>
+                            {showSpotlightView ? (
+                                <KdkSpotlightManager sessionId={activeSessionId} />
+                            ) : (<>
                             {/* 세션 정보 카드 */}
                             <section style={{ borderRadius: 16, background: '#EEF6FF', border: '1px solid #C7DCF1', padding: 14 }}>
                                 <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#1F5FB5' }}>현재 세션</p>
@@ -6883,6 +6914,30 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     <span style={{ fontSize: 12, fontWeight: 700, color: '#56729A' }}>참가 {playerCount}명 · {matches.length}경기</span>
                                 </div>
                             </section>
+
+                            {/* MATCH SPOTLIGHT — 같은 모달 안에서 관리 화면으로 전환(뒤로 버튼으로 복귀). */}
+                            {canSpotlight && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSessionModalView('spotlight')}
+                                    aria-label="MATCH SPOTLIGHT 관리 열기"
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 12, width: '100%', minWidth: 0,
+                                        padding: 14, borderRadius: 16, textAlign: 'left',
+                                        background: '#F0FBF9', border: '1px solid #BFE7E1', cursor: 'pointer',
+                                        boxSizing: 'border-box',
+                                    }}
+                                >
+                                    <span aria-hidden style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 10, background: '#0F2747', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Sparkles className="h-4 w-4" color="#E9D8A6" />
+                                    </span>
+                                    <span style={{ flex: 1, minWidth: 0 }}>
+                                        <span style={{ display: 'block', fontSize: 12, fontWeight: 900, letterSpacing: '0.12em', color: '#0D9488' }}>MATCH SPOTLIGHT</span>
+                                        <span style={{ display: 'block', marginTop: 2, fontSize: 12, fontWeight: 700, color: '#3F5B82', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>경기 전 주목 경기 · 프리뷰</span>
+                                    </span>
+                                    <ChevronRight className="h-4 w-4" color="#3B5A85" style={{ flexShrink: 0 }} />
+                                </button>
+                            )}
 
                             {/* 운영 설정 — CEO/ADMIN · KDK 관리자. 상단 헤더에서 이동한 전광판 티커 / 정모 연결.
                                 기존 state·handler·upsert 로직을 그대로 재사용하고 위치만 모달로 옮김. */}
@@ -7098,6 +7153,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                     </button>
                                 </section>
                             )}
+                            </>)}
                         </div>
                     </div>
                 </div>

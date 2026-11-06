@@ -1,14 +1,17 @@
 'use client';
 
-// /kdk 대진표 상단 — TODAY'S SPOTLIGHT 배너(누구나) + SPOTLIGHT 관리(CEO·ADMIN·KDK 관리자, 관리자 모드).
-//   · 배너: 공개(published) 상태일 때만 노출. 조회는 anon 공개 RPC(get_public_kdk_spotlight_link) — slug 만 받는다.
-//   · 관리: 생성 → 미리보기(draft) → 공개 / 비공개 · 공유 문구 및 링크 복사. 쓰기는 서버 route(권한 재검증).
-//   · SQL 미적용 환경: 배너는 조용히 숨김, 관리 패널은 "SQL 미적용" 안내만.
+// MATCH SPOTLIGHT — /kdk 화면용 두 부분.
+//   · KdkSpotlightEntry(기본 export): LIVE 대진표 상단 TODAY'S SPOTLIGHT 배너(누구나). 공개(published) 상태일 때만 노출.
+//     조회는 anon 공개 RPC(get_public_kdk_spotlight_link) — slug 만 받는다.
+//   · KdkSpotlightManager: [세션 관리] 모달 안의 MATCH SPOTLIGHT 화면(CEO·ADMIN·KDK 관리자).
+//     생성 → 미리보기(draft) → 공개 / 비공개 · 공유 문구 및 링크 복사. 쓰기는 서버 route(권한 재검증).
+//     자체 오버레이 없음(세션 관리 모달 본문에 그대로 렌더 → 중첩 모달 없음). 변경 시 배너에 이벤트로 알린다.
+//   · SQL 미적용 환경: 배너는 조용히 숨김, 관리 화면은 "SQL 미적용" 안내만.
 //   · KDK 경기 진행 로직·Realtime 과 무관(독립 조회 · 실패해도 대진표 영향 없음).
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, ChevronRight, X, Copy, Check, RefreshCw } from 'lucide-react';
+import { Sparkles, ChevronRight, Copy, Check, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import SpotlightView from './SpotlightView';
 import { buildSpotlightShareText, parsePublicSpotlightPayload, type PublicSpotlightPayload } from '@/lib/kdk/analytics/publicSpotlight';
@@ -35,6 +38,28 @@ const REASON_TEXT: Record<string, string> = {
   not_publishable: '공개할 수 없는 상태입니다.',
 };
 
+// no_predictable_matches 의 세부 원인(서버 detail) — 판정은 서버/DB 그대로, 안내만 구분한다.
+const NO_PREDICTABLE_TEXT: Record<string, string> = {
+  no_waiting: '시작 전(대기) 경기가 없습니다. 대기 중인 경기만 분석합니다.',
+  invalid_players: '대기 경기의 선수 4명 정보가 온전하지 않아 분석할 수 없습니다.',
+  uncertified: '대기 경기가 있지만, SPOTLIGHT 적용 이전에 만든 대진이라 시작 전 상태를 증명할 수 없어 분석하지 않았습니다. 새로 생성한 대진부터 사용할 수 있습니다.',
+  blocked: '대기 경기가 있지만, 시작·변경 이력이 확인되어 예측할 수 없습니다(한 번 시작했거나 이력 기록이 끊긴 경기).',
+};
+
+export function spotlightFailText(j: { reason?: unknown; detail?: unknown }, status: number): string {
+  const reason = String(j?.reason ?? '');
+  if (reason === 'no_predictable_matches') {
+    return NO_PREDICTABLE_TEXT[String(j?.detail ?? '')] || REASON_TEXT.no_predictable_matches;
+  }
+  return REASON_TEXT[reason] || `처리하지 못했습니다(${reason || status}).`;
+}
+
+const sumCounts = (o: unknown): number =>
+  o && typeof o === 'object' ? Object.values(o as Record<string, unknown>).reduce<number>((s, v) => s + (Number(v) || 0), 0) : 0;
+
+// 배너 ↔ 관리 화면 동기화(같은 페이지 안 · 공개/비공개 직후 배너 갱신).
+const CHANGED_EVENT = 'teyeon:kdk-spotlight-changed';
+
 const fmtTime = (iso: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -54,9 +79,8 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export default function KdkSpotlightEntry({ sessionId, isAdmin }: { sessionId: string | null; isAdmin: boolean }) {
+export default function KdkSpotlightEntry({ sessionId }: { sessionId: string | null }) {
   const [link, setLink] = useState<{ slug: string; count: number } | null>(null);
-  const [open, setOpen] = useState(false);
 
   const loadLink = useCallback(async () => {
     if (!sessionId) { setLink(null); return; }
@@ -67,13 +91,17 @@ export default function KdkSpotlightEntry({ sessionId, isAdmin }: { sessionId: s
     } catch { setLink(null); }
   }, [sessionId]);
   useEffect(() => { void loadLink(); }, [loadLink]);
+  useEffect(() => {
+    const h = () => { void loadLink(); };
+    window.addEventListener(CHANGED_EVENT, h);
+    return () => window.removeEventListener(CHANGED_EVENT, h);
+  }, [loadLink]);
 
-  if (!sessionId || (!link && !isAdmin)) return null;
+  if (!sessionId || !link) return null;
 
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {link && (
-        <Link href={spotlightPublicPath(link.slug)} aria-label="오늘의 주목 경기 보기"
+      <Link href={spotlightPublicPath(link.slug)} aria-label="오늘의 주목 경기 보기"
           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 16, textDecoration: 'none', background: 'linear-gradient(100deg, #0F2747 0%, #17375F 70%, #1E4A7A 100%)', boxShadow: '0 6px 18px rgba(15,39,71,0.18)' }}>
           <span aria-hidden style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(233,216,166,0.16)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Sparkles size={18} color="#E9D8A6" />
@@ -85,31 +113,22 @@ export default function KdkSpotlightEntry({ sessionId, isAdmin }: { sessionId: s
             </span>
           </span>
           <ChevronRight size={18} color="#FFFFFF" style={{ flexShrink: 0 }} aria-hidden />
-        </Link>
-      )}
-      {isAdmin && (
-        <button type="button" onClick={() => setOpen(true)}
-          style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, padding: '0 14px', borderRadius: 999, border: '1px solid #C9D9EC', background: '#FFFFFF', color: '#0F2747', fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>
-          <Sparkles size={14} color="#0D9488" aria-hidden /> SPOTLIGHT 관리
-        </button>
-      )}
-      {isAdmin && open && (
-        <SpotlightAdminSheet sessionId={sessionId} onClose={() => setOpen(false)} onChanged={loadLink} />
-      )}
+      </Link>
     </div>
   );
 }
 
-function SpotlightAdminSheet({ sessionId, onClose, onChanged }: { sessionId: string; onClose: () => void; onChanged: () => void }) {
+/** [세션 관리] 모달 본문에 렌더되는 MATCH SPOTLIGHT 관리 화면(오버레이 없음 · 스크롤은 모달 본문이 담당). */
+export function KdkSpotlightManager({ sessionId }: { sessionId: string }) {
+  const onChanged = useCallback(() => {
+    try { window.dispatchEvent(new CustomEvent(CHANGED_EVENT, { detail: { sessionId } })); } catch { /* 배너 갱신 실패는 무시 */ }
+  }, [sessionId]);
   const [runs, setRuns] = useState<AdminRun[] | null>(null);
   const [ledgerHealthy, setLedgerHealthy] = useState(true);
   const [sqlMissing, setSqlMissing] = useState(false);
   const [busy, setBusy] = useState<null | 'generate' | 'publish' | 'unpublish'>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => { const p = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = p; }; }, []);
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
 
   const reload = useCallback(async () => {
     try {
@@ -145,9 +164,11 @@ function SpotlightAdminSheet({ sessionId, onClose, onChanged }: { sessionId: str
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j.ok !== true) {
-        setMsg(REASON_TEXT[String(j.reason)] || `처리하지 못했습니다(${String(j.reason || res.status)}).`);
+        setMsg(spotlightFailText(j, res.status));
       } else if (kind === 'generate') {
-        setMsg(`생성 완료 — 분석 ${j.predicted}경기 · 주목 ${j.selected}경기${j.shortfall ? ' (기준 충족 경기가 적어 3개 미만)' : ''}. 미리보기를 확인한 뒤 공개하세요.`);
+        const blocked = sumCounts(j.blocked);
+        setMsg(`생성 완료 — 분석 ${j.predicted}경기 · 주목 ${j.selected}경기${j.shortfall ? ' (기준 충족 경기가 적어 3개 미만)' : ''}`
+          + `${blocked ? ` · 시작 전 증명 불가 ${blocked}경기 제외` : ''}. 미리보기를 확인한 뒤 공개하세요.`);
       } else if (kind === 'publish') {
         const extra = [j.invalidated ? `선수 변경 ${j.invalidated}경기 제외` : '', j.droppedForPrivacy ? `비공개 회원 ${j.droppedForPrivacy}경기 제외` : ''].filter(Boolean).join(' · ');
         setMsg(`공개되었습니다${extra ? ` (${extra})` : ''}.`);
@@ -186,19 +207,8 @@ function SpotlightAdminSheet({ sessionId, onClose, onChanged }: { sessionId: str
   );
 
   return (
-    <div onClick={onClose} role="dialog" aria-modal="true" aria-label="SPOTLIGHT 관리"
-      style={{ position: 'fixed', inset: 0, zIndex: 520, backgroundColor: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 480, maxHeight: '88dvh', background: '#F4F8FC', borderTopLeftRadius: 20, borderTopRightRadius: 20, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 10px', borderBottom: '1px solid rgba(15,39,71,0.08)' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '0.16em', color: '#0D9488' }}>MATCH SPOTLIGHT</div>
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#0F2747' }}>오늘의 주목 경기 관리</div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="닫기" style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid #C9D9EC', background: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={16} color="#5B6B80" /></button>
-        </div>
-
-        <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 16px', paddingBottom: 'calc(var(--bottom-nav-area, 88px) + 16px)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <section aria-label="SPOTLIGHT 관리" data-spotlight-manager=""
+      style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           {sqlMissing ? (
             <div style={{ padding: 14, borderRadius: 12, background: '#FFFFFF', fontSize: 13, fontWeight: 700, color: '#5B6B80' }}>{REASON_TEXT.sql_not_applied}</div>
           ) : (
@@ -231,8 +241,6 @@ function SpotlightAdminSheet({ sessionId, onClose, onChanged }: { sessionId: str
               )}
             </>
           )}
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }
