@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import nextDynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -31,6 +32,7 @@ import { ScoreEntryModal } from '@/components/tournament/ScoreEntryModal';
 import { fetchClubSchedules } from '@/lib/clubScheduleService';
 import { filterActiveMembers } from '@/lib/members/membershipStatus';
 import { describeMembersLoadError, getManualMemberGate } from '@/lib/kdk/manualMemberGate';
+import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
 import KdkSpotlightEntry, { KdkSpotlightManager } from '@/components/kdk/spotlight/KdkSpotlightEntry';
 
@@ -388,6 +390,9 @@ export default function KDKPage() {
     // 세션 관리 모달 본문 화면 — 'spotlight' 면 같은 모달 안에서 MATCH SPOTLIGHT 관리로 전환(중첩 모달 없음).
     const [sessionModalView, setSessionModalView] = useState<'main' | 'spotlight'>('main');
     useEffect(() => { if (!showMemberEditModal) setSessionModalView('main'); }, [showMemberEditModal]);
+    // 세션 관리 모달이 열려 있는 동안 배경 스크롤 잠금 — 프로젝트 공용 hook(GlobalMain #main-container · body 고정 · 위치 복원).
+    //   iOS Safari 에서 모달 위 스와이프가 뒤 화면(GlobalMain)으로 넘어가 "바깥만 움직이는" 이중 스크롤을 막는다.
+    useBodyScrollLock(showMemberEditModal);
     const [showArchiveSuccess, setShowArchiveSuccess] = useState(false);
     const [archiveSuccessUrl, setArchiveSuccessUrl] = useState("");
     const [showConfetti, setShowConfetti] = useState(false);
@@ -6813,22 +6818,28 @@ A    1    봉준    상윤    영호    광현    19:00`}
                 // MATCH SPOTLIGHT 관리 — CEO·ADMIN·KDK 관리자(canManageKdk). 세션이 있을 때만.
                 const canSpotlight = canManageKdk && !!activeSessionId;
                 const showSpotlightView = canSpotlight && sessionModalView === 'spotlight';
-                return (
+                // iOS 스크롤 안정화: 모달을 GlobalMain(스크롤 컨테이너) 밖 document.body 로 그린다.
+                //   스크롤 컨테이너 안의 position:fixed 오버레이는 iOS 에서 터치가 바깥 스크롤러로 넘어갈 수 있다.
+                //   블러는 카드의 조상이 아닌 별도 배경 층에 둔다(backdrop-filter 요소 안의 스크롤 영역 회피).
+                return createPortal((
                 <div
                     onClick={() => setShowMemberEditModal(false)}
+                    data-kdk-session-modal=""
                     style={{
                         position: 'fixed', inset: 0, zIndex: 1200,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'rgba(15,45,85,0.45)', backdropFilter: 'blur(6px)',
                         padding: '16px',
                         paddingTop: 'calc(16px + env(safe-area-inset-top))',
                         paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
                         boxSizing: 'border-box',
+                        overscrollBehavior: 'contain',
                     }}
                 >
+                    <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'rgba(15,45,85,0.45)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} />
                     <div
                         onClick={(e) => e.stopPropagation()}
                         style={{
+                            position: 'relative', zIndex: 1,
                             // 카드는 스크롤하지 않고(overflow hidden), 내부 본문(modal-scroll-body)만 스크롤한다.
                             //   flex column 으로 헤더 고정 + 본문 flex:1 → 하단 BottomNav 에 가리지 않게 본문 끝까지 스크롤 가능.
                             display: 'flex', flexDirection: 'column',
@@ -6892,6 +6903,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         <div style={{
                             flex: 1, minHeight: 0,
                             overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+                            overscrollBehavior: 'contain',
                             display: 'flex', flexDirection: 'column', gap: 14,
                             padding: 16,
                             paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
@@ -7157,7 +7169,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                         </div>
                     </div>
                 </div>
-                );
+                ), document.body);
             })()}
 
             {/* 현재 세션 삭제 2차 확인 — 세션 관리 모달과 독립된 최상위 sibling.
