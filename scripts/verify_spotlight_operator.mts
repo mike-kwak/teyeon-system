@@ -270,6 +270,57 @@ const ctx = (p: any, status: Map<number, string> | null = allWaiting(p)) => ({ e
   check('날짜 형식 다르면 그대로', poster.posterDateLabel('x') === 'x');
 }
 
+// ── P0: 메모(작성 지시) ↔ 공개 문구 분리 · 지시문 경고 ─────────────────────────────
+{
+  const INSTRUCTIONS = [
+    '2번 경기는 오픈부 경기니까 강조해 줘', '2번은 오픈부 경기라 강조하고, 3번은 접전 예상', '5번은 특별히 주목해 줘',
+    '두 사람 호흡이 좋다고 소개해 주세요', '이 경기를 포스터에 크게 넣어줘', '오픈부 경력 언급해줘', '관전 포인트로 써 주세요',
+    '접전이라고 적어줘', '호흡 좋은 듀오라고 부각했으면', '3경기는 꼭 챙겨봐 줘', '이 경기 강조 부탁해',
+  ];
+  const PUBLIC_OK = [
+    '오픈부 경력의 두 선수가 만나는 경기입니다.', '많은 응원 부탁드립니다!', '두 사람의 호흡을 주목해 주세요.',
+    '오늘 첫 맞대결, 응원해 주세요!', '접전이 예상되는 경기, 놓치지 마세요.', '구봉준·김영호 듀오의 첫 출전입니다.',
+    '지난달 결승 리턴 매치', '1세트부터 치열할 듯', '팽팽한 승부가 기대됩니다', '주장님이 직접 뛰는 경기', '3연승에 도전하는 팀', '두 선수 모두 10년 구력',
+  ];
+  for (const t of INSTRUCTIONS) check(`지시문 경고: ${t}`, op.detectOperatorInstruction(t).length > 0, JSON.stringify(op.detectOperatorInstruction(t)));
+  for (const t of PUBLIC_OK) check(`공개 문장 경고 없음: ${t}`, op.detectOperatorInstruction(t).length === 0, JSON.stringify(op.detectOperatorInstruction(t)));
+  check('지시문 경고: 경기 번호 지칭(match_ref)', op.detectOperatorInstruction('2번 경기는 오픈부 경기니까 강조해 줘').includes('match_ref'));
+  check('지시문 경고: 메모 원문과 같음(same_as_note)', op.detectOperatorInstruction('호흡 좋은 듀오', ' 호흡  좋은 듀오 ').includes('same_as_note'));
+  check('지시문 경고: 빈 문구는 경고 없음', op.detectOperatorInstruction('   ', '메모').length === 0);
+  check('경고 사유 문구 4종', ['same_as_note', 'request', 'meta', 'match_ref'].every((k) => typeof op.INSTRUCTION_WARNING_TEXT[k] === 'string'));
+
+  // 연결 병합: 공개 문구는 빈 칸에서 시작 · 기존 문구 행 유지 · 빈 행만 대체
+  const link = (matchNo: number | null, note: string) => ({ index: 0, note, status: matchNo ? 'linked' : 'none', matchNo, candidates: matchNo ? [matchNo] : [], mentioned: [], relation: null, inTop: false });
+  let n = 0;
+  const mk = (l: any) => ({ id: `n${++n}`, note: l.note, status: l.status, candidates: l.candidates, matchNo: l.matchNo });
+  const fresh = op.mergeLinkedRows([], [link(2, '2번 경기는 오픈부 경기니까 강조해 줘'), link(null, '분위기 좋음')], mk);
+  check('연결: 메모 원문이 공개 문구로 복사되지 않음', fresh.length === 2 && fresh.every((r: any) => r.text === ''), JSON.stringify(fresh));
+  check('연결: 메모 · 경기는 연결됨', fresh[0].matchNo === 2 && fresh[0].note.includes('강조해 줘') && fresh[1].matchNo === null);
+  check('연결: 빈 공개 문구 행은 공개 입력에 들어가지 않음(기존 toOperatorInput 규칙)',
+    fresh.filter((r: any) => r.matchNo && r.text.trim()).length === 0);
+  const prev = [
+    { id: 'a', note: '', status: 'manual', candidates: [], matchNo: 2, text: '승인된 기존 문구' },
+    { id: 'b', note: '옛 메모', status: 'linked', candidates: [3], matchNo: 3, text: '' },
+    { id: 'c', note: '', status: 'manual', candidates: [], matchNo: 4, text: '직접 쓴 문구' },
+  ];
+  const merged = op.mergeLinkedRows(prev, [link(2, '2번 강조해 줘'), link(3, '3번 접전 예상'), link(5, '5번 주목')], mk);
+  check('연결: 기존 승인 문구 행 유지(덮어쓰지 않음)', merged.find((r: any) => r.id === 'a')?.text === '승인된 기존 문구' && merged.find((r: any) => r.id === 'c')?.text === '직접 쓴 문구');
+  check('연결: 같은 경기 메모는 기존 행 메모 칸에만 붙음(새 행 없음)', merged.filter((r: any) => r.matchNo === 2).length === 1 && merged.find((r: any) => r.id === 'a')?.note === '2번 강조해 줘');
+  check('연결: 메모만 있던 빈 행은 새 연결로 대체', !merged.some((r: any) => r.id === 'b') && merged.filter((r: any) => r.matchNo === 3).length === 1 && merged.find((r: any) => r.matchNo === 3)?.text === '');
+  check('연결: 새 경기 행 추가 · 문구 빈 칸', merged.find((r: any) => r.matchNo === 5)?.text === '' && merged.length === 4, JSON.stringify(merged));
+  check('연결: 입력 배열 불변', prev[0].note === '' && prev.length === 3);
+  const mergedAgain = op.mergeLinkedRows(merged, [link(2, '다른 메모')], mk);
+  check('연결: 메모가 이미 있으면 덮어쓰지 않음', mergedAgain.find((r: any) => r.id === 'a')?.note === '2번 강조해 줘');
+
+  // 서버 경로 호환: 지시문처럼 보여도 서버는 막지 않는다(기존 공개 문구 · 재공개 차단 없음)
+  const parsed = op.parseOperatorInput({ points: [{ matchNo: 2, text: '2번 경기는 오픈부 경기니까 강조해 줘' }] });
+  check('서버 호환: parseOperatorInput 은 지시문 문구도 형식만 검증(차단 없음)', parsed.ok === true && parsed.input.points[0].text.includes('강조해 줘'));
+  const mini = { schema: 1, modelVersion: 'x', title: 't', date: '2026-11-11', disclaimer: 'd', items: [],
+    matches: [{ matchNo: 2, round: 1, group: 'A', teamA: ['구봉준', '김영호'], teamB: ['김병식', '최지훈'], badge: null, prediction: { kind: 'insufficient' }, confidence: '데이터 부족', sampleRange: null, unanalyzedPlayers: 0 }] };
+  const ap = op.applyOperatorInput(mini, { points: [{ matchNo: 2, text: '오픈부 경기라 강조해 줘' }], pick: null }, { eligible: [], usesRestricted: () => false, currentStatus: null });
+  check('서버 호환: applyOperatorInput 도 지시문 경고와 무관하게 기존 규칙 그대로', ap.ok === true && ap.payload.matches[0].operatorPoint === '오픈부 경기라 강조해 줘');
+}
+
 console.log(`MATCH SPOTLIGHT operator/poster fixture: ${passed} passed / ${failures.length} failed`);
 for (const f of failures) console.log('  FAIL', f);
 process.exit(failures.length ? 1 : 0);

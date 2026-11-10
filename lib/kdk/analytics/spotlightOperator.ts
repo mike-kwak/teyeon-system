@@ -3,6 +3,7 @@
 //   1) linkOperatorNotes : 운영진 메모(원문, 비공개) → 메모 속 선수 이름으로 관련 경기 후보를 찾는다(운영진 확인용 제안).
 //   2) sanitizeOperatorText / validateOperatorInput : 운영진이 승인한 "관전 포인트" 문구 · 운영진 PICK 입력 검증.
 //   3) applyOperatorInput : 공개 직전 payload 에 승인 문구(operatorPoint)와 운영진 PICK(operatorPick)을 반영.
+//   4) detectOperatorInstruction : 공개 문구에 남은 작성 지시 감지(편집기 경고 전용 · 서버 검증 아님).
 //
 //   원칙
 //     - 문구는 운영진이 쓴 글 그대로(공백 · 제어문자만 정리). 경력 · 전적 · 실력을 만들어 내지 않는다.
@@ -177,6 +178,25 @@ export function linkOperatorNotes(notes: readonly string[], payload: PublicSpotl
   });
 }
 
+/**
+ * 편집기: 메모 연결 결과를 기존 행에 합친다(덮어쓰지 않음).
+ *   - 공개 문구가 있는 기존 행(공개본 복원 · 직접 작성)은 그대로 유지. 같은 경기 메모가 오면 메모 칸이 비어 있을 때만 채운다.
+ *   - 공개 문구가 빈 기존 행(이전 연결에서 메모만 있던 행)은 새 연결로 대체.
+ *   - 새 행의 공개 문구는 항상 빈 칸 — 메모 원문(작성 지시일 수 있음)을 공개 문구로 복사하지 않는다.
+ */
+export function mergeLinkedRows<R extends { matchNo: number | null; note: string; text: string }>(
+  prev: readonly R[], links: readonly NoteLink[], makeRow: (l: NoteLink) => Omit<R, 'text'>,
+): R[] {
+  const kept = prev.filter((r) => r.text.trim()).map((r) => ({ ...r }));
+  const added: R[] = [];
+  for (const l of links) {
+    const same = l.matchNo ? kept.find((r) => r.matchNo === l.matchNo) : undefined;
+    if (same) { if (!same.note) same.note = l.note; continue; }
+    added.push({ ...makeRow(l), text: '' } as R);
+  }
+  return [...kept, ...added];
+}
+
 // ── 2) 입력 형식 검증(서버) ────────────────────────────────────────────────────
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0 && v < 10000;
 
@@ -270,6 +290,41 @@ export function applyOperatorInput(
   };
   items = items.map(withPoint);
   return { ok: true, payload: { ...payload, items, matches: payload.matches.map(withPoint) } };
+}
+
+// ── 4) 지시문 감지(편집기 경고 전용) ───────────────────────────────────────────
+//   운영진 메모는 "작성 지시"(예: 2번 경기는 오픈부라 강조해 줘)일 수 있다. 이 지시가 공개 문구에 그대로 남지 않도록
+//   편집기에서 경고만 한다. ⚠ 서버 검증(parseOperatorInput · applyOperatorInput)에는 쓰지 않는다
+//   → 이미 공개된 승인 문구가 새 규칙 때문에 재공개에서 막히지 않는다. (향후 AI 초안 결과에도 같은 경고를 쓴다.)
+export type InstructionWarning = 'same_as_note' | 'request' | 'meta' | 'match_ref';
+
+export const INSTRUCTION_WARNING_TEXT: Record<InstructionWarning, string> = {
+  same_as_note: '운영진 메모 원문과 같습니다.',
+  request: '작성 지시(예: "강조해 줘", "소개해 주세요")가 들어 있습니다.',
+  meta: '문구 · 포스터 · 관전 포인트 등 작성 대상을 가리키는 말이 들어 있습니다.',
+  match_ref: '"2번 경기는"처럼 경기 번호로 지시하는 표현이 들어 있습니다.',
+};
+
+// 작성 · 노출 동사(관람객에게 하는 말이 아니라 문구를 만드는 쪽에 하는 말)
+const WRITE_VERB = '(?:강조|부각|언급|소개|작성|표시|반영|추가|정리|홍보|어필|넣어|써|적어|올려|띄워|다뤄|빼)';
+// 반말 요청(공개 문구에는 거의 쓰지 않는다) — 어떤 동사 뒤든 경고
+const CASUAL_REQUEST = /(?:해|해서|게|어|아|워|와|줘|봐)\s*(?:줘|줘요|줄래|주라|줄\s*수\s*있어)(?![가-힣])|(?:해|게)\s*달라/;
+// 정중한 요청 · 의무 표현은 작성 동사와 함께일 때만(응원해 주세요 · 많은 관심 부탁드립니다 같은 공개 문장은 허용)
+const POLITE_REQUEST = new RegExp(`${WRITE_VERB}\\s*(?:해|해서|하게|되게|시켜)?\\s*(?:주세요|주시고|주십시오|주면|줬으면|달라|부탁|바람|바랍니다|하도록|되도록|할\\s*것|해야|하면\\s*좋겠|했으면)`);
+const META = /(?:관전\s*포인트|공개\s*문구|문구|포스터|프리뷰|멘트|소개글|홍보글|AI)\s*(?:에|에서|로|으로|를|을|은|는)(?![가-힣])/i;
+const MATCH_REF = /(?:^|[\s,·(])\d{1,2}\s*번\s*(?:경기|매치|게임|코트)?\s*(?:은|는|도|이|가|에|에서)(?![가-힣])/;
+
+/** 공개 문구가 작성 지시처럼 보이면 사유 목록을 돌려준다(빈 배열 = 경고 없음). 차단하지 않는다. */
+export function detectOperatorInstruction(text: string, note = ''): InstructionWarning[] {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return [];
+  const out: InstructionWarning[] = [];
+  const n = String(note || '').replace(/\s+/g, ' ').trim();
+  if (n && n === t) out.push('same_as_note');
+  if (CASUAL_REQUEST.test(t) || POLITE_REQUEST.test(t)) out.push('request');
+  if (META.test(t)) out.push('meta');
+  if (MATCH_REF.test(t)) out.push('match_ref');
+  return out;
 }
 
 /** 운영진 입력이 같은가(재공개 필요 판정용). */
