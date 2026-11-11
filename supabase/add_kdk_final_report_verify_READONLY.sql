@@ -20,7 +20,7 @@ select 'V04 public RPC' as chk,
 select 'V05 definer + search_path' as chk, p.proname, p.prosecdef, p.proconfig
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and (p.proname like 'kdk_final_report%' or p.proname like '%kdk_final_report%' or p.proname like 'kdk_fr_%')
- order by p.proname;                                                                                                   -- proconfig 모두 search_path=public, pg_temp
+ order by p.proname;                                                                                                   -- 10행 · prosecdef true 6(보조 kdk_fr_* 3 · signature 는 false) · proconfig 모두 search_path=public, pg_temp
 select 'V06 archive anon read still revoked' as chk,
        has_any_column_privilege('anon', 'public.teyeon_archive_v1', 'SELECT') as anon_archive_read;                    -- false(기존 SQL 38 유지)
 select 'V07 rows' as chk, status, count(*) from public.kdk_final_reports group by status;                              -- 적용 직후 0행

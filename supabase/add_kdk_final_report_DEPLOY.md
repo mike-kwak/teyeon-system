@@ -8,7 +8,7 @@
 - P02 `kdk_spotlight_is_admin` anon · authenticated 실행 불가 · SECURITY DEFINER
 - P03 공식 KDK Archive 24건: 선수 · 경기 id 누락/중복 0, 경기 선수 4명, 점수 정상, 경기 ↔ 순위표 연결 정상
 
-## 1. 운영 SQL 적용 (Supabase SQL Editor)
+## 1. 운영 SQL 적용 (Supabase SQL Editor) — 적용 완료 · 2026-11-11 (V01~V07 19항목 PASS · 공개 키 확인 PASS)
 1. `supabase/add_kdk_final_report.sql` **파일 전체를 한 번에** 붙여 넣고 실행한다.
    - SQL Editor 는 한 요청을 하나의 트랜잭션으로 실행한다 → 중간 실패 시 전체 무변경(PGlite 로 확인).
    - `psql -f` 처럼 문장 단위로 실행하지 않는다(문장마다 커밋되어 원자성이 깨짐).
@@ -27,7 +27,7 @@
 | V02 표 권한 | anon/authenticated SELECT · INSERT 모두 `false` |
 | V03 운영 함수 | anon/authenticated `false`, service_role `true` |
 | V04 공개 함수 | `get_public_kdk_final_report` · `get_public_kdk_final_report_link` anon `true`, 지문 함수 anon `false` |
-| V05 | 모든 FINAL REPORT 함수 `prosecdef = true`, `proconfig` 에 `search_path=public, pg_temp` |
+| V05 | FINAL REPORT 함수 10개 · `prosecdef = true` 는 **6개**(조회 · 저장 · 발행 · 비공개 · 공개 2) · 보조 4개(`kdk_fr_int` · `kdk_fr_group` · `kdk_fr_key` · `kdk_final_report_signature`)는 `false`(service_role 전용 실행) · 10개 모두 `proconfig` 에 `search_path=public, pg_temp` |
 | V06 | Archive anon 읽기 `false`(기존 보안 유지) |
 | V07 | 0행(적용 직후) |
 
