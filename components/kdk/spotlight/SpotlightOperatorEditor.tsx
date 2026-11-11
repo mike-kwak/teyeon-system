@@ -1,20 +1,19 @@
 'use client';
 
-// MATCH SPOTLIGHT 운영진 관전 포인트 · 운영진 PICK 편집 — 세션 관리 모달 안 화면. (B1 + P0 + AI 관전 포인트 v2)
-//   STEP 1 메모: 여러 경기 지시를 자연어로 입력. 원문은 이 기기에만 저장(서버 · AI 로 원문 전체를 보내지 않는다).
-//   STEP 2 경기 연결: linkInstructions(규칙 기반) — "2번" · "3경기" · "R2 1코트" · 선수 이름. 경기 목록은 서버
-//          ai_matches(라운드 · 코트 · 선수 · 안정 id). 번호만 · 추정 · 후보 여러 개 · 불일치 · 없는 번호는 자동 확정하지 않는다
-//          → 운영진이 "이 경기가 맞음" 또는 경기 선택으로 확정해야 생성 · 적용에 쓰인다. 연결은 matchNo + ref(matchId)로 유지.
-//   STEP 3 AI 초안: 확정된 경기의 지시만 서버 ai_draft 로 보낸다(저장 없음). AI 사용 불가(스위치 · 키 · 공급자 미연결)면 수동 작성.
-//          ⚠ 초안은 빈 공개 문구에만 들어간다. 이미 문구가 있으면(공개본 복원 · 직접 작성 · 운영진 수정) 덮어쓰지 않고
-//            "초안 사용" 버튼으로만 바꾼다.
-//   STEP 4 검토: 경기별 수정 · 제외 · 재생성(최대 5회) · 글자 수 · 검증(validateDraftText) — 차단 문제는 고쳐야 적용 가능.
-//   STEP 5 미리보기: 서버가 공개와 같은 계산 · 검증(preview). 기존 공개 문구 → 변경 예정 비교 · 텍스트 공유 문구 미리보기.
-//   STEP 6 승인: AI 초안이 포함되거나 경고가 남아 있으면 최종 확인 체크 후에만 "적용". 공개 · 재공개는 기존 관리 화면 버튼.
+// MATCH SPOTLIGHT 운영진 관전 포인트 · 운영진 PICK 편집 — 세션 관리 모달 안 화면. (외부 AI 없음 · 규칙 기반)
+//   STEP 1 관전 메모 작성: 여러 경기 메모를 자연어로 입력. 원문은 이 기기에만 저장(공개 · 서버 저장 없음).
+//   STEP 2 경기 자동 연결 확인: linkInstructions — "2번" · "3경기" · "R2 1코트" · 선수 이름. 경기 목록은 서버
+//          matches(라운드 · 코트 · 선수). 번호만 · 추정 · 후보 여러 개 · 불일치 · 없는 번호는 자동 확정하지 않는다
+//          → 운영진이 "이 경기가 맞음" 또는 경기 선택으로 확정해야 적용할 수 있다.
+//   STEP 3 경기별 관전 포인트 작성: 공개 문구는 운영진이 직접 쓴다(메모 원문을 복사하지 않음 — P0).
+//          검증: 120자 · 꺾쇠 · 다른 경기 선수 · 개인정보(차단) / 작성 지시처럼 보이는 표현(경고).
+//          경기를 바꾸면 이전 경기용 문구가 새 경기에 그대로 붙지 않도록 "문구 확인" 전까지 적용을 막는다.
+//   STEP 4 미리보기 및 적용: 서버가 공개와 같은 계산 · 검증(preview). 기존 공개 문구 → 변경 예정 비교 · 텍스트 공유 미리보기.
+//          경고가 남아 있으면 확인 체크 후에만 "적용". 공개 · 재공개는 기존 관리 화면 버튼.
 //   공개 데이터는 기존 operatorPoint 그대로 — 공개 페이지 · PNG 포스터 · 텍스트 공유가 같은 승인 문구를 쓴다.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, Link2, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Check, Link2, Plus, Trash2 } from 'lucide-react';
 import {
   buildSpotlightShareText, parsePublicSpotlightPayload, type PublicSpotlightPayload,
 } from '@/lib/kdk/analytics/publicSpotlight';
@@ -23,29 +22,21 @@ import {
   type NoteLinkStatus, type OperatorInput,
 } from '@/lib/kdk/analytics/spotlightOperator';
 import {
-  allNamesOf, blockingIssues, checkContextFor, issueText, linkInstructions, matchInfoLabel, validateDraftText, warningIssues,
-  AI_ITEMS_MAX, AI_MEMO_MAX, AI_REGENERATE_MAX,
-  type AiMatchInfo, type DraftCard, type DraftIssue, type InstructionStatus,
-} from '@/lib/kdk/analytics/spotlightAiDraft';
+  allNamesOf, blockingIssues, checkPublicText, issueText, linkInstructions, matchInfoLabel, MEMO_MAX,
+  type InstructionStatus, type SpotlightMatchInfo, type TextIssue,
+} from '@/lib/kdk/analytics/spotlightMemoLink';
 import SpotlightView from './SpotlightView';
 import { postSpotlightAction, readLocal, writeLocal } from './spotlightClientApi';
-import { AI_MATCH_UNAVAILABLE_TEXT, AI_UNAVAILABLE_TEXT, spotlightFailText } from './spotlightMessages';
+import { spotlightFailText } from './spotlightMessages';
 
 type RowStatus = NoteLinkStatus | InstructionStatus | 'manual';
 type Row = {
   id: string; note: string; status: RowStatus; candidates: number[]; matchNo: number | null; text: string;
-  /** 안정 식별자(matchId) — 경기 목록에서 연결할 때 채운다. */
-  ref?: string;
-  /** false 면 연결 확인 전(생성 · 적용 불가). 예전 저장 행(필드 없음)은 확정으로 본다. */
+  /** false 면 연결 확인 전(적용 불가). 예전 저장 행(필드 없음)은 확정으로 본다. */
   confirmed?: boolean;
   excluded?: boolean;
-  source?: 'ai' | 'manual';
-  /** 마지막 AI 초안(운영진이 고치지 않았는지 판단용). */
-  aiText?: string;
-  /** 기존 문구가 있어 대기 중인 AI 초안("초안 사용"으로만 반영). */
-  draft?: string;
-  regen?: number;
-  aiNote?: string;
+  /** 문구가 있는 채로 경기를 바꿈 — 새 경기에 맞는 문구인지 확인 전까지 적용 불가. */
+  moved?: boolean;
 };
 type Saved = { rows: Row[]; pick: OperatorInput['pick'] };
 
@@ -65,6 +56,7 @@ let seq = 0;
 const newId = () => `r${Date.now().toString(36)}${(seq++).toString(36)}`;
 const isConfirmed = (r: Row): boolean => r.confirmed !== false;
 const isIncluded = (r: Row): boolean => !r.excluded && !!r.matchNo && !!r.text.trim();
+const posInt = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v > 0 && v < 10000 ? v : null);
 
 export function toOperatorInput(rows: Row[], pick: OperatorInput['pick']): OperatorInput {
   return {
@@ -73,24 +65,48 @@ export function toOperatorInput(rows: Row[], pick: OperatorInput['pick']): Opera
   };
 }
 
-/** 공개 payload 만 있을 때의 경기 목록(코트 · id 없음 — AI 생성 불가, 이름 · 번호 연결만). */
-function infosFromPayload(p: PublicSpotlightPayload): AiMatchInfo[] {
-  const items = new Map(p.items.map((i) => [i.matchNo, i]));
-  return p.matches.map((m) => {
-    const it = items.get(m.matchNo);
-    return { matchNo: m.matchNo, ref: '', round: m.round, court: null, group: m.group, teamA: m.teamA, teamB: m.teamB,
-      badge: m.badge, inTop: !!it, official: it ? `${it.headline} — ${it.viewpoint}` : '', status: '' };
-  });
+/**
+ * 기기 저장본 복원 — 형식이 틀리면 버린다. 예전 버전(AI 초안 시험판)의 추가 필드
+ * (대기 초안 · AI 표시 · 재생성 횟수 · 안정 id)는 무시한다(대기 초안은 승인 전이므로 복원하지 않음).
+ */
+export function parseSaved(v: unknown): Saved | null {
+  if (!v || typeof v !== 'object' || !Array.isArray((v as any).rows)) return null;
+  const rows: Row[] = [];
+  for (const x of (v as any).rows.slice(0, 40)) {
+    if (!x || typeof x !== 'object') continue;
+    const status = typeof x.status === 'string' && x.status in STATUS_TEXT ? (x.status as RowStatus) : 'manual';
+    rows.push({
+      id: typeof x.id === 'string' && x.id ? x.id.slice(0, 40) : newId(),
+      note: typeof x.note === 'string' ? x.note.slice(0, 400) : '',
+      status,
+      candidates: Array.isArray(x.candidates) ? x.candidates.map(posInt).filter((n: number | null): n is number => n != null).slice(0, 80) : [],
+      matchNo: posInt(x.matchNo),
+      text: typeof x.text === 'string' ? x.text.slice(0, OPERATOR_POINT_MAX + 40) : '',
+      ...(x.confirmed === false ? { confirmed: false } : {}),
+      ...(x.excluded === true ? { excluded: true } : {}),
+      ...(x.moved === true ? { moved: true } : {}),
+    });
+  }
+  const p = (v as any).pick;
+  const pick = p && typeof p === 'object' && posInt(p.matchNo) ? { matchNo: posInt(p.matchNo) as number, replace: posInt(p.replace) } : null;
+  return { rows, pick };
 }
-function parseInfos(v: unknown): AiMatchInfo[] | null {
+
+/** 공개 payload 만 있을 때의 경기 목록(코트 없음 — 이름 · 번호 연결만). */
+function infosFromPayload(p: PublicSpotlightPayload): SpotlightMatchInfo[] {
+  const top = new Set(p.items.map((i) => i.matchNo));
+  return p.matches.map((m) => ({ matchNo: m.matchNo, round: m.round, court: null, group: m.group, teamA: m.teamA, teamB: m.teamB,
+    badge: m.badge, inTop: top.has(m.matchNo), status: '' }));
+}
+function parseInfos(v: unknown): SpotlightMatchInfo[] | null {
   if (!Array.isArray(v)) return null;
   const s = (x: unknown, n: number) => (typeof x === 'string' ? x.slice(0, n) : '');
-  const out: AiMatchInfo[] = [];
+  const out: SpotlightMatchInfo[] = [];
   for (const m of v.slice(0, 80)) {
     if (!m || typeof m !== 'object' || !Number.isInteger(m.matchNo)) continue;
-    out.push({ matchNo: m.matchNo, ref: s(m.ref, 64), round: Number(m.round) || 0, court: Number(m.court) > 0 ? Number(m.court) : null,
+    out.push({ matchNo: m.matchNo, round: Number(m.round) || 0, court: Number(m.court) > 0 ? Number(m.court) : null,
       group: s(m.group, 12), teamA: [s(m.teamA?.[0], 40), s(m.teamA?.[1], 40)], teamB: [s(m.teamB?.[0], 40), s(m.teamB?.[1], 40)],
-      badge: m.badge ?? null, inTop: m.inTop === true, official: s(m.official, 240), status: s(m.status, 20) });
+      badge: m.badge ?? null, inTop: m.inTop === true, status: s(m.status, 20) });
   }
   return out;
 }
@@ -108,19 +124,16 @@ export default function SpotlightOperatorEditor({
   //   → 새 회차에 이전 회차의 연결 · 문구가 따라오지 않는다(새 회차는 서버 공개본/빈 입력에서 시작).
   const storeKey = `teyeon_spotlight_op:${runId}`;
   const notesKey = `teyeon_spotlight_notes:${sessionId}`;
-  const saved = useMemo(() => readLocal<Saved>(storeKey), [storeKey]);
-  const [notes, setNotes] = useState<string>(() => readLocal<string>(notesKey) || '');
+  const saved = useMemo(() => parseSaved(readLocal<unknown>(storeKey)), [storeKey]);
+  const [notes, setNotes] = useState<string>(() => { const v = readLocal<unknown>(notesKey); return typeof v === 'string' ? v.slice(0, MEMO_MAX) : ''; });
   const [rows, setRows] = useState<Row[]>(() => saved?.rows?.length
     ? saved.rows
     : initial.points.map((p) => ({ id: newId(), note: '', status: 'manual' as const, candidates: [], matchNo: p.matchNo, text: p.text })));
-  const [pick, setPick] = useState<OperatorInput['pick']>(saved?.pick ?? initial.pick);
+  const [pick, setPick] = useState<OperatorInput['pick']>(saved ? saved.pick : initial.pick);
   const [base, setBase] = useState<PublicSpotlightPayload | null>(null);
   const [baseErr, setBaseErr] = useState<string | null>(null);
-  const [infos, setInfos] = useState<AiMatchInfo[] | null>(null);
-  const [ai, setAi] = useState<{ available: boolean; reason: string | null }>({ available: false, reason: null });
+  const [infos, setInfos] = useState<SpotlightMatchInfo[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [aiBusy, setAiBusy] = useState<string | null>(null); // 'all' | row id
-  const aiLock = useRef(false);
   const [checked, setChecked] = useState<{ key: string; payload: PublicSpotlightPayload } | null>(null);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -133,13 +146,12 @@ export default function SpotlightOperatorEditor({
       if (!p) { setBaseErr(spotlightFailText(r.j, r.status)); return; }
       setBase(p);
     }).catch(() => { if (alive) setBaseErr(spotlightFailText({ reason: 'db_unavailable' }, 0)); });
-    // 경기 목록(라운드 · 코트 · 안정 id) + AI 사용 가능 여부 — 실패해도 공개 payload 기준으로 수동 작성 가능.
-    postSpotlightAction({ action: 'ai_matches', runId }).then((r) => {
+    // 경기 목록(라운드 · 코트) — 실패해도 공개 payload 기준으로 이름 · 번호 연결은 된다.
+    postSpotlightAction({ action: 'matches', runId }).then((r) => {
       if (!alive) return;
       const list = r.ok ? parseInfos(r.j.matches) : null;
       if (list) setInfos(list);
-      setAi({ available: r.ok && r.j?.ai?.available === true, reason: r.ok ? (r.j?.ai?.reason ?? null) : 'unavailable' });
-    }).catch(() => { if (alive) setAi({ available: false, reason: 'unavailable' }); });
+    }).catch(() => { /* 공개 payload 기준으로 계속 */ });
     return () => { alive = false; };
   }, [runId]);
 
@@ -153,25 +165,27 @@ export default function SpotlightOperatorEditor({
   useEffect(() => { writeLocal(storeKey, { rows, pick }); }, [storeKey, rows, pick]);
   useEffect(() => { writeLocal(notesKey, notes || null); }, [notesKey, notes]);
 
-  const matchList = useMemo<AiMatchInfo[]>(() => infos || (base ? infosFromPayload(base) : []), [infos, base]);
+  const matchList = useMemo<SpotlightMatchInfo[]>(() => infos || (base ? infosFromPayload(base) : []), [infos, base]);
   const infoByNo = useMemo(() => new Map(matchList.map((m) => [m.matchNo, m])), [matchList]);
   const allNames = useMemo(() => allNamesOf(matchList), [matchList]);
   const input = useMemo(() => toOperatorInput(rows, pick), [rows, pick]);
   const inputKey = JSON.stringify(input);
   const topNos = useMemo(() => new Set((base?.items || []).map((i) => i.matchNo)), [base]);
   const byNo = useMemo(() => new Map((base?.matches || []).map((m) => [m.matchNo, m])), [base]);
+  const publishedText = useMemo(() => new Map((publishedPayload?.matches || []).filter((m) => m.operatorPoint).map((m) => [m.matchNo, m.operatorPoint as string])), [publishedPayload]);
   const dupNos = useMemo(() => {
     const c = new Map<number, number>();
     for (const r of rows) if (r.matchNo && !r.excluded) c.set(r.matchNo, (c.get(r.matchNo) || 0) + 1);
     return new Set([...c].filter(([, n]) => n > 1).map(([k]) => k));
   }, [rows]);
 
-  // AI 문구 검증(서버와 같은 순수 함수) — 운영진이 고치면 즉시 다시 계산.
-  const aiIssues = useMemo(() => new Map(rows.map((r): [string, DraftIssue[]] => {
+  // 공개 문구 검증 — 이미 공개 중인 같은 문구는 차단하지 않고 경고만(기존 승인 문구 보호).
+  const textIssues = useMemo(() => new Map(rows.map((r): [string, TextIssue[]] => {
     const m = r.matchNo ? infoByNo.get(r.matchNo) : undefined;
-    if (r.source !== 'ai' || !m) return [r.id, []];
-    return [r.id, validateDraftText(r.text, checkContextFor(m, r.note, allNames))];
-  })), [rows, infoByNo, allNames]);
+    if (!m || !r.text.trim()) return [r.id, []];
+    const approved = publishedText.get(r.matchNo as number) === r.text.trim();
+    return [r.id, checkPublicText(r.text, [...m.teamA, ...m.teamB].filter(Boolean), allNames, approved)];
+  })), [rows, infoByNo, allNames, publishedText]);
 
   const link = () => {
     if (!base) return;
@@ -185,7 +199,7 @@ export default function SpotlightOperatorEditor({
         rows,
         links.map((l) => ({ matchNo: l.status === 'linked' ? l.matchNo : null, note: l.instruction, link: l })),
         ({ link: l }) => ({ id: newId(), note: l.instruction, status: l.status, candidates: l.candidates, matchNo: l.matchNo,
-          ref: l.matchNo ? infoByNo.get(l.matchNo)?.ref || '' : '', confirmed: l.status === 'linked' }),
+          confirmed: l.status === 'linked' }),
       );
     } else {
       const lines = notes.split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, OPERATOR_NOTES_MAX);
@@ -197,8 +211,8 @@ export default function SpotlightOperatorEditor({
     setRows(next);
     setChecked(null);
     setMsg(count > 0
-      ? { text: '경기를 연결했습니다. 메모는 공개되지 않습니다 — 연결을 확인한 뒤 각 경기의 "공개 문구"를 작성하거나 AI 초안을 만들어 주세요.', ok: true }
-      : { text: '연결할 메모가 없습니다. 한 줄에 하나씩 적어 주세요.', ok: false });
+      ? { text: '경기를 연결했습니다. 메모는 공개되지 않습니다 — 연결을 확인한 뒤 각 경기의 "공개 관전 포인트"를 작성해 주세요.', ok: true }
+      : { text: '연결할 메모가 없습니다. 경기마다 줄이나 문장을 나눠 적어 주세요.', ok: false });
   };
   const update = (id: string, patch: Partial<Row>) => {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -209,48 +223,6 @@ export default function SpotlightOperatorEditor({
     setRows((rs) => rs.filter((x) => x.id !== id));
     if (r && pick && r.matchNo === pick.matchNo && !rows.some((x) => x.id !== id && x.matchNo === pick.matchNo)) setPick(null);
     setChecked(null);
-  };
-
-  // ── AI 초안 ─────────────────────────────────────────────────────────────
-  // 안정 id: 연결 때 저장한 ref. 공개본 복원 · 예전 저장 행(ref 없음)은 확정된 경우에만 같은 회차 경기 목록에서 보완
-  //   (회차 안 matchNo ↔ matchId 는 생성 때 고정 — 서버가 다시 대조한다).
-  const refOf = (r: Row): string => r.ref || (isConfirmed(r) && r.matchNo ? infoByNo.get(r.matchNo)?.ref || '' : '');
-  const aiReady = (r: Row) => !r.excluded && isConfirmed(r) && !!r.matchNo && !!refOf(r) && !!r.note.trim() && !dupNos.has(r.matchNo);
-  const aiTargets = rows.filter((r) => aiReady(r) && !r.text.trim());
-  const applyCards = (cards: DraftCard[], unavailable: Array<{ matchNo: number; reason: string }>, regenerate: boolean, ids: ReadonlySet<string>) => {
-    setRows((rs) => rs.map((r) => {
-      // 요청한 행에만 반영 — 같은 경기 번호의 다른 행(제외된 행 등)은 건드리지 않는다.
-      if (!ids.has(r.id) || r.excluded) return r;
-      const un = unavailable.find((u) => u.matchNo === r.matchNo);
-      if (un && r.matchNo) return { ...r, aiNote: AI_MATCH_UNAVAILABLE_TEXT[un.reason] || un.reason };
-      const c = cards.find((x) => x.matchNo === r.matchNo && x.ref === refOf(r));
-      if (!c) return r;
-      const regen = regenerate ? (r.regen || 0) + 1 : r.regen;
-      if (c.status === 'missing' || !c.text) return { ...r, regen, aiNote: 'AI 가 이 경기 초안을 만들지 못했습니다. 다시 생성하거나 직접 작성해 주세요.' };
-      // 빈 문구이거나 운영진이 고치지 않은 AI 문구면 바로 반영, 아니면 대기 초안(덮어쓰기 금지).
-      if (!r.text.trim() || (r.source === 'ai' && r.text === r.aiText)) return { ...r, text: c.text, aiText: c.text, source: 'ai', draft: undefined, regen, aiNote: undefined };
-      return { ...r, draft: c.text, regen, aiNote: undefined };
-    }));
-    setChecked(null);
-  };
-  const generate = async (targets: Row[], regenerate: boolean, busyKey: string) => {
-    // 연속 클릭 방지: 상태 갱신 전 두 번째 클릭도 막도록 동기 잠금(ref) 사용. 서버도 사용자별 진행 중 요청을 거부한다.
-    if (!targets.length || aiLock.current) return;
-    aiLock.current = true;
-    setAiBusy(busyKey); setMsg(null);
-    try {
-      const sent = targets.slice(0, AI_ITEMS_MAX);
-      const r = await postSpotlightAction({ action: 'ai_draft', runId, regenerate,
-        items: sent.map((t) => ({ matchNo: t.matchNo, ref: refOf(t), instruction: t.note })) });
-      if (!r.ok) { setMsg({ text: spotlightFailText(r.j, r.status), ok: false }); return; }
-      const cards: DraftCard[] = Array.isArray(r.j.cards) ? r.j.cards : [];
-      const unavailable = Array.isArray(r.j.unavailable) ? r.j.unavailable : [];
-      applyCards(cards, unavailable, regenerate, new Set(sent.map((t) => t.id)));
-      const fixes = cards.filter((c) => c.status === 'needs_fix' || c.status === 'missing').length + unavailable.length;
-      setMsg({ text: `AI 초안 ${cards.filter((c) => c.text).length}건을 만들었습니다.${fixes ? ` 확인이 필요한 경기 ${fixes}건이 있습니다.` : ''} 초안은 아직 공개되지 않습니다 — 검토 · 수정 후 미리보기와 승인을 거쳐야 합니다.`, ok: !fixes });
-    } catch {
-      setMsg({ text: spotlightFailText({ reason: 'ai_failed' }, 0), ok: false });
-    } finally { aiLock.current = false; setAiBusy(null); }
   };
 
   const check = async () => {
@@ -270,33 +242,37 @@ export default function SpotlightOperatorEditor({
   // 지시문 경고(차단 아님): 행별 사유 · 공개 대상(경기 + 문구 있음) 중 경고가 남은 행 수.
   const warnings = useMemo(() => new Map(rows.map((r) => [r.id, detectOperatorInstruction(r.text, r.note)])), [rows]);
   const included = rows.filter(isIncluded);
-  const warnCount = included.filter((r) => (warnings.get(r.id)?.length || 0) > 0 || warningIssues(aiIssues.get(r.id) || []).length > 0).length;
-  const blockCount = included.filter((r) => blockingIssues(aiIssues.get(r.id) || []).length > 0).length;
-  const unconfirmedCount = rows.filter((r) => !r.excluded && r.text.trim() && (!isConfirmed(r) || !r.matchNo)).length;
-  const aiIncluded = included.filter((r) => r.source === 'ai').length;
+  const warnCount = included.filter((r) => (warnings.get(r.id)?.length || 0) > 0
+    || (textIssues.get(r.id) || []).some((x) => x.severity === 'warn')).length;
+  const blockCount = included.filter((r) => blockingIssues(textIssues.get(r.id) || []).length > 0).length;
+  const unconfirmedCount = rows.filter((r) => !r.excluded && r.text.trim() && (!isConfirmed(r) || !r.matchNo || r.moved)).length;
   const emptyCount = rows.filter((r) => !r.excluded && r.matchNo && !r.text.trim()).length;
-  // 최종 승인: 경고가 남았거나 AI 초안이 포함되면 운영진 확인 — 입력이 바뀌면 다시 확인.
+  // 공개 대상(문구 있음) 중 같은 경기 두 개 — 서버도 operator_duplicate_match 로 거부한다.
+  const dupCount = new Set(included.map((r) => r.matchNo)).size < included.length ? 1 : 0;
+  // 최종 확인: 경고가 남았으면 운영진 확인 — 승인 후 입력(문구 · 연결 · 제외 · PICK)이 바뀌면 다시 확인.
   const [ackKey, setAckKey] = useState<string | null>(null);
-  const needAck = warnCount > 0 || aiIncluded > 0;
-  // 승인 후 입력(문구 · 연결 · 제외 · PICK)이 바뀌면 미리보기와 함께 승인도 초기화 — 되돌려도 다시 체크해야 한다.
   useEffect(() => { if (!checked) setAckKey(null); }, [checked]);
+  const needAck = warnCount > 0;
   const acked = !needAck || ackKey === inputKey;
-  const canApply = ready && acked && blockCount === 0 && unconfirmedCount === 0;
+  const canApply = ready && acked && blockCount === 0 && unconfirmedCount === 0 && dupCount === 0;
 
   // 기존 공개 문구 → 변경 예정(미리보기 통과본 기준)
   const changes = useMemo(() => {
     if (!checked) return [];
-    const before = new Map((publishedPayload?.matches || []).filter((m) => m.operatorPoint).map((m) => [m.matchNo, m.operatorPoint as string]));
     const after = new Map(checked.payload.matches.filter((m) => m.operatorPoint).map((m) => [m.matchNo, m.operatorPoint as string]));
-    return [...new Set([...before.keys(), ...after.keys()])].sort((a, b) => a - b)
-      .filter((no) => before.get(no) !== after.get(no))
-      .map((no) => ({ no, before: before.get(no) || '', after: after.get(no) || '' }));
-  }, [checked, publishedPayload]);
+    return [...new Set([...publishedText.keys(), ...after.keys()])].sort((a, b) => a - b)
+      .filter((no) => publishedText.get(no) !== after.get(no))
+      .map((no) => ({ no, before: publishedText.get(no) || '', after: after.get(no) || '' }));
+  }, [checked, publishedText]);
 
   const field: React.CSSProperties = { width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid #C9D9EC', background: '#FFFFFF',
     padding: '8px 10px', fontSize: 13, fontWeight: 600, color: '#0F2747', outline: 'none', minWidth: 0 };
   const small: React.CSSProperties = { fontSize: 11.5, fontWeight: 700, color: '#5B6B80', lineHeight: 1.5, wordBreak: 'keep-all', overflowWrap: 'anywhere' };
-  const step: React.CSSProperties = { fontSize: 10.5, fontWeight: 900, letterSpacing: '0.12em', color: '#94A3B8', margin: '6px 0 -4px' };
+  const stepStyle: React.CSSProperties = { fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', color: '#0F2747', margin: '8px 0 -4px', display: 'flex', alignItems: 'center', gap: 6 };
+  const stepNo = (n: number) => (
+    <span aria-hidden style={{ width: 20, height: 20, borderRadius: 999, background: '#0F2747', color: '#FFFFFF', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>{n}</span>
+  );
+  const step = (n: number, label: string) => <div data-op-step={n} style={stepStyle}>{stepNo(n)}STEP {n} · {label}</div>;
   const btn = (label: React.ReactNode, onClick: () => void, o: { primary?: boolean; disabled?: boolean } = {}) => (
     <button type="button" onClick={onClick} disabled={o.disabled || busy}
       style={{ flex: '1 1 0', minWidth: 0, minHeight: 44, padding: '0 8px', borderRadius: 12, fontSize: 13, fontWeight: 900,
@@ -306,11 +282,11 @@ export default function SpotlightOperatorEditor({
       {label}
     </button>
   );
-  const chip = (label: React.ReactNode, onClick: () => void, o: { disabled?: boolean; tone?: 'gold' | 'plain'; aria?: string } = {}) => (
-    <button type="button" onClick={onClick} disabled={o.disabled || busy || !!aiBusy} aria-label={o.aria}
-      style={{ minHeight: 36, padding: '0 10px', borderRadius: 10, fontSize: 12, fontWeight: 900, cursor: o.disabled ? 'not-allowed' : 'pointer',
-        border: o.tone === 'gold' ? '1px solid rgba(184,137,28,0.45)' : '1px solid #C9D9EC', background: o.disabled ? '#EEF2F7' : o.tone === 'gold' ? '#FFF9EA' : '#FFFFFF',
-        color: o.disabled ? '#94A3B8' : '#0F2747', display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+  const chip = (label: React.ReactNode, onClick: () => void, o: { tone?: 'gold' | 'plain'; aria?: string } = {}) => (
+    <button type="button" onClick={onClick} disabled={busy} aria-label={o.aria}
+      style={{ minHeight: 36, padding: '0 10px', borderRadius: 10, fontSize: 12, fontWeight: 900, cursor: 'pointer',
+        border: o.tone === 'gold' ? '1px solid rgba(184,137,28,0.45)' : '1px solid #C9D9EC', background: o.tone === 'gold' ? '#FFF9EA' : '#FFFFFF',
+        color: '#0F2747', display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
       {label}
     </button>
   );
@@ -323,23 +299,24 @@ export default function SpotlightOperatorEditor({
   if (baseErr) return <div role="status" style={{ ...small, color: '#B91C1C' }}>{baseErr}</div>;
   if (!base) return <div style={small}>공개 기준(자동 분석 결과)을 불러오는 중…</div>;
 
-  const aiNoteText = ai.available ? null : (AI_UNAVAILABLE_TEXT[ai.reason || ''] || 'AI 초안을 사용할 수 없습니다(수동 작성 모드).');
+  const needLinkCheck = rows.filter((r) => !r.excluded && r.matchNo && !isConfirmed(r)).length + rows.filter((r) => !r.excluded && !r.matchNo).length;
 
   return (
     <section aria-label="운영진 관전 포인트 편집" data-spotlight-operator="" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
       <div style={{ ...small, padding: '10px 12px', borderRadius: 12, background: '#FFF9EA', border: '1px solid rgba(184,137,28,0.28)' }}>
         운영진이 알려 준 현장 정보를 관련 경기의 <b style={{ color: '#0F2747' }}>운영진 관전 포인트</b>로 붙입니다. 공식 기록 분석은 바뀌지 않으며,
         입력하지 않으면 자동 분석 그대로 공개됩니다.
-        <br /><b style={{ color: '#0F2747' }}>메모</b>는 경기 연결용(비공개 · 이 기기에만 저장)이고, 실제로 공개되는 것은 각 경기의
-        <b style={{ color: '#B8891C' }}> 공개 문구</b>뿐입니다. 공개 문구는 관람객이 읽을 문장으로 직접 작성해 주세요.
+        <br /><b style={{ color: '#0F2747' }}>관전 메모</b>는 경기 연결용(비공개 · 이 기기에만 저장)이고, 실제로 공개되는 것은 각 경기의
+        <b style={{ color: '#B8891C' }}> 공개 관전 포인트</b>뿐입니다.
       </div>
 
-      <div style={step}>STEP 1 · 운영진 메모</div>
+      {step(1, '관전 메모 작성')}
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 900, color: '#0F2747' }}>운영진 메모 (비공개 · 한 줄에 하나 · 최대 {OPERATOR_NOTES_MAX}줄)</span>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, AI_MEMO_MAX))} rows={4} aria-label="운영진 메모" onFocus={focusIntoView}
+        <span style={{ fontSize: 12, fontWeight: 900, color: '#0F2747' }}>운영진 관전 메모 (비공개 · 여러 경기를 한 번에 적어도 됩니다)</span>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, MEMO_MAX))} rows={4} aria-label="운영진 메모" onFocus={focusIntoView}
           placeholder={'예) 2번 경기는 오픈부 선수들이 나와. 3번은 접전 예상.\n예) R2 1코트 구봉준·김영호 호흡 좋아.'}
           style={{ ...field, resize: 'vertical', lineHeight: 1.5 }} />
+        <span style={{ ...small, textAlign: 'right' }}>{[...notes].length}/{MEMO_MAX}</span>
       </label>
       <div style={{ display: 'flex', gap: 8 }}>
         {btn(<><Link2 size={14} aria-hidden />메모로 경기 연결</>, link, { disabled: !notes.trim() })}
@@ -348,11 +325,13 @@ export default function SpotlightOperatorEditor({
 
       {rows.length > 0 && (
         <>
-          <div style={step}>STEP 2~4 · 경기 연결 확인 · 공개 문구</div>
-          <div data-ai-numnote="" style={{ ...small, padding: '8px 10px', borderRadius: 10, background: '#F6FAFD', border: '1px solid #DCE7F3' }}>
+          {step(2, '경기 자동 연결 확인')}
+          <div data-op-numnote="" style={{ ...small, padding: '8px 10px', borderRadius: 10, background: '#F6FAFD', border: '1px solid #DCE7F3' }}>
             경기 번호는 SPOTLIGHT 목록 번호(라운드 → 코트 순)입니다. 대진표 화면에는 전체 경기 번호가 없으니
             &quot;R2 1코트&quot;나 선수 이름으로 적으면 정확합니다. 번호로 연결된 경기는 선수 조합을 보고 <b>이 경기가 맞음</b>을 눌러 주세요.
+            {needLinkCheck > 0 && <><br /><b style={{ color: '#B45309' }}>확인 · 선택이 필요한 연결 {needLinkCheck}건</b></>}
           </div>
+          {step(3, '경기별 관전 포인트 작성')}
         </>
       )}
 
@@ -364,14 +343,14 @@ export default function SpotlightOperatorEditor({
         const pickable = outside && !!m?.badge;
         const isPick = !!pick && pick.matchNo === r.matchNo;
         const options = r.candidates.length > 1 ? matchList.filter((x) => r.candidates.includes(x.matchNo)) : matchList;
-        const issues = aiIssues.get(r.id) || [];
+        const issues = textIssues.get(r.id) || [];
+        const blocks = blockingIssues(issues);
         const confirmed = isConfirmed(r);
         return (
           <div key={r.id} data-op-row="" data-excluded={r.excluded ? '' : undefined}
             style={{ borderRadius: 14, border: '1px solid rgba(15,39,71,0.12)', background: r.excluded ? '#F8FAFC' : '#FFFFFF', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, opacity: r.excluded ? 0.72 : 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: st.color, background: st.bg }}>{st.label}</span>
-              {r.source === 'ai' && <span data-ai-badge="" style={{ fontSize: 10.5, fontWeight: 900, padding: '2px 7px', borderRadius: 999, color: '#7C5A0B', background: '#FFF4D6', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Sparkles size={11} aria-hidden />AI 초안</span>}
               <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
                 {chip(r.excluded ? '다시 포함' : '제외', () => update(r.id, { excluded: !r.excluded }), { aria: r.excluded ? '이 경기 다시 포함' : '이 경기 제외' })}
                 <button type="button" onClick={() => remove(r.id)} aria-label="이 관전 포인트 삭제"
@@ -380,20 +359,19 @@ export default function SpotlightOperatorEditor({
                 </button>
               </span>
             </div>
-            {r.excluded && <div style={small}>제외됨 — 이 경기 문구는 공개 · 생성에 쓰이지 않습니다(내용은 보관).</div>}
+            {r.excluded && <div style={small}>제외됨 — 이 경기 문구는 공개되지 않습니다(내용은 보관).</div>}
             {r.note && (
               <div data-op-note="" style={{ ...small, padding: '6px 9px', borderRadius: 8, background: '#F1F5F9', border: '1px dashed #CBD5E1', color: '#64748B' }}>
                 메모(비공개 · 공개되지 않음): {r.note}
               </div>
             )}
+            <span style={{ fontSize: 11.5, fontWeight: 900, color: '#0F2747' }}>연결된 경기</span>
             <select value={r.matchNo ?? ''} aria-label="연결할 경기"
               onChange={(e) => {
                 const v = Number(e.target.value) || null;
-                // 경기를 바꾸면 이전 경기용 AI 초안은 무효 — 고치지 않은 AI 문구는 비우고, 운영진이 고친 문구는 남기되
-                //   AI 표시를 유지해 새 경기 기준으로 다시 검증한다(다른 경기 선수 이름 → 수정 필요).
-                const staleAi = v !== r.matchNo && r.source === 'ai' && r.text === r.aiText;
-                update(r.id, { matchNo: v, ref: v ? infoByNo.get(v)?.ref || '' : '', confirmed: true, status: r.status === 'linked' ? 'linked' : 'manual', draft: undefined, aiNote: undefined,
-                  ...(staleAi ? { text: '', aiText: undefined, source: undefined } : {}) });
+                // 문구가 있는 채로 경기를 바꾸면 이전 경기용 문구일 수 있다 → "문구 확인" 전까지 적용 불가.
+                const moved = v !== r.matchNo && !!r.text.trim() ? true : r.moved;
+                update(r.id, { matchNo: v, confirmed: true, status: r.status === 'linked' ? 'linked' : 'manual', moved });
                 if (pick && pick.matchNo === r.matchNo) setPick(null);
               }}
               style={{ ...field, fontWeight: 700 }}>
@@ -408,44 +386,29 @@ export default function SpotlightOperatorEditor({
                 {chip(<><Check size={13} aria-hidden />이 경기가 맞음</>, () => update(r.id, { confirmed: true }), { tone: 'gold', aria: '이 경기가 맞음' })}
               </div>
             )}
-            {r.matchNo && dupNos.has(r.matchNo) && <div style={{ ...small, color: '#B91C1C' }}>같은 경기에 관전 포인트가 두 개입니다. 하나로 합쳐 주세요.</div>}
+            {r.matchNo && dupNos.has(r.matchNo) && <div data-op-dup="" style={{ ...small, color: '#B91C1C' }}>같은 경기에 관전 포인트가 두 개입니다. 하나로 합치거나 하나를 제외해 주세요.</div>}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 900, color: '#B8891C' }}>공개 문구 (운영진 관전 포인트로 공개)</span>
+              <span style={{ fontSize: 11.5, fontWeight: 900, color: '#B8891C' }}>공개 관전 포인트 (관람객에게 공개)</span>
               <textarea value={r.text} maxLength={OPERATOR_POINT_MAX + 40} rows={2} aria-label="공개될 운영진 관전 포인트" onFocus={focusIntoView}
                 placeholder="관람객이 읽을 문장으로 작성 (예: 두 팀 모두 오픈부 출전 경험이 있는 경기입니다.)"
-                onChange={(e) => update(r.id, { text: e.target.value })} style={{ ...field, resize: 'vertical', lineHeight: 1.5 }} />
+                onChange={(e) => update(r.id, { text: e.target.value, moved: undefined })} style={{ ...field, resize: 'vertical', lineHeight: 1.5 }} />
               <span style={{ ...small, display: 'flex', gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0 }}>{r.matchNo && !r.text.trim() ? '비어 있으면 이 경기에는 관전 포인트가 붙지 않습니다.' : ''}</span>
                 <span style={{ color: [...r.text].length > OPERATOR_POINT_MAX ? '#B91C1C' : undefined }}>{[...r.text].length}/{OPERATOR_POINT_MAX}</span>
               </span>
             </label>
-            {r.draft && (
-              <div data-ai-pending="" style={{ ...small, padding: '8px 10px', borderRadius: 10, background: '#FFFBEF', border: '1px dashed rgba(184,137,28,0.55)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span><b style={{ color: '#7C5A0B' }}>새 AI 초안(아직 반영 안 됨)</b> — 기존 문구는 그대로입니다.</span>
-                <span style={{ color: '#0F2747' }}>{r.draft}</span>
-                <span style={{ display: 'inline-flex', gap: 6 }}>
-                  {chip('초안 사용', () => update(r.id, { text: r.draft as string, aiText: r.draft, source: 'ai', draft: undefined }), { tone: 'gold' })}
-                  {chip('기존 문구 유지', () => update(r.id, { draft: undefined }))}
-                </span>
+            {r.moved && !r.excluded && r.text.trim() && (
+              <div data-op-moved="" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '8px 10px', borderRadius: 10, background: '#FDECEC', border: '1px solid rgba(185,28,28,0.3)' }}>
+                <span style={{ ...small, color: '#991B1B', flex: '1 1 160px' }}>경기를 바꿨습니다. 이 문구가 새 경기 내용이 맞는지 확인해 주세요(확인 전에는 적용할 수 없습니다).</span>
+                {chip(<><Check size={13} aria-hidden />문구 확인</>, () => update(r.id, { moved: undefined }), { tone: 'gold', aria: '새 경기 문구 확인' })}
               </div>
             )}
             {issues.length > 0 && (
-              <div data-ai-issues="" style={{ ...small, display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 10px', borderRadius: 10,
-                background: blockingIssues(issues).length ? '#FDECEC' : '#FFF8EC', border: `1px solid ${blockingIssues(issues).length ? 'rgba(185,28,28,0.3)' : 'rgba(180,83,9,0.25)'}`,
-                color: blockingIssues(issues).length ? '#991B1B' : '#92400E' }}>
-                {blockingIssues(issues).length > 0 && <b>수정 필요 — 고치기 전에는 적용할 수 없습니다</b>}
-                {issues.map((x, i) => <span key={`${x.code}-${i}`} data-issue={x.code}>{x.severity === 'info' ? 'ⓘ' : '·'} {issueText(x)}</span>)}
-              </div>
-            )}
-            {r.aiNote && <div data-ai-note="" style={{ ...small, color: '#B91C1C' }}>{r.aiNote}</div>}
-            {ai.available && r.matchNo && !r.excluded && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                {chip(<><RefreshCw size={12} aria-hidden />{r.source === 'ai' ? '이 경기 다시 생성' : '이 경기 초안 만들기'}</>,
-                  () => void generate([r], r.source === 'ai' || !!r.aiText, r.id),
-                  { disabled: !aiReady(r) || (r.regen || 0) >= AI_REGENERATE_MAX, aria: '이 경기 AI 초안 다시 생성' })}
-                <span style={{ ...small, fontSize: 11 }}>
-                  {aiBusy === r.id ? '생성 중…' : !confirmed ? '연결 확인 후 생성할 수 있습니다' : !r.note.trim() ? '메모(지시)가 있는 경기만 생성합니다' : `재생성 ${r.regen || 0}/${AI_REGENERATE_MAX}`}
-                </span>
+              <div data-op-issues="" style={{ ...small, display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 10px', borderRadius: 10,
+                background: blocks.length ? '#FDECEC' : '#FFF8EC', border: `1px solid ${blocks.length ? 'rgba(185,28,28,0.3)' : 'rgba(180,83,9,0.25)'}`,
+                color: blocks.length ? '#991B1B' : '#92400E' }}>
+                {blocks.length > 0 ? <b>수정 필요 — 고치기 전에는 적용할 수 없습니다</b> : <b>공개 중인 문구 — 확인 필요</b>}
+                {issues.map((x, i) => <span key={`${x.code}-${i}`} data-issue={x.code}>· {issueText(x)}</span>)}
               </div>
             )}
             {(warnings.get(r.id)?.length || 0) > 0 && (
@@ -459,7 +422,7 @@ export default function SpotlightOperatorEditor({
             )}
             {outside && !r.excluded && (
               <div style={{ borderRadius: 10, background: '#F6FAFD', border: '1px dashed #C9D9EC', padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={small}>자동 TOP {base.items.length} 밖 경기입니다. 그대로 두면 공개 페이지 &quot;전체 경기 분석&quot;에만 표시됩니다(AI 는 TOP 을 바꾸지 않습니다).</div>
+                <div style={small}>자동 TOP {base.items.length} 밖 경기입니다. 그대로 두면 공개 페이지 &quot;전체 경기 분석&quot;에만 표시됩니다.</div>
                 {pickable ? (
                   <>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 900, color: '#0F2747', minHeight: 36, cursor: 'pointer' }}>
@@ -485,45 +448,26 @@ export default function SpotlightOperatorEditor({
         );
       })}
 
-      {rows.length > 0 && (
-        <div data-ai-panel="" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px', borderRadius: 12, background: '#FFFBEF', border: '1px solid rgba(184,137,28,0.3)' }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: '#7C5A0B', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Sparkles size={14} aria-hidden />AI 초안 (선택)</div>
-          {aiNoteText ? (
-            <div data-ai-off="" style={small}>{aiNoteText} 공개 문구를 직접 작성하면 됩니다.</div>
-          ) : (
-            <>
-              <div style={small}>
-                연결이 확인된 경기 중 <b>공개 문구가 빈 경기</b>만 초안을 만듭니다(최대 {AI_ITEMS_MAX}경기 · 이미 쓴 문구는 바꾸지 않음).
-                AI 에는 경기별 지시 · 선수 표시명 · 라운드 · 코트 · 공식 분석 문구만 보냅니다. 초안은 승인 전까지 공개되지 않습니다.
-              </div>
-              {btn(<><Sparkles size={14} aria-hidden />{aiBusy === 'all' ? 'AI 초안 만드는 중…' : `AI 초안 만들기 (${Math.min(aiTargets.length, AI_ITEMS_MAX)}경기)`}</>,
-                () => void generate(aiTargets, false, 'all'), { disabled: aiTargets.length === 0 || !!aiBusy })}
-            </>
-          )}
-        </div>
-      )}
-
-      {(warnCount > 0 || emptyCount > 0 || blockCount > 0 || unconfirmedCount > 0) && (
-        <div data-op-summary="" style={{ ...small, color: warnCount || blockCount || unconfirmedCount ? '#92400E' : '#5B6B80' }}>
-          {blockCount > 0 && <div style={{ color: '#B91C1C' }}>수정이 필요한 AI 문구 {blockCount}건 — 고치거나 제외해야 적용할 수 있습니다.</div>}
-          {unconfirmedCount > 0 && <div style={{ color: '#B91C1C' }}>경기 연결 확인이 필요한 문구 {unconfirmedCount}건 — &quot;이 경기가 맞음&quot; 또는 경기 선택 후 적용할 수 있습니다.</div>}
-          {warnCount > 0 && <div>작성 지시처럼 보이거나 근거 확인이 필요한 공개 문구 {warnCount}건 — 고치지 않으면 그대로 공개됩니다.</div>}
+      {(warnCount > 0 || emptyCount > 0 || blockCount > 0 || unconfirmedCount > 0 || dupCount > 0) && (
+        <div data-op-summary="" style={{ ...small, color: warnCount || blockCount || unconfirmedCount || dupCount ? '#92400E' : '#5B6B80' }}>
+          {blockCount > 0 && <div style={{ color: '#B91C1C' }}>수정이 필요한 공개 문구 {blockCount}건 — 고치거나 제외해야 적용할 수 있습니다.</div>}
+          {unconfirmedCount > 0 && <div style={{ color: '#B91C1C' }}>경기 연결 확인이 필요한 문구 {unconfirmedCount}건 — &quot;이 경기가 맞음&quot; · 경기 선택 · &quot;문구 확인&quot; 후 적용할 수 있습니다.</div>}
+          {dupCount > 0 && <div style={{ color: '#B91C1C' }}>같은 경기에 공개 문구가 두 개 있습니다 — 하나로 합치거나 하나를 제외해 주세요.</div>}
+          {warnCount > 0 && <div>작성 지시처럼 보이거나 확인이 필요한 공개 문구 {warnCount}건 — 고치지 않으면 그대로 공개됩니다.</div>}
           {emptyCount > 0 && <div>공개 문구가 빈 경기 {emptyCount}건 — 이 경기들은 관전 포인트 없이 공개됩니다.</div>}
         </div>
       )}
 
-      <div style={step}>STEP 5 · 미리보기 → STEP 6 · 승인</div>
+      {step(4, '미리보기 및 적용')}
       {ready && needAck && (
         <label data-op-ack="" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, fontWeight: 800, color: '#92400E', minHeight: 36, cursor: 'pointer', lineHeight: 1.45 }}>
           <input type="checkbox" checked={ackKey === inputKey} onChange={(e) => setAckKey(e.target.checked ? inputKey : null)}
             style={{ width: 18, height: 18, flex: '0 0 auto', marginTop: 1 }} />
-          {aiIncluded > 0
-            ? `AI 초안 ${aiIncluded}건을 포함한 공개 문구를 모두 읽었고, 사실과 다른 내용이 없음을 확인해 이 문구로 공개하는 것을 승인합니다.`
-            : '경고가 있는 문구를 확인했으며, 작성 지시가 아니라 공개할 문장이 맞습니다.'}
+          경고가 있는 문구를 확인했으며, 작성 지시가 아니라 공개할 문장이 맞습니다.
         </label>
       )}
       <div style={{ display: 'flex', gap: 8 }}>
-        {btn(busy ? '확인 중…' : '미리보기 확인', () => void check(), { primary: !ready, disabled: !!aiBusy })}
+        {btn(busy ? '확인 중…' : '미리보기 확인', () => void check(), { primary: !ready })}
         {btn('적용', () => checked && canApply && onApply(input, checked.payload), { primary: canApply, disabled: !canApply })}
       </div>
       {msg && <div role="status" style={{ ...small, fontSize: 12.5, color: msg.ok ? '#0F766E' : '#B91C1C' }}>{msg.text}</div>}

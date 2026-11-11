@@ -8,12 +8,8 @@
 import { randomBytes } from 'node:crypto';
 import { assertServerOnly } from '../../tournaments/server/guard';
 import type { RpcResult, SpotlightDeps } from './spotlightHandler';
-import { createMemoryAiLimiter, createSpotlightAiDeps } from './spotlightAi';
 
 assertServerOnly('lib/kdk/server/spotlightService');
-
-// AI 초안 호출 제한(인스턴스 메모리 · 최선 노력). 요청마다 새로 만들지 않도록 모듈 단위로 둔다.
-const aiLimiter = createMemoryAiLimiter();
 
 const TIMEOUT_MS = 15000;
 const DEFAULT_CLUB_ID = '512d047d-a076-4080-97e5-6bb5a2c07819';
@@ -75,7 +71,6 @@ export function createSpotlightDeps(): SpotlightDeps {
       latestRunRevision: notConfigured,
       rpc: async () => ({ ok: false, status: 0, code: 'not_configured' }),
       randomSlug, today: () => kstToday(),
-      ai: createSpotlightAiDeps(process.env, aiLimiter),
     };
   }
   return {
@@ -152,6 +147,5 @@ export function createSpotlightDeps(): SpotlightDeps {
     },
     randomSlug,
     today: () => kstToday(),
-    ai: createSpotlightAiDeps(process.env, aiLimiter),
   };
 }
