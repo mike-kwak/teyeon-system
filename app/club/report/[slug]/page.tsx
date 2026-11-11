@@ -6,8 +6,11 @@ import { cache } from 'react';
 import type { Metadata } from 'next';
 import FinalReportMagazine from '@/components/kdk/finalReport/FinalReportMagazine';
 import FinalReportStateCard from '@/components/kdk/finalReport/FinalReportStateCard';
-import { FINAL_REPORT_SITE_URL, fetchPublicFinalReport, finalReportPublicPath, officialResultPath } from '@/lib/kdk/finalReportPublicService';
+import {
+  FINAL_REPORT_SITE_URL, fetchPublicFinalReport, finalReportOgPath, finalReportPublicPath, finalReportSharePath, finalReportShareUrl, officialResultPath,
+} from '@/lib/kdk/finalReportPublicService';
 import { reportMetaDescription, reportMetaTitle } from '@/lib/kdk/finalReport/finalReportView';
+import { shareDataOf } from '@/lib/kdk/finalReport/finalReportShare';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +22,12 @@ const load = cache((slug: string) => fetchPublicFinalReport(slug));
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const res = await load(slug);
-  const title = res.state === 'ok' ? reportMetaTitle(res.payload) : 'TEYEON · THE FINAL STORY';
-  const description = res.state === 'ok' ? reportMetaDescription(res.payload) : 'TEYEON KDK 공식 결과 리포트';
+  const ok = res.state === 'ok';
+  const title = ok ? reportMetaTitle(res.payload) : 'TEYEON · THE FINAL STORY';
+  const description = ok ? reportMetaDescription(res.payload) : 'TEYEON KDK 공식 결과 리포트';
+  // 판 번호(?v=)는 DB 의 현재 발행 판에서만 만든다(요청 쿼리를 믿지 않음). 정정 · 비공개 · 없음 → 판 번호 없는 중립 이미지.
+  const revision = ok ? res.revision : null;
+  const image = { url: finalReportOgPath(slug, revision), width: 1200, height: 630, alt: ok ? title : 'TEYEON KDK FINAL REPORT' };
   return {
     metadataBase: new URL(FINAL_REPORT_SITE_URL),
     title,
@@ -31,10 +38,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'TEYEON',
       title,
       description,
-      url: finalReportPublicPath(slug),
-      images: [{ url: '/teyeon_logo_gold.png', width: 1024, height: 1024, alt: 'TEYEON' }],
+      url: ok ? finalReportSharePath(slug, revision) : finalReportPublicPath(slug),
+      images: [image],
     },
-    twitter: { card: 'summary', title, description, images: ['/teyeon_logo_gold.png'] },
+    twitter: { card: 'summary_large_image', title, description, images: [image.url] },
   };
 }
 
@@ -42,7 +49,8 @@ export default async function FinalReportPublicPage({ params }: Props) {
   const { slug } = await params;
   const res = await load(slug);
   if (res.state === 'ok') {
-    return <FinalReportMagazine payload={res.payload} officialHref={res.officialSessionId ? officialResultPath(res.officialSessionId) : null} />;
+    return <FinalReportMagazine payload={res.payload} officialHref={res.officialSessionId ? officialResultPath(res.officialSessionId) : null}
+      share={shareDataOf(res.payload.session.title, finalReportShareUrl(slug, res.revision))} />;
   }
   if (res.state === 'corrected') {
     return <FinalReportStateCard kind="corrected" title={res.title} date={res.date} officialHref={res.officialSessionId ? officialResultPath(res.officialSessionId) : null} />;

@@ -163,11 +163,45 @@ export function buildFinalReportModel(src: FinalReportSource): { ok: true; model
   if (matches.length === 0) return { ok: false, reason: 'no_completed_matches' };
   // 표시 순서: 라운드 → 코트 → 경기 id(기록 저장 순서와 무관하게 안정).
   matches.sort((a, b) => (a.round ?? 999) - (b.round ?? 999) || (a.court ?? 999) - (b.court ?? 999) || (a.matchId < b.matchId ? -1 : a.matchId > b.matchId ? 1 : 0));
+  const shown = resolveDisplayGroups(standings, matches);
   return { ok: true, model: {
     title: str(src.title).trim(), date: str(src.date).trim(),
     participantCount: standings.length, completedMatchCount: matches.length,
-    standings, matches, allNames: [...new Set(allNames)],
+    standings: shown.standings, matches: shown.matches, allNames: [...new Set(allNames)],
   } };
+}
+
+/**
+ * 조 표시(표시용 변환만 — 순위 · 승패 · 점수 · 원본 Archive · 기록 지문 무변경).
+ *   운영 Archive(2026-11 점검): 경기 group_name 은 기본값이 'A' 라 조 구분이 없는 날도 모든 경기가 'A',
+ *   순위표 group 은 일부 선수에게만 남아 있다 → 그대로 보이면 "몇 명만 A조" 처럼 잘못 읽힌다.
+ *   · 완료 경기에 A 와 B 가 모두 있을 때만 조를 보인다(아니면 전부 '').
+ *   · 선수 조 = 그 선수가 뛴 완료 경기의 조가 하나로 정해질 때만. 여러 조에 나왔거나 순위표 조와 충돌하면 ''(임의로 만들지 않음).
+ *   · 경기에 없는 선수는 순위표 조를 쓴다.
+ */
+export function resolveDisplayGroups(standings: StandingRow[], matches: MatchRow[]): { standings: StandingRow[]; matches: MatchRow[] } {
+  const split = matches.some((m) => m.group === 'A') && matches.some((m) => m.group === 'B');
+  if (!split) {
+    return { standings: standings.map((s) => ({ ...s, group: '' })), matches: matches.map((m) => ({ ...m, group: '' })) };
+  }
+  const seen = new Map<string, Set<Group>>();
+  for (const m of matches) {
+    if (!m.group) continue;
+    for (const k of [...m.keysA, ...m.keysB]) {
+      if (!seen.has(k)) seen.set(k, new Set());
+      (seen.get(k) as Set<Group>).add(m.group);
+    }
+  }
+  return {
+    standings: standings.map((s) => {
+      const set = seen.get(s.key);
+      if (!set || set.size === 0) return s;
+      if (set.size > 1) return { ...s, group: '' };
+      const derived = [...set][0];
+      return { ...s, group: s.group && s.group !== derived ? '' : derived };
+    }),
+    matches,
+  };
 }
 
 // ── 2) 기록 근거 태그 · 주요 경기 추천 ─────────────────────────────────────────────

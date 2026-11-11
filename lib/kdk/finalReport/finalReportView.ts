@@ -91,3 +91,25 @@ export function reportMetaDescription(p: FinalReportPublicPayload): string {
   const head = p.podium[0] ? `CHAMPION ${p.podium[0].name} · ` : '';
   return `${p.session.date ? `${p.session.date} · ` : ''}${head}참가 ${p.session.participantCount}명 · ${p.session.matchCount}경기 — TEYEON KDK 공식 결과`;
 }
+
+// ── OG 이미지(P4) — 공개 발행본(state ok)만 내용을 싣고, 그 밖의 상태는 중립 이미지 ─────────────
+//   입력은 공개 조회 결과뿐(초안 · 비공개 · 정정 전 발행본 · 운영진 문구 · 수치 외 정보 없음).
+//   TOP3 = 공개본 podium 순서 그대로(= Archive 저장 순서). 이름은 OG 칸에 맞게 자르기만 한다.
+export type OgView =
+  | { kind: 'report'; title: string; date: string; top3: Array<{ rank: number; label: string; name: string }> }
+  | { kind: 'neutral' };
+/** 글자(코드 포인트) 기준 자르기 — 넘치면 말줄임표. */
+export function clipText(v: string, max: number): string {
+  const chars = [...(v || '').trim()];
+  return chars.length > max ? `${chars.slice(0, Math.max(1, max - 1)).join('').trimEnd()}…` : chars.join('');
+}
+export function ogViewOf(res: { state: string; payload?: FinalReportPublicPayload } | null | undefined): OgView {
+  if (!res || res.state !== 'ok' || !res.payload) return { kind: 'neutral' };
+  const p = res.payload;
+  return {
+    kind: 'report',
+    title: clipText(p.session.title || 'TEYEON KDK', 24),
+    date: p.session.date ? formatReportDate(p.session.date) : '',
+    top3: p.podium.slice(0, 3).map((x) => ({ rank: x.rank, label: PODIUM_LABEL[x.rank] || '', name: clipText(x.name, 10) })),
+  };
+}

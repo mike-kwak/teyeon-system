@@ -271,7 +271,7 @@ const saveX = (actor, content, expected, sid = SID, slug = 'reportslug0001') =>
   const s2 = await source(CEO, SID2);
   const mb = fr.buildFinalReportModel(s2.archive);
   check('종단: SQL 투영 그대로 TS 모델 생성', mb.ok === true, JSON.stringify(mb).slice(0, 120));
-  check('종단: 프로필 private 회원(이상윤)도 이름 표시 · 게스트 (G) · 조 B', mb.model.standings[4].name === '이상윤' && mb.model.standings[3].name === '홍길동(G)' && mb.model.standings[4].group === 'B');
+  check('종단: 프로필 private 회원(이상윤)도 이름 표시 · 게스트 (G) · A·B 양쪽 경기 선수는 조 미표시(P4)', mb.model.standings[4].name === '이상윤' && mb.model.standings[3].name === '홍길동(G)' && mb.model.standings[4].group === '');
   const content = { schema: 1, opening: '', closing: '', stories: [{ playerKey: U(1), rank: 1, text: '전승 우승입니다.' }],
     featured: [{ matchId: 'm-1', fingerprint: fr.matchFingerprint(mb.model.matches[0]), review: '6:5 접전', tag: 'MATCH_OF_THE_DAY' }] };
   const pc = fr.parseFinalReportContent(content);

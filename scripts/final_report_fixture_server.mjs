@@ -13,18 +13,21 @@ const fr = await import('../lib/kdk/finalReport/finalReportModel.ts');
 const PORT = Number(process.argv[2] || 54399);
 const U = (n) => `11111111-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const NAMES = ['구봉준', '박광현', '정다은', '김영호', '홍길동(G)', '이상윤', '남인우', '최지훈', '오세훈', '한지민', '윤서준', '강민호'];
-const pid = (i) => (NAMES[i].endsWith('(G)') ? `manual-guest-${i}` : U(i + 1));
+const pid = (i) => (i === 4 || i === 20 ? `manual-guest-${i}` : U(i + 1));
 
+// 운영 Archive 형태(2026-11 점검): A/B 로 나뉜 날은 선수마다 한 조에서만 경기(짝수 번째 A · 홀수 번째 B),
+//   조 구분 없는 날(groups: false)은 경기 group_name 이 전부 기본값 'A' 이고 순위표 group 은 일부만 'A'.
 function source({ names = NAMES, groups = true, title = '11월 정모 KDK', date = '2026-11-11' } = {}) {
-  const rec = [[7, 0, 22], [6, 1, 15], [5, 2, 9], [4, 3, 4], [4, 3, 2], [3, 4, -1], [3, 4, -3], [3, 4, -4], [2, 5, -8], [2, 5, -10], [1, 6, -12], [1, 6, -14]];
-  const rankingData = names.map((n, i) => ({ id: pid(i), name: n, wins: rec[i][0], losses: rec[i][1], diff: rec[i][2] }));
+  const base = [[7, 0, 22], [6, 1, 15], [5, 2, 9], [4, 3, 4], [4, 3, 2], [3, 4, -1], [3, 4, -3], [3, 4, -4], [2, 5, -8], [2, 5, -10], [1, 6, -12], [1, 6, -14]];
+  const rec = names.map((_, i) => base[i] || [Math.max(0, 4 - Math.floor(i / 7)), Math.min(4, Math.floor(i / 7)), 6 - i]);
+  const rankingData = names.map((n, i) => ({ id: pid(i), name: n.replace(/\(G\)$/, ''), wins: rec[i][0], losses: rec[i][1], diff: rec[i][2], ...(!groups && i % 5 === 0 ? { group: 'A' } : {}) }));
   const pg = {}; names.forEach((_, i) => { if (groups) pg[pid(i)] = i % 2 ? 'B' : 'A'; });
-  const M = (id, round, court, g, idx, s1, s2) => ({ id, round, court, group_name: groups ? g : '', status: 'complete',
+  const M = (id, round, court, g, idx, s1, s2) => ({ id, round, court, group_name: groups ? g : 'A', status: 'complete',
     player_ids: idx.map(pid), player_names: idx.map((i) => names[i]), score1: s1, score2: s2 });
   const snapshotData = [
-    M('m-01', 1, 1, 'A', [0, 2, 4, 6], 6, 5), M('m-02', 1, 2, 'B', [1, 3, 5, 7], 6, 0), M('m-03', 1, 3, 'A', [8, 10, 9, 11], 6, 3),
-    M('m-04', 2, 1, 'A', [0, 4, 2, 8], 6, 2), M('m-05', 2, 2, 'B', [1, 5, 3, 9], 5, 6), M('m-06', 2, 3, 'A', [6, 10, 7, 11], 6, 4),
-    M('m-07', 3, 1, 'A', [0, 6, 4, 10], 6, 1), M('m-08', 3, 2, 'B', [1, 7, 5, 11], 6, 3), M('m-09', 3, 3, 'A', [2, 8, 3, 9], 4, 6),
+    M('m-01', 1, 1, 'A', [0, 2, 4, 6], 6, 5), M('m-02', 1, 2, 'B', [1, 3, 5, 7], 6, 0), M('m-03', 1, 3, 'A', [8, 10, 2, 4], 6, 3),
+    M('m-04', 2, 1, 'A', [0, 4, 2, 8], 6, 2), M('m-05', 2, 2, 'B', [1, 5, 3, 9], 5, 6), M('m-06', 2, 3, 'B', [7, 11, 9, 3], 6, 4),
+    M('m-07', 3, 1, 'A', [0, 6, 4, 10], 6, 1), M('m-08', 3, 2, 'B', [1, 7, 5, 11], 6, 3), M('m-09', 3, 3, 'A', [2, 8, 6, 10], 4, 6),
   ];
   return { id: 'KDK-20261111-QAFX', archiveType: 'kdk', isOfficial: true, isTest: false, title, date, rankingData, snapshotData, playerGroups: pg };
 }
@@ -56,6 +59,7 @@ const FULL = (fp) => ({
     { matchId: 'm-09', fingerprint: fp('m-09'), review: '3라운드 마지막 코트 경기입니다.', tag: null },
   ],
 });
+const MANY = Array.from({ length: 27 }, (_, i) => (i < NAMES.length ? NAMES[i] : i === 20 ? '최종손님(G)' : `회원${String(i + 1).padStart(2, '0')}`));
 const LONG = [...NAMES]; LONG[0] = '가나다라마바사아자차카타파하가나다'; LONG[4] = '김수한무거북이와두루미삼천갑자(G)'; LONG[2] = 'Alexander Montgomery';
 
 export const FIXTURES = {
@@ -63,6 +67,7 @@ export const FIXTURES = {
   frqaminimal00001: { body: { ok: true, state: 'ok', payload: payloadOf(source(), { schema: 1 }), revision: 1, publishedAt: '2026-11-11T12:00:00Z', officialSessionId: 'KDK-20261111-QAFX' } },
   frqanofeatured01: { body: { ok: true, state: 'ok', payload: payloadOf(source({ groups: false }), { schema: 1, featured: [] }), revision: 1, publishedAt: null, officialSessionId: null } },
   frqalongnames001: { body: { ok: true, state: 'ok', payload: payloadOf(source({ names: LONG, title: '2026 TEYEON 가을 시즌 파이널 정기 KDK 리그 최종 라운드' }), (fp) => ({ ...FULL(fp), stories: [], opening: '', closing: '' })), revision: 1, publishedAt: null, officialSessionId: 'KDK-20261111-QAFX' } },
+  frqa27players01: { body: { ok: true, state: 'ok', payload: payloadOf(source({ names: MANY, groups: false, title: '11월 정모 KDK · 27명' }), { schema: 1 }), revision: 3, publishedAt: null, officialSessionId: 'KDK-20261111-QAFX' } },
   frqacorrected001: { body: { ok: true, state: 'corrected', title: '11월 정모 KDK', date: '2026-11-11', officialSessionId: 'KDK-20261111-QAFX' } },
   frqaunavailable1: { status: 500, body: { message: 'fixture: unavailable' } },
 };

@@ -4,6 +4,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import FinalReportShareButtons from './FinalReportShareButtons';
+import type { ShareData } from '@/lib/kdk/finalReport/finalReportShare';
 import type { FinalReportPublicPayload, PublicFeatured, PublicPodium, PublicStanding } from '@/lib/kdk/finalReport/finalReportModel';
 import {
   FRV, FRV_DISPLAY, FRV_SERIF, PODIUM_LABEL, chaptersOf, formatDiff, formatReportDate, groupLabel, hasGroups,
@@ -17,9 +19,11 @@ export interface FinalReportMagazineProps {
   payload: FinalReportPublicPayload;
   /** 공식 결과 상세(/club/kdk/[id]) — 없으면 링크를 숨긴다. */
   officialHref: string | null;
+  /** 공유(공개 페이지만). 없으면 공유 버튼을 숨긴다 — 운영진 미리보기에서는 넘기지 않는다. */
+  share?: ShareData | null;
 }
 
-export default function FinalReportMagazine({ payload, officialHref }: FinalReportMagazineProps) {
+export default function FinalReportMagazine({ payload, officialHref, share }: FinalReportMagazineProps) {
   const chapters = chaptersOf(payload);
   const ch = (id: Chapter['id']) => chapters.find((c) => c.id === id) as Chapter;
   return (
@@ -27,7 +31,7 @@ export default function FinalReportMagazine({ payload, officialHref }: FinalRepo
       data-fr="magazine"
       style={{ minHeight: '100dvh', width: '100%', background: FRV.bg, color: FRV.ink, overflowX: 'hidden', boxSizing: 'border-box' }}
     >
-      <Cover payload={payload} chapters={chapters} />
+      <Cover payload={payload} chapters={chapters} share={share ?? null} />
       <div style={{ ...wrap, padding: '0 16px' }}>
         <Section chapter={ch('podium')}>
           <Podium rows={payload.podium} />
@@ -43,13 +47,13 @@ export default function FinalReportMagazine({ payload, officialHref }: FinalRepo
           <Standings rows={payload.standings} />
         </Section>
       </div>
-      <Closing payload={payload} officialHref={officialHref} />
+      <Closing payload={payload} officialHref={officialHref} share={share ?? null} />
     </main>
   );
 }
 
 // ── COVER ───────────────────────────────────────────────────────────────────────
-function Cover({ payload, chapters }: { payload: FinalReportPublicPayload; chapters: Chapter[] }) {
+function Cover({ payload, chapters, share }: { payload: FinalReportPublicPayload; chapters: Chapter[]; share: ShareData | null }) {
   const s = payload.session;
   return (
     <header
@@ -99,6 +103,7 @@ function Cover({ payload, chapters }: { payload: FinalReportPublicPayload; chapt
             </a>
           ))}
         </nav>
+        {share && <div style={{ marginTop: 20 }}><FinalReportShareButtons data={share} variant="cover" /></div>}
       </div>
     </header>
   );
@@ -302,7 +307,7 @@ function Standings({ rows }: { rows: PublicStanding[] }) {
 }
 
 // ── CLOSING ─────────────────────────────────────────────────────────────────────
-function Closing({ payload, officialHref }: { payload: FinalReportPublicPayload; officialHref: string | null }) {
+function Closing({ payload, officialHref, share }: { payload: FinalReportPublicPayload; officialHref: string | null; share: ShareData | null }) {
   return (
     <footer data-fr="closing" style={{
       marginTop: 40, width: '100%', color: FRV.onNavy, background: `linear-gradient(180deg, ${FRV.navy} 0%, ${FRV.navyDeep} 100%)`,
@@ -320,6 +325,12 @@ function Closing({ payload, officialHref }: { payload: FinalReportPublicPayload;
             marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, padding: '0 18px', borderRadius: 14,
             background: FRV.goldSoft, color: FRV.navyDeep, fontSize: 14.5, fontWeight: 900, textDecoration: 'none', boxShadow: '0 10px 24px rgba(0,0,0,0.25)',
           }}>공식 KDK 결과 상세 보기</Link>
+        )}
+        {share && (
+          <div style={{ marginTop: 12, textAlign: 'left' }}>
+            <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 800, letterSpacing: '0.2em', color: FRV.goldSoft, textAlign: 'center' }}>SHARE THE STORY</p>
+            <FinalReportShareButtons data={share} variant="closing" />
+          </div>
         )}
         <p style={{ margin: '14px 0 0', fontSize: 11.5, fontWeight: 600, lineHeight: 1.55, color: FRV.onNavySub }}>
           TEYEON KDK 공식 확정 기록 기준입니다.<br />순위 · 승패 · 점수는 공식 결과와 같습니다.

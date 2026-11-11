@@ -82,7 +82,8 @@ const guest = model.standings[4];
 check('[9] 게스트 표시 일관: 순위표 "홍길동(G)" · guest=true', guest.name === '홍길동(G)' && guest.guest === true);
 const m4 = ms.find((m: any) => m.matchId === 'm-4');
 check('[9] 경기 기록에 (G)가 없어도 순위표와 같은 "홍길동(G)"', m4.teamB[1] === '홍길동(G)' && m1.teamB[0] === '홍길동(G)');
-check('[10] 조 태그 = player_metadata 의 조(정다은 B) · 조별 순위 재계산 없음(전체 순위 그대로)', model.standings[2].group === 'B' && model.standings[0].group === 'A' && !('groupRank' in model.standings[0]));
+// P4: 조는 표시용 변환(resolveDisplayGroups) — 이 fixture 는 선수들이 A · B 경기에 모두 나오므로 조를 임의로 정하지 않는다.
+check('[10] A · B 양쪽 경기 선수는 조 미표시(임의 배정 없음) · 조별 순위 재계산 없음', model.standings[2].group === '' && model.standings[0].group === '' && !('groupRank' in model.standings[0]));
 
 // ── 선수 이름 공개 정책(전원 표시 · /club/kdk 공식 결과와 동일) ───────────────────────────
 check('프로필 비공개 회원(이상윤)도 공식 결과 이름 그대로 표시', model.standings[5].name === '이상윤' && !('masked' in model.standings[5]));
@@ -138,7 +139,7 @@ check('[8] 공개 payload 에 회원 UUID · 게스트 내부 id · 세션 id �
 check('[8] 정산 · 출생연도 · 아바타 · 확정자 · 내부 키 없음', !/settlement|penalty|prize|guest_fee|birth|avatar|confirmed_by|playerKey|matchId|fingerprint|"key"|"id"/i.test(txt));
 check('[8] 공식 결과 이름 표시(프로필 비공개 회원 포함)', txt.includes('이상윤'));
 check('표지: 제목 · 날짜 · 공식 확정 · 참가 8 · 경기 4', P.payload.session.officialConfirmed === true && P.payload.session.participantCount === 8 && P.payload.session.matchCount === 4);
-check('TOP3 카드: 순위 · 이름 · 승패득실 · 조 · 스토리(3위는 스토리 없음 → null)', P.payload.podium.length === 3 && P.payload.podium[0].story && P.payload.podium[2].story === null && P.payload.podium[2].group === 'B');
+check('TOP3 카드: 순위 · 이름 · 승패득실 · 조 · 스토리(3위는 스토리 없음 → null)', P.payload.podium.length === 3 && P.payload.podium[0].story && P.payload.podium[2].story === null && P.payload.podium[2].group === '');
 check('주요 경기: 운영진 선택 순서 · 태그(MOTD + 접전 · PICK) · 빈 리뷰 null',
   P.payload.featured.length === 2 && P.payload.featured[0].tags.join() === 'MATCH_OF_THE_DAY,CLOSEST_BATTLE' && P.payload.featured[1].tags.join() === 'OPERATORS_PICK' && P.payload.featured[1].review === null);
 check('전체 순위 = 저장 순서 8명 · 게스트 표시', P.payload.standings.map((x: any) => x.rank).join() === '1,2,3,4,5,6,7,8' && P.payload.standings[4].guest === true);

@@ -8,11 +8,12 @@
 //   · 모달: 배경 스크롤 잠금(useBodyScrollLock — 단일 스크롤러 구조) · 본문만 스크롤 · 하단 버튼 고정(safe-area).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Check, Copy, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
+import { X, Check, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import FinalReportMagazine from './FinalReportMagazine';
 import { CONFLICT_REASONS, frFailText, postFinalReportAction } from './finalReportClientApi';
-import { copyText } from '../spotlight/spotlightClientApi';
+import FinalReportShareButtons from './FinalReportShareButtons';
+import { shareDataOf } from '@/lib/kdk/finalReport/finalReportShare';
 import {
   EMPTY_CONTENT, contentIssueText, type ContentIssue, type FinalReportContent, type FinalReportPublicPayload, type OperatorTag,
 } from '@/lib/kdk/finalReport/finalReportModel';
@@ -21,7 +22,7 @@ import {
   setOperatorTag, setReview, setStory, storyText, toggleFeatured, type EditorData, type EditorMatch,
 } from '@/lib/kdk/finalReport/finalReportEditor';
 import { FRV, formatDiff, groupLabel, matchMeta, tagList } from '@/lib/kdk/finalReport/finalReportView';
-import { finalReportPublicPath, finalReportPublicUrl, officialResultPath } from '@/lib/kdk/finalReportPublicService';
+import { finalReportSharePath, finalReportShareUrl, officialResultPath } from '@/lib/kdk/finalReportPublicService';
 
 const LINE = '#E1E7EE';
 const STEPS = ['공식 기록', 'TOP3 스토리', '주요 경기', '미리보기 · 발행'] as const;
@@ -42,7 +43,6 @@ export default function FinalReportEditor({ sessionId, onClose, onChanged }: { s
   const [preview, setPreview] = useState<{ key: string; payload: FinalReportPublicPayload } | null>(null);
   const [issues, setIssues] = useState<ContentIssue[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [limitNote, setLimitNote] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -210,14 +210,13 @@ export default function FinalReportEditor({ sessionId, onClose, onChanged }: { s
             </div>
           )}
 
-          {data && step === 0 && <StepRecord data={data} content={content} setContent={setContent} rec={rec} published={published} onUnpublish={unpublish} busy={busy} copied={copied} onCopy={async () => { if (report && await copyText(finalReportPublicUrl(report.publicSlug))) { setCopied(true); setTimeout(() => setCopied(false), 1800); } }} />}
+          {data && step === 0 && <StepRecord data={data} content={content} setContent={setContent} rec={rec} published={published} onUnpublish={unpublish} busy={busy} />}
           {data && step === 1 && <StepStories data={data} content={content} setContent={setContent} issues={issues} />}
           {data && step === 2 && <StepMatches data={data} content={content} setContent={(c) => { setContent(c); }} limitNote={limitNote} setLimitNote={setLimitNote} issues={issues} />}
           {data && step === 3 && (
             <StepPreview data={data} preview={preview && preview.key === key ? preview.payload : null} busy={busy} issues={issues} needsReview={!!rec?.needsReview}
               onRetry={runPreview} confirmed={confirmed} setConfirmed={setConfirmed} goStep={goStep}
-              published={published} report={report} copied={copied}
-              onCopy={async () => { if (report && await copyText(finalReportPublicUrl(report.publicSlug))) { setCopied(true); setTimeout(() => setCopied(false), 1800); } }}
+              published={published} report={report}
               onUnpublish={unpublish} />
           )}
         </div>
@@ -244,9 +243,9 @@ export default function FinalReportEditor({ sessionId, onClose, onChanged }: { s
 }
 
 // ── STEP 1 — 공식 기록 확인 ────────────────────────────────────────────────────────
-function StepRecord({ data, content, setContent, rec, published, onUnpublish, busy, copied, onCopy }: {
+function StepRecord({ data, content, setContent, rec, published, onUnpublish, busy }: {
   data: EditorData; content: FinalReportContent; setContent: (c: FinalReportContent) => void; rec: ReturnType<typeof reconcileEditor> | null;
-  published: boolean; onUnpublish: () => void; busy: Busy; copied: boolean; onCopy: () => void;
+  published: boolean; onUnpublish: () => void; busy: Busy;
 }) {
   const report = data.report;
   const flagged = rec ? [...rec.stories.filter((s) => s.state !== 'ok'), ...rec.featured.filter((f) => f.state !== 'ok')] : [];
@@ -287,7 +286,7 @@ function StepRecord({ data, content, setContent, rec, published, onUnpublish, bu
       {!rec?.needsReview && reNote && <NoticeBar notice={{ tone: 'ok', text: reNote }} />}
 
       {report && report.publicSlug && (report.status === 'published' || report.status === 'unpublished') && (
-        <PublishCard report={report} published={published} copied={copied} onCopy={onCopy} onUnpublish={onUnpublish} busy={busy} />
+        <PublishCard data={data} report={report} published={published} onUnpublish={onUnpublish} busy={busy} />
       )}
 
       <section style={card}>
@@ -429,16 +428,16 @@ function MatchSummary({ m, recommended }: { m: EditorMatch; recommended: boolean
 }
 
 // ── STEP 4 — 미리보기 · 발행 ──────────────────────────────────────────────────────
-function StepPreview({ data, preview, busy, issues, needsReview, onRetry, confirmed, setConfirmed, goStep, published, report, copied, onCopy, onUnpublish }: {
+function StepPreview({ data, preview, busy, issues, needsReview, onRetry, confirmed, setConfirmed, goStep, published, report, onUnpublish }: {
   data: EditorData; preview: FinalReportPublicPayload | null; busy: Busy; issues: ContentIssue[]; needsReview: boolean; onRetry: () => void;
   confirmed: boolean; setConfirmed: (b: boolean) => void; goStep: (n: number) => void;
-  published: boolean; report: EditorData['report']; copied: boolean; onCopy: () => void; onUnpublish: () => void;
+  published: boolean; report: EditorData['report']; onUnpublish: () => void;
 }) {
   const stepOf = (field: string) => (field.startsWith('featured') ? 2 : 1);
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       {report && report.publicSlug && (report.status === 'published' || report.status === 'unpublished') && (
-        <PublishCard report={report} published={published} copied={copied} onCopy={onCopy} onUnpublish={onUnpublish} busy={busy} />
+        <PublishCard data={data} report={report} published={published} onUnpublish={onUnpublish} busy={busy} />
       )}
       {needsReview && (
         <div style={{ ...card, borderColor: '#EDD9A8', background: '#FBF3DF' }}>
@@ -470,7 +469,7 @@ function StepPreview({ data, preview, busy, issues, needsReview, onRetry, confir
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: FRV.navy }} />
             <span style={{ fontSize: 13, fontWeight: 800, color: FRV.ink, lineHeight: 1.5, wordBreak: 'keep-all' }}>
               공식 기록과 문구를 확인했습니다. 이 내용으로 {report && report.revision > 0 ? '재발행' : '공개'}합니다.
-              <span style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: FRV.muted }}>링크를 받은 누구나 볼 수 있습니다(검색 노출 없음).</span>
+              <span data-fr-ed="manual-note" style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: FRV.muted }}>공식 기록을 확인한 뒤 운영진이 직접 발행합니다(자동 · 예약 발행 없음). 링크를 받은 누구나 볼 수 있습니다(검색 노출 없음).</span>
             </span>
           </label>
         </>
@@ -479,21 +478,34 @@ function StepPreview({ data, preview, busy, issues, needsReview, onRetry, confir
   );
 }
 
-function PublishCard({ report, published, copied, onCopy, onUnpublish, busy }: { report: NonNullable<EditorData['report']>; published: boolean; copied: boolean; onCopy: () => void; onUnpublish: () => void; busy: Busy }) {
-  const url = finalReportPublicUrl(report.publicSlug);
+function PublishCard({ data, report, published, onUnpublish, busy }: { data: EditorData; report: NonNullable<EditorData['report']>; published: boolean; onUnpublish: () => void; busy: Busy }) {
+  // 공유 URL 은 공개 페이지와 같은 규칙(운영 도메인 + ?v=현재 판). 정정 안내 중 · 비공개면 공유하지 않는다.
+  const url = finalReportShareUrl(report.publicSlug, report.revision);
+  const shareable = published && !report.stale;
   return (
-    <section data-fr-ed="publish-card" style={{ ...card, borderColor: published ? 'rgba(14,143,132,0.35)' : LINE, background: published ? '#F2FAF8' : '#FFFFFF' }}>
-      <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: published ? FRV.teal : FRV.sub }}>
-        {published ? `공개 중 · ${report.revision}판${report.stale ? ' · 정정 안내 표시 중' : ''}` : `비공개 · 마지막 ${report.revision}판`}
+    <section data-fr-ed="publish-card" style={{ ...card, borderColor: shareable ? 'rgba(14,143,132,0.35)' : published ? '#F0DCC0' : LINE, background: shareable ? '#F2FAF8' : published ? '#FFF8F0' : '#FFFFFF' }}>
+      <p data-fr-ed="publish-state" style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: shareable ? FRV.teal : published ? '#7A521E' : FRV.sub }}>
+        {shareable ? `발행 완료 · 공개 중 · ${report.revision}판` : published ? `공개 중 · ${report.revision}판 · 공식 기록 정정으로 정정 안내 표시 중` : `비공개 · 마지막 ${report.revision}판`}
       </p>
-      <p data-fr-ed="url" style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 700, color: FRV.ink, overflowWrap: 'anywhere', fontFamily: 'ui-monospace, monospace' }}>{url}</p>
+      {shareable && <p data-fr-ed="url" style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 700, color: FRV.ink, overflowWrap: 'anywhere', fontFamily: 'ui-monospace, monospace' }}>{url}</p>}
       {published && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
-          <button type="button" data-fr-ed="copy" onClick={onCopy} style={{ ...btn('primary') }}>{copied ? <><Check size={14} /> 복사됨</> : <><Copy size={14} /> 링크 복사</>}</button>
-          <a href={finalReportPublicPath(report.publicSlug)} target="_blank" rel="noopener noreferrer" style={{ ...btn('secondary'), textDecoration: 'none' }}><ExternalLink size={14} /> 공개 화면</a>
-          <button type="button" data-fr-ed="unpublish" onClick={onUnpublish} disabled={busy !== null} style={{ ...btn('ghost'), gridColumn: '1 / -1' }}>{busy === 'unpublish' ? '처리 중…' : '비공개로 전환'}</button>
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <FinalReportShareButtons data={shareDataOf(data.session.title, url)} variant="editor"
+            disabled={!shareable} disabledNote="공식 기록이 정정되어 이전 발행본은 공유할 수 없습니다. STEP 1에서 다시 확인한 뒤 재발행하면 같은 링크로 공유할 수 있습니다." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <a data-fr-ed="open-public" href={finalReportSharePath(report.publicSlug, report.revision)} target="_blank" rel="noopener noreferrer" style={{ ...btn('secondary'), textDecoration: 'none' }}><ExternalLink size={14} /> 공개 화면 열기</a>
+            <button type="button" data-fr-ed="unpublish" onClick={onUnpublish} disabled={busy !== null} style={{ ...btn('ghost', busy !== null) }}>{busy === 'unpublish' ? '처리 중…' : '비공개로 전환'}</button>
+          </div>
         </div>
       )}
+      {!published && (
+        <p data-fr-ed="share-blocked" style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, color: FRV.muted, lineHeight: 1.55, wordBreak: 'keep-all' }}>
+          비공개 상태라 공유할 수 없습니다. 다시 발행하면 같은 링크로 공개됩니다.
+        </p>
+      )}
+      <p data-fr-ed="kakao-note" style={{ margin: '8px 0 0', fontSize: 11.5, fontWeight: 600, color: FRV.muted, lineHeight: 1.55, wordBreak: 'keep-all' }}>
+        이미 보낸 카카오톡 메시지의 미리보기는 회수되지 않습니다. 재발행한 뒤에는 위 새 링크(판 번호 포함)를 다시 공유해 주세요.
+      </p>
     </section>
   );
 }
