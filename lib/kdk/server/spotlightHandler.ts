@@ -11,12 +11,22 @@
 //                 republish=true: 공개 중이면 검증 통과 후에만 비공개 → 같은 회차 재공개(링크 유지).
 //     preview   : publish 와 같은 계산 · 검증 결과만 반환(저장 없음).
 //     unpublish : unpublish RPC.
+//     ai_matches: AI 관전 포인트 v2 — 회차의 공개 대상 경기 목록(라운드 · 코트 · 선수 · 안정 id) + AI 사용 가능 여부. 저장 없음.
+//     ai_draft  : 확정된 경기별 지시 → AI 초안 생성 · 검증 결과만 반환(저장 · 공개 데이터 변경 없음).
+//                 경기는 matchNo + ref(matchId) 가 이 회차의 공개 대상 snapshot 과 일치할 때만(선수 변경 · 제외 경기 거부).
 //   공개 범위 조회 실패 시 생성/공개를 거부한다(fail-closed — 비공개 회원 수치 노출 방지).
 
 import { buildSpotlight, type SessionMatchRow } from '../analytics/spotlightEngine';
 import { buildPublicSpotlightPayload } from '../analytics/publicSpotlight';
 import { preparePublish, mainFactUsesRestricted, type StoredPredictionForPublish } from '../analytics/spotlightPublish';
 import { applyOperatorInput, parseOperatorInput, type OperatorInput } from '../analytics/spotlightOperator';
+import {
+  allNamesOf, assembleDrafts, draftKey, AI_INSTRUCTION_MAX, AI_ITEMS_MAX,
+  type AiMatchInfo, type DraftRequestItem,
+} from '../analytics/spotlightAiDraft';
+import { sanitizeOperatorText } from '../analytics/spotlightOperator';
+import { withTimeout, type SpotlightAiDeps } from './spotlightAi';
+import { buildDraftPrompt } from './spotlightAiPrompt';
 import type { HeadToHeadMemberRef } from '../../ranking/headToHead';
 import type { KdkArchiveRow } from '../../kdkArchiveStats';
 
@@ -42,6 +52,8 @@ export interface SpotlightDeps {
   randomSlug(): string;
   /** KST 오늘(YYYY-MM-DD). */
   today(): string;
+  /** AI 관전 포인트 v2(선택). 없으면 AI 사용 불가(수동 작성). */
+  ai?: SpotlightAiDeps;
 }
 
 export interface HandlerResponse {
@@ -98,6 +110,11 @@ export async function handleSpotlightAction(
     const op = parseOperatorInput(b.operator);
     if (!op.ok) return fail(400, op.reason, op.matchNo ? { matchNo: op.matchNo } : {});
     return publish(deps, userId, token, runId, op.input, { previewOnly: action === 'preview', republish: b.republish === true });
+  }
+  if (action === 'ai_matches' || action === 'ai_draft') {
+    const runId = String(b.runId || '');
+    if (!UUID_RE.test(runId)) return fail(400, 'invalid_run');
+    return action === 'ai_matches' ? aiMatches(deps, userId, runId) : aiDraft(deps, userId, runId, b);
   }
   if (action === 'unpublish') {
     const sessionId = String(b.sessionId || '');
@@ -298,4 +315,110 @@ async function publish(
   const res = r.data || {};
   if (res.ok !== true) return fail(409, String(res.reason || 'rejected'));
   return { status: 200, body: { ok: true, reason: res.reason, slug: res.public_slug, ...summary } };
+}
+
+// ── AI 관전 포인트 v2(저장 없음 · 공개 데이터 변경 없음) ─────────────────────────────
+//   경기 목록은 publish 와 같은 재검증(preparePublish) 결과 = 지금 공개하면 보일 경기만.
+async function loadAiMatches(
+  deps: SpotlightDeps, userId: string, runId: string,
+): Promise<{ ok: true; matches: AiMatchInfo[] } | { ok: false; res: HandlerResponse }> {
+  const [ctx, restricted] = await Promise.all([
+    deps.rpc('get_kdk_spotlight_run_for_publish', { p_run_id: runId, p_actor: userId }),
+    deps.loadRestrictedMemberIds(),
+  ]);
+  if (!ctx.ok) return { ok: false, res: rpcFail(ctx) };
+  if (!restricted) return { ok: false, res: fail(502, 'visibility_unavailable') };
+  const d = ctx.data || {};
+  if (d.ok !== true) return { ok: false, res: fail(d.reason === 'forbidden' ? 403 : 404, String(d.reason || 'not_found')) };
+  const run = d.run || {};
+  if (String(run.club_id) !== deps.clubId) return { ok: false, res: fail(404, 'not_found') };
+  const prepared = preparePublish({
+    modelVersion: String(run.model_version || ''), selectVersion: String(run.select_version || ''),
+    sessionId: String(run.session_id || ''), cutoffDate: String(run.cutoff_date || ''),
+    title: String(run.session_title || ''), date: String(run.session_date || ''),
+    predictions: (Array.isArray(d.predictions) ? d.predictions : []).map((p: any) => ({
+      matchId: String(p.match_id), status: String(p.status), selected: p.selected === true, snapshot: p.snapshot,
+      currentPlayerIds: Array.isArray(p.current_player_ids) ? p.current_player_ids.map(String) : null,
+    })),
+    restrictedMemberIds: restricted,
+  });
+  // 현재 코트 · 상태(표시용) — 조회 실패해도 snapshot 값으로 진행.
+  const rows = await deps.loadSessionMatches(String(run.session_id || '')).catch(() => null);
+  const rowById = new Map((rows || []).map((r) => [String(r.id), r]));
+  const snapByNo = new Map(prepared.eligible.map((s) => [s.matchNo, s]));
+  const itemByNo = new Map(prepared.payload.items.map((i) => [i.matchNo, i]));
+  const matches: AiMatchInfo[] = [];
+  for (const m of prepared.payload.matches) {
+    const s = snapByNo.get(m.matchNo);
+    if (!s) continue;
+    const row = rowById.get(String(s.matchId));
+    const it = itemByNo.get(m.matchNo);
+    const court = row && row.court != null && Number(row.court) > 0 ? Number(row.court) : (s.court ?? null);
+    matches.push({
+      matchNo: m.matchNo, ref: String(s.matchId), round: m.round, court, group: m.group,
+      teamA: m.teamA, teamB: m.teamB, badge: m.badge, inTop: !!it,
+      official: it ? `${it.headline} — ${it.viewpoint}` : '', status: row ? String(row.status || '') : '',
+    });
+  }
+  return { ok: true, matches };
+}
+
+async function aiMatches(deps: SpotlightDeps, userId: string, runId: string): Promise<HandlerResponse> {
+  const r = await loadAiMatches(deps, userId, runId);
+  if (!r.ok) return r.res;
+  const ai = deps.ai;
+  return { status: 200, body: { ok: true, matches: r.matches, ai: { available: !!ai?.available, reason: ai?.available ? null : (ai?.reason || 'disabled') } } };
+}
+
+async function aiDraft(deps: SpotlightDeps, userId: string, runId: string, b: Record<string, unknown>): Promise<HandlerResponse> {
+  const ai = deps.ai;
+  if (!ai || !ai.available || !ai.generate) return fail(503, 'ai_disabled', { detail: ai?.reason || 'disabled' });
+  // 입력 형식: items 1~8 · matchNo 정수 · ref 문자열 · 지시 200자(꺾쇠 · 제어문자 정리)
+  const raw = Array.isArray(b.items) ? b.items : null;
+  if (!raw || raw.length === 0) return fail(400, 'ai_invalid');
+  if (raw.length > AI_ITEMS_MAX) return fail(400, 'ai_too_many');
+  const req: Array<{ matchNo: number; ref: string; instruction: string }> = [];
+  for (const x of raw) {
+    const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+    const no = o.matchNo;
+    if (typeof no !== 'number' || !Number.isInteger(no) || no <= 0 || no >= 10000) return fail(400, 'ai_invalid');
+    if (typeof o.ref !== 'string' || !o.ref || o.ref.length > 64) return fail(400, 'ai_invalid');
+    if (req.some((y) => y.matchNo === no)) return fail(400, 'ai_invalid');
+    // 지시(운영진 메모 조각)가 있는 경기만 생성한다 — 편집기 규칙과 같다(빈 지시 = 거부).
+    if (typeof o.instruction !== 'string' || !o.instruction.trim()) return fail(400, 'ai_invalid', { matchNo: no });
+    const ins = sanitizeOperatorText(o.instruction.replace(/[<>]/g, ' '), AI_INSTRUCTION_MAX);
+    if (!ins.ok) return fail(400, ins.reason === 'operator_text_too_long' ? 'ai_instruction_too_long' : 'ai_invalid', { matchNo: no });
+    req.push({ matchNo: no, ref: o.ref, instruction: ins.text });
+  }
+  const regenerate = b.regenerate === true;
+  const lim = ai.limiter.acquire(userId, runId, req.map((x) => x.matchNo), regenerate);
+  if (!lim.ok) return fail(429, lim.reason, lim.matchNo ? { matchNo: lim.matchNo } : {});
+  try {
+    const loaded = await loadAiMatches(deps, userId, runId);
+    if (!loaded.ok) return loaded.res;
+    const byNo = new Map(loaded.matches.map((m) => [m.matchNo, m]));
+    // 경기 확인: 이 회차 공개 대상 + 같은 matchId(선수 변경 · 제외 · 다른 회차 번호 거부)
+    const unavailable: Array<{ matchNo: number; reason: 'match_unavailable' | 'match_changed' }> = [];
+    const items: DraftRequestItem[] = [];
+    for (const x of req) {
+      const m = byNo.get(x.matchNo);
+      if (!m) { unavailable.push({ matchNo: x.matchNo, reason: 'match_unavailable' }); continue; }
+      if (m.ref !== x.ref) { unavailable.push({ matchNo: x.matchNo, reason: 'match_changed' }); continue; }
+      items.push({ key: draftKey(items.length), match: m, instruction: x.instruction });
+    }
+    if (items.length === 0) return { status: 200, body: { ok: true, cards: [], unavailable } };
+    const prompt = buildDraftPrompt(items);
+    let out: unknown;
+    try {
+      out = await withTimeout((signal) => (ai.generate as NonNullable<SpotlightAiDeps['generate']>)(
+        { system: prompt.system, user: prompt.user, maxOutputTokens: 300 + items.length * 250 }, signal), ai.timeoutMs);
+    } catch (e) {
+      return fail(e instanceof Error && e.message === 'ai_timeout' ? 504 : 502, e instanceof Error && e.message === 'ai_timeout' ? 'ai_timeout' : 'ai_failed');
+    }
+    const assembled = assembleDrafts(out, items, allNamesOf(loaded.matches));
+    if (!assembled.ok) return fail(502, assembled.reason);
+    return { status: 200, body: { ok: true, cards: assembled.cards, unavailable, ignoredKeys: assembled.ignoredKeys.length } };
+  } finally {
+    lim.release();
+  }
 }

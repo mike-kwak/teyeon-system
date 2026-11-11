@@ -31,6 +31,32 @@ export const REASON_TEXT: Record<string, string> = {
   pick_not_waiting: '이미 시작했거나 대기 상태가 아닌 경기는 운영진 PICK 으로 넣을 수 없습니다.',
   pick_replace_required: 'TOP 5 가 가득 찼습니다. 교체할 경기를 골라 주세요.',
   pick_replace_invalid: '교체할 경기가 현재 TOP 에 없습니다.',
+  // AI 관전 포인트 초안
+  ai_disabled: 'AI 초안 기능이 꺼져 있습니다. 공개 문구를 직접 작성해 주세요.',
+  ai_invalid: 'AI 초안 요청 형식이 올바르지 않습니다.',
+  ai_too_many: '한 번에 최대 8경기까지 초안을 만들 수 있습니다.',
+  ai_instruction_too_long: '경기별 지시는 200자 이내로 줄여 주세요.',
+  ai_busy: '이미 초안을 만드는 중입니다. 잠시 기다려 주세요.',
+  ai_rate_limited: 'AI 초안 요청이 너무 많습니다. 몇 분 뒤 다시 시도해 주세요.',
+  ai_run_limit: '이 회차의 AI 초안 생성 한도를 다 썼습니다. 직접 작성해 주세요.',
+  ai_regenerate_limit: '이 경기의 재생성 한도(5회)를 다 썼습니다. 직접 수정해 주세요.',
+  ai_timeout: 'AI 응답이 늦어 중단했습니다. 다시 시도하거나 직접 작성해 주세요.',
+  ai_failed: 'AI 초안을 만들지 못했습니다. 다시 시도하거나 직접 작성해 주세요.',
+  ai_bad_output: 'AI 응답 형식이 올바르지 않아 사용하지 않았습니다. 다시 시도하거나 직접 작성해 주세요.',
+};
+
+/** AI 사용 불가 사유(서버 ai.reason) → 편집기 안내. */
+export const AI_UNAVAILABLE_TEXT: Record<string, string> = {
+  disabled: 'AI 초안 기능이 꺼져 있습니다(수동 작성 모드).',
+  no_model: 'AI 모델이 설정되지 않았습니다(수동 작성 모드).',
+  no_key: 'AI 키가 설정되지 않았습니다(수동 작성 모드).',
+  provider_not_connected: 'AI 공급자 연결 전입니다(수동 작성 모드).',
+};
+
+/** AI 초안 요청에서 제외된 경기 사유. */
+export const AI_MATCH_UNAVAILABLE_TEXT: Record<string, string> = {
+  match_unavailable: '공개 대상이 아닌 경기입니다(시작 · 선수 변경 · 제외).',
+  match_changed: '경기 정보가 바뀌었습니다. 경기 목록을 다시 불러와 연결을 확인해 주세요.',
 };
 
 // no_predictable_matches 의 세부 원인(서버 detail) — 판정은 서버/DB 그대로, 안내만 구분한다.

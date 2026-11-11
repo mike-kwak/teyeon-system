@@ -184,8 +184,11 @@ export function linkOperatorNotes(notes: readonly string[], payload: PublicSpotl
  *   - 공개 문구가 빈 기존 행(이전 연결에서 메모만 있던 행)은 새 연결로 대체.
  *   - 새 행의 공개 문구는 항상 빈 칸 — 메모 원문(작성 지시일 수 있음)을 공개 문구로 복사하지 않는다.
  */
-export function mergeLinkedRows<R extends { matchNo: number | null; note: string; text: string }>(
-  prev: readonly R[], links: readonly NoteLink[], makeRow: (l: NoteLink) => Omit<R, 'text'>,
+export function mergeLinkedRows<
+  R extends { matchNo: number | null; note: string; text: string },
+  L extends { matchNo: number | null; note: string } = NoteLink,
+>(
+  prev: readonly R[], links: readonly L[], makeRow: (l: L) => Omit<R, 'text'>,
 ): R[] {
   const kept = prev.filter((r) => r.text.trim()).map((r) => ({ ...r }));
   const added: R[] = [];
