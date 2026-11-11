@@ -172,8 +172,10 @@ end
 $$;
 
 -- ── 4) 초안 저장(공개본 무변경) ────────────────────────────────────────────────
+-- p_expected_updated_at: 편집기가 불러온 시점의 updated_at(첫 작성이면 '1970-01-01T00:00:00Z').
+--   null 이면 검사하지 않는다(내부 · 시험용). 다르면 draft_conflict — 다른 운영진의 저장 · 발행을 조용히 덮어쓰지 않는다.
 create or replace function public.save_kdk_final_report_draft(
-  p_club_id text, p_session_id text, p_actor uuid, p_content jsonb, p_new_slug text
+  p_club_id text, p_session_id text, p_actor uuid, p_content jsonb, p_new_slug text, p_expected_updated_at timestamptz default null
 ) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_a record; v_rep public.kdk_final_reports%rowtype;
 begin
@@ -186,6 +188,12 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'not_official');
   end if;
   select * into v_rep from public.kdk_final_reports where session_id = p_session_id for update;
+  if p_expected_updated_at is not null then
+    if (v_rep.id is null and p_expected_updated_at <> 'epoch'::timestamptz)
+       or (v_rep.id is not null and v_rep.updated_at is distinct from p_expected_updated_at) then
+      return jsonb_build_object('ok', false, 'reason', 'draft_conflict');
+    end if;
+  end if;
   if v_rep.id is null then
     if p_new_slug is null or p_new_slug !~ '^[a-z0-9]{12,32}$' then return jsonb_build_object('ok', false, 'reason', 'invalid_slug'); end if;
     insert into public.kdk_final_reports (club_id, session_id, public_slug, content, created_by, updated_by)
@@ -194,7 +202,8 @@ begin
     update public.kdk_final_reports set content = p_content, updated_at = now(), updated_by = p_actor
      where id = v_rep.id returning * into v_rep;
   end if;
-  return jsonb_build_object('ok', true, 'reason', 'saved', 'status', v_rep.status, 'publicSlug', v_rep.public_slug, 'revision', v_rep.revision);
+  return jsonb_build_object('ok', true, 'reason', 'saved', 'status', v_rep.status, 'publicSlug', v_rep.public_slug, 'revision', v_rep.revision,
+    'updatedAt', v_rep.updated_at);
 end
 $$;
 
@@ -234,7 +243,8 @@ begin
          source_signature = p_signature,
          published_at = now(), published_by = p_actor, updated_at = now(), updated_by = p_actor
    where id = v_rep.id returning * into v_rep;
-  return jsonb_build_object('ok', true, 'reason', 'published', 'publicSlug', v_rep.public_slug, 'revision', v_rep.revision);
+  return jsonb_build_object('ok', true, 'reason', 'published', 'publicSlug', v_rep.public_slug, 'revision', v_rep.revision,
+    'updatedAt', v_rep.updated_at);
 end
 $$;
 
@@ -254,10 +264,10 @@ begin
 end
 $$;
 
-revoke all on function public.get_kdk_final_report_source(text, uuid), public.save_kdk_final_report_draft(text, text, uuid, jsonb, text),
+revoke all on function public.get_kdk_final_report_source(text, uuid), public.save_kdk_final_report_draft(text, text, uuid, jsonb, text, timestamptz),
   public.publish_kdk_final_report(text, uuid, jsonb, text, integer), public.unpublish_kdk_final_report(text, uuid)
   from public, anon, authenticated;
-grant execute on function public.get_kdk_final_report_source(text, uuid), public.save_kdk_final_report_draft(text, text, uuid, jsonb, text),
+grant execute on function public.get_kdk_final_report_source(text, uuid), public.save_kdk_final_report_draft(text, text, uuid, jsonb, text, timestamptz),
   public.publish_kdk_final_report(text, uuid, jsonb, text, integer), public.unpublish_kdk_final_report(text, uuid)
   to service_role;
 
@@ -286,3 +296,24 @@ end
 $$;
 revoke all on function public.get_public_kdk_final_report(text) from public;
 grant execute on function public.get_public_kdk_final_report(text) to anon, authenticated;
+
+-- ── 8) 세션 → 공개 리포트 링크(anon) — Archive 상세 진입점용 ─────────────────────────
+--   공개 조회(get_public_kdk_final_report)와 같은 조건(발행 · 공식 · 비테스트 · 기록 지문 일치)일 때만 slug 를 준다.
+--   payload · 문구 · 작성자는 주지 않는다. 세션 id 는 이미 /club/kdk/[sessionId] 로 공개되는 값이다.
+create or replace function public.get_public_kdk_final_report_link(p_session_id text)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare v_rep public.kdk_final_reports%rowtype; v_a record;
+begin
+  if p_session_id is null or length(p_session_id) = 0 or length(p_session_id) > 80 then return jsonb_build_object('ok', false); end if;
+  select * into v_rep from public.kdk_final_reports where session_id = p_session_id and status = 'published';
+  if v_rep.id is null then return jsonb_build_object('ok', false); end if;
+  select a.id, a.raw_data, a.is_official, a.is_test, a.archive_type into v_a from public.teyeon_archive_v1 a where a.id = p_session_id;
+  if v_a.id is null or coalesce(v_a.archive_type, '') <> 'kdk' or v_a.is_official is not true or v_a.is_test is true
+     or v_rep.source_signature is distinct from public.kdk_final_report_signature(coalesce(v_a.raw_data, '{}'::jsonb)) then
+    return jsonb_build_object('ok', false);
+  end if;
+  return jsonb_build_object('ok', true, 'publicSlug', v_rep.public_slug);
+end
+$$;
+revoke all on function public.get_public_kdk_final_report_link(text) from public;
+grant execute on function public.get_public_kdk_final_report_link(text) to anon, authenticated;

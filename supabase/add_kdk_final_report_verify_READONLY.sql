@@ -15,6 +15,7 @@ select 'V03 admin RPC not for anon/auth' as chk,
        has_function_privilege('service_role', 'public.publish_kdk_final_report(text,uuid,jsonb,text,integer)', 'EXECUTE') as svc_publish;   -- true
 select 'V04 public RPC' as chk,
        has_function_privilege('anon', 'public.get_public_kdk_final_report(text)', 'EXECUTE') as anon_public,           -- true
+       has_function_privilege('anon', 'public.get_public_kdk_final_report_link(text)', 'EXECUTE') as anon_link,      -- true
        has_function_privilege('anon', 'public.kdk_final_report_signature(jsonb)', 'EXECUTE') as anon_sig;              -- false
 select 'V05 definer + search_path' as chk, p.proname, p.prosecdef, p.proconfig
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace

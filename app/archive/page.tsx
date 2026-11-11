@@ -16,6 +16,8 @@ const ArchiveResultShare = nextDynamic(() => import('@/components/archive/Archiv
 import KdkFinancePenaltyModal from '@/components/archive/KdkFinancePenaltyModal';
 // 성능: 정정 모달은 운영진이 실제로 열 때만 로드(일반 회원 번들에 포함하지 않는다).
 const KdkCorrectionModal = nextDynamic(() => import('@/components/archive/KdkCorrectionModal'), { ssr: false });
+// KDK FINAL REPORT 진입점(공개 리포트 보기 · 운영진 작성) — 상세 화면에서만 로드. 권한은 서버가 확인한다.
+const FinalReportArchiveEntry = nextDynamic(() => import('@/components/kdk/finalReport/FinalReportArchiveEntry'), { ssr: false });
 import { canManageFinance } from '@/lib/finance/getFinancePermissions';
 import { fetchAllMembers, type FinanceMember } from '@/lib/finance/duesService';
 import { buildKdkPenaltyPreview, fetchExistingKdkPenalties } from '@/lib/finance/kdkPenaltyService';
@@ -1268,6 +1270,9 @@ export default function ArchivePage() {
             )}
           </section>
         )}
+
+        {/* KDK FINAL REPORT — 버튼만 추가(Archive 확정 · 정정 · 삭제 · 순위 로직 무관) */}
+        {!session.isLocal && <FinalReportArchiveEntry session={session} />}
 
         {/* TOP 3 HIGHLIGHT */}
         {top3.length > 0 && (

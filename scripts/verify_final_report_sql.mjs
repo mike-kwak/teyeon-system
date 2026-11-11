@@ -232,6 +232,35 @@ check('비공개(unpublish) → not_found', (await unpublish(KDKM)).reason === '
 check('비공개 후 재발행 → 같은 slug 로 다시 공개 · revision 5', (await publish(CEO, PAYLOAD, srcV.signature, 4)).revision === 5 && (await pub('reportslug0001')).state === 'ok');
 check('slug 형식 오류 · 없는 slug → not_found', (await pub("x' or 1=1 --")).state === 'not_found' && (await pub('nosuchslug0000')).state === 'not_found');
 
+// ── P3: 초안 동시 편집 충돌 · 세션 → 공개 링크 ──────────────────────────────────────────
+const saveX = (actor, content, expected, sid = SID, slug = 'reportslug0001') =>
+  svc(`select public.save_kdk_final_report_draft('C1', $1, $2::uuid, $3::jsonb, $4, $5::timestamptz) as r`, [sid, actor, JSON.stringify(content), slug, expected]).then((x) => x.r);
+{
+  const cur = (await source(CEO)).report;
+  check('원본 조회에 updatedAt(충돌 기준) 포함', typeof cur.updatedAt === 'string' && cur.updatedAt.length > 10);
+  const a = await saveX(CEO, { schema: 1, opening: 'A 운영진' }, cur.updatedAt);
+  check('같은 기준 시각으로 저장 → 성공 · 새 updatedAt 반환', a.ok === true && a.updatedAt && a.updatedAt !== cur.updatedAt);
+  const b = await saveX(KDKM, { schema: 1, opening: 'B 운영진' }, cur.updatedAt);
+  check('[충돌] 오래된 기준 시각으로 저장 → draft_conflict · 덮어쓰지 않음', b.reason === 'draft_conflict' && (await source(CEO)).report.content.opening === 'A 운영진');
+  check('[충돌] 이미 있는 리포트를 "처음 작성"으로 저장 → draft_conflict', (await saveX(CEO, { schema: 1 }, '1970-01-01T00:00:00Z')).reason === 'draft_conflict');
+  check('초안 저장은 공개본 유지', (await pub('reportslug0001')).state === 'ok' && (await pub('reportslug0001')).payload.opening !== 'A 운영진');
+  const SID3 = 'KDK-20261113-QAE3';
+  await db.query(`insert into public.teyeon_archive_v1 (id, raw_data, is_official) values ($1, $2, true)`, [SID3, JSON.stringify(RAW)]);
+  check('[충돌] 없는 리포트를 기존 시각 기준으로 저장 → draft_conflict', (await saveX(CEO, { schema: 1 }, cur.updatedAt, SID3, 'reportslug0003')).reason === 'draft_conflict');
+  check('처음 작성(epoch 기준) → 생성', (await saveX(CEO, { schema: 1 }, '1970-01-01T00:00:00Z', SID3, 'reportslug0003')).ok === true);
+  const link = (sid, role = 'anon') => asRole(role, '', () => one(`select public.get_public_kdk_final_report_link($1) as r`, [sid])).then((x) => x.r);
+  check('공개 링크: 발행 중 세션 → slug', (await link(SID)).ok === true && (await link(SID)).publicSlug === 'reportslug0001');
+  check('공개 링크: 초안만 있는 세션 · 없는 세션 → ok false', (await link(SID3)).ok === false && (await link('NOPE')).ok === false);
+  check('공개 링크 응답에 payload · 문구 · 작성자 없음', Object.keys(await link(SID)).sort().join() === 'ok,publicSlug');
+  const keep = (await one(`select raw_data from public.teyeon_archive_v1 where id = $1`, [SID])).raw_data;
+  await setRaw(c2);
+  check('공개 링크: 기록 정정(지문 불일치) → ok false', (await link(SID)).ok === false);
+  await setRaw(keep);
+  check('공개 링크: anon 외 로그인 회원도 같은 결과', (await link(SID, 'authenticated')).ok === true);
+  await db.query(`delete from public.kdk_final_reports where session_id = $1`, [SID3]);
+  await db.query(`delete from public.teyeon_archive_v1 where id = $1`, [SID3]);
+}
+
 // ── 종단 확인: SQL 원본 투영 → TS 모델 → 공개본 → 발행 → 공개 조회 → 파서 ───────────────────
 {
   const { register } = await import('node:module');
@@ -281,7 +310,7 @@ const archiveAfter = await q(`select id, raw_data::text as r, is_official, is_te
 check('[22] 리포트 RPC 는 Archive 를 바꾸지 않음(시험이 바꾼 값 복원 후 원본과 동일)', JSON.stringify(archiveAfter) === JSON.stringify(archiveBefore));
 await db.exec(ROLLBACK);
 check('rollback: 신규 표 · 함수 제거', !(await one(`select to_regclass('public.kdk_final_reports') as t`)).t
-  && !(await one(`select to_regprocedure('public.get_public_kdk_final_report(text)') as f`)).f && !(await one(`select to_regprocedure('public.kdk_fr_int(jsonb)') as f`)).f);
+  && !(await one(`select to_regprocedure('public.get_public_kdk_final_report(text)') as f`)).f && !(await one(`select to_regprocedure('public.get_public_kdk_final_report_link(text)') as f`)).f && !(await one(`select to_regprocedure('public.kdk_fr_int(jsonb)') as f`)).f);
 check('rollback: 기존 표 · 함수 유지', !!(await one(`select to_regclass('public.teyeon_archive_v1') as t`)).t && !!(await one(`select to_regprocedure('public.kdk_spotlight_is_admin(uuid)') as f`)).f);
 check('rollback 후 재설치 가능', (await errOf(() => db.exec(SQL))) === null);
 
