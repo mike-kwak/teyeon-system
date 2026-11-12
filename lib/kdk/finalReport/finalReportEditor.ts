@@ -4,12 +4,25 @@
 //   ⚠ 순위 · 승패 · 점수는 서버 모델 그대로 보여 주기만 한다(재계산 · 재정렬 없음).
 
 import {
-  FR_CLOSING_MAX, FR_FEATURED_MAX, FR_OPENING_MAX, FR_PODIUM, FR_REVIEW_MAX, FR_STORY_MAX,
-  matchFingerprint, recommendFeatured, recordTags,
+  FR_CLOSING_MAX, FR_FEATURED_MAX, FR_HEADLINE_MAX, FR_OPENING_MAX, FR_PODIUM, FR_REVIEW_MAX, FR_STORY_MAX,
+  matchFingerprint, recordTags,
   type FinalReportContent, type FinalReportModel, type FeaturedState, type Group, type OperatorTag, type RecordTag, type StoryState,
 } from './finalReportModel';
+import {
+  buildFinalReportStory, matchNote, reviewSuggestion, storySuggestion,
+  type Badge, type CandidateReason, type HeadlineCandidate,
+} from './finalReportStory';
 
-export const FR_LIMITS = { opening: FR_OPENING_MAX, story: FR_STORY_MAX, review: FR_REVIEW_MAX, closing: FR_CLOSING_MAX, featured: FR_FEATURED_MAX } as const;
+export const FR_LIMITS = { headline: FR_HEADLINE_MAX, opening: FR_OPENING_MAX, story: FR_STORY_MAX, review: FR_REVIEW_MAX, closing: FR_CLOSING_MAX, featured: FR_FEATURED_MAX } as const;
+
+/** v2 편집 보조(읽기 전용 · 서버 계산): 헤드라인 후보 · TOP3 기록 요약 · 제안 문구 · 경기 한 줄 기록. */
+export interface EditorStory {
+  headlines: HeadlineCandidate[];
+  /** 운영진이 헤드라인을 비우면 공개본에 들어갈 자동 헤드라인(= headlines[0]). */
+  autoHeadline: string;
+  podium: Array<{ key: string; rank: number; summary: string; badges: Badge[]; suggestion: string; consistent: boolean }>;
+  matches: Record<string, { note: string | null; reasons: CandidateReason[]; suggestion: string }>;
+}
 
 export interface EditorStanding { key: string; rank: number; name: string; wins: number; losses: number; diff: number; group: Group; guest: boolean }
 export interface EditorMatch {
@@ -28,6 +41,7 @@ export interface EditorData {
   standings: EditorStanding[];
   matches: EditorMatch[];
   recommended: string[];
+  story: EditorStory;
   /** 불러온 시점의 공식 기록 지문 — 발행 요청에 그대로 돌려보내 그 사이 정정 여부를 서버가 판정. */
   signature: string;
   report: EditorReport | null;
@@ -37,6 +51,16 @@ export interface EditorData {
 }
 
 export function toEditorData(model: FinalReportModel, extra: { id: string; signature: string; report: EditorReport | null; content: FinalReportContent; contentReset: boolean }): EditorData {
+  const st = buildFinalReportStory(model);
+  const podiumKeys = new Set(model.standings.slice(0, FR_PODIUM).map((s) => s.key));
+  const reasons = new Map(st.candidates.map((c) => [c.matchId, c.reasons]));
+  const story: EditorStory = {
+    headlines: st.headlines, autoHeadline: st.headline,
+    podium: st.podium.map((r, i) => ({ key: model.standings[i].key, rank: r.rank, summary: r.summary, badges: r.badges, suggestion: storySuggestion(r), consistent: r.consistent })),
+    matches: Object.fromEntries(model.matches.map((m) => [m.matchId, {
+      note: matchNote(m, podiumKeys), reasons: reasons.get(m.matchId) ?? [], suggestion: reviewSuggestion(m, podiumKeys, FR_REVIEW_MAX),
+    }])),
+  };
   return {
     session: { id: extra.id, title: model.title, date: model.date, participantCount: model.participantCount, matchCount: model.completedMatchCount },
     standings: model.standings.map((s) => ({ key: s.key, rank: s.rank, name: s.name, wins: s.wins, losses: s.losses, diff: s.diff, group: s.group, guest: s.guest })),
@@ -44,7 +68,9 @@ export function toEditorData(model: FinalReportModel, extra: { id: string; signa
       matchId: m.matchId, round: m.round, court: m.court, group: m.group, teamA: [...m.teamA] as [string, string], teamB: [...m.teamB] as [string, string],
       score1: m.score1, score2: m.score2, fingerprint: matchFingerprint(m), tags: recordTags(m, model),
     })),
-    recommended: recommendFeatured(model),
+    // 자동 추천 = 공개본 자동 모드와 같은 v2 기록 기준 후보.
+    recommended: st.candidates.map((c) => c.matchId),
+    story,
     signature: extra.signature,
     report: extra.report,
     content: extra.content,
@@ -132,6 +158,7 @@ export function removeFeatured(content: FinalReportContent, matchId: string): Fi
 /** 저장 · 비교용 정규형(빈 스토리 제거 · 순서 고정). */
 export function contentKey(c: FinalReportContent): string {
   return JSON.stringify({
+    h: (c.headline ?? '').trim(),
     o: c.opening.trim(), c: c.closing.trim(),
     s: c.stories.filter((s) => s.text.trim()).map((s) => [s.playerKey, s.rank, s.text.trim()]).sort(),
     f: c.featured == null ? null : c.featured.map((f) => [f.matchId, f.fingerprint, f.review.trim(), f.tag]),

@@ -144,9 +144,12 @@ check('주요 경기: 운영진 선택 순서 · 태그(MOTD + 접전 · PICK) �
   P.payload.featured.length === 2 && P.payload.featured[0].tags.join() === 'MATCH_OF_THE_DAY,CLOSEST_BATTLE' && P.payload.featured[1].tags.join() === 'OPERATORS_PICK' && P.payload.featured[1].review === null);
 check('전체 순위 = 저장 순서 8명 · 게스트 표시', P.payload.standings.map((x: any) => x.rank).join() === '1,2,3,4,5,6,7,8' && P.payload.standings[4].guest === true);
 const auto = fr.buildFinalReportPayload(model, fr.EMPTY_CONTENT);
-check('운영진 입력 없음 → 기록만으로 기본 리포트(추천: 접전 m-2 → 완봉 m-1 · 문구 없음)',
+// v2.1(2026-11-12): 자동 모드 = 특징이 서로 다른 경기(1점 차 접전 m-2 → TOP3 맞대결 m-3 → 완봉 m-1). 특징 없는 m-4 는 제외.
+check('운영진 입력 없음 → 기록만으로 기본 리포트(자동 추천: 접전 6:5 → TOP3 맞대결 6:4 → 완봉 6:0 · 문구 없음 · auto 표시)',
   auto.ok && auto.payload.opening === null && auto.payload.podium.every((p: any) => p.story === null)
-  && auto.payload.featured.map((f: any) => `${f.score1}:${f.score2}`).join() === '6:5,6:0' && auto.payload.featured[1].tags.includes('SHUTOUT'));
+  && auto.payload.featured.map((f: any) => `${f.score1}:${f.score2}`).join() === '6:5,6:4,6:0' && auto.payload.featured[2].tags.includes('SHUTOUT')
+  && auto.payload.featuredMode === 'auto' && P.payload.featuredMode === 'manual',
+  auto.ok ? auto.payload.featured.map((f: any) => `${f.score1}:${f.score2}`).join() : '');
 check('주요 경기 비우기([]) → 주요 경기 없이 발행', fr.buildFinalReportPayload(model, { ...fr.EMPTY_CONTENT, featured: [] }).payload.featured.length === 0);
 check('기록으로 확인 안 되는 이야기 생성 없음(문구는 운영진 입력만)', !/역전|라이벌|극적|분위기|예상 밖/.test(JSON.stringify(auto.payload)));
 

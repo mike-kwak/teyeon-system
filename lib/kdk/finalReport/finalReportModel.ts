@@ -12,6 +12,10 @@
 import { isGuestRankedPlayer } from '../settlement';
 import { sanitizeOperatorText } from '../analytics/spotlightOperator';
 import { checkPublicText, issueText, type TextIssue } from '../analytics/spotlightMemoLink';
+import {
+  buildFinalReportStory, matchNote, publicHighlight, publicRecord, parsePublicHighlights, parsePublicRecord, parsePublicNote, parsePublicHeadline,
+  FR_HEADLINE_MAX, type PublicHighlight, type PublicPlayerRecord,
+} from './finalReportStory';
 
 export const FR_OPENING_MAX = 60;
 export const FR_STORY_MAX = 80;
@@ -19,6 +23,9 @@ export const FR_REVIEW_MAX = 100;
 export const FR_CLOSING_MAX = 60;
 export const FR_FEATURED_MAX = 4;
 export const FR_PODIUM = 3;
+export { FR_HEADLINE_MAX };
+/** 공개본 직렬화 크기 상한(SQL publish 의 64KB 검사보다 여유 있게 서버에서 먼저 거부). */
+export const FR_PAYLOAD_MAX_BYTES = 60000;
 
 // ── 입력(서버 투영) ─────────────────────────────────────────────────────────────
 export interface FinalReportSource {
@@ -232,6 +239,8 @@ export interface StoryInput { playerKey: string; rank: number; text: string }
 export interface FeaturedInput { matchId: string; fingerprint: string; review: string; tag: OperatorTag | null }
 export interface FinalReportContent {
   schema: 1;
+  /** v2 · 선택: 운영진 COVER 헤드라인(비우면 기록 기반 자동 헤드라인). 예전 content 에는 없다. */
+  headline?: string;
   opening: string;
   closing: string;
   stories: StoryInput[];
@@ -255,6 +264,7 @@ export function parseFinalReportContent(v: unknown): { ok: true; content: FinalR
   const o = v as Record<string, unknown>;
   const opening = cleanText(o.opening, FR_OPENING_MAX); if (!opening.ok) return { ok: false, reason: opening.reason, field: 'opening' };
   const closing = cleanText(o.closing, FR_CLOSING_MAX); if (!closing.ok) return { ok: false, reason: closing.reason, field: 'closing' };
+  const headline = cleanText(o.headline, FR_HEADLINE_MAX); if (!headline.ok) return { ok: false, reason: headline.reason, field: 'headline' };
   const stories: StoryInput[] = [];
   const rawStories = o.stories == null ? [] : o.stories;
   if (!Array.isArray(rawStories)) return { ok: false, reason: 'invalid', field: 'stories' };
@@ -288,7 +298,8 @@ export function parseFinalReportContent(v: unknown): { ok: true; content: FinalR
       if (featured.filter((y) => y.tag === tag).length > 1) return { ok: false, reason: 'tag_limit', field: tag };
     }
   }
-  return { ok: true, content: { schema: 1, opening: opening.text, closing: closing.text, stories, featured } };
+  // headline 은 값이 있을 때만 넣는다 — 예전 content 와 같은 모양 유지.
+  return { ok: true, content: { schema: 1, ...(headline.text ? { headline: headline.text } : {}), opening: opening.text, closing: closing.text, stories, featured } };
 }
 
 // ── 4) 정정 대응: 운영진 입력 ↔ 현재 공식 기록 대조(문구는 지우지 않는다) ─────────────────────
@@ -340,6 +351,7 @@ export function validateContentTexts(content: FinalReportContent, model: FinalRe
     if (!text) return;
     for (const x of checkPublicText(text, own, model.allNames)) out.push({ field, issue: x });
   };
+  check('headline', content.headline ?? '', model.allNames);
   check('opening', content.opening, model.allNames);
   check('closing', content.closing, model.allNames);
   for (const s of content.stories) {
@@ -356,15 +368,31 @@ export const contentIssueText = (x: ContentIssue): string => issueText(x.issue);
 
 // ── 6) 공개 payload(allow-list) ───────────────────────────────────────────────
 export interface PublicStanding { rank: number; name: string; wins: number; losses: number; diff: number; group: Group; guest: boolean }
-export interface PublicPodium extends PublicStanding { story: string | null }
+export interface PublicPodium extends PublicStanding {
+  story: string | null;
+  /** v2(edition 2)만: 공식 승패 · 득실 요약 + 경기별 점수. v1 공개본에는 없다. */
+  record?: PublicPlayerRecord | null;
+}
 export interface PublicFeatured {
   round: number | null; court: number | null; group: Group;
   teamA: [string, string]; teamB: [string, string]; score1: number; score2: number;
   tags: Array<RecordTag | OperatorTag>;
   review: string | null;
+  /** v2(edition 2)만: 점수로 확인되는 한 줄 기록(예: '1점 차 접전 · TOP3 맞대결'). */
+  note?: string | null;
 }
+/**
+ * 공개본. schema 는 계속 1(SQL publish 가 schema='1' 만 받음).
+ *   edition 2 = v2 엔진으로 만든 공개본 → headline · highlights · podium.record · featured.note 를 가진다.
+ *   edition 없음 = v1 공개본(기존 발행본) → 파서가 v2 필드를 만들지 않는다(소급 표시 금지).
+ */
 export interface FinalReportPublicPayload {
   schema: 1;
+  edition?: 2;
+  headline?: string | null;
+  highlights?: PublicHighlight[];
+  /** v2: 주요 경기 선정 방식 — auto = 기록 기준 추천 · manual = 운영진 직접 선정. */
+  featuredMode?: 'auto' | 'manual';
   session: { title: string; date: string; officialConfirmed: true; participantCount: number; matchCount: number };
   opening: string | null;
   closing: string | null;
@@ -372,7 +400,7 @@ export interface FinalReportPublicPayload {
   featured: PublicFeatured[];
   standings: PublicStanding[];
 }
-export type PayloadReject = 'needs_review' | 'invalid_text';
+export type PayloadReject = 'needs_review' | 'invalid_text' | 'payload_too_large';
 
 const pubStanding = (s: StandingRow): PublicStanding => ({ rank: s.rank, name: s.name, wins: s.wins, losses: s.losses, diff: s.diff, group: s.group, guest: s.guest });
 
@@ -382,22 +410,33 @@ export function buildFinalReportPayload(model: FinalReportModel, content: FinalR
   if (rec.needsReview) return { ok: false, reason: 'needs_review', reconciled: rec };
   const issues = validateContentTexts(content, model).filter((x) => x.issue.severity === 'block');
   if (issues.length) return { ok: false, reason: 'invalid_text', issues };
+  const story = buildFinalReportStory(model);
+  const podiumKeys = new Set(model.standings.slice(0, FR_PODIUM).map((s) => s.key));
   const storyByKey = new Map(content.stories.map((s) => [s.playerKey, s.text]));
-  const podium = model.standings.slice(0, FR_PODIUM).map((s) => ({ ...pubStanding(s), story: storyByKey.get(s.key) || null }));
+  const podium = model.standings.slice(0, FR_PODIUM).map((s, n) => ({
+    ...pubStanding(s), story: storyByKey.get(s.key) || null, record: story.podium[n] ? publicRecord(story.podium[n]) : null,
+  }));
   const byMatch = new Map(model.matches.map((m) => [m.matchId, m]));
+  // 자동 모드(featured=null) = v2 기록 기준 후보(점수 차 → TOP3 출전 → 라운드 · 코트). 편집기 '추천'과 같은 목록.
   const picks: Array<{ m: MatchRow; review: string | null; tag: OperatorTag | null }> = content.featured == null
-    ? recommendFeatured(model).map((id) => ({ m: byMatch.get(id) as MatchRow, review: null, tag: null }))
+    ? story.candidates.map((c) => ({ m: byMatch.get(c.matchId) as MatchRow, review: null, tag: null }))
     : content.featured.map((f) => ({ m: byMatch.get(f.matchId) as MatchRow, review: f.review || null, tag: f.tag }));
   const featured = picks.map(({ m, review, tag }) => ({
     round: m.round, court: m.court, group: m.group, teamA: [...m.teamA] as [string, string], teamB: [...m.teamB] as [string, string],
     score1: m.score1, score2: m.score2, tags: [...(tag ? [tag] : []), ...recordTags(m, model)], review,
+    note: matchNote(m, podiumKeys),
   }));
-  return { ok: true, payload: {
-    schema: 1,
+  const payload: FinalReportPublicPayload = {
+    schema: 1, edition: 2,
+    headline: content.headline || story.headline,
+    highlights: story.highlights.map(publicHighlight),
+    featuredMode: content.featured == null ? 'auto' : 'manual',
     session: { title: model.title, date: model.date, officialConfirmed: true, participantCount: model.participantCount, matchCount: model.completedMatchCount },
     opening: content.opening || null, closing: content.closing || null,
     podium, featured, standings: model.standings.map(pubStanding),
-  } };
+  };
+  if (new TextEncoder().encode(JSON.stringify(payload)).length > FR_PAYLOAD_MAX_BYTES) return { ok: false, reason: 'payload_too_large' };
+  return { ok: true, payload };
 }
 
 // ── 7) 공개 응답 파서(allow-list · P2 화면용) ─────────────────────────────────────────
@@ -417,9 +456,12 @@ export function parsePublicFinalReport(v: unknown): FinalReportPublicPayload | n
   if (!ss || typeof ss !== 'object') return null;
   const standings = (Array.isArray(o.standings) ? o.standings : []).slice(0, 80).map(parseStanding).filter((x): x is PublicStanding => !!x);
   if (!standings.length) return null;
+  // edition 2 일 때만 v2 필드를 읽는다 — v1 공개본(기존 발행본)에는 새 기록 · 문구를 만들지 않는다.
+  const v2 = o.edition === 2;
   const podium = (Array.isArray(o.podium) ? o.podium : []).slice(0, FR_PODIUM).flatMap((p) => {
     const base = parseStanding(p); if (!base) return [];
-    return [{ ...base, story: s((p as Record<string, unknown>).story, FR_STORY_MAX) || null }];
+    const story = s((p as Record<string, unknown>).story, FR_STORY_MAX) || null;
+    return [v2 ? { ...base, story, record: parsePublicRecord((p as Record<string, unknown>).record) } : { ...base, story }];
   });
   const featured = (Array.isArray(o.featured) ? o.featured : []).slice(0, FR_FEATURED_MAX).flatMap((f) => {
     const x = f as Record<string, unknown>;
@@ -429,10 +471,13 @@ export function parsePublicFinalReport(v: unknown): FinalReportPublicPayload | n
       teamA: [s(ta[0], 40), s(ta[1], 40)] as [string, string], teamB: [s(tb[0], 40), s(tb[1], 40)] as [string, string],
       score1: i(x.score1) as number, score2: i(x.score2) as number,
       tags: (Array.isArray(x.tags) ? x.tags : []).filter((t): t is RecordTag | OperatorTag => typeof t === 'string' && TAGS.has(t)),
-      review: s(x.review, FR_REVIEW_MAX) || null }];
+      review: s(x.review, FR_REVIEW_MAX) || null,
+      ...(v2 ? { note: parsePublicNote(x.note) } : {}) }];
   });
   return {
     schema: 1,
+    ...(v2 ? { edition: 2 as const, headline: parsePublicHeadline(o.headline), highlights: parsePublicHighlights(o.highlights),
+      featuredMode: o.featuredMode === 'manual' ? 'manual' as const : 'auto' as const } : {}),
     session: { title: s(ss.title, 80), date: s(ss.date, 20), officialConfirmed: true,
       participantCount: i(ss.participantCount) ?? standings.length, matchCount: i(ss.matchCount) ?? 0 },
     opening: s(o.opening, FR_OPENING_MAX) || null, closing: s(o.closing, FR_CLOSING_MAX) || null,

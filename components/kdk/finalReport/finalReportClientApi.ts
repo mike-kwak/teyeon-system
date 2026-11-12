@@ -57,6 +57,6 @@ export const FR_REASON_TEXT: Record<string, string> = {
   content_invalid: '문구 형식을 확인할 수 없습니다.',
   payload_leak: '공개본에 개인정보 형태가 섞여 발행을 막았습니다.',
   invalid_payload: '공개본 형식이 올바르지 않습니다.',
-  payload_too_large: '문구가 너무 깁니다.',
+  payload_too_large: '공개본이 너무 커서 발행할 수 없습니다. 운영진 문구를 줄여 다시 시도하고, 계속되면 공식 기록의 선수 이름 · 경기 수가 비정상적으로 길거나 많은지 확인해 주세요.',
 };
 export const frFailText = (j: any): string => FR_REASON_TEXT[String(j?.reason || '')] || '처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';

@@ -21,7 +21,7 @@ import {
   FEATURED_STATE_TEXT, FR_LIMITS, STORY_STATE_TEXT, contentKey, reanchorEditor, reconcileEditor, removeFeatured, removeStory,
   setOperatorTag, setReview, setStory, storyText, toggleFeatured, type EditorData, type EditorMatch,
 } from '@/lib/kdk/finalReport/finalReportEditor';
-import { FRV, formatDiff, groupLabel, matchMeta, tagList } from '@/lib/kdk/finalReport/finalReportView';
+import { FRV, badgeLabel, formatDiff, groupLabel, matchMeta, tagList } from '@/lib/kdk/finalReport/finalReportView';
 import { finalReportSharePath, finalReportShareUrl, officialResultPath } from '@/lib/kdk/finalReportPublicService';
 
 const LINE = '#E1E7EE';
@@ -214,7 +214,7 @@ export default function FinalReportEditor({ sessionId, onClose, onChanged }: { s
           {data && step === 1 && <StepStories data={data} content={content} setContent={setContent} issues={issues} />}
           {data && step === 2 && <StepMatches data={data} content={content} setContent={(c) => { setContent(c); }} limitNote={limitNote} setLimitNote={setLimitNote} issues={issues} />}
           {data && step === 3 && (
-            <StepPreview data={data} preview={preview && preview.key === key ? preview.payload : null} busy={busy} issues={issues} needsReview={!!rec?.needsReview}
+            <StepPreview data={data} content={content} preview={preview && preview.key === key ? preview.payload : null} busy={busy} issues={issues} needsReview={!!rec?.needsReview}
               onRetry={runPreview} confirmed={confirmed} setConfirmed={setConfirmed} goStep={goStep}
               published={published} report={report}
               onUnpublish={unpublish} />
@@ -336,22 +336,58 @@ function FlagItem({ title, state, text, onRemove }: { title: string; state: stri
 function StepStories({ data, content, setContent, issues }: { data: EditorData; content: FinalReportContent; setContent: (c: FinalReportContent) => void; issues: ContentIssue[] }) {
   const top3 = data.standings.slice(0, 3);
   const LABEL = ['CHAMPION', 'RUNNER-UP', 'THIRD PLACE'];
+  const st = data.story;
+  const headline = content.headline ?? '';
+  /** 후보 중 하나를 그대로 고른 상태라면 다른 후보로 바꿀 때 묻지 않는다(운영진이 직접 쓴 문구만 보호). */
+  const isCandidate = (v: string) => !!st?.headlines.some((h) => h.text === v.trim());
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <Hint>비워 두면 해당 자리는 표시되지 않고 공식 기록만 공개됩니다. 기록으로 확인되지 않는 내용은 쓰지 말아 주세요.</Hint>
+      <Hint>비워 둔 자리는 공식 기록 한 줄 · 기본 문구로 표시됩니다. 제안 문구는 기록으로 만든 초안이니 확인 · 수정한 뒤 쓰고, 기록으로 확인되지 않는 내용은 쓰지 말아 주세요.</Hint>
+      <section style={card} data-fr-ed="headline">
+        <TextField id="headline" label="COVER 헤드라인" max={FR_LIMITS.headline} value={headline} placeholder={st?.autoHeadline || '예) 4전 전승, ○○의 무패 우승'}
+          onChange={(v) => setContent({ ...content, headline: v })} issues={issues.filter((x) => x.field === 'headline')} plain />
+        {st && st.headlines.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <p style={{ ...sectionLabel, marginBottom: 6 }}>기록 기준 후보 — 누르면 입력칸에 넣습니다</p>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {st.headlines.map((h) => (
+                <button key={h.kind} type="button" data-fr-ed={`headline-cand-${h.kind}`} onClick={() => { if (confirmReplace(headline, h.text, isCandidate(headline))) setContent({ ...content, headline: h.text }); }}
+                  style={{ textAlign: 'left', minHeight: 40, padding: '8px 10px', borderRadius: 10, border: `1px solid ${headline === h.text ? FRV.gold : LINE}`, background: headline === h.text ? FRV.goldWash : '#FFFFFF', color: FRV.ink, fontSize: 13, fontWeight: 800, lineHeight: 1.4, cursor: 'pointer', overflowWrap: 'anywhere', wordBreak: 'keep-all' }}>
+                  {h.text}
+                </button>
+              ))}
+            </div>
+            <p data-fr-ed="headline-auto-note" style={{ margin: '6px 0 0', fontSize: 11.5, fontWeight: 600, color: FRV.muted, lineHeight: 1.5, wordBreak: 'keep-all' }}>
+              비워 두면 자동 헤드라인 “{st.autoHeadline}”이 표시됩니다.
+            </p>
+          </div>
+        )}
+      </section>
       <TextField id="opening" label="오프닝" max={FR_LIMITS.opening} value={content.opening} placeholder="예) 열두 명이 세 라운드를 치른 11월 정모입니다."
         onChange={(v) => setContent({ ...content, opening: v })} issues={issues.filter((x) => x.field === 'opening')} />
-      {top3.map((s, i) => (
-        <section key={s.key} style={card} data-fr-ed={`story-${s.rank}`}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '0.16em', color: FRV.goldInk }}>{LABEL[i]}</span>
-            <span style={{ fontSize: 15, fontWeight: 900, color: FRV.ink, overflowWrap: 'anywhere', wordBreak: 'keep-all' }}>{s.rank}위 {s.name}</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: FRV.muted, whiteSpace: 'nowrap' }}>{s.wins}승 {s.losses}패 · {formatDiff(s.diff)}</span>
-          </div>
-          <TextField id={`story-${s.rank}`} label={`${s.rank}위 스토리`} hideLabel max={FR_LIMITS.story} value={storyText(content, s.key)} placeholder="공식 기록에 근거한 한두 문장"
-            onChange={(v) => setContent(setStory(content, s, v))} issues={issues.filter((x) => x.field === `stories.${s.rank}`)} plain />
-        </section>
-      ))}
+      {top3.map((s, i) => {
+        const sp = st?.podium.find((p) => p.key === s.key);
+        return (
+          <section key={s.key} style={card} data-fr-ed={`story-${s.rank}`}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '0.16em', color: FRV.goldInk }}>{LABEL[i]}</span>
+              <span style={{ fontSize: 15, fontWeight: 900, color: FRV.ink, overflowWrap: 'anywhere', wordBreak: 'keep-all' }}>{s.rank}위 {s.name}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: FRV.muted, whiteSpace: 'nowrap' }}>{s.wins}승 {s.losses}패 · {formatDiff(s.diff)}</span>
+            </div>
+            {sp && (
+              <p data-fr-ed={`record-${s.rank}`} style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 700, color: FRV.sub, lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                기록: {sp.summary}{sp.badges.length ? ` · ${sp.badges.map((b) => badgeLabel(b, s.rank)).join(' · ')}` : ''}
+              </p>
+            )}
+            <TextField id={`story-${s.rank}`} label={`${s.rank}위 스토리`} hideLabel max={FR_LIMITS.story} value={storyText(content, s.key)} placeholder="공식 기록에 근거한 한두 문장"
+              onChange={(v) => setContent(setStory(content, s, v))} issues={issues.filter((x) => x.field === `stories.${s.rank}`)} plain />
+            {sp && (
+              <Suggest id={`suggest-story-${s.rank}`} text={sp.suggestion}
+                onApply={() => { if (confirmReplace(storyText(content, s.key), sp.suggestion)) setContent(setStory(content, s, sp.suggestion)); }} />
+            )}
+          </section>
+        );
+      })}
       <TextField id="closing" label="마무리" max={FR_LIMITS.closing} value={content.closing} placeholder="예) 다음 정모에서 만나요."
         onChange={(v) => setContent({ ...content, closing: v })} issues={issues.filter((x) => x.field === 'closing')} />
     </div>
@@ -372,7 +408,7 @@ function StepMatches({ data, content, setContent, limitNote, setLimitNote, issue
       </div>
       <Hint>
         {auto
-          ? `점수 기록으로 고른 ${data.recommended.length}경기(접전 · 완봉)가 리뷰 없이 표시됩니다. 경기를 누르면 직접 선택으로 바뀝니다.`
+          ? `기록 기준으로 고른 ${data.recommended.length}경기(점수 차가 작은 순 · TOP3 출전)가 '기록 기준 추천'으로 표시됩니다. 경기를 누르면 직접 선택으로 바뀝니다.`
           : `선택 ${selected.length}/${FR_LIMITS.featured} · 선택하지 않으면 주요 경기 챕터 없이 발행됩니다.`}
       </Hint>
       {limitNote && <NoticeBar notice={{ tone: 'warn', text: `주요 경기는 최대 ${FR_LIMITS.featured}개입니다. 다른 경기를 먼저 빼 주세요.` }} />}
@@ -384,7 +420,7 @@ function StepMatches({ data, content, setContent, limitNote, setLimitNote, issue
             <button type="button" aria-pressed={on} data-fr-ed="match-toggle" onClick={() => { const r = toggleFeatured(content, data, m.matchId); setContent(r.content); setLimitNote(r.limited); }}
               style={{ display: 'flex', width: '100%', gap: 10, alignItems: 'flex-start', padding: '11px 12px', border: 'none', background: on ? FRV.goldWash : '#FFFFFF', textAlign: 'left', cursor: 'pointer' }}>
               <span aria-hidden style={{ flexShrink: 0, marginTop: 2, width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${on ? FRV.gold : '#B8C4D0'}`, background: on ? FRV.gold : '#FFFFFF', display: 'grid', placeItems: 'center' }}>{on && <Check size={13} color="#FFFFFF" />}</span>
-              <MatchSummary m={m} recommended={auto && data.recommended.includes(m.matchId)} />
+              <MatchSummary m={m} recommended={data.recommended.includes(m.matchId)} note={data.story?.matches[m.matchId]?.note ?? null} />
             </button>
             {on && f && (
               <div style={{ padding: '0 12px 12px', background: FRV.goldWash }}>
@@ -398,6 +434,10 @@ function StepMatches({ data, content, setContent, limitNote, setLimitNote, issue
                 </div>
                 <TextField id={`review-${m.matchId}`} label="경기 리뷰" max={FR_LIMITS.review} value={f.review} placeholder="점수 · 선수 기록에 근거한 리뷰(선택)"
                   onChange={(v) => setContent(setReview(content, m.matchId, v))} issues={issues.filter((x) => x.field === `featured.${m.matchId}`)} plain />
+                {data.story?.matches[m.matchId]?.suggestion && (
+                  <Suggest id="suggest-review" label="기록으로 리뷰 제안" text={data.story.matches[m.matchId].suggestion}
+                    onApply={() => { const t = data.story.matches[m.matchId].suggestion; if (confirmReplace(f.review, t)) setContent(setReview(content, m.matchId, t)); }} />
+                )}
               </div>
             )}
           </section>
@@ -407,15 +447,16 @@ function StepMatches({ data, content, setContent, limitNote, setLimitNote, issue
   );
 }
 
-function MatchSummary({ m, recommended }: { m: EditorMatch; recommended: boolean }) {
+function MatchSummary({ m, recommended, note }: { m: EditorMatch; recommended: boolean; note: string | null }) {
   const tags = tagList(m.tags);
   const winA = m.score1 > m.score2; const winB = m.score2 > m.score1;
   return (
     <span style={{ minWidth: 0, flex: 1, display: 'block' }}>
       <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 11, fontWeight: 800, color: FRV.muted, letterSpacing: '0.06em' }}>{matchMeta(m)}</span>
-        {recommended && <span style={{ fontSize: 10, fontWeight: 900, color: FRV.goldInk }}>추천</span>}
+        {recommended && <span data-fr-ed="recommended" style={{ fontSize: 10, fontWeight: 900, color: FRV.goldInk }}>기록 기준 추천</span>}
         {tags.map((t) => <span key={t.key} style={{ fontSize: 10, fontWeight: 900, color: FRV.teal }}>{t.label}</span>)}
+        {note && <span data-fr-ed="match-note" style={{ fontSize: 10.5, fontWeight: 800, color: FRV.sub }}>{note}</span>}
       </span>
       <span style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '2px 8px', marginTop: 5, alignItems: 'center' }}>
         <span style={{ fontSize: 13.5, fontWeight: winA ? 900 : 700, color: winA ? FRV.ink : FRV.sub, overflowWrap: 'anywhere', wordBreak: 'keep-all' }}>{m.teamA.join(' · ')}</span>
@@ -428,14 +469,27 @@ function MatchSummary({ m, recommended }: { m: EditorMatch; recommended: boolean
 }
 
 // ── STEP 4 — 미리보기 · 발행 ──────────────────────────────────────────────────────
-function StepPreview({ data, preview, busy, issues, needsReview, onRetry, confirmed, setConfirmed, goStep, published, report, onUnpublish }: {
-  data: EditorData; preview: FinalReportPublicPayload | null; busy: Busy; issues: ContentIssue[]; needsReview: boolean; onRetry: () => void;
+function StepPreview({ data, content, preview, busy, issues, needsReview, onRetry, confirmed, setConfirmed, goStep, published, report, onUnpublish }: {
+  data: EditorData; content: FinalReportContent; preview: FinalReportPublicPayload | null; busy: Busy; issues: ContentIssue[]; needsReview: boolean; onRetry: () => void;
   confirmed: boolean; setConfirmed: (b: boolean) => void; goStep: (n: number) => void;
   published: boolean; report: EditorData['report']; onUnpublish: () => void;
 }) {
   const stepOf = (field: string) => (field.startsWith('featured') ? 2 : 1);
+  const empty = emptyFields(content, data);
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      {preview && empty.length > 0 && (
+        <div data-fr-ed="empty-warning" style={{ ...card, borderColor: '#EDD9A8', background: '#FFFBF0' }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 900, color: '#6B5215', display: 'flex', gap: 6, alignItems: 'center' }}><AlertTriangle size={14} /> 비어 있는 문구가 있습니다(발행은 가능)</p>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12, fontWeight: 700, color: '#6B5215', lineHeight: 1.6 }}>
+            {empty.map((e) => (
+              <li key={e.label} data-fr-ed="empty-item">{e.label} — {e.fallback}{' '}
+                <button type="button" onClick={() => goStep(e.step)} style={{ border: 'none', background: 'none', padding: 0, color: FRV.navy, fontWeight: 900, textDecoration: 'underline', cursor: 'pointer' }}>쓰기</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {report && report.publicSlug && (report.status === 'published' || report.status === 'unpublished') && (
         <PublishCard data={data} report={report} published={published} onUnpublish={onUnpublish} busy={busy} />
       )}
@@ -533,7 +587,44 @@ function TextField({ id, label, max, value, onChange, placeholder, issues, hideL
   return plain ? <div>{inner}</div> : <section style={card}>{inner}</section>;
 }
 
+/**
+ * 제안 문구 적용 전 확인 — 운영진이 이미 쓴 문구(비어 있지 않고 제안과 다름)는 묻지 않고 덮어쓰지 않는다.
+ *   skip=true 면(이전 값도 제안 후보) 확인 없이 바꾼다.
+ */
+function confirmReplace(current: string, next: string, skip = false): boolean {
+  const cur = (current ?? '').trim();
+  if (!cur || cur === next.trim() || skip) return true;
+  return window.confirm('입력한 문구를 제안 문구로 바꿀까요? 지금 쓴 문구는 사라집니다.');
+}
+/** 제안 버튼(간결) + 제안 문구 미리보기(필요할 때만 펼침). */
+function Suggest({ id, label = '기록으로 문구 제안', text, onApply }: { id: string; label?: string; text: string; onApply: () => void }) {
+  return (
+    <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+      <button type="button" data-fr-ed={id} onClick={onApply} style={{ ...btn('ghost'), minHeight: 34, fontSize: 12, padding: '0 10px' }}>{label}</button>
+      <details data-fr-ed={`${id}-preview`} style={{ flex: 1, minWidth: 140 }}>
+        <summary style={{ listStyle: 'none', cursor: 'pointer', minHeight: 34, display: 'flex', alignItems: 'center', fontSize: 11.5, fontWeight: 800, color: FRV.muted }}>제안 문구 보기 ▾</summary>
+        <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: FRV.sub, lineHeight: 1.5, overflowWrap: 'anywhere', wordBreak: 'keep-all' }}>“{text}”</p>
+      </details>
+    </div>
+  );
+}
+
+/** 발행 전 경고(차단 아님): 비어 있는 운영진 문구와 공개 화면에서 대신 보일 내용. */
+function emptyFields(content: FinalReportContent, data: EditorData): Array<{ label: string; fallback: string; step: number }> {
+  const out: Array<{ label: string; fallback: string; step: number }> = [];
+  if (!(content.headline ?? '').trim()) out.push({ label: 'COVER 헤드라인', fallback: `자동 헤드라인 “${data.story?.autoHeadline ?? ''}” 표시`, step: 1 });
+  if (!content.opening.trim()) out.push({ label: '오프닝', fallback: '표시 안 함', step: 1 });
+  const top3 = data.standings.slice(0, 3);
+  const missing = top3.filter((s) => !storyText(content, s.key).trim()).length;
+  if (missing > 0) out.push({ label: `TOP3 스토리 ${missing}명`, fallback: '기록 한 줄로 표시', step: 1 });
+  if (content.featured == null) out.push({ label: '경기 리뷰', fallback: '기록 기준 추천 경기 · 기록 한 줄로 표시', step: 2 });
+  else if (content.featured.some((f) => !f.review.trim())) out.push({ label: `경기 리뷰 ${content.featured.filter((f) => !f.review.trim()).length}개`, fallback: '기록 한 줄로 표시', step: 2 });
+  if (!content.closing.trim()) out.push({ label: '마무리', fallback: '기본 문구로 표시', step: 1 });
+  return out;
+}
+
 function fieldLabel(field: string, data: EditorData): string {
+  if (field === 'headline') return 'COVER 헤드라인';
   if (field === 'opening') return '오프닝';
   if (field === 'closing') return '마무리';
   if (field.startsWith('stories.')) return `${field.slice(8)}위 스토리`;

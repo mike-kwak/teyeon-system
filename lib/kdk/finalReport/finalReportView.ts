@@ -3,6 +3,7 @@
 //   (재계산 · 재정렬 없음). 운영진 문구가 없으면 해당 자리를 비워 둔다(자동 문장 생성 없음).
 
 import type { FinalReportPublicPayload, PublicFeatured, PublicStanding } from './finalReportModel';
+import type { PublicHighlight } from './finalReportStory';
 
 /** Premium Sports Editorial — 표지 Dark Navy + Soft Gold, 본문 Cool Premium Light. */
 export const FRV = {
@@ -70,7 +71,7 @@ export function formatReportDate(date: string): string {
   return `${m[1]}. ${m[2]}. ${m[3]} (${'일월화수목금토'[d.getUTCDay()]})`;
 }
 
-export interface Chapter { id: 'podium' | 'review' | 'standings'; no: string; title: string; kicker: string }
+export interface Chapter { id: 'podium' | 'records' | 'review' | 'standings'; no: string; title: string; kicker: string }
 /** 챕터 목록 — 주요 경기가 없으면 MATCH REVIEW 를 빼고 번호를 이어 붙인다(빈 챕터 없음). */
 export function chaptersOf(p: FinalReportPublicPayload): Chapter[] {
   const list: Array<Omit<Chapter, 'no'>> = [
@@ -80,6 +81,58 @@ export function chaptersOf(p: FinalReportPublicPayload): Chapter[] {
   ];
   return list.map((c, i) => ({ ...c, no: String(i + 1).padStart(2, '0') }));
 }
+
+// ── v2(edition 2) 표시 규칙 ─────────────────────────────────────────────────────
+/** v2 챕터: THE PODIUM → THE RECORDS(기록 카드가 있을 때) → MATCH REVIEW(주요 경기가 있을 때) → FINAL STANDINGS. */
+export function chaptersOfV2(p: FinalReportPublicPayload): Chapter[] {
+  const list: Array<Omit<Chapter, 'no'>> = [
+    { id: 'podium', title: 'THE PODIUM', kicker: '공식 TOP 3' },
+    ...(recordsView(p).any ? [{ id: 'records' as const, title: 'THE RECORDS', kicker: '오늘의 기록' }] : []),
+    ...(p.featured.length ? [{ id: 'review' as const, title: 'MATCH REVIEW', kicker: p.featuredMode === 'manual' ? '운영진 선정 경기' : '기록 기준 추천 경기' }] : []),
+    { id: 'standings', title: 'FINAL STANDINGS', kicker: '공식 전체 순위' },
+  ];
+  return list.map((c, i) => ({ ...c, no: String(i + 1).padStart(2, '0') }));
+}
+/**
+ * v2.1 THE RECORDS 표시(공개본 하이라이트는 그대로 두고 화면에서만 고른다):
+ *   · 우승자 혼자 가진 기록(무패 우승 · 단독 최다승 · 단독 최고 득실)은 COVER · PODIUM 이 이미 보여 주므로 뺀다.
+ *   · 공동 기록 · 우승자가 아닌 선수의 단독 기록은 선수 기록 카드로.
+ *   · 경기 수 기록(1점 차 접전 · 완봉)은 한 영역(matchStats)으로 묶는다.
+ */
+export function recordsView(p: Pick<FinalReportPublicPayload, 'highlights' | 'podium'>): { players: PublicHighlight[]; matchStats: PublicHighlight[]; any: boolean } {
+  const champ = p.podium[0]?.name ?? '';
+  const all = p.highlights ?? [];
+  const soleChampion = (h: PublicHighlight) => !h.joint && h.names.length === 1 && h.names[0] === champ;
+  const players = all.filter((h) => (h.kind === 'UNBEATEN' || h.kind === 'MOST_WINS' || h.kind === 'BEST_DIFF') && !soleChampion(h));
+  const matchStats = all.filter((h) => h.kind === 'CLOSE_MATCHES' || h.kind === 'SHUTOUT');
+  return { players, matchStats, any: players.length + matchStats.length > 0 };
+}
+/** 주요 경기에 다 싣지 못한 1점 차 접전 수 안내(기록 근거만). 없으면 null. */
+export function closeSummary(p: Pick<FinalReportPublicPayload, 'highlights' | 'featured'>): string | null {
+  const total = (p.highlights ?? []).find((h) => h.kind === 'CLOSE_MATCHES')?.total ?? 0;
+  const shown = p.featured.filter((m) => Math.abs(m.score1 - m.score2) === 1).length;
+  return total > shown ? `이날 1점 차 접전은 모두 ${total}경기였습니다.` : null;
+}
+/** 배지 이름(공동이면 반드시 '공동'). 1위의 무패는 '무패 우승'. */
+export function badgeLabel(b: { kind: 'UNBEATEN' | 'MOST_WINS' | 'BEST_DIFF'; joint: boolean }, rank: number): string {
+  if (b.kind === 'UNBEATEN') return b.joint ? '공동 무패' : rank === 1 ? '무패 우승' : '무패';
+  if (b.kind === 'MOST_WINS') return b.joint ? '공동 최다승' : '최다승';
+  return b.joint ? '공동 최고 득실' : '최고 득실';
+}
+export const RESULT_LABEL: Record<'W' | 'L' | 'D', string> = { W: '승', L: '패', D: '무' };
+/** MATCH OF THE DAY 로 크게 보일 경기: 운영진 MATCH_OF_THE_DAY 태그 경기, 없으면 첫 경기. */
+export function heroIndex(featured: readonly PublicFeatured[]): number {
+  const i = featured.findIndex((m) => m.tags.includes('MATCH_OF_THE_DAY'));
+  return i >= 0 ? i : 0;
+}
+/** 리뷰가 없을 때의 기록 한 줄(점수에서 바로 확인되는 것만). */
+export function matchFallbackLine(m: Pick<PublicFeatured, 'score1' | 'score2' | 'note'>): string {
+  const hi = Math.max(m.score1, m.score2); const lo = Math.min(m.score1, m.score2);
+  if (m.note) return `${hi}:${lo} · ${m.note}`;
+  if (hi > lo && lo === 0) return `${hi}:${lo} · 완봉`;
+  return hi === lo ? `${hi}:${lo} 무승부` : `${hi}:${lo} · ${hi - lo}점 차 승부`;
+}
+export const CLOSING_DEFAULT = '다음 KDK 코트에서 다시 만나요.';
 
 /** 순위표에 조 정보가 하나라도 있으면 조 열을 보인다. */
 export const hasGroups = (rows: readonly PublicStanding[]): boolean => rows.some((r) => !!r.group);

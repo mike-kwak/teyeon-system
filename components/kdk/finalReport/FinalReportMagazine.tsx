@@ -5,6 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import FinalReportShareButtons from './FinalReportShareButtons';
+import FinalReportMagazineV2 from './FinalReportMagazineV2';
 import type { ShareData } from '@/lib/kdk/finalReport/finalReportShare';
 import type { FinalReportPublicPayload, PublicFeatured, PublicPodium, PublicStanding } from '@/lib/kdk/finalReport/finalReportModel';
 import {
@@ -12,8 +13,8 @@ import {
   matchMeta, matchWinner, tagList, type Chapter, type TagTone,
 } from '@/lib/kdk/finalReport/finalReportView';
 
-const wrap: React.CSSProperties = { width: '100%', maxWidth: 480, margin: '0 auto', boxSizing: 'border-box' };
-const text: React.CSSProperties = { overflowWrap: 'anywhere', wordBreak: 'keep-all' };
+export const wrap: React.CSSProperties = { width: '100%', maxWidth: 480, margin: '0 auto', boxSizing: 'border-box' };
+export const text: React.CSSProperties = { overflowWrap: 'anywhere', wordBreak: 'keep-all' };
 
 export interface FinalReportMagazineProps {
   payload: FinalReportPublicPayload;
@@ -24,6 +25,8 @@ export interface FinalReportMagazineProps {
 }
 
 export default function FinalReportMagazine({ payload, officialHref, share }: FinalReportMagazineProps) {
+  // v2 엔진으로 발행한 공개본(edition 2)만 SPORTS MAGAZINE v2 로 그린다. 기존 v1 공개본은 아래 화면 그대로.
+  if (payload.edition === 2) return <FinalReportMagazineV2 payload={payload} officialHref={officialHref} share={share ?? null} />;
   const chapters = chaptersOf(payload);
   const ch = (id: Chapter['id']) => chapters.find((c) => c.id === id) as Chapter;
   return (
@@ -121,7 +124,7 @@ function CoverStat({ label, value, unit, divider }: { label: string; value: stri
 }
 
 // ── CHAPTER 공통 ─────────────────────────────────────────────────────────────────
-function Section({ chapter, children }: { chapter: Chapter; children: React.ReactNode }) {
+export function Section({ chapter, children }: { chapter: Chapter; children: React.ReactNode }) {
   return (
     <section id={`fr-${chapter.id}`} data-fr={`chapter-${chapter.id}`} aria-labelledby={`fr-${chapter.id}-h`} style={{ paddingTop: 34, scrollMarginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -137,7 +140,7 @@ function Section({ chapter, children }: { chapter: Chapter; children: React.Reac
   );
 }
 
-function GroupChip({ group, onDark }: { group: string; onDark?: boolean }) {
+export function GroupChip({ group, onDark }: { group: string; onDark?: boolean }) {
   if (!group) return null;
   return (
     <span style={{
@@ -148,7 +151,7 @@ function GroupChip({ group, onDark }: { group: string; onDark?: boolean }) {
   );
 }
 
-function Stat({ label, value, onDark, strong }: { label: string; value: string; onDark?: boolean; strong?: boolean }) {
+export function Stat({ label, value, onDark, strong }: { label: string; value: string; onDark?: boolean; strong?: boolean }) {
   return (
     <div style={{ textAlign: 'center', minWidth: 0 }}>
       <div style={{ fontFamily: FRV_DISPLAY, fontSize: strong ? 28 : 21, fontWeight: 700, lineHeight: 1.1, color: onDark ? '#FFFFFF' : FRV.ink }}>{value}</div>
@@ -213,7 +216,7 @@ function PlaceCard({ p }: { p: PublicPodium }) {
 }
 
 // ── CHAPTER — MATCH REVIEW ───────────────────────────────────────────────────────
-const TONE: Record<TagTone, React.CSSProperties> = {
+export const TONE: Record<TagTone, React.CSSProperties> = {
   gold: { color: FRV.navyDeep, background: FRV.goldSoft, border: `1px solid ${FRV.gold}` },
   navy: { color: '#FFFFFF', background: FRV.navy, border: `1px solid ${FRV.navy}` },
   teal: { color: FRV.teal, background: FRV.tealWash, border: '1px solid rgba(14,143,132,0.25)' },
@@ -251,7 +254,7 @@ function MatchCard({ m }: { m: PublicFeatured }) {
     </article>
   );
 }
-function TeamRow({ names, score, state }: { names: [string, string]; score: number; state: 'win' | 'loss' | 'draw' }) {
+export function TeamRow({ names, score, state }: { names: [string, string]; score: number; state: 'win' | 'loss' | 'draw' }) {
   const win = state === 'win';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12, background: win ? '#F7F9FB' : 'transparent', border: `1px solid ${win ? FRV.line : FRV.lineSoft}` }}>
@@ -267,7 +270,7 @@ function TeamRow({ names, score, state }: { names: [string, string]; score: numb
 }
 
 // ── CHAPTER — FINAL STANDINGS ────────────────────────────────────────────────────
-function Standings({ rows }: { rows: PublicStanding[] }) {
+export function Standings({ rows }: { rows: PublicStanding[] }) {
   const groups = hasGroups(rows);
   const cols = groups ? '30px minmax(0, 1fr) 34px 52px 40px' : '30px minmax(0, 1fr) 52px 40px';
   const head: React.CSSProperties = { fontSize: 10.5, fontWeight: 800, letterSpacing: '0.08em', color: FRV.muted };
@@ -307,7 +310,11 @@ function Standings({ rows }: { rows: PublicStanding[] }) {
 }
 
 // ── CLOSING ─────────────────────────────────────────────────────────────────────
-function Closing({ payload, officialHref, share }: { payload: FinalReportPublicPayload; officialHref: string | null; share: ShareData | null }) {
+export function Closing({ payload, officialHref, share, defaultText }: {
+  payload: FinalReportPublicPayload; officialHref: string | null; share: ShareData | null;
+  /** v2: 운영진 총평이 없을 때 보일 짧은 기본 문구(v1 은 넘기지 않음 → 기존과 같이 비움). */
+  defaultText?: string;
+}) {
   return (
     <footer data-fr="closing" style={{
       marginTop: 40, width: '100%', color: FRV.onNavy, background: `linear-gradient(180deg, ${FRV.navy} 0%, ${FRV.navyDeep} 100%)`,
@@ -319,6 +326,9 @@ function Closing({ payload, officialHref, share }: { payload: FinalReportPublicP
         <h2 style={{ margin: '8px 0 0', fontFamily: FRV_SERIF, fontWeight: 700, fontSize: 28, lineHeight: 1.15, color: '#FFFFFF' }}>UNTIL NEXT MATCH</h2>
         {payload.closing && (
           <p data-fr="closing-text" style={{ ...text, margin: '14px auto 0', maxWidth: 360, fontFamily: FRV_SERIF, fontSize: 15.5, lineHeight: 1.62, color: FRV.onNavy }}>{payload.closing}</p>
+        )}
+        {!payload.closing && defaultText && (
+          <p data-fr="closing-default" style={{ ...text, margin: '14px auto 0', maxWidth: 360, fontFamily: FRV_SERIF, fontSize: 15, lineHeight: 1.62, color: FRV.onNavySub }}>{defaultText}</p>
         )}
         {officialHref && (
           <Link data-fr="official-link" href={officialHref} style={{
