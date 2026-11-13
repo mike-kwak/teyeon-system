@@ -33,7 +33,18 @@ export interface V41Story {
   rivalry: V41Rivalry | null;
   numbers: V41Number[];
   next: { date: string; startTime: string | null } | null;
+  /** V4.2 판형 표시(7장). 없으면 V4.1 판형(8장) — 기존 발행본은 이 값이 없다. */
+  layout?: 2;
+  /** V4.2 만: 운영진이 확정한 CLOSING 제목(본문은 공통 closing). */
+  closingTitle?: string | null;
 }
+/**
+ * V4.2 옵션(신규 발행본):
+ *   · RIVALRY 를 만들지 않는다(복식 결과를 개인 맞대결로 묶지 않음).
+ *   · 무실점 승리는 경기 단위 한 항목(같은 팀 두 명을 따로 특집하지 않음) · MATCH OF THE DAY 경기 제외.
+ *   · head = 핵심 한 문장, line = 짧은 근거(같은 사실을 두 번 쓰지 않음).
+ */
+export interface V41StoryOptions { layout?: 2; excludeMatchIds?: readonly string[] }
 
 export const V41_HEROES_MAX = 3;
 export const V41_MENTIONS_MAX = 3;
@@ -60,6 +71,24 @@ function gamesOf(model: FinalReportModel, key: string): PlayerGame[] {
   return out;
 }
 
+/**
+ * V4.2 자동 헤드라인: 01 THE CHAMPION 에서 헤드라인이 바로 위 큰 우승자 이름을 되풀이하지 않도록 이름을 뺀 같은 사실 문장으로.
+ *   운영진이 직접 쓴 헤드라인에는 쓰지 않는다(그대로 공개). 알 수 없는 형태면 참가 인원 문장으로.
+ */
+export function v42Headline(text: string, champName: string, participants: number): string {
+  const n = champName.trim();
+  if (!n || !text.includes(n)) return text;
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rules: Array<[RegExp, string]> = [
+    [new RegExp(`^(.+), ${esc}의 무패 우승$`), '$1, 무패 우승'],
+    [new RegExp(`^(.+) 정상에 오른 ${esc}$`), '$1 정상에 올랐습니다'],
+    [new RegExp(`^최다승과 최고 득실, 두 기록의 주인공 ${esc}$`), '최다승과 최고 득실, 두 기록을 모두 가졌습니다'],
+    [new RegExp(`^(.+), 오늘의 챔피언은 ${esc}$`), '$1 끝에 오른 정상'],
+  ];
+  for (const [re, to] of rules) if (re.test(text)) return text.replace(re, to);
+  return `${participants}명의 도전, 정상에 올랐습니다`;
+}
+
 export function computeVol(date: string, history: HistorySession[]): number | null {
   if (!DATE_RE.test(date)) return null;
   if (history.some((h) => !DATE_RE.test(h.date))) return null;
@@ -67,13 +96,15 @@ export function computeVol(date: string, history: HistorySession[]): number | nu
   return history.filter((h) => h.date <= date).length;
 }
 
-export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Story {
+export function buildV41Story(model: FinalReportModel, ctx: V41Context, opts: V41StoryOptions = {}): V41Story {
+  const v42 = opts.layout === 2;
+  const exclude = new Set(opts.excludeMatchIds ?? []);
   const podiumKeys = new Set(model.standings.slice(0, 3).map((s) => s.key));
   const nameOf = new Map(model.standings.map((s) => [s.key, s.name]));
   const guestOf = new Map(model.standings.map((s) => [s.key, s.guest]));
   const prior = ctx.history.filter((h) => !h.self && DATE_RE.test(h.date) && DATE_RE.test(ctx.date) && h.date < ctx.date);
 
-  type Cand = V41Hero & { key: string; rank: number };
+  type Cand = V41Hero & { key: string; rank: number; keys?: string[] };
   const cands: Cand[] = [];
   const mentions: Array<V41Mention & { key: string }> = [];
 
@@ -88,8 +119,8 @@ export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Stor
     const [first, ...rest] = gs;
     if (first.lost && rest.length >= 2 && rest.every((g) => g.won)) {
       cands.push({ key: s.key, rank: s.rank, kind: 'COMEBACK', title: 'THE COMEBACK', name: s.name, stat: `${rest.length}연승`,
-        head: `첫 경기 패배 뒤 남은 ${rest.length}경기를 모두 이겼습니다.`,
-        line: `${first.m.round}라운드 ${first.forS}:${first.againstS} 패배 이후 ${rest.length}경기 연속 승리.`, source: 'today' });
+        head: v42 ? `첫 경기를 내준 뒤, 남은 ${rest.length}경기를 모두 잡았습니다.` : `첫 경기 패배 뒤 남은 ${rest.length}경기를 모두 이겼습니다.`,
+        line: v42 ? `${first.m.round}라운드 ${first.forS}:${first.againstS}` : `${first.m.round}라운드 ${first.forS}:${first.againstS} 패배 이후 ${rest.length}경기 연속 승리.`, source: 'today' });
     }
   }
 
@@ -101,7 +132,7 @@ export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Stor
     const best = Math.max(...prevWins);
     if (s.wins > best) {
       cands.push({ key: s.key, rank: s.rank, kind: 'BREAKTHROUGH', title: 'BREAKTHROUGH', name: s.name, stat: `${s.wins}승`,
-        head: '공식 기록 개인 최다승을 새로 썼습니다.', line: `이전 공식 회차 최고 ${best}승 → 오늘 ${s.wins}승.`, source: 'archive' });
+        head: '공식 기록 개인 최다승을 새로 썼습니다.', line: v42 ? `이전 최고 ${best}승` : `이전 공식 회차 최고 ${best}승 → 오늘 ${s.wins}승.`, source: 'archive' });
     } else if (s.wins === best && s.wins > 0) {
       mentions.push({ key: s.key, name: s.name, line: `공식 기록 개인 최다승 타이(${s.wins}승)` });
     }
@@ -113,7 +144,7 @@ export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Stor
   const top = totals.filter((t) => t.total === maxTotal && maxTotal > 0);
   if (top.length === 1 && !podiumKeys.has(top[0].s.key)) {
     cands.push({ key: top[0].s.key, rank: top[0].s.rank, kind: 'MOST_GAMES', title: 'MOST GAMES', name: top[0].s.name, stat: `${maxTotal}게임`,
-      head: '오늘 가장 많은 게임을 따냈습니다.', line: `${top[0].played}경기에서 ${maxTotal}게임 획득.`, source: 'today' });
+      head: '오늘 가장 많은 게임을 따냈습니다.', line: v42 ? `${top[0].played}경기 합계` : `${top[0].played}경기에서 ${maxTotal}게임 획득.`, source: 'today' });
   }
 
   // SHUTOUT(무실점 승리 — 시상대 밖 승리 팀 선수)
@@ -121,6 +152,16 @@ export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Stor
     const winA = m.score1 > m.score2;
     const ws = winA ? m.score1 : m.score2; const ls = winA ? m.score2 : m.score1;
     if (!(ws > 0 && ls === 0)) continue;
+    if (v42) {
+      // 경기 단위 한 항목: 시상대 밖 승리 선수(1~2명)를 한 사례로 묶는다. MATCH OF THE DAY 경기는 제외(다른 장에서 반복 금지).
+      if (exclude.has(m.matchId)) continue;
+      const ks = (winA ? m.keysA : m.keysB).filter((k) => !podiumKeys.has(k) && nameOf.has(k));
+      if (!ks.length) continue;
+      const ss = ks.map((k) => model.standings.find((x) => x.key === k)!);
+      cands.push({ key: ks[0], keys: ks, rank: Math.min(...ss.map((x) => x.rank)), kind: 'SHUTOUT', title: 'CLEAN SHEET', name: ss.map((x) => x.name).join(' · ').slice(0, 40),
+        stat: `${ws}:0`, head: '상대에게 한 게임도 내주지 않았습니다.', line: m.round != null ? `${m.round}라운드` : '오늘 경기', source: 'today' });
+      continue;
+    }
     for (const k of winA ? m.keysA : m.keysB) {
       if (podiumKeys.has(k) || !nameOf.has(k)) continue;
       const roundTxt = m.round != null ? `${m.round}라운드 ` : '';
@@ -135,9 +176,15 @@ export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Stor
   cands.sort((a, b) => PRI[a.kind] - PRI[b.kind] || a.rank - b.rank);
   const heroes: V41Hero[] = []; const used = new Set<string>();
   for (const c of cands) {
-    if (used.has(c.key)) continue;
-    if (heroes.length < V41_HEROES_MAX) { heroes.push({ kind: c.kind, title: c.title, name: c.name, stat: c.stat, head: c.head, line: c.line, source: c.source }); used.add(c.key); }
-    else if (mentions.length < V41_MENTIONS_MAX + 3) { mentions.push({ key: c.key, name: c.name, line: c.line.replace(/\.$/, '') }); used.add(c.key); }
+    // V4.2 경기 단위 항목: 이미 다른 특집에 나온 선수는 빼고 남은 선수만(모두 나왔으면 생략).
+    const ks = (c.keys ?? [c.key]).filter((k) => !used.has(k));
+    if (!ks.length) continue;
+    if (c.keys && ks.length !== c.keys.length) c.name = ks.map((k) => nameOf.get(k) ?? '').join(' · ').slice(0, 40);
+    if (heroes.length < V41_HEROES_MAX) { heroes.push({ kind: c.kind, title: c.title, name: c.name, stat: c.stat, head: c.head, line: c.line, source: c.source }); ks.forEach((k) => used.add(k)); }
+    else if (mentions.length < V41_MENTIONS_MAX + 3) {
+      // V4.2: 짧은 근거(line)만으로는 뜻이 약하므로 핵심 문장(head)을 쓴다.
+      mentions.push({ key: c.key, name: c.name, line: (v42 ? c.head : c.line).replace(/\.$/, '') }); ks.forEach((k) => used.add(k));
+    }
   }
   const mentionOut = mentions.filter((m, i, arr) => !heroes.some((h) => h.name === m.name) && arr.findIndex((x) => x.key === m.key) === i)
     .slice(0, V41_MENTIONS_MAX).map(({ name, line }) => ({ name, line }));
@@ -145,8 +192,9 @@ export function buildV41Story(model: FinalReportModel, ctx: V41Context): V41Stor
   return {
     vol: computeVol(ctx.date, ctx.history),
     heroes, mentions: mentionOut,
-    rivalry: buildRivalry(model, prior, nameOf, guestOf),
-    numbers: buildNumbers(model),
+    rivalry: v42 ? null : buildRivalry(model, prior, nameOf, guestOf),
+    numbers: buildNumbers(model, v42),
+    ...(v42 ? { layout: 2 as const } : {}),
     // 취소 여부를 신뢰할 수 없는 일정은 확정된 다음 경기처럼 공개하지 않는다(화면은 '클럽 일정 보기' 링크로 대체).
     next: ctx.nextReliable === true && ctx.next && DATE_RE.test(ctx.next.date) ? { date: ctx.next.date, startTime: ctx.next.startTime && /^\d{2}:\d{2}$/.test(ctx.next.startTime) ? ctx.next.startTime : null } : null,
   };
@@ -198,15 +246,17 @@ function buildRivalry(model: FinalReportModel, prior: HistorySession[], nameOf: 
   return pub;
 }
 
-function buildNumbers(model: FinalReportModel): V41Number[] {
+function buildNumbers(model: FinalReportModel, v42 = false): V41Number[] {
   const rounds = new Set(model.matches.map((m) => m.round).filter((r): r is number => r != null));
   const onePoint = model.matches.filter((m) => Math.abs(m.score1 - m.score2) === 1).length;
   const shutouts = model.matches.filter((m) => Math.min(m.score1, m.score2) === 0 && Math.max(m.score1, m.score2) > 0).length;
   const guests = model.standings.filter((s) => s.guest).length;
   return [
     { kind: 'MATCHES', value: model.completedMatchCount, label: '경기', sub: `${model.participantCount}명${rounds.size ? ` · ${rounds.size}라운드` : ''}` },
-    { kind: 'ONE_POINT', value: onePoint, label: '1점 차 승부', sub: '마지막 게임까지 간 경기' },
-    { kind: 'SHUTOUTS', value: shutouts, label: '무실점 승리', sub: '상대에게 게임을 내주지 않은 경기' },
+    v42 ? { kind: 'ONE_POINT', value: onePoint, label: '1점 차 승부', sub: '1게임 차로 끝난 경기' }
+      : { kind: 'ONE_POINT', value: onePoint, label: '1점 차 승부', sub: '마지막 게임까지 간 경기' },
+    v42 ? { kind: 'SHUTOUTS', value: shutouts, label: '무실점 승리', sub: '한 게임도 내주지 않은 경기' }
+      : { kind: 'SHUTOUTS', value: shutouts, label: '무실점 승리', sub: '상대에게 게임을 내주지 않은 경기' },
     { kind: 'GUESTS', value: guests, label: '게스트', sub: '함께한 게스트' },
   ];
 }

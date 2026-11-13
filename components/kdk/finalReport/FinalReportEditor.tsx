@@ -15,7 +15,7 @@ import { CONFLICT_REASONS, frFailText, postFinalReportAction } from './finalRepo
 import FinalReportShareButtons from './FinalReportShareButtons';
 import { shareDataOf } from '@/lib/kdk/finalReport/finalReportShare';
 import {
-  EMPTY_CONTENT, contentIssueText, type ContentIssue, type FinalReportContent, type FinalReportPublicPayload, type OperatorTag,
+  EMPTY_CONTENT, FR_CLOSING_TITLE_MAX, FR_CLOSING_V42_MAX, contentIssueText, type ContentIssue, type FinalReportContent, type FinalReportPublicPayload, type OperatorTag,
 } from '@/lib/kdk/finalReport/finalReportModel';
 import {
   FEATURED_STATE_TEXT, FR_LIMITS, STORY_STATE_TEXT, contentKey, reanchorEditor, reconcileEditor, removeFeatured, removeStory,
@@ -23,6 +23,7 @@ import {
 } from '@/lib/kdk/finalReport/finalReportEditor';
 import { FRV, badgeLabel, formatDiff, groupLabel, matchMeta, tagList } from '@/lib/kdk/finalReport/finalReportView';
 import { finalReportSharePath, finalReportShareUrl } from '@/lib/kdk/finalReportPublicService';
+import { CLOSING_MEMO_MAX, draftClosing } from '@/lib/kdk/finalReport/v41/closingDraft';
 
 const LINE = '#E1E7EE';
 const STEPS = ['공식 기록', 'TOP3 스토리', '주요 경기', '미리보기 · 발행'] as const;
@@ -342,6 +343,7 @@ function StepStories({ data, content, setContent, issues }: { data: EditorData; 
   const isCandidate = (v: string) => !!st?.headlines.some((h) => h.text === v.trim());
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      {v42Of(data) && <Hint>V4.2 첫 장(THE CHAMPION)에는 헤드라인 한 줄과 1~3위 기록만 보입니다. 아래 1~3위 스토리는 저장 · 보존되지만 V4.2 화면에는 표시되지 않습니다.</Hint>}
       <Hint>비워 둔 자리는 공식 기록 한 줄 · 기본 문구로 표시됩니다. 제안 문구는 기록으로 만든 초안이니 확인 · 수정한 뒤 쓰고, 기록으로 확인되지 않는 내용은 쓰지 말아 주세요.</Hint>
       <section style={card} data-fr-ed="headline">
         <TextField id="headline" label="COVER 헤드라인" max={FR_LIMITS.headline} value={headline} placeholder={st?.autoHeadline || '예) 4전 전승, ○○의 무패 우승'}
@@ -388,9 +390,96 @@ function StepStories({ data, content, setContent, issues }: { data: EditorData; 
           </section>
         );
       })}
-      <TextField id="closing" label="마무리" max={FR_LIMITS.closing} value={content.closing} placeholder="예) 다음 정모에서 만나요."
-        onChange={(v) => setContent({ ...content, closing: v })} issues={issues.filter((x) => x.field === 'closing')} />
+      {v42Of(data) ? (
+        <ClosingComposer data={data} content={content} setContent={setContent} issues={issues} />
+      ) : (
+        <TextField id="closing" label="마무리" max={FR_LIMITS.closing} value={content.closing} placeholder="예) 다음 정모에서 만나요."
+          onChange={(v) => setContent({ ...content, closing: v })} issues={issues.filter((x) => x.field === 'closing')} />
+      )}
     </div>
+  );
+}
+
+type V41EditorInfo = { enabled: boolean; layout?: number; republish?: { prevLayout: 1 | 2 | null } | null; vol?: number | null; next?: { date: string; startTime: string | null } | null;
+  nextCandidate?: { date: string; startTime: string | null } | null; settlementMode?: string; settlementLiveFrom?: string | null };
+const v41Of = (data: EditorData): V41EditorInfo | undefined => (data as unknown as { v41?: V41EditorInfo }).v41;
+/** 이 리포트를 발행하면 V4.2 판형(7장)이 되는지(서버 편집 맥락 기준). */
+const v42Of = (data: EditorData): boolean => !!v41Of(data)?.enabled && v41Of(data)?.layout === 2;
+/** 이미 발행된 V4.1(8장) 리포트를 재발행하면 V4.2(7장)로 바뀌는지 — 'v41' 확실 · 'maybe' 이전 판 판형 확인 불가(비공개 · 정정) · null 해당 없음. */
+const republishToV42 = (data: EditorData): 'v41' | 'maybe' | null => {
+  const r = v42Of(data) ? v41Of(data)?.republish : null;
+  return !r ? null : r.prevLayout === 1 ? 'v41' : r.prevLayout === null ? 'maybe' : null;
+};
+function RepublishLayoutNote({ data }: { data: EditorData }) {
+  const k = republishToV42(data);
+  if (!k) return null;
+  return (
+    <div role="note" data-fr-ed="v42-republish-note" data-kind={k} style={{ ...card, borderColor: '#EDD9A8', background: '#FBF3DF' }}>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#6B5215', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+        {k === 'v41' ? '재발행하면 판형이 V4.1(8장) → V4.2(7장)로 바뀝니다' : '이전 판이 V4.1(8장)이었다면 재발행 시 V4.2(7장)로 바뀝니다'}
+      </p>
+      <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 600, color: '#6B5215', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+        {k === 'v41' ? '지금 공개 중인 판은 V4.1(8장) 판형입니다. ' : '이 리포트는 지금 공개 상태가 아니어서 이전 판의 판형을 확인할 수 없습니다. '}
+        새 판에서는 표지와 시상대가 한 장(THE CHAMPION)으로 합쳐지고 RIVALRY 장이 빠지며, 마무리 문구 형식이 바뀝니다. 공유 링크는 그대로이고 판 번호만 올라갑니다. 이전 판과 정산 스냅샷은 이력에 그대로 보존됩니다.
+      </p>
+    </div>
+  );
+}
+
+// ── V4.2 CLOSING — 운영진 메모 → 자동 초안(규칙 기반) → 직접 수정 → 미리보기 · 발행 ─────────────────
+//   · 외부 AI 를 쓰지 않는다(메모의 단어로 문장을 맞추는 규칙 기반 초안). 메모는 저장 · 발행하지 않는다.
+//   · 날짜 · 시간 · 장소는 메모에 적힌 것 또는 확정된 다음 정모만. 초안은 입력칸에 넣기 전 미리 보고, 넣은 뒤에도 자유롭게 고친다.
+function ClosingComposer({ data, content, setContent, issues }: { data: EditorData; content: FinalReportContent; setContent: (c: FinalReportContent) => void; issues: ContentIssue[] }) {
+  const [memo, setMemo] = useState('');
+  const [variant, setVariant] = useState(0);
+  const [draft, setDraft] = useState<ReturnType<typeof draftClosing> | null>(null);
+  const confirmedNext = v41Of(data)?.next ?? null;
+  const make = (nextVariant: number) => {
+    setVariant(nextVariant);
+    setDraft(draftClosing({ memo, confirmedNext, variant: nextVariant }));
+  };
+  const apply = () => {
+    if (!draft) return;
+    const cur = `${content.closingTitle ?? ''}${content.closing}`.trim();
+    if (cur && !window.confirm('입력한 제목 · 본문을 초안으로 바꿀까요? 지금 쓴 문구는 사라집니다.')) return;
+    setContent({ ...content, closingTitle: draft.title, closing: draft.body });
+  };
+  return (
+    <section style={card} data-fr-ed="closing-composer">
+      <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 900, color: FRV.ink }}>CLOSING · 운영진 한마디</p>
+      <Hint>핵심 메모만 적으면 제목 · 짧은 본문 초안을 만들어 드립니다. 메모에 쓴 단어로 문장을 맞추는 자동 초안이며(AI 아님), 메모에 없는 날짜 · 시간 · 장소는 넣지 않습니다. 메모는 저장되지 않습니다.</Hint>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '10px 0 6px' }}>
+        <label htmlFor="fr-closing-memo" style={{ fontSize: 12.5, fontWeight: 900, color: FRV.ink }}>핵심 메모</label>
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: FRV.muted }}>{[...memo].length}/{CLOSING_MEMO_MAX}</span>
+      </div>
+      <textarea id="fr-closing-memo" data-fr-ed="closing-memo" value={memo} maxLength={CLOSING_MEMO_MAX} rows={2} placeholder="예) 다음 주 화요일 7시 정모, 참석 체크 부탁, 오늘 다들 고생"
+        onChange={(e) => setMemo(e.target.value.slice(0, CLOSING_MEMO_MAX))}
+        style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: 56, padding: '10px 12px', borderRadius: 12, border: `1px solid ${LINE}`, background: '#FFFFFF', color: FRV.ink, fontSize: 16, lineHeight: 1.5, fontFamily: 'inherit' }} />
+      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        <button type="button" data-fr-ed="closing-draft" onClick={() => make(0)} style={{ ...btn('secondary'), minHeight: 38, fontSize: 12.5 }}>초안 만들기</button>
+        {draft && <button type="button" data-fr-ed="closing-regen" onClick={() => make(variant + 1)} style={{ ...btn('ghost'), minHeight: 38, fontSize: 12.5 }}>다른 표현으로 다시</button>}
+      </div>
+      {draft && (
+        <div data-fr-ed="closing-draft-preview" style={{ marginTop: 10, padding: '10px 12px', borderRadius: 12, background: FRV.goldWash, border: `1px solid ${FRV.gold}` }}>
+          <p style={{ ...sectionLabel, marginBottom: 4 }}>자동 초안 — 확인 후 넣기</p>
+          <p data-fr-ed="closing-draft-title" style={{ margin: 0, fontSize: 14, fontWeight: 900, color: FRV.ink, lineHeight: 1.4, wordBreak: 'keep-all' }}>{draft.title}</p>
+          <p data-fr-ed="closing-draft-body" style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 600, color: FRV.sub, lineHeight: 1.55, wordBreak: 'keep-all' }}>{draft.body}</p>
+          {draft.notes.map((n, i) => <p key={i} data-fr-ed="closing-draft-note" style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 700, color: '#7A521E', wordBreak: 'keep-all' }}>· {n}</p>)}
+          <button type="button" data-fr-ed="closing-apply" onClick={apply} style={{ ...btn('gold'), minHeight: 38, fontSize: 12.5, marginTop: 8 }}>이 초안을 입력칸에 넣기</button>
+        </div>
+      )}
+      <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+        <TextField id="closingTitle" label="제목" max={FR_CLOSING_TITLE_MAX} value={content.closingTitle ?? ''} placeholder="예) 오늘의 승부는 끝, 우리의 테니스는 계속됩니다."
+          onChange={(v) => setContent({ ...content, closingTitle: v })} issues={issues.filter((x) => x.field === 'closingTitle')} plain />
+        <TextField id="closing" label="본문(2~3문장)" max={FR_CLOSING_V42_MAX} value={content.closing} placeholder="예) 함께 뛰어준 모든 분들, 수고 많으셨습니다."
+          onChange={(v) => setContent({ ...content, closing: v })} issues={issues.filter((x) => x.field === 'closing')} plain />
+      </div>
+      {confirmedNext && (
+        <p data-fr-ed="closing-next-note" style={{ margin: '8px 0 0', fontSize: 11.5, fontWeight: 600, color: FRV.muted, lineHeight: 1.5, wordBreak: 'keep-all' }}>
+          CLOSING 아래 NEXT KDK 줄은 등록된 일정({confirmedNext.date}{confirmedNext.startTime ? ` ${confirmedNext.startTime}` : ''})으로 따로 표시됩니다. 본문에 일정을 쓰면 같은지 확인해 주세요.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -516,6 +605,7 @@ function StepPreview({ data, content, preview, busy, issues, needsReview, onRetr
       {preview && (
         <>
           <p style={{ ...sectionLabel, margin: 0 }}>모바일 미리보기 — 실제 공개 화면과 같은 데이터 · 같은 화면</p>
+          <RepublishLayoutNote data={data} />
           <V41Info data={data} />
           <div data-fr-ed="preview" style={{ borderRadius: 18, overflow: 'hidden', border: `1px solid ${LINE}`, boxShadow: '0 8px 24px rgba(18,35,58,0.10)', background: FRV.bg }}>
             <FinalReportMagazine payload={preview} officialHref={null} />
@@ -524,6 +614,7 @@ function StepPreview({ data, content, preview, busy, issues, needsReview, onRetr
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: FRV.navy }} />
             <span style={{ fontSize: 13, fontWeight: 800, color: FRV.ink, lineHeight: 1.5, wordBreak: 'keep-all' }}>
               공식 기록과 문구를 확인했습니다. 이 내용으로 {report && report.revision > 0 ? '재발행' : '공개'}합니다.
+              {republishToV42(data) && <span data-fr-ed="confirm-layout"> 새 판이 V4.2(7장) 판형으로 바뀌는 것도 확인했습니다.</span>}
               <span data-fr-ed="manual-note" style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: FRV.muted }}>공식 기록을 확인한 뒤 운영진이 직접 발행합니다(자동 · 예약 발행 없음). 링크를 받은 누구나 볼 수 있습니다(검색 노출 없음).</span>
             </span>
           </label>
@@ -627,7 +718,7 @@ function emptyFields(content: FinalReportContent, data: EditorData): Array<{ lab
 /** V4.1(edition 3) 발행 안내 — 공개 정보만(VOL · 다음 정모 · 정산 모드). 정산 금액 · 명단은 편집기에 보이지 않는다. */
 function V41Info({ data }: { data: EditorData }) {
   type Next = { date: string; startTime: string | null } | null;
-  const v = (data as unknown as { v41?: { enabled: boolean; vol?: number | null; next?: Next; nextCandidate?: Next; settlementMode?: string; settlementLiveFrom?: string | null } }).v41;
+  const v = (data as unknown as { v41?: { enabled: boolean; layout?: number; vol?: number | null; next?: Next; nextCandidate?: Next; settlementMode?: string; settlementLiveFrom?: string | null } }).v41;
   if (!v || !v.enabled) return null;
   const mode: Record<string, string> = {
     live: '발행 시점 정산을 회원 전용 스냅샷으로 저장합니다(납부 · 미납 확정 · 확인 중).',
@@ -638,7 +729,7 @@ function V41Info({ data }: { data: EditorData }) {
   const fmt = (n: Next) => (n ? `${n.date}${n.startTime ? ` ${n.startTime}` : ''}` : '');
   return (
     <div data-fr-ed="v41-info" style={{ border: `1px solid ${LINE}`, borderRadius: 14, padding: '10px 12px', background: '#FFFFFF', fontSize: 12.5, fontWeight: 700, color: FRV.ink, lineHeight: 1.6, wordBreak: 'keep-all' }}>
-      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.16em', color: FRV.goldInk }}>V4.1 매거진 · 8장</div>
+      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.16em', color: FRV.goldInk }}>{v.layout === 2 ? 'V4.2 매거진 · 7장(기록 장이 없으면 5~6장)' : 'V4.1 매거진 · 8장'}</div>
       <div>VOL: {v.vol != null ? String(v.vol).padStart(2, '0') : '표시 보류(회차를 확정할 수 없음)'}</div>
       <div data-fr-ed="v41-next">NEXT KDK: {v.next ? `${fmt(v.next)} 정모` : v.nextCandidate ? `날짜 대신 '클럽 일정에서 확인' 링크로 표시 — 등록된 다음 정모 ${fmt(v.nextCandidate)}는 취소 여부를 확인할 수 없음` : "'클럽 일정에서 확인' 링크로 표시(등록된 다음 정모 없음)"}</div>
       <div data-fr-ed="v41-settlement">정산: {mode[v.settlementMode || ''] ?? mode.live}{v.settlementLiveFrom ? ` (공개 기준일 ${v.settlementLiveFrom})` : ''}</div>
@@ -650,6 +741,7 @@ function fieldLabel(field: string, data: EditorData): string {
   if (field === 'headline') return 'COVER 헤드라인';
   if (field === 'opening') return '오프닝';
   if (field === 'closing') return '마무리';
+  if (field === 'closingTitle') return '마무리 제목';
   if (field.startsWith('stories.')) return `${field.slice(8)}위 스토리`;
   if (field.startsWith('featured.')) { const m = data.matches.find((x) => x.matchId === field.slice(9)); return m ? `리뷰(${matchMeta(m)})` : '경기 리뷰'; }
   return field;

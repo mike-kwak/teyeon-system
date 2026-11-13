@@ -3,6 +3,8 @@
 import type { HeroKind, NumberKind, V41Story } from './storyV41';
 
 export type V41Public = V41Story;
+/** V4.2 CLOSING 제목 최대 길이(본문은 FR_CLOSING_MAX). */
+export const V41_CLOSING_TITLE_MAX = 30;
 
 // ── 공개 응답 파서(allow-list) ───────────────────────────────────────────────
 const s = (v: unknown, n: number): string => (typeof v === 'string' ? v.slice(0, n) : '');
@@ -43,5 +45,8 @@ export function parseV41Public(v: unknown): V41Public | null {
   const nx = o.next as Record<string, unknown> | null;
   const next = nx && typeof nx === 'object' && DATE_RE.test(s(nx.date, 10))
     ? { date: s(nx.date, 10), startTime: /^\d{2}:\d{2}$/.test(s(nx.startTime, 5)) ? s(nx.startTime, 5) : null } : null;
-  return { vol: int(o.vol, 1, 9999), heroes, mentions, rivalry, numbers, next };
+  // V4.2: layout=2 일 때만 7장 판형 · CLOSING 제목. 값이 없으면(기존 발행본) V4.1 8장 판형 그대로.
+  const v42 = o.layout === 2;
+  return { vol: int(o.vol, 1, 9999), heroes, mentions, rivalry: v42 ? null : rivalry, numbers, next,
+    ...(v42 ? { layout: 2 as const, closingTitle: s(o.closingTitle, V41_CLOSING_TITLE_MAX) || null } : {}) };
 }

@@ -20,13 +20,14 @@
 //     · 정산 내용은 편집기 응답에 넣지 않는다(KDK 관리자 ≠ 정산 열람 권한). 모드(레거시 · 실시간 등)만 알린다.
 
 import {
-  EMPTY_CONTENT, buildFinalReportModel, buildFinalReportPayload, parseFinalReportContent, reanchorContent, reconcileContent,
+  EMPTY_CONTENT, FR_CLOSING_MAX, buildFinalReportModel, buildFinalReportPayload, parseFinalReportContent, reanchorContent, reconcileContent,
   type FinalReportContent, type FinalReportModel, type FinalReportSource,
 } from '../finalReport/finalReportModel';
 import { EMPTY_EPOCH, toEditorData, type EditorReport } from '../finalReport/finalReportEditor';
 import { buildFinalReportPayloadV41 } from '../finalReport/v41/payloadV41';
-import { buildV41Story, type V41Context } from '../finalReport/v41/storyV41';
+import { buildV41Story, v42Headline, type V41Context } from '../finalReport/v41/storyV41';
 import { buildSettlementSnapshot, settlementModeFor, type SettlementSource } from '../finalReport/v41/settlementSnapshot';
+import { fetchPublicFinalReport } from '../finalReportPublicService';
 
 export type RpcResult = { ok: true; data: any } | { ok: false; status: number; code: string };
 
@@ -91,7 +92,23 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
     const v41 = await loadV41(deps, sessionId, userId, report);
     if ('error' in v41) return v41.error;
     const data = toEditorData(model, { id: sessionId, signature, report: editorReport(report, signature), content, contentReset: !parsed.ok });
-    return { status: 200, body: { ok: true, data: { ...data, v41: v41Info(model, v41.ctx) } } };
+    // V4.2: 편집기의 자동 헤드라인 · 후보도 공개본과 같은 규칙(우승자 이름을 01 장에서 되풀이하지 않음).
+    const champ = model.standings[0]?.name ?? '';
+    const story = v41.ctx && data.story ? { ...data.story, autoHeadline: v42Headline(data.story.autoHeadline, champ, model.participantCount),
+      headlines: data.story.headlines.map((h) => ({ ...h, text: v42Headline(h.text, champ, model.participantCount) })) } : data.story;
+    // 재발행 안내(표시만 · 발행 동작 무변경): 이미 V4.1(edition 3)로 발행된 리포트는 재발행하면 V4.2 판형이 된다.
+    //   현재 공개본의 판형은 공개 조회(anon)로만 확인한다. 비공개 · 정정 상태면 알 수 없음(null).
+    let republish: { prevLayout: 1 | 2 | null } | null = null;
+    if (v41.ctx && report && report.revision >= 1) {
+      let prev: 1 | 2 | null = null;
+      if (report.status === 'published') {
+        const pub = await fetchPublicFinalReport(report.publicSlug).catch(() => null);
+        if (pub && pub.state === 'ok') prev = pub.payload.v41?.layout === 2 ? 2 : 1;
+      }
+      republish = { prevLayout: prev };
+    }
+    const info = v41Info(model, v41.ctx);
+    return { status: 200, body: { ok: true, data: { ...data, story, v41: info.enabled ? { ...info, republish } : info } } };
   }
 
   // 이하: 요청 문구 형식 검증 + 이 세션의 선수 · 경기에만 연결 가능
@@ -117,6 +134,8 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
       if (!p3.ok) return { status: 200, body: { ok: false, reason: p3.reason, issues: (p3 as any).issues ?? [], reconcile: (p3 as any).reconciled ?? null } };
       return { status: 200, body: { ok: true, payload: p3.payload, signature, officialSessionId: sessionId, v41: v41Info(model, v41.ctx) } };
     }
+    // 기존 판형(v1 · v2) 경로: 마무리는 예전 한도(60자) 그대로 — 90자는 V4.2 만.
+    if ([...content.closing].length > FR_CLOSING_MAX) return fail(400, 'content_too_long', { field: 'closing' });
     const p = buildFinalReportPayload(model, content);
     if (!p.ok) return { status: 200, body: { ok: false, reason: p.reason, issues: p.issues ?? [], reconcile: p.reconciled ?? null } };
     return { status: 200, body: { ok: true, payload: p.payload, signature, officialSessionId: sessionId } };
@@ -147,6 +166,7 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
     if (r3.data?.ok !== true) return dbReason(r3.data);
     return { status: 200, body: { ok: true, reason: 'published', publicSlug: String(r3.data.publicSlug), revision: Number(r3.data.revision), updatedAt: r3.data.updatedAt ?? null, edition: 3, settlementMode: settlement.mode } };
   }
+  if ([...content.closing].length > FR_CLOSING_MAX) return fail(400, 'content_too_long', { field: 'closing' });
   const p = buildFinalReportPayload(model, content);
   if (!p.ok) return fail(409, p.reason, { issues: p.issues ?? [], reconcile: p.reconciled ?? null });
   const saved = await save(deps, sessionId, userId, content, report, expectedUpdatedAt);
@@ -191,10 +211,10 @@ async function loadV41(deps: FinalReportDeps, sessionId: string, userId: string,
 /** 편집기 표시용(공개 정보만 · 정산 금액 · 명단 없음). */
 function v41Info(model: FinalReportModel, ctx: V41Ctx | null) {
   if (!ctx) return { enabled: false };
-  const st = buildV41Story(model, ctx);
+  const st = buildV41Story(model, ctx, { layout: 2 });
   // nextCandidate: 편집기 참고용(취소 여부 미확인 — 공개본에는 nextReliable 일 때만 들어감)
   return { enabled: true, vol: st.vol, next: st.next, nextCandidate: ctx.next && !st.next ? ctx.next : null, settlementMode: ctx.settlementMode,
-    settlementLiveFrom: ctx.settlementLiveFrom, rivalry: !!st.rivalry, heroes: st.heroes.length };
+    settlementLiveFrom: ctx.settlementLiveFrom, rivalry: !!st.rivalry, heroes: st.heroes.length, layout: 2 };
 }
 
 interface ReportRow { status: EditorReport['status']; publicSlug: string; revision: number; content: unknown; sourceSignature: string | null; updatedAt: string | null; publishedAt: string | null }

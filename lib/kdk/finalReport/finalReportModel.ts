@@ -22,6 +22,10 @@ export const FR_OPENING_MAX = 60;
 export const FR_STORY_MAX = 80;
 export const FR_REVIEW_MAX = 100;
 export const FR_CLOSING_MAX = 60;
+/** V4.2 CLOSING 본문(2~3문장 · 일정 정보가 빠지지 않을 만큼). 기존 판형(v1 · v2) 발행 경로는 서버가 FR_CLOSING_MAX 로 따로 막는다. */
+export const FR_CLOSING_V42_MAX = 90;
+/** V4.2 CLOSING 제목(선택). v41/publicV41 의 V41_CLOSING_TITLE_MAX 와 같은 값. */
+export const FR_CLOSING_TITLE_MAX = 30;
 export const FR_FEATURED_MAX = 4;
 export const FR_PODIUM = 3;
 export { FR_HEADLINE_MAX };
@@ -244,6 +248,8 @@ export interface FinalReportContent {
   headline?: string;
   opening: string;
   closing: string;
+  /** V4.2 · 선택: CLOSING 제목(운영진 확정 문구). 예전 content 에는 없다. */
+  closingTitle?: string;
   stories: StoryInput[];
   /** null = 운영진이 고르지 않음(기본 추천 사용) · [] = 주요 경기 없이 발행. */
   featured: FeaturedInput[] | null;
@@ -264,8 +270,9 @@ export function parseFinalReportContent(v: unknown): { ok: true; content: FinalR
   if (!v || typeof v !== 'object') return { ok: false, reason: 'invalid', field: 'content' };
   const o = v as Record<string, unknown>;
   const opening = cleanText(o.opening, FR_OPENING_MAX); if (!opening.ok) return { ok: false, reason: opening.reason, field: 'opening' };
-  const closing = cleanText(o.closing, FR_CLOSING_MAX); if (!closing.ok) return { ok: false, reason: closing.reason, field: 'closing' };
+  const closing = cleanText(o.closing, FR_CLOSING_V42_MAX); if (!closing.ok) return { ok: false, reason: closing.reason, field: 'closing' };
   const headline = cleanText(o.headline, FR_HEADLINE_MAX); if (!headline.ok) return { ok: false, reason: headline.reason, field: 'headline' };
+  const closingTitle = cleanText(o.closingTitle, FR_CLOSING_TITLE_MAX); if (!closingTitle.ok) return { ok: false, reason: closingTitle.reason, field: 'closingTitle' };
   const stories: StoryInput[] = [];
   const rawStories = o.stories == null ? [] : o.stories;
   if (!Array.isArray(rawStories)) return { ok: false, reason: 'invalid', field: 'stories' };
@@ -300,7 +307,7 @@ export function parseFinalReportContent(v: unknown): { ok: true; content: FinalR
     }
   }
   // headline 은 값이 있을 때만 넣는다 — 예전 content 와 같은 모양 유지.
-  return { ok: true, content: { schema: 1, ...(headline.text ? { headline: headline.text } : {}), opening: opening.text, closing: closing.text, stories, featured } };
+  return { ok: true, content: { schema: 1, ...(headline.text ? { headline: headline.text } : {}), opening: opening.text, closing: closing.text, ...(closingTitle.text ? { closingTitle: closingTitle.text } : {}), stories, featured } };
 }
 
 // ── 4) 정정 대응: 운영진 입력 ↔ 현재 공식 기록 대조(문구는 지우지 않는다) ─────────────────────
@@ -355,6 +362,7 @@ export function validateContentTexts(content: FinalReportContent, model: FinalRe
   check('headline', content.headline ?? '', model.allNames);
   check('opening', content.opening, model.allNames);
   check('closing', content.closing, model.allNames);
+  check('closingTitle', content.closingTitle ?? '', model.allNames);
   for (const s of content.stories) {
     const cur = byKey.get(s.playerKey);
     check(`stories.${s.rank}`, s.text, cur ? [baseName(cur.name)] : []);
@@ -487,7 +495,7 @@ export function parsePublicFinalReport(v: unknown): FinalReportPublicPayload | n
       featuredMode: o.featuredMode === 'manual' ? 'manual' as const : 'auto' as const } : {}),
     session: { title: s(ss.title, 80), date: s(ss.date, 20), officialConfirmed: true,
       participantCount: i(ss.participantCount) ?? standings.length, matchCount: i(ss.matchCount) ?? 0 },
-    opening: s(o.opening, FR_OPENING_MAX) || null, closing: s(o.closing, FR_CLOSING_MAX) || null,
+    opening: s(o.opening, FR_OPENING_MAX) || null, closing: s(o.closing, FR_CLOSING_V42_MAX) || null,
     podium, featured, standings,
   };
 }

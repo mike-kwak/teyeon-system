@@ -159,7 +159,7 @@ export function removeFeatured(content: FinalReportContent, matchId: string): Fi
 export function contentKey(c: FinalReportContent): string {
   return JSON.stringify({
     h: (c.headline ?? '').trim(),
-    o: c.opening.trim(), c: c.closing.trim(),
+    o: c.opening.trim(), c: c.closing.trim(), ct: (c.closingTitle ?? '').trim(),
     s: c.stories.filter((s) => s.text.trim()).map((s) => [s.playerKey, s.rank, s.text.trim()]).sort(),
     f: c.featured == null ? null : c.featured.map((f) => [f.matchId, f.fingerprint, f.review.trim(), f.tag]),
   });

@@ -8,6 +8,10 @@
 //   ⚠ 07 정산은 이 공개본에 없다. 로그인 회원이 그 장을 열 때만 서버(회원 판정)에 요청한다(PenaltyChapter).
 //   ⚠ 글꼴: Pretendard(OFL · 자체 호스팅 동적 부분 집합) → Noto Sans KR → 시스템. Calibri 원본은 쓰지 않는다.
 //   조작: 가로 스와이프(세로 우세 제스처 무시) · ← → 키 · 하단 화살표. 장 이동은 history 를 쌓지 않고 ?ch= 만 바꾼다.
+//
+//   V4.2(v41.layout === 2 · 신규 발행본만): 7장 — 01 THE CHAMPION(표지 + TOP3) · 02 BEYOND THE PODIUM · 03 MATCH OF THE DAY ·
+//     04 BY THE NUMBERS · 05 FINAL STANDINGS · 06 PENALTY SETTLEMENT · 07 CLOSING(선택 장 생략 시 5~6장).
+//     PC 펼침 = [01 단독] [02·03] [04·05] [06·07] (홀수로 남는 마지막 장은 단독). layout 값이 없는 기존 발행본은 위 8장 판형 그대로.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FinalReportShareButtons from '../FinalReportShareButtons';
@@ -28,13 +32,17 @@ const V41_SPREAD_MIN = 980;   // 이 폭 이상이면 PC 2쪽 펼침
 const V41_SPREAD_W = 940;     // 470 × 2(디자인 V4.1 PC)
 const V41_SINGLE_MAX = 480;   // 1쪽 최대 폭(태블릿 · 좁은 PC)
 
-type ChapterId = 'cover' | 'podium' | 'heroes' | 'match' | 'rivalry' | 'numbers' | 'standings' | 'penalty' | 'closing';
+type ChapterId = 'cover' | 'podium' | 'champion' | 'heroes' | 'match' | 'rivalry' | 'numbers' | 'standings' | 'penalty' | 'closing';
 interface ChapterDef { id: ChapterId; label: string; dark: boolean }
 const LABEL: Record<ChapterId, string> = {
-  cover: 'COVER', podium: 'THE PODIUM', heroes: 'HIDDEN HEROES', match: 'MATCH OF THE DAY', rivalry: 'RIVALRY',
+  cover: 'COVER', podium: 'THE PODIUM', champion: 'THE CHAMPION', heroes: 'HIDDEN HEROES', match: 'MATCH OF THE DAY', rivalry: 'RIVALRY',
   numbers: 'BY THE NUMBERS', standings: 'FINAL STANDINGS', penalty: 'PENALTY SETTLEMENT', closing: 'CLOSING',
 };
-const DARK = new Set<ChapterId>(['cover', 'rivalry', 'numbers', 'closing']);
+const DARK = new Set<ChapterId>(['cover', 'champion', 'rivalry', 'numbers', 'closing']);
+/** 진행 바가 놓이는 맨 위 영역이 어두운 장(D2): 어두운 장 + 머리만 남색인 MATCH OF THE DAY. */
+const TOP_DARK = new Set<ChapterId>([...DARK, 'match']);
+/** V4.2 깊은 링크 별칭: 예전 표지 · 시상대 링크는 통합 첫 장으로. */
+const V42_ALIAS: Partial<Record<string, ChapterId>> = { cover: 'champion', podium: 'champion' };
 
 const dotDate = (d: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.replace(/-/g, '.') : d);
 const plainName = (n: string): string => n.replace(/\s*\(G\)\s*$/i, '').trim();
@@ -53,13 +61,15 @@ export default function FinalReportMagazineV41({ payload, share, reportSlug }: {
 }) {
   const v = payload.v41 as V41Public;
   const motd = payload.featured.length ? payload.featured[heroIndex(payload.featured)] : null;
+  const v42 = v.layout === 2;
   const chapters = useMemo<ChapterDef[]>(() => {
-    const ids: ChapterId[] = ['cover', 'podium'];
+    const ids: ChapterId[] = v42 ? ['champion'] : ['cover', 'podium'];
     if (v.heroes.length || v.mentions.length) ids.push('heroes');
     if (motd) ids.push('match');
-    ids.push(v.rivalry ? 'rivalry' : 'numbers', 'standings', 'penalty', 'closing');
+    // V4.2: RIVALRY 독립 장 없음 — 항상 BY THE NUMBERS.
+    ids.push(!v42 && v.rivalry ? 'rivalry' : 'numbers', 'standings', 'penalty', 'closing');
     return ids.map((id) => ({ id, label: LABEL[id], dark: DARK.has(id) }));
-  }, [v, motd]);
+  }, [v, v42, motd]);
   const N = chapters.length;
 
   const rootRef = useRef<HTMLElement | null>(null);
@@ -73,8 +83,21 @@ export default function FinalReportMagazineV41({ payload, share, reportSlug }: {
   const frameW = rootW >= V41_SPREAD_MIN ? V41_SPREAD_W : Math.min(rootW, V41_SINGLE_MAX);
   const perView = frameW >= 900 ? 2 : 1;
   const pw = frameW ? frameW / perView : 0;
-  const start = perView === 2 ? page - (page % 2) : page;
-  const shown = perView === 2 ? [start, Math.min(start + 1, N - 1)] : [page];
+  // V4.2 PC 펼침: [01 단독] + 나머지 두 장씩(홀수로 남는 마지막 장은 단독). V4.1 판형 · 모바일(1쪽)은 groups=null(기존 계산 그대로).
+  const groups = useMemo<number[][] | null>(() => {
+    if (!v42 || perView !== 2) return null;
+    const g: number[][] = [[0]];
+    for (let i = 1; i < N; i += 2) g.push(i + 1 < N ? [i, i + 1] : [i]);
+    return g;
+  }, [v42, perView, N]);
+  const gi = groups ? Math.max(0, groups.findIndex((g) => g.includes(page))) : -1;
+  const start = groups ? groups[gi][0] : perView === 2 ? page - (page % 2) : page;
+  const shown = groups ? groups[gi] : perView === 2 ? [start, Math.min(start + 1, N - 1)] : [page];
+  const lastShown = shown[shown.length - 1];
+  const nextStart = groups ? (groups[gi + 1]?.[0] ?? N) : start + perView;
+  const prevStart = groups ? (gi > 0 ? groups[gi - 1][0] : -1) : start - perView;
+  const soloInSpread = !!groups && shown.length === 1; // PC 에서 한 장만 가운데 표시
+  const soloInset = soloInSpread && frameW ? (frameW - pw) / 2 : 0;
 
   useEffect(() => {
     const el = rootRef.current; if (!el) return;
@@ -86,12 +109,13 @@ export default function FinalReportMagazineV41({ payload, share, reportSlug }: {
     try { setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch { setReduced(false); }
     // 로그인 후 돌아오기 · 공유된 장 링크: ?ch=<id>
     try {
-      const ch = new URLSearchParams(window.location.search).get('ch');
+      const raw = new URLSearchParams(window.location.search).get('ch');
+      const ch = v42 && raw ? (V42_ALIAS[raw] ?? raw) : raw;
       const i = chapters.findIndex((c) => c.id === ch);
       if (i > 0) setPage(i);
       setTimeout(() => setReady(true), 50);
     } catch { /* ignore */ }
-  }, [chapters]);
+  }, [chapters, v42]);
 
   const go = useCallback((n: number) => {
     const next = Math.max(0, Math.min(N - 1, n));
@@ -103,21 +127,28 @@ export default function FinalReportMagazineV41({ payload, share, reportSlug }: {
       window.history.replaceState(window.history.state, '', `${u.pathname}${u.search}${u.hash}`);
     } catch { /* ignore */ }
   }, [N, chapters]);
-  const step = perView;
+  // 이전 장으로 갈 때 시작 위치가 0 보다 작으면 첫 장(기존 동작: go 가 0 으로 맞춘다).
+  const goNext = () => { if (nextStart < N) go(nextStart); };
+  const goPrev = () => { if (start > 0) go(Math.max(0, prevStart)); };
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowRight') { e.preventDefault(); go(start + step); }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); go(start - step); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); goNext(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
   };
   const t0 = useRef<{ x: number; y: number } | null>(null);
   const onTS = (e: React.TouchEvent) => { const t = e.touches[0]; t0.current = { x: t.clientX, y: t.clientY }; };
   const onTE = (e: React.TouchEvent) => {
     if (!t0.current) return;
     const t = e.changedTouches[0]; const dx = t.clientX - t0.current.x; const dy = t.clientY - t0.current.y; t0.current = null;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? start + step : start - step);
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { if (dx < 0) goNext(); else goPrev(); }
   };
 
-  const cur = chapters[perView === 2 ? Math.min(start + 1, N - 1) : page];
+  const cur = chapters[lastShown];
   const dark = cur.dark;
+  // D2 진행 바 색: 바가 놓인 자리의 맨 위 배경 기준. PC 2쪽이면 왼쪽 절반 칸은 왼쪽 장, 오른쪽 절반 칸은 오른쪽 장 기준.
+  const barDark = (i: number): boolean => {
+    if (perView === 2 && shown.length === 2 && shown[0] !== shown[1]) return TOP_DARK.has(chapters[(i + 0.5) / N < 0.5 ? shown[0] : shown[1]].id);
+    return TOP_DARK.has(cur.id);
+  };
   const current = chapters[page];
   const vol = v.vol != null ? pad2(v.vol) : null;
 
@@ -127,8 +158,9 @@ export default function FinalReportMagazineV41({ payload, share, reportSlug }: {
     switch (c.id) {
       case 'cover': return <Cover payload={payload} vol={vol} />;
       case 'podium': return <Podium payload={payload} />;
+      case 'champion': return <Champion payload={payload} vol={vol} />;
       case 'heroes': return <Heroes v={v} no={i + 1} />;
-      case 'match': return <MatchOfTheDay m={motd as PublicFeatured} no={i + 1} standings={payload.standings} />;
+      case 'match': return <MatchOfTheDay m={motd as PublicFeatured} no={i + 1} standings={payload.standings} v42={v42} />;
       case 'rivalry': return <Rivalry v={v} no={i + 1} />;
       case 'numbers': return <Numbers v={v} no={i + 1} />;
       case 'standings': return <Standings rows={payload.standings} no={i + 1} />;
@@ -150,40 +182,64 @@ export default function FinalReportMagazineV41({ payload, share, reportSlug }: {
         ref={frameRef} data-v41="frame" tabIndex={0} onKeyDown={onKey} onTouchStart={onTS} onTouchEnd={onTE}
         role="region" aria-roledescription="carousel" aria-label={`TEYEON FINAL REPORT ${payload.session.title}`}
         style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: frameW || '100%', transform: 'translateX(-50%)', overflow: 'hidden', outline: 'none', touchAction: 'pan-y',
-          boxShadow: frameW && frameW < rootW ? '0 22px 60px rgba(0,0,0,0.45)' : 'none' }}
+          boxShadow: frameW && frameW < rootW && !soloInSpread ? '0 22px 60px rgba(0,0,0,0.45)' : 'none' }}
       >
-        <div data-v41="track" style={{ position: 'absolute', top: 0, left: 0, height: '100%', display: 'flex', width: pw ? pw * N : `${N * 100}%`,
-          transform: `translateX(${-(pw || 0) * start}px)`, transition: reduced || !ready ? 'none' : 'transform 380ms cubic-bezier(0.22,0.8,0.24,1)' }}>
+        {groups ? (
+          // V4.2 PC: 묶음(1장 또는 2장) 단위로 한 화면씩 이동. 한 장 묶음은 가운데.
+          <div data-v41="track" style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: frameW * groups.length,
+            transform: `translateX(${-frameW * gi}px)`, transition: reduced || !ready ? 'none' : 'transform 380ms cubic-bezier(0.22,0.8,0.24,1)' }}>
+            {/* 한 장 묶음의 그림자(두 장 묶음은 바깥 틀 그림자) */}
+            {groups.map((g, k) => (g.length === 1 ? <div key={`sh${k}`} aria-hidden style={{ position: 'absolute', top: 0, height: '100%', left: frameW * k + (frameW - pw) / 2, width: pw,
+              boxShadow: '0 22px 60px rgba(0,0,0,0.45)', pointerEvents: 'none' }} /> : null))}
+            {chapters.map((c, i) => {
+              const on = shown.includes(i);
+              const g = groups.findIndex((x) => x.includes(i));
+              const solo = groups[g].length === 1;
+              const left = frameW * g + (solo ? (frameW - pw) / 2 : groups[g].indexOf(i) * pw);
+              return (
+                <section key={c.id} data-ch={c.id} data-active={on ? '1' : '0'} role="group" aria-roledescription="slide"
+                  aria-label={`${i + 1} / ${N} ${c.label}`} aria-hidden={!on} inert={!on}
+                  style={{ position: 'absolute', top: 0, left, width: pw, height: '100%', overflow: 'hidden', containerType: 'size' } as React.CSSProperties}>
+                  {render(c, i)}
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <div data-v41="track" style={{ position: 'absolute', top: 0, left: 0, height: '100%', display: 'flex', width: pw ? pw * N : `${N * 100}%`,
+            transform: `translateX(${-(pw || 0) * start}px)`, transition: reduced || !ready ? 'none' : 'transform 380ms cubic-bezier(0.22,0.8,0.24,1)' }}>
+            {chapters.map((c, i) => {
+              const on = shown.includes(i);
+              return (
+                <section key={c.id} data-ch={c.id} data-active={on ? '1' : '0'} role="group" aria-roledescription="slide"
+                  aria-label={`${i + 1} / ${N} ${c.label}`} aria-hidden={!on} inert={!on}
+                  style={{ width: pw || '100vw', height: '100%', flex: 'none', position: 'relative', overflow: 'hidden', containerType: 'size' } as React.CSSProperties}>
+                  {render(c, i)}
+                </section>
+              );
+            })}
+          </div>
+        )}
+        {perView === 2 && !soloInSpread && <div aria-hidden style={{ position: 'absolute', left: pw - 14, top: 0, bottom: 0, width: 28, zIndex: 2, pointerEvents: 'none',
+          background: 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.16) 50%, rgba(0,0,0,0) 100%)' }} />}
+        <div aria-hidden data-v41="progress" style={{ position: 'absolute', left: 16 + soloInset, right: 16 + soloInset, top: 'calc(env(safe-area-inset-top, 0px) + 12px)', display: 'flex', gap: 4, zIndex: 3, pointerEvents: 'none' }}>
           {chapters.map((c, i) => {
-            const on = shown.includes(i);
-            return (
-              <section key={c.id} data-ch={c.id} data-active={on ? '1' : '0'} role="group" aria-roledescription="slide"
-                aria-label={`${i + 1} / ${N} ${c.label}`} aria-hidden={!on} inert={!on}
-                style={{ width: pw || '100vw', height: '100%', flex: 'none', position: 'relative', overflow: 'hidden', containerType: 'size' } as React.CSSProperties}>
-                {render(c, i)}
-              </section>
-            );
+            const bd = barDark(i);
+            return <div key={c.id} data-v41-bar={i <= lastShown ? 'on' : 'off'} style={{ flex: 1, height: 3, borderRadius: 2,
+              background: i <= lastShown ? (bd ? C.gold : C.navy) : (bd ? 'rgba(255,255,255,0.22)' : 'rgba(11,35,64,0.14)') }} />;
           })}
         </div>
-        {perView === 2 && <div aria-hidden style={{ position: 'absolute', left: pw - 14, top: 0, bottom: 0, width: 28, zIndex: 2, pointerEvents: 'none',
-          background: 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.16) 50%, rgba(0,0,0,0) 100%)' }} />}
-        <div aria-hidden data-v41="progress" style={{ position: 'absolute', left: 16, right: 16, top: 'calc(env(safe-area-inset-top, 0px) + 12px)', display: 'flex', gap: 4, zIndex: 3, pointerEvents: 'none' }}>
-          {chapters.map((c, i) => (
-            <div key={c.id} style={{ flex: 1, height: 3, borderRadius: 2,
-              background: i <= (perView === 2 ? Math.min(start + 1, N - 1) : page) ? (dark ? C.gold : C.navy) : (dark ? 'rgba(255,255,255,0.22)' : 'rgba(11,35,64,0.14)') }} />
-          ))}
-        </div>
-        <nav data-v41="nav" aria-label="리포트 장 이동" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 4, boxSizing: 'border-box',
+        <nav data-v41="nav" aria-label="리포트 장 이동" style={{ position: 'absolute', left: soloInset, right: soloInset, bottom: 0, zIndex: 4, boxSizing: 'border-box',
           height: 'calc(60px + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 14, paddingRight: 14,
           display: 'flex', alignItems: 'center', gap: 10, background: dark ? 'rgba(6,20,41,0.92)' : 'rgba(255,255,255,0.94)', borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : '#E3E9EF'}` }}>
-          <button type="button" data-v41="prev" aria-label="이전 장" onClick={() => go(start - step)} disabled={start <= 0} style={navBtn(dark, start <= 0)}>←</button>
+          <button type="button" data-v41="prev" aria-label="이전 장" onClick={goPrev} disabled={start <= 0} style={navBtn(dark, start <= 0)}>←</button>
           <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }} aria-live="polite">
             <div data-v41="counter" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', color: dark ? C.gold : C.goldText }}>
-              {perView === 2 ? `${start + 1}–${Math.min(start + 2, N)} / ${N}` : `${page + 1} / ${N}`}
+              {groups ? (shown.length === 2 ? `${shown[0] + 1}–${shown[1] + 1} / ${N}` : `${shown[0] + 1} / ${N}`) : perView === 2 ? `${start + 1}–${Math.min(start + 2, N)} / ${N}` : `${page + 1} / ${N}`}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#FFFFFF' : C.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current.label}</div>
           </div>
-          <button type="button" data-v41="next" aria-label="다음 장" onClick={() => go(start + step)} disabled={start + step >= N} style={navBtn(dark, start + step >= N)}>→</button>
+          <button type="button" data-v41="next" aria-label="다음 장" onClick={goNext} disabled={nextStart >= N} style={navBtn(dark, nextStart >= N)}>→</button>
         </nav>
       </div>
     </main>
@@ -293,6 +349,67 @@ function Podium({ payload }: { payload: FinalReportPublicPayload }) {
   );
 }
 
+// ── V4.2 01 THE CHAMPION(표지 + TOP3 통합) ─────────────────────────────────
+//   우승자는 이 장에서 한 번만 크게. 헤드라인은 한 줄(공개본 값 그대로). 1~3위 스토리는 공개본에 보존되지만 이 판형에는 표시하지 않는다.
+//   세로 공간이 모자라면(320×640 · 긴 이름) 잘리지 않고 장 안에서 세로 스크롤.
+function Champion({ payload, vol }: { payload: FinalReportPublicPayload; vol: string | null }) {
+  const [ch, ...runners] = payload.podium;
+  const name = ch ? plainName(ch.name) : '';
+  return (
+    <div data-v41="champion" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(170deg, #0E2A4C 0%, #0B2340 45%, #061529 100%)', color: '#FFFFFF', display: 'flex', flexDirection: 'column' }}>
+      <div aria-hidden style={{ position: 'absolute', left: '7cqw', right: '7cqw', top: '15cqh', bottom: 'calc(64px + 3cqh + env(safe-area-inset-bottom, 0px))', border: '1.5px solid rgba(217,180,90,0.12)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', right: '-6cqw', top: '9cqh', fontSize: '78cqw', fontWeight: 800, lineHeight: 0.8, letterSpacing: '-0.06em', color: 'transparent', WebkitTextStroke: '1.5px rgba(217,180,90,0.22)', pointerEvents: 'none' }}>1</div>
+      <div style={{ flex: 'none', position: 'relative', padding: 'calc(env(safe-area-inset-top, 0px) + 6.5cqh) 7cqw 0', display: 'flex', alignItems: 'center', gap: '3cqw' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={LOGO} alt="Team TEYEON" style={{ width: '12cqw', height: '12cqw', objectFit: 'contain' }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '3.2cqw', fontWeight: 700, letterSpacing: '0.28em', color: C.gold }}>TEYEON</div>
+          <div style={{ fontSize: '5.2cqw', fontWeight: 800, letterSpacing: '0.06em', lineHeight: 1.05 }}>FINAL REPORT</div>
+        </div>
+        {vol && <div data-v41="vol" style={{ textAlign: 'right' }}><div style={{ fontSize: '3cqw', fontWeight: 700, letterSpacing: '0.16em', color: C.paleNavy }}>VOL.</div><div style={{ fontSize: '7cqw', fontWeight: 800, color: C.gold, lineHeight: 1 }}>{vol}</div></div>}
+      </div>
+      <div data-vscroll="1" data-v41="champion-body" style={{ position: 'relative', flex: 1, minHeight: 0, overflowY: 'auto', touchAction: 'pan-y', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column',
+        padding: '2cqh 11cqw calc(64px + 5cqh + env(safe-area-inset-bottom, 0px))' }}>
+        {/* margin-top:auto = 공간이 남으면 아래로 붙고, 모자라면 0 이 되어 스크롤 */}
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5cqw' }}><div style={{ width: '8cqw', height: 3, background: C.gold }} /><div style={{ fontSize: '3.6cqw', fontWeight: 700, letterSpacing: '0.34em', color: C.gold }}>CHAMPION</div></div>
+          <h1 data-v41="champion-name" style={{ margin: '1.6cqh 0 0', fontSize: nameSize(name, ['22cqw', '16.5cqw', '11cqw', '8.4cqw']), fontWeight: 800, lineHeight: 1.04, letterSpacing: '-0.03em', ...wrapText }}>
+            {name}<GuestTag on={!!ch?.guest} size="4.6cqw" />
+          </h1>
+          {payload.headline && <p data-v41="headline" style={{ margin: '1.4cqh 0 0', fontSize: '4.4cqw', fontWeight: 600, color: C.onNavy, lineHeight: 1.4, ...wrapText }}>{payload.headline}</p>}
+          {ch && (
+            <div data-v41="champion-rec" style={{ marginTop: '2cqh', display: 'flex', alignItems: 'flex-end', gap: '4cqw' }}>
+              <div><div style={{ fontSize: '10cqw', fontWeight: 800, color: C.gold, lineHeight: 1.02 }}>{ch.wins}-{ch.losses}</div><div style={{ marginTop: '0.6cqh', fontSize: '2.8cqw', fontWeight: 700, letterSpacing: '0.2em', color: C.paleNavy }}>W – L</div></div>
+              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.16)', paddingLeft: '4cqw' }}><div style={{ fontSize: '10cqw', fontWeight: 800, lineHeight: 1.02 }}>{formatDiff(ch.diff)}</div><div style={{ marginTop: '0.6cqh', fontSize: '2.8cqw', fontWeight: 700, letterSpacing: '0.2em', color: C.paleNavy }}>GAME DIFF</div></div>
+            </div>
+          )}
+          {runners.length > 0 && (
+            <div data-v41="champion-runners" style={{ marginTop: '3cqh', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '5cqw' }}>
+              {runners.map((p, i) => {
+                const medal = i === 0 ? C.silver : C.bronze;
+                return (
+                  <div key={p.rank} data-v41={`podium-${p.rank}`} style={{ borderTop: `2px solid ${medal}`, paddingTop: '1.4cqh', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '2cqw' }}>
+                      <div style={{ fontSize: '8cqw', fontWeight: 800, color: medal, lineHeight: 0.95 }}>{p.rank}</div>
+                      <div style={{ fontSize: '2.7cqw', fontWeight: 700, letterSpacing: '0.2em', color: medal }}>{i === 0 ? 'SILVER' : 'BRONZE'}</div>
+                    </div>
+                    <div style={{ marginTop: '0.8cqh', fontSize: '5.4cqw', fontWeight: 800, lineHeight: 1.2, ...wrapText }}>{plainName(p.name)}<GuestTag on={p.guest} size="3cqw" /></div>
+                    <div style={{ marginTop: '0.4cqh', fontSize: '3.4cqw', fontWeight: 700, color: C.paleNavy }}>{p.wins}-{p.losses} · {formatDiff(p.diff)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ marginTop: '2.6cqh', paddingTop: '1.4cqh', borderTop: '1px solid rgba(255,255,255,0.12)', display: 'flex', justifyContent: 'space-between', gap: '3cqw', fontSize: '3.2cqw', color: C.paleNavy }}>
+            <span style={{ fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>{dotDate(payload.session.date)}</span>
+            <span style={{ textAlign: 'right', minWidth: 0, ...wrapText }}>{payload.session.title}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 03 HIDDEN HEROES ──────────────────────────────────────────────────────
 function Heroes({ v, no }: { v: V41Public; no: number }) {
   return (
@@ -312,7 +429,7 @@ function Heroes({ v, no }: { v: V41Public; no: number }) {
                 color: h.source === 'archive' ? '#8A5A12' : C.teal, background: h.source === 'archive' ? '#F7E9CF' : '#E2F1F3' }}>{h.source === 'archive' ? '공식 기록 검증' : '오늘 기록'}</div>
             </div>
             <div style={{ position: 'relative', marginTop: '1.2cqh', display: 'flex', alignItems: 'baseline', gap: '3cqw', flexWrap: 'wrap' }}>
-              <div style={{ fontSize: '8.2cqw', fontWeight: 800, color: C.navy, lineHeight: 1.1, ...wrapText }}>{plainName(h.name)}<GuestTag on={/\(G\)\s*$/.test(h.name)} /></div>
+              <div style={{ fontSize: '8.2cqw', fontWeight: 800, color: C.navy, lineHeight: 1.1, ...wrapText }}>{h.name.split(' · ').map((part, k) => <React.Fragment key={k}>{k ? ' · ' : ''}{plainName(part)}<GuestTag on={/\(G\)\s*$/.test(part)} /></React.Fragment>)}</div>
               <div style={{ fontSize: '6.2cqw', fontWeight: 800, color: C.goldRule, whiteSpace: 'nowrap' }}>{h.stat}</div>
             </div>
             <div style={{ position: 'relative', marginTop: '1cqh', fontSize: '4cqw', fontWeight: 700, color: '#33434F', lineHeight: 1.4, ...wrapText }}>{h.head}</div>
@@ -336,7 +453,7 @@ function Heroes({ v, no }: { v: V41Public; no: number }) {
 }
 
 // ── 04 MATCH OF THE DAY ───────────────────────────────────────────────────
-function MatchOfTheDay({ m, no, standings }: { m: PublicFeatured; no: number; standings: PublicStanding[] }) {
+function MatchOfTheDay({ m, no, standings, v42 = false }: { m: PublicFeatured; no: number; standings: PublicStanding[]; v42?: boolean }) {
   const aWin = m.score1 >= m.score2;
   const win = aWin ? m.teamA : m.teamB; const lose = aWin ? m.teamB : m.teamA;
   const ws = aWin ? m.score1 : m.score2; const ls = aWin ? m.score2 : m.score1;
@@ -377,8 +494,10 @@ function MatchOfTheDay({ m, no, standings }: { m: PublicFeatured; no: number; st
       </div>
       <div data-vscroll="1" style={scroller('2.8cqh', '7cqw')}>
         <div data-v41="motd-title" style={{ fontSize: '6cqw', fontWeight: 800, color: C.navy, lineHeight: 1.3, textWrap: 'pretty', ...wrapText } as React.CSSProperties}>{title}</div>
-        <div style={{ marginTop: '2.2cqh', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', borderTop: `2px solid ${C.navy}` }}>
-          {[{ v: `${m.score1}:${m.score2}`, l: '최종 스코어' }, { v: String(m.score1 + m.score2), l: '총 게임 수' }, { v: String(Math.abs(m.score1 - m.score2)), l: '점수 차' }].map((k) => (
+        <div style={{ marginTop: '2.2cqh', display: 'grid', gridTemplateColumns: `repeat(${v42 ? 2 : 3}, minmax(0,1fr))`, borderTop: `2px solid ${C.navy}` }}>
+          {/* V4.2: 점수는 위 머리와 같은 승자 기준(6:5) · 제목과 같은 '점수 차' 칸은 빼고 2칸. V4.1 판형은 그대로. */}
+          {(v42 ? [{ v: `${ws}:${ls}`, l: '최종 스코어' }, { v: String(m.score1 + m.score2), l: '총 게임 수' }]
+            : [{ v: `${m.score1}:${m.score2}`, l: '최종 스코어' }, { v: String(m.score1 + m.score2), l: '총 게임 수' }, { v: String(Math.abs(m.score1 - m.score2)), l: '점수 차' }]).map((k) => (
             <div key={k.l} style={{ paddingTop: '1.4cqh' }}><div style={{ fontSize: '7cqw', fontWeight: 800, color: C.navy, lineHeight: 1.05 }}>{k.v}</div><div style={{ marginTop: '0.6cqh', fontSize: '3cqw', color: C.muted }}>{k.l}</div></div>
           ))}
         </div>
@@ -463,6 +582,17 @@ function Numbers({ v, no }: { v: V41Public; no: number }) {
 // ── 06 FINAL STANDINGS ────────────────────────────────────────────────────
 function Standings({ rows, no }: { rows: PublicStanding[]; no: number }) {
   const guests = rows.filter((r) => r.guest).length;
+  // D3 스크롤 안내: 목록이 화면보다 길 때만 · 끝까지 내리면 숨김(표시만 — 순위 데이터 무변경).
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = listRef.current; if (!el) return;
+    const check = () => setMore(el.scrollHeight - el.clientHeight > 8 && el.scrollTop + el.clientHeight < el.scrollHeight - 90);
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = new ResizeObserver(check); ro.observe(el);
+    return () => { el.removeEventListener('scroll', check); ro.disconnect(); };
+  }, [rows.length]);
   return (
     <div data-v41="standings" style={{ position: 'absolute', inset: 0, background: '#FFFFFF', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: 'calc(env(safe-area-inset-top, 0px) + 7cqh) 6cqw 0', flex: 'none' }}>
@@ -475,7 +605,7 @@ function Standings({ rows, no }: { rows: PublicStanding[]; no: number }) {
           <div style={{ width: '10cqw' }}>#</div><div style={{ flex: 1 }}>선수</div><div style={{ width: '14cqw', textAlign: 'right' }}>W–L</div><div style={{ width: '13cqw', textAlign: 'right' }}>득실</div>
         </div>
       </div>
-      <div data-vscroll="1" data-v41="standings-list" style={scroller('0px', '6cqw', 80)}>
+      <div ref={listRef} data-vscroll="1" data-v41="standings-list" style={scroller('0px', '6cqw', 80)}>
         {rows.map((r, i) => (
           <div key={`${r.rank}-${r.name}`} data-fr="standing-row" style={{ minHeight: '11cqw', display: 'flex', alignItems: 'center', borderBottom: `1px solid ${C.line}`, background: i < 3 ? C.ivory : 'transparent' }}>
             <div style={{ width: '10cqw', fontSize: '4.4cqw', fontWeight: 800, color: i === 0 ? C.goldRule : i === 1 ? '#8A99A6' : i === 2 ? C.bronze : '#B4C0CB' }}>{r.rank}</div>
@@ -485,6 +615,11 @@ function Standings({ rows, no }: { rows: PublicStanding[]; no: number }) {
           </div>
         ))}
         <div style={{ paddingTop: '2cqh', fontSize: '3cqw', color: C.muted, lineHeight: 1.5 }}>공식 Archive 순위 그대로 표시합니다 · (G) 게스트</div>
+      </div>
+      <div aria-hidden data-v41="standings-more" data-on={more ? '1' : '0'} style={{ position: 'absolute', left: 0, right: 0, bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))', height: '15cqw',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '1.6cqw', pointerEvents: 'none', zIndex: 1,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.92) 55%, #FFFFFF 100%)', opacity: more ? 1 : 0, transition: 'opacity 200ms ease' }}>
+        <span style={{ fontSize: '3.1cqw', fontWeight: 700, color: C.sub, letterSpacing: '0.04em' }}>↓ 아래로 넘겨 더 보기 · 전체 {rows.length}명</span>
       </div>
     </div>
   );
@@ -501,8 +636,18 @@ function Closing({ payload, v, vol, share, onRestart }: { payload: FinalReportPu
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3cqh 4cqw', textAlign: 'center' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={LOGO} alt="Team TEYEON" style={{ width: '20cqw', height: '20cqw', objectFit: 'contain', flex: 'none' }} />
-        <div style={{ marginTop: '2.6cqh', fontSize: '8.2cqw', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.01em' }}>Every Match<br />Has a Story.</div>
-        <div style={{ marginTop: '1.2cqh', fontSize: '3.8cqw', color: C.paleNavy }}>모든 경기에는 이야기가 있다</div>
+        {v.layout === 2 && v.closingTitle ? (
+          // V4.2: 운영진이 확정한 제목(공개본 값 그대로) · 슬로건은 작게.
+          <>
+            <div data-v41="closing-title" style={{ marginTop: '2.6cqh', fontSize: '6.6cqw', fontWeight: 800, lineHeight: 1.3, letterSpacing: '-0.01em', ...wrapText }}>{v.closingTitle}</div>
+            <div style={{ marginTop: '1.2cqh', fontSize: '3.2cqw', fontWeight: 700, letterSpacing: '0.12em', color: C.paleNavy }}>EVERY MATCH HAS A STORY.</div>
+          </>
+        ) : (
+          <>
+            <div style={{ marginTop: '2.6cqh', fontSize: '8.2cqw', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.01em' }}>Every Match<br />Has a Story.</div>
+            <div style={{ marginTop: '1.2cqh', fontSize: '3.8cqw', color: C.paleNavy }}>모든 경기에는 이야기가 있다</div>
+          </>
+        )}
         <div style={{ marginTop: '2.2cqh', fontSize: '3.2cqw', fontWeight: 700, letterSpacing: '0.24em', color: C.gold }}>{vol ? `VOL.${vol} · ` : ''}{dotDate(payload.session.date)}</div>
         <div data-v41="closing-note" style={{ marginTop: '2.8cqh', fontSize: '4cqw', color: C.onNavy, lineHeight: 1.6, ...wrapText }}>
           {payload.closing ? <>“{payload.closing}”<div style={{ marginTop: '0.8cqh', fontSize: '3.2cqw', color: '#56708A' }}>— TEYEON 운영진</div></> : CLOSING_DEFAULT}
