@@ -10,6 +10,7 @@
 //   ⚠ 기록으로 확인할 수 없는 이야기(역전 · 라이벌 · 분위기)는 만들지 않는다. 태그는 점수에서 바로 확인되는 것만.
 
 import { isGuestRankedPlayer } from '../settlement';
+import { parseV41Public, type V41Public } from './v41/publicV41';
 import { sanitizeOperatorText } from '../analytics/spotlightOperator';
 import { checkPublicText, issueText, type TextIssue } from '../analytics/spotlightMemoLink';
 import {
@@ -388,7 +389,10 @@ export interface PublicFeatured {
  */
 export interface FinalReportPublicPayload {
   schema: 1;
-  edition?: 2;
+  /** 2 = v2 엔진 공개본 · 3 = V4.1 매거진(v2 필드 + v41). 없음 = v1. */
+  edition?: 2 | 3;
+  /** edition 3 만: V4.1 매거진 공개 필드(정산 없음). */
+  v41?: V41Public;
   headline?: string | null;
   highlights?: PublicHighlight[];
   /** v2: 주요 경기 선정 방식 — auto = 기록 기준 추천 · manual = 운영진 직접 선정. */
@@ -456,8 +460,10 @@ export function parsePublicFinalReport(v: unknown): FinalReportPublicPayload | n
   if (!ss || typeof ss !== 'object') return null;
   const standings = (Array.isArray(o.standings) ? o.standings : []).slice(0, 80).map(parseStanding).filter((x): x is PublicStanding => !!x);
   if (!standings.length) return null;
-  // edition 2 일 때만 v2 필드를 읽는다 — v1 공개본(기존 발행본)에는 새 기록 · 문구를 만들지 않는다.
-  const v2 = o.edition === 2;
+  // edition 2 · 3 일 때만 v2 필드를 읽는다 — v1 공개본(기존 발행본)에는 새 기록 · 문구를 만들지 않는다.
+  //   edition 3(V4.1)은 v2 필드 + v41 필드. v41 이 깨져 있으면 edition 2 화면으로 낮춘다.
+  const v41 = o.edition === 3 ? parseV41Public(o.v41) : null;
+  const v2 = o.edition === 2 || o.edition === 3;
   const podium = (Array.isArray(o.podium) ? o.podium : []).slice(0, FR_PODIUM).flatMap((p) => {
     const base = parseStanding(p); if (!base) return [];
     const story = s((p as Record<string, unknown>).story, FR_STORY_MAX) || null;
@@ -476,7 +482,8 @@ export function parsePublicFinalReport(v: unknown): FinalReportPublicPayload | n
   });
   return {
     schema: 1,
-    ...(v2 ? { edition: 2 as const, headline: parsePublicHeadline(o.headline), highlights: parsePublicHighlights(o.highlights),
+    ...(v41 ? { v41 } : {}),
+    ...(v2 ? { edition: v41 ? 3 as const : 2 as const, headline: parsePublicHeadline(o.headline), highlights: parsePublicHighlights(o.highlights),
       featuredMode: o.featuredMode === 'manual' ? 'manual' as const : 'auto' as const } : {}),
     session: { title: s(ss.title, 80), date: s(ss.date, 20), officialConfirmed: true,
       participantCount: i(ss.participantCount) ?? standings.length, matchCount: i(ss.matchCount) ?? 0 },

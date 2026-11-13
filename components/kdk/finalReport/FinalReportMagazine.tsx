@@ -6,6 +6,7 @@ import React from 'react';
 import Link from 'next/link';
 import FinalReportShareButtons from './FinalReportShareButtons';
 import FinalReportMagazineV2 from './FinalReportMagazineV2';
+import FinalReportMagazineV41 from './v41/FinalReportMagazineV41';
 import type { ShareData } from '@/lib/kdk/finalReport/finalReportShare';
 import type { FinalReportPublicPayload, PublicFeatured, PublicPodium, PublicStanding } from '@/lib/kdk/finalReport/finalReportModel';
 import {
@@ -22,9 +23,13 @@ export interface FinalReportMagazineProps {
   officialHref: string | null;
   /** 공유(공개 페이지만). 없으면 공유 버튼을 숨긴다 — 운영진 미리보기에서는 넘기지 않는다. */
   share?: ShareData | null;
+  /** V4.1(edition 3) 회원 전용 정산 조회용 공개 slug. 없으면(운영진 미리보기) 정산 장은 안내만 보인다. */
+  reportSlug?: string | null;
 }
 
-export default function FinalReportMagazine({ payload, officialHref, share }: FinalReportMagazineProps) {
+export default function FinalReportMagazine({ payload, officialHref, share, reportSlug }: FinalReportMagazineProps) {
+  // V4.1(edition 3) — 8장 슬라이드 매거진. 정산 장은 로그인 회원 확인 후에만 서버에서 조회한다.
+  if (payload.edition === 3 && payload.v41) return <FinalReportMagazineV41 payload={payload} share={share ?? null} reportSlug={reportSlug ?? null} />;
   // v2 엔진으로 발행한 공개본(edition 2)만 SPORTS MAGAZINE v2 로 그린다. 기존 v1 공개본은 아래 화면 그대로.
   if (payload.edition === 2) return <FinalReportMagazineV2 payload={payload} officialHref={officialHref} share={share ?? null} />;
   const chapters = chaptersOf(payload);

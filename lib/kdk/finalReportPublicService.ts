@@ -64,3 +64,34 @@ export async function fetchPublicFinalReport(slug: string, rpc: AnonRpc = defaul
   return { state: 'ok', payload, revision: Number.isInteger(b.revision) ? b.revision : 1,
     publishedAt: typeof b.publishedAt === 'string' ? b.publishedAt : null, officialSessionId: sid(b.officialSessionId) };
 }
+
+// ── 정정 안내용 공식 결과 요약(서버 전용 allow-list) ─────────────────────────────
+//   공개 RPC get_public_kdk_session 응답에는 게스트 정산 · 계좌가 함께 있다. 이 함수는 서버에서만 호출하고
+//   순위 · 완료 경기 점수만 골라 돌려준다 → 브라우저(HTML · RSC payload)에는 정산 필드가 가지 않는다.
+export interface OfficialResultSummary {
+  standings: Array<{ rank: number; name: string; guest: boolean; wins: number; losses: number; diff: number }>;
+  matches: Array<{ round: number | null; court: number | null; teamA: [string, string]; teamB: [string, string]; score1: number; score2: number }>;
+}
+const nint = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) ? v : null);
+const nstr = (v: unknown, n: number): string => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+const plain = (n: string): string => n.replace(/\s*\(G\)\s*$/i, '').trim();
+export async function fetchOfficialResultSummary(sessionId: string, rpc: AnonRpc = defaultAnonRpc): Promise<OfficialResultSummary | null> {
+  if (!sid(sessionId)) return null;
+  const r = await rpc('get_public_kdk_session', { p_session_id: sessionId });
+  const b = r.ok && r.body && typeof r.body === 'object' ? r.body : null;
+  if (!b || b.state !== 'finished' || b.isOfficial !== true || !Array.isArray(b.finalRanking) || b.finalRanking.length === 0) return null;
+  const matches = (Array.isArray(b.matches) ? b.matches : []).slice(0, 200).flatMap((m: any) => {
+    const names = Array.isArray(m?.playerNames) ? m.playerNames.map((x: unknown) => nstr(x, 40)) : [];
+    if (names.length !== 4 || nint(m?.score1) === null || nint(m?.score2) === null) return [];
+    return [{ round: nint(m.round), court: nint(m.court), teamA: [names[0], names[1]] as [string, string], teamB: [names[2], names[3]] as [string, string],
+      score1: m.score1 as number, score2: m.score2 as number }];
+  });
+  const guestNames = new Set(matches.flatMap((m: OfficialResultSummary['matches'][number]) => [...m.teamA, ...m.teamB]).filter((n: string) => /\(G\)\s*$/i.test(n)).map(plain));
+  const standings = b.finalRanking.slice(0, 80).flatMap((x: any, i: number) => {
+    const name = nstr(x?.name, 40);
+    if (!name) return [];
+    const guest = /\(G\)\s*$/i.test(name) || guestNames.has(plain(name));
+    return [{ rank: nint(x.rank) ?? i + 1, name: guest ? `${plain(name)}(G)` : name, guest, wins: nint(x.wins) ?? 0, losses: nint(x.losses) ?? 0, diff: nint(x.diff) ?? 0 }];
+  });
+  return standings.length ? { standings, matches } : null;
+}

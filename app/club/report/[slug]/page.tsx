@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 import FinalReportMagazine from '@/components/kdk/finalReport/FinalReportMagazine';
 import FinalReportStateCard from '@/components/kdk/finalReport/FinalReportStateCard';
 import {
-  FINAL_REPORT_SITE_URL, fetchPublicFinalReport, finalReportOgPath, finalReportPublicPath, finalReportSharePath, finalReportShareUrl, officialResultPath,
+  FINAL_REPORT_SITE_URL, fetchOfficialResultSummary, fetchPublicFinalReport, finalReportOgPath, finalReportPublicPath, finalReportSharePath, finalReportShareUrl,
 } from '@/lib/kdk/finalReportPublicService';
 import { reportMetaDescription, reportMetaTitle } from '@/lib/kdk/finalReport/finalReportView';
 import { shareDataOf } from '@/lib/kdk/finalReport/finalReportShare';
@@ -49,11 +49,14 @@ export default async function FinalReportPublicPage({ params }: Props) {
   const { slug } = await params;
   const res = await load(slug);
   if (res.state === 'ok') {
-    return <FinalReportMagazine payload={res.payload} officialHref={res.officialSessionId ? officialResultPath(res.officialSessionId) : null}
+    // 공식 결과 상세(/club/kdk/[id])에는 공개 게스트 정산이 함께 있어 리포트에서 직접 연결하지 않는다(버튼 숨김 · 공개본 무변경).
+    return <FinalReportMagazine payload={res.payload} officialHref={null} reportSlug={slug}
       share={shareDataOf(res.payload.session.title, finalReportShareUrl(slug, res.revision))} />;
   }
   if (res.state === 'corrected') {
-    return <FinalReportStateCard kind="corrected" title={res.title} date={res.date} officialHref={res.officialSessionId ? officialResultPath(res.officialSessionId) : null} />;
+    // 정정 안내(A안): 서버에서 공식 결과를 읽어 순위 · 완료 경기만 전달(정산 · 계좌 필드는 서버에서 버림).
+    const official = res.officialSessionId ? await fetchOfficialResultSummary(res.officialSessionId) : null;
+    return <FinalReportStateCard kind="corrected" title={res.title} date={res.date} official={official} retryHref={finalReportPublicPath(slug)} />;
   }
   return <FinalReportStateCard kind={res.state} retryHref={finalReportPublicPath(slug)} />;
 }

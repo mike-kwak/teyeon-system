@@ -22,7 +22,7 @@ import {
   setOperatorTag, setReview, setStory, storyText, toggleFeatured, type EditorData, type EditorMatch,
 } from '@/lib/kdk/finalReport/finalReportEditor';
 import { FRV, badgeLabel, formatDiff, groupLabel, matchMeta, tagList } from '@/lib/kdk/finalReport/finalReportView';
-import { finalReportSharePath, finalReportShareUrl, officialResultPath } from '@/lib/kdk/finalReportPublicService';
+import { finalReportSharePath, finalReportShareUrl } from '@/lib/kdk/finalReportPublicService';
 
 const LINE = '#E1E7EE';
 const STEPS = ['공식 기록', 'TOP3 스토리', '주요 경기', '미리보기 · 발행'] as const;
@@ -516,8 +516,9 @@ function StepPreview({ data, content, preview, busy, issues, needsReview, onRetr
       {preview && (
         <>
           <p style={{ ...sectionLabel, margin: 0 }}>모바일 미리보기 — 실제 공개 화면과 같은 데이터 · 같은 화면</p>
+          <V41Info data={data} />
           <div data-fr-ed="preview" style={{ borderRadius: 18, overflow: 'hidden', border: `1px solid ${LINE}`, boxShadow: '0 8px 24px rgba(18,35,58,0.10)', background: FRV.bg }}>
-            <FinalReportMagazine payload={preview} officialHref={officialResultPath(data.session.id)} />
+            <FinalReportMagazine payload={preview} officialHref={null} />
           </div>
           <label data-fr-ed="confirm" style={{ ...card, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: FRV.navy }} />
@@ -621,6 +622,28 @@ function emptyFields(content: FinalReportContent, data: EditorData): Array<{ lab
   else if (content.featured.some((f) => !f.review.trim())) out.push({ label: `경기 리뷰 ${content.featured.filter((f) => !f.review.trim()).length}개`, fallback: '기록 한 줄로 표시', step: 2 });
   if (!content.closing.trim()) out.push({ label: '마무리', fallback: '기본 문구로 표시', step: 1 });
   return out;
+}
+
+/** V4.1(edition 3) 발행 안내 — 공개 정보만(VOL · 다음 정모 · 정산 모드). 정산 금액 · 명단은 편집기에 보이지 않는다. */
+function V41Info({ data }: { data: EditorData }) {
+  type Next = { date: string; startTime: string | null } | null;
+  const v = (data as unknown as { v41?: { enabled: boolean; vol?: number | null; next?: Next; nextCandidate?: Next; settlementMode?: string; settlementLiveFrom?: string | null } }).v41;
+  if (!v || !v.enabled) return null;
+  const mode: Record<string, string> = {
+    live: '발행 시점 정산을 회원 전용 스냅샷으로 저장합니다(납부 · 미납 확정 · 확인 중).',
+    legacy_closed: '과거 회차 — 수납 완료로 확인된 회차라 개인별 정산은 저장하지 않습니다.',
+    not_ready: '공식 정산이 아직 없어 회원 화면에 "정산 확정 전"으로 표시됩니다.',
+    unconfigured: '정산 공개 기준일이 아직 설정되지 않아 회원 화면에도 금액 · 명단을 표시하지 않습니다(기준 설정 후 재발행하면 반영).',
+  };
+  const fmt = (n: Next) => (n ? `${n.date}${n.startTime ? ` ${n.startTime}` : ''}` : '');
+  return (
+    <div data-fr-ed="v41-info" style={{ border: `1px solid ${LINE}`, borderRadius: 14, padding: '10px 12px', background: '#FFFFFF', fontSize: 12.5, fontWeight: 700, color: FRV.ink, lineHeight: 1.6, wordBreak: 'keep-all' }}>
+      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.16em', color: FRV.goldInk }}>V4.1 매거진 · 8장</div>
+      <div>VOL: {v.vol != null ? String(v.vol).padStart(2, '0') : '표시 보류(회차를 확정할 수 없음)'}</div>
+      <div data-fr-ed="v41-next">NEXT KDK: {v.next ? `${fmt(v.next)} 정모` : v.nextCandidate ? `날짜 대신 '클럽 일정에서 확인' 링크로 표시 — 등록된 다음 정모 ${fmt(v.nextCandidate)}는 취소 여부를 확인할 수 없음` : "'클럽 일정에서 확인' 링크로 표시(등록된 다음 정모 없음)"}</div>
+      <div data-fr-ed="v41-settlement">정산: {mode[v.settlementMode || ''] ?? mode.live}{v.settlementLiveFrom ? ` (공개 기준일 ${v.settlementLiveFrom})` : ''}</div>
+    </div>
+  );
 }
 
 function fieldLabel(field: string, data: EditorData): string {

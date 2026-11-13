@@ -13,12 +13,20 @@
 //     save      : 초안 저장(공개본 무변경 · 동시 편집 충돌 검사)
 //     publish   : 확인 체크 + 기록 지문 · revision · 연결 · 문구 검증 후 초안 저장 → 발행(slug 유지 · revision+1)
 //     unpublish : 비공개
+//
+//   V4.1(edition 3): 아직 한 번도 발행하지 않은 리포트만. 이미 발행된 리포트(기존 rev1 등)는 기존 경로(edition 2)로 둔다.
+//     · 편집 맥락(get_kdk_final_report_v41_context)이 없으면(SQL 미적용) V4.1 을 끄고 기존 경로로 동작한다.
+//     · 발행 시 서버가 회원 전용 정산 스냅샷을 만들어 publish_kdk_final_report_v41 로 공개본과 함께 원자적으로 저장한다.
+//     · 정산 내용은 편집기 응답에 넣지 않는다(KDK 관리자 ≠ 정산 열람 권한). 모드(레거시 · 실시간 등)만 알린다.
 
 import {
   EMPTY_CONTENT, buildFinalReportModel, buildFinalReportPayload, parseFinalReportContent, reanchorContent, reconcileContent,
   type FinalReportContent, type FinalReportModel, type FinalReportSource,
 } from '../finalReport/finalReportModel';
 import { EMPTY_EPOCH, toEditorData, type EditorReport } from '../finalReport/finalReportEditor';
+import { buildFinalReportPayloadV41 } from '../finalReport/v41/payloadV41';
+import { buildV41Story, type V41Context } from '../finalReport/v41/storyV41';
+import { buildSettlementSnapshot, settlementModeFor, type SettlementSource } from '../finalReport/v41/settlementSnapshot';
 
 export type RpcResult = { ok: true; data: any } | { ok: false; status: number; code: string };
 
@@ -80,7 +88,10 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
   if (action === 'load') {
     const parsed = report?.content ? parseFinalReportContent(report.content) : { ok: true as const, content: EMPTY_CONTENT };
     const content = parsed.ok ? parsed.content : EMPTY_CONTENT;
-    return { status: 200, body: { ok: true, data: toEditorData(model, { id: sessionId, signature, report: editorReport(report, signature), content, contentReset: !parsed.ok }) } };
+    const v41 = await loadV41(deps, sessionId, userId, report);
+    if ('error' in v41) return v41.error;
+    const data = toEditorData(model, { id: sessionId, signature, report: editorReport(report, signature), content, contentReset: !parsed.ok });
+    return { status: 200, body: { ok: true, data: { ...data, v41: v41Info(model, v41.ctx) } } };
   }
 
   // 이하: 요청 문구 형식 검증 + 이 세션의 선수 · 경기에만 연결 가능
@@ -99,6 +110,13 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
   }
 
   if (action === 'preview') {
+    const v41 = await loadV41(deps, sessionId, userId, report);
+    if ('error' in v41) return v41.error;
+    if (v41.ctx) {
+      const p3 = buildFinalReportPayloadV41(model, content, v41.ctx);
+      if (!p3.ok) return { status: 200, body: { ok: false, reason: p3.reason, issues: (p3 as any).issues ?? [], reconcile: (p3 as any).reconciled ?? null } };
+      return { status: 200, body: { ok: true, payload: p3.payload, signature, officialSessionId: sessionId, v41: v41Info(model, v41.ctx) } };
+    }
     const p = buildFinalReportPayload(model, content);
     if (!p.ok) return { status: 200, body: { ok: false, reason: p.reason, issues: p.issues ?? [], reconcile: p.reconciled ?? null } };
     return { status: 200, body: { ok: true, payload: p.payload, signature, officialSessionId: sessionId } };
@@ -114,6 +132,21 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
   if (typeof b.baseSignature !== 'string' || b.baseSignature !== signature) return fail(409, 'stale_source');
   const expectedRevision = Number.isInteger(b.expectedRevision) ? (b.expectedRevision as number) : -1;
   if ((report?.revision ?? 0) !== expectedRevision) return fail(409, 'revision_conflict');
+  const v41 = await loadV41(deps, sessionId, userId, report);
+  if ('error' in v41) return v41.error;
+  if (v41.ctx) {
+    const p3 = buildFinalReportPayloadV41(model, content, v41.ctx);
+    if (!p3.ok) return fail(p3.reason === 'settlement_word' ? 400 : 409, p3.reason, { issues: (p3 as any).issues ?? [], reconcile: (p3 as any).reconciled ?? null });
+    const settlement = buildSettlementSnapshot(v41.ctx.date, v41.settlement as SettlementSource, v41.ctx.settlementLiveFrom);
+    const saved3 = await save(deps, sessionId, userId, content, report, expectedUpdatedAt);
+    if (saved3.status !== 200) return saved3;
+    const r3 = await deps.rpc('publish_kdk_final_report_v41', {
+      p_session_id: sessionId, p_actor: userId, p_payload: p3.payload, p_signature: signature, p_expected_revision: expectedRevision, p_settlement: settlement,
+    });
+    if (!r3.ok) return rpcFail(r3);
+    if (r3.data?.ok !== true) return dbReason(r3.data);
+    return { status: 200, body: { ok: true, reason: 'published', publicSlug: String(r3.data.publicSlug), revision: Number(r3.data.revision), updatedAt: r3.data.updatedAt ?? null, edition: 3, settlementMode: settlement.mode } };
+  }
   const p = buildFinalReportPayload(model, content);
   if (!p.ok) return fail(409, p.reason, { issues: p.issues ?? [], reconcile: p.reconciled ?? null });
   const saved = await save(deps, sessionId, userId, content, report, expectedUpdatedAt);
@@ -127,6 +160,43 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
 }
 
 // ── 내부 ───────────────────────────────────────────────────────────────────────
+type V41Ctx = V41Context & { settlementMode: string; settlementLiveFrom: string | null };
+type V41Load = { ctx: V41Ctx | null; settlement: unknown } | { error: HandlerResponse };
+/**
+ * V4.1 편집 맥락. ctx=null 이면 기존 경로(edition 2):
+ *   · SQL 미적용(맥락 함수 없음)
+ *   · 이미 V4.1 이 아닌 판형(v1 · v2)으로 발행된 리포트 — 기존 발행본의 판형을 바꾸지 않는다.
+ *   V4.1 로 발행된 리포트는 재발행해도 V4.1(새 revision · 새 스냅샷, 이전 판 · 스냅샷은 보존).
+ */
+async function loadV41(deps: FinalReportDeps, sessionId: string, userId: string, report: ReportRow | null): Promise<V41Load> {
+  const r = await deps.rpc('get_kdk_final_report_v41_context', { p_session_id: sessionId, p_actor: userId });
+  if (!r.ok) {
+    if (r.code === 'PGRST202' || r.code === '42883' || r.status === 404) return { ctx: null, settlement: null };
+    return { error: rpcFail(r) };
+  }
+  const d = r.data;
+  if (!d || d.ok !== true) return { error: dbReason(d) };
+  if (report && report.revision >= 1 && d.currentEdition !== 3) return { ctx: null, settlement: null };
+  const date = typeof d.date === 'string' ? d.date : '';
+  const settlement = d.settlement && typeof d.settlement === 'object' ? d.settlement : { hasData: false };
+  const ctx: V41Ctx = {
+    date, history: Array.isArray(d.history) ? d.history : [],
+    next: d.next && typeof d.next === 'object' ? { date: String(d.next.date || ''), startTime: d.next.startTime ? String(d.next.startTime) : null } : null,
+    nextReliable: d.nextReliable === true,
+    settlementLiveFrom: typeof d.settlementLiveFrom === 'string' ? d.settlementLiveFrom : null,
+    settlementMode: settlementModeFor(date, settlement, typeof d.settlementLiveFrom === 'string' ? d.settlementLiveFrom : null) ?? 'live',
+  };
+  return { ctx, settlement };
+}
+/** 편집기 표시용(공개 정보만 · 정산 금액 · 명단 없음). */
+function v41Info(model: FinalReportModel, ctx: V41Ctx | null) {
+  if (!ctx) return { enabled: false };
+  const st = buildV41Story(model, ctx);
+  // nextCandidate: 편집기 참고용(취소 여부 미확인 — 공개본에는 nextReliable 일 때만 들어감)
+  return { enabled: true, vol: st.vol, next: st.next, nextCandidate: ctx.next && !st.next ? ctx.next : null, settlementMode: ctx.settlementMode,
+    settlementLiveFrom: ctx.settlementLiveFrom, rivalry: !!st.rivalry, heroes: st.heroes.length };
+}
+
 interface ReportRow { status: EditorReport['status']; publicSlug: string; revision: number; content: unknown; sourceSignature: string | null; updatedAt: string | null; publishedAt: string | null }
 
 async function loadSource(deps: FinalReportDeps, sessionId: string, userId: string):
@@ -183,6 +253,7 @@ async function save(deps: FinalReportDeps, sessionId: string, userId: string, co
 const REASON_STATUS: Record<string, number> = {
   forbidden: 403, not_found: 404, invalid_session: 400, not_official: 409, no_ranking: 409, stale: 409, revision_conflict: 409,
   draft_conflict: 409, no_draft: 409, invalid_content: 400, invalid_slug: 500, invalid_payload: 422, payload_leak: 422,
+  invalid_settlement: 422, settlement_leak: 422,
 };
 function dbReason(d: any): HandlerResponse {
   let reason = String(d?.reason || 'db_error');
