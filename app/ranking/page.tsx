@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays, X, Swords } from 'lucide-react';
+import { ChevronLeft, Trophy, BarChart3, RefreshCw, ChevronRight, CalendarDays, X, Swords, Flame } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { normalizeAvatarUrl } from '@/lib/memberDisplayResolver';
@@ -849,6 +849,11 @@ export default function RankingPage() {
           <Link href="/ranking/head-to-head" aria-label="상대전적"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, backgroundColor: C.tealBg, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 12, fontWeight: 800, textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}>
             <Swords size={15} /> 상대전적
+          </Link>
+          {/* MY RIVAL(나의 천적 · 숙명의 라이벌) — 회원 간 기록 진입. 상대전적과 같은 공식 기록 · 권한. */}
+          <Link href="/ranking/rivals" aria-label="MY RIVAL 나의 천적과 라이벌" data-rival-entry
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, backgroundColor: C.card, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 12, fontWeight: 800, textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            <Flame size={15} /> MY RIVAL
           </Link>
         </div>
 
