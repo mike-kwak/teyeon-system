@@ -23,6 +23,18 @@ import {
   linkAccountToMember,
   createMember,
   unlinkAccountFromMember,
+  setAppRole,
+  setClubRole,
+  promoteLinkedMemberToMember,
+  fetchAppRolesById,
+  computeRoleSync,
+  describeAppRole,
+  clubStanding,
+  GRANTABLE_APP_ROLES,
+  RoleUpdateError,
+  type AppRoleLookup,
+  type GrantableAppRole,
+  type RoleSync,
   type UnlinkedAccount,
   type MemberLite,
 } from '@/lib/admin/memberRegistrationService';
@@ -56,7 +68,8 @@ interface AdminProfile {
   id: string;
   email: string | null;
   nickname: string | null;
-  role: 'GUEST' | 'MEMBER' | 'ADMIN' | 'CEO';
+  /** profiles.role 원본 — 정규화하지 않는다(OPERATOR · FINANCE_MANAGER · 비표준 값을 GUEST 로 바꿔 보이지 않게). */
+  role: string | null;
   avatar_url: string | null;
   updated_at?: string | null;
 }
@@ -69,7 +82,24 @@ const ROLE_OPTIONS = [
   //   판정 단일 출처: lib/members/membershipStatus.WITHDRAWN_ROLE
   { group: '탈회 (Withdrawn)', roles: [WITHDRAWN_ROLE] },
 ];
-const APP_ROLE_OPTIONS: AdminProfile['role'][] = ['GUEST', 'MEMBER', 'ADMIN', 'CEO'];
+const ALL_CLUB_ROLES = ROLE_OPTIONS.flatMap((g) => g.roles);
+
+/** 회원 목록의 앱 권한 판정 → 배지 문구 · 색. */
+function roleSyncBadge(sync: RoleSync): { text: string; tone: 'slate' | 'teal' | 'muted' | 'warn' } | null {
+  const app = sync.app?.raw ?? '';
+  switch (sync.kind) {
+    case 'unlinked': return null;
+    case 'pending': return { text: '앱 권한 확인 중', tone: 'muted' };
+    case 'no_profile': return { text: '앱 계정 없음 ⚠', tone: 'warn' };
+    case 'promotable': return { text: '앱 GUEST ⚠', tone: 'warn' };
+    case 'nonstandard': return { text: `앱 "${app}" ⚠ 비표준`, tone: 'warn' };
+    case 'guest_with_access': return { text: `앱 ${app} ⚠ 게스트 회원`, tone: 'warn' };
+    case 'withdrawn_with_access': return { text: `앱 ${app} ⚠ 탈회`, tone: 'warn' };
+    default: return { text: `앱 ${app}`, tone: sync.app?.exact === 'GUEST' ? 'slate' : 'teal' };
+  }
+}
+const roleErrorText = (err: unknown): string =>
+  err instanceof RoleUpdateError ? err.message : `저장 실패: ${(err as any)?.message || String(err)}`;
 
 const getErrorMessage = (err: any) => err?.message || err?.details || err?.hint || JSON.stringify(err) || String(err);
 
@@ -116,6 +146,7 @@ export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('members');
   const [isSyncing, setIsSyncing] = useState(false);
   const [fetchingMembers, setFetchingMembers] = useState(false);
+  const [membersLoaded, setMembersLoaded] = useState(false); // 회원 목록을 한 번이라도 받았는가(앱 계정 탭 연결 표시 보류용)
   const [fetchingProfiles, setFetchingProfiles] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [updatingProfileId, setUpdatingProfileId] = useState<string | null>(null);
@@ -126,6 +157,9 @@ export default function AdminSettingsPage() {
   const [registerTarget, setRegisterTarget] = useState<'new' | AdminMember | null>(null); // 'new'=신규 추가, AdminMember=기존 회원 연결 모드
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
   const [profileTarget, setProfileTarget] = useState<AdminMember | null>(null); // 프로필 편집·입상 기록 관리 모달
+  // 회원 목록용 앱 권한(profiles.id → role 원본). 'ready' 전에는 불일치 판정을 보류한다(실패를 GUEST 로 보지 않음).
+  const [appRoleLookup, setAppRoleLookup] = useState<AppRoleLookup>({ state: 'loading' });
+  const [promotingId, setPromotingId] = useState<string | null>(null);
 
   // Gating — 조회 권한 없는 사용자 차단(서버 middleware 1차, 여기 2차).
   useEffect(() => {
@@ -146,6 +180,7 @@ export default function AdminSettingsPage() {
         .order('nickname', { ascending: true });
       if (error) throw error;
       setMembers((data || []) as AdminMember[]);
+      setMembersLoaded(true);
     } catch (err: any) {
       console.warn('[Admin] Fetch Members Error:', err);
       setFetchError(getErrorMessage(err));
@@ -178,8 +213,8 @@ export default function AdminSettingsPage() {
         }
       }
       if (error) throw error;
-      // RPC 는 updated_at desc 로 반환 — 기존 정렬과 동일. role 정규화는 기존 로직 유지.
-      setProfiles((data || []).map((p: any) => ({ ...p, role: APP_ROLE_OPTIONS.includes(p.role) ? p.role : 'GUEST' })));
+      // RPC 는 updated_at desc 로 반환 — 기존 정렬과 동일. role 은 원본 그대로(정규화 · GUEST 대체 금지).
+      setProfiles((data || []).map((p: any) => ({ ...p, role: p.role ?? null })));
     } catch (err: any) {
       console.warn('[Admin] Fetch Profiles Error:', err);
       setFetchError(getErrorMessage(err));
@@ -200,6 +235,29 @@ export default function AdminSettingsPage() {
     [members],
   );
 
+  // 회원 목록용 앱 권한 — 실패 시 'error'(판정 보류), 성공 시에만 'ready'.
+  const fetchAppRoles = async () => {
+    setAppRoleLookup({ state: 'loading' });
+    try {
+      setAppRoleLookup({ state: 'ready', byId: await fetchAppRolesById() });
+    } catch (err) {
+      console.warn('[Admin] Fetch app roles error:', err);
+      setAppRoleLookup({ state: 'error' });
+    }
+  };
+
+  const roleSyncOf = (m: AdminMember): RoleSync => computeRoleSync(m, appRoleLookup);
+  const roleWarnCount = useMemo(
+    () => (appRoleLookup.state === 'ready' ? members.filter((m) => computeRoleSync(m, appRoleLookup).warn).length : null),
+    [members, appRoleLookup],
+  );
+  // 앱 계정 탭: profiles.id → 연결된 회원.
+  const memberByAuthId = useMemo(() => {
+    const map = new Map<string, AdminMember>();
+    for (const m of members) if (m.auth_user_id) map.set(m.auth_user_id, m);
+    return map;
+  }, [members]);
+
   // 미연결 앱 계정(profiles 중 members.auth_user_id 미연결) — 신규 등록/연결 후보.
   const refreshUnlinkedAccounts = async () => {
     try {
@@ -211,8 +269,8 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (canView) {
-      if (activeTab === 'members') { fetchMembersData(); if (canEdit) refreshUnlinkedAccounts(); }
-      if (activeTab === 'accounts') fetchProfilesData();
+      if (activeTab === 'members') { fetchMembersData(); fetchAppRoles(); if (canEdit) refreshUnlinkedAccounts(); }
+      if (activeTab === 'accounts') { fetchProfilesData(); fetchMembersData(); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canView, activeTab]);
@@ -235,20 +293,56 @@ export default function AdminSettingsPage() {
     }
   };
 
+  // 클럽 회원 자격(members.role) 변경 — 앱 권한과 별개. 확인 → 현재 값 비교 UPDATE → 실제 1행 확인.
+  //   실패(서버 거부 · 0행 · 동시 수정)면 성공 메시지 없이 원인 안내 + 최신 목록 재조회.
   const handleRoleChange = async (member: AdminMember, newRole: string) => {
     if (member.role === newRole) return;
     if (!canEdit) { showReadonlyNotice(); return; } // 운영진 읽기 전용
     if (!guardWriteAction('멤버 직책 변경')) return; // 촬영 모드 차단(별개 체계)
+    const ok = window.confirm(
+      `'${member.nickname}' 클럽 회원 자격을 변경할까요?\n\n${member.role || '미지정'} → ${newRole}\n\n※ 앱 권한(GUEST/MEMBER 등)은 바뀌지 않습니다.`,
+    );
+    if (!ok) { setMembers((prev) => [...prev]); return; } // select 표시를 원래 값으로
     setUpdatingId(member.id);
     try {
-      await supabase.from('members').update({ role: newRole }).eq('id', member.id);
-      setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, role: newRole } : m)));
-      logAction('/admin', 'role_changed', { target: member.nickname, newRole });
-      showToast(`${member.nickname} → ${newRole}`);
-    } catch (err: any) {
-      showToast('변경 실패: ' + err.message);
+      const saved = await setClubRole({ memberId: member.id, expected: member.role ?? null, next: newRole });
+      setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, role: saved.role } : m)));
+      logAction('/admin', 'role_changed', { target: member.nickname, newRole: saved.role });
+      showToast(`${member.nickname} 클럽 회원 자격 → ${saved.role}`);
+    } catch (err) {
+      showToast(roleErrorText(err));
+      await fetchMembersData(true);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  // 연결 회원의 앱 권한 GUEST → MEMBER(관리자 확인 필수 · 자동 승격 없음). 서버 경로: RLS + P0-C.
+  const promoteMember = async (member: AdminMember, opts?: { afterLink?: boolean }): Promise<boolean> => {
+    if (!canEdit) { showReadonlyNotice(); return false; }
+    if (!member.auth_user_id) return false;
+    if (!guardWriteAction('앱 권한 변경')) return false;
+    const ok = window.confirm(
+      `${opts?.afterLink ? '계정 연결이 완료되었습니다.\n현재 앱 권한이 GUEST 라 회원 기능을 쓸 수 없습니다.\n\n' : ''}'${member.nickname}' 앱 권한을 MEMBER 로 변경할까요?\n\n클럽 회원 자격: ${member.role || '미지정'}\n앱 권한: GUEST → MEMBER`,
+    );
+    if (!ok) {
+      if (opts?.afterLink) showToast(`${member.nickname} 앱 권한 GUEST 유지 — 목록의 ⚠ 에서 다시 변경할 수 있습니다.`);
+      return false;
+    }
+    setPromotingId(member.id);
+    try {
+      await promoteLinkedMemberToMember({ memberId: member.id, profileId: member.auth_user_id });
+      logAction('/admin', 'profile_role_changed', { target: member.nickname, newRole: 'MEMBER', via: 'member_list' });
+      showToast(`${member.nickname} 앱 권한 → MEMBER`);
+      return true;
+    } catch (err) {
+      showToast(roleErrorText(err));
+      await fetchMembersData(true);
+      return false;
+    } finally {
+      setPromotingId(null);
+      await fetchAppRoles();
+      if (profiles.length > 0) await fetchProfilesData(true);
     }
   };
 
@@ -274,32 +368,50 @@ export default function AdminSettingsPage() {
     }
   };
 
-  // 등록/연결 완료 → 목록·후보 즉시 갱신.
-  const handleRegistered = async (msg: string) => {
+  // 등록/연결 완료 → 목록·후보 즉시 갱신. 연결된 계정이 GUEST 이고 회원 자격이면 MEMBER 변경 여부를 묻는다(자동 아님).
+  const handleRegistered = async (msg: string, linked?: LinkedResult) => {
     setRegisterTarget(null);
     showToast(msg);
-    await Promise.all([fetchMembersData(true), refreshUnlinkedAccounts()]);
+    await Promise.all([fetchMembersData(true), refreshUnlinkedAccounts(), fetchAppRoles()]);
+    if (!linked || clubStanding(linked.memberRole) !== 'member') return;
+    try {
+      const { data, error } = await supabase.from('profiles').select('id, role').eq('id', linked.profileId).maybeSingle();
+      if (error || !data || data.role !== 'GUEST') return; // 조회 실패 · GUEST 아님 → 묻지 않음(목록 배지로 확인)
+    } catch { return; }
+    await promoteMember(
+      { id: linked.memberId, nickname: linked.nickname, role: linked.memberRole, avatar_url: null, auth_user_id: linked.profileId },
+      { afterLink: true },
+    );
   };
 
-  const handleProfileRoleChange = async (profile: AdminProfile, newRole: AdminProfile['role']) => {
+  // 앱 계정 권한(profiles.role) 변경 — 전후 확인 → 현재 값 비교 UPDATE → 실제 1행 확인 → 재조회.
+  //   보호 상태(OPERATOR · FINANCE_MANAGER · 비표준)와 본인 · (비 CEO 의) CEO 행은 UI 에서 선택 자체를 막고,
+  //   최종 판단은 서버(RLS + P0-C)가 한다.
+  const handleProfileRoleChange = async (profile: AdminProfile, newRole: GrantableAppRole) => {
     if (profile.role === newRole) return;
     if (!canEdit) { showReadonlyNotice(); return; } // 운영진 읽기 전용
     if (!guardWriteAction('계정 권한 변경')) return; // 촬영 모드 차단(별개 체계)
-    if (profile.id === user?.id && role === 'CEO' && newRole !== 'CEO') {
-      showToast('본인 CEO 권한은 여기서 낮출 수 없습니다.');
-      return;
-    }
+    if (profile.id === user?.id) { showToast('본인 앱 권한은 변경할 수 없습니다.'); return; }
+    const label = profile.nickname || (profile.email ? maskEmail(profile.email) : '계정');
+    const from = profile.role ?? '없음';
+    const rank: Record<string, number> = { GUEST: 0, MEMBER: 1, ADMIN: 2, CEO: 3 };
+    const demoting = (rank[from] ?? 0) >= 2 && (rank[newRole] ?? 0) < (rank[from] ?? 0);
+    const linkedName = memberByAuthId.get(profile.id)?.nickname;
+    const ok = window.confirm(
+      `${demoting ? '⚠ 고권한 강등입니다. 관리 기능 접근이 사라집니다.\n\n' : ''}'${label}' 앱 권한을 변경할까요?\n\n${from} → ${newRole}\n연결 회원: ${linkedName || '미연결'}`,
+    );
+    if (!ok) { setProfiles((prev) => [...prev]); return; }
     setUpdatingProfileId(profile.id);
     try {
-      const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', profile.id);
-      if (error) throw error;
-      setProfiles((prev) => prev.map((p) => (p.id === profile.id ? { ...p, role: newRole } : p)));
-      logAction('/admin', 'profile_role_changed', { target: profile.email || profile.nickname || profile.id, newRole });
-      showToast(`${profile.email || profile.nickname || '계정'} → ${newRole}`);
-    } catch (err: any) {
-      showToast('권한 변경 실패: ' + err.message);
+      const saved = await setAppRole({ profileId: profile.id, expectedRaw: profile.role, next: newRole });
+      logAction('/admin', 'profile_role_changed', { target: label, from, newRole: saved.role });
+      showToast(`${label} 앱 권한 → ${saved.role}`);
+    } catch (err) {
+      showToast(roleErrorText(err));
     } finally {
       setUpdatingProfileId(null);
+      await fetchProfilesData(true); // 성공 · 실패 모두 DB 기준으로 다시 표시
+      fetchAppRoles();
     }
   };
 
@@ -360,8 +472,26 @@ export default function AdminSettingsPage() {
       {/* 멤버 관리 */}
       {activeTab === 'members' && (
         <section style={CARD}>
-          <SectionHead title="멤버 관리" desc="클럽 내 직책/회원 구분입니다. (앱 접근 권한은 ‘앱 계정’ 탭)" count={members.length} loading={fetchingMembers} />
-          {!canEdit && <ReadonlyNote>현재 멤버 직책을 확인할 수 있습니다. 직책 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
+          <SectionHead title="멤버 관리" desc="클럽 회원 자격 · 계정 연결 · 앱 권한을 함께 확인합니다. 클럽 회원 자격과 앱 권한은 별개입니다." count={members.length} loading={fetchingMembers} />
+          {!canEdit && <ReadonlyNote>현재 멤버 직책과 앱 권한을 확인할 수 있습니다. 직책 · 앱 권한 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
+          <div data-role-sync-summary={appRoleLookup.state} data-role-warn-count={roleWarnCount ?? ''}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12, padding: '8px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 800, lineHeight: 1.5,
+              ...(appRoleLookup.state === 'ready' && (roleWarnCount ?? 0) > 0
+                ? { backgroundColor: '#FFF7ED', color: '#B45309', border: '1px solid #FCD9A8' }
+                : appRoleLookup.state === 'error'
+                  ? { backgroundColor: '#FEF2F2', color: '#B91C1C', border: '1px solid #F3B4B4' }
+                  : { backgroundColor: '#F8FAFC', color: '#64748B', border: '1px solid #EEF2F6' }) }}>
+            {appRoleLookup.state === 'loading' && <><Loader2 size={12} className="animate-spin" style={{ flexShrink: 0 }} /><span style={{ flex: 1, minWidth: 0 }}>앱 권한 확인 중 — 불일치 판정 보류</span></>}
+            {appRoleLookup.state === 'error' && (
+              <>
+                <AlertTriangle size={12} style={{ flexShrink: 0 }} /><span style={{ flex: 1, minWidth: 0 }}>앱 권한을 불러오지 못해 불일치 판정을 보류합니다.</span>
+                <button type="button" onClick={() => fetchAppRoles()} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', fontSize: 11.5, fontWeight: 900, textDecoration: 'underline', cursor: 'pointer' }}>재시도</button>
+              </>
+            )}
+            {appRoleLookup.state === 'ready' && ((roleWarnCount ?? 0) > 0
+              ? <><AlertTriangle size={12} style={{ flexShrink: 0 }} /><span style={{ flex: 1, minWidth: 0 }}>회원 자격 · 앱 권한 불일치 {roleWarnCount}명 — ⚠ 표시 회원을 확인해 주세요.</span></>
+              : <>회원 자격과 앱 권한이 모두 일치합니다.</>)}
+          </div>
           {canEdit && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
               <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: unlinkedAccounts.length > 0 ? '#B45309' : '#94A3B8' }}>
@@ -391,6 +521,17 @@ export default function AdminSettingsPage() {
                     {m.auth_user_id
                       ? <Badge tone="teal"><Link2 size={10} /> 연결됨</Badge>
                       : <Badge tone="muted"><Link2Off size={10} /> 미연결</Badge>}
+                    {(() => {
+                      const sync = roleSyncOf(m);
+                      const b = roleSyncBadge(sync);
+                      return b ? <span data-app-role={sync.kind} style={{ display: 'inline-flex' }}><Badge tone={b.tone}>{b.text}</Badge></span> : null;
+                    })()}
+                    {canEdit && roleSyncOf(m).kind === 'promotable' && (
+                      <button type="button" data-role-promote onClick={() => promoteMember(m)} disabled={promotingId === m.id}
+                        style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 10, fontWeight: 900, color: '#B45309', cursor: promotingId === m.id ? 'wait' : 'pointer', textDecoration: 'underline' }}>
+                        {promotingId === m.id ? '변경 중…' : '앱 권한을 MEMBER로 변경'}
+                      </button>
+                    )}
                     {canEdit && (
                       <button type="button" onClick={() => setProfileTarget(m)}
                         style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 10, fontWeight: 800, color: '#475569', cursor: 'pointer', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
@@ -411,13 +552,17 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
                 {canEdit ? (
-                  <select value={m.role} onChange={(e) => handleRoleChange(m, e.target.value)} disabled={updatingId === m.id} className="admin-select" style={selectStyle(updatingId === m.id)}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '100%' }}>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.02em' }}>클럽 회원 자격</span>
+                  <select aria-label="클럽 회원 자격" data-club-role-select value={m.role ?? ''} onChange={(e) => handleRoleChange(m, e.target.value)} disabled={updatingId === m.id} className="admin-select" style={selectStyle(updatingId === m.id)}>
+                    {!ALL_CLUB_ROLES.includes(m.role ?? '') && <option value={m.role ?? ''} disabled>{m.role || '미지정'} (현재 값)</option>}
                     {ROLE_OPTIONS.map((g) => (
                       <optgroup key={g.group} label={g.group}>
                         {g.roles.map((r) => <option key={r} value={r}>{r}</option>)}
                       </optgroup>
                     ))}
                   </select>
+                  </label>
                 ) : (
                   <Badge tone="slate">{m.role || '미지정'}</Badge>
                 )}
@@ -431,7 +576,7 @@ export default function AdminSettingsPage() {
       {/* 앱 계정 */}
       {activeTab === 'accounts' && (
         <section style={CARD}>
-          <SectionHead title="앱 계정 권한" desc="화면 접근·관리 기능 노출에 사용되는 앱 역할입니다." count={profiles.length} loading={fetchingProfiles} />
+          <SectionHead title="앱 계정 권한" desc="화면 접근·관리 기능에 쓰는 앱 권한입니다. 클럽 회원 자격(멤버 관리 탭)과 별개입니다. OPERATOR · FINANCE_MANAGER · 비표준 값은 보호 상태로 이 화면에서 변경되지 않습니다." count={profiles.length} loading={fetchingProfiles} />
           {!canEdit && <ReadonlyNote>계정 연결 상태와 앱 Role을 확인할 수 있습니다. Role 변경은 CEO·ADMIN만 가능합니다.</ReadonlyNote>}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {profiles.map((p, i) => (
@@ -440,14 +585,37 @@ export default function AdminSettingsPage() {
                 <div style={{ flex: 1, minWidth: 140 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0F1B33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nickname || p.email || '알 수 없음'}</p>
                   <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{canEdit ? (p.email || p.id) : (p.email ? maskEmail(p.email) : p.id)}</p>
+                  <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                    {!membersLoaded
+                      ? <span data-account-link="pending" style={{ display: 'inline-flex' }}><Badge tone="muted">회원 연결 확인 중</Badge></span>
+                      : memberByAuthId.get(p.id)
+                      ? <span data-account-link="linked" style={{ display: 'inline-flex' }}><Badge tone="teal"><Link2 size={10} /> 회원 {memberByAuthId.get(p.id)!.nickname}</Badge></span>
+                      : <span data-account-link="unlinked" style={{ display: 'inline-flex' }}><Badge tone="muted"><Link2Off size={10} /> 회원 미연결</Badge></span>}
+                    {p.id === user?.id && <Badge tone="slate">본인</Badge>}
+                  </div>
                 </div>
-                {canEdit ? (
-                  <select value={p.role} onChange={(e) => handleProfileRoleChange(p, e.target.value as AdminProfile['role'])} disabled={updatingProfileId === p.id || (p.id === user?.id && role === 'CEO')} className="admin-select" style={selectStyle(updatingProfileId === p.id || (p.id === user?.id && role === 'CEO'))}>
-                    {APP_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                ) : (
-                  <Badge tone="slate">{p.role}</Badge>
-                )}
+                {(() => {
+                  const info = describeAppRole(p.role);
+                  if (!info.editable) {
+                    // 보호 상태 — OPERATOR · FINANCE_MANAGER(표시만) / 비표준 · 값 없음(원본 표시, 정규화 · 저장 없음)
+                    const text = info.exact
+                      ? `${info.exact} · 보호됨`
+                      : `${p.role === null ? '값 없음' : `"${p.role}"`} · 비표준(앱에서 ${info.effective})`;
+                    return <span data-account-role="protected" title="이 화면에서 변경할 수 없는 권한입니다." style={{ display: 'inline-flex' }}><Badge tone={info.exact ? 'slate' : 'warn'}>{text}</Badge></span>;
+                  }
+                  if (!canEdit) return <span data-account-role="readonly" style={{ display: 'inline-flex' }}><Badge tone="slate">{p.role}</Badge></span>;
+                  const isSelf = p.id === user?.id;
+                  const ceoLocked = p.role === 'CEO' && role !== 'CEO';
+                  const locked = isSelf || ceoLocked || updatingProfileId === p.id;
+                  return (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '100%' }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.02em' }}>앱 권한{isSelf ? ' · 본인 변경 불가' : ceoLocked ? ' · CEO 전용' : ''}</span>
+                      <select aria-label="앱 권한" data-account-role="select" value={p.role ?? ''} onChange={(e) => handleProfileRoleChange(p, e.target.value as GrantableAppRole)} disabled={locked} className="admin-select" style={selectStyle(locked)}>
+                        {GRANTABLE_APP_ROLES.map((r) => <option key={r} value={r} disabled={r === 'CEO' && role !== 'CEO'}>{r}</option>)}
+                      </select>
+                    </label>
+                  );
+                })()}
               </div>
             ))}
             {profiles.length === 0 && !fetchingProfiles && <Empty>앱 계정이 없습니다.</Empty>}
@@ -575,13 +743,15 @@ const CARD: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: 14
 //   흐름: 앱 계정 선택(미연결 후보) → 기존 회원 exact 후보 확인 → [기존 회원 연결] 또는 [신규 생성]
 //   안전장치: 이름/이메일 exact 중복 경고, auth 중복 연결 차단(service+DB unique), 저장 전 최종 확인.
 type RegisterMode = { kind: 'new' } | { kind: 'link'; member: AdminMember };
+/** 연결 완료 결과 — 연결 직후 앱 권한 확인(관리자 확인 후 MEMBER 변경)에 쓴다. */
+type LinkedResult = { memberId: string; nickname: string; memberRole: string; profileId: string };
 
 function MemberRegisterModal({ mode, unlinkedAccounts, guardWriteAction, onClose, onDone }: {
   mode: RegisterMode;
   unlinkedAccounts: UnlinkedAccount[];
   guardWriteAction: (label: string) => boolean;
   onClose: () => void;
-  onDone: (msg: string) => void | Promise<void>;
+  onDone: (msg: string, linked?: LinkedResult) => void | Promise<void>;
 }) {
   const linkMember = mode.kind === 'link' ? mode.member : null;
   const [accountId, setAccountId] = useState<string>(''); // 선택한 앱 계정(profiles.id) — ''=나중에 연결
@@ -636,9 +806,9 @@ function MemberRegisterModal({ mode, unlinkedAccounts, guardWriteAction, onClose
     if (!finalConfirm(`기존 회원 '${target.nickname}'에 앱 계정을 연결합니다.`, target.nickname)) return;
     setSaving(true);
     try {
-      await linkAccountToMember({ memberId: target.id, authUserId: accountId, email });
+      const linkedRow = await linkAccountToMember({ memberId: target.id, authUserId: accountId, email });
       logAction('/admin', 'member_account_linked', { target: target.nickname });
-      await onDone(`${target.nickname} 계정 연결 완료`);
+      await onDone(`${target.nickname} 계정 연결 완료`, { memberId: linkedRow.id, nickname: linkedRow.nickname, memberRole: linkedRow.role, profileId: accountId });
     } catch (err: any) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -668,7 +838,10 @@ function MemberRegisterModal({ mode, unlinkedAccounts, guardWriteAction, onClose
         allowDuplicateName,
       });
       logAction('/admin', 'member_created', { target: created.nickname, linked: !!accountId });
-      await onDone(`${created.nickname} 회원 생성${accountId ? ' + 계정 연결' : ''} 완료`);
+      await onDone(
+        `${created.nickname} 회원 생성${accountId ? ' + 계정 연결' : ''} 완료`,
+        accountId ? { memberId: created.id, nickname: created.nickname, memberRole: created.role, profileId: accountId } : undefined,
+      );
     } catch (err: any) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -1443,6 +1616,7 @@ const BADGE_TONE: Record<string, { bg: string; fg: string; bd: string }> = {
   slate: { bg: '#F1F5F9', fg: '#475569', bd: '#E2E8F0' },
   teal: { bg: '#E7F6EF', fg: '#047857', bd: '#A7E3C9' },
   muted: { bg: '#F8FAFC', fg: '#94A3B8', bd: '#EEF2F6' },
+  warn: { bg: '#FFF7ED', fg: '#B45309', bd: '#FCD9A8' },
 };
 function Badge({ children, tone }: { children: React.ReactNode; tone: keyof typeof BADGE_TONE }) {
   const t = BADGE_TONE[tone];
