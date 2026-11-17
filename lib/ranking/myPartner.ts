@@ -1,4 +1,4 @@
-// TEYEON MY PARTNER — 나와 잘 맞는 파트너(순수 계산, Supabase 미의존).
+// TEYEON MY PARTNER — 나의 BEST · WORST 파트너(순수 계산, Supabase 미의존).
 //
 //   · 승패 · 득실은 기존 파트너 전적 computePartnerRecord 를 "그대로" 호출해 얻는다(별도 산식 없음).
 //     → 상대전적 화면의 '파트너 전적'(/ranking/head-to-head?view=partner)과 수치가 구조적으로 항상 같다.
@@ -7,16 +7,21 @@
 //   · 후보: 기준 회원과 "같은 팀"으로 뛴 적이 있는 현재 회원(탈회 · 게스트 제외).
 //     탈회 회원은 resolver 명단(members)에는 남겨 과거 기록 해석은 파트너 전적과 같게 유지하되 결과 후보에서만 뺀다.
 //   · 순위 왜곡 방지
-//     - 함께 출전 PARTNER_MIN_GAMES(5) 경기 이상만 순위 대상.
+//     - 함께 출전 PARTNER_MIN_GAMES(3) 경기 이상만 분석 대상(적격).
 //     - 정렬은 보정 승률 (승 + 2) / (경기 + 4) — 정렬에만 쓰고 화면에는 실제 승률 · 승패 · 경기 수 · 득실을 표시한다.
 //       비교는 정수 교차곱(부동소수점 없음).
-//   · BEST PARTNER = 보정 승률 상위 2명, MORE TOGETHER = 나머지 중 보정 승률 하위 2명(두 목록 중복 없음).
-//     대상이 부족하면 있는 만큼만(빈 카드 없음).
+//   · 적격 인원별 표시(두 목록 중복 없음 · 빈 카드 없음)
+//     - 4명 이상 : BEST 2 · WORST 2                      mode 'full'
+//     - 3명      : BEST 2 · WORST 1                      mode 'partial'
+//     - 2명      : BEST 1 · WORST 1                      mode 'partial'
+//     - 1명      : BEST/WORST 로 나누지 않고 analyzable 1명 mode 'single'
+//     - 0명      : 데이터 부족 안내                       mode 'none'
+//     WORST 는 함께한 경기 결과 기준일 뿐 선수 실력 평가가 아니다(화면 안내).
 
 import { computePartnerRecord, buildMemberResolver, isEligibleOfficialKdkArchive, parseCompleteMatch, type HeadToHeadMemberRef, type PartnerMatchResult } from './headToHead';
 import type { KdkArchiveRow } from '../kdkArchiveStats';
 
-export const PARTNER_MIN_GAMES = 5;
+export const PARTNER_MIN_GAMES = 3;
 export const PARTNER_LIST_SIZE = 2;
 /** 보정 승률 (승 + PRIOR_WINS) / (경기 + PRIOR_GAMES) — 정렬 전용. */
 export const PRIOR_WINS = 2;
@@ -40,12 +45,18 @@ export interface PartnerStat {
   recentForm: boolean[];
 }
 
+export type PartnerMode = 'full' | 'partial' | 'single' | 'none';
+
 export interface MyPartnerResult {
+  /** 표시 모드 — 적격 파트너 수로 결정(위 주석 표). */
+  mode: PartnerMode;
   best: PartnerStat[];
-  moreTogether: PartnerStat[];
+  worst: PartnerStat[];
+  /** mode 'single' 일 때만 1명 — BEST/WORST 로 분류하지 않는 분석 가능 파트너. */
+  analyzable: PartnerStat[];
   /** 같은 팀으로 1경기 이상 뛴 현재 회원 수. */
   partnersMet: number;
-  /** 최소 경기(5) 이상 함께 뛴 파트너 수. */
+  /** 최소 경기(PARTNER_MIN_GAMES) 이상 함께 뛴 파트너 수. */
   qualified: number;
   /** 최소 경기 미만이라 순위에서 빠진 파트너 중 가장 많이 함께 뛴 경기 수(안내용). */
   maxGamesBelowMin: number;
@@ -73,8 +84,8 @@ export function compareBest(x: PartnerStat, y: PartnerStat): number {
   return cmpStr(x.partnerName, y.partnerName) || cmpStr(x.partnerId, y.partnerId);
 }
 
-/** MORE TOGETHER 정렬: 보정 승률 낮은 순 → 함께 뛴 경기 많은 순(근거가 많은 쪽 먼저) → 득실 작은 순 → 최근 경기 최신 순 → 이름 → id. */
-export function compareMoreTogether(x: PartnerStat, y: PartnerStat): number {
+/** WORST 정렬: 보정 승률 낮은 순 → 함께 뛴 경기 많은 순(근거가 많은 쪽 먼저) → 득실 작은 순 → 최근 경기 최신 순 → 이름 → id. */
+export function compareWorst(x: PartnerStat, y: PartnerStat): number {
   const a = compareAdjustedDesc(y, x);
   if (a !== 0) return a;
   if (x.totalGames !== y.totalGames) return y.totalGames - x.totalGames;
@@ -120,7 +131,7 @@ export function computeMyPartners(
   members: readonly HeadToHeadMemberRef[],
   activeMemberIds: ReadonlySet<string>,
 ): MyPartnerResult {
-  const empty: MyPartnerResult = { best: [], moreTogether: [], partnersMet: 0, qualified: 0, maxGamesBelowMin: 0, hasUnresolvableRecords: false };
+  const empty: MyPartnerResult = { mode: 'none', best: [], worst: [], analyzable: [], partnersMet: 0, qualified: 0, maxGamesBelowMin: 0, hasUnresolvableRecords: false };
   if (!meId) return empty;
   const nameById = new Map(members.map((m) => [m.id, m.name]));
   const rows = [...(archiveRows || [])];
@@ -154,8 +165,14 @@ export function computeMyPartners(
     });
   }
 
-  const best = [...qualified].sort(compareBest).slice(0, PARTNER_LIST_SIZE);
+  const n = qualified.length;
+  const base = { partnersMet, qualified: n, maxGamesBelowMin, hasUnresolvableRecords: unresolved };
+  if (n === 0) return { ...base, mode: 'none', best: [], worst: [], analyzable: [] };
+  if (n === 1) return { ...base, mode: 'single', best: [], worst: [], analyzable: qualified };
+  // BEST 인원: 4명 이상 2 · 3명 2 · 2명 1  →  min(2, ceil(n/2)). WORST 는 나머지에서 min(2, n − BEST).
+  const bestCount = Math.min(PARTNER_LIST_SIZE, Math.ceil(n / 2));
+  const best = [...qualified].sort(compareBest).slice(0, bestCount);
   const bestIds = new Set(best.map((p) => p.partnerId));
-  const moreTogether = qualified.filter((p) => !bestIds.has(p.partnerId)).sort(compareMoreTogether).slice(0, PARTNER_LIST_SIZE);
-  return { best, moreTogether, partnersMet, qualified: qualified.length, maxGamesBelowMin, hasUnresolvableRecords: unresolved };
+  const worst = qualified.filter((p) => !bestIds.has(p.partnerId)).sort(compareWorst).slice(0, Math.min(PARTNER_LIST_SIZE, n - bestCount));
+  return { ...base, mode: n >= PARTNER_LIST_SIZE * 2 ? 'full' : 'partial', best, worst, analyzable: [] };
 }

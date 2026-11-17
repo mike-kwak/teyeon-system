@@ -829,7 +829,7 @@ export default function RankingPage() {
     >
       <div style={{ width: '100%', maxWidth: 430, padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* 딥링크 행/카드 hover·active — 인라인 배경과 충돌하지 않도록 filter/opacity 사용(페이지 로컬 클래스, 전역 CSS 아님) */}
-        <style>{`.rank-row{transition:filter .15s,opacity .1s}.rank-row:hover{filter:brightness(0.98)}.rank-row:active{opacity:.9}`}</style>
+        <style>{`.rank-row{transition:filter .15s,opacity .1s}.rank-row:hover{filter:brightness(0.98)}.rank-row:active{opacity:.9}@media (max-width:359px){.rank-hdr-btn svg{display:none}}`}</style>
 
         {/* ── 헤더: 뒤로 + 타이틀 + 상대전적 바로가기 ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, rowGap: 8, flexWrap: 'wrap', paddingTop: 16 }}>
@@ -844,23 +844,22 @@ export default function RankingPage() {
             <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: C.teal, fontFamily: 'var(--font-rajdhani), sans-serif' }}>CLUB RANKING</p>
             <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.text, letterSpacing: '0.02em', fontFamily: 'var(--font-rajdhani), sans-serif' }}>RANKING</h1>
           </div>
-          <div style={{ flex: 1, minWidth: 8 }} />
-          {/* 상대전적 진입 — 헤더 우측 작은 pill(터치 44px). 화면 내부에 상대/파트너 탭 존재 → 문구는 '상대전적'로 유지. */}
-          <Link href="/ranking/head-to-head" aria-label="상대전적"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, backgroundColor: C.tealBg, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 12, fontWeight: 800, textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            <Swords size={15} /> 상대전적
-          </Link>
-          {/* MY RIVAL · MY PARTNER — 본인 공식 기록 기반 개인 분석 진입(상대전적과 같은 공식 기록 · 권한). 줄바꿈 시 함께 오른쪽 정렬. */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <Link href="/ranking/rivals" aria-label="MY RIVAL 나의 천적과 라이벌" data-rival-entry
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, backgroundColor: C.card, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 12, fontWeight: 800, textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}>
-              <Flame size={15} /> MY RIVAL
+          {/* 상대전적 · MY RIVAL · MY PARTNER — 타이틀 아래 한 줄(같은 폭 3칸, 터치 44px). 320~359px 은 아이콘을 숨겨 글자 잘림 방지.
+               화면 내부에 상대/파트너 탭이 있어 상대전적 문구는 '상대전적'로 유지. */}
+          <nav aria-label="개인 기록 바로가기" data-rank-header-links style={{ flexBasis: '100%', display: 'flex', alignItems: 'stretch', gap: 6, minWidth: 0 }}>
+            <Link href="/ranking/head-to-head" aria-label="상대전적" className="rank-hdr-btn"
+              style={{ ...HDR_BTN, backgroundColor: C.tealBg }}>
+              <Swords size={14} style={{ flexShrink: 0 }} /> <span style={HDR_LABEL}>상대전적</span>
             </Link>
-            <Link href="/ranking/partners" aria-label="MY PARTNER 나와 잘 맞는 파트너" data-partner-entry
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, backgroundColor: C.card, border: '1px solid rgba(13,148,136,0.22)', color: C.teal, fontSize: 12, fontWeight: 800, textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}>
-              <Handshake size={15} /> MY PARTNER
+            <Link href="/ranking/rivals" aria-label="MY RIVAL 나의 천적과 라이벌" data-rival-entry className="rank-hdr-btn"
+              style={{ ...HDR_BTN, backgroundColor: C.card }}>
+              <Flame size={14} style={{ flexShrink: 0 }} /> <span style={HDR_LABEL}>MY RIVAL</span>
             </Link>
-          </div>
+            <Link href="/ranking/partners" aria-label="MY PARTNER 나와 잘 맞는 파트너" data-partner-entry className="rank-hdr-btn"
+              style={{ ...HDR_BTN, backgroundColor: C.card }}>
+              <Handshake size={14} style={{ flexShrink: 0 }} /> <span style={HDR_LABEL}>MY PARTNER</span>
+            </Link>
+          </nav>
         </div>
 
         {loading && <LoadingSkeleton />}
@@ -1060,3 +1059,11 @@ export default function RankingPage() {
     </main>
   );
 }
+
+// Ranking 헤더 바로가기 버튼(상대전적 · MY RIVAL · MY PARTNER) — 같은 폭 3칸 · 터치 44px · 한 줄 유지.
+const HDR_BTN: React.CSSProperties = {
+  flex: '1 1 0', minWidth: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+  minHeight: 44, padding: '0 6px', borderRadius: 999, border: '1px solid rgba(13,148,136,0.22)', color: '#0D9488',
+  fontSize: 11.5, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap', boxSizing: 'border-box',
+};
+const HDR_LABEL: React.CSSProperties = { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' };

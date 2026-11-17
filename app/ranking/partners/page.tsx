@@ -2,17 +2,18 @@
 
 export const dynamic = 'force-dynamic';
 
-// TEYEON MY PARTNER — 나와 잘 맞는 파트너.
+// TEYEON MY PARTNER — 나의 BEST · WORST 파트너.
 //   · 데이터: 상대전적 · MY RIVAL 과 같은 loadRankingInputs()(공식 KDK Archive + 회원 명단) 1회 조회 → computeMyPartners(순수 계산).
 //     승패 · 득실은 computePartnerRecord 를 그대로 사용 → 카드의 "파트너 전적 상세" 와 수치가 항상 같다.
 //   · 권한: 상대전적 · MY RIVAL 과 동일(로그인 회원, GUEST 역할 제외). 기준 회원은 본인(members.auth_user_id) 고정 —
 //     다른 회원을 고르는 입력이 없고, 본인 연결이 없으면 다른 회원 기록으로 대체하지 않고 안내만 표시한다.
 //   · 보정 승률 (승+2)/(경기+4) 은 정렬에만 쓰고 화면에는 실제 기록만 표시한다.
+//   · 적격(함께 3경기 이상) 인원별: 4명+ BEST2·WORST2 / 2~3명 가능한 만큼 + 부족 안내 / 1명 분석 가능한 파트너 / 0명 안내.
 //   · 운영 DB 쓰기 없음. 신규 테이블 · SQL 없음.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Handshake, Sparkles, Repeat } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Handshake, Sparkles, TrendingDown, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { loadRankingInputs } from '@/lib/ranking/clubRankingService';
@@ -50,8 +51,10 @@ function FormDots({ form }: { form: boolean[] }) {
 
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
-function PartnerCard({ p, kind, meId, avatar, rank }: { p: PartnerStat; kind: 'best' | 'more'; meId: string; avatar: string | null; rank: number }) {
-  const accent = kind === 'best' ? C.gold : C.indigo;
+type CardKind = 'best' | 'worst' | 'single';
+
+function PartnerCard({ p, kind, meId, avatar, rank }: { p: PartnerStat; kind: CardKind; meId: string; avatar: string | null; rank: number }) {
+  const accent = kind === 'best' ? C.gold : kind === 'worst' ? C.indigo : C.teal;
   const href = `/ranking/head-to-head?memberA=${encodeURIComponent(meId)}&memberB=${encodeURIComponent(p.partnerId)}&view=partner`;
   const l = p.latest;
   return (
@@ -59,7 +62,7 @@ function PartnerCard({ p, kind, meId, avatar, rank }: { p: PartnerStat; kind: 'b
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <Avatar name={p.partnerName} url={avatar} size={42} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.08em', color: accent }}>{kind === 'best' ? `BEST ${rank}` : `TOGETHER ${rank}`}</p>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 900, letterSpacing: '0.08em', color: accent }}>{kind === 'best' ? `BEST ${rank}` : kind === 'worst' ? `WORST ${rank}` : '분석 가능'}</p>
           <p data-partner="name" style={{ margin: '1px 0 0', fontSize: 15, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.partnerName}</p>
           <p style={{ margin: '1px 0 0', fontSize: 11, fontWeight: 700, color: C.sub }}>함께 <span data-partner="games">{p.totalGames}</span>경기</p>
         </div>
@@ -104,22 +107,41 @@ function PartnerCard({ p, kind, meId, avatar, rank }: { p: PartnerStat; kind: 'b
   );
 }
 
-function Section({ kind, list, meId, avatarOf }: { kind: 'best' | 'more'; list: PartnerStat[]; meId: string; avatarOf: (id: string) => string | null }) {
-  const best = kind === 'best';
-  const Icon = best ? Sparkles : Repeat;
+const SECTION: Record<CardKind, { title: string; desc: string; icon: typeof Sparkles; color: string; bg: string }> = {
+  best: { title: 'BEST PARTNER', desc: '함께 뛸 때 가장 좋은 결과를 낸 파트너', icon: Sparkles, color: C.gold, bg: C.goldBg },
+  worst: { title: 'WORST PARTNER', desc: '함께한 경기 결과가 가장 아쉬웠던 파트너', icon: TrendingDown, color: C.indigo, bg: C.indigoBg },
+  single: { title: '분석 가능한 파트너', desc: `함께 ${PARTNER_MIN_GAMES}경기 이상 뛴 파트너`, icon: Handshake, color: C.teal, bg: C.tealBg },
+};
+
+function Section({ kind, list, meId, avatarOf }: { kind: CardKind; list: PartnerStat[]; meId: string; avatarOf: (id: string) => string | null }) {
+  const m = SECTION[kind];
+  const Icon = m.icon;
   return (
     <section data-partner-section={kind} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px 0' }}>
-        <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: best ? C.goldBg : C.indigoBg, color: best ? C.gold : C.indigo, flexShrink: 0 }}><Icon size={15} /></span>
+        <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', backgroundColor: m.bg, color: m.color, flexShrink: 0 }}><Icon size={15} /></span>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: C.text }}>{best ? 'BEST PARTNER' : 'MORE TOGETHER'}</h2>
-          <p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 700, color: C.faint, wordBreak: 'keep-all' }}>
-            {best ? '함께 뛸 때 가장 좋은 결과를 낸 파트너' : '조금 더 호흡을 맞춰 볼 파트너'}
-          </p>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: C.text }}>{m.title}</h2>
+          <p style={{ margin: '1px 0 0', fontSize: 10.5, fontWeight: 700, color: C.faint, wordBreak: 'keep-all' }}>{m.desc}</p>
         </div>
       </div>
+      {kind === 'worst' && (
+        <p data-partner="worst-note" style={{ margin: '0 2px', fontSize: 11, fontWeight: 700, color: C.sub, lineHeight: 1.5, wordBreak: 'keep-all' }}>
+          함께한 공식 경기 결과 기준이며, 선수 실력에 대한 평가가 아닙니다.
+        </p>
+      )}
       {list.map((p, i) => <PartnerCard key={p.partnerId} p={p} kind={kind} meId={meId} avatar={avatarOf(p.partnerId)} rank={i + 1} />)}
     </section>
+  );
+}
+
+/** 데이터 부족 안내(빈 선수 카드 대신 한 줄 안내). */
+function Notice({ children, tag }: { children: React.ReactNode; tag: string }) {
+  return (
+    <div data-partner={tag} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', borderRadius: 12, backgroundColor: '#F8FAFC', border: `1px solid ${C.border}` }}>
+      <Info size={14} color={C.sub} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
+      <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: C.sub, lineHeight: 1.55, wordBreak: 'keep-all' }}>{children}</p>
+    </div>
   );
 }
 
@@ -227,7 +249,7 @@ export default function MyPartnerPage() {
           </div>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 9.5, fontWeight: 900, letterSpacing: '0.16em', color: C.gold }}>MY PARTNER</p>
-            <p style={{ margin: '1px 0 0', fontSize: 16, fontWeight: 900, color: C.text }}>나와 잘 맞는 파트너</p>
+            <p style={{ margin: '1px 0 0', fontSize: 16, fontWeight: 900, color: C.text }}>나의 BEST · WORST 파트너</p>
           </div>
         </div>
         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: C.sub }}>공식 KDK 기록 기반 · 함께 {PARTNER_MIN_GAMES}경기 이상 뛴 파트너</p>
@@ -238,7 +260,7 @@ export default function MyPartnerPage() {
         </div>
       </section>
 
-      {r.qualified === 0 ? (
+      {r.mode === 'none' && (
         <div data-partner="empty" style={{ ...cardStyle, padding: '22px 18px', textAlign: 'center' }}>
           <Handshake size={22} color={C.faint} style={{ margin: '0 auto 8px' }} aria-hidden />
           <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.6, wordBreak: 'keep-all' }}>
@@ -246,19 +268,29 @@ export default function MyPartnerPage() {
           </p>
           <p style={{ margin: '6px 0 0', fontSize: 12, fontWeight: 600, color: C.sub, lineHeight: 1.6, wordBreak: 'keep-all' }}>
             {r.partnersMet > 0
-              ? `지금까지 ${r.partnersMet}명과 함께 뛰었고, 가장 많이 함께한 기록은 ${r.maxGamesBelowMin}경기입니다. 공식 KDK 경기가 쌓이면 BEST PARTNER 를 확인할 수 있습니다.`
-              : '공식 KDK 경기가 쌓이면 BEST PARTNER 를 확인할 수 있습니다.'}
+              ? `지금까지 ${r.partnersMet}명과 함께 뛰었고, 가장 많이 함께한 기록은 ${r.maxGamesBelowMin}경기입니다. 공식 KDK 경기가 쌓이면 BEST · WORST PARTNER 를 확인할 수 있습니다.`
+              : '공식 KDK 경기가 쌓이면 BEST · WORST PARTNER 를 확인할 수 있습니다.'}
           </p>
         </div>
-      ) : (
+      )}
+
+      {r.mode === 'single' && (
+        <>
+          <Section kind="single" list={r.analyzable} meId={meId} avatarOf={avatarOf} />
+          <Notice tag="short-note">
+            함께 {PARTNER_MIN_GAMES}경기 이상 뛴 파트너가 1명이라 BEST · WORST 로 나누지 않았습니다. 분석 가능한 파트너가 2명 이상이 되면 비교해 보여 드립니다.
+          </Notice>
+        </>
+      )}
+
+      {(r.mode === 'full' || r.mode === 'partial') && (
         <>
           <Section kind="best" list={r.best} meId={meId} avatarOf={avatarOf} />
-          {r.moreTogether.length > 0 ? (
-            <Section kind="more" list={r.moreTogether} meId={meId} avatarOf={avatarOf} />
-          ) : (
-            <p data-partner="more-note" style={{ margin: '0 2px', fontSize: 11.5, fontWeight: 700, color: C.sub, lineHeight: 1.55, wordBreak: 'keep-all' }}>
-              함께 {PARTNER_MIN_GAMES}경기 이상 뛴 파트너가 더 생기면 MORE TOGETHER 가 표시됩니다.
-            </p>
+          {r.worst.length > 0 && <Section kind="worst" list={r.worst} meId={meId} avatarOf={avatarOf} />}
+          {r.mode === 'partial' && (
+            <Notice tag="short-note">
+              함께 {PARTNER_MIN_GAMES}경기 이상 뛴 파트너가 {r.qualified}명이라 중복 없이 가능한 만큼만 표시했습니다. 분석 가능한 파트너가 4명 이상이면 BEST · WORST 를 2명씩 보여 드립니다.
+            </Notice>
           )}
         </>
       )}
