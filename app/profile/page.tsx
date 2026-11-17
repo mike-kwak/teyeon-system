@@ -10,7 +10,8 @@ import { maskEmail } from '@/lib/guide/masking';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { supabase } from '@/lib/supabase';
 import { InitialAvatar } from '@/components/tournament/InitialAvatar';
-import { LogOut, Settings, ChevronRight, ShieldCheck, Trophy, Sparkles, Lock } from 'lucide-react';
+import { LogOut, Settings, ChevronRight, ShieldCheck, Trophy, Sparkles, Lock, NotebookPen } from 'lucide-react';
+import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
 import {
     PlayerCardModal,
     MEMBER_LIST_COLS,
@@ -64,6 +65,9 @@ const formatSigned = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 export default function ProfilePage() {
     const { user, role, signOut, isLoading } = useAuth();
     const { shouldMaskPrivateData } = useGuideRecording();
+    // TENNIS LOG 진입 카드 표시 — /tennis-log 화면 가드와 같은 판정(useTennisLogAccess). 'allowed' 일 때만 카드 표시.
+    //   (공식 KDK 기록 조회 흐름과 독립 — 이 훅은 프로필 데이터 로딩 로직을 건드리지 않는다.)
+    const tennisLogStatus = useTennisLogAccess();
     const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
     const [summary, setSummary] = useState<ProfileKdkSummary>(emptyProfileSummary);
     const [recentRecords, setRecentRecords] = useState<RecentOfficialRecord[]>([]);
@@ -820,6 +824,55 @@ export default function ProfilePage() {
                                     </button>
                                 </section>
                             </>
+                        )}
+
+                        {/* MY RECORDS — 개인 기록(TENNIS LOG). 공식 KDK 기록 · 입상 기록과 구분되는 본인 전용 영역.
+                            접근 가능한 계정(useTennisLogAccess === 'allowed')에만 표시. 기능 · 권한은 /tennis-log 가 그대로 담당. */}
+                        {tennisLogStatus === 'allowed' && (
+                            <section
+                                data-profile-tennis-log
+                                style={{
+                                    borderRadius: 22, background: '#FFFFFF',
+                                    border: '1px solid #DCE8F5', padding: 18,
+                                    boxShadow: '0 10px 24px rgba(15,45,85,0.05)',
+                                    display: 'flex', flexDirection: 'column', gap: 12,
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ width: 4, height: 18, background: 'linear-gradient(180deg, #0D9488, #0F766E)', borderRadius: 2 }} />
+                                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747' }}>나의 개인 기록</h3>
+                                    <span style={{ fontSize: 9.5, fontWeight: 800, color: '#7A93B3', marginLeft: 'auto' }}>
+                                        본인만 볼 수 있어요
+                                    </span>
+                                </div>
+
+                                <Link
+                                    href="/tennis-log"
+                                    data-profile-tennis-log-link
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 12,
+                                        borderRadius: 16, background: '#F8FBFE', border: '1px solid #E1EAF5',
+                                        padding: 14, minHeight: 44, textDecoration: 'none',
+                                        WebkitTapHighlightColor: 'transparent',
+                                    }}
+                                >
+                                    <span
+                                        aria-hidden
+                                        style={{
+                                            width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                            background: 'rgba(13,148,136,0.10)', color: '#0D9488',
+                                        }}
+                                    >
+                                        <NotebookPen size={21} strokeWidth={1.7} />
+                                    </span>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                        <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: '#0F2747', letterSpacing: '0.02em' }}>TENNIS LOG</p>
+                                        <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 700, color: '#56729A' }}>나의 대회·레슨 기록</p>
+                                    </div>
+                                    <ChevronRight size={16} color="#7A93B3" style={{ flexShrink: 0 }} />
+                                </Link>
+                            </section>
                         )}
 
                         {/* PRIVACY / VISIBILITY */}

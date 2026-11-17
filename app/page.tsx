@@ -11,7 +11,6 @@ import {
   Layout,
   Lock,
   MapPin,
-  NotebookPen,
   Settings,
   Swords,
   Trophy,
@@ -25,10 +24,6 @@ import { fetchClubSchedules } from '@/lib/clubScheduleService';
 // 메인은 다음 일정 계산에 id/title/date/status 만 쓰므로 경량 요약 조회를 사용
 //   (fetchTournamentEvents 는 캘린더 전용 대진/파트너 신청까지 2요청을 추가로 발생시킴).
 import { fetchTournamentEventSummariesForHome } from '@/lib/tournamentCalendarService';
-import {
-  TENNIS_LOG_LOCKED_TITLE,
-  TENNIS_LOG_LOCKED_BODY,
-} from '@/lib/tennisLogAccess';
 import { useTennisLogAccess } from '@/hooks/useTennisLogAccess';
 import LuckyVickySpotlight from '@/components/home/LuckyVickySpotlight';
 
@@ -83,8 +78,9 @@ export default function Home() {
   //   관리자 설정: CEO/ADMIN 만 진입(그 외 MEMBER/게스트 차단). 실제 보호는 각 페이지/RLS 가 유지.
   const canFinance = role !== 'GUEST';
   const canAdmin = role === 'CEO' || role === 'ADMIN';
-  // TENNIS LOG(회원 전용 개인 기록): 실제 클럽 회원 자격(members.role) 기준 공통 판정.
-  //   조회 중(loading)에는 'allowed'가 아니므로 카드가 정상 접근으로 보이지 않음(안전한 잠금 기본값).
+  // 클럽 회원 자격(members.role) 기준 공통 판정 — 메인에서는 LUCKY VICKY 스포트라이트 표시 조건으로 사용한다.
+  //   (TENNIS LOG 메뉴 카드는 메인에서 숨김 · /tennis-log 화면과 기록은 그대로 유지.)
+  //   조회 중(loading)에는 'allowed'가 아니므로 회원 전용 영역이 먼저 보이지 않음(안전한 기본값).
   const tennisLogStatus = useTennisLogAccess();
   const [isMounted, setIsMounted] = useState(false);
   // null = 조회 전(— 표시). 과거에 24를 초기값으로 박아둬 실제 인원과 다른 숫자가
@@ -827,19 +823,7 @@ export default function Home() {
                 badge="OPEN"
                 accent="aqua"
               />
-              {/* TENNIS LOG — 회원 전용 개인 테니스 기록 (teal).
-                  정회원/운영진은 진입, 게스트/준회원(=GUEST)은 잠금 + 회원 전용 안내. */}
-              <MenuCard
-                label="TENNIS LOG"
-                description="나만의 테니스 기록 · 외부 대회와 레슨을 기록하세요"
-                icon={<NotebookPen size={21} strokeWidth={1.7} />}
-                path="/tennis-log"
-                accent="teal"
-                locked={tennisLogStatus !== 'allowed'}
-                lockedBadge="회원 전용"
-                deniedTitle={TENNIS_LOG_LOCKED_TITLE}
-                deniedBody={TENNIS_LOG_LOCKED_BODY}
-              />
+              {/* TENNIS LOG 카드는 메인 핵심 메뉴에서 제외(2026-11 사용 현황 검토). /tennis-log 와 하위 화면 · 기록 · 권한은 그대로 유지. */}
               {/* TEYEON OPEN — 역대 공식 결과 입구. /tournaments/results 가 공개된 최신 회차로 보낸다(회차 선택으로 이전 회차).
                   대회 Hub(INFO · TEAMS · DRAW · LIVE)는 결과 화면 상단 탭으로 그대로 이동할 수 있다. */}
               <MenuCard
