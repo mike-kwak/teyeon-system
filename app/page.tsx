@@ -8,13 +8,11 @@ import {
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
-  Layout,
   Lock,
   MapPin,
   Settings,
   Swords,
   Trophy,
-  UserPlus,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -777,15 +775,7 @@ export default function Home() {
                 badge="SCHEDULE"
                 accent="aqua"
               />
-              {/* 그룹 1 — 경기/운영 (teal) */}
-              <MenuCard
-                label="스페셜 매치"
-                description="수동 매치 운영 및 결과 기록."
-                icon={<Layout size={21} strokeWidth={1.7} />}
-                path="/special-match"
-                badge="MANUAL"
-                accent="teal"
-              />
+              {/* 스페셜 매치 카드는 메인 메뉴에서 숨김(2026-11 미사용 메뉴 정리). /special-match 화면 · 기능 · 데이터는 그대로 유지. */}
               {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
               <MenuCard
                 label="멤버 프로필"
@@ -814,15 +804,8 @@ export default function Home() {
                 deniedTitle="접근 권한이 없습니다"
                 deniedBody="재무 담당자 또는 관리자 권한이 필요한 메뉴입니다."
               />
-              {/* 그룹 2 — 일정/회원/게스트 (aqua) */}
-              <MenuCard
-                label="GUEST JOIN"
-                description="TEYEON 게스트 참여 신청"
-                icon={<UserPlus size={21} strokeWidth={1.7} />}
-                path="/guest"
-                badge="OPEN"
-                accent="aqua"
-              />
+              {/* GUEST JOIN(Guest Pass · /guest) 카드는 메인 메뉴에서 숨김(2026-11 미사용 메뉴 정리).
+                  /guest · /guest/pass 공개 링크, 정모별 Guest Pass 설정, 게스트 KDK 대진 · 결과 확인은 그대로 유지. */}
               {/* TENNIS LOG 카드는 메인 핵심 메뉴에서 제외(2026-11 사용 현황 검토). /tennis-log 와 하위 화면 · 기록 · 권한은 그대로 유지. */}
               {/* TEYEON OPEN — 역대 공식 결과 입구. /tournaments/results 가 공개된 최신 회차로 보낸다(회차 선택으로 이전 회차).
                   대회 Hub(INFO · TEAMS · DRAW · LIVE)는 결과 화면 상단 탭으로 그대로 이동할 수 있다. */}
