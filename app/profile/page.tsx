@@ -78,6 +78,8 @@ export default function ProfilePage() {
     const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
     // 회원 연결 상태: none(정상/미판정) · no-link(연결 없음) · conflict(중복/충돌 — 운영진 확인 필요)
     const [linkIssue, setLinkIssue] = useState<'none' | 'no-link' | 'conflict'>('none');
+    // 입상 기록 선행 조회(공식 기록 집계와 병렬) — ProfileAchievements 가 같은 memberId 일 때만 재사용.
+    const [achievementsPrefetch, setAchievementsPrefetch] = useState<{ memberId: string; promise: Promise<MemberAchievement[]> } | null>(null);
 
     useEffect(() => {
         // 인증 uid 기준으로 조회 — 이메일이 없어도 members.auth_user_id 매칭이 가능해야 함.
@@ -106,8 +108,28 @@ export default function ProfilePage() {
             setMemberLookupDone(false);
             setLinkIssue('none');
 
+            // profile_visibility_level / profile avatar 보강 — auth uid(profiles.id) 기준.
+            //   members 조회 결과에 의존하지 않으므로 회원 연결 판정과 병렬로 시작한다(성능).
+            //   실패는 무시 — public 폴백(기존 동작 동일).
+            const loadProfileRow = async (): Promise<{ visibility?: ProfileVisibility; avatarUrl?: string }> => {
+                try {
+                    const { data: profileRow } = await supabase
+                        .from('profiles')
+                        .select('avatar_url, profile_visibility_level')
+                        .eq('id', user.id)
+                        .maybeSingle();
+                    if (!profileRow) return {};
+                    return {
+                        visibility: (profileRow.profile_visibility_level as ProfileVisibility) || undefined,
+                        avatarUrl: profileRow.avatar_url || undefined,
+                    };
+                } catch {
+                    return {};
+                }
+            };
+
             try {
-                const { member, issue } = await resolveLinkedMember();
+                const [{ member, issue }, profileExtra] = await Promise.all([resolveLinkedMember(), loadProfileRow()]);
                 if (!member) {
                     if (!cancelled) {
                         setLinkedMember(null);
@@ -120,28 +142,16 @@ export default function ProfilePage() {
                     return;
                 }
 
-                // profile_visibility_level / profile avatar 보강 — auth uid(profiles.id) 기준.
-                let profileVisibility: ProfileVisibility | undefined;
-                let profileAvatarUrl: string | undefined;
-                try {
-                    const { data: profileRow } = await supabase
-                        .from('profiles')
-                        .select('avatar_url, profile_visibility_level')
-                        .eq('id', user.id)
-                        .maybeSingle();
-                    if (profileRow) {
-                        profileVisibility = (profileRow.profile_visibility_level as ProfileVisibility) || undefined;
-                        profileAvatarUrl = profileRow.avatar_url || undefined;
-                    }
-                } catch {
-                    // profiles 조회 실패는 무시 — public 폴백
-                }
-
                 const enrichedMember: LinkedMember = {
                     ...member,
-                    profile_visibility_level: profileVisibility ?? member.profile_visibility_level ?? 'public',
-                    profile_avatar_url: profileAvatarUrl ?? member.profile_avatar_url,
+                    profile_visibility_level: profileExtra.visibility ?? member.profile_visibility_level ?? 'public',
+                    profile_avatar_url: profileExtra.avatarUrl ?? member.profile_avatar_url,
                 };
+
+                // 입상 기록(공개분)은 member.id 만 필요 — 공식 기록 집계와 병렬로 미리 시작한다(성능).
+                //   fetchPublicAchievements 는 내부에서 오류를 삼키고 [] 를 반환하므로 reject 되지 않는다.
+                //   표시·빈 상태 처리는 기존대로 ProfileAchievements 가 담당.
+                const achievementsPromise = fetchPublicAchievements(enrichedMember.id);
 
                 // 공식 KDK archive 집계 — teyeon_archive_v1 (archive_type='kdk', is_official=true).
                 // member id 우선, exact name fallback은 calculateKdkArchiveStats 내부에서 처리.
@@ -151,6 +161,7 @@ export default function ProfilePage() {
                 });
 
                 if (!cancelled) {
+                    setAchievementsPrefetch({ memberId: enrichedMember.id, promise: achievementsPromise });
                     setLinkedMember(enrichedMember);
                     setSummary(result.summary);
                     setRecentRecords(result.recentRecords);
@@ -558,7 +569,10 @@ export default function ProfilePage() {
                                 </section>
 
                                 {/* 대회 입상 기록 — 최근 3건 + 전체 보기(연도별 그룹) */}
-                                <ProfileAchievements memberId={linkedMember.id} />
+                                <ProfileAchievements
+                                    memberId={linkedMember.id}
+                                    prefetched={achievementsPrefetch?.memberId === linkedMember.id ? achievementsPrefetch.promise : undefined}
+                                />
 
                                 {/* 승패 / 득실 카드 */}
                                 {summary.totalMatches > 0 && (
@@ -944,7 +958,7 @@ export default function ProfilePage() {
 
 // 멤버 프로필 대회 입상 기록 — 최근 3건 + 전체 건수 + 전체 보기(연도별 그룹).
 //   데이터는 공개(is_public) 기록만. 사진/파트너/메모 없이 표준 문자열만 표시.
-function ProfileAchievements({ memberId }: { memberId: string }) {
+function ProfileAchievements({ memberId, prefetched }: { memberId: string; prefetched?: Promise<MemberAchievement[]> }) {
     const [list, setList] = useState<MemberAchievement[]>([]);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState(false);
@@ -952,11 +966,12 @@ function ProfileAchievements({ memberId }: { memberId: string }) {
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        fetchPublicAchievements(memberId)
+        // 부모가 공식 기록 집계와 병렬로 시작한 조회가 있으면 재사용(추가 요청 없음), 없으면 기존처럼 직접 조회.
+        (prefetched ?? fetchPublicAchievements(memberId))
             .then((rows) => { if (!cancelled) setList(rows); })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [memberId]);
+    }, [memberId, prefetched]);
 
     // 기록이 없으면 섹션 자체를 숨긴다(불필요한 빈 카드 방지).
     if (loading || list.length === 0) return null;
