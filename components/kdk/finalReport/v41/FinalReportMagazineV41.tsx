@@ -26,7 +26,7 @@ const C = {
   silver: '#A3B0BB', bronze: '#B8875A', ink: '#0B2340', sub: '#5B6B79', muted: '#7A8A98', line: '#EEF2F5', paleNavy: '#8FA6BA', onNavy: '#C9D6E2',
 };
 export const V41_FONT = "'Pretendard Variable', Pretendard, 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif";
-const LOGO = '/logos/teyeon-logo-transparent.png';
+const LOGO = '/logos/teyeon-logo-transparent-512.png';
 const FONT_CSS = '/fonts/pretendard/pretendardvariable-dynamic-subset.css';
 const V41_SPREAD_MIN = 980;   // 이 폭 이상이면 PC 2쪽 펼침
 const V41_SPREAD_W = 940;     // 470 × 2(디자인 V4.1 PC)

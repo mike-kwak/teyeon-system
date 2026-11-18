@@ -70,6 +70,11 @@ const TARGETS = [
 /** favicon.ico — sharp 는 ICO 를 못 쓰므로 PNG 엔트리를 직접 컨테이너에 담는다. */
 const ICO_BG = { r: 255, g: 253, b: 248, alpha: 1 }; // generate-icons.mjs 와 동일한 크림 배경
 const ICO_RATIO = 0.86;                              // 아이콘 폭 대비 로고 폭
+/** transparent 마스터에서 균등 축소한 경량본(캔버스 기하 동일 → 비율·여백 동일). */
+const LIGHT_TARGETS = [
+  { out: 'public/logos/teyeon-logo-transparent-512.png', size: 512 },
+];
+
 const ICO_TARGETS = [
   { out: 'app/favicon.ico',    sizes: [16, 32, 48, 256] }, // Next app-router 가 /favicon.ico 로 서빙
   { out: 'public/favicon.ico', sizes: [32] },              // 레거시 fallback(기존 구조 유지)
@@ -269,6 +274,18 @@ async function main() {
   }
 
   const master = TARGETS[0].out;
+
+  // 경량 파생본 — 화면 표시 크기가 작은 raw <img> 사용처(FINAL REPORT, Arena 헤더)용.
+  // 1254px 마스터(~850KB)를 그대로 받지 않도록 균등 축소 + 팔레트 PNG(투명도 유지).
+  for (const d of LIGHT_TARGETS) {
+    await sharp(master)
+      .resize(d.size, d.size, { kernel: 'lanczos3' })
+      .png({ palette: true, quality: 90, dither: 0, effort: 10, compressionLevel: 9 })
+      .toFile(d.out);
+    const stat = await fs.stat(d.out);
+    console.log(`OK ${d.out.padEnd(42)} ${d.size}x${d.size}  ${(stat.size / 1024).toFixed(1)}KB`);
+  }
+
   for (const ico of ICO_TARGETS) {
     const pngs = [];
     for (const size of ico.sizes) pngs.push({ size, buf: await renderIconPng(master, size) });

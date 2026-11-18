@@ -16,7 +16,7 @@ import {
 } from '@/lib/kdk/finalReport/v41/settlementSnapshot';
 
 const C = { navy: '#0B2340', teal: '#0E8A9C', gold: '#C9A955', sub: '#5B6B79', muted: '#7A8A98', line: '#EEF2F5', ink: '#33434F' };
-const LOGO = '/logos/teyeon-logo-transparent.png';
+const LOGO = '/logos/teyeon-logo-transparent-512.png';
 const won = (n: number): string => `${n.toLocaleString('ko-KR')}원`;
 const CHIP: Record<string, [string, string]> = { PAID: ['#2E7D62', '#E3F4EE'], UNPAID: ['#8A5A12', '#FBF1DE'], PENDING: ['#3D6FA8', '#EAF1F9'], REVIEW: ['#5B6B79', '#EEF2F5'] };
 

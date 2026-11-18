@@ -7,7 +7,7 @@ import React from 'react';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { SIG, SIG_FONT_DISPLAY, SIG_LAYOUT, SIG_MOTTO } from './signatureTheme';
 
-const LOGO_SRC = '/logos/teyeon-logo-transparent.png';
+const LOGO_SRC = '/logos/teyeon-logo-transparent-512.png';
 
 export interface SignatureEventInfo {
   year: string;

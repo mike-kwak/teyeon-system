@@ -76,7 +76,7 @@ function Cover({ payload, chapters, share }: { payload: FinalReportPublicPayload
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logos/teyeon-logo-transparent.png" alt="" width={30} height={30} style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/logos/teyeon-logo-transparent-512.png" alt="" width={30} height={30} style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
             <span style={{ fontFamily: FRV_DISPLAY, fontWeight: 700, fontSize: 15, letterSpacing: '0.32em', color: FRV.goldSoft }}>TEYEON</span>
           </div>
           <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', color: FRV.onNavySub, whiteSpace: 'nowrap' }}>KDK FINAL REPORT</span>
@@ -352,7 +352,7 @@ export function Closing({ payload, officialHref, share, defaultText }: {
         </p>
         <div style={{ marginTop: 26, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logos/teyeon-logo-transparent.png" alt="" width={26} height={26} style={{ width: 26, height: 26, objectFit: 'contain' }} />
+          <img src="/logos/teyeon-logo-transparent-512.png" alt="" width={26} height={26} style={{ width: 26, height: 26, objectFit: 'contain' }} />
           <span style={{ fontFamily: FRV_DISPLAY, fontWeight: 700, fontSize: 13, letterSpacing: '0.32em', color: FRV.goldSoft }}>TEYEON</span>
         </div>
       </div>

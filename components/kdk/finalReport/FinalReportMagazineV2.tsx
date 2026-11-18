@@ -103,7 +103,7 @@ function CoverV2({ payload, chapters, share }: { payload: FinalReportPublicPaylo
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 10, rowGap: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logos/teyeon-logo-transparent.png" alt="" width={28} height={28} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/logos/teyeon-logo-transparent-512.png" alt="" width={28} height={28} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
             <span data-fr="brand" style={{ fontFamily: FRV_DISPLAY, fontWeight: 700, fontSize: 13.5, letterSpacing: '0.24em', color: FRV.goldSoft, whiteSpace: 'nowrap' }}>TEYEON MAGAZINE</span>
           </div>
           <span data-fr="brand-sub" style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: FRV.onNavySub, whiteSpace: 'nowrap', flexShrink: 0 }}>KDK FINAL REPORT</span>
