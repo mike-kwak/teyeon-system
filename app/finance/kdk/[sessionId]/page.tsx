@@ -210,7 +210,7 @@ export default function KdkSettlementPage() {
                     eyebrow="TEYEON · FINANCE · KDK"
                     title="KDK 벌금·상금 정산"
                     subtitle={session ? (session.title || 'KDK 세션') : '세션 정산'}
-                    backHref="/finance"
+                    backHref="/finance/kdk"
                 />
 
                 {loading && <p style={{ textAlign: 'center', fontSize: 12, color: '#94A3B8', marginTop: 30 }}>불러오는 중...</p>}

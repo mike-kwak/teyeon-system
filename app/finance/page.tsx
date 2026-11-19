@@ -6,7 +6,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-    FileEdit, Users, Layers, Settings, ChevronRight, AlertCircle,
+    FileEdit, Users, Layers, Settings, ChevronRight, AlertCircle, Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useGuideRecording } from '@/hooks/useGuideRecording';
@@ -229,6 +229,9 @@ function AdminFinanceHome() {
                                 icon={<Settings size={18} />} label="회비 기준 설정" />
                         </div>
 
+                        {/* KDK 벌금 관리 — 공식 KDK 세션 목록 → 세션별 회원·게스트 벌금 정산. Archive 를 거치지 않는 진입점. */}
+                        <KdkPenaltyMenuCard />
+
                         <section style={FINANCE_CARD_STYLE}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                                 <AlertCircle size={14} style={{ color: '#B45309' }} />
@@ -323,6 +326,36 @@ function QuickAction({ href, icon, label }: { href: string; icon: React.ReactNod
             <span style={{ fontSize: 12.5, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
                 {label}
             </span>
+        </Link>
+    );
+}
+
+function KdkPenaltyMenuCard() {
+    return (
+        <Link
+            href="/finance/kdk"
+            style={{
+                ...FINANCE_CARD_STYLE,
+                display: 'flex', alignItems: 'center', gap: 12,
+                textDecoration: 'none', padding: 14, minWidth: 0,
+            }}
+        >
+            <span style={{
+                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                backgroundColor: 'rgba(15,159,152,0.10)', color: '#0F9F98',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+                <Receipt size={18} />
+            </span>
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                    KDK 벌금 관리
+                </span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    회원 · 게스트 · 세션별 정산
+                </span>
+            </span>
+            <ChevronRight size={16} style={{ color: '#94A3B8', flexShrink: 0 }} />
         </Link>
     );
 }
