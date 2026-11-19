@@ -12,7 +12,6 @@ import { summarizeReceivable } from './calculatePaymentStatus';
 import {
     fetchAllMembers,
     fetchPaymentsByReceivables,
-    insertPayment,
     voidPayment,
     type FinanceMember,
 } from './duesService';
@@ -69,7 +68,9 @@ export type KdkPenaltyPaymentStatus =
     | 'partial'      // 일부 납부.
     | 'pending'      // 등록됨 · 미납.
     | 'unregistered' // 회원 매칭됨 · 아직 Finance 미등록.
-    | 'needs_link';  // 회원 연결 필요(외부 게스트 등).
+    | 'needs_link'   // 회원 연결 필요(외부 게스트 등).
+    | 'exempt'       // 등록됨 · 운영진 면제(receivable.status='exempt'). 미납 아님.
+    | 'not_target';  // 등록됨 · 운영진 비대상(receivable.status='not_target'). 미납 아님.
 
 export interface KdkPenaltyRow {
     memberId: string | null;
@@ -96,6 +97,8 @@ export interface KdkPenaltySummary {
     unpaidCount: number;       // 등록됨 · 미납/일부.
     needsLinkCount: number;
     unregisteredCount: number;
+    /** 면제·비대상(운영진 처리). 납부/미납 어느 쪽에도 집계하지 않는다. */
+    exemptCount: number;
     totalPenalty: number;      // 전체 대상 벌금 합.
     totalPaid: number;
     totalUnpaid: number;       // 등록 대상 중 남은 금액.
@@ -170,8 +173,14 @@ export async function loadKdkPenaltyContext(
             };
         }
         const s = summarizeReceivable(recv, payments);
+        // exempt / not_target 은 운영진 결정 — 미납(pending)으로 뭉개지 않고 그대로 구분한다
+        // (회원 상세 화면 summarizeReceivable 판정과 일치).
         const status: KdkPenaltyPaymentStatus =
-            s.derivedStatus === 'paid' ? 'paid' : s.derivedStatus === 'partial' ? 'partial' : 'pending';
+            s.derivedStatus === 'paid' ? 'paid'
+                : s.derivedStatus === 'partial' ? 'partial'
+                    : s.derivedStatus === 'exempt' ? 'exempt'
+                        : s.derivedStatus === 'not_target' ? 'not_target'
+                            : 'pending';
         return {
             memberId: p.memberId, playerId: p.playerId, playerName: p.playerName, memberName: p.memberNickname, isGuest: p.isGuest,
             amount: Math.max(0, recv.amount_due), matchType: p.matchType, receivableId: recv.id,
@@ -184,13 +193,19 @@ export async function loadKdkPenaltyContext(
 }
 
 export function summarizePenaltyRows(rows: KdkPenaltyRow[]): KdkPenaltySummary {
-    let registeredCount = 0, paidCount = 0, unpaidCount = 0, needsLinkCount = 0, unregisteredCount = 0;
+    let registeredCount = 0, paidCount = 0, unpaidCount = 0, needsLinkCount = 0, unregisteredCount = 0, exemptCount = 0;
     let totalPenalty = 0, totalPaid = 0, totalUnpaid = 0;
     for (const r of rows) {
         totalPenalty += r.amount;
         if (r.status === 'needs_link') { needsLinkCount += 1; continue; }
         if (r.status === 'unregistered') { unregisteredCount += 1; continue; }
         registeredCount += 1;
+        // 면제·비대상: 미납 건수/금액에 넣지 않는다. 혹시 연결된 유효 납부가 있으면 납부액만 반영.
+        if (r.status === 'exempt' || r.status === 'not_target') {
+            exemptCount += 1;
+            totalPaid += r.amountPaid;
+            continue;
+        }
         totalPaid += r.amountPaid;
         if (r.status === 'paid') paidCount += 1;
         else {
@@ -200,30 +215,109 @@ export function summarizePenaltyRows(rows: KdkPenaltyRow[]): KdkPenaltySummary {
     }
     return {
         targetCount: rows.length,
-        registeredCount, paidCount, unpaidCount, needsLinkCount, unregisteredCount,
+        registeredCount, paidCount, unpaidCount, needsLinkCount, unregisteredCount, exemptCount,
         totalPenalty, totalPaid, totalUnpaid,
     };
 }
 
-/** 오늘 'YYYY-MM-DD'(로컬). finance_dues_payments.paid_at 은 date 컬럼. */
-function todayDate(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** 납부 처리할 수 없는 벌금(면제·비대상·청구 불일치 등). 일괄 처리에서는 건너뛴다. */
+export class PenaltyNotPayableError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'PenaltyNotPayableError';
+    }
 }
 
-/** 개별 납부 완료 처리 — 받을 금액 전액을 penalty payment 로 기록. */
+const RPC_PAY = 'pay_kdk_member_penalty';
+
+/** DB(RPC)가 확정한 납부 결과. 금액은 서버가 계산한 값만 사용한다. */
+export interface PenaltyPayResult {
+    /** paid=잔액 기록 / already_paid=이미 완납(기록 없음) / stale=화면 정보가 오래됨(기록 없음, 새로고침 필요) */
+    status: 'paid' | 'already_paid' | 'stale';
+    insertedAmount: number;
+    paymentId: string | null;
+    amountDue: number;
+    paidBefore: number;
+    paidAfter: number;
+    remainingBefore: number;
+}
+
+/** 같은 탭에서 같은 청구에 대한 요청이 겹치지 않게(더블 클릭) — 다른 탭/운영자 간 직렬화는 RPC 의 행 잠금이 담당. */
+const inFlightPenaltyPayments = new Set<string>();
+
+/** RPC 예외 → 사용자 안내. 처리 불가 상태는 PenaltyNotPayableError. */
+function mapPayRpcError(error: any): Error {
+    const code = String(error?.code || '');
+    const msg = `${error?.message || ''} ${error?.details || ''}`;
+    if (['42883', 'PGRST202'].includes(code) || /pay_kdk_member_penalty/i.test(msg) && /(not find|does not exist|schema cache)/i.test(msg)) {
+        // 구 경로(클라이언트 INSERT)로 fallback 하지 않는다 — 동시성 보호가 없는 경로이기 때문.
+        return new Error('회원 벌금 납부 기능의 DB 업데이트가 아직 적용되지 않았습니다.\n(supabase/add_kdk_member_penalty_payment_rpc.sql 적용 필요)');
+    }
+    if (/PENALTY_EXEMPT/.test(msg)) return new PenaltyNotPayableError('면제 처리된 벌금은 납부 처리할 수 없습니다.');
+    if (/PENALTY_NOT_TARGET/.test(msg)) return new PenaltyNotPayableError('비대상 처리된 벌금은 납부 처리할 수 없습니다.');
+    if (/RECEIVABLE_NOT_FOUND/.test(msg)) return new PenaltyNotPayableError('벌금 청구를 찾을 수 없습니다. 새로고침 후 다시 확인해 주세요.');
+    if (/NOT_KDK_PENALTY|MEMBER_MISMATCH/.test(msg)) return new PenaltyNotPayableError('벌금 청구 정보가 일치하지 않습니다. 새로고침 후 다시 확인해 주세요.');
+    if (/FORBIDDEN/.test(msg)) return new Error('벌금 납부를 처리할 권한이 없습니다.');
+    if (/AUTH_REQUIRED/.test(msg)) return new Error('로그인이 필요합니다.');
+    if (/INVALID_INPUT/.test(msg)) return new PenaltyNotPayableError('남은 벌금이 없거나 요청 정보가 올바르지 않습니다. 새로고침 후 다시 확인해 주세요.');
+    console.warn('[Finance/kdkSettlement/payRpc]', error?.message ?? error);
+    return new Error(error?.message || '벌금 납부 처리에 실패했습니다.');
+}
+
+function toPayResult(data: any): PenaltyPayResult {
+    const status = data?.status;
+    if (status !== 'paid' && status !== 'already_paid' && status !== 'stale') {
+        throw new Error('벌금 납부 결과를 확인하지 못했습니다. 새로고침 후 납부 상태를 확인해 주세요.');
+    }
+    return {
+        status,
+        insertedAmount: Number(data.inserted_amount || 0),
+        paymentId: data.payment_id ?? null,
+        amountDue: Number(data.amount_due || 0),
+        paidBefore: Number(data.paid_before || 0),
+        paidAfter: Number(data.paid_after || 0),
+        remainingBefore: Number(data.remaining_before || 0),
+    };
+}
+
+/**
+ * 회원 벌금 납부 완료 — DB RPC(pay_kdk_member_penalty) 1 트랜잭션:
+ *   청구 행 잠금 → 상태·유효 납부 재조회 → 미납 잔액만 기록. (예: 청구 5,000 · 납부 2,000 → 3,000)
+ *   - 화면 금액은 기록 금액으로 쓰지 않는다. expected(화면이 본 잔액)는 "그 사이 변동 감지"용으로만 전달.
+ *   - 완납 → already_paid(기록 없음) / 화면 정보가 오래됨 → stale(기록 없음).
+ *   - 면제·비대상·청구 불일치 → PenaltyNotPayableError. 그 외 실패 → Error(기록 없음 — RPC 전체 롤백).
+ */
 export async function markPenaltyPaid(
-    row: { memberId: string | null; receivableId: string | null; amount: number },
-    userId?: string | null,
-): Promise<void> {
+    row: { memberId: string | null; receivableId: string | null; amount: number; amountPaid?: number },
+    _userId?: string | null, // 기록자는 서버가 auth.uid() 로 확정(클라이언트 값 미사용). 시그니처 호환용.
+): Promise<PenaltyPayResult> {
     if (!row.memberId || !row.receivableId) throw new Error('등록된 벌금만 납부 처리할 수 있습니다.');
-    await insertPayment({
-        member_id: row.memberId,
-        receivable_id: row.receivableId,
-        payment_type: 'penalty',
-        amount: Math.max(1, Math.trunc(row.amount)),
-        paid_at: todayDate(),
-    }, userId ?? undefined);
+    const expected = Math.max(0, Math.trunc(Number(row.amount || 0)) - Math.trunc(Number(row.amountPaid || 0)));
+    if (expected <= 0) throw new PenaltyNotPayableError('이미 납부 완료된 벌금입니다.');
+
+    const key = row.receivableId;
+    if (inFlightPenaltyPayments.has(key)) {
+        throw new PenaltyNotPayableError('이 벌금의 납부 처리가 이미 진행 중입니다.');
+    }
+    inFlightPenaltyPayments.add(key);
+    try {
+        const { data, error } = await supabase.rpc(RPC_PAY, {
+            p_receivable_id: row.receivableId,
+            p_member_id: row.memberId,
+            p_expected_remaining: expected,
+        });
+        if (error) throw mapPayRpcError(error);
+        return toPayResult(data);
+    } finally {
+        inFlightPenaltyPayments.delete(key);
+    }
+}
+
+/** 개별 납부 결과 안내 문구(기록이 없었던 경우만). */
+export function describePenaltyPayResult(r: PenaltyPayResult): string | null {
+    if (r.status === 'already_paid') return '이미 납부 완료된 벌금입니다. 추가로 기록하지 않았습니다.';
+    if (r.status === 'stale') return `그 사이 납부 내역이 변경되었습니다(현재 남은 금액 ${r.remainingBefore.toLocaleString('ko-KR')}원). 새로고침된 화면에서 다시 확인해 주세요.`;
+    return null;
 }
 
 /** 다시 미납 처리 — receivable 에 연결된 유효 payment 전부 soft-cancel. */
@@ -238,18 +332,41 @@ export async function markPenaltyUnpaid(
     }
 }
 
-/** 여러 명 일괄 납부 완료. (이미 완납인 행은 호출자가 제외해 전달.) */
+export interface PenaltyBulkPayResult {
+    paid: number;          // 실제 기록된 청구 수
+    insertedTotal: number; // 실제 기록된 금액 합(서버 확정)
+    alreadyPaid: number;   // 이미 완납이라 건너뜀
+    stale: number;         // 화면 정보가 오래돼 건너뜀(새로고침 후 재시도)
+    notPayable: number;    // 면제·비대상·불일치로 건너뜀
+}
+
+/**
+ * 여러 명 일괄 납부 — 각 청구마다 개별 RPC(각각 원자적) 를 순서대로 호출.
+ *   ⚠️ 여러 청구 전체는 한 트랜잭션이 아니다. 중간에 예외(네트워크/권한 등)가 나면 그 앞의 청구들은
+ *      이미 기록된 채로 남고, 예외 메시지에 처리된 건수를 포함해 알린다(부분 성공 가능).
+ */
 export async function markPenaltiesPaidBulk(
-    rows: { memberId: string | null; receivableId: string | null; amount: number }[],
+    rows: { memberId: string | null; receivableId: string | null; amount: number; amountPaid?: number }[],
     userId?: string | null,
-): Promise<number> {
-    let done = 0;
+): Promise<PenaltyBulkPayResult> {
+    const res: PenaltyBulkPayResult = { paid: 0, insertedTotal: 0, alreadyPaid: 0, stale: 0, notPayable: 0 };
+    const seen = new Set<string>();
     for (const r of rows) {
         if (!r.memberId || !r.receivableId) continue;
-        await markPenaltyPaid(r, userId);
-        done += 1;
+        if (seen.has(r.receivableId)) continue; // 같은 청구가 중복 전달돼도 1회만.
+        seen.add(r.receivableId);
+        try {
+            const out = await markPenaltyPaid(r, userId);
+            if (out.status === 'paid') { res.paid += 1; res.insertedTotal += out.insertedAmount; }
+            else if (out.status === 'already_paid') res.alreadyPaid += 1;
+            else res.stale += 1;
+        } catch (e: any) {
+            if (e instanceof PenaltyNotPayableError) { res.notPayable += 1; continue; }
+            const done = res.paid > 0 ? `\n(중단 전 ${res.paid}명 · ${res.insertedTotal.toLocaleString('ko-KR')}원은 이미 납부 처리되었습니다.)` : '';
+            throw new Error(`${e?.message || '일괄 납부 처리 중 오류가 발생했습니다.'}${done}`);
+        }
     }
-    return done;
+    return res;
 }
 
 /** 매칭됐지만 미등록인 대상들을 일괄 Finance 등록(registerKdkPenalties 재사용). */

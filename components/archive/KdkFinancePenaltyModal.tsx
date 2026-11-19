@@ -291,7 +291,7 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
                                                 <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: NAVY, whiteSpace: 'nowrap' }}>
                                                     {formatWon(r.amount)}
                                                 </p>
-                                                <StatusPill status={r.status} />
+                                                <StatusPill status={r.status} isGuest={r.isGuest} />
                                             </div>
                                         </li>
                                     );
@@ -301,7 +301,7 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
                     )}
                     {needsLinkCount > 0 && !loading && (
                         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#8597AD', lineHeight: 1.6, wordBreak: 'keep-all' }}>
-                            회원 연결이 안 된 {needsLinkCount}명은 외부 게스트이거나 이름이 일치하지 않아 자동 등록되지 않습니다. 회원 상세에서 수동으로 등록해 주세요.
+                            회원 연결이 안 된 {needsLinkCount}명은 Finance 회원 청구로 등록되지 않습니다. 게스트 벌금은 KDK 정산 화면의 게스트 납부로 처리하고, 게스트가 아닌 항목만 회원 상세에서 확인해 주세요.
                         </p>
                     )}
                 </div>
@@ -333,16 +333,19 @@ export default function KdkFinancePenaltyModal({ session, createdBy, onClose, on
 
 function linkLabel(r: KdkPenaltyPreviewRow): string {
     if (r.status === 'registered') return '이미 등록됨';
-    if (r.status === 'needs_link') return '회원 연결 필요';
+    // 게스트(Archive is_guest)는 회원 청구 대상이 아님 — KDK 정산 화면의 게스트 벌금 납부로 처리.
+    if (r.status === 'needs_link') return r.isGuest ? '게스트 · KDK 정산에서 납부 처리' : '회원 연결 필요';
     if (r.matchType === 'name') return '이름 일치 · 확인 필요';
     return '회원 연결됨';
 }
 
-function StatusPill({ status }: { status: KdkPenaltyPreviewRow['status'] }) {
+function StatusPill({ status, isGuest }: { status: KdkPenaltyPreviewRow['status']; isGuest?: boolean }) {
     const map = {
         registerable: { label: '등록 가능', bg: 'rgba(15,159,152,0.12)', color: '#0E7C76' },
         registered: { label: '등록 완료', bg: '#EEF2F7', color: '#64748B' },
-        needs_link: { label: '회원 연결 필요', bg: 'rgba(245,158,11,0.14)', color: '#B7791F' },
+        needs_link: isGuest
+            ? { label: '게스트 벌금', bg: '#EEF2F7', color: '#64748B' }
+            : { label: '회원 연결 필요', bg: 'rgba(245,158,11,0.14)', color: '#B7791F' },
     }[status];
     return (
         <span style={{

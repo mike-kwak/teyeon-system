@@ -75,10 +75,11 @@ export interface KdkNoticeListRow {
 }
 
 // ── 스냅샷 빌드 ──────────────────────────────────────────────────────────────
-/** 벌금 대상 행(amount>0) → 공개 멤버 스냅샷. 미등록/연결필요는 '미납'으로 표기. 0원 제외. */
+/** 벌금 대상 행(amount>0) → 공개 멤버 스냅샷. 미등록/연결필요는 '미납'으로 표기. 0원 제외.
+ *  운영진이 면제·비대상 처리한 행은 청구 대상이 아니므로 공지에서 제외(미납으로 노출 금지). */
 export function buildKdkNoticeMembers(rows: KdkPenaltyRow[]): KdkNoticeMember[] {
     return rows
-        .filter((r) => r.amount > 0)
+        .filter((r) => r.amount > 0 && r.status !== 'exempt' && r.status !== 'not_target')
         .map((r) => {
             const status: KdkNoticeMemberStatus =
                 r.status === 'paid' ? 'paid' : r.status === 'partial' ? 'partial' : 'pending';

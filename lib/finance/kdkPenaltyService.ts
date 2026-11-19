@@ -97,7 +97,7 @@ export async function fetchExistingKdkPenalties(sessionId: string): Promise<Exis
 /**
  * settlement_data + 회원 목록 + 기존 등록 내역 → 미리보기 행.
  *   - penalty_amount 가 음수인(벌금 대상) 항목만 포함. 0원/상금 대상은 단순 제외.
- *   - 매칭: (1) player_id == members.id  (2) 정확 이름 일치(유일할 때만). 부분/유사 금지.
+ *   - 매칭: (1) player_id == members.id  (2) 정확 이름 일치(유일할 때만, 게스트 제외). 부분/유사 금지.
  *   - 이미 등록된 member 는 status='registered'.
  *   - 매칭 실패(외부 게스트 등)는 status='needs_link'.
  */
@@ -134,7 +134,11 @@ export function buildKdkPenaltyPreview(
         let matchType: KdkPenaltyMatchType = member ? 'id' : null;
 
         // 2) 정확 이름 일치(유일할 때만). 동명이인이면 매칭하지 않음.
-        if (!member) {
+        //    ⚠️ 공식 Archive 가 게스트(is_guest=true)로 박제한 참가자는 이름 매칭 금지.
+        //    normalizeName 이 '(G)'/' g'/'manual-guest-' 표식을 지우므로 게스트가 동명 회원에게
+        //    잘못 연결돼 그 회원 앞으로 벌금이 청구되던 문제 방지. 나중에 회원이 된 사람이라도
+        //    당시 게스트 신분을 유지 → needs_link 로 남기고 게스트 벌금 경로(kdk_guest_penalty_payments)로 처리.
+        if (!member && !isGuest) {
             const key = normalizeName(playerName);
             const candidates = key ? byName.get(key) : undefined;
             if (candidates && candidates.length === 1) {

@@ -22,6 +22,7 @@ import {
     markPenaltyPaid,
     markPenaltyUnpaid,
     markPenaltiesPaidBulk,
+    describePenaltyPayResult,
     registerUnregisteredPenalties,
     type KdkArchiveSession,
     type KdkPenaltyContext,
@@ -112,7 +113,13 @@ export default function KdkSettlementPage() {
         finally { setBusy(false); }
     };
 
-    const handlePaid = (row: KdkPenaltyRow) => withBusy(() => markPenaltyPaid(row, user?.id));
+    // 미납 잔액만 기록 — DB RPC 가 청구 잠금 후 잔액을 확정(화면 금액 미사용). 기록이 없었으면 사유 안내.
+    //   실패(예외)는 withBusy 가 안내하고, 성공/실패 모두 load() 로 DB 실제 상태를 다시 읽는다.
+    const handlePaid = (row: KdkPenaltyRow) => withBusy(async () => {
+        const result = await markPenaltyPaid(row, user?.id);
+        const note = describePenaltyPayResult(result);
+        if (note) alert(note);
+    });
     const handleUnpaid = (row: KdkPenaltyRow) => withBusy(async () => {
         if (!row.receivableId || !ctx) return;
         await markPenaltyUnpaid(row.receivableId, ctx.payments, user?.id);
@@ -129,10 +136,20 @@ export default function KdkSettlementPage() {
     });
     const handleBulkPaid = () => {
         if (!ctx) return;
-        const targets = ctx.rows.filter((r) => selected.has(rowKey(r)) && r.receivableId && r.status !== 'paid');
+        const targets = ctx.rows.filter((r) => selected.has(rowKey(r)) && isMemberPayable(r));
         if (targets.length === 0) return;
         if (!window.confirm(`${targets.length}명을 납부 완료 처리하시겠습니까?`)) return;
-        withBusy(async () => { await markPenaltiesPaidBulk(targets, user?.id); });
+        withBusy(async () => {
+            const r = await markPenaltiesPaidBulk(targets, user?.id);
+            const skipped = r.alreadyPaid + r.stale + r.notPayable;
+            if (skipped > 0) {
+                alert(
+                    `${r.paid}명 납부 처리(${formatWon(r.insertedTotal)}).
+` +
+                    `처리하지 않음 ${skipped}명 — 이미 완납 ${r.alreadyPaid} · 정보 변경됨 ${r.stale} · 면제/비대상 등 ${r.notPayable}`,
+                );
+            }
+        });
     };
     const handleRegisterMissing = () => {
         if (!ctx || !session) return;
@@ -261,7 +278,7 @@ export default function KdkSettlementPage() {
                                         )}
                                         {ctx.rows.map((r, idx) => {
                                             const key = rowKey(r);
-                                            const payable = !!r.receivableId && r.status !== 'paid'; // 회원(체크박스/일괄 대상)
+                                            const payable = isMemberPayable(r); // 회원(체크박스/일괄 대상) — 미납/일부만. 면제·비대상 제외.
                                             // 게스트 전용 벌금 납부(회원 receivable 없음). 공식 확정 세션에서만 신규 납부 가능.
                                             const guestPayable = !r.receivableId && r.isGuestPayable === true && r.status !== 'paid' && canRegister;
                                             const memberPaidRevert = r.status === 'paid' && !!r.receivableId;
@@ -484,7 +501,11 @@ function rowKey(r: KdkPenaltyRow) {
     return `n:${r.playerName}`;
 }
 function selectedPayableCount(rows: KdkPenaltyRow[], selected: Set<string>) {
-    return rows.filter((r) => selected.has(rowKey(r)) && r.receivableId && r.status !== 'paid').length;
+    return rows.filter((r) => selected.has(rowKey(r)) && isMemberPayable(r)).length;
+}
+/** 회원 벌금 납부 처리 대상: 등록된 receivable + 미납/일부 납부. (완납·면제·비대상 제외) */
+function isMemberPayable(r: KdkPenaltyRow) {
+    return !!r.receivableId && (r.status === 'pending' || r.status === 'partial');
 }
 
 function PenaltyStatusBadge({ status, isGuest }: { status: KdkPenaltyRow['status']; isGuest?: boolean }) {
@@ -492,6 +513,8 @@ function PenaltyStatusBadge({ status, isGuest }: { status: KdkPenaltyRow['status
     if (status === 'partial') return <StatusBadge tone="partial">일부 납부</StatusBadge>;
     if (status === 'pending') return <StatusBadge tone="pending">미납</StatusBadge>;
     if (status === 'unregistered') return <StatusBadge tone="not_target">미등록</StatusBadge>;
+    if (status === 'exempt') return <StatusBadge tone="exempt">면제</StatusBadge>;
+    if (status === 'not_target') return <StatusBadge tone="not_target">비대상</StatusBadge>;
     // needs_link — 게스트는 회원 연결이 아니라 안정 식별값(공식 기록) 확인 문제.
     return <StatusBadge tone="not_target">{isGuest ? '게스트 식별값 확인 필요' : '회원 연결 필요'}</StatusBadge>;
 }
