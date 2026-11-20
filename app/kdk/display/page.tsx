@@ -183,6 +183,16 @@ function courtNameFontPx(name: string) {
   return 42;
 }
 
+// 5코트 하단(3열) compact 카드 선수명 폰트 — 팀 영역 폭이 기존 카드의 약 2/3 라
+//   이름 추정 폭(한글 ≈ 0.98em, (G) ≈ 1.5em)이 영역 안에 들도록 1줄 크기를 정한다(44px 상한).
+const COMPACT_NAME_BOX_PX = 156;
+function compactCourtNameFontPx(name: string) {
+  const hasGuestTag = /\(G\)$/i.test(name);
+  const coreLen = Math.max(1, name.replace(/\s*\(G\)$/i, '').length);
+  const estEm = coreLen * 0.98 + (hasGuestTag ? 1.5 : 0);
+  return Math.max(18, Math.min(44, Math.floor(COMPACT_NAME_BOX_PX / estEm)));
+}
+
 function playerName(match: Match, index: number, playerLookup: PlayerLookup) {
   const playerId = match.playerIds?.[index] || '';
   const lookup = playerId ? playerLookup[playerId] : null;
@@ -270,13 +280,17 @@ function CourtCard({
   playerLookup,
   matchNumber,
   nowMs,
+  compact = false,
 }: {
   court: number;
   match?: Match;
   playerLookup: PlayerLookup;
   matchNumber?: number;
   nowMs: number;
+  // 5코트 하단 3열 전용 축소 카드. 표시 정보는 동일하고 크기만 줄인다. 기본(false)은 기존 카드 그대로.
+  compact?: boolean;
 }) {
+  const nameFontPx = compact ? compactCourtNameFontPx : courtNameFontPx;
   const groupMeta = getDisplayGroupMeta(match?.groupName || match?.group || 'A');
   const teamA = match ? teamPlayers(match, 0, playerLookup) : [];
   const teamB = match ? teamPlayers(match, 2, playerLookup) : [];
@@ -306,7 +320,7 @@ function CourtCard({
       <div className="relative z-10 flex min-h-0 flex-1 items-stretch">
         {/* Left vertical Court Plate — solid identifier visible at TV distance */}
         <div
-          className="flex w-[80px] shrink-0 flex-col items-center justify-center gap-0.5"
+          className={compact ? 'flex w-[56px] shrink-0 flex-col items-center justify-center gap-0.5' : 'flex w-[80px] shrink-0 flex-col items-center justify-center gap-0.5'}
           style={{
             background: plateBg,
             borderRight: '1px solid rgba(255,255,255,0.22)',
@@ -314,13 +328,13 @@ function CourtCard({
           }}
         >
           <span
-            className="text-[11px] font-black uppercase tracking-[0.24em]"
+            className={compact ? 'text-[9px] font-black uppercase tracking-[0.16em]' : 'text-[11px] font-black uppercase tracking-[0.24em]'}
             style={{ color: '#FFFFFF', opacity: 0.86 }}
           >
             COURT
           </span>
           <span
-            className="text-[60px] font-black leading-none"
+            className={compact ? 'text-[44px] font-black leading-none' : 'text-[60px] font-black leading-none'}
             style={{ color: '#FFFFFF' }}
           >
             {court}
@@ -332,14 +346,14 @@ function CourtCard({
 
       {/* Top row: A·R·M chip (centered) · elapsed + LIVE/READY (right) — fixed height for cross-card alignment */}
       <div
-        className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-5"
-        style={{ height: 44 }}
+        className={compact ? 'grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2' : 'grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-5'}
+        style={compact ? { height: 44, paddingLeft: 10 } : { height: 44 }}
       >
-        <div />
-        <div className="justify-self-center">
+        {!compact && <div />}
+        <div className={compact ? 'min-w-0 justify-self-start' : 'justify-self-center'}>
           {live && (
             <span
-              className="flex items-center gap-2 rounded-full px-5 py-1.5 text-[18px] font-black tracking-[0.02em] shadow-[0_2px_6px_rgba(20,62,146,0.12)]"
+              className={compact ? 'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[14px] font-black tracking-[0.01em] shadow-[0_2px_6px_rgba(20,62,146,0.12)]' : 'flex items-center gap-2 rounded-full px-5 py-1.5 text-[18px] font-black tracking-[0.02em] shadow-[0_2px_6px_rgba(20,62,146,0.12)]'}
               style={{
                 color: accentDeep,
                 background: metaTint,
@@ -354,27 +368,27 @@ function CourtCard({
             </span>
           )}
         </div>
-        <div className="flex items-center justify-self-end gap-3">
+        <div className={compact ? 'flex items-center justify-self-end gap-1.5' : 'flex items-center justify-self-end gap-3'}>
           {live ? (
             <>
               {elapsed && (
                 // 경기 타이머 — LIVE 옆 스코어보드 리드아웃. TV 원거리 가독을 위해 숫자를 크게(22px)
                 //   키우고 흰 pill + accent 테두리로 존재감을 준다(선수명보다 작게 유지). 표시 전용.
                 <span
-                  className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] bg-white px-3.5 py-1.5 text-[22px] font-black leading-none tabular-nums tracking-[0.04em] shadow-[0_2px_8px_rgba(20,62,146,0.16)]"
+                  className={compact ? 'flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] bg-white px-2 py-1 text-[17px] font-black leading-none tabular-nums tracking-[0.02em] shadow-[0_2px_8px_rgba(20,62,146,0.16)]' : 'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] bg-white px-3.5 py-1.5 text-[22px] font-black leading-none tabular-nums tracking-[0.04em] shadow-[0_2px_8px_rgba(20,62,146,0.16)]'}
                   style={{ color: accentDeep, border: `1.5px solid ${accentDeep}4D` }}
                 >
-                  <span className="text-[14px] leading-none opacity-60">⏱</span>
+                  <span className={compact ? 'text-[11px] leading-none opacity-60' : 'text-[14px] leading-none opacity-60'}>⏱</span>
                   {elapsed}
                 </span>
               )}
-              <span className="flex items-center gap-1.5 rounded-[8px] bg-[#D8324A] px-2.5 py-1 text-[15px] font-black uppercase tracking-[0.18em] text-white shadow-[0_2px_6px_rgba(216,50,74,0.32)]">
+              <span className={compact ? 'flex shrink-0 items-center gap-1 rounded-[6px] bg-[#D8324A] px-1.5 py-1 text-[12px] font-black uppercase tracking-[0.12em] text-white shadow-[0_2px_6px_rgba(216,50,74,0.32)]' : 'flex items-center gap-1.5 rounded-[8px] bg-[#D8324A] px-2.5 py-1 text-[15px] font-black uppercase tracking-[0.18em] text-white shadow-[0_2px_6px_rgba(216,50,74,0.32)]'}>
                 <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                 LIVE
               </span>
             </>
           ) : (
-            <span className="rounded-[8px] bg-[#7F90A8] px-3 py-1 text-[15px] font-black uppercase tracking-[0.22em] text-white">
+            <span className={compact ? 'rounded-[6px] bg-[#7F90A8] px-2 py-1 text-[12px] font-black uppercase tracking-[0.16em] text-white' : 'rounded-[8px] bg-[#7F90A8] px-3 py-1 text-[15px] font-black uppercase tracking-[0.22em] text-white'}>
               READY
             </span>
           )}
@@ -388,7 +402,7 @@ function CourtCard({
       />
 
       {/* Body: name plates stretch to fill card height so the panel reads as one unit, not floating text. */}
-      <div className="relative z-10 grid flex-1 min-h-0 grid-cols-[minmax(0,1fr)_64px_minmax(0,1fr)] items-stretch gap-2 px-3.5 pt-2 pb-3">
+      <div className={compact ? 'relative z-10 grid flex-1 min-h-0 grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] items-stretch gap-1.5 px-2 pt-2 pb-3' : 'relative z-10 grid flex-1 min-h-0 grid-cols-[minmax(0,1fr)_64px_minmax(0,1fr)] items-stretch gap-2 px-3.5 pt-2 pb-3'}>
         {live ? (
           <>
             <div className="relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-[8px] bg-white/30 px-3 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),inset_0_-6px_14px_rgba(255,255,255,0.10)]">
@@ -396,7 +410,7 @@ function CourtCard({
                 <p
                   key={i}
                   className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center font-black leading-[1.02] tracking-[-0.024em] text-[#0A172F]"
-                  style={{ fontSize: courtNameFontPx(name) }}
+                  style={{ fontSize: nameFontPx(name) }}
                 >
                   {name}
                 </p>
@@ -404,7 +418,7 @@ function CourtCard({
             </div>
             <div className="flex items-center justify-center">
               <span
-                className="flex h-[48px] w-[48px] items-center justify-center rounded-full text-[15px] font-black uppercase tracking-[0.06em] text-white shadow-[0_3px_8px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.32)]"
+                className={compact ? 'flex h-[38px] w-[38px] items-center justify-center rounded-full text-[12px] font-black uppercase tracking-[0.04em] text-white shadow-[0_3px_8px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.32)]' : 'flex h-[48px] w-[48px] items-center justify-center rounded-full text-[15px] font-black uppercase tracking-[0.06em] text-white shadow-[0_3px_8px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.32)]'}
                 style={{ background: accentDeep }}
               >
                 VS
@@ -415,7 +429,7 @@ function CourtCard({
                 <p
                   key={i}
                   className="w-full overflow-hidden text-ellipsis whitespace-nowrap break-keep text-center font-black leading-[1.02] tracking-[-0.024em] text-[#0A172F]"
-                  style={{ fontSize: courtNameFontPx(name) }}
+                  style={{ fontSize: nameFontPx(name) }}
                 >
                   {name}
                 </p>
@@ -424,8 +438,8 @@ function CourtCard({
           </>
         ) : (
           <div className="col-span-3 flex flex-col items-center justify-center gap-1.5 rounded-[8px] bg-white/22 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.40)]">
-            <p className="text-[34px] font-black uppercase tracking-[0.26em] text-[#3F506A]">STAND BY</p>
-            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-[#5B6B82]">코트 비어있음</p>
+            <p className={compact ? 'text-[26px] font-black uppercase tracking-[0.18em] text-[#3F506A]' : 'text-[34px] font-black uppercase tracking-[0.26em] text-[#3F506A]'}>STAND BY</p>
+            <p className={compact ? 'text-[11px] font-black uppercase tracking-[0.2em] text-[#5B6B82]' : 'text-[12px] font-black uppercase tracking-[0.28em] text-[#5B6B82]'}>코트 비어있음</p>
           </div>
         )}
       </div>
@@ -1048,15 +1062,29 @@ function KdkDisplayBoard() {
     if (sid) fetchMatches(sid); // fetchMatches 성공 → lastSync 갱신 → 공식 순위도 자동 재조회
   }, { enabled: !!sessionId });
 
+  // 코트 슬롯 수(4 또는 5). 운영 화면의 코트 수는 DB 에 저장되지 않으므로 전광판이 스스로 정한다.
+  //   1) ?courts=5 → 5코트(2+3) 강제   2) ?courts=4 → 기존 4코트 강제
+  //   3) 그 외 → 현재 세션 경기(matches, 이 세션만 조회됨) 중 5번 코트 배정 기록이 있으면 5코트.
+  //      5번 경기가 대기로 되돌려져 court 가 비어도 같은 세션 안에서는 5코트를 유지(화면 출렁임 방지).
+  const courtsParam = searchParams.get('courts');
+  const forcedCourtSlots = courtsParam === '5' ? 5 : courtsParam === '4' ? 4 : null;
+  const hasCourtFiveRecord = useMemo(() => matches.some((match) => Number(match.court) === 5), [matches]);
+  const [courtFiveSessionId, setCourtFiveSessionId] = useState('');
+  useEffect(() => {
+    if (hasCourtFiveRecord && resolvedSessionId) setCourtFiveSessionId(resolvedSessionId);
+  }, [hasCourtFiveRecord, resolvedSessionId]);
+  const autoCourtFive = hasCourtFiveRecord || (!!resolvedSessionId && courtFiveSessionId === resolvedSessionId);
+  const courtSlots: 4 | 5 = forcedCourtSlots ?? (autoCourtFive ? 5 : 4);
+
   const playingByCourt = useMemo(() => {
     const map = new Map<number, Match>();
     matches
       .filter((match) => match.status === 'playing' && match.court)
       .forEach((match) => {
-        if (match.court && match.court >= 1 && match.court <= 4) map.set(match.court, match);
+        if (match.court && match.court >= 1 && match.court <= courtSlots) map.set(match.court, match);
       });
     return map;
-  }, [matches]);
+  }, [matches, courtSlots]);
 
   const playingPlayerIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1401,6 +1429,29 @@ function KdkDisplayBoard() {
           <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-4">
 
             <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_136px] gap-4">
+              {courtSlots === 5 ? (
+                // 5코트: 상단 1·2번(기존 카드 크기 그대로) + 하단 3·4·5번(compact). 행 높이는 기존 2×2 와 동일.
+                <div className="grid min-h-0 min-w-0 grid-rows-2 gap-4">
+                  {[[1, 2], [3, 4, 5]].map((row) => (
+                    <div key={row.join('-')} className={row.length === 3 ? 'grid min-h-0 min-w-0 grid-cols-3 gap-4' : 'grid min-h-0 min-w-0 grid-cols-2 gap-4'}>
+                      {row.map((court) => {
+                        const courtMatch = playingByCourt.get(court);
+                        return (
+                          <CourtCard
+                            key={court}
+                            court={court}
+                            match={courtMatch}
+                            playerLookup={playerLookup}
+                            matchNumber={courtMatch ? matchNumberMap.get(courtMatch.id) || 0 : 0}
+                            nowMs={nowMs}
+                            compact={row.length === 3}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div className="grid min-h-0 min-w-0 grid-cols-2 grid-rows-2 gap-4">
                 {[1, 2, 3, 4].map((court) => {
                   const courtMatch = playingByCourt.get(court);
@@ -1416,6 +1467,7 @@ function KdkDisplayBoard() {
                   );
                 })}
               </div>
+              )}
 
               {/* UP NEXT LANE — neutral slate background so the lane reads as a calmer side area, distinct from the blue Court panels above */}
               <div className="flex gap-2.5 rounded-[16px] bg-[linear-gradient(180deg,#E8ECF2_0%,#D7DEE8_100%)] p-2.5 shadow-[0_8px_18px_rgba(15,40,95,0.12),inset_0_1px_0_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(255,255,255,0.45)]">
