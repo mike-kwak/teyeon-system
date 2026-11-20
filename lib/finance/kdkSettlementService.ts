@@ -19,8 +19,9 @@ import {
     buildKdkPenaltyPreview,
     registerKdkPenalties,
     type KdkPenaltyPreviewRow,
+    type KdkSettlementEntry,
 } from './kdkPenaltyService';
-import { fetchGuestPenaltyState } from './kdkGuestPenaltyService';
+import { fetchGuestPenaltyState, type GuestPenaltyState } from './kdkGuestPenaltyService';
 import type { FinanceDuesPayment, FinanceDuesReceivable } from '@/types/finance';
 
 const TBL_RECV = 'finance_dues_receivables';
@@ -138,8 +139,29 @@ export async function loadKdkPenaltyContext(
     const recvIds = receivables.map((r) => r.id);
     const payments = recvIds.length > 0 ? await fetchPaymentsByReceivables(recvIds) : [];
 
+    const rows = buildKdkPenaltyRows(settlementData, members, receivables, payments, guestState);
+    const summary = summarizePenaltyRows(rows);
+    return { rows, summary, members, receivables, payments };
+}
+
+/**
+ * 세션 1개의 벌금 행 판정(순수 함수 — DB 미접속).
+ *   세션 정산 화면(loadKdkPenaltyContext)과 누적 벌금 현황(kdkPenaltyHistoryService)이 같은 규칙을 쓰도록
+ *   분리했다. 판정 로직은 분리 전과 동일하다(동작 변경 없음).
+ *   - receivables: 해당 세션(related_kdk_session_id)의 penalty 청구만.
+ *   - payments: 위 청구들에 연결된 납부(취소 포함 — summarizeReceivable 가 is_voided 제외).
+ *   - guestState: 해당 세션의 게스트 납부 상태.
+ */
+export function buildKdkPenaltyRows(
+    settlementData: KdkSettlementEntry[],
+    members: Pick<FinanceMember, 'id' | 'nickname'>[],
+    receivables: FinanceDuesReceivable[],
+    payments: FinanceDuesPayment[],
+    guestState: GuestPenaltyState,
+): KdkPenaltyRow[] {
     const existing = receivables.map((r) => ({ id: r.id, member_id: r.member_id }));
-    const preview = buildKdkPenaltyPreview(settlementData, members, existing);
+    // 미리보기 매칭은 id·nickname 만 사용한다(누적 현황은 최소 컬럼만 조회).
+    const preview = buildKdkPenaltyPreview(settlementData, members as FinanceMember[], existing);
     const recvByMember = new Map<string, FinanceDuesReceivable>();
     for (const r of receivables) recvByMember.set(r.member_id, r);
 
@@ -187,9 +209,7 @@ export async function loadKdkPenaltyContext(
             status, amountPaid: s.amount_paid, paidAt: s.latestPaidAt,
         };
     });
-
-    const summary = summarizePenaltyRows(rows);
-    return { rows, summary, members, receivables, payments };
+    return rows;
 }
 
 export function summarizePenaltyRows(rows: KdkPenaltyRow[]): KdkPenaltySummary {

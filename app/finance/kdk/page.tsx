@@ -79,6 +79,31 @@ export default function FinanceKdkSessionsPage() {
                     backHref="/finance"
                 />
 
+                {/* 누적 조회(읽기 전용) 진입 — 세션별 정산은 아래 목록에서 그대로 진행. */}
+                <Link
+                    href="/finance/kdk/history"
+                    style={{
+                        ...FINANCE_CARD_STYLE,
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '12px 12px 12px 14px', textDecoration: 'none', color: 'inherit', minWidth: 0,
+                        borderColor: 'rgba(15,159,152,0.22)',
+                    }}
+                >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 900, color: NAVY }}>누적 벌금 현황</p>
+                        <p style={{ margin: '3px 0 0', fontSize: 11, fontWeight: 600, color: '#64748B', wordBreak: 'keep-all' }}>
+                            회원·게스트별 KDK 벌금과 납부 내역을 확인합니다.
+                        </p>
+                    </div>
+                    <span style={{
+                        flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2,
+                        height: 30, padding: '0 8px 0 10px', borderRadius: 9,
+                        background: TEAL, color: '#FFFFFF', fontSize: 11.5, fontWeight: 900, whiteSpace: 'nowrap',
+                    }}>
+                        보기 <ChevronRight size={14} />
+                    </span>
+                </Link>
+
                 {state.kind === 'loading' && (
                     <p style={{ margin: '24px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#94A3B8' }}>불러오는 중...</p>
                 )}

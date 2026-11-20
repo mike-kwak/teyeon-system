@@ -41,6 +41,7 @@ import {
 } from '@/lib/finance/kdkPrizeService';
 import { listKdkNotices, deactivateKdkNotice, deleteKdkNotice, type KdkNoticeListRow } from '@/lib/finance/kdkNoticesService';
 import KdkNoticeCreateModal from '@/components/finance/KdkNoticeCreateModal';
+import { cleanPenaltyDisplayName } from '@/lib/finance/kdkPenaltyHistoryModel';
 
 const NAVY = '#0F172A';
 
@@ -293,8 +294,12 @@ export default function KdkSettlementPage() {
                                                         style={{ width: 16, height: 16, accentColor: '#0F9F98', flexShrink: 0, cursor: payable ? 'pointer' : 'not-allowed' }}
                                                     />
                                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                            {r.memberName || r.playerName}{r.isGuest && <GuestTag />}
+                                                        {/* 이름만 말줄임 — G 배지는 별도 요소라 긴 이름에도 사라지지 않는다(표시 전용 수정). */}
+                                                        <p style={{ margin: 0, display: 'flex', alignItems: 'center', minWidth: 0, fontSize: 12.5, fontWeight: 800, color: NAVY }}>
+                                                            <span title={r.memberName || r.playerName} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 1 }}>
+                                                                {r.memberName || (r.isGuest ? cleanPenaltyDisplayName(r.playerName, true) : r.playerName)}
+                                                            </span>
+                                                            {r.isGuest && <GuestTag />}
                                                         </p>
                                                         <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8' }}>
                                                             {formatWon(r.amount)}{r.paidAt ? ` · ${r.paidAt} 납부` : ''}
@@ -533,7 +538,7 @@ function Chip({ children, tone = 'blue' }: { children: React.ReactNode; tone?: '
     return <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: p[0], color: p[1], fontSize: 11, fontWeight: 800 }}>{children}</span>;
 }
 function GuestTag() {
-    return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', marginLeft: 5, background: '#FFF4DE', border: '1px solid #F4C979', color: '#B7791F', fontSize: 8, fontWeight: 900, verticalAlign: 'middle' }}>G</span>;
+    return <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', marginLeft: 5, background: '#FFF4DE', border: '1px solid #F4C979', color: '#B7791F', fontSize: 8, fontWeight: 900, verticalAlign: 'middle' }}>G</span>;
 }
 
 const labelStyle: React.CSSProperties = { margin: 0, fontSize: 10.5, fontWeight: 800, color: '#94A3B8', letterSpacing: '0.04em' };
