@@ -58,6 +58,8 @@ import {
     type HistoryTab,
 } from '@/components/finance/KdkPenaltyHistoryUI';
 import { formatLoadedAt, usePenaltyHistory } from '@/components/finance/usePenaltyHistory';
+import { KdkPenaltyShareActions } from '@/components/finance/KdkPenaltyShareActions';
+import { buildPenaltyShareText } from '@/lib/finance/kdkPenaltyHistoryShare';
 
 const CONTAINER: React.CSSProperties = { ...FINANCE_CONTAINER_STYLE };
 
@@ -75,6 +77,13 @@ function HistoryView() {
     const [query, update] = useHistoryQuery();
     const resolution = usePeriodResolution(query);
     const { state, reload } = usePenaltyHistory(user?.id, !isLoading && !!user && isAdmin);
+    // 공유 텍스트: 조회 완료(새로고침 중 아님) + 유효 기간일 때만. 로딩·오류·이전 기간 데이터는 복사하지 않는다.
+    const shareRecords = state.kind === 'ready' && !state.refreshing ? state.history.records : null;
+    const shareRange = resolution.ok ? resolution.range : null;
+    const getShareText = React.useMemo(
+        () => (shareRecords && shareRange ? () => buildPenaltyShareText(shareRecords, shareRange, query.tab) : null),
+        [shareRecords, shareRange, query.tab],
+    );
 
     if (isLoading) {
         return <main style={FINANCE_PAGE_STYLE}><div style={CONTAINER}><LoadingCard /></div></main>;
@@ -97,6 +106,7 @@ function HistoryView() {
 
                 <TabBar tab={query.tab} onChange={(tab) => update({ tab, q: '' })} />
                 <PeriodFilter query={query} onChange={update} resolution={resolution} />
+                <KdkPenaltyShareActions getText={state.kind === 'error' ? null : getShareText} />
 
                 {state.kind === 'loading' || state.kind === 'idle' ? <LoadingCard /> : null}
                 {state.kind === 'error' && <ErrorCard message={state.message} onRetry={reload} />}
