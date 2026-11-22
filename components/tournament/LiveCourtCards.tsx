@@ -101,6 +101,7 @@ export const PlayingMatchCard = ({
     onStartTimer,
     timerPending = false,
     canStartTimer,
+    canCancel,
 }: CardProps & {
     onInputScore: (id: string, s1: number, s2: number) => void;
     isAdmin?: boolean;
@@ -114,6 +115,8 @@ export const PlayingMatchCard = ({
     timerPending?: boolean;
     /** 타이머 "시작" 버튼 노출 권한. 미전달 = isAdmin(기존 동작). KDK 는 로그인 회원 현장 운영 권한을 따로 넘긴다. */
     canStartTimer?: boolean;
+    /** "복귀"(대기열로 되돌리기) 버튼 노출 권한. 미전달 = isAdmin(기존 동작). KDK 는 임원진 복귀 권한을 따로 넘긴다. */
+    canCancel?: boolean;
 }) => {
     const groupMeta = getGroupPresentation(match.groupName || (match as any).group);
     const { normalizedGroup, accentColor, softBg, softBorder, headerBg } = groupMeta;
@@ -146,7 +149,7 @@ export const PlayingMatchCard = ({
                     ROUND {match.round || 1} · {normalizedGroup}조 · {Math.max(1, matchNo || 1)}경기
                 </span>
 
-                {isAdmin && onCancel && (
+                {(canCancel ?? isAdmin) && onCancel && (
                     <button
                         type="button"
                         onClick={(e) => {

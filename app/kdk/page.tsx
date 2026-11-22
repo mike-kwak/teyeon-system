@@ -35,6 +35,7 @@ import { describeMembersLoadError, getManualMemberGate } from '@/lib/kdk/manualM
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import type { ClubSchedule } from '@/lib/clubScheduleData';
 import KdkSpotlightEntry, { KdkSpotlightManager } from '@/components/kdk/spotlight/KdkSpotlightEntry';
+import { isCourtReturnOfficer, isCourtReturnRpcKnownMissing, isMissingRpcError, markCourtReturnRpcMissing, type LinkedMemberRow } from '@/lib/kdk/courtReturnAccess';
 
 
 // KDK 대진 생성 스텝 공통 하단 여백 — inline-CTA(다음/생성) 스텝의 실제 스크롤 콘텐츠 끝에
@@ -216,20 +217,37 @@ export default function KDKPage() {
     //   DB 함수(can_manage_kdk · kdk_can_operate_court)가 없거나 실패하면 false → 지금과 같은 화면(CEO·ADMIN 만).
     const isFullAdmin = isAdmin;
     // ready: 판정 조회가 끝났는가(비로그인 · GUEST 는 조회하지 않고 바로 false 확정).
-    const [kdkDbPerm, setKdkDbPerm] = useState<{ manage: boolean; court: boolean; ready: boolean }>({ manage: false, court: false, ready: false });
+    //   returnCourt: 코트 복귀(투입 취소) 권한 — 클럽 임원 직책(members.role: 회장·부회장·총무·재무·경기·섭외) 포함
+    //     (DB kdk_can_return_court(p_club_id) 결과가 기준). 직책 없는 회원은 RPC 를 호출하지 않는다.
+    //     함수 미배포(운영 SQL 미적용) 확인 시 같은 페이지·같은 계정 동안만 재호출 안 함(새로고침·재로그인 시 재조회) · 실패 시 false → 기존과 같이 KDK 관리자 이상만 복귀 버튼 표시.
+    const [kdkDbPerm, setKdkDbPerm] = useState<{ manage: boolean; court: boolean; returnCourt: boolean; ready: boolean }>({ manage: false, court: false, returnCourt: false, ready: false });
     useEffect(() => {
-        if (!uid || role === 'GUEST') { setKdkDbPerm({ manage: false, court: false, ready: true }); return; }
+        if (!uid || role === 'GUEST') { setKdkDbPerm({ manage: false, court: false, returnCourt: false, ready: true }); return; }
         let alive = true;
-        Promise.all([supabase.rpc('can_manage_kdk'), supabase.rpc('kdk_can_operate_court')])
-            .then(([m, c]) => {
+        const permClubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
+        const checkReturnCourt = async (): Promise<boolean> => {
+            if (isCourtReturnRpcKnownMissing(uid)) return false;
+            const { data: linked, error: linkErr } = await supabase.from('members').select('role, club_id').eq('auth_user_id', uid);
+            if (linkErr || !isCourtReturnOfficer(linked as LinkedMemberRow[] | null, permClubId)) return false;
+            const r = await supabase.rpc('kdk_can_return_court', { p_club_id: permClubId });
+            if (r.error) {
+                if (isMissingRpcError({ ...r.error, status: r.status })) markCourtReturnRpcMissing(uid);
+                return false;
+            }
+            return r.data === true;
+        };
+        Promise.all([supabase.rpc('can_manage_kdk'), supabase.rpc('kdk_can_operate_court'), checkReturnCourt().catch(() => false)])
+            .then(([m, c, returnCourt]) => {
                 if (!alive) return;
-                setKdkDbPerm({ manage: !m.error && m.data === true, court: !c.error && c.data === true, ready: true });
+                setKdkDbPerm({ manage: !m.error && m.data === true, court: !c.error && c.data === true, returnCourt, ready: true });
             })
-            .catch(() => { if (alive) setKdkDbPerm({ manage: false, court: false, ready: true }); });
+            .catch(() => { if (alive) setKdkDbPerm({ manage: false, court: false, returnCourt: false, ready: true }); });
         return () => { alive = false; };
     }, [uid, role]);
     const canManageKdk = isFullAdmin || (kdkDbPerm.manage && !shouldHideAdminControls);
     const canOperateCourt = canManageKdk || (kdkDbPerm.court && !shouldHideAdminControls);
+    // 코트 복귀: KDK 관리자 이상(기존 직접 경로) 또는 임원 직책(return_kdk_match_to_waiting RPC 경로 — 타이머 시작 전 경기만).
+    const canReturnCourt = canManageKdk || (kdkDbPerm.returnCourt && !shouldHideAdminControls);
     const canDeleteKdkSession = isFullAdmin;
     const isKdkManagerOnly = canManageKdk && !isFullAdmin;
     // 대진 생성·수동 저장: 기존 기능 권한(kdk WRITE) 또는 KDK 관리자(등재 자체가 권한 — DB kdk_p1_can_generate 와 같음).
@@ -2984,6 +3002,27 @@ export default function KDKPage() {
         try {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
             setSpinningMatchId(matchId); // Start spin feedback
+
+            // 임원 직책(KDK 관리자 아님): 서버 RPC 로만 복귀(권한 · 타이머 미시작 · 결과 미저장 검증을 서버가 원자적으로 수행).
+            if (!canManageKdk) {
+                const { data: res, error: rpcError } = await supabase.rpc('return_kdk_match_to_waiting', { p_match_id: String(matchId), p_club_id: clubId });
+                if (rpcError) throw rpcError;
+                const reason = (res as { ok?: boolean; reason?: string } | null)?.reason;
+                if (!(res as { ok?: boolean } | null)?.ok) {
+                    setSpinningMatchId(null);
+                    await syncActiveSession();
+                    alert(reason === 'timer_started'
+                        ? '타이머가 시작된 경기는 KDK 관리자만 복귀할 수 있습니다.'
+                        : reason === 'result_recorded'
+                            ? '결과가 저장된 경기는 복귀할 수 없습니다. 최신 상태로 갱신합니다.'
+                            : '다른 운영자가 먼저 처리했습니다. 최신 상태로 갱신합니다.');
+                    return;
+                }
+                setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'waiting', court: null } : m));
+                await syncActiveSession();
+                setTimeout(() => setSpinningMatchId(null), 500);
+                return;
+            }
 
             // DB 먼저 — 현재 'playing' 일 때만 복귀 + 실제 변경 행 검증. started_at 도 초기화(정책 A).
             const { data: rows, error: syncError } = await resetMatchToWaiting(matchId, 'playing', 'id');
@@ -6533,6 +6572,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     getPlayerName={getPlayerName}
                                                     isAdmin={canManageKdk && adminModeManual}
                                                     canStartTimer={canOperateCourt && adminModeManual}
+                                                    canCancel={canReturnCourt && adminModeManual}
                                                     onCancel={(id) => cancelMatch(id)}
                                                     spinningMatchId={spinningMatchId}
                                                     matchNo={matchNo}

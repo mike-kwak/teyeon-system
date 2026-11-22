@@ -177,7 +177,40 @@ export async function fetchPublicKdkSession(sessionId: string): Promise<PublicKd
         return null;
     }
     if (!data) return null;
-    return data as PublicKdkSessionDetail;
+    return withOfficialLiveRanking(data as PublicKdkSessionDetail);
+}
+
+/** get_kdk_live_official_ranking 응답 행(공개 전광판과 같은 공식 순위 · 내부 ID/출생연도 미포함). */
+interface OfficialLiveRankingRow { name: string; wins: number; losses: number; pf: number; pa: number; rank: number }
+
+/**
+ * in_progress 순위를 공식 기준으로 맞춘다.
+ *   get_public_kdk_session 의 진행 중 순위는 이름 기준 집계 + (승수 · 득실 · 득점) 정렬이라
+ *   공식 규칙(승수 → 득실 → 연장자 → 이름 · id)과 동률 처리 순서가 다를 수 있다.
+ *   → 이미 anon 에 공개된 공식 RPC get_kdk_live_official_ranking(전광판 RANKING TOWER 와 같은 source)으로 교체한다.
+ *   새 공개 권한 없음. 실패하거나 빈 응답이면 기존 순위를 그대로 둔다(화면 무변화).
+ */
+export async function withOfficialLiveRanking(detail: PublicKdkSessionDetail): Promise<PublicKdkSessionDetail> {
+    if (detail.state !== 'in_progress' || !detail.sessionId) return detail;
+    try {
+        const { data, error } = await supabase.rpc('get_kdk_live_official_ranking', { p_session_id: detail.sessionId });
+        if (error || !Array.isArray(data) || data.length === 0) return detail;
+        const ranking: PublicRankingRow[] = (data as OfficialLiveRankingRow[])
+            .filter((r) => r && typeof r.name === 'string' && Number.isFinite(Number(r.rank)))
+            .sort((a, b) => Number(a.rank) - Number(b.rank))
+            .slice(0, 16)
+            .map((r) => ({
+                rank: Number(r.rank),
+                name: r.name,
+                wins: Number(r.wins) || 0,
+                losses: Number(r.losses) || 0,
+                pointsFor: Number(r.pf) || 0,
+                pointsAgainst: Number(r.pa) || 0,
+            }));
+        return ranking.length ? { ...detail, ranking } : detail;
+    } catch {
+        return detail;
+    }
 }
 
 /** Guest Pass 정모 → 연결된 KDK 세션 상태. 없으면 null. */
