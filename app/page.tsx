@@ -89,6 +89,34 @@ export default function Home() {
 
   const CURRENT_VERSION = 'v5.0 Guest Fix';
 
+  // 공식 KDK 세션 수 — 로그인 회원만 조회.
+  //   teyeon_archive_v1 은 비로그인(anon) 직접 조회가 RLS/GRANT 로 차단된다(의도된 보안 정책).
+  //   과거에는 로그인 여부와 무관하게 마운트 시 count(HEAD) 를 보내 비로그인 방문마다 401 + 콘솔 오류가 났다.
+  //   → 인증 확인이 끝난 로그인 사용자만 조회하고, 비로그인은 요청 없이 placeholder(—) 유지(공개 권한 확대 없음).
+  const authUserId = user?.id ?? null;
+  useEffect(() => {
+    if (isLoading) return;
+    if (!authUserId) {
+      setTotalKdkCount(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('teyeon_archive_v1')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_official', true)
+      .eq('is_test', false)
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn('[Home] KDK count 조회 실패 — placeholder(—) 유지:', error.message);
+          return;
+        }
+        if (count !== null) setTotalKdkCount(count); // 실제 0건 성공 조회면 0회로 표시
+      });
+    return () => { cancelled = true; };
+  }, [isLoading, authUserId]);
+
   // 향후 조건부 공지 노출 슬롯 — 값이 truthy 일 때만 NoticeBar 렌더링.
   // 예: useState로 server fetch 결과를 받거나, props/context로 주입.
   // 기본은 null이라 빈 영역/여백이 남지 않음.
@@ -112,20 +140,6 @@ export default function Home() {
           return;
         }
         if (count !== null) setActiveMemberCount(count); // 실제 0명 성공 조회면 0명으로 표시
-      });
-
-    // 공식 KDK 세션 수
-    supabase
-      .from('teyeon_archive_v1')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_official', true)
-      .eq('is_test', false)
-      .then(({ count, error }) => {
-        if (error) {
-          console.warn('[Home] KDK count 조회 실패 — placeholder(—) 유지:', error.message);
-          return;
-        }
-        if (count !== null) setTotalKdkCount(count); // 실제 0건 성공 조회면 0회로 표시
       });
 
     // 다음 일정 선정 — Club + Tournament 합쳐 가장 가까운 1건.

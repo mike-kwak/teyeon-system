@@ -6,6 +6,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { Trophy, Clock, Play, Hammer, LayoutGrid, Users, Wallet, Copy, Check } from 'lucide-react';
 import PublicHeader from '@/components/club/PublicHeader';
+import PublicKdkStoryLinks from '@/components/club/PublicKdkStoryLinks';
 import {
     fetchPublicKdkSession,
     type PublicKdkSessionDetail,
@@ -129,6 +130,9 @@ export default function ClubKdkSessionPublicPage() {
                                 </p>
                             )}
                         </section>
+
+                        {/* ── MATCH SPOTLIGHT · FINAL REPORT(공개 발행된 경우만) ── */}
+                        <PublicKdkStoryLinks sessionId={data.sessionId} state={data.state} />
 
                         {/* ── 상태별 본문 ──────────────────────────────────── */}
                         {data.state === 'finished'    && <FinishedView data={data} />}
