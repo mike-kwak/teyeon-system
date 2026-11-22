@@ -4,16 +4,17 @@
 //   - 열릴 때 받은 스냅샷(PenaltyShareContent)으로 이미지를 브라우저에서 미리 생성한다(서버·업로드·DB 쓰기 없음).
 //     1) 공유용(1배율, 폭 1080px) PNG 를 먼저 만들고 File 객체까지 준비 → 미리보기에도 이 이미지를 쓴다.
 //     2) 이어서 저장용 원본(2배율, 폭 2160px) PNG 를 만든다.
-//   - iOS 안정화: 공유 버튼 클릭 → (동기) File·canShare 확인 → 곧바로 navigator.share({ files }) 호출.
-//     클릭과 share 사이에 이미지 생성·폰트 로딩 등 대기 작업이 없다(사용자 활성화 유지).
-//     파일과 함께 text 를 넘기지 않는다(iOS 공유 대상 앱이 텍스트만 받거나 실패하는 경우 방지).
-//   - 전체 공유(여러 장) + 현재 페이지 1장 공유. 실패 시 저장·텍스트 복사·카카오톡 사진 첨부 안내.
-//   - navigator.share 가 끝나도 카카오톡 전송 성공 여부는 웹에서 알 수 없다 → 성공을 단정하지 않는다.
+//   - 메인: '이미지 복사 k/N' — 기존 Ranking 결과 이미지와 같은 ClipboardItem PNG 복사 → 카카오톡 채팅방 붙여넣기.
+//     여러 장은 '다음 페이지'로 사용자가 직접 넘긴 뒤 다시 복사(자동 이동 없음).
+//     복사 미지원·실패 → Ranking 처럼 해당 장 PNG 자동 저장 요청 + 첨부 안내(저장 완료는 단정하지 않음).
+//   - 보조: '다른 앱으로 보내기'(Web Share). 클릭 → (동기) File·canShare 확인 → 곧바로 navigator.share({ files }).
+//     파일만 전달(text 미포함). 공유 창이 닫혀도 받는 앱의 전송 성공 여부는 웹에서 알 수 없다 → 성공을 단정하지 않는다.
+//   - 저장(전체·현재 페이지, 원본 2160px) · 텍스트 복사(V1) 유지.
 //   - 닫을 때 임시 URL(objectURL) 해제.
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Download, Image as ImageIcon, Share2, X } from 'lucide-react';
+import { ChevronRight, Copy, Download, Image as ImageIcon, Share2, X } from 'lucide-react';
 import { formatPenaltyShareText, type PenaltyShareContent } from '@/lib/finance/kdkPenaltyHistoryShare';
 import { buildReportDocument, reportFileName } from '@/lib/finance/kdkPenaltyReportLayout';
 import { renderReportPngs } from './kdkPenaltyReportCanvas';
@@ -60,17 +61,19 @@ type OrigGen = { kind: 'waiting' } | { kind: 'generating' } | { kind: 'error' } 
 type Notice = { kind: 'ok' | 'error' | 'info'; text: string } | null;
 
 export const PRIVACY_NOTE = '회원별 실명과 벌금 금액이 포함됩니다. 공유 대상을 확인해 주세요.';
-const ATTACH_HINT = '카카오톡 채팅방의 + → 앨범(사진)에서 첨부해 주세요.';
+const ATTACH_HINT = '카카오톡 채팅방의 + → 앨범(사진) 또는 파일에서 첨부해 주세요.';
 export const MSG = {
-    shareDone: '공유 창 작업이 끝났습니다. 카카오톡 채팅방에서 사진이 전송되었는지 확인해 주세요.',
-    shareUnsupportedMulti: `이 브라우저는 여러 장 이미지 공유를 지원하지 않습니다. ‘현재 페이지 공유’로 한 장씩 보내거나, 이미지를 저장한 뒤 ${ATTACH_HINT}`,
-    shareUnsupported: `이 브라우저는 이미지 파일 공유를 지원하지 않습니다. 이미지를 저장한 뒤 ${ATTACH_HINT}`,
-    shareFailMulti: `여러 장 공유에 실패했습니다. ‘현재 페이지 공유’로 한 장씩 보내거나, 이미지를 저장한 뒤 ${ATTACH_HINT}`,
-    shareFail: `이미지 공유에 실패했습니다. 이미지를 저장한 뒤 ${ATTACH_HINT}`,
+    // 메인: Ranking 과 같은 이미지 복사 → 카카오톡 채팅방 붙여넣기
+    imgCopied: (k: number, n: number) => `이미지 ${k}/${n}이(가) 복사되었습니다. 카카오톡 채팅방에서 붙여넣기 해주세요.`
+        + (k < n ? ' 다음 장은 ‘다음 페이지’를 누른 뒤 다시 복사해 주세요.' : ''),
+    // 복사 실패 → Ranking 처럼 해당 장 PNG 자동 저장(저장 완료는 확인할 수 없으므로 '요청'으로 표현)
+    imgCopyFallback: (k: number, n: number) => `이미지 복사가 지원되지 않아 ${k}/${n} PNG 저장을 요청했습니다. 저장되면 ${ATTACH_HINT}`,
+    imgCopyFailNoFile: `이미지를 복사하지 못했습니다. ‘이미지 저장’ 후 ${ATTACH_HINT}`,
+    // 보조: 다른 앱으로 보내기(Web Share)
+    shareDone: '공유 창 작업이 끝났습니다. 받는 앱에서 실제로 전송되었는지 확인해 주세요.',
+    shareUnsupported: `이 브라우저는 다른 앱으로 이미지 보내기를 지원하지 않습니다. ‘이미지 복사’를 이용하거나, 이미지를 저장한 뒤 ${ATTACH_HINT}`,
+    shareFail: `다른 앱으로 보내지 못했습니다. ‘이미지 복사’를 이용하거나, 이미지를 저장한 뒤 ${ATTACH_HINT}`,
     saved: (n: number) => `원본 이미지 ${n}장 저장을 요청했습니다. 저장되지 않으면 미리보기 이미지를 길게 눌러 저장해 주세요.`,
-    imgCopied: '현재 페이지 이미지가 복사되었습니다. 카카오톡 입력창에 붙여넣어 주세요.',
-    imgCopyUnsupported: '이 브라우저는 이미지 복사를 지원하지 않습니다. ‘현재 페이지 공유’ 또는 이미지 저장을 이용해 주세요.',
-    imgCopyFail: '이미지를 복사하지 못했습니다. ‘현재 페이지 공유’ 또는 이미지 저장을 이용해 주세요.',
     textFail: '텍스트를 복사하지 못했습니다. 브라우저의 클립보드 권한을 확인해 주세요.',
 };
 
@@ -161,44 +164,47 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
         if (box && fig) box.scrollTo({ top: Math.max(0, fig.offsetTop - 8), behavior: 'smooth' });
     };
 
-    /** 파일 공유 — 클릭 핸들러에서 동기 확인 후 곧바로 share 호출. */
-    const shareFiles = async (files: File[], isMulti: boolean) => {
-        if (busy) return;
+    /** 보조: 다른 앱으로 보내기(Web Share) — 클릭 핸들러에서 동기 확인 후 곧바로 share({ files }) 호출. */
+    const onShareOther = async () => {
+        if (!ready || busy) return;
+        const files = ready.files;
         const nav = navigator as ShareNav;
         const can = typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files });
-        if (!can) { setNotice({ kind: 'error', text: isMulti ? MSG.shareUnsupportedMulti : MSG.shareUnsupported }); return; }
+        if (!can) { setNotice({ kind: 'error', text: MSG.shareUnsupported }); return; }
         setBusy(true);
         try {
             await nav.share({ files }); // 파일만 전달(text 미포함). 클릭 직후 첫 비동기 호출.
             setNotice({ kind: 'info', text: MSG.shareDone }); // 전송 성공 단정 아님.
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') setNotice(null); // 사용자 취소 — 메시지 없음.
-            else setNotice({ kind: 'error', text: isMulti ? MSG.shareFailMulti : MSG.shareFail });
+            else setNotice({ kind: 'error', text: MSG.shareFail });
         } finally {
             setBusy(false);
         }
     };
-    const onShareAll = () => { if (ready) void shareFiles(ready.files, multi); };
-    const onShareCurrent = () => { if (ready) void shareFiles([ready.files[current]], false); };
 
+    /** PNG 다운로드(앵커). 다운로드가 끝날 시간을 두고 URL 해제. 저장 완료 여부는 웹에서 알 수 없다. */
+    const downloadBlobs = async (items: { blob: Blob; pageIndex: number }[]) => {
+        for (let k = 0; k < items.length; k++) {
+            const { blob, pageIndex } = items[k];
+            const url = URL.createObjectURL(blob);
+            downloadUrls.current.push(url);
+            setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.current = downloadUrls.current.filter((u) => u !== url); }, 60_000);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = reportFileName(doc.baseDate, pageIndex + 1);
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            if (k < items.length - 1) await new Promise((r) => setTimeout(r, 350)); // 연속 다운로드 차단 완화.
+        }
+    };
     const download = async (indexes: number[]) => {
         if (!origReady || busy) return;
         setBusy(true);
         try {
-            for (let k = 0; k < indexes.length; k++) {
-                const i = indexes[k];
-                const url = URL.createObjectURL(origReady.blobs[i]);
-                downloadUrls.current.push(url);
-                setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.current = downloadUrls.current.filter((u) => u !== url); }, 60_000);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = reportFileName(doc.baseDate, i + 1);
-                a.rel = 'noopener';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                if (k < indexes.length - 1) await new Promise((r) => setTimeout(r, 350)); // 연속 다운로드 차단 완화.
-            }
+            await downloadBlobs(indexes.map((i) => ({ blob: origReady.blobs[i], pageIndex: i })));
             setNotice({ kind: 'info', text: MSG.saved(indexes.length) });
         } finally {
             setBusy(false);
@@ -207,19 +213,33 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
     const onSaveAll = () => download(doc.pages.map((_, i) => i));
     const onSaveCurrent = () => download([current]);
 
+    /**
+     * 메인: 이미지 복사(Ranking 과 같은 ClipboardItem PNG) → 카카오톡 채팅방에 붙여넣기.
+     *   - 미리 만든 공유용 PNG(1080px)를 클릭 즉시 복사. 성공(write resolve) 시에만 성공 안내.
+     *   - 복사 후 페이지는 자동으로 넘기지 않는다(사용자가 '다음 페이지'로 이동).
+     *   - 미지원·실패 → Ranking 처럼 해당 장 PNG 자동 저장 요청 + 첨부 안내(원본 준비 전이면 공유용 PNG).
+     */
     const onCopyImage = async () => {
         if (!ready || busy) return;
-        if (!supportsImageClipboard()) { setNotice({ kind: 'error', text: MSG.imgCopyUnsupported }); return; }
+        const page = current;
         setBusy(true);
         try {
-            await navigator.clipboard.write([new ClipboardItem({ 'image/png': ready.blobs[current] })]);
-            setNotice({ kind: 'ok', text: MSG.imgCopied }); // write 가 성공(resolve)한 경우에만.
-        } catch {
-            setNotice({ kind: 'error', text: MSG.imgCopyFail });
+            if (!supportsImageClipboard()) throw new Error('Image clipboard is not supported.');
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': ready.blobs[page] })]);
+            setNotice({ kind: 'ok', text: MSG.imgCopied(page + 1, pageCount) });
+        } catch (copyError) {
+            console.warn('[KDK Penalty Report Image Copy]', copyError);
+            try {
+                await downloadBlobs([{ blob: origReady ? origReady.blobs[page] : ready.blobs[page], pageIndex: page }]);
+                setNotice({ kind: 'info', text: MSG.imgCopyFallback(page + 1, pageCount) });
+            } catch {
+                setNotice({ kind: 'error', text: MSG.imgCopyFailNoFile });
+            }
         } finally {
             setBusy(false);
         }
     };
+    const onNextPage = () => { if (current < pageCount - 1) goPage(current + 1); };
 
     const onCopyText = async () => {
         if (busy) return;
@@ -314,28 +334,29 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
                             ))}
                         </div>
                     )}
+                    {/* 메인: 이미지 복사 k/N (+ 여러 장이면 다음 페이지) */}
                     {multi ? (
-                        <>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
-                                <Btn primary onClick={onShareAll} disabled={shareDisabled} icon={<Share2 size={15} />} label={`전체 공유 (${pageCount}장)`} />
-                                <Btn primary onClick={onShareCurrent} disabled={shareDisabled} icon={<Share2 size={15} />} label={`현재 페이지 공유 ${current + 1}/${pageCount}`} />
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
-                                <Btn onClick={onSaveAll} disabled={saveDisabled} icon={<Download size={14} />} label={`전체 저장 (${pageCount}장)`} />
-                                <Btn onClick={onSaveCurrent} disabled={saveDisabled} icon={<Download size={14} />} label="현재 페이지 저장" />
-                                <Btn onClick={onCopyImage} disabled={shareDisabled} icon={<ImageIcon size={14} />} label="현재 페이지 복사" />
-                                <Btn onClick={onCopyText} disabled={busy} icon={<Copy size={14} />} label="텍스트 복사" />
-                            </div>
-                        </>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr)', gap: 6 }}>
+                            <Btn primary onClick={onCopyImage} disabled={shareDisabled} icon={<ImageIcon size={16} />} label={`이미지 복사 ${current + 1}/${pageCount}`} />
+                            <Btn onClick={onNextPage} disabled={!ready || busy || current >= pageCount - 1} icon={<ChevronRight size={15} />} label="다음 페이지" tall />
+                        </div>
                     ) : (
-                        <>
-                            <Btn primary onClick={onShareAll} disabled={shareDisabled} icon={<Share2 size={16} />} label="이미지 공유" />
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
-                                <Btn onClick={onSaveAll} disabled={saveDisabled} icon={<Download size={14} />} label="이미지 저장" />
-                                <Btn onClick={onCopyImage} disabled={shareDisabled} icon={<ImageIcon size={14} />} label="이미지 복사" />
-                                <Btn onClick={onCopyText} disabled={busy} icon={<Copy size={14} />} label="텍스트 복사" />
-                            </div>
-                        </>
+                        <Btn primary onClick={onCopyImage} disabled={shareDisabled} icon={<ImageIcon size={16} />} label={`이미지 복사 1/1`} />
+                    )}
+                    {/* 보조: 저장 · 다른 앱으로 보내기(Web Share) · 텍스트 복사 */}
+                    {multi ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
+                            <Btn onClick={onSaveAll} disabled={saveDisabled} icon={<Download size={14} />} label={`전체 저장 (${pageCount}장)`} />
+                            <Btn onClick={onSaveCurrent} disabled={saveDisabled} icon={<Download size={14} />} label="현재 페이지 저장" />
+                            <Btn onClick={onShareOther} disabled={shareDisabled} icon={<Share2 size={14} />} label="다른 앱으로 보내기" />
+                            <Btn onClick={onCopyText} disabled={busy} icon={<Copy size={14} />} label="텍스트 복사" />
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
+                            <Btn onClick={onSaveAll} disabled={saveDisabled} icon={<Download size={14} />} label="이미지 저장" />
+                            <Btn onClick={onShareOther} disabled={shareDisabled} icon={<Share2 size={14} />} label="다른 앱으로 보내기" />
+                            <Btn onClick={onCopyText} disabled={busy} icon={<Copy size={14} />} label="텍스트 복사" />
+                        </div>
                     )}
                     <p role="status" aria-live="polite" style={{
                         margin: 0, fontSize: 11.5, fontWeight: 800, lineHeight: 1.45, wordBreak: 'keep-all',
@@ -348,12 +369,12 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
     return createPortal(modal, document.body);
 }
 
-function Btn({ onClick, disabled, icon, label, primary = false }: {
-    onClick: () => void; disabled: boolean; icon: React.ReactNode; label: string; primary?: boolean;
+function Btn({ onClick, disabled, icon, label, primary = false, tall = false }: {
+    onClick: () => void; disabled: boolean; icon: React.ReactNode; label: string; primary?: boolean; tall?: boolean;
 }) {
     return (
         <button type="button" onClick={onClick} disabled={disabled} style={{
-            height: primary ? 42 : 36, minWidth: 0, borderRadius: 10, cursor: disabled ? 'default' : 'pointer',
+            height: primary || tall ? 42 : 36, minWidth: 0, borderRadius: 10, cursor: disabled ? 'default' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '0 4px',
             fontSize: primary ? 12.5 : 12, fontWeight: 900, whiteSpace: 'nowrap', fontFamily: 'inherit',
             border: primary ? '1px solid transparent' : '1px solid rgba(15,23,42,0.10)',
