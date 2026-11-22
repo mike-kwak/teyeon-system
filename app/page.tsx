@@ -117,12 +117,16 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [isLoading, authUserId]);
 
-  // 향후 조건부 공지 노출 슬롯 — 값이 truthy 일 때만 NoticeBar 렌더링.
-  // 예: useState로 server fetch 결과를 받거나, props/context로 주입.
-  // 기본은 null이라 빈 영역/여백이 남지 않음.
-  const noticeMessage: string | null = null;
-
+  // 활동 회원 수 — Archive count 와 같은 원칙: 인증 확인이 끝난 로그인 사용자만 조회.
+  //   members 는 RLS(같은 클럽 회원만) + column-level GRANT 보호 대상이라 비로그인 요청은 매번 401 이었다.
+  //   → 비로그인은 요청 없이 placeholder(—) 유지(공개 권한 확대 없음). 로그인 회원 표시는 기존과 같다.
   useEffect(() => {
+    if (isLoading) return;
+    if (!authUserId) {
+      setActiveMemberCount(null);
+      return;
+    }
+    let cancelled = false;
     // 활동 회원 = 정회원 + 준회원 (role 기준); role = '게스트' / '탈회' 제외
     //   select('*') 금지 — members 는 column-level GRANT(안전 컬럼만)라 '*' 는 permission denied.
     //   count 전용(head:true)이라 GRANT 된 최소 컬럼 id 만 지정한다.
@@ -135,13 +139,22 @@ export default function Home() {
       .eq('club_id', CLUB_ID)
       .not('role', 'in', excludedRolesPostgrestList(['게스트']))
       .then(({ count, error }) => {
+        if (cancelled) return;
         if (error) {
           console.warn('[Home] 활동 회원 count 조회 실패 — placeholder(—) 유지:', error.message);
           return;
         }
         if (count !== null) setActiveMemberCount(count); // 실제 0명 성공 조회면 0명으로 표시
       });
+    return () => { cancelled = true; };
+  }, [isLoading, authUserId]);
 
+  // 향후 조건부 공지 노출 슬롯 — 값이 truthy 일 때만 NoticeBar 렌더링.
+  // 예: useState로 server fetch 결과를 받거나, props/context로 주입.
+  // 기본은 null이라 빈 영역/여백이 남지 않음.
+  const noticeMessage: string | null = null;
+
+  useEffect(() => {
     // 다음 일정 선정 — Club + Tournament 합쳐 가장 가까운 1건.
     // 기존 fetch 함수 재사용 (별도 쿼리 작성 X). 두 fetch 중 하나가 실패해도 다른 쪽으로 폴백.
     (async () => {
