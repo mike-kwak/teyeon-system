@@ -59,6 +59,8 @@ export default function KdkSettlementPage() {
     const [notices, setNotices] = React.useState<KdkNoticeListRow[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [busy, setBusy] = React.useState(false);
+    // 일괄 납부 재진입 방지(렌더 전 연속 클릭 · 확인창 직후 중복 실행 차단 — busy state 보다 먼저 동기적으로 잠근다).
+    const bulkRunningRef = React.useRef(false);
     const [selected, setSelected] = React.useState<Set<string>>(new Set());
     const [showNoticeModal, setShowNoticeModal] = React.useState(false);
 
@@ -135,23 +137,62 @@ export default function KdkSettlementPage() {
         if (!row.playerId) return;
         await revertGuestPenaltyPaid({ sessionId, participantId: row.playerId });
     });
-    const handleBulkPaid = () => {
-        if (!ctx) return;
-        const targets = ctx.rows.filter((r) => selected.has(rowKey(r)) && isMemberPayable(r));
-        if (targets.length === 0) return;
-        if (!window.confirm(`${targets.length}명을 납부 완료 처리하시겠습니까?`)) return;
-        withBusy(async () => {
-            const r = await markPenaltiesPaidBulk(targets, user?.id);
-            const skipped = r.alreadyPaid + r.stale + r.notPayable;
-            if (skipped > 0) {
-                alert(
-                    `${r.paid}명 납부 처리(${formatWon(r.insertedTotal)}).
-` +
-                    `처리하지 않음 ${skipped}명 — 이미 완납 ${r.alreadyPaid} · 정보 변경됨 ${r.stale} · 면제/비대상 등 ${r.notPayable}`,
-                );
+    // 세션 일괄 납부 — 선택된 미납 회원(원자 RPC pay_kdk_member_penalty) + 미납 게스트(원자 RPC mark_kdk_guest_penalty_paid).
+    //   이미 완납 · 면제 · 비대상은 대상에서 제외(서버도 재검증). 금액은 서버가 확정(화면 금액은 안내용).
+    //   중단(오류) · 성공 모두 DB 실제 상태를 다시 읽고(선택 초기화) 그 뒤에 결과를 안내한다(부분 처리 확인).
+    //   재실행 안전: 다시 불러온 화면에서 이미 처리된 건은 미납 대상에서 빠지고, 서버도 회원은 already_paid 로 건너뛰며
+    //   게스트는 (세션 · 참가자) 1행 upsert 라 중복 납부 행이 생기지 않는다.
+    const handleBulkPaid = async () => {
+        if (!ctx || busy || bulkRunningRef.current) return;
+        const memberTargets = ctx.rows.filter((r) => selected.has(rowKey(r)) && isMemberPayable(r));
+        const guestTargets = canRegister ? ctx.rows.filter((r) => selected.has(rowKey(r)) && isGuestPayableRow(r)) : [];
+        const total = memberTargets.length + guestTargets.length;
+        if (total === 0) return;
+        const expected = memberTargets.reduce((a, r) => a + Math.max(0, r.amount - (r.amountPaid || 0)), 0)
+            + guestTargets.reduce((a, r) => a + Math.max(0, r.amount), 0);
+        if (!window.confirm(
+            `미납 ${total}건(회원 ${memberTargets.length} · 게스트 ${guestTargets.length})을 납부 완료 처리합니다.\n` +
+            `예상 금액 ${formatWon(expected)} (실제 금액은 서버가 공식 기록 기준으로 확정)\n\n진행하시겠습니까?`,
+        )) return;
+        if (bulkRunningRef.current) return;
+        bulkRunningRef.current = true;
+        setBusy(true);
+        let message = '';
+        try {
+            const r = memberTargets.length ? await markPenaltiesPaidBulk(memberTargets, user?.id)
+                : { paid: 0, insertedTotal: 0, alreadyPaid: 0, stale: 0, notPayable: 0 };
+            let guestPaid = 0;
+            let guestAmount = 0;
+            for (const g of guestTargets) {
+                if (!g.playerId) continue;
+                try {
+                    await markGuestPenaltyPaid({ sessionId, participantId: g.playerId });
+                    guestPaid += 1;
+                    guestAmount += Math.max(0, g.amount);
+                } catch (e: unknown) {
+                    throw new Error(
+                        `${(e instanceof Error && e.message) || '게스트 납부 처리 중 오류가 발생했습니다.'}\n` +
+                        `(중단 전 회원 ${r.paid}명 · 게스트 ${guestPaid}명은 이미 처리되었습니다.)`,
+                    );
+                }
             }
-        });
+            const skipped = r.alreadyPaid + r.stale + r.notPayable;
+            message = `납부 처리 완료 — 회원 ${r.paid}명(${formatWon(r.insertedTotal)}) · 게스트 ${guestPaid}명(${formatWon(guestAmount)}).` +
+                (skipped > 0 ? `\n처리하지 않음 ${skipped}명 — 이미 완납 ${r.alreadyPaid} · 정보 변경됨 ${r.stale} · 면제/비대상 등 ${r.notPayable}` : '');
+        } catch (e: unknown) {
+            message = `${(e instanceof Error && e.message) || '일괄 납부 처리 중 오류가 발생했습니다.'}\n\n` +
+                '화면을 최신 상태로 다시 불러왔습니다. 남은 미납만 다시 선택해 실행하면 됩니다(이미 처리된 건은 자동 제외).';
+        } finally {
+            await load(); // 성공 · 중단 모두 DB 실제 상태 재조회(선택 초기화). load 는 자체 오류 안내.
+            setBusy(false);
+            bulkRunningRef.current = false;
+        }
+        alert(message);
     };
+    // 미납 전체 선택/해제 — 회원 미납·일부 + (공식 세션이면) 미납 게스트.
+    const allUnpaidKeys = ctx ? ctx.rows.filter((r) => isMemberPayable(r) || (canRegister && isGuestPayableRow(r))).map(rowKey) : [];
+    const allUnpaidSelected = allUnpaidKeys.length > 0 && allUnpaidKeys.every((k) => selected.has(k));
+    const toggleSelectAllUnpaid = () => setSelected(allUnpaidSelected ? new Set() : new Set(allUnpaidKeys));
     const handleRegisterMissing = () => {
         if (!ctx || !session) return;
         const n = ctx.rows.filter((r) => r.status === 'unregistered').length;
@@ -265,10 +306,18 @@ export default function KdkSettlementPage() {
                                     </button>
                                 )}
 
-                                {/* 일괄 납부 */}
-                                {selectedPayableCount(ctx.rows, selected) > 0 && (
+                                {/* 일괄 납부 — 미납 전체 선택 + 선택 건 처리(회원 · 게스트) */}
+                                {allUnpaidKeys.length > 0 && (
+                                    <button type="button" onClick={toggleSelectAllUnpaid} disabled={busy} style={{
+                                        alignSelf: 'flex-start', height: 32, padding: '0 12px', borderRadius: 9, cursor: busy ? 'default' : 'pointer',
+                                        border: '1px solid rgba(15,23,42,0.12)', background: '#FFFFFF', color: NAVY, fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+                                    }}>
+                                        {allUnpaidSelected ? '선택 해제' : `미납 전체 선택 (${allUnpaidKeys.length}건)`}
+                                    </button>
+                                )}
+                                {selectedPayableCount(ctx.rows, selected, canRegister) > 0 && (
                                     <button type="button" onClick={handleBulkPaid} disabled={busy} style={tealBtn(busy)}>
-                                        선택 {selectedPayableCount(ctx.rows, selected)}명 납부 완료 처리
+                                        선택 {selectedPayableCount(ctx.rows, selected, canRegister)}건 납부 완료 처리
                                     </button>
                                 )}
 
@@ -288,10 +337,10 @@ export default function KdkSettlementPage() {
                                                 <li key={key} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 13px', borderTop: idx === 0 ? 'none' : '1px solid #EEF2F6' }}>
                                                     <input
                                                         type="checkbox"
-                                                        disabled={!payable || busy}
+                                                        disabled={!(payable || guestPayable) || busy}
                                                         checked={selected.has(key)}
                                                         onChange={() => setSelected((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
-                                                        style={{ width: 16, height: 16, accentColor: '#0F9F98', flexShrink: 0, cursor: payable ? 'pointer' : 'not-allowed' }}
+                                                        style={{ width: 16, height: 16, accentColor: '#0F9F98', flexShrink: 0, cursor: (payable || guestPayable) ? 'pointer' : 'not-allowed' }}
                                                     />
                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                         {/* 이름만 말줄임 — G 배지는 별도 요소라 긴 이름에도 사라지지 않는다(표시 전용 수정). */}
@@ -505,8 +554,12 @@ function rowKey(r: KdkPenaltyRow) {
     if (r.playerId) return `g:${r.playerId}`;
     return `n:${r.playerName}`;
 }
-function selectedPayableCount(rows: KdkPenaltyRow[], selected: Set<string>) {
-    return rows.filter((r) => selected.has(rowKey(r)) && isMemberPayable(r)).length;
+function selectedPayableCount(rows: KdkPenaltyRow[], selected: Set<string>, includeGuests = false) {
+    return rows.filter((r) => selected.has(rowKey(r)) && (isMemberPayable(r) || (includeGuests && isGuestPayableRow(r)))).length;
+}
+/** 게스트 벌금 납부 처리 대상: 회원 청구 없음 + 게스트 납부 가능 + 미납(공식 세션 여부는 호출부 canRegister 가 판정). */
+function isGuestPayableRow(r: KdkPenaltyRow) {
+    return !r.receivableId && r.isGuestPayable === true && r.status !== 'paid' && !!r.playerId;
 }
 /** 회원 벌금 납부 처리 대상: 등록된 receivable + 미납/일부 납부. (완납·면제·비대상 제외) */
 function isMemberPayable(r: KdkPenaltyRow) {
