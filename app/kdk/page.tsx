@@ -220,10 +220,15 @@ export default function KDKPage() {
     //   returnCourt: 코트 복귀(투입 취소) 권한 — 클럽 임원 직책(members.role: 회장·부회장·총무·재무·경기·섭외) 포함
     //     (DB kdk_can_return_court(p_club_id) 결과가 기준). 직책 없는 회원은 RPC 를 호출하지 않는다.
     //     함수 미배포(운영 SQL 미적용) 확인 시 같은 페이지·같은 계정 동안만 재호출 안 함(새로고침·재로그인 시 재조회) · 실패 시 false → 기존과 같이 KDK 관리자 이상만 복귀 버튼 표시.
+    //     기존 복귀 권한(CEO·ADMIN 또는 can_manage_kdk = KDK 관리자)이 확인되면 B1 판정(회원 행 조회 · kdk_can_return_court)을 생략한다
+    //     — 관리자는 기존 직접 복귀 경로를 쓰므로 B1 결과가 화면 · 동작에 쓰이지 않는다(불필요한 조회 · 404 제거).
+    //   계정이 바뀌면 조회 시작 시 이전 계정의 판정을 즉시 비운다(ready=false — 조회 완료 전 이전 권한 · 버튼 잔존 방지).
     const [kdkDbPerm, setKdkDbPerm] = useState<{ manage: boolean; court: boolean; returnCourt: boolean; ready: boolean }>({ manage: false, court: false, returnCourt: false, ready: false });
     useEffect(() => {
         if (!uid || role === 'GUEST') { setKdkDbPerm({ manage: false, court: false, returnCourt: false, ready: true }); return; }
         let alive = true;
+        setKdkDbPerm({ manage: false, court: false, returnCourt: false, ready: false });
+        const hasFullAdminRole = role === 'CEO' || role === 'ADMIN';
         const permClubId = process.env.NEXT_PUBLIC_CLUB_ID || "512d047d-a076-4080-97e5-6bb5a2c07819";
         const checkReturnCourt = async (): Promise<boolean> => {
             if (isCourtReturnRpcKnownMissing(uid)) return false;
@@ -236,12 +241,14 @@ export default function KDKPage() {
             }
             return r.data === true;
         };
-        Promise.all([supabase.rpc('can_manage_kdk'), supabase.rpc('kdk_can_operate_court'), checkReturnCourt().catch(() => false)])
-            .then(([m, c, returnCourt]) => {
-                if (!alive) return;
-                setKdkDbPerm({ manage: !m.error && m.data === true, court: !c.error && c.data === true, returnCourt, ready: true });
-            })
-            .catch(() => { if (alive) setKdkDbPerm({ manage: false, court: false, returnCourt: false, ready: true }); });
+        (async () => {
+            const [m, c] = await Promise.all([supabase.rpc('can_manage_kdk'), supabase.rpc('kdk_can_operate_court')]);
+            const manage = !m.error && m.data === true;
+            const court = !c.error && c.data === true;
+            // 기존 권한이 없는 로그인 회원만 B1 판정(임원 직책일 때만 RPC). 관리자 이상은 생략.
+            const returnCourt = alive && !manage && !hasFullAdminRole ? await checkReturnCourt().catch(() => false) : false;
+            if (alive) setKdkDbPerm({ manage, court, returnCourt, ready: true });
+        })().catch(() => { if (alive) setKdkDbPerm({ manage: false, court: false, returnCourt: false, ready: true }); });
         return () => { alive = false; };
     }, [uid, role]);
     const canManageKdk = isFullAdmin || (kdkDbPerm.manage && !shouldHideAdminControls);
