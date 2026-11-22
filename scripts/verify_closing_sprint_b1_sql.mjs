@@ -105,7 +105,7 @@ const BASE = (withStartedAt) => `
     raise exception 'kdk: 저장된 결과의 수정·초기화 및 경기 정보 변경은 운영진만 가능합니다' using errcode = '42501';
   end;
   $b$;
-  create trigger kdk_p1_score_guard before insert or update or delete on public.matches
+  create trigger kdk_p1_score_guard_trg before insert or update or delete on public.matches
     for each row execute function public.kdk_p1_score_guard();
 `;
 
