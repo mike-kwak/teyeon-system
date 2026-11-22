@@ -16,7 +16,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronRight, Copy, Download, Image as ImageIcon, Share2, X } from 'lucide-react';
 import { formatPenaltyShareText, type PenaltyShareContent } from '@/lib/finance/kdkPenaltyHistoryShare';
-import { buildReportDocument, reportFileName } from '@/lib/finance/kdkPenaltyReportLayout';
+import { buildReportDocument } from '@/lib/finance/kdkPenaltyReportLayout';
 import { renderReportPngs } from './kdkPenaltyReportCanvas';
 import { NAVY, TEAL_DARK } from './KdkPenaltyHistoryUI';
 
@@ -71,6 +71,12 @@ export const MSG = {
     imgCopyFailNoFile: `이미지를 복사하지 못했습니다. ‘이미지 저장’ 후 ${ATTACH_HINT}`,
     // 보조: 다른 앱으로 보내기(Web Share)
     shareDone: '공유 창 작업이 끝났습니다. 받는 앱에서 실제로 전송되었는지 확인해 주세요.',
+    shareDoneIos: '공유 창 작업이 끝났습니다. ‘이미지 저장’을 선택했다면 사진 앱에서 확인한 뒤 카카오톡 채팅방의 + → 앨범에서 첨부해 주세요.',
+    // 여러 장 일괄 전송 안내
+    bulkPc: '여러 장을 한 번에 보내려면 전체 저장 후 다운로드 폴더에서 이미지를 선택해 카카오톡 채팅방에 끌어다 놓으세요.',
+    bulkPcNote: '처음 한 번 브라우저의 ‘여러 파일 다운로드 허용’이 필요할 수 있습니다.',
+    bulkIos: (n: number) => `여러 장을 한 번에 보내려면 ‘사진 앱에 저장 (${n}장)’을 누른 뒤 공유 창에서 ‘이미지 ${n}개 저장’을 선택하고, 카카오톡 채팅방의 + → 앨범에서 첨부하세요.`,
+    bulkIosNote: '공유 창에 저장 항목이 보이지 않으면 ‘이미지 복사’로 한 장씩 보내 주세요.',
     shareUnsupported: `이 브라우저는 다른 앱으로 이미지 보내기를 지원하지 않습니다. ‘이미지 복사’를 이용하거나, 이미지를 저장한 뒤 ${ATTACH_HINT}`,
     shareFail: `다른 앱으로 보내지 못했습니다. ‘이미지 복사’를 이용하거나, 이미지를 저장한 뒤 ${ATTACH_HINT}`,
     saved: (n: number) => `원본 이미지 ${n}장 저장을 요청했습니다. 저장되지 않으면 미리보기 이미지를 길게 눌러 저장해 주세요.`,
@@ -78,6 +84,29 @@ export const MSG = {
 };
 
 type ShareNav = Navigator & { canShare?: (data?: ShareData) => boolean };
+
+/**
+ * 저장·공유 파일명: TEYEON_KDK_Penalty_YYYY-MM-DD_{all|member|guest}_{kk}of{NN}.png
+ *   - 탭 구분(같은 날 전체·회원·게스트 저장이 섞이지 않게), 페이지/전체 수를 같은 자릿수(최소 2)로 맞춰 이름순 = 페이지순.
+ */
+export function reportExportFileName(baseDate: string, tab: 'all' | 'member' | 'guest', pageNo: number, pageCount: number): string {
+    const w = Math.max(2, String(pageCount).length);
+    const pad = (n: number) => String(n).padStart(w, '0');
+    return `TEYEON_KDK_Penalty_${baseDate.replace(/\./g, '-')}_${tab}_${pad(pageNo)}of${pad(pageCount)}.png`;
+}
+
+/**
+ * 플랫폼 구분(안내 문구용). iPhone/iPod/iPad(iPadOS 데스크톱 UA 포함)만 iOS 로 본다.
+ *   Android · 터치스크린 Windows 는 iOS 가 아니다(MacIntel + 멀티터치만 iPadOS 로 판정).
+ */
+export function detectPlatform(nav: { userAgent?: string; platform?: string; maxTouchPoints?: number } | undefined): 'ios' | 'android' | 'desktop' {
+    if (!nav) return 'desktop';
+    const ua = nav.userAgent || '';
+    if (/Android/i.test(ua)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+    if (nav.platform === 'MacIntel' && (nav.maxTouchPoints || 0) > 1) return 'ios'; // iPadOS
+    return 'desktop';
+}
 
 function supportsImageClipboard(): boolean {
     return typeof window !== 'undefined' && typeof navigator !== 'undefined'
@@ -109,7 +138,7 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
                 const blobs = await renderReportPngs(doc, SHARE_SCALE);
                 if (cancelled) return;
                 urls = blobs.map((b) => URL.createObjectURL(b));
-                const files = blobs.map((b, i) => new File([b], reportFileName(doc.baseDate, i + 1), { type: 'image/png' }));
+                const files = blobs.map((b, i) => new File([b], reportExportFileName(doc.baseDate, doc.tab, i + 1, blobs.length), { type: 'image/png' }));
                 setShare({ kind: 'ready', blobs, urls, files });
             } catch (e) {
                 if (cancelled) return;
@@ -143,6 +172,17 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
 
     const ready = share.kind === 'ready' ? share : null;
     const origReady = orig.kind === 'ready' ? orig : null;
+    const platform = React.useMemo(() => detectPlatform(typeof navigator !== 'undefined' ? navigator : undefined), []);
+    // iOS 에서 이미지 파일 공유가 실제로 가능한지(canShare files) — 불가하면 기존 저장·복사 흐름 유지.
+    const iosShare = React.useMemo(() => {
+        if (platform !== 'ios' || !ready) return false;
+        const nav = navigator as ShareNav;
+        try {
+            return typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: ready.files });
+        } catch {
+            return false;
+        }
+    }, [platform, ready]);
 
     // 미리보기 스크롤 위치 → 현재 페이지(영역 상단 1/3 지점에 걸친 장).
     const onPreviewScroll = React.useCallback(() => {
@@ -174,7 +214,7 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
         setBusy(true);
         try {
             await nav.share({ files }); // 파일만 전달(text 미포함). 클릭 직후 첫 비동기 호출.
-            setNotice({ kind: 'info', text: MSG.shareDone }); // 전송 성공 단정 아님.
+            setNotice({ kind: 'info', text: iosShare ? MSG.shareDoneIos : MSG.shareDone }); // 전송·저장 성공 단정 아님.
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') setNotice(null); // 사용자 취소 — 메시지 없음.
             else setNotice({ kind: 'error', text: MSG.shareFail });
@@ -192,7 +232,7 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
             setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.current = downloadUrls.current.filter((u) => u !== url); }, 60_000);
             const a = document.createElement('a');
             a.href = url;
-            a.download = reportFileName(doc.baseDate, pageIndex + 1);
+            a.download = reportExportFileName(doc.baseDate, doc.tab, pageIndex + 1, pageCount);
             a.rel = 'noopener';
             document.body.appendChild(a);
             a.click();
@@ -250,6 +290,12 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
     };
 
     const shareDisabled = !ready || busy;
+    // iOS + 이미지 파일 공유 지원일 때만 Web Share 를 '사진 앱에 저장 (N장)'으로 표시(공유 창의 '이미지 N개 저장' 경로).
+    const shareLabel = iosShare ? `사진 앱에 저장 (${pageCount}장)` : '다른 앱으로 보내기';
+    const bulkGuide = !multi || !ready ? null
+        : iosShare ? { text: MSG.bulkIos(pageCount), note: MSG.bulkIosNote }
+            : platform === 'desktop' ? { text: MSG.bulkPc, note: MSG.bulkPcNote }
+                : null; // Android·파일 공유 미지원 iOS: 기존 저장·복사 유지(별도 안내 없음)
     const saveDisabled = !origReady || busy;
     const prep = share.kind === 'generating' ? '공유용 이미지 준비 중...'
         : share.kind === 'error' ? '이미지 준비 실패'
@@ -348,15 +394,20 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
                             <Btn onClick={onSaveAll} disabled={saveDisabled} icon={<Download size={14} />} label={`전체 저장 (${pageCount}장)`} />
                             <Btn onClick={onSaveCurrent} disabled={saveDisabled} icon={<Download size={14} />} label="현재 페이지 저장" />
-                            <Btn onClick={onShareOther} disabled={shareDisabled} icon={<Share2 size={14} />} label="다른 앱으로 보내기" />
+                            <Btn onClick={onShareOther} disabled={shareDisabled} icon={<Share2 size={14} />} label={shareLabel} />
                             <Btn onClick={onCopyText} disabled={busy} icon={<Copy size={14} />} label="텍스트 복사" />
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
                             <Btn onClick={onSaveAll} disabled={saveDisabled} icon={<Download size={14} />} label="이미지 저장" />
-                            <Btn onClick={onShareOther} disabled={shareDisabled} icon={<Share2 size={14} />} label="다른 앱으로 보내기" />
+                            <Btn onClick={onShareOther} disabled={shareDisabled} icon={<Share2 size={14} />} label={shareLabel} />
                             <Btn onClick={onCopyText} disabled={busy} icon={<Copy size={14} />} label="텍스트 복사" />
                         </div>
+                    )}
+                    {bulkGuide && (
+                        <p data-bulk-guide style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: '#475569', lineHeight: 1.45, wordBreak: 'keep-all' }}>
+                            {bulkGuide.text} <span style={{ color: '#94A3B8', fontWeight: 600 }}>{bulkGuide.note}</span>
+                        </p>
                     )}
                     <p role="status" aria-live="polite" style={{
                         margin: 0, fontSize: 11.5, fontWeight: 800, lineHeight: 1.45, wordBreak: 'keep-all',
