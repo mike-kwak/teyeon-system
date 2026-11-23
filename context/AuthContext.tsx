@@ -551,6 +551,12 @@ const NavigationGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (isLoading && pathname !== '/' && !isPublicPath) {
         return <PremiumSpinner isWhiteTheme={isWhiteTheme} message={isLoadTimeout ? "네트워크 지연 발생..." : "Establishing Identity..."} />;
     }
+    // 비로그인 + 보호 경로: 위 effect 가 홈으로 보내는 동안 보호 화면을 렌더하지 않는다.
+    //   예전에는 리다이렉트 전에 화면이 먼저 마운트되어 members · Archive 등 보호 테이블을 조회(401 + 콘솔 오류)했다.
+    //   로그인 사용자 · 공개 경로 · 홈은 기존과 같다. 로그아웃 시에도 이전 사용자 화면이 남지 않는다.
+    if (!isLoading && !user && pathname !== '/' && !isPublicPath) {
+        return <PremiumSpinner isWhiteTheme={isWhiteTheme} message="Establishing Identity..." />;
+    }
 
     return <>{children}</>;
 };
