@@ -464,6 +464,12 @@ export default function KDKPage() {
     const pendingActionsRef = useRef<Set<string>>(new Set());
     const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
     const isActionPending = (key: string) => pendingActions.has(key);
+    // [다중 운영자] 점수 모달을 연 시점의 경기 상태 · 점수(finishMatch 의 기대 상태 기준). 모달을 열 때만 기록한다.
+    const scoreModalBaseRef = useRef<{ id: string; status: string; score1: number | null; score2: number | null } | null>(null);
+    const rememberScoreModalBase = (matchId: string) => {
+        const cur = matches.find(m => m.id === matchId);
+        scoreModalBaseRef.current = cur ? { id: matchId, status: cur.status, score1: cur.score1 ?? null, score2: cur.score2 ?? null } : null;
+    };
     const beginAction = (key: string): boolean => {
         if (pendingActionsRef.current.has(key)) return false;
         pendingActionsRef.current.add(key);
@@ -3213,16 +3219,27 @@ export default function KDKPage() {
             const numS1 = Number(s1);
             const numS2 = Number(s2);
 
+            // [다중 운영자] 기대 상태 · 점수는 "모달을 연 시점" 기준(scoreModalBaseRef).
+            //   모달을 연 채 Realtime 으로 다른 운영자의 완료를 받아도, 그 결과를 정정으로 덮어쓰지 않는다.
+            //   기준이 없으면(직접 호출) 기존처럼 현재 화면 상태를 쓴다.
+            const base = scoreModalBaseRef.current?.id === matchId
+                ? scoreModalBaseRef.current
+                : { id: matchId, status: matchToFinish.status, score1: matchToFinish.score1 ?? null, score2: matchToFinish.score2 ?? null };
             // 최초 완료(playing→complete) / 완료 결과 재수정(complete→complete) 을 기대 상태로 구분.
-            const expectedStatus = matchToFinish.status === 'complete' ? 'complete' : 'playing';
+            const expectedStatus = base.status === 'complete' ? 'complete' : 'playing';
 
             // DB 먼저 — 기대 상태일 때만 변경 + 실제 변경 행 검증. 성공 전에는 모달을 닫지 않는다.
-            const { data: updatedRows, error: syncError } = await supabase
+            //   완료 결과 재수정은 "연 시점의 점수"일 때만 변경(동시 정정 시 나중 요청이 앞 정정을 모른 채 덮어쓰지 않게).
+            let resultQuery = supabase
                 .from('matches')
                 .update({ status: 'complete', score1: numS1, score2: numS2 })
                 .eq('id', String(matchId))
-                .eq('status', expectedStatus)
-                .select('id, status, score1, score2');
+                .eq('status', expectedStatus);
+            if (expectedStatus === 'complete') {
+                resultQuery = base.score1 == null ? resultQuery.is('score1', null) : resultQuery.eq('score1', base.score1);
+                resultQuery = base.score2 == null ? resultQuery.is('score2', null) : resultQuery.eq('score2', base.score2);
+            }
+            const { data: updatedRows, error: syncError } = await resultQuery.select('id, status, score1, score2');
 
             if (syncError) {
                 console.error("Match result sync error:", syncError);
@@ -3230,7 +3247,11 @@ export default function KDKPage() {
             }
 
             if (!updatedRows || updatedRows.length === 0) {
-                // 다른 운영자가 먼저 완료/변경 — 모달을 성공으로 닫지 않고 최신 상태 안내.
+                // 다른 운영자가 먼저 완료/변경 — 성공으로 처리하지 않는다. 연 시점 기준이 낡았으므로 모달 · 입력 임시값을 정리하고
+                //   최신 상태로 갱신(다시 고치려면 최신 결과에서 새로 연다).
+                setShowScoreModal(null);
+                scoreModalBaseRef.current = null;
+                localStorage.removeItem(`kdk_score_buffer_${matchId}`);
                 await syncActiveSession();
                 alert('다른 운영자가 먼저 경기 결과를 변경했습니다. 최신 상태를 확인해주세요.');
                 return;
@@ -3250,6 +3271,7 @@ export default function KDKPage() {
             };
             setMatches(prev => prev.map(m => m.id === matchId ? finishedMatchData : m));
             setShowScoreModal(null);
+            scoreModalBaseRef.current = null;
             if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
             localStorage.removeItem(`kdk_score_buffer_${matchId}`);
 
@@ -6609,6 +6631,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     onStartTimer={(id) => startMatchTimer(id)}
                                                     timerPending={isActionPending(`timer:${m.id}`)}
                                                     onInputScore={(id, s1, s2) => {
+                                                        rememberScoreModalBase(id);
                                                         setTempScores({ s1, s2 });
                                                         setShowScoreModal(id);
                                                     }}
@@ -6719,6 +6742,7 @@ A    1    봉준    상윤    영호    광현    19:00`}
                                                     onResetStatus={(id) => setResetMatchTarget(id)}
                                                     onEdit={(match) => {
                                                         if (!canManageKdk) return triggerAccessDenied();
+                                                        rememberScoreModalBase(match.id);
                                                         setTempScores({ s1: match.score1 ?? 0, s2: match.score2 ?? 0 });
                                                         setShowScoreModal(match.id);
                                                     }}
