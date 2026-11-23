@@ -87,6 +87,10 @@
 | 8 | 관리자 당일 공식 저장 RPC | `31_kdk_official_save` | `32`(APPLIED_30 · P1-b trigger 2) | `32`(APPLIED_30_31) | `31_…_rollback` | APPLIED |
 | 9 | 부회장 KDK 관리자 등록(1명) | `36_kdk_manager_register`(지문) | `35`(T05 READY) | `37` | `36_…_rollback`(같은 지문) | APPLIED |
 | 10 | ISS-005 Archive anon 직접 조회 차단(3개 표 anon SELECT 회수만 · 데이터 무변경) | `38_archive_anon_read_revoke` | `38_…_READONLY`(A04 OK · A05 OK · A07 OK) | `38_…_READONLY`(A01~A03 CLOSED) — PASS | `38_…_rollback` | **APPLIED(2026-11-06)** |
+| 11 | R1 matches RLS 복구(켜짐 · 정책 0 → 꺼짐, matches 1개만) | `closing_sprint/R1_matches_rls_restore_DRAFT` | `R1_rls_scope_READONLY`(T01/T02 1/13) · `R1_rls_ddl_trace_pgss_READONLY` | 마지막 SELECT + `K1_rls_identity_publication_READONLY`(I01~I12) — PASS | `R1_…_rollback_DRAFT`(미실행) | **APPLIED(2026-11-24)** |
+| 12 | K1 matches.play_epoch(투입 주기 · 위조 차단 trigger) | `closing_sprint/K1_kdk_play_epoch` | `K1_…_precheck_READONLY`(P01~P07) | `K1_…_verify_READONLY`(V01~V08) — PASS | `K1_…_rollback`(미실행) | **APPLIED(2026-11-24)** |
+
+11 · 12 는 사용자가 SQL Editor 에서 직접 실행하고 결과를 전달했다(Claude Code 운영 미접속). 상세: §10, `docs/KDK_PLAY_EPOCH_RELEASE.md` §8.
 
 ## 4. 의존성
 
@@ -140,6 +144,8 @@ P0-B(11) ───────┤  (30 은 start_kdk_match 본문 md5 를 11 과
 | 확인 불가 | 20 을 어느 판으로 적용했는지(원본은 분할 실행 시 42P01) — 함수 결과는 같음 | — |
 | 범위 밖(별도 관리) | LIVE 중계 SQL(`supabase/add_hosted_tournament_live_match*.sql`, 운영 적용 보고 · 미추적) · SPOTLIGHT SQL(바탕화면 `TEYEON_SPOTLIGHT_SQL`, 로컬 main 미커밋 작업) | git status · 메모 |
 | 재확인 필요 | 이 등록부 작성 이후의 운영 상태 | §7 READONLY 세트 |
+| 다름(기존 · K1 무관) | `start_kdk_match` 본문: 운영 **9568938e**(99012c3 + KDKM) · 저장소 최신 9ad744bd(2106e5b + KDKM). 저장소판만 23505 → `court_conflict` 변환. `K1_kdk_play_epoch_supplement_READONLY` S05 기대값 정정(2026-11-24) | 사용자 보고 md5 |
+| 일치 | R1 · K1 적용 SQL = 저장소 `closing_sprint/` 파일. 적용 후 머리말에 이력 · 재실행 금지만 추가, 본문 무변경(주석 제외 해시 동일) | 해시 대조 |
 
 ## 7. 운영 상태 확인 기본 세트(READONLY)
 
@@ -164,3 +170,26 @@ P0-B(11) ───────┤  (30 은 start_kdk_match 본문 md5 를 11 과
 |---|---|---|
 | **A** `chore(security): register applied security SQL` | `supabase/security_p0/` 21 · `supabase/security_p1/` 26(06 · 20~27 · 30~38) · `supabase/security_testenv/` 1 · `docs/SECURITY_SQL_REGISTRY.md` | 없음(앱 코드 무변경) |
 | **B** `fix(archive): hide confirmer identity` | `app/archive/page.tsx` — 상세 확정자 표시 `운영진 확인` · 신규 확정 `confirmed_by` = 로그인 계정 id | Archive 상세 문구 · 신규 확정 저장값 |
+
+## 10. matches RLS 변경 조사 · R1 복구(2026-11-24)
+
+**경과**: 11-04 운영 사전 점검(P0-A 주석)에서 `matches` = RLS 꺼짐. P0-A · P1 · KDK30 · SPOTLIGHT 는 모두 이 상태를 전제로 설계 · 검증됐다.
+이후 운영 조회(I05)에서 **RLS 켜짐 · 강제 꺼짐 · 정책 0** 확인 — 로컬 재현 시 대진 생성 42501, 조회 · 점수 저장 · 복귀 0행(투입 RPC 만 성공 → 경기가 playing 에 갇힘). 당시 경기 0건이라 실제 장애는 없었다.
+
+**조사 결과(사용자 조회 결과 기준)**
+- 범위: 11-04 기준 13개 테이블 중 `matches` 만 변경(T01/T02 1/13). RLS 꺼짐 7개 = 11-04 의 8개 − matches.
+- 흔적(pg_stat_statements): postgres 역할 · 2회 · stats_since 2026-11-23 16:07 UTC —
+  `-- Added by Supabase: enable Row Level Security on newly created tables` / `ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY`.
+- 저장소에는 "RLS 켜짐 + 정책 0" 을 만드는 SQL 이 없다.
+- **추정(미확정)**: Supabase SQL Editor 의 "새 테이블 RLS 자동 추가" 기능이 `create table spotlight_backup.matches_20261104 as table public.matches`
+  (`supabase/add_kdk_match_spotlight_backup.sql:12`) 같은 문장의 `public.matches` 를 새 테이블로 오인해 ALTER 를 덧붙였을 가능성.
+  stats_since 는 개별 실행 시각이 아니고, 주석만으로 실행 주체 · 자동 여부를 단정할 수 없다.
+  확인 수단: `log_statement=ddl` 이므로 Dashboard Logs(postgres_logs)에 시각 · 사용자 · application_name 이 남는다(보관 기간 내).
+
+**복구**: R1(§3 순서 11) — `matches` 1개만 RLS 꺼짐. 정책 · GRANT · trigger · RPC · 데이터 무변경. P0-A(anon 쓰기 회수) · P1 guard 유지 확인.
+현재 기대값: `rls=false · force_rls=false · policies=0 · guard_on=true · anon_write=false · anon_select=true · auth_siud=true`.
+
+**운영 수칙**
+- SQL Editor 에서 실행할 때 **자동으로 덧붙는 RLS 문구 · "RLS 활성화" 제안이 보이면 실행하지 말고 확인**한다. 특히 `create table … as table public.<기존 표>` 형태.
+- 운영 SQL(R1 · K1 포함)은 다시 실행하지 않는다. 재실행 · rollback 은 별도 승인 후, 경기 없는 시간에만.
+- 남은 확인: T03(RLS 켜짐 · 정책 0, 25개) 명단 중 화면이 직접 읽는 테이블이 있는지 대조 — 미대조.
