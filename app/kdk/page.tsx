@@ -465,10 +465,13 @@ export default function KDKPage() {
     const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
     const isActionPending = (key: string) => pendingActions.has(key);
     // [다중 운영자] 점수 모달을 연 시점의 경기 상태 · 점수(finishMatch 의 기대 상태 기준). 모달을 열 때만 기록한다.
-    const scoreModalBaseRef = useRef<{ id: string; status: string; score1: number | null; score2: number | null } | null>(null);
+    //   playEpoch: 투입 주기 — 복귀 후 재투입되면 달라지므로 그 전에 연 점수 창의 저장을 막는다(K1).
+    const scoreModalBaseRef = useRef<{ id: string; status: string; score1: number | null; score2: number | null; playEpoch: number | null } | null>(null);
     const rememberScoreModalBase = (matchId: string) => {
         const cur = matches.find(m => m.id === matchId);
-        scoreModalBaseRef.current = cur ? { id: matchId, status: cur.status, score1: cur.score1 ?? null, score2: cur.score2 ?? null } : null;
+        scoreModalBaseRef.current = cur
+            ? { id: matchId, status: cur.status, score1: cur.score1 ?? null, score2: cur.score2 ?? null, playEpoch: typeof cur.playEpoch === 'number' ? cur.playEpoch : null }
+            : null;
     };
     const beginAction = (key: string): boolean => {
         if (pendingActionsRef.current.has(key)) return false;
@@ -1801,6 +1804,8 @@ export default function KDKPage() {
         groupName: resolveDbMatchGroupName(m),
         // 경기 타이머 시작 시각(DB now()). 컬럼 미적용 환경에서는 undefined → null(시작 대기).
         startedAt: m.started_at || null,
+        // 투입 주기(K1 SQL). 열 미적용 환경 → null(점수 저장 시 epoch 조건 생략, P1 보호만).
+        playEpoch: typeof m.play_epoch === 'number' ? m.play_epoch : null,
     });
 
     const fetchMatches = async (targetSessionId: string) => {
@@ -3224,22 +3229,32 @@ export default function KDKPage() {
             //   기준이 없으면(직접 호출) 기존처럼 현재 화면 상태를 쓴다.
             const base = scoreModalBaseRef.current?.id === matchId
                 ? scoreModalBaseRef.current
-                : { id: matchId, status: matchToFinish.status, score1: matchToFinish.score1 ?? null, score2: matchToFinish.score2 ?? null };
+                : { id: matchId, status: matchToFinish.status, score1: matchToFinish.score1 ?? null, score2: matchToFinish.score2 ?? null, playEpoch: typeof matchToFinish.playEpoch === 'number' ? matchToFinish.playEpoch : null };
             // 최초 완료(playing→complete) / 완료 결과 재수정(complete→complete) 을 기대 상태로 구분.
             const expectedStatus = base.status === 'complete' ? 'complete' : 'playing';
 
             // DB 먼저 — 기대 상태일 때만 변경 + 실제 변경 행 검증. 성공 전에는 모달을 닫지 않는다.
             //   완료 결과 재수정은 "연 시점의 점수"일 때만 변경(동시 정정 시 나중 요청이 앞 정정을 모른 채 덮어쓰지 않게).
-            let resultQuery = supabase
-                .from('matches')
-                .update({ status: 'complete', score1: numS1, score2: numS2 })
-                .eq('id', String(matchId))
-                .eq('status', expectedStatus);
-            if (expectedStatus === 'complete') {
-                resultQuery = base.score1 == null ? resultQuery.is('score1', null) : resultQuery.eq('score1', base.score1);
-                resultQuery = base.score2 == null ? resultQuery.is('score2', null) : resultQuery.eq('score2', base.score2);
+            //   투입 주기(play_epoch)를 알면 같은 주기일 때만 변경(복귀 → 재투입 뒤 이전 점수 창 저장 차단, K1).
+            const buildResultQuery = (withEpoch: boolean) => {
+                let q = supabase
+                    .from('matches')
+                    .update({ status: 'complete', score1: numS1, score2: numS2 })
+                    .eq('id', String(matchId))
+                    .eq('status', expectedStatus);
+                if (expectedStatus === 'complete') {
+                    q = base.score1 == null ? q.is('score1', null) : q.eq('score1', base.score1);
+                    q = base.score2 == null ? q.is('score2', null) : q.eq('score2', base.score2);
+                }
+                if (withEpoch && typeof base.playEpoch === 'number') q = q.eq('play_epoch', base.playEpoch);
+                return q.select('id, status, score1, score2');
+            };
+            let { data: updatedRows, error: syncError } = await buildResultQuery(true);
+            // play_epoch 열이 없는 환경(K1 롤백 등)에서 연 점수 창 — epoch 조건만 빼고 1회 재시도(P1 조건은 유지).
+            if (syncError && typeof base.playEpoch === 'number'
+                && /play_epoch/i.test(`${syncError.message || ''} ${syncError.details || ''}`)) {
+                ({ data: updatedRows, error: syncError } = await buildResultQuery(false));
             }
-            const { data: updatedRows, error: syncError } = await resultQuery.select('id, status, score1, score2');
 
             if (syncError) {
                 console.error("Match result sync error:", syncError);

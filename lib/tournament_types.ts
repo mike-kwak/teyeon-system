@@ -51,6 +51,8 @@ export interface Match {
     group?: string; // Legacy/Special Match group
     /** KDK 경기 타이머 시작 시각(DB matches.started_at, server now()). null/미설정 = 시작 대기. */
     startedAt?: string | null;
+    /** KDK 투입 주기(DB matches.play_epoch — playing 진입마다 +1). 열 미적용 환경 = null. */
+    playEpoch?: number | null;
 }
 
 export type RankTrend = 'up' | 'down' | 'same';
