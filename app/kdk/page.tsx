@@ -198,7 +198,7 @@ function FinalizeRow({ label, value, strong }: { label: string; value: string; s
 
 export default function KDKPage() {
     const router = useRouter();
-    const { role, hasPermission, getRestrictionMessage, user } = useAuth();
+    const { role, hasPermission, getRestrictionMessage, user, isLoading: isAuthLoading } = useAuth();
     const uid = user?.id ?? null;
     const uidRef = useRef<string | null>(null); // 비동기 syncActiveSession 에서 최신 uid 참조용
     const { guardWriteAction, shouldHideAdminControls } = useGuideRecording();
@@ -1358,10 +1358,38 @@ export default function KDKPage() {
         }
     };
 
+    // 보호 데이터(members 명단 · Archive 제목 중복 체크) 조회 시점 — 인증 확인이 끝난 로그인 사용자만.
+    //   예전 NavigationGuard 는 인증 로딩이 끝나면 화면을 먼저 렌더한 뒤 비로그인을 홈으로 보냈고, 그 사이 마운트 즉시
+    //   members · teyeon_archive_v1 을 조회해 비로그인마다 401 + "Fetch Members Error" 가 났다(가드도 함께 정리됨).
+    //   이 페이지도 자체적으로 비로그인에는 요청 자체를 보내지 않는다(가드와 무관한 이중 안전장치 · 계정 전환 재조회).
+    //   로그인 사용자는 기존과 같은 시점(첫 렌더 직후 명단 · 1.5초 뒤 제목 체크)에 조회한다.
+    //   계정이 바뀌면 새 계정으로 다시 조회하고, 로그아웃이면 이전 명단을 비운다(늦게 온 이전 응답은 seq 증가로 무시).
+    const membersLoadedUidRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (isAuthLoading) return;
+        if (!uid) {
+            membersFetchSeqRef.current += 1;
+            membersLoadedUidRef.current = null;
+            setAllMembers([]);
+            setIsMembersLoading(false);
+            return;
+        }
+        if (membersLoadedUidRef.current === uid) return;
+        if (membersLoadedUidRef.current !== null) setAllMembers([]); // 계정 전환: 새 명단 도착 전 이전 계정 명단 제거
+        membersLoadedUidRef.current = uid;
+        fetchMembers();
+        // [v14.0] 초기 구동 시 제목 중복 체크
+        const titleTimer = setTimeout(() => {
+            if (uidRef.current === uid) findNextAvailableTitle();
+        }, 1500);
+        return () => clearTimeout(titleTimer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthLoading, uid]);
+
     useEffect(() => {
         if (!hasInitializedKdkRef.current) {
             hasInitializedKdkRef.current = true;
-            fetchMembers();
+            // 회원 명단(members) 조회 · 초기 제목 중복 체크(Archive)는 아래 인증 effect 가 로그인 사용자에게만 실행한다.
             restoreSession();
 
             const entryMode = new URLSearchParams(window.location.search).get('entry');
@@ -1394,11 +1422,6 @@ export default function KDKPage() {
                 setStep(0);
                 window.history.replaceState(null, '', window.location.pathname);
             }
-
-            // [v14.0] 초기 구동 시 제목 중복 체크
-            setTimeout(() => {
-                findNextAvailableTitle();
-            }, 1500);
 
             // Migrate all 18:00 configs to 19:00
             setAttendeeConfigs(prev => {
