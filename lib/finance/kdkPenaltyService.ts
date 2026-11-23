@@ -101,13 +101,13 @@ export async function fetchExistingKdkPenalties(sessionId: string): Promise<Exis
  *   - 이미 등록된 member 는 status='registered'.
  *   - 매칭 실패(외부 게스트 등)는 status='needs_link'.
  */
-export function buildKdkPenaltyPreview(
-    settlementData: KdkSettlementEntry[],
-    members: FinanceMember[],
-    existing: ExistingPenalty[],
-): KdkPenaltyPreviewRow[] {
-    const byId = new Map<string, FinanceMember>();
-    const byName = new Map<string, FinanceMember[]>();
+/**
+ * settlement_data 항목 → 회원 매칭 함수(벌금 미리보기 · 누적 현황 참가 횟수 공용 — 같은 판정을 보장한다).
+ *   (1) player_id == members.id  (2) 정확 이름 일치(유일할 때만, 게스트 제외). 부분/유사 금지.
+ */
+export function buildSettlementMemberMatcher<T extends Pick<FinanceMember, 'id' | 'nickname'>>(members: T[]) {
+    const byId = new Map<string, T>();
+    const byName = new Map<string, T[]>();
     for (const m of members) {
         byId.set(m.id, m);
         const key = normalizeName(m.nickname);
@@ -116,21 +116,13 @@ export function buildKdkPenaltyPreview(
         arr.push(m);
         byName.set(key, arr);
     }
-    const existingByMember = new Map<string, string>();
-    for (const e of existing) existingByMember.set(e.member_id, e.id);
-
-    const rows: KdkPenaltyPreviewRow[] = [];
-    for (const entry of settlementData || []) {
-        const penalty = Number(entry?.penalty_amount || 0);
-        if (!(penalty < 0)) continue; // 벌금 대상만(0원/상금 제외).
-        const amount = Math.abs(Math.trunc(penalty));
-
+    return (entry: Pick<KdkSettlementEntry, 'player_id' | 'player_name' | 'is_guest'>): { member: T | null; matchType: KdkPenaltyMatchType } => {
         const playerId = entry?.player_id ?? null;
         const playerName = String(entry?.player_name || '').trim();
         const isGuest = entry?.is_guest === true;
 
         // 1) stable id 매칭.
-        let member: FinanceMember | null = (playerId && byId.get(playerId)) || null;
+        let member: T | null = (playerId && byId.get(playerId)) || null;
         let matchType: KdkPenaltyMatchType = member ? 'id' : null;
 
         // 2) 정확 이름 일치(유일할 때만). 동명이인이면 매칭하지 않음.
@@ -146,6 +138,29 @@ export function buildKdkPenaltyPreview(
                 matchType = 'name';
             }
         }
+        return { member, matchType };
+    };
+}
+
+export function buildKdkPenaltyPreview(
+    settlementData: KdkSettlementEntry[],
+    members: FinanceMember[],
+    existing: ExistingPenalty[],
+): KdkPenaltyPreviewRow[] {
+    const matchMember = buildSettlementMemberMatcher(members);
+    const existingByMember = new Map<string, string>();
+    for (const e of existing) existingByMember.set(e.member_id, e.id);
+
+    const rows: KdkPenaltyPreviewRow[] = [];
+    for (const entry of settlementData || []) {
+        const penalty = Number(entry?.penalty_amount || 0);
+        if (!(penalty < 0)) continue; // 벌금 대상만(0원/상금 제외).
+        const amount = Math.abs(Math.trunc(penalty));
+
+        const playerId = entry?.player_id ?? null;
+        const playerName = String(entry?.player_name || '').trim();
+        const isGuest = entry?.is_guest === true;
+        const { member, matchType } = matchMember(entry);
 
         const memberId = member?.id ?? null;
         const registeredReceivableId = memberId ? existingByMember.get(memberId) ?? null : null;

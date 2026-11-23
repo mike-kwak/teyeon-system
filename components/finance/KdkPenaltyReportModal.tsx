@@ -89,10 +89,12 @@ type ShareNav = Navigator & { canShare?: (data?: ShareData) => boolean };
  * 저장·공유 파일명: TEYEON_KDK_Penalty_YYYY-MM-DD_{all|member|guest}_{kk}of{NN}.png
  *   - 탭 구분(같은 날 전체·회원·게스트 저장이 섞이지 않게), 페이지/전체 수를 같은 자릿수(최소 2)로 맞춰 이름순 = 페이지순.
  */
-export function reportExportFileName(baseDate: string, tab: 'all' | 'member' | 'guest', pageNo: number, pageCount: number): string {
+export function reportExportFileName(baseDate: string, tab: 'all' | 'member' | 'guest', pageNo: number, pageCount: number, view?: string): string {
     const w = Math.max(2, String(pageCount).length);
     const pad = (n: number) => String(n).padStart(w, '0');
-    return `TEYEON_KDK_Penalty_${baseDate.replace(/\./g, '-')}_${tab}_${pad(pageNo)}of${pad(pageCount)}.png`;
+    // V6: 금액(V5) 외 표시 방식은 파일명에 방식을 붙여 같은 날 저장한 이미지가 섞이지 않게 한다. 금액은 V5 파일명 그대로.
+    const v = view && view !== 'amount' ? `_${view}` : '';
+    return `TEYEON_KDK_Penalty_${baseDate.replace(/\./g, '-')}_${tab}${v}_${pad(pageNo)}of${pad(pageCount)}.png`;
 }
 
 /**
@@ -138,7 +140,7 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
                 const blobs = await renderReportPngs(doc, SHARE_SCALE);
                 if (cancelled) return;
                 urls = blobs.map((b) => URL.createObjectURL(b));
-                const files = blobs.map((b, i) => new File([b], reportExportFileName(doc.baseDate, doc.tab, i + 1, blobs.length), { type: 'image/png' }));
+                const files = blobs.map((b, i) => new File([b], reportExportFileName(doc.baseDate, doc.tab, i + 1, blobs.length, doc.view), { type: 'image/png' }));
                 setShare({ kind: 'ready', blobs, urls, files });
             } catch (e) {
                 if (cancelled) return;
@@ -232,7 +234,7 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
             setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.current = downloadUrls.current.filter((u) => u !== url); }, 60_000);
             const a = document.createElement('a');
             a.href = url;
-            a.download = reportExportFileName(doc.baseDate, doc.tab, pageIndex + 1, pageCount);
+            a.download = reportExportFileName(doc.baseDate, doc.tab, pageIndex + 1, pageCount, doc.view);
             a.rel = 'noopener';
             document.body.appendChild(a);
             a.click();
@@ -326,7 +328,7 @@ export function KdkPenaltyReportModal({ content, onClose }: { content: PenaltySh
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: NAVY }}>이미지 리포트 미리보기</p>
                         <p style={{ margin: '2px 0 0', fontSize: 11, fontWeight: 700, color: '#64748B', wordBreak: 'keep-all' }}>
-                            {doc.tabLabel} · {doc.periodText} · 기준일 {doc.baseDate} · <b style={{ color: NAVY }}>{pageCount}장</b>
+                            {doc.tabLabel}{doc.view !== 'amount' ? ` · ${doc.viewLabel}` : ''} · {doc.periodText} · 기준일 {doc.baseDate} · <b style={{ color: NAVY }}>{pageCount}장</b>
                         </p>
                     </div>
                     <button type="button" onClick={onClose} aria-label="닫기" style={{

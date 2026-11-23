@@ -16,6 +16,7 @@ import {
     type PenaltyHistory,
     type PenaltyHistoryDataset,
 } from './kdkPenaltyHistoryModel';
+import { buildParticipations } from './kdkPenaltyStatsModel';
 import type { FinanceDuesPayment, FinanceDuesReceivable } from '@/types/finance';
 import type { KdkSettlementEntry } from './kdkPenaltyService';
 
@@ -192,7 +193,12 @@ export async function loadPenaltyHistory(opts: { force?: boolean; userKey: strin
     if (!opts.force && cache && cache.userKey === opts.userKey && now - cache.at < CACHE_TTL_MS) {
         return { history: await cache.promise, loadedAt: cache.at };
     }
-    const entry = { at: now, userKey: opts.userKey, promise: loadPenaltyHistoryDataset().then(buildPenaltyHistory) };
+    // V6: 참가 기록은 같은 데이터셋(공식 세션 정산 스냅샷 · 회원)에서 만든다 — 추가 조회 없음.
+    const entry = {
+        at: now,
+        userKey: opts.userKey,
+        promise: loadPenaltyHistoryDataset().then((ds) => ({ ...buildPenaltyHistory(ds), participations: buildParticipations(ds.sessions, ds.members) })),
+    };
     cache = entry;
     try {
         return { history: await entry.promise, loadedAt: entry.at };

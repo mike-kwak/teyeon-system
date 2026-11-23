@@ -6,7 +6,8 @@
 //   - 각 장: 브랜드 헤더(1장은 큰 헤더) · 조회 기간 · 페이지 번호 · 하단 TEYEON · SINCE 2024.
 //   - 실제 그리기는 components/finance/kdkPenaltyReportCanvas.ts 가 이 명세대로 한다(높이도 이 값 그대로).
 
-import type { PenaltyShareContent, ShareLine, ShareTab } from './kdkPenaltyHistoryShare';
+import { STATS_NOTES, type PenaltyShareContent, type ShareLine, type ShareTab } from './kdkPenaltyHistoryShare';
+import { STATS_VIEW_LABEL, type StatsOverview, type StatsView } from './kdkPenaltyStatsModel';
 
 export const REPORT_WIDTH = 1080;
 export const MAX_PAGE_HEIGHT = 1920;
@@ -23,6 +24,10 @@ export const H = {
     empty: 88,
     sectionGap: 28,
     notes: 196,
+    /** V6: 안내 4줄 초과 시 줄당 추가 높이. */
+    noteLine: 30,
+    /** V6: 금액 외 표시 방식의 회원 참가 · 벌금 발생 개요 띠(KPI 아래). */
+    statsStrip: 96,
     pageFooter: 96,
 } as const;
 
@@ -60,6 +65,11 @@ export interface ReportKpi {
 export interface ReportDocument {
     tab: ShareTab;
     tabLabel: string;
+    /** V6 표시 방식('amount' = V5 그대로). */
+    view: StatsView;
+    viewLabel: string;
+    /** V6 회원 참가 · 벌금 발생 개요(금액 외 표시 방식에서만). */
+    stats: StatsOverview | null;
     periodText: string;
     baseDate: string;
     kpi: ReportKpi;
@@ -71,14 +81,20 @@ export interface ReportDocument {
 
 export const TAB_LABEL: Record<ShareTab, string> = { all: '전체', member: '회원', guest: '게스트' };
 
-export function reportNotes(tab: ShareTab, hasGuests: boolean): string[] {
+export function reportNotes(tab: ShareTab, hasGuests: boolean, withStats = false): string[] {
     const out = [
         '선택 기간 기준 KDK 벌금 정산 현황',
         '비대상 벌금은 청구 대상 집계에서 제외',
         '확인 필요 금액은 부과·미납 합계에서 제외',
     ];
+    if (withStats) out.push(...STATS_NOTES);
     if (tab !== 'member' && hasGuests) out.push('게스트는 동일 이름 기준 집계(공식 개인별 누적 아님)');
     return out;
+}
+
+/** 안내 블록 높이 — 4줄까지 V5 와 같고, 넘으면 줄 수만큼 늘린다(잘림 방지). */
+export function notesHeight(lineCount: number): number {
+    return H.notes + Math.max(0, lineCount - 4) * H.noteLine;
 }
 
 /** 블록 흐름 → 페이지. 행·KPI·안내는 쪼개지 않는다. 섹션 제목은 다음 행과 같은 장에 둔다. */
@@ -146,7 +162,10 @@ export function buildReportDocument(content: PenaltyShareContent): ReportDocumen
         reviewCount: s.reviewCount,
     };
 
-    const flow: ReportBlock[] = [{ type: 'kpi', height: content.tab === 'all' ? H.kpi : H.kpiNoSplit }];
+    const view: StatsView = content.view ?? 'amount';
+    const stats = view !== 'amount' ? content.stats ?? null : null;
+    const kpiHeight = (content.tab === 'all' ? H.kpi : H.kpiNoSplit) + (stats ? H.statsStrip : 0);
+    const flow: ReportBlock[] = [{ type: 'kpi', height: kpiHeight }];
     const addSection = (side: 'member' | 'guest', lines: ShareLine[]) => {
         flow.push({ type: 'gap', height: H.sectionGap });
         flow.push({ type: 'section', side, count: lines.length, continued: false, height: H.sectionHeader });
@@ -156,11 +175,15 @@ export function buildReportDocument(content: PenaltyShareContent): ReportDocumen
     if (content.tab !== 'guest') addSection('member', content.members);
     if (content.tab !== 'member') addSection('guest', content.guests);
     flow.push({ type: 'gap', height: H.sectionGap });
-    flow.push({ type: 'notes', lines: reportNotes(content.tab, content.guests.length > 0), height: H.notes });
+    const notes = reportNotes(content.tab, content.guests.length > 0, !!stats);
+    flow.push({ type: 'notes', lines: notes, height: notesHeight(notes.length) });
 
     return {
         tab: content.tab,
         tabLabel: TAB_LABEL[content.tab],
+        view,
+        viewLabel: STATS_VIEW_LABEL[view],
+        stats,
         periodText: content.periodText,
         baseDate: content.baseDate,
         kpi,

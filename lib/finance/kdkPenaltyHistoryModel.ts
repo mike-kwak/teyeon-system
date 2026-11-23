@@ -15,6 +15,7 @@ import { summarizeReceivable } from './calculatePaymentStatus';
 import type { GuestPenaltyRecord } from './kdkGuestPenaltyService';
 import type { KdkSettlementEntry } from './kdkPenaltyService';
 import type { FinanceDuesPayment, FinanceDuesReceivable, FinanceReceivableStatus } from '@/types/finance';
+import type { ParticipationRecord } from './kdkPenaltyStatsModel';
 
 // ── 입력(원본 데이터셋) ──────────────────────────────────────────────────────
 
@@ -168,6 +169,8 @@ export interface PenaltyHistory {
     records: PenaltyHistoryRecord[];
     sessions: PenaltySessionSummary[];
     exceptions: PenaltyHistoryExceptions;
+    /** V6: 공식 세션 참가 기록(kdkPenaltyStatsModel.buildParticipations). 조회 service 가 붙인다(금액 집계와 무관). */
+    participations?: ParticipationRecord[];
 }
 
 // ── 표시 이름 ────────────────────────────────────────────────────────────────

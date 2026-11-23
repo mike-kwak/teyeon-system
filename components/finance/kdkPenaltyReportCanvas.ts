@@ -14,7 +14,8 @@ import {
     type ReportDocument,
     type ReportPage,
 } from '@/lib/finance/kdkPenaltyReportLayout';
-import type { ShareLine } from '@/lib/finance/kdkPenaltyHistoryShare';
+import { STATS_SECTION_LABEL, type ShareLine } from '@/lib/finance/kdkPenaltyHistoryShare';
+import { formatPenaltyRate, type StatsView } from '@/lib/finance/kdkPenaltyStatsModel';
 import { formatRate } from './KdkPenaltyHistoryUI';
 
 export const REPORT_SCALE = 2;
@@ -41,6 +42,33 @@ const CW = W - PAD * 2; // 콘텐츠 폭
 const COL = { idx: { x: 0, w: 56 }, name: { x: 66, w: 340 }, billable: { x: 412, w: 184 }, paid: { x: 598, w: 184 }, unpaid: { x: 784, w: 184 } };
 // 표 글자 크기(논리 px, 출력은 ×2)
 const T = { head: 22, index: 24, name: 34, nameMin: 26, name2: 26, name2Min: 20, amount: 31, amountMin: 22, review: 18, sectionTitle: 32, empty: 24 };
+
+// V6 통계 표(회원 · 금액 외 표시 방식): # | 회원 | 지표 4열. 모드의 중심 지표를 이름 바로 옆에 두고 강조한다.
+//   글자 크기는 V5 와 같다(가로로 억지로 줄이지 않음). 이름이 넘치면 V5 와 같이 2줄로 그린다.
+type StatKey = 'amount' | 'participation' | 'penalty' | 'rate';
+const STAT_W: Record<StatKey, number> = { amount: 200, participation: 128, penalty: 128, rate: 140 };
+const STAT_HEAD: Record<StatKey, string> = { amount: '누적 벌금', participation: '참가', penalty: '벌금 발생', rate: '발생률' };
+const STAT_ORDER: Record<Exclude<StatsView, 'amount'>, StatKey[]> = {
+    summary: ['amount', 'participation', 'penalty', 'rate'],
+    participation: ['participation', 'penalty', 'rate', 'amount'],
+    penalty: ['penalty', 'participation', 'rate', 'amount'],
+};
+const STAT_NAME_X = 66;
+function statColumns(view: Exclude<StatsView, 'amount'>): { key: StatKey; x: number; w: number }[] {
+    const keys = STAT_ORDER[view];
+    const total = keys.reduce((a, k) => a + STAT_W[k], 0);
+    let x = CW - total;
+    return keys.map((key) => { const c = { key, x, w: STAT_W[key] }; x += STAT_W[key]; return c; });
+}
+function statNameWidth(view: Exclude<StatsView, 'amount'>): number {
+    return statColumns(view)[0].x - STAT_NAME_X - 8;
+}
+/** 회원 줄 + 금액 외 표시 방식이면 통계 표로 그린다. */
+function statsViewOf(view: StatsView | undefined, side: 'member' | 'guest', line?: ShareLine): Exclude<StatsView, 'amount'> | null {
+    if (!view || view === 'amount' || side !== 'member') return null;
+    if (line && line.participation == null) return null;
+    return view;
+}
 
 export function loadReportLogo(timeoutMs = 3000): Promise<HTMLImageElement | null> {
     return new Promise((resolve) => {
@@ -113,7 +141,7 @@ function drawHeader(ctx: Ctx, doc: ReportDocument, page: ReportPage, logo: HTMLI
         text(ctx, 'TEYEON TENNIS CLUB', PAD + 84, 62, { size: 25, weight: 900, color: C.navy });
         text(ctx, 'OFFICIAL FINANCE REPORT', PAD + 84, 92, { size: 16, weight: 800, color: C.tealDark });
         text(ctx, 'SINCE 2024', W - PAD, 62, { size: 18, weight: 800, color: C.slateLight, align: 'right' });
-        drawTabChip(ctx, doc.tabLabel, W - PAD, 92);
+        drawTabChip(ctx, chipLabel(doc), W - PAD, 92);
         text(ctx, 'KDK 누적 벌금 리포트', PAD, 160, { size: 52, weight: 900, color: C.navy, maxW: CW, minSize: 40 });
         text(ctx, `조회 기간  ${doc.periodText}`, PAD, 214, { size: 23, weight: 700, color: C.slate });
         text(ctx, `기준일  ${doc.baseDate}`, W - PAD, 214, { size: 23, weight: 700, color: C.slate, align: 'right' });
@@ -122,11 +150,16 @@ function drawHeader(ctx: Ctx, doc: ReportDocument, page: ReportPage, logo: HTMLI
         drawLogo(ctx, logo, PAD, 34, 48);
         text(ctx, 'TEYEON TENNIS CLUB', PAD + 62, 50, { size: 20, weight: 900, color: C.navy });
         text(ctx, 'KDK 누적 벌금 리포트', PAD + 62, 74, { size: 16, weight: 800, color: C.tealDark });
-        drawTabChip(ctx, doc.tabLabel, W - PAD, 58);
+        drawTabChip(ctx, chipLabel(doc), W - PAD, 58);
         text(ctx, `조회 기간  ${doc.periodText}`, PAD, 124, { size: 21, weight: 700, color: C.slate });
         text(ctx, `${page.pageNo} / ${page.pageCount}`, W - PAD, 124, { size: 21, weight: 900, color: C.navy, align: 'right' });
         hr(ctx, H.headerCont - 14);
     }
+}
+
+/** 탭 칩: V5(금액) = '전체' 등 그대로, V6 통계 = '전체 · 종합'. */
+function chipLabel(doc: ReportDocument): string {
+    return doc.view && doc.view !== 'amount' ? `${doc.tabLabel} · ${doc.viewLabel}` : doc.tabLabel;
 }
 
 function drawTabChip(ctx: Ctx, label: string, right: number, cy: number) {
@@ -175,16 +208,47 @@ function drawKpi(ctx: Ctx, doc: ReportDocument, y: number) {
     const ex = `비대상 ${formatWon(k.excludedAmount)}${k.excludedCount ? ` (${k.excludedCount}건)` : ''}`;
     const rv = `확인 필요 ${formatWon(k.reviewAmount)}${k.reviewCount ? ` (${k.reviewCount}건)` : ''}`;
     text(ctx, `${ex}   ·   ${rv}   — 부과·미납 합계 미포함`, PAD + 4, yy + 20, { size: 19, weight: 700, color: k.reviewAmount > 0 ? C.amber : C.slate, maxW: CW - 8, minSize: 15 });
+    if (doc.stats) drawStatsStrip(ctx, doc, yy + 44);
 }
 
-function drawSection(ctx: Ctx, b: Extract<ReportBlock, { type: 'section' }>, y: number) {
-    const title = b.side === 'member' ? '회원별 누적 벌금' : '게스트별 누적 벌금';
+/** V6: 회원 참가 · 벌금 발생 개요 띠(H.statsStrip 안에 그린다). */
+function drawStatsStrip(ctx: Ctx, doc: ReportDocument, y: number) {
+    const s = doc.stats;
+    if (!s) return;
+    const cells = [
+        { label: '공식 KDK 세션', value: `${s.sessionCount.toLocaleString('ko-KR')}회` },
+        { label: '회원 참가(연인원)', value: `${s.memberParticipations.toLocaleString('ko-KR')}회` },
+        { label: '회원 벌금 발생', value: `${s.memberPenalties.toLocaleString('ko-KR')}회` },
+        { label: '벌금 발생률', value: formatPenaltyRate(s.memberPenaltyRate) },
+    ];
+    const h = 80;
+    roundRect(ctx, PAD, y, CW, h, 12, C.card, C.border);
+    const cw = CW / cells.length;
+    cells.forEach((c, i) => {
+        const x = PAD + i * cw;
+        if (i > 0) { ctx.fillStyle = C.border; ctx.fillRect(x, y + 16, 1.5, h - 32); }
+        text(ctx, c.label, x + cw / 2, y + 26, { size: 17, weight: 800, color: C.slate, align: 'center', maxW: cw - 16, minSize: 13 });
+        text(ctx, c.value, x + cw / 2, y + 56, { size: 28, weight: 900, color: i === 3 ? C.tealDark : C.navy, align: 'center', maxW: cw - 16, minSize: 20 });
+    });
+}
+
+function drawSection(ctx: Ctx, b: Extract<ReportBlock, { type: 'section' }>, y: number, view: StatsView = 'amount') {
+    const sv = statsViewOf(view, b.side);
+    const title = sv ? `회원별 ${STATS_SECTION_LABEL[sv]}` : b.side === 'member' ? '회원별 누적 벌금' : '게스트별 누적 벌금';
     ctx.fillStyle = C.teal;
     ctx.fillRect(PAD, y + 18, 6, 32);
     text(ctx, b.continued ? `${title} (계속)` : title, PAD + 18, y + 35, { size: T.sectionTitle, weight: 900, color: C.navy });
     text(ctx, `${b.count}${b.side === 'member' ? '명' : '개 이름'}`, W - PAD, y + 35, { size: 22, weight: 800, color: C.slate, align: 'right' });
     const ty = y + 66;
     roundRect(ctx, PAD, ty, CW, 54, 10, C.tableHead);
+    if (sv) {
+        text(ctx, '#', PAD + COL.idx.x + COL.idx.w / 2, ty + 28, { size: T.head, weight: 800, color: C.slate, align: 'center' });
+        text(ctx, '회원', PAD + STAT_NAME_X, ty + 28, { size: T.head, weight: 800, color: C.slate });
+        statColumns(sv).forEach((c, i) => text(ctx, STAT_HEAD[c.key], PAD + c.x + c.w - 14, ty + 28, {
+            size: T.head, weight: i === 0 ? 900 : 800, color: i === 0 ? C.tealDark : C.slate, align: 'right',
+        }));
+        return;
+    }
     const head = [
         { s: '#', c: COL.idx, align: 'center' as const },
         { s: b.side === 'member' ? '회원' : '게스트', c: COL.name, align: 'left' as const },
@@ -221,12 +285,14 @@ function fitName(ctx: Ctx, name: string, maxW: number, allowTwoLines: boolean): 
     return { lines: [name.slice(0, cut), second.text], size: T.name2Min };
 }
 
-function drawRow(ctx: Ctx, line: ShareLine, index: number, y: number) {
+function drawRow(ctx: Ctx, line: ShareLine, index: number, y: number, view: StatsView = 'amount', side: 'member' | 'guest' = 'member') {
     if (index % 2 === 0) { ctx.fillStyle = C.rowAlt; ctx.fillRect(PAD, y, CW, H.row); }
     ctx.fillStyle = '#E8EDF3';
     ctx.fillRect(PAD, y + H.row - 1, CW, 1);
     const cy = y + H.row / 2;
     text(ctx, String(index), PAD + COL.idx.x + COL.idx.w / 2, cy, { size: T.index, weight: 800, color: C.slateLight, align: 'center' });
+    const sv = statsViewOf(view, side, line);
+    if (sv) { drawStatsRow(ctx, line, sv, cy); return; }
     // 이름: 1줄 34px(최소 26) → 넘치면 2줄 26px(최소 20). 확인 필요 표기가 있으면 1줄 + 아래 작은 줄.
     const hasReview = line.review > 0;
     const nm = fitName(ctx, line.name, COL.name.w, !hasReview);
@@ -245,10 +311,33 @@ function drawRow(ctx: Ctx, line: ShareLine, index: number, y: number) {
     amt(line.unpaid, COL.unpaid, line.unpaid > 0 ? C.red : C.slateLight, line.unpaid > 0 ? 900 : 700);
 }
 
-function drawEmpty(ctx: Ctx, side: 'member' | 'guest', y: number) {
+/** V6 통계 행: 이름(1줄 → 2줄) + 지표 4열(오른쪽 정렬 · 천 단위 쉼표). 중심 지표는 굵게. */
+function drawStatsRow(ctx: Ctx, line: ShareLine, view: Exclude<StatsView, 'amount'>, cy: number) {
+    const nameW = statNameWidth(view);
+    const hasReview = line.review > 0;
+    const nm = fitName(ctx, line.name, nameW, !hasReview);
+    const nx = PAD + STAT_NAME_X;
+    if (nm.lines.length === 2) {
+        const lh = nm.size + 6;
+        nm.lines.forEach((l, i) => text(ctx, l, nx, cy + (i === 0 ? -lh / 2 : lh / 2), { size: nm.size, weight: 800, color: C.navy }));
+    } else {
+        text(ctx, nm.lines[0], nx, hasReview ? cy - 13 : cy, { size: nm.size, weight: 800, color: C.navy });
+    }
+    if (hasReview) text(ctx, `확인 필요 ${formatWon(line.review)} (합계 미포함)`, nx, cy + 22, { size: T.review, weight: 700, color: C.amber, maxW: nameW, minSize: 14 });
+    const value = (k: StatKey): string => k === 'amount' ? formatWon(line.billable)
+        : k === 'participation' ? `${(line.participation ?? 0).toLocaleString('ko-KR')}회`
+            : k === 'penalty' ? `${(line.penaltyCount ?? 0).toLocaleString('ko-KR')}회`
+                : formatPenaltyRate(line.penaltyRate ?? null);
+    statColumns(view).forEach((c, i) => {
+        const color = i === 0 ? C.navy : c.key === 'rate' ? C.slate : '#334155';
+        text(ctx, value(c.key), PAD + c.x + c.w - 14, cy, { size: T.amount, weight: i === 0 ? 900 : 700, color, align: 'right', maxW: c.w - 20, minSize: T.amountMin });
+    });
+}
+
+function drawEmpty(ctx: Ctx, side: 'member' | 'guest', y: number, view: StatsView = 'amount') {
     ctx.fillStyle = C.card;
     ctx.fillRect(PAD, y, CW, H.empty);
-    text(ctx, side === 'member' ? '해당 기간 회원 벌금 기록 없음' : '해당 기간 게스트 벌금 기록 없음', W / 2, y + H.empty / 2, { size: T.empty, weight: 700, color: C.slateLight, align: 'center' });
+    text(ctx, side === 'member' ? (statsViewOf(view, side) ? '해당 기간 회원 참가 기록 없음' : '해당 기간 회원 벌금 기록 없음') : '해당 기간 게스트 벌금 기록 없음', W / 2, y + H.empty / 2, { size: T.empty, weight: 700, color: C.slateLight, align: 'center' });
 }
 
 function drawNotes(ctx: Ctx, lines: string[], y: number) {
@@ -279,9 +368,9 @@ export function drawReportPage(canvas: HTMLCanvasElement, doc: ReportDocument, p
     for (const b of page.blocks) {
         switch (b.type) {
             case 'kpi': drawKpi(ctx, doc, y + 8); break;
-            case 'section': drawSection(ctx, b, y); break;
-            case 'row': drawRow(ctx, b.line, b.index, y); break;
-            case 'empty': drawEmpty(ctx, b.side, y); break;
+            case 'section': drawSection(ctx, b, y, doc.view); break;
+            case 'row': drawRow(ctx, b.line, b.index, y, doc.view, b.side); break;
+            case 'empty': drawEmpty(ctx, b.side, y, doc.view); break;
             case 'notes': drawNotes(ctx, b.lines, y); break;
             case 'gap': break;
         }

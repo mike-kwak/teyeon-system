@@ -114,7 +114,7 @@ function MemberContent({ history, memberId, range, loadedAt }: { history: Penalt
     return (
         <>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 8 }}>
-                <KpiCard label="벌금 발생" value={`${sessionCount}회`} sub="참가 세션 기준" />
+                <KpiCard label="벌금 기록" value={`${sessionCount}회`} sub="비대상·확인 필요 포함" />
                 <KpiCard label="총 청구" value={formatWon(summary.billableAmount)} />
                 <KpiCard label="납부 완료" value={formatWon(summary.paidAmount)} accent="teal" />
                 <KpiCard label="미납" value={formatWon(summary.unpaidAmount)} accent={summary.unpaidAmount > 0 ? 'red' : 'default'} />

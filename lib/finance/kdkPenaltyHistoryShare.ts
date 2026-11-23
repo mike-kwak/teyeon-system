@@ -19,6 +19,17 @@ import {
     type PeriodRange,
 } from './kdkPenaltyHistoryModel';
 
+import {
+    aggregateMemberStats,
+    buildStatsOverview,
+    formatPenaltyRate,
+    memberRowsForView,
+    participationsInPeriod,
+    type ParticipationRecord,
+    type StatsOverview,
+    type StatsView,
+} from './kdkPenaltyStatsModel';
+
 export type ShareTab = 'all' | 'member' | 'guest';
 
 export interface ShareLine {
@@ -27,9 +38,26 @@ export interface ShareLine {
     paid: number;
     unpaid: number;
     review: number;
+    /** V6 통계(회원 줄 · 금액 외 표시 방식에서만). 금액 필드는 V5 와 같은 값. */
+    participation?: number;
+    penaltyCount?: number;
+    /** 0~1, 참가 0회면 null. */
+    penaltyRate?: number | null;
+}
+
+/** V6 통계 입력. 없으면 V5 금액 공유 그대로. */
+export interface ShareStatsInput {
+    view: StatsView;
+    participations: ParticipationRecord[];
+    /** 기간 필터 전 세션 목록(개최일 · 스냅샷 여부) — 개요의 세션 수 계산용. */
+    sessions: { date: string | null; hasSnapshot: boolean }[];
 }
 
 export interface PenaltyShareContent {
+    /** V6 표시 방식. 'amount' = V5 그대로(통계 입력이 없을 때 기본). */
+    view: StatsView;
+    /** V6: 회원 참가 · 벌금 발생 개요(금액 외 표시 방식 + 게스트 탭 아님). */
+    stats: StatsOverview | null;
     tab: ShareTab;
     periodText: string;
     baseDate: string;
@@ -89,22 +117,40 @@ export function buildPenaltyShareContent(
     range: PeriodRange,
     tab: ShareTab,
     now: Date = new Date(),
+    statsInput: ShareStatsInput | null = null,
 ): PenaltyShareContent {
     const periodRecords = allRecords.filter((r) => inPeriod(r.sessionDate, range));
     const memberRecords = periodRecords.filter((r) => r.side === 'member');
     const guestRecords = periodRecords.filter((r) => r.side === 'guest');
     const tabRecords = tab === 'all' ? periodRecords : tab === 'member' ? memberRecords : guestRecords;
 
-    const members = tab === 'guest' ? [] : markHomonyms(sortLines(
-        aggregateMembers(memberRecords)
-            .map((m) => ({ name: m.name, billable: m.billableAmount, paid: m.paidAmount, unpaid: m.unpaidAmount, review: m.reviewAmount }))
-            .filter(hasShareableAmount),
-    ));
+    // 게스트 탭은 통계 대상(회원 줄)이 없으므로 V5 금액 공유 그대로.
+    const view: StatsView = statsInput && tab !== 'guest' ? statsInput.view : 'amount';
+    let members: ShareLine[];
+    let stats: StatsOverview | null = null;
+    if (view === 'amount' || !statsInput) {
+        members = tab === 'guest' ? [] : markHomonyms(sortLines(
+            aggregateMembers(memberRecords)
+                .map((m) => ({ name: m.name, billable: m.billableAmount, paid: m.paidAmount, unpaid: m.unpaidAmount, review: m.reviewAmount }))
+                .filter(hasShareableAmount),
+        ));
+    } else {
+        // 화면 회원 목록과 같은 함수 · 같은 순서(참가만 있고 벌금 0회인 회원 포함).
+        const parts = participationsInPeriod(statsInput.participations, range);
+        const rows = aggregateMemberStats(memberRecords, parts);
+        members = markHomonyms(memberRowsForView(rows, view).map((m) => ({
+            name: m.name, billable: m.billableAmount, paid: m.paidAmount, unpaid: m.unpaidAmount, review: m.reviewAmount,
+            participation: m.participationCount, penaltyCount: m.penaltyCount, penaltyRate: m.penaltyRate,
+        })));
+        stats = buildStatsOverview(rows, parts, statsInput.sessions.filter((s) => inPeriod(s.date, range)));
+    }
     const guestGroups = tab === 'member' ? [] : groupGuestsByName(guestRecords);
     const knownGuests = sortLines(guestGroups.filter((g) => !g.unknown).map(toGuestLine).filter(hasShareableAmount));
     const unknownGuests = guestGroups.filter((g) => g.unknown).map(toGuestLine).filter(hasShareableAmount);
 
     return {
+        view,
+        stats,
         tab,
         periodText: sharePeriodText(range),
         baseDate: localBaseDate(now),
@@ -131,9 +177,26 @@ function toGuestLine(g: ReturnType<typeof groupGuestsByName>[number]): ShareLine
  * 목록 한 줄. 금액은 청구 대상(billableAmount, 비대상·확인 필요 제외).
  *   게스트는 화면 게스트 목록의 큰 숫자(벌금 원금)와 혼동하지 않도록 '청구 대상' 라벨을 쓴다.
  */
-function formatLine(l: ShareLine, i: number, amountLabel: '부과' | '청구 대상'): string {
-    const base = `${i + 1}. ${l.name} — ${amountLabel} ${formatWon(l.billable)} / 납부 ${formatWon(l.paid)} / 미납 ${formatWon(l.unpaid)}`;
-    return l.review > 0 ? `${base} / 확인 필요 ${formatWon(l.review)}` : base;
+function formatLine(l: ShareLine, i: number, amountLabel: '부과' | '청구 대상', view: StatsView = 'amount'): string {
+    const money = `${amountLabel} ${formatWon(l.billable)} / 납부 ${formatWon(l.paid)} / 미납 ${formatWon(l.unpaid)}`;
+    const withReview = (s: string) => (l.review > 0 ? `${s} / 확인 필요 ${formatWon(l.review)}` : s);
+    if (view === 'amount' || l.participation == null) return withReview(`${i + 1}. ${l.name} — ${money}`);
+    const part = `참가 ${l.participation}회`;
+    const pen = `벌금 발생 ${l.penaltyCount ?? 0}회`;
+    const rate = `발생률 ${formatPenaltyRate(l.penaltyRate ?? null)}`;
+    // 모드의 중심 지표를 앞에 둔다. 금액(부과·납부·미납)은 모든 모드에서 유지.
+    const head = view === 'participation' ? `${part} · ${pen} · ${rate}`
+        : view === 'penalty' ? `${pen} · ${part} · ${rate}`
+            : `${part} · ${pen} · ${rate}`;
+    return withReview(`${i + 1}. ${l.name} — ${head} / ${money}`);
+}
+
+function statsLines(s: StatsOverview): string[] {
+    return [
+        '[회원 참가 · 벌금 발생]',
+        `공식 KDK 세션: ${s.sessionCount.toLocaleString('ko-KR')}회`,
+        `회원 참가: ${s.memberParticipations.toLocaleString('ko-KR')}회(연인원) · 벌금 발생: ${s.memberPenalties.toLocaleString('ko-KR')}회 · 발생률 ${formatPenaltyRate(s.memberPenaltyRate)}`,
+    ];
 }
 
 function summaryLines(label: string, s: PenaltyHistorySummary): string[] {
@@ -155,10 +218,13 @@ export function formatPenaltyShareText(c: PenaltyShareContent): string {
         lines.push(`(회원 ${formatWon(c.memberSummary.billableAmount)} · 게스트 ${formatWon(c.guestSummary.billableAmount)})`);
     }
 
+    if (c.stats) lines.push('', ...statsLines(c.stats));
+
     if (c.tab !== 'guest') {
-        lines.push('', '[회원별 누적 벌금]');
-        if (c.members.length === 0) lines.push('해당 기간 회원 벌금 기록 없음');
-        else lines.push(...c.members.map((l, i) => formatLine(l, i, '부과')));
+        const statsView = c.view !== 'amount' && !!c.stats;
+        lines.push('', statsView ? `[회원별 ${STATS_SECTION_LABEL[c.view]}]` : '[회원별 누적 벌금]');
+        if (c.members.length === 0) lines.push(statsView ? '해당 기간 회원 참가 기록 없음' : '해당 기간 회원 벌금 기록 없음');
+        else lines.push(...c.members.map((l, i) => formatLine(l, i, '부과', c.view)));
     }
     if (c.tab !== 'member') {
         lines.push('', '[게스트별 누적 벌금]');
@@ -167,10 +233,25 @@ export function formatPenaltyShareText(c: PenaltyShareContent): string {
     }
 
     lines.push('', '※ 선택 기간 기준 KDK 벌금 정산 현황', '※ 비대상 벌금은 부과·납부 집계에서 제외');
+    if (c.stats) lines.push(...STATS_NOTES.map((n) => `※ ${n}`));
     if (c.tab !== 'member' && c.guests.length > 0) lines.push('※ 게스트는 동일 이름 기준 합계(공식 개인별 누적 아님)');
     return lines.join('\n');
 }
 
-export function buildPenaltyShareText(allRecords: PenaltyHistoryRecord[], range: PeriodRange, tab: ShareTab, now: Date = new Date()): string {
-    return formatPenaltyShareText(buildPenaltyShareContent(allRecords, range, tab, now));
+/** V6 통계 섹션 이름(공유 텍스트 · 이미지 공용). */
+export const STATS_SECTION_LABEL: Record<StatsView, string> = {
+    summary: '종합 현황', amount: '누적 벌금', participation: 'KDK 참가 횟수', penalty: '벌금 발생 횟수',
+};
+
+/** V6 통계 기준 안내(공유 텍스트 · 이미지 · 화면 공용). */
+export const STATS_NOTES = [
+    '참가 = 공식 확정 KDK 세션 참가(세션당 1회)',
+    '벌금 발생 = 부과된 벌금이 있는 세션 수(미납 포함 · 비대상 제외)',
+    '게스트는 고유 식별이 없어 참가 횟수 · 발생률 미집계',
+];
+
+export function buildPenaltyShareText(
+    allRecords: PenaltyHistoryRecord[], range: PeriodRange, tab: ShareTab, now: Date = new Date(), statsInput: ShareStatsInput | null = null,
+): string {
+    return formatPenaltyShareText(buildPenaltyShareContent(allRecords, range, tab, now, statsInput));
 }

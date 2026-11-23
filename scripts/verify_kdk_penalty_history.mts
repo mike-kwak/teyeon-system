@@ -292,15 +292,23 @@ function sessionScreenSummary(ds: any, sessionId: string) {
 {
     // 23~25 URL 상태(필터 변경 · 뒤로 가기 · 직접 접근) — 화면은 URL 을 단일 상태로 사용.
     const parse = (s: string) => Q.readHistoryQuery(new URLSearchParams(s));
-    eq('25 기본(직접 접근, 파라미터 없음)', parse(''), { tab: 'all', period: 'year', from: '', to: '', q: '', gview: 'name' });
-    eq('25 직접 접근 type=member&period=year', parse('type=member&period=year'), { tab: 'member', period: 'year', from: '', to: '', q: '', gview: 'name' });
-    eq('25 알 수 없는 값은 기본값', parse('type=hack&period=forever&gv=zzz'), { tab: 'all', period: 'year', from: '', to: '', q: '', gview: 'name' });
-    const q = { tab: 'guest', period: 'custom', from: '2026-06-01', to: '2026-09-30', q: '홍길동', gview: 'records' };
+    // V6: 표시 방식(view, 기본 종합 'summary') 필드가 추가됐다 — 기존 필드 기대값은 그대로.
+    eq('25 기본(직접 접근, 파라미터 없음)', parse(''), { tab: 'all', period: 'year', from: '', to: '', q: '', gview: 'name', view: 'summary' });
+    eq('25 직접 접근 type=member&period=year', parse('type=member&period=year'), { tab: 'member', period: 'year', from: '', to: '', q: '', gview: 'name', view: 'summary' });
+    eq('25 알 수 없는 값은 기본값', parse('type=hack&period=forever&gv=zzz&view=zzz'), { tab: 'all', period: 'year', from: '', to: '', q: '', gview: 'name', view: 'summary' });
+    const q = { tab: 'guest', period: 'custom', from: '2026-06-01', to: '2026-09-30', q: '홍길동', gview: 'records', view: 'summary' };
     eq('24 왕복(새로고침·뒤로 가기 복원)', parse(Q.historyQueryString(q).slice(1)), q);
     eq('23 기본값은 URL 생략', Q.historyQueryString({ tab: 'all', period: 'year', from: 'x', to: 'y', q: '' }), '');
     eq('23 게스트 이름별(기본)은 gv 생략', Q.historyQueryString({ tab: 'guest', period: 'year', q: '', gview: 'name' }), '?type=guest');
     eq('23 게스트 외 탭에서는 gv 미포함', Q.historyQueryString({ tab: 'member', period: 'year', q: '', gview: 'records' }), '?type=member');
     eq('23 프리셋 기간은 from/to 미포함', Q.historyQueryString({ tab: 'member', period: '3m', from: '2026-01-01', to: '2026-02-01', q: '' }), '?type=member&period=3m');
+    // V6 표시 방식 URL
+    eq('V6 기본(종합)은 view 생략', Q.historyQueryString({ tab: 'member', period: 'year', q: '', view: 'summary' }), '?type=member');
+    eq('V6 금액 모드 URL', Q.historyQueryString({ tab: 'member', period: 'year', q: '', view: 'amount' }), '?type=member&view=amount');
+    for (const v of ['amount', 'participation', 'penalty']) {
+        const qq = { tab: 'member', period: 'year', from: '', to: '', q: '', gview: 'name', view: v };
+        eq(`V6 왕복 view=${v}`, parse(Q.historyQueryString(qq).slice(1)), qq);
+    }
 }
 
 // ═══ 게스트 동일 이름 묶음(화면 표시용) ═══════════════════════════════════════

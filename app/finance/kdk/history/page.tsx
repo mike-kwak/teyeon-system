@@ -59,7 +59,19 @@ import {
 } from '@/components/finance/KdkPenaltyHistoryUI';
 import { formatLoadedAt, usePenaltyHistory } from '@/components/finance/usePenaltyHistory';
 import { KdkPenaltyShareActions } from '@/components/finance/KdkPenaltyShareActions';
-import { buildPenaltyShareContent } from '@/lib/finance/kdkPenaltyHistoryShare';
+import { buildPenaltyShareContent, STATS_NOTES, type ShareStatsInput } from '@/lib/finance/kdkPenaltyHistoryShare';
+import {
+    aggregateMemberStats,
+    buildStatsOverview,
+    formatPenaltyRate,
+    memberRowsForView,
+    participationsInPeriod,
+    STATS_VIEW_LABEL,
+    STATS_VIEWS,
+    type MemberStatsRow,
+    type StatsOverview,
+    type StatsView,
+} from '@/lib/finance/kdkPenaltyStatsModel';
 
 const CONTAINER: React.CSSProperties = { ...FINANCE_CONTAINER_STYLE };
 
@@ -78,11 +90,21 @@ function HistoryView() {
     const resolution = usePeriodResolution(query);
     const { state, reload } = usePenaltyHistory(user?.id, !isLoading && !!user && isAdmin);
     // 공유 텍스트: 조회 완료(새로고침 중 아님) + 유효 기간일 때만. 로딩·오류·이전 기간 데이터는 복사하지 않는다.
-    const shareRecords = state.kind === 'ready' && !state.refreshing ? state.history.records : null;
+    const shareHistory = state.kind === 'ready' && !state.refreshing ? state.history : null;
+    const shareRecords = shareHistory ? shareHistory.records : null;
     const shareRange = resolution.ok ? resolution.range : null;
+    // V6: 화면에서 고른 표시 방식 그대로 이미지·텍스트를 만든다(게스트 탭은 V5 금액 그대로).
+    const shareStats = React.useMemo<ShareStatsInput | null>(
+        () => (shareHistory?.participations ? {
+            view: query.view,
+            participations: shareHistory.participations,
+            sessions: shareHistory.sessions.map((s) => ({ date: s.date, hasSnapshot: s.hasSnapshot })),
+        } : null),
+        [shareHistory, query.view],
+    );
     const getShareContent = React.useMemo(
-        () => (shareRecords && shareRange ? () => buildPenaltyShareContent(shareRecords, shareRange, query.tab) : null),
-        [shareRecords, shareRange, query.tab],
+        () => (shareRecords && shareRange ? () => buildPenaltyShareContent(shareRecords, shareRange, query.tab, new Date(), shareStats) : null),
+        [shareRecords, shareRange, query.tab, shareStats],
     );
 
     if (isLoading) {
@@ -105,6 +127,7 @@ function HistoryView() {
                 <Breadcrumb />
 
                 <TabBar tab={query.tab} onChange={(tab) => update({ tab, q: '' })} />
+                {query.tab !== 'guest' && <ViewBar view={query.view} onChange={(view) => update({ view })} />}
                 <PeriodFilter query={query} onChange={update} resolution={resolution} />
                 <KdkPenaltyShareActions getContent={state.kind === 'error' ? null : getShareContent} />
 
@@ -188,6 +211,20 @@ function ReadyContent({ history, query, update, range, periodLabel, loadedAt }: 
         () => history.sessions.filter((s) => inPeriod(s.date, range)),
         [history.sessions, range],
     );
+    // V6: 참가 기록도 금액과 같은 기간(KDK 개최일 기준)으로 거른다.
+    const periodParticipations = React.useMemo(
+        () => participationsInPeriod(history.participations ?? [], range),
+        [history.participations, range],
+    );
+    const statsOn = query.view !== 'amount' && !!history.participations;
+    const memberStats = React.useMemo(
+        () => (statsOn ? aggregateMemberStats(periodRecords.filter((r) => r.side === 'member'), periodParticipations) : null),
+        [statsOn, periodRecords, periodParticipations],
+    );
+    const overview = React.useMemo(
+        () => (memberStats ? buildStatsOverview(memberStats, periodParticipations, periodSessions) : null),
+        [memberStats, periodParticipations, periodSessions],
+    );
 
     return (
         <>
@@ -198,6 +235,8 @@ function ReadyContent({ history, query, update, range, periodLabel, loadedAt }: 
             </p>
             <PenaltySummaryCards summary={summary} />
 
+            {overview && query.tab !== 'guest' && <StatsOverviewCard overview={overview} />}
+
             {query.tab === 'all' && (
                 <>
                     <SessionSection sessions={periodSessions} />
@@ -205,7 +244,9 @@ function ReadyContent({ history, query, update, range, periodLabel, loadedAt }: 
                 </>
             )}
             {query.tab === 'member' && (
-                <MemberSection records={tabRecords} query={query} update={update} />
+                memberStats
+                    ? <MemberStatsSection rows={memberStats} view={query.view} records={tabRecords} query={query} update={update} />
+                    : <MemberSection records={tabRecords} query={query} update={update} />
             )}
             {query.tab === 'guest' && (
                 <GuestSection records={tabRecords} query={query} update={update} guestAvailable={history.exceptions.guestAvailable} />
@@ -331,6 +372,9 @@ function MemberSection({ records, query, update }: {
             <p style={{ margin: '0 2px', fontSize: 11, fontWeight: 700, color: '#64748B' }}>
                 {query.q ? <>검색 결과 <b style={{ color: NAVY }}>{list.length}</b>명 / 전체 {all.length}명</> : <>벌금 기록 회원 <b style={{ color: NAVY }}>{all.length}</b>명</>}
             </p>
+            <p data-record-count-note style={{ margin: '-4px 2px 0', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                ‘벌금 기록’은 비대상·확인 필요를 포함한 횟수입니다. 유효 부과 기준 ‘벌금 발생’ 횟수는 종합·벌금 횟수 모드에서 볼 수 있습니다.
+            </p>
             {list.length === 0 ? (
                 <EmptyCard>{query.q ? '검색된 회원이 없습니다.' : '선택한 기간에 회원 벌금 기록이 없습니다.'}</EmptyCard>
             ) : (
@@ -354,7 +398,7 @@ function MemberRow({ m, first, query }: { m: MemberPenaltyAggregate; first: bool
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <NameLine name={m.name} />
                     <p style={subLine}>
-                        <span style={nowrap}>벌금 {m.sessionCount}회</span>
+                        <span style={nowrap} title={RECORD_COUNT_HINT}>벌금 기록 {m.sessionCount}회</span>
                         <span style={{ ...nowrap, color: TEAL_DARK }}>납부 {formatWon(m.paidAmount)}</span>
                         {m.unpaidAmount > 0 && <span style={{ ...nowrap, color: '#B91C1C' }}>미납 {formatWon(m.unpaidAmount)}</span>}
                         {m.excludedAmount > 0 && <span style={nowrap}>비대상 {formatWon(m.excludedAmount)}</span>}
@@ -386,6 +430,140 @@ function UnlinkedParticipants({ records }: { records: PenaltyHistoryRecord[] }) 
     );
 }
 
+// ── V6: 표시 방식 · 참가/벌금 발생 통계 ─────────────────────────────────────────
+//   금액(누적 벌금 · 납부 · 미납)은 V5 와 같은 값(aggregateMembers)을 그대로 보여준다. 횟수만 추가.
+
+function ViewBar({ view, onChange }: { view: StatsView; onChange: (v: StatsView) => void }) {
+    return (
+        <div role="group" aria-label="표시 방식" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: '#64748B', paddingLeft: 2 }}>표시</span>
+            <div style={{
+                flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 2, padding: 3,
+                borderRadius: 10, background: '#E7ECF2',
+            }}>
+                {STATS_VIEWS.map((v) => {
+                    const active = v === view;
+                    return (
+                        <button key={v} type="button" aria-pressed={active} onClick={() => onChange(v)} style={{
+                            height: 30, minWidth: 0, padding: '0 2px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                            background: active ? '#FFFFFF' : 'transparent', boxShadow: active ? '0 1px 2px rgba(15,23,42,0.10)' : 'none',
+                            color: active ? TEAL_DARK : '#64748B', fontSize: 12, fontWeight: active ? 900 : 700,
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'inherit',
+                        }}>{STATS_VIEW_LABEL[v]}</button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function StatsOverviewCard({ overview: o }: { overview: StatsOverview }) {
+    const cell = (label: string, value: string, accent = false) => (
+        <div style={{ minWidth: 0, textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 10, fontWeight: 800, color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 900, color: accent ? TEAL_DARK : NAVY, whiteSpace: 'nowrap' }}>{value}</p>
+        </div>
+    );
+    const warn: string[] = [];
+    if (o.noSnapshotSessions > 0) warn.push(`정산 스냅샷 없는 공식 세션 ${o.noSnapshotSessions}개는 참가·벌금 모두 집계에서 제외`);
+    if (o.unlinkedParticipations > 0) warn.push(`회원 연결 필요 참가 ${o.unlinkedParticipations}건은 회원별 참가에 미포함`);
+    if (o.inconsistentMembers > 0) warn.push(`벌금 발생이 참가보다 많은 회원 ${o.inconsistentMembers}명 — 데이터 확인 필요`);
+    return (
+        <section aria-label="회원 참가 · 벌금 발생" data-stats-overview style={{ ...FINANCE_CARD_STYLE, padding: '10px 10px 9px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 4 }}>
+                {cell('공식 세션', `${o.sessionCount.toLocaleString('ko-KR')}회`)}
+                {cell('회원 참가', `${o.memberParticipations.toLocaleString('ko-KR')}회`)}
+                {cell('벌금 발생', `${o.memberPenalties.toLocaleString('ko-KR')}회`)}
+                {cell('발생률', formatPenaltyRate(o.memberPenaltyRate), true)}
+            </div>
+            <p style={{ margin: '7px 2px 0', fontSize: 10, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                회원 참가·벌금 발생은 연인원(회원 × 세션) 기준 · {STATS_NOTES.join(' · ')}
+            </p>
+            {warn.length > 0 && (
+                <p style={{ margin: '4px 2px 0', fontSize: 10.5, fontWeight: 700, color: '#92400E', lineHeight: 1.5, wordBreak: 'keep-all' }}>{warn.join(' · ')}</p>
+            )}
+        </section>
+    );
+}
+
+const SORT_LABEL: Record<StatsView, string> = {
+    summary: '누적 벌금 많은 순', amount: '청구액 많은 순', participation: '참가 많은 순', penalty: '벌금 발생 많은 순',
+};
+const SECTION_LABEL: Record<StatsView, string> = {
+    summary: '회원별 종합 현황', amount: '회원별 누적 벌금', participation: '회원별 KDK 참가 횟수', penalty: '회원별 벌금 발생 횟수',
+};
+
+function MemberStatsSection({ rows, view, records, query, update }: {
+    rows: MemberStatsRow[];
+    view: StatsView;
+    records: PenaltyHistoryRecord[];
+    query: HistoryQuery;
+    update: (p: Partial<HistoryQuery>) => void;
+}) {
+    const all = React.useMemo(() => memberRowsForView(rows, view), [rows, view]);
+    const list = React.useMemo(() => all.filter((m) => matchesSearch(m.name, query.q)), [all, query.q]);
+    const unlinked = React.useMemo(() => records.filter((r) => !r.memberId), [records]);
+    const inc = useIncremental(list.length, 50, `${query.q}|${view}|${list.length}`);
+    const onSearch = React.useCallback((q: string) => update({ q }), [update]);
+
+    return (
+        <>
+            <SectionTitle title={SECTION_LABEL[view]} right={<span style={{ fontSize: 10.5, fontWeight: 700, color: '#94A3B8' }}>{SORT_LABEL[view]}</span>} />
+            <SearchBox value={query.q} onChange={onSearch} placeholder="회원 이름 검색" />
+            <p style={{ margin: '0 2px', fontSize: 11, fontWeight: 700, color: '#64748B' }}>
+                {query.q ? <>검색 결과 <b style={{ color: NAVY }}>{list.length}</b>명 / 전체 {all.length}명</> : <>참가·벌금 기록 회원 <b style={{ color: NAVY }}>{all.length}</b>명</>}
+            </p>
+            {list.length === 0 ? (
+                <EmptyCard>{query.q ? '검색된 회원이 없습니다.' : '선택한 기간에 회원 참가·벌금 기록이 없습니다.'}</EmptyCard>
+            ) : (
+                <section style={{ ...FINANCE_CARD_STYLE, padding: 0, overflow: 'hidden' }}>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                        {list.slice(0, inc.limit).map((m, i) => <MemberStatsItem key={m.memberId} m={m} view={view} first={i === 0} query={query} />)}
+                    </ul>
+                </section>
+            )}
+            {inc.more && <ShowMoreButton remaining={list.length - inc.limit} onClick={inc.showMore} />}
+            {unlinked.length > 0 && <UnlinkedParticipants records={unlinked} />}
+        </>
+    );
+}
+
+function MemberStatsItem({ m, view, first, query }: { m: MemberStatsRow; view: StatsView; first: boolean; query: HistoryQuery }) {
+    const href = `/finance/kdk/history/members/${encodeURIComponent(m.memberId)}${historyQueryString({ ...query, tab: 'member' })}`;
+    const strong = (k: 'participation' | 'penalty') => (view === k ? { color: NAVY, fontWeight: 900 } : undefined);
+    const big = view === 'participation' ? { value: `${m.participationCount.toLocaleString('ko-KR')}회`, label: '참가' }
+        : view === 'penalty' ? { value: `${m.penaltyCount.toLocaleString('ko-KR')}회`, label: '벌금 발생' }
+            : { value: formatWon(m.billableAmount), label: '누적 벌금' };
+    return (
+        <li style={{ borderTop: first ? 'none' : '1px solid #EEF2F6' }} data-member-stats-row>
+            <Link href={href} style={rowLink}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <NameLine name={m.name} />
+                    <p style={subLine} data-stats-line>
+                        <span style={{ ...nowrap, ...strong('participation') }}>참가 {m.participationCount}회</span>
+                        <span style={{ ...nowrap, ...strong('penalty') }}>벌금 발생 {m.penaltyCount}회</span>
+                        <span style={nowrap}>발생률 {formatPenaltyRate(m.penaltyRate)}</span>
+                        {m.inconsistent && <span style={{ ...nowrap, color: '#B91C1C' }}>정합성 확인 필요</span>}
+                    </p>
+                    <p style={subLine}>
+                        {view !== 'summary' && <span style={{ ...nowrap, color: NAVY }}>누적 {formatWon(m.billableAmount)}</span>}
+                        <span style={{ ...nowrap, color: TEAL_DARK }}>납부 {formatWon(m.paidAmount)}</span>
+                        {m.unpaidAmount > 0 && <span style={{ ...nowrap, color: '#B91C1C' }}>미납 {formatWon(m.unpaidAmount)}</span>}
+                        {m.excludedAmount > 0 && <span style={nowrap}>비대상 {formatWon(m.excludedAmount)}</span>}
+                        {m.reviewAmount > 0 && <span style={{ ...nowrap, color: '#92400E' }}>확인 필요 {formatWon(m.reviewAmount)}</span>}
+                    </p>
+                </div>
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 900, color: NAVY, whiteSpace: 'nowrap' }}>{big.value}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: '#94A3B8', whiteSpace: 'nowrap' }}>{big.label}</span>
+                    {m.sessionCount > 0 && <PenaltyBucketBadge bucket={m.bucket} />}
+                </div>
+                <ChevronRight size={15} color="#CBD5E1" style={{ flexShrink: 0 }} />
+            </Link>
+        </li>
+    );
+}
+
 // ── 게스트 ───────────────────────────────────────────────────────────────────
 //   기본: 동일 이름 묶음(화면 표시용). ⚠ 동일 이름 ≠ 동일 인물 — 금액은 "동일 이름 기준 합계".
 //   원본 기록은 세션별 그대로이며, '기록별' 보기로 기존 세션별 목록도 볼 수 있다.
@@ -412,6 +590,9 @@ function GuestSection({ records, query, update, guestAvailable }: {
                 {byName
                     ? <>이름이 같은 게스트 기록을 묶어 보여줍니다. 같은 이름이 같은 사람이라는 뜻은 아니며, 금액은 <b style={{ color: NAVY }}>동일 이름 기준 합계</b>입니다(공식 개인별 누적 아님).</>
                     : <>게스트 기록은 세션별 참가자 정보를 기준으로 표시됩니다.</>}
+            </p>
+            <p data-guest-stats-note style={{ margin: '0 2px', fontSize: 10.5, fontWeight: 600, color: '#94A3B8', lineHeight: 1.5, wordBreak: 'keep-all' }}>
+                게스트는 세션을 넘는 고유 식별자가 없어 KDK 참가 횟수·벌금 발생률을 집계하지 않습니다(이름이 같아도 합치지 않음).
             </p>
             {!guestAvailable && (
                 <p style={{ ...FINANCE_CARD_STYLE, margin: 0, padding: '9px 12px', fontSize: 11, fontWeight: 700, color: '#92400E', background: '#FFFBF2', wordBreak: 'keep-all' }}>
@@ -495,7 +676,7 @@ function GuestGroupRow({ g, first, expanded, onToggle }: { g: GuestNameGroup; fi
                         ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ fontSize: 13, fontWeight: 800, color: '#92400E', paddingLeft: 1 }}>이름 확인 불가</span><GuestBadge /></span>
                         : <NameLine name={g.name} isGuest />}
                     <p style={subLine}>
-                        <span style={nowrap}>벌금 {g.count}회</span>
+                        <span style={nowrap} title={RECORD_COUNT_HINT}>벌금 기록 {g.count}건</span>
                         <span style={{ ...nowrap, color: TEAL_DARK }}>납부 {formatWon(s.paidAmount)}</span>
                         <span style={{ ...nowrap, color: s.unpaidAmount > 0 ? '#B91C1C' : '#94A3B8' }}>미납 {formatWon(s.unpaidAmount)}</span>
                         {s.reviewAmount > 0 && <span style={{ ...nowrap, color: '#92400E' }}>확인 필요 {formatWon(s.reviewAmount)}</span>}
@@ -705,6 +886,9 @@ function ExceptionLine({ href, left, sub, right }: { href: string; left: string;
         </li>
     );
 }
+
+/** V5 기록 횟수(비대상·확인 필요 포함)와 V6 '벌금 발생'(유효 부과만)을 구분하는 설명. 계산은 바꾸지 않는다. */
+const RECORD_COUNT_HINT = '벌금 기록 = 비대상·면제·확인 필요를 포함한 벌금 기록 수. 유효 부과 기준 횟수는 종합·벌금 횟수 모드의 ‘벌금 발생’입니다.';
 
 const rowLink: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '11px 10px 11px 13px',
