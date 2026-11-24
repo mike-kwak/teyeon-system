@@ -193,3 +193,13 @@ P0-B(11) ───────┤  (30 은 start_kdk_match 본문 md5 를 11 과
 - SQL Editor 에서 실행할 때 **자동으로 덧붙는 RLS 문구 · "RLS 활성화" 제안이 보이면 실행하지 말고 확인**한다. 특히 `create table … as table public.<기존 표>` 형태.
 - 운영 SQL(R1 · K1 포함)은 다시 실행하지 않는다. 재실행 · rollback 은 별도 승인 후, 경기 없는 시간에만.
 - 남은 확인: T03(RLS 켜짐 · 정책 0, 25개) 명단 중 화면이 직접 읽는 테이블이 있는지 대조 — 미대조.
+
+## 11. Closing Sprint 조회 전용 · 미적용 SQL(B1 · F3, 2026-11-24)
+
+운영 변경 없음. 판정 · 운영 조회 결과 · 재사용 방법 · 백로그는 `docs/CLOSING_SPRINT_B1_F3_REPORT.md`.
+
+| 파일(`supabase/closing_sprint/`) | 종류 | 운영 |
+|---|---|---|
+| `B1_kdk_court_return_officers.sql` · `_rollback.sql` | 적용 · rollback | **미적용**(B1_NOT_NEEDED — 운영진 6명 모두 기존 복귀 권한). 운영진 변경 시 precheck 후 별도 승인 |
+| `B1_kdk_court_return_officers_precheck_READONLY.sql` · `B1_officer_role_mapping_READONLY.sql` | READONLY | 사용자 실행(2026-11-24) |
+| `F3_penalty_reconciliation_summary_READONLY.sql` · `F3_x05_x06_trace_READONLY.sql` · `F3_x05_x06_audit_READONLY.sql` · `F3_penalty_status_consistency_READONLY.sql` | READONLY | 사용자 실행(2026-11-24) — CORE VERIFIED, 데이터 변경 없음 |
