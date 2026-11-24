@@ -1066,9 +1066,14 @@ function KdkDisplayBoard() {
   //   1) ?courts=5 → 5코트(2+3) 강제   2) ?courts=4 → 기존 4코트 강제
   //   3) 그 외 → 현재 세션 경기(matches, 이 세션만 조회됨) 중 5번 코트 배정 기록이 있으면 5코트.
   //      5번 경기가 대기로 되돌려져 court 가 비어도 같은 세션 안에서는 5코트를 유지(화면 출렁임 방지).
+  //   ※ 대기(waiting) 경기의 court 는 대진 저장 시 들어간 '경기 순번'이라 실제 코트가 아니다.
+  //      실제 코트 투입을 뜻하는 playing/complete 만 5번 코트 사용 기록으로 인정한다(MAINT-001).
   const courtsParam = searchParams.get('courts');
   const forcedCourtSlots = courtsParam === '5' ? 5 : courtsParam === '4' ? 4 : null;
-  const hasCourtFiveRecord = useMemo(() => matches.some((match) => Number(match.court) === 5), [matches]);
+  const hasCourtFiveRecord = useMemo(
+    () => matches.some((match) => Number(match.court) === 5 && (match.status === 'playing' || match.status === 'complete')),
+    [matches],
+  );
   const [courtFiveSessionId, setCourtFiveSessionId] = useState('');
   useEffect(() => {
     if (hasCourtFiveRecord && resolvedSessionId) setCourtFiveSessionId(resolvedSessionId);
