@@ -1,6 +1,6 @@
 # TEYEON 보안 SQL 등록부 (Security SQL Registry)
 
-- 갱신: 2026-11-06(SQL 38 운영 적용 반영) · 기준 코드 `b751b8e`
+- 갱신: 2026-11-26(MAINT-002 운영 적용 반영, §12) · 이전 2026-11-06(SQL 38) · 기준 코드 `c316858`
 - 목적: 운영 DB 에 적용된 보안 SQL 의 **적용 순서 · 의존성 · 재실행 위험 · rollback/verify 짝 · 운영 상태**를 저장소에 남긴다(ISS-016).
 - 폴더
   - `supabase/security_p0/` — P0(anon 쓰기 · RPC · 역할 상승) 적용 · 확인 · 진단
@@ -203,3 +203,25 @@ P0-B(11) ───────┤  (30 은 start_kdk_match 본문 md5 를 11 과
 | `B1_kdk_court_return_officers.sql` · `_rollback.sql` | 적용 · rollback | **미적용**(B1_NOT_NEEDED — 운영진 6명 모두 기존 복귀 권한). 운영진 변경 시 precheck 후 별도 승인 |
 | `B1_kdk_court_return_officers_precheck_READONLY.sql` · `B1_officer_role_mapping_READONLY.sql` | READONLY | 사용자 실행(2026-11-24) |
 | `F3_penalty_reconciliation_summary_READONLY.sql` · `F3_x05_x06_trace_READONLY.sql` · `F3_x05_x06_audit_READONLY.sql` · `F3_penalty_status_consistency_READONLY.sql` | READONLY | 사용자 실행(2026-11-24) — CORE VERIFIED, 데이터 변경 없음 |
+
+## 12. MAINT-002 FINAL REPORT 회원 전용 순위(2026-11-26 운영 적용)
+
+운영 적용: 사용자 SQL Editor 실행(precheck 재실행 PASS → migration → verify FAIL 0). 앱 `c316858` Production 배포 후 적용(프런트 먼저). 판정 · QA · 백로그는 `docs/MAINT002_FR_MEMBER_RANKING_REPORT.md`.
+
+| 파일(`supabase/`) | 종류 | 운영 상태 | md5(LF) |
+|---|---|---|---|
+| `maint002_fr_member_ranking_precheck_READONLY.sql` | READONLY | 실행 가능(무변경) — 적용 전 P02 `NEW_INSTALL` · P03 `OK_ORIGINAL` | 584892e4 |
+| `maint002_fr_member_ranking.sql` | APPLY | **APPLIED(2026-11-26)** — 재실행 금지(별도 승인) | c77e963a |
+| `maint002_fr_member_ranking_verify_READONLY.sql` | READONLY | 실행 가능(무변경) — 2026-11-26 FAIL 0 | a08cacb0 |
+| `maint002_fr_member_ranking_rollback.sql` | ROLLBACK | **운영 실행 금지**(공개 RPC 가 anon 에게 전체 순위 · TOP3 · officialSessionId 를 다시 반환) | 31868d16 |
+
+**바뀐 것**
+- `get_public_kdk_final_report(text)` — 시그니처 · 권한 동일, 반환을 allow-list 공개 투영으로 교체(`access:'public'` · standings/podium/featured 빈 배열 · officialSessionId 제거). 함수 본문 md5 `fd6774c7…` → `bb6aee68927aec2e40a94479a092949a`.
+- 신규 `get_kdk_final_report_member(text)` — authenticated 전용. `members.auth_user_id` 연결 + 정회원 · 준회원 · 운영진 토큰 + 리포트 클럽 일치, 탈회 우선 차단(profiles.role · 이메일 미사용).
+- 신규 보조 `kdk_fr_can_view_ranking(uuid,text)` · `kdk_fr_public_names` · `kdk_fr_public_text` · `kdk_fr_public_view` — anon · authenticated 실행 불가(운영 anon 호출 42501 확인).
+
+**현재 기대값(verify)**: V06 = `bb6aee68…` · V07 누출 0 · V09 public_payload `2aca1d710f0a5c2a98659fda9b59557f` · V10 settlement `23377c80ec59cb03e58e139768d64403` / can_view_settlement `dcebc10702aa513b8746d38cfa889ecc` / publish `ecc5db36065caac42bf52ede651387cd`(적용 전후 동일).
+
+**운영 수칙**
+- 프런트를 `c316858` 이전으로 되돌리면 공개 링크가 "리포트 없음"으로 보인다(구 프런트는 빈 standings 를 not_found 처리). 프런트 롤백은 SQL rollback 과 함께 판단한다.
+- 우회 경로는 남아 있다 — `get_public_kdk_session`(공개 순위) · `matches` anon SELECT · `teyeon_archive_v1` authenticated SELECT. **TEYEON 전체 순위 차단 완료 아님.**
