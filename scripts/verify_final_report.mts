@@ -169,9 +169,10 @@ const pe = JSON.stringify(fr.parsePublicFinalReport(evil));
 check('파서: 모르는 키(memberId · confirmedBy) 제거 · 길이 자름', !pe.includes(U(1)) && !pe.includes('x@y.z') && fr.parsePublicFinalReport(evil).podium[0].story.length === 80);
 check('파서: schema 다름 · 순위 없음 → null', fr.parsePublicFinalReport({ ...P.payload, schema: 2 }) === null && fr.parsePublicFinalReport({ ...P.payload, standings: [] }) === null);
 const rpc = (body: any, ok = true) => async () => ({ ok, status: ok ? 200 : 500, body });
-check('공개 조회 ok', (await pub.fetchPublicFinalReport('abcdefabcdef12', rpc({ ok: true, state: 'ok', payload: P.payload, revision: 2, officialSessionId: 'S1' }))).state === 'ok');
+const okr: any = await pub.fetchPublicFinalReport('abcdefabcdef12', rpc({ ok: true, state: 'ok', payload: P.payload, revision: 2, officialSessionId: 'S1' }));
+check('공개 조회 ok → 공개 뷰만(MAINT-002: 순위 · TOP3 · 세션 id 없음)', okr.state === 'ok' && !('payload' in okr) && !('officialSessionId' in okr) && !/standings|podium|featured|S1/.test(JSON.stringify(okr)));
 const cor = await pub.fetchPublicFinalReport('abcdefabcdef12', rpc({ ok: true, state: 'corrected', title: '11월 정모', date: '2026-11-11', officialSessionId: 'S1', payload: P.payload }));
-check('공개 조회 corrected → 수치 없이 제목 · 날짜만', cor.state === 'corrected' && !('payload' in cor) && cor.title === '11월 정모');
+check('공개 조회 corrected → 수치 없이 제목 · 날짜만(세션 id 없음)', cor.state === 'corrected' && !('payload' in cor) && !('officialSessionId' in cor) && cor.title === '11월 정모');
 check('공개 조회 not_found · 조회 실패 unavailable · slug 형식 오류 not_found',
   (await pub.fetchPublicFinalReport('abcdefabcdef12', rpc({ ok: false, state: 'not_found' }))).state === 'not_found'
   && (await pub.fetchPublicFinalReport('abcdefabcdef12', rpc(null, false))).state === 'unavailable'

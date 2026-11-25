@@ -103,7 +103,7 @@ export async function handleFinalReportAction(deps: FinalReportDeps, authHeader:
       let prev: 1 | 2 | null = null;
       if (report.status === 'published') {
         const pub = await fetchPublicFinalReport(report.publicSlug).catch(() => null);
-        if (pub && pub.state === 'ok') prev = pub.payload.v41?.layout === 2 ? 2 : 1;
+        if (pub && pub.state === 'ok') prev = pub.view.layout === 2 ? 2 : 1; // 공개 뷰도 판형(layout)은 남긴다(MAINT-002)
       }
       republish = { prevLayout: prev };
     }

@@ -67,7 +67,7 @@ check('판 번호 없음 · 0 · 소수 · 음수 → v 없음', ['abcdefabcdef1
   && pub.finalReportShareUrl(s, 0).endsWith('/abcdefabcdef12') && pub.finalReportShareUrl(s, 1.5).endsWith('/abcdefabcdef12') && pub.finalReportShareUrl(s, -2).endsWith('/abcdefabcdef12')));
 check('재발행(판 증가) → 공유 URL 이 바뀜 · slug 유지', pub.finalReportShareUrl('abcdefabcdef12', 1) !== pub.finalReportShareUrl('abcdefabcdef12', 2) && pub.finalReportShareUrl('abcdefabcdef12', 2).includes('/club/report/abcdefabcdef12?'));
 check('공유 URL 에 localhost · vercel Preview · 관리자 경로 없음', !/localhost|127\.0\.0\.1|-git-|\/admin|\/api\//.test(pub.finalReportShareUrl('abcdefabcdef12', 2)));
-check('OG 경로 /club/report/[slug]/og?v=판 · 판 없으면 v 없음', pub.finalReportOgPath('abcdefabcdef12', 4) === '/club/report/abcdefabcdef12/og?v=4' && pub.finalReportOgPath('abcdefabcdef12', null) === '/club/report/abcdefabcdef12/og');
+check('OG 경로 /club/report/[slug]/og?v=판&o=2 · 판 없으면 v 없음(MAINT-002 공개 이미지 판)', pub.finalReportOgPath('abcdefabcdef12', 4) === '/club/report/abcdefabcdef12/og?v=4&o=2' && pub.finalReportOgPath('abcdefabcdef12', null) === '/club/report/abcdefabcdef12/og?o=2');
 check('기존 slug URL(판 없음) 유지', pub.finalReportPublicPath('abcdefabcdef12') === '/club/report/abcdefabcdef12');
 const sd = share.shareDataOf('11월 정모', 'https://teyeon-system.vercel.app/club/report/abcdefabcdef12?v=2');
 check('공유 문구: 제목 · 고정 설명만(우승자 · 수치 · 개인정보 없음)', sd.title === 'THE FINAL STORY · 11월 정모' && sd.text === 'TEYEON KDK 공식 결과 리포트' && !/CHAMPION|\d+명/.test(sd.text));
@@ -95,16 +95,19 @@ const payload = {
   podium: [{ rank: 1, name: '구봉준', wins: 4, losses: 0, diff: 14, group: '', guest: false, story: '스토리' }, { rank: 2, name: '아주아주긴이름의선수입니다', wins: 3, losses: 1, diff: 7, group: '', guest: false, story: null }, { rank: 3, name: '홍길동(G)', wins: 3, losses: 1, diff: 5, group: '', guest: true, story: null }],
   featured: [], standings: [],
 };
-const ov = view.ogViewOf({ state: 'ok', payload });
+const { parsePublicReportView } = await load('../lib/kdk/finalReport/finalReportPublicView.ts');
+const pv = parsePublicReportView(payload);
+const ov: any = view.ogViewOf({ state: 'ok', view: pv as any });
 check('OG 발행본: report · 제목 · 날짜(요일)', ov.kind === 'report' && ov.title === '11월 정모' && ov.date === '2026. 11. 10 (화)');
-check('OG TOP3 = 공개본 podium 순서 그대로 · 게스트 (G)', ov.top3.map((x: any) => x.rank).join() === '1,2,3' && ov.top3[0].name === '구봉준' && ov.top3[2].name === '홍길동(G)' && ov.top3[0].label === 'CHAMPION');
-check('OG 긴 이름 말줄임(10자 이내)', [...ov.top3[1].name].length === 10 && ov.top3[1].name.endsWith('…'));
+check('OG(MAINT-002) = 참가 인원 · 경기 수만 · TOP3 없음', ov.participants === 27 && ov.matches === 27 && !('top3' in ov));
+check('OG 에 선수 이름 · CHAMPION 없음', !/구봉준|아주아주|홍길동|CHAMPION/.test(JSON.stringify(ov)));
+check('메타 설명에 우승자 이름 없음', !/구봉준|CHAMPION/.test(view.reportMetaDescription(pv as any)) && view.reportMetaDescription(pv as any).includes('참가 27명'));
 check('말줄임 앞 공백 제거(Alexander Montgomery → Alexander…)', view.clipText('Alexander Montgomery', 11) === 'Alexander…');
-check('OG 에 운영진 문구 · 스토리 · 승패 수치 없음', !JSON.stringify(ov).includes('초안') && !JSON.stringify(ov).includes('스토리') && !('wins' in ov.top3[0]));
-for (const st of ['corrected', 'not_found', 'unavailable']) check(`OG ${st} → 중립 이미지`, view.ogViewOf({ state: st, payload }).kind === 'neutral');
+check('OG 에 운영진 문구 · 스토리 · 승패 수치 없음', !JSON.stringify(ov).includes('초안') && !JSON.stringify(ov).includes('스토리') && !JSON.stringify(ov).includes('wins'));
+for (const st of ['corrected', 'not_found', 'unavailable']) check(`OG ${st} → 중립 이미지`, view.ogViewOf({ state: st, view: pv as any }).kind === 'neutral');
 check('OG 결과 없음 → 중립', view.ogViewOf(null).kind === 'neutral');
 check('clipText: 코드 포인트 기준(이모지 깨짐 없음)', view.clipText('가나다라마', 3) === '가나…' && view.clipText('가나', 3) === '가나' && view.clipText('😀😀😀😀', 3) === '😀😀…');
-check('긴 세션명 OG 말줄임(24자)', [...view.ogViewOf({ state: 'ok', payload: { ...payload, session: { ...payload.session, title: '가'.repeat(40) } } }).title].length === 24);
+check('긴 세션명 OG 말줄임(24자)', [...(view.ogViewOf({ state: 'ok', view: parsePublicReportView({ ...payload, session: { ...payload.session, title: '가'.repeat(40) } }) as any }) as any).title].length === 24);
 
 console.log(`KDK FINAL REPORT P4 share/og/group fixture: ${passed} passed / ${failures.length} failed`);
 for (const f of failures) console.log('  FAIL', f);

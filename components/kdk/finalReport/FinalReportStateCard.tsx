@@ -27,7 +27,10 @@ const COPY: Record<FinalReportStateKind, { kicker: string; title: string; body: 
   },
 };
 
-export default function FinalReportStateCard({ kind, title, date, officialHref, retryHref, official }: {
+/** MAINT-002: 공개 화면의 정정 안내 — 공식 순위 없이 안내만(공식 기록은 회원 확인 후에만). */
+const CORRECTED_PUBLIC_BODY = '운영진이 정정된 기록으로 내용을 다시 확인한 뒤 리포트를 새로 발행합니다.';
+
+export default function FinalReportStateCard({ kind, title, date, officialHref, retryHref, official, publicOnly, notice }: {
   kind: FinalReportStateKind;
   title?: string;
   date?: string;
@@ -35,6 +38,10 @@ export default function FinalReportStateCard({ kind, title, date, officialHref, 
   retryHref?: string;
   /** 정정 안내(A안): 서버가 고른 공식 순위 · 완료 경기(정산 없음). 없으면 안내와 새로고침만. */
   official?: OfficialResultSummary | null;
+  /** MAINT-002: 공개 화면(회원 확인 전 · 비회원) — 정정 안내에서 공식 기록 영역을 그리지 않는다. */
+  publicOnly?: boolean;
+  /** MAINT-002: 회원 전용 안내(공개 화면에서만 · 한 곳). */
+  notice?: React.ReactNode;
 }) {
   const c = COPY[kind];
   return (
@@ -52,7 +59,7 @@ export default function FinalReportStateCard({ kind, title, date, officialHref, 
             )}
           </div>
           <div style={{ padding: '16px 18px 18px' }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.6, color: FRV.sub, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>{c.body}</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.6, color: FRV.sub, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>{kind === 'corrected' && publicOnly ? CORRECTED_PUBLIC_BODY : c.body}</p>
             <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
               {officialHref && (
                 <Link data-fr="official-link" href={officialHref} style={btn(true)}>공식 KDK 결과 보기</Link>
@@ -64,8 +71,9 @@ export default function FinalReportStateCard({ kind, title, date, officialHref, 
             </div>
           </div>
         </section>
-        {kind === 'corrected' && official && <OfficialRecord official={official} />}
-        {kind === 'corrected' && !official && (
+        {kind === 'corrected' && publicOnly && notice}
+        {kind === 'corrected' && !publicOnly && official && <OfficialRecord official={official} />}
+        {kind === 'corrected' && !publicOnly && !official && (
           <p data-fr="official-missing" style={{ margin: '14px 4px 0', fontSize: 13, fontWeight: 600, lineHeight: 1.6, color: FRV.sub, wordBreak: 'keep-all' }}>
             공식 기록을 지금 불러오지 못했습니다. 잠시 후 새로고침해 주세요.
           </p>

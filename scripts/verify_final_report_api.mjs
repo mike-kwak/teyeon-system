@@ -18,6 +18,7 @@ const { handleFinalReportAction } = await import('../lib/kdk/server/finalReportH
 const fr = await import('../lib/kdk/finalReport/finalReportModel.ts');
 const ed = await import('../lib/kdk/finalReport/finalReportEditor.ts');
 const { fetchPublicFinalReport } = await import('../lib/kdk/finalReportPublicService.ts');
+const { parsePublicReportView } = await import('../lib/kdk/finalReport/finalReportPublicView.ts');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SQL = readFileSync(join(here, '../supabase/add_kdk_final_report.sql'), 'utf8');
@@ -188,8 +189,9 @@ let P1 = await call('tok-ceo', pubBody({ payload: { standings: [{ rank: 1, name:
 check('첫 발행 → revision 1 · 같은 slug', P1.body.ok === true && P1.body.revision === 1 && P1.body.publicSlug === slug, JSON.stringify(P1.body));
 let G = await pub(slug);
 check('발행 전 not_found → 발행 후 공개 ok', before === 'not_found' && G.state === 'ok');
-check('공개본 = 미리보기(실제 공개 화면 데이터와 일치)', JSON.stringify(G.payload) === JSON.stringify(pv.body.payload));
-check('공개본에 클라이언트 값 · UUID · 게스트 id · 세션 id 없음', !/가짜|11111111-0000|manual-guest|KDK-20261111/.test(JSON.stringify(G.payload)));
+// MAINT-002: 공개 조회는 공개 뷰(순위 · 이름 없음)만 — 미리보기(전체 발행본)의 공개 투영과 같다.
+check('공개 뷰 = 미리보기의 공개 투영', JSON.stringify(G.view) === JSON.stringify(parsePublicReportView(pv.body.payload)));
+check('공개 뷰에 클라이언트 값 · UUID · 게스트 id · 세션 id · 순위 없음', !/가짜|11111111-0000|manual-guest|KDK-20261111|standings|podium/.test(JSON.stringify(G)));
 const link = async () => (await anonRpc('get_public_kdk_final_report_link', { p_session_id: SID })).body;
 check('Archive 진입점 링크: 발행 중 → slug', (await link()).publicSlug === slug);
 upd = P1.body.updatedAt;
@@ -197,10 +199,10 @@ upd = P1.body.updatedAt;
 // ── 초안 수정은 공개본 유지 → 재발행 ──────────────────────────────────────────────────
 content = { ...content, closing: '모두 수고 많으셨습니다.' };
 const s2 = await call('tok-ceo', { action: 'save', ...base(content, { expectedUpdatedAt: upd }) });
-check('발행 후 초안 저장 → 공개본은 그대로', s2.body.ok === true && (await pub(slug)).payload.closing === '다음 정모에서 만나요.');
+check('발행 후 초안 저장 → 공개본은 그대로', s2.body.ok === true && (await pub(slug)).view.closing === '다음 정모에서 만나요.');
 upd = s2.body.updatedAt;
 const P2 = await call('tok-ceo', pubBody({ expectedRevision: 1 }));
-check('재발행 → revision 2 · slug 유지 · 새 문구 공개', P2.body.revision === 2 && P2.body.publicSlug === slug && (await pub(slug)).payload.closing === '모두 수고 많으셨습니다.');
+check('재발행 → revision 2 · slug 유지 · 새 문구 공개', P2.body.revision === 2 && P2.body.publicSlug === slug && (await pub(slug)).view.closing === '모두 수고 많으셨습니다.');
 upd = P2.body.updatedAt;
 check('동시 발행: 이미 지난 revision(1)으로 다시 발행 → 409 revision_conflict', (await call('tok-kdkm', pubBody({ expectedRevision: 1 }))).body.reason === 'revision_conflict');
 
@@ -221,7 +223,7 @@ const ra = await call('tok-ceo', { action: 'reanchor', ...base(D.content), keep:
 check('재확인(다시 연결) → 스토리 현재 순위 2위로 연결 · 연결 문제 없음', ra.body.ok && ra.body.content.stories[0].rank === 2 && ra.body.reconcile.needsReview === false);
 content = ra.body.content;
 const P3 = await call('tok-ceo', pubBody({ expectedRevision: 2, baseSignature: D.signature, expectedUpdatedAt: D.report.updatedAt }));
-check('재확인 후 재발행 → revision 3 · 같은 slug · 공개 ok · 정정 순위 반영', P3.body.revision === 3 && (await pub(slug)).state === 'ok' && (await pub(slug)).payload.standings[0].name === '박광현', JSON.stringify(P3.body));
+check('재확인 후 재발행 → revision 3 · 같은 slug · 공개 ok · 정정 순위 반영', P3.body.revision === 3 && (await pub(slug)).state === 'ok' && !JSON.stringify(await pub(slug)).includes('박광현'), JSON.stringify(P3.body)); // MAINT-002: 순위는 공개 뷰에 없음
 upd = P3.body.updatedAt;
 
 // ── 경기 점수 정정 → 리뷰 match_changed ─────────────────────────────────────────────
